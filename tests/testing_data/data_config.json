@@ -72,7 +72,7 @@
         "test_meta_file": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
             "hash_type": "md5",
-            "hash_val": "e12813de2c15672a8c8fa8466b3dfc95"
+            "hash_val": "662135097106b71067cd1fc657f8720f"
         }
     }
 }

@@ -28,6 +28,7 @@ from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
+from monai.utils.misc import ensure_tuple
 
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
@@ -297,7 +298,7 @@ def load(
 
 
 def run(
-    runner_id: Optional[str] = None,
+    runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
@@ -312,23 +313,23 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
-        python -m monai.bundle run trainer --meta_file <meta path> --config_file <config path>
+        python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
 
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run trainer --net#input_chns 1 ...
+        python -m monai.bundle run training --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run evaluator --net %/path/to/another.json ...
+        python -m monai.bundle run evaluating --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run trainer --net %/data/other.json#net_arg ...
+        python -m monai.bundle run training --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
         python -m monai.bundle run --args_file "/workspace/data/args.json" --config_file <config path>
 
     Args:
-        runner_id: ID name of the runner component or workflow, it must have a `run` method. Defaults to ``""``.
+        runner_id: ID name of the expected config expression to run, can also be a list of IDs to run in order.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
@@ -368,12 +369,8 @@ def run(
     for k, v in _args.items():
         parser[k] = v
 
-    workflow = parser.get_parsed_content(id=runner_id_)
-    if not hasattr(workflow, "run"):
-        raise ValueError(
-            f"The parsed workflow {type(workflow)} (id={runner_id_}) does not have a `run` method.\n{run.__doc__}"
-        )
-    return workflow.run()
+    # resolve and execute the specified runner expressions in the config, return the results
+    return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
 
 
 def verify_metadata(
@@ -550,8 +547,10 @@ def ckpt_export(
         filepath: filepath to export, if filename has no extension it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-        config_file: filepath of the config file, if `None`, must be provided in `args_file`.
-            if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file to save in TorchScript model and extract network information,
+            the saved key in the TorchScript model is the config filename without extension, and the saved config
+            value is always serialized in JSON format no matter the original file format is JSON or YAML.
+            it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
         args_file: a JSON or YAML file to provide default values for `meta_file`, `config_file`,
@@ -592,8 +591,23 @@ def ckpt_export(
     else:
         copy_model_state(dst=net, src=ckpt_file_ if key_in_ckpt_ == "" else ckpt_file_[key_in_ckpt_])
 
-    # convert to TorchScript model and save with meta data, config content
+    # convert to TorchScript model and save with metadata, config content
     net = convert_to_torchscript(model=net)
+
+    extra_files: Dict = {}
+    for i in ensure_tuple(config_file_):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
 
     save_net_with_metadata(
         jit_obj=net,
@@ -601,6 +615,6 @@ def ckpt_export(
         include_config_vals=False,
         append_timestamp=False,
         meta_values=parser.get().pop("_meta_", None),
-        more_extra_files={"config": json.dumps(parser.get()).encode()},
+        more_extra_files=extra_files,
     )
     logger.info(f"exported to TorchScript file: {filepath_}.")

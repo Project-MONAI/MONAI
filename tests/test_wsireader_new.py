@@ -72,7 +72,9 @@ TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
 
-TEST_CASE_ERROR_GRAY = [np.ones((16, 16, 2), dtype=np.uint8)]  # wrong color channel
+TEST_CASE_ERROR_0C = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
+TEST_CASE_ERROR_1C = [np.ones((16, 16, 1), dtype=np.uint8)]  # one color channel
+TEST_CASE_ERROR_2C = [np.ones((16, 16, 2), dtype=np.uint8)]  # two color channels
 TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
 
 
@@ -103,7 +105,7 @@ def save_gray_tiff(array: np.ndarray, filename: str):
         filename: the filename to be used for the tiff file.
     """
     img_gray = array
-    imwrite(filename, img_gray, shape=img_gray.shape, photometric="minisblack")
+    imwrite(filename, img_gray, shape=img_gray.shape)
 
     return filename
 
@@ -123,8 +125,13 @@ class WSIReaderTests:
         def test_read_whole_image(self, file_path, level, expected_shape):
             reader = WSIReader(self.backend, level=level)
             with reader.read(file_path) as img_obj:
-                img = reader.get_data(img_obj)[0]
+                img, meta = reader.get_data(img_obj)
             self.assertTupleEqual(img.shape, expected_shape)
+            self.assertEqual(meta["backend"], self.backend)
+            self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
+            self.assertEqual(meta["patch"]["level"], level)
+            self.assertTupleEqual(meta["patch"]["size"], expected_shape[1:])
+            self.assertTupleEqual(meta["patch"]["location"], (0, 0))
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
         def test_read_region(self, file_path, patch_info, expected_img):
@@ -136,29 +143,39 @@ class WSIReaderTests:
                         reader.get_data(img_obj, **patch_info)[0]
                 else:
                     # Read twice to check multiple calls
-                    img = reader.get_data(img_obj, **patch_info)[0]
+                    img, meta = reader.get_data(img_obj, **patch_info)
                     img2 = reader.get_data(img_obj, **patch_info)[0]
                     self.assertTupleEqual(img.shape, img2.shape)
                     self.assertIsNone(assert_array_equal(img, img2))
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
+                    self.assertEqual(meta["backend"], self.backend)
+                    self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
+                    self.assertEqual(meta["patch"]["level"], patch_info["level"])
+                    self.assertTupleEqual(meta["patch"]["size"], expected_img.shape[1:])
+                    self.assertTupleEqual(meta["patch"]["location"], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_3])
-        def test_read_region_multi_wsi(self, file_path, patch_info, expected_img):
+        def test_read_region_multi_wsi(self, file_path_list, patch_info, expected_img):
             kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
             reader = WSIReader(self.backend, **kwargs)
-            img_obj = reader.read(file_path, **kwargs)
+            img_obj_list = reader.read(file_path_list, **kwargs)
             if self.backend == "tifffile":
                 with self.assertRaises(ValueError):
-                    reader.get_data(img_obj, **patch_info)[0]
+                    reader.get_data(img_obj_list, **patch_info)[0]
             else:
                 # Read twice to check multiple calls
-                img = reader.get_data(img_obj, **patch_info)[0]
-                img2 = reader.get_data(img_obj, **patch_info)[0]
+                img, meta = reader.get_data(img_obj_list, **patch_info)
+                img2 = reader.get_data(img_obj_list, **patch_info)[0]
                 self.assertTupleEqual(img.shape, img2.shape)
                 self.assertIsNone(assert_array_equal(img, img2))
                 self.assertTupleEqual(img.shape, expected_img.shape)
                 self.assertIsNone(assert_array_equal(img, expected_img))
+                self.assertEqual(meta["backend"], self.backend)
+                self.assertEqual(meta["wsi"][0]["path"], str(os.path.abspath(file_path_list[0])))
+                self.assertEqual(meta["patch"][0]["level"], patch_info["level"])
+                self.assertTupleEqual(meta["patch"][0]["size"], expected_img.shape[1:])
+                self.assertTupleEqual(meta["patch"][0]["location"], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -180,13 +197,15 @@ class WSIReaderTests:
             self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
             self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
 
-        @parameterized.expand([TEST_CASE_ERROR_GRAY, TEST_CASE_ERROR_3D])
+        @parameterized.expand([TEST_CASE_ERROR_0C, TEST_CASE_ERROR_1C, TEST_CASE_ERROR_2C, TEST_CASE_ERROR_3D])
         @skipUnless(has_tiff, "Requires tifffile.")
         def test_read_malformats(self, img_expected):
+            if self.backend == "cucim" and (len(img_expected.shape) < 3 or img_expected.shape[2] == 1):
+                # Until cuCIM addresses https://github.com/rapidsai/cucim/issues/230
+                return
             reader = WSIReader(self.backend)
-            file_path = save_gray_tiff(
-                img_expected, os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
-            )
+            file_path = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
+            imwrite(file_path, img_expected, shape=img_expected.shape)
             with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError if has_osl else ValueError)):
                 with reader.read(file_path) as img_obj:
                     reader.get_data(img_obj)

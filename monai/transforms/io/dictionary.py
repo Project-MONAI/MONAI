@@ -38,7 +38,7 @@ class LoadImaged(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.LoadImage`,
     It can load both image data and metadata. When loading a list of files in one key,
     the arrays will be stacked and a new dimension will be added as the first dimension
-    In this case, the meta data of the first image will be used to represent the stacked result.
+    In this case, the metadata of the first image will be used to represent the stacked result.
     The affine transform of all the stacked images should be same.
     The output metadata field will be created as ``meta_keys`` or ``key_{meta_key_postfix}``.
 
@@ -82,7 +82,7 @@ class LoadImaged(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            reader: reader to load image file and meta data
+            reader: reader to load image file and metadata
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
@@ -90,18 +90,18 @@ class LoadImaged(MapTransform):
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             dtype: if not None, convert the loaded image data to this data type.
-            meta_keys: explicitly indicate the key to store the corresponding meta data dictionary.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+            meta_keys: explicitly indicate the key to store the corresponding metadata dictionary.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
             meta_key_postfix: if meta_keys is None, use `key_{postfix}` to store the metadata of the nifti image,
-                default is `meta_dict`. The meta data is a dictionary object.
+                default is `meta_dict`. The metadata is a dictionary object.
                 For example, load nifti file for `image`, store the metadata into `image_meta_dict`.
-            overwriting: whether allow overwriting existing meta data of same key.
+            overwriting: whether allow overwriting existing metadata of same key.
                 default is False, which will raise exception if encountering existing key.
             image_only: if True return dictionary containing just only the image volumes, otherwise return
                 dictionary containing image data array and header dict per input key.
-            ensure_channel_first: if `True` and loaded both image array and meta data, automatically convert
+            ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
@@ -141,7 +141,7 @@ class LoadImaged(MapTransform):
                     raise ValueError("metadata must be a dict.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
-                    raise KeyError(f"Meta data with key {meta_key} already exists and overwriting=False.")
+                    raise KeyError(f"Metadata with key {meta_key} already exists and overwriting=False.")
                 d[meta_key] = data[1]
         return d
 

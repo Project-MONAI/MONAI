@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from os.path import abspath
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -39,7 +40,7 @@ class BaseWSIReader(ImageReader):
         img_data, meta_data = image_reader.get_data(wsi)
 
     - The `read` call converts an image filename into whole slide image object,
-    - The `get_data` call fetches the image data, as well as meta data.
+    - The `get_data` call fetches the image data, as well as metadata.
 
     The following methods needs to be implemented for any concrete implementation of this class:
 
@@ -53,6 +54,7 @@ class BaseWSIReader(ImageReader):
     """
 
     supported_suffixes: List[str] = []
+    backend = ""
 
     def __init__(self, level: int, **kwargs):
         super().__init__()
@@ -63,7 +65,7 @@ class BaseWSIReader(ImageReader):
     @abstractmethod
     def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -81,6 +83,11 @@ class BaseWSIReader(ImageReader):
             wsi: a whole slide image object loaded from a file
 
         """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
@@ -102,12 +109,14 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abstractmethod
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
+    def get_metadata(
+        self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
+    ) -> Dict:
         """
         Returns metadata of the extracted patch from the whole slide image.
 
         Args:
+            wsi: the whole slide image object, from which the patch is loaded
             patch: extracted patch from whole slide image
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
@@ -115,7 +124,14 @@ class BaseWSIReader(ImageReader):
             level: the level number. Defaults to 0
 
         """
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+        metadata: Dict = {
+            "backend": self.backend,
+            "original_channel_dim": 0,
+            "spatial_shape": np.asarray(patch.shape[1:]),
+            "wsi": {"path": self.get_file_path(wsi)},
+            "patch": {"location": location, "size": size, "level": level},
+        }
+        return metadata
 
     def get_data(
         self,
@@ -158,7 +174,7 @@ class BaseWSIReader(ImageReader):
             # Verify location
             if location is None:
                 location = (0, 0)
-            wsi_size = self.get_size(each_wsi, level)
+            wsi_size = self.get_size(each_wsi, 0)
             if location[0] > wsi_size[0] or location[1] > wsi_size[1]:
                 raise ValueError(f"Location is outside of the image: location={location}, image size={wsi_size}")
 
@@ -180,13 +196,40 @@ class BaseWSIReader(ImageReader):
                     f"The image dimension should be 3 but has {patch.ndim}. "
                     "`WSIReader` is designed to work only with 2D images with color channel."
                 )
-
+            # Check if there are four color channels for RGBA
+            if mode == "RGBA" and patch.shape[0] != 4:
+                raise ValueError(
+                    f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
+                )
+            # Check if there are three color channels for RGB
+            elif mode in "RGB" and patch.shape[0] != 3:
+                raise ValueError(
+                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
+                )
             # Create a list of patches
             patch_list.append(patch)
 
             # Set patch-related metadata
-            each_meta = self.get_metadata(patch=patch, location=location, size=size, level=level)
-            metadata.update(each_meta)
+            each_meta = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
+
+            if len(wsi) == 1:
+                metadata = each_meta
+            else:
+                if not metadata:
+                    metadata = {
+                        "backend": each_meta["backend"],
+                        "original_channel_dim": each_meta["original_channel_dim"],
+                        "spatial_shape": each_meta["spatial_shape"],
+                        "wsi": [each_meta["wsi"]],
+                        "patch": [each_meta["patch"]],
+                    }
+                else:
+                    if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
+                        raise ValueError("original_channel_dim is not consistent across wsi objects.")
+                    if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
+                        raise ValueError("spatial_shape is not consistent across wsi objects.")
+                    metadata["wsi"].append(each_meta["wsi"])
+                    metadata["patch"].append(each_meta["patch"])
 
         return _stack_images(patch_list, metadata), metadata
 
@@ -238,7 +281,7 @@ class WSIReader(BaseWSIReader):
 
     def get_size(self, wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -247,19 +290,9 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_size(wsi, level)
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        return self.reader.get_metadata(patch=patch, size=size, location=location, level=level)
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return self.reader.get_file_path(wsi)
 
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
@@ -308,6 +341,7 @@ class CuCIMWSIReader(BaseWSIReader):
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
+    backend = "cucim"
 
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
@@ -326,7 +360,7 @@ class CuCIMWSIReader(BaseWSIReader):
     @staticmethod
     def get_size(wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -335,27 +369,9 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        metadata: Dict = {
-            "backend": "cucim",
-            "spatial_shape": np.asarray(patch.shape[1:]),
-            "original_channel_dim": 0,
-            "location": location,
-            "size": size,
-            "level": level,
-        }
-        return metadata
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return str(abspath(wsi.path))
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
@@ -408,11 +424,6 @@ class CuCIMWSIReader(BaseWSIReader):
         patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
-        if mode == "RGBA" and patch.shape[0] != 4:
-            raise ValueError(
-                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-            )
-
         if mode in "RGB":
             if patch.shape[0] not in [3, 4]:
                 raise ValueError(
@@ -436,6 +447,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     """
 
     supported_suffixes = ["tif", "tiff", "svs"]
+    backend = "openslide"
 
     def __init__(self, level: int = 0, **kwargs):
         super().__init__(level, **kwargs)
@@ -454,7 +466,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     @staticmethod
     def get_size(wsi, level: int) -> Tuple[int, int]:
         """
-        Returns the size of the whole slide image at a given level.
+        Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -463,27 +475,9 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
-    def get_metadata(self, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int) -> Dict:
-        """
-        Returns metadata of the extracted patch from the whole slide image.
-
-        Args:
-            patch: extracted patch from whole slide image
-            location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
-            size: (height, width) tuple giving the patch size at the given level (`level`).
-                If None, it is set to the full image size at the given level.
-            level: the level number. Defaults to 0
-
-        """
-        metadata: Dict = {
-            "backend": "openslide",
-            "spatial_shape": np.asarray(patch.shape[1:]),
-            "original_channel_dim": 0,
-            "location": location,
-            "size": size,
-            "level": level,
-        }
-        return metadata
+    def get_file_path(self, wsi) -> str:
+        """Return the file path for the WSI object"""
+        return str(abspath(wsi._filename))
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
@@ -536,16 +530,5 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         # Make it channel first
         patch = AsChannelFirst()(patch)  # type: ignore
-
-        # Check if the color channel is 3 (RGB) or 4 (RGBA)
-        if mode == "RGBA" and patch.shape[0] != 4:
-            raise ValueError(
-                f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-            )
-
-        elif mode in "RGB" and patch.shape[0] != 3:
-            raise ValueError(
-                f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
-            )
 
         return patch

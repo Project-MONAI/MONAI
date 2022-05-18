@@ -141,7 +141,7 @@ class Average(Enum):
 
 class MetricReduction(Enum):
     """
-    See also: :py:class:`monai.metrics.meandice.DiceMetric`
+    See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
 
     NONE = "none"
@@ -225,7 +225,7 @@ class ForwardMode(Enum):
 
 
 class TraceKeys:
-    """Extra meta data keys used for traceable transforms."""
+    """Extra metadata keys used for traceable transforms."""
 
     CLASS_NAME: str = "class"
     ID: str = "id"
@@ -239,7 +239,7 @@ class TraceKeys:
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
-    Extra meta data keys used for inverse transforms.
+    Extra metadata keys used for inverse transforms.
 
     .. deprecated:: 0.8.0
         Use :class:`monai.utils.enums.TraceKeys` instead.

@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import inspect
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -32,10 +32,12 @@ class PatchWSIDataset(Dataset):
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
-        reader: the module to be used for loading whole slide imaging,
-            - if `reader` is a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
-            - if `reader` is a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-            - if `reader` is an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+        reader: the module to be used for loading whole slide imaging. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
+            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
@@ -45,14 +47,14 @@ class PatchWSIDataset(Dataset):
 
             [
                 {"image": "path/to/image1.tiff", "location": [200, 500], "label": 0},
-                {"image": "path/to/image2.tiff", "location": [100, 700], "label": 1}
+                {"image": "path/to/image2.tiff", "location": [100, 700], "size": [20, 20], "level": 2, "label": 1}
             ]
 
     """
 
     def __init__(
         self,
-        data: List,
+        data: Sequence,
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
@@ -125,11 +127,13 @@ class PatchWSIDataset(Dataset):
     def _transform(self, index: int):
         # Get a single entry of data
         sample: Dict = self.data[index]
+
         # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
+
         # Get the label
         label = self._get_label(sample)
 
-        # Create put all patch information together and apply transforms
-        patch = {"image": image, "label": label, "metadata": metadata}
-        return apply_transform(self.transform, patch) if self.transform else patch
+        # Apply transforms and output
+        output = {"image": image, "label": label, "metadata": metadata}
+        return apply_transform(self.transform, output) if self.transform else output
