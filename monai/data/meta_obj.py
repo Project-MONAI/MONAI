@@ -199,10 +199,10 @@ class MetaObj:
         """Set the applied operations."""
         self._applied_operations = t
 
-    def push_applied_operations(self, t: Any) -> None:
+    def push_applied_operation(self, t: Any) -> None:
         self._applied_operations.append(t)
 
-    def pop_applied_operations(self) -> Any:
+    def pop_applied_operation(self) -> Any:
         return self._applied_operations.pop()
 
     @property
