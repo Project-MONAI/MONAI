@@ -314,6 +314,9 @@ class JITMetadataKeys(Enum):
 
 
 class BoxModeName(Enum):
+    """
+    Box mode names.
+    """
     XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
     XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
     XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
