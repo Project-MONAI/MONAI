@@ -107,28 +107,28 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
         mode: a representation of box mode. If mode is not given, this func will assume mode is StandardMode
         It can be:
             #. str: choose from monai.utils.enums.BoxModeName, for example,
-                "xyxy": boxes has format [xmin, ymin, xmax, ymax]
-                "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
-                "xxyy": boxes has format [xmin, xmax, ymin, ymax]
-                "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
-                "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
-                "xywh": boxes has format [xmin, ymin, xsize, ysize]
-                "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
-                "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
-                "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: for example,
-                CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode: equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: for example,
-                CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
-            #. None: will assume mode is StandardMode
+                - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
+                - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
+                - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
+                - "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
+                - "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
+                - "xywh": boxes has format [xmin, ymin, xsize, ysize]
+                - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
+                - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
+                - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
+            #. BoxMode instance: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
+            #. None: will assume mode is StandardMode = CornerCornerModeTypeA
     Returns:
         BoxMode object
 
@@ -179,41 +179,53 @@ def convert_box_mode(
     dst_mode: Union[str, BoxMode, Type[BoxMode], None] = None,
 ) -> NdarrayOrTensor:
     """
-    This function converts the boxes in src_mode to the dst_mode
+    This function converts the boxes in src_mode to the dst_mode.
+
     Args:
-        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray
+        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray.
         src_mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
         dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode.
+
+    Note:
+        StandardMode is equivalent to CornerCornerModeTypeA, or "xyxy", or "xyzxyz".
+
         src_mode and dst_mode can be:
             #. str: choose from monai.utils.enums.BoxModeName, for example,
-                "xyxy": boxes has format [xmin, ymin, xmax, ymax]
-                "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
-                "xxyy": boxes has format [xmin, xmax, ymin, ymax]
-                "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
-                "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
-                "xywh": boxes has format [xmin, ymin, xsize, ysize]
-                "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
-                "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
-                "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: for example,
-                CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode: equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: for example,
-                CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
+                - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
+                - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
+                - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
+                - "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
+                - "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
+                - "xywh": boxes has format [xmin, ymin, xsize, ysize]
+                - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
+                - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
+                - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
+            #. BoxMode instance: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
             #. None: will assume mode is StandardMode
+
     Returns:
         boxes_dst: bounding box with target mode, does not share memory with original boxes
 
     Example:
-        boxes = torch.ones(10,6)
-        box_convert_mode(boxes=boxes, src_mode="xyzxyz", dst_mode=CenterSizeMode)
+        .. code-block:: python
+
+            boxes = torch.ones(10,4)
+            # The following three lines are equivalent
+            # They convert boxes with format [xmin, ymin, xmax, ymax] to [xcenter, ycenter, xsize, ysize].
+            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode="ccwh")
+            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_mode.CenterSizeMode)
+            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_mode.CenterSizeMode())
     """
     src_boxmode = get_boxmode(src_mode)
     dst_boxmode = get_boxmode(dst_mode)
@@ -245,39 +257,50 @@ def convert_box_to_standard_mode(
     boxes: NdarrayOrTensor, mode: Union[str, BoxMode, Type[BoxMode], None] = None
 ) -> NdarrayOrTensor:
     """
-    Convert given boxes to standard mode
+    Convert given boxes to standard mode.
+
     Args:
-        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray
-        mode: source box mode. If mode is not given, this func will assume mode is StandardMode
-        It can be:
+        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray.
+        mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
+
+    Note:
+        StandardMode is equivalent to CornerCornerModeTypeA, or "xyxy", or "xyzxyz".
+
+        mode can be:
             #. str: choose from monai.utils.enums.BoxModeName, for example,
-                "xyxy": boxes has format [xmin, ymin, xmax, ymax]
-                "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
-                "xxyy": boxes has format [xmin, xmax, ymin, ymax]
-                "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
-                "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
-                "xywh": boxes has format [xmin, ymin, xsize, ysize]
-                "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
-                "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
-                "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: for example,
-                CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode: equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: for example,
-                CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
-                CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
-                CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
-                CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
-                CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
+                - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
+                - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
+                - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
+                - "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
+                - "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
+                - "xywh": boxes has format [xmin, ymin, xsize, ysize]
+                - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
+                - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
+                - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+            #. BoxMode class: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
+            #. BoxMode instance: choose from monai.data.box_mode, for example,
+                - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
+                - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
+                - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
+                - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
+                - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
             #. None: will assume mode is StandardMode
+
     Returns:
         boxes_standard: bounding box with standard mode, does not share memory with original boxes
 
     Example:
-        boxes = torch.ones(10,6)
-        box_convert_standard_mode(boxes=boxes, mode="xxyyzz")
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            # The following two lines are equivalent
+            # They convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
+            box_convert_standard_mode(boxes=boxes, mode="xxyyzz")
+            box_convert_mode(boxes=boxes, src_mode="xxyyzz", dst_mode="xyzxyz")
     """
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())

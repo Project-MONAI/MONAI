@@ -311,3 +311,15 @@ PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
+
+Box utility
+-----------
+
+convert_box_mode
+~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.convert_box_mode
+
+convert_box_to_standard_mode
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
+
