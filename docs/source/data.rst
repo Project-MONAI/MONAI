@@ -333,6 +333,7 @@ Box mode converter
 
 Box IoU
 ~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.box_area
 .. autofunction:: monai.data.box_utils.box_iou
 .. autofunction:: monai.data.box_utils.box_giou
 .. autofunction:: monai.data.box_utils.box_pair_giou
