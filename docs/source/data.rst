@@ -312,13 +312,15 @@ PatchWSIDataset
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
 
-Box utility
------------
+Bounding box
+--------------------
 
-convert_box_mode
-~~~~~~~~~~~~~~~~~
+Box mode
+~~~~~~~~~~
+.. automodule:: monai.data.box_mode
+    :members:
+
+Box mode converter
+~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.box_utils.convert_box_mode
-
-convert_box_to_standard_mode
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.data.box_utils.convert_box_to_standard_mode

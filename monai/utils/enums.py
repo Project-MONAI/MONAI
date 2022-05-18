@@ -36,6 +36,7 @@ __all__ = [
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "BoxModeName",
 ]
 
 
@@ -317,6 +318,7 @@ class BoxModeName(Enum):
     """
     Box mode names.
     """
+
     XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
     XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
     XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]

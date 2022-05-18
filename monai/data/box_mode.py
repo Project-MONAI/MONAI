@@ -29,9 +29,10 @@ class BoxMode(ABC):
     """
     An abstract class of a ``BoxMode``.
     A BoxMode is callable that converts box mode of boxes.
-    It always creates a copy and will not modify boxes in place,
-    the implementation should be aware of:
-        #. remember to define ``name`` which is a dictionary that maps ``spatial_dims`` to the box mode name.
+    It always creates a copy and will not modify boxes in place.
+
+    The implementation should be aware of:
+    remember to define class variable ``name`` which is a dictionary that maps ``spatial_dims`` to the box mode name.
     """
 
     name: Dict[int, BoxModeName] = {}
@@ -39,13 +40,13 @@ class BoxMode(ABC):
     @classmethod
     def get_name(cls, spatial_dims: int) -> str:
         """
-        Get the mode name for the given spatial dimension
+        Get the mode name for the given spatial dimension using class variable ``name``.
+
         Args:
             spatial_dims: number of spatial dimensions of the bounding box.
+
         Returns:
-            mode string name
-        Example:
-            BoxMode.get_name(spatial_dims = 2)
+            ``str``: mode string name
         """
         return cls.name[spatial_dims].value
 
@@ -53,14 +54,19 @@ class BoxMode(ABC):
     def boxes_to_corners(self, boxes: torch.Tensor) -> Tuple:
         """
         Convert the bounding boxes of the current mode to corners.
+
         Args:
             boxes: bounding box, Nx4 or Nx6 torch tensor
+
         Returns:
-            corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor
+            ``Tuple``: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
+            It represents (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
+
         Example:
-            boxmode = BoxMode()
-            boxes = torch.ones(10,6)
-            boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
+            .. code-block:: python
+
+                boxes = torch.ones(10,6)
+                boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -68,23 +74,35 @@ class BoxMode(ABC):
     def corners_to_boxes(self, corners: Sequence) -> torch.Tensor:
         """
         Convert the given box corners to the bounding boxes of the current mode.
+
         Args:
-            corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor
-            (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
+            corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
+                It represents (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
+
         Returns:
-            boxes: bounding box, Nx4 or Nx6 torch tensor
+            ``Tensor``: bounding box, Nx4 or Nx6 torch tensor
+
         Example:
-            boxmode = BoxMode()
-            corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
-            boxmode.corners_to_boxes(corners) will return a 10x4 tensor
+            .. code-block:: python
+
+                corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
+                boxmode.corners_to_boxes(corners) will return a 10x4 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class CornerCornerModeTypeA(BoxMode):
     """
-    Also represented as "xyxy" or "xyzxyz"
-    [xmin, ymin, xmax, ymax] or [xmin, ymin, zmin, xmax, ymax, zmax]
+    A subclass of ``BoxMode``.
+
+    Also represented as "xyxy" or "xyzxyz", with format of
+    [xmin, ymin, xmax, ymax] or [xmin, ymin, zmin, xmax, ymax, zmax].
+
+    Note:
+        .. code-block:: python
+
+            CornerCornerModeTypeA.get_name(spatial_dims=2) # will return "xyxy"
+            CornerCornerModeTypeA.get_name(spatial_dims=3) # will return "xyzxyz"
     """
 
     name = {2: BoxModeName.XYXY, 3: BoxModeName.XYZXYZ}
@@ -98,8 +116,16 @@ class CornerCornerModeTypeA(BoxMode):
 
 class CornerCornerModeTypeB(BoxMode):
     """
-    Also represented as "xxyy" or "xxyyzz"
-    [xmin, xmax, ymin, ymax] or [xmin, xmax, ymin, ymax, zmin, zmax]
+    A subclass of ``BoxMode``.
+
+    Also represented as "xxyy" or "xxyyzz", with format of
+    [xmin, xmax, ymin, ymax] or [xmin, xmax, ymin, ymax, zmin, zmax].
+
+    Note:
+        .. code-block:: python
+
+            CornerCornerModeTypeB.get_name(spatial_dims=2) # will return "xxyy"
+            CornerCornerModeTypeB.get_name(spatial_dims=3) # will return "xxyyzz"
     """
 
     name = {2: BoxModeName.XXYY, 3: BoxModeName.XXYYZZ}
@@ -123,8 +149,16 @@ class CornerCornerModeTypeB(BoxMode):
 
 class CornerCornerModeTypeC(BoxMode):
     """
-    Also represented as "xyxy" or "xyxyzz"
-    [xmin, ymin, xmax, ymax] or [xmin, ymin, xmax, ymax, zmin, zmax]
+    A subclass of ``BoxMode``.
+
+    Also represented as "xyxy" or "xyxyzz", with format of
+    [xmin, ymin, xmax, ymax] or [xmin, ymin, xmax, ymax, zmin, zmax].
+
+    Note:
+        .. code-block:: python
+
+            CornerCornerModeTypeC.get_name(spatial_dims=2) # will return "xyxy"
+            CornerCornerModeTypeC.get_name(spatial_dims=3) # will return "xyxyzz"
     """
 
     name = {2: BoxModeName.XYXY, 3: BoxModeName.XYXYZZ}
@@ -147,8 +181,16 @@ class CornerCornerModeTypeC(BoxMode):
 
 class CornerSizeMode(BoxMode):
     """
-    Also represented as "xywh" or "xyzwhd"
-    [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize]
+    A subclass of ``BoxMode``.
+
+    Also represented as "xywh" or "xyzwhd", with format of
+    [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize].
+
+    Note:
+        .. code-block:: python
+
+            CornerSizeMode.get_name(spatial_dims=2) # will return "xywh"
+            CornerSizeMode.get_name(spatial_dims=3) # will return "xyzwhd"
     """
 
     name = {2: BoxModeName.XYWH, 3: BoxModeName.XYZWHD}
@@ -185,8 +227,16 @@ class CornerSizeMode(BoxMode):
 
 class CenterSizeMode(BoxMode):
     """
-    Also represented as "ccwh" or "cccwhd"
-    [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize]
+    A subclass of ``BoxMode``.
+
+    Also represented as "ccwh" or "cccwhd", with format of
+    [xmin, ymin, xsize, ysize] or [xmin, ymin, zmin, xsize, ysize, zsize].
+
+    Note:
+        .. code-block:: python
+
+            CenterSizeMode.get_name(spatial_dims=2) # will return "ccwh"
+            CenterSizeMode.get_name(spatial_dims=3) # will return "cccwhd"
     """
 
     name = {2: BoxModeName.CCWH, 3: BoxModeName.CCCWHD}

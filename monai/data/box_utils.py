@@ -31,7 +31,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 # We support 2-D or 3-D bounding boxes
 SUPPORTED_SPATIAL_DIMS = [2, 3]
 
-# We support the conversion between several box modes, i.e., representation of a bounding box
+# We support the conversion between several box modes, i.e., representation of a bounding boxes
 SUPPORTED_MODES = [CornerCornerModeTypeA, CornerCornerModeTypeB, CornerCornerModeTypeC, CornerSizeMode, CenterSizeMode]
 # The standard box mode we use in all the box util functions
 StandardMode = CornerCornerModeTypeA
@@ -47,20 +47,24 @@ def get_spatial_dims(
     Get spatial dimension for the giving setting.
     Missing input is allowed. But at least one of the input value should be given.
     It raises ValueError if the dimensions of multiple inputs do not match with each other.
+
     Args:
-        boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray
         points: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
         corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor or ndarray
         spatial_size: The spatial size of the image where the boxes are attached.
                 len(spatial_size) should be in [2, 3].
+
     Returns:
-        spatial_dims: number of spatial dimensions of the bounding box.
+        ``int``: spatial_dims, number of spatial dimensions of the bounding boxes.
 
     Example:
-        boxes = torch.ones(10,6)
-        get_spatial_dims(boxes, spatial_size=[100,200,200]) will return 3
-        get_spatial_dims(boxes, spatial_size=[100,200]) will raise ValueError
-        get_spatial_dims(boxes) will return 3
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            get_spatial_dims(boxes, spatial_size=[100,200,200]) # will return 3
+            get_spatial_dims(boxes, spatial_size=[100,200]) # will raise ValueError
+            get_spatial_dims(boxes) # will return 3
     """
     spatial_dims_set = set()
 
@@ -103,10 +107,15 @@ def get_spatial_dims(
 def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
     """
     This function returns BoxMode object giving a representation of box mode
+
     Args:
-        mode: a representation of box mode. If mode is not given, this func will assume mode is StandardMode
-        It can be:
-            #. str: choose from monai.utils.enums.BoxModeName, for example,
+        mode: a representation of box mode. If it is not given, this func will assume it is ``StandardMode``.
+
+    Note:
+        ``StandardMode`` is equivalent to :class:`~monai.data.box_mode.CornerCornerModeTypeA`.
+
+        mode can be:
+            #. str: choose from :class:`~monai.utils.enums.BoxModeName`, for example,
                 - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
                 - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
                 - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
@@ -116,25 +125,28 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
                 - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
                 - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
                 - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: choose from monai.data.box_mode, for example,
+            #. BoxMode class: choose from the subclasses of :class:`~monai.data.box_mode.BoxMode`, for example,
                 - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
                 - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
                 - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
                 - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
                 - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: choose from monai.data.box_mode, for example,
+            #. BoxMode object: choose from the subclasses of :class:`~monai.data.box_mode.BoxMode`, for example,
                 - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
                 - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
                 - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
                 - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
                 - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
-            #. None: will assume mode is StandardMode = CornerCornerModeTypeA
+            #. None: will assume mode is ``StandardMode``
+
     Returns:
         BoxMode object
 
     Example:
-        mode = "xyzxyz"
-        get_boxmode(mode) will return CornerCornerModeTypeA()
+        .. code-block:: python
+
+            mode = "xyzxyz"
+            get_boxmode(mode) # will return CornerCornerModeTypeA()
     """
     if isinstance(mode, BoxMode):
         return mode
@@ -154,17 +166,22 @@ def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **
     return boxmode(*args, **kwargs)
 
 
-def check_corners(corners: Sequence) -> bool:
+def _check_corners(corners: Sequence) -> bool:
     """
-    check the validity for the given box corners
+    Internal function to check the validity for the given box corners
+
     Args:
         corners: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor
         (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
+
     Returns:
-        bool, whether the box is valid
+        ``bool``: whether the box is valid
+
     Example:
-        corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
-        check_corner(corners) will return True
+        .. code-block:: python
+
+            corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
+            check_corner(corners) will return True
     """
     spatial_dims = get_spatial_dims(corners=corners)
     for axis in range(0, spatial_dims):
@@ -182,15 +199,15 @@ def convert_box_mode(
     This function converts the boxes in src_mode to the dst_mode.
 
     Args:
-        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray.
-        src_mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
-        dst_mode: target box mode. If mode is not given, this func will assume mode is StandardMode.
+        boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray.
+        src_mode: source box mode. If it is not given, this func will assume it is ``StandardMode``.
+        dst_mode: target box mode. If it is not given, this func will assume it is ``StandardMode``.
 
     Note:
-        StandardMode is equivalent to CornerCornerModeTypeA, or "xyxy", or "xyzxyz".
+        ``StandardMode`` is equivalent to :class:`~monai.data.box_mode.CornerCornerModeTypeA`.
 
-        src_mode and dst_mode can be:
-            #. str: choose from monai.utils.enums.BoxModeName, for example,
+        ``src_mode`` and ``dst_mode`` can be:
+            #. str: choose from :class:`~monai.utils.enums.BoxModeName`, for example,
                 - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
                 - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
                 - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
@@ -200,22 +217,22 @@ def convert_box_mode(
                 - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
                 - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
                 - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: choose from monai.data.box_mode, for example,
+            #. BoxMode class: choose from the subclasses of :class:`~monai.data.box_mode.BoxMode`, for example,
                 - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
                 - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
                 - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
                 - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
                 - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: choose from monai.data.box_mode, for example,
+            #. BoxMode object: choose from the subclasses of :class:`~monai.data.box_mode.BoxMode`, for example,
                 - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
                 - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
                 - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
                 - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
                 - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
-            #. None: will assume mode is StandardMode
+            #. None: will assume mode is ``StandardMode``
 
     Returns:
-        boxes_dst: bounding box with target mode, does not share memory with original boxes
+        bounding boxes with target mode, with same format as ``boxes``, does not share memory with ``boxes``
 
     Example:
         .. code-block:: python
@@ -242,7 +259,7 @@ def convert_box_mode(
     corners = src_boxmode.boxes_to_corners(boxes_t)
 
     # check validity of corners
-    if not check_corners(corners):
+    if not _check_corners(corners):
         raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
     # convert corners to boxes
@@ -258,41 +275,16 @@ def convert_box_to_standard_mode(
 ) -> NdarrayOrTensor:
     """
     Convert given boxes to standard mode.
+    Standard mode is "xyxy" or "xyzxyz",
+    representing box format of [xmin, ymin, xmax, ymax] or [xmin, ymin, zmin, xmax, ymax, zmax].
 
     Args:
-        boxes: source bounding box, Nx4 or Nx6 torch tensor or ndarray.
-        mode: source box mode. If mode is not given, this func will assume mode is StandardMode.
-
-    Note:
-        StandardMode is equivalent to CornerCornerModeTypeA, or "xyxy", or "xyzxyz".
-
-        mode can be:
-            #. str: choose from monai.utils.enums.BoxModeName, for example,
-                - "xyxy": boxes has format [xmin, ymin, xmax, ymax]
-                - "xyzxyz": boxes has format [xmin, ymin, zmin, xmax, ymax, zmax]
-                - "xxyy": boxes has format [xmin, xmax, ymin, ymax]
-                - "xxyyzz": boxes has format [xmin, xmax, ymin, ymax, zmin, zmax]
-                - "xyxyzz": boxes has format [xmin, ymin, xmax, ymax, zmin, zmax]
-                - "xywh": boxes has format [xmin, ymin, xsize, ysize]
-                - "xyzwhd": boxes has format [xmin, ymin, zmin, xsize, ysize, zsize]
-                - "ccwh": boxes has format [xcenter, ycenter, xsize, ysize]
-                - "cccwhd": boxes has format [xcenter, ycenter, zcenter, xsize, ysize, zsize]
-            #. BoxMode class: choose from monai.data.box_mode, for example,
-                - CornerCornerModeTypeA: equivalent to "xyxy" or "xyzxyz"
-                - CornerCornerModeTypeB: equivalent to "xxyy" or "xxyyzz"
-                - CornerCornerModeTypeC: equivalent to "xyxy" or "xyxyzz"
-                - CornerSizeMode: equivalent to "xywh" or "xyzwhd"
-                - CenterSizeMode: equivalent to "ccwh" or "cccwhd"
-            #. BoxMode instance: choose from monai.data.box_mode, for example,
-                - CornerCornerModeTypeA(): equivalent to "xyxy" or "xyzxyz"
-                - CornerCornerModeTypeB(): equivalent to "xxyy" or "xxyyzz"
-                - CornerCornerModeTypeC(): equivalent to "xyxy" or "xyxyzz"
-                - CornerSizeMode(): equivalent to "xywh" or "xyzwhd"
-                - CenterSizeMode(): equivalent to "ccwh" or "cccwhd"
-            #. None: will assume mode is StandardMode
+        boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray.
+        mode: source box mode. If it is not given, this func will assume it is ``StandardMode``.
+            It follows the same format with ``src_mode`` and ``dst_mode`` in :func:`~monai.data.box_utils.convert_box_mode`.
 
     Returns:
-        boxes_standard: bounding box with standard mode, does not share memory with original boxes
+        bounding boxes with standard mode, with same format as ``boxes``, does not share memory with ``boxes``
 
     Example:
         .. code-block:: python
