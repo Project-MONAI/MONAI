@@ -9,6 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+This utility module mainly supports rectangular bounding boxes with a few
+different parameterizations and methods for converting between them. It
+provides reliable access to the spatial coordinates of the box vertices in the
+"canonical ordering":
+[xmin, ymin, xmax, ymax] for 2D and [xmin, ymin, zmin, xmax, ymax, zmax] for 3D.
+We currently define this ordering as `monai.data.box_utils.StandardMode` and
+the rest of the detection pipelines mainly assumes boxes in `StandardMode`.
+"""
+
 import inspect
 import warnings
 from abc import ABC, abstractmethod
@@ -22,15 +32,6 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.utils import look_up_option
 from monai.utils.enums import BoxModeName
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-
-"""
-This utility module mainly supports rectangular bounding boxes with a few different parameterizations
-    and methods for converting between them.
-It provides reliable access to the spatial coordinates of the box vertices
-    in the "canonical ordering" -- [xmin, ymin, xmax, ymax] for 2D and [xmin, ymin, zmin, xmax, ymax, zmax] for 3D.
-We currently define this ordering as StandardMode
-    and the rest of the detection pipelines mainly assumes boxes in StandardMode.
-"""
 
 # We support 2-D or 3-D bounding boxes
 SUPPORTED_SPATIAL_DIMS = [2, 3]
