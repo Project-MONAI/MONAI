@@ -354,7 +354,7 @@ def copy_to_device(
 
 class ImageMetaKey:
     """
-    Common key names in the meta data header of images
+    Common key names in the metadata header of images
     """
 
     FILENAME_OR_OBJ = "filename_or_obj"
