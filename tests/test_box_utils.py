@@ -14,14 +14,15 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.box_mode import (
+from monai.data.box_utils import (
     CenterSizeMode,
     CornerCornerModeTypeA,
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
+    convert_box_mode,
+    convert_box_to_standard_mode,
 )
-from monai.data.box_utils import convert_box_mode, convert_box_to_standard_mode
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
