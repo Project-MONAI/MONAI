@@ -71,7 +71,6 @@ class Range:
 
             if isinstance(obj, Compose):
                 obj.transforms = Range(recursive=True)(obj.transforms)
-                return Range(self.name, recursive=False)(obj)
 
             self.recursive = False
 
