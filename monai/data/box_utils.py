@@ -248,7 +248,7 @@ def convert_box_mode(
     dst_boxmode = get_boxmode(dst_mode)
 
     # if mode not changed, deepcopy the original boxes
-    if type(src_boxmode) is type(dst_boxmode):
+    if isinstance(src_boxmode, type(dst_boxmode)):
         return deepcopy(boxes)
 
     # convert box mode
