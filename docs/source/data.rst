@@ -327,5 +327,6 @@ Box mode
 
 Box mode converter
 ~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.get_boxmode
 .. autofunction:: monai.data.box_utils.convert_box_mode
 .. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
