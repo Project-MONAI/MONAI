@@ -61,7 +61,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
             im = d[key]
             meta = d.pop(PostFix.meta(key), None)
             transforms = d.pop(PostFix.transforms(key), None)
-            im = MetaTensor(im, meta=meta, transforms=transforms)  # type: ignore
+            im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -85,7 +85,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
             im = d[key]
             meta = d.pop(PostFix.meta(key), None)
             transforms = d.pop(PostFix.transforms(key), None)
-            im = MetaTensor(im, meta=meta, transforms=transforms)  # type: ignore
+            im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
         return d
 
