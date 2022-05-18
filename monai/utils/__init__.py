@@ -17,6 +17,7 @@ from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_
 from .enums import (
     Average,
     BlendMode,
+    BoxModeName,
     ChannelMatching,
     CommonKeys,
     DiceCEReduction,
@@ -37,7 +38,6 @@ from .enums import (
     TransformBackends,
     UpsampleMode,
     Weight,
-    BoxModeName,
 )
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
@@ -86,10 +86,10 @@ from .nvtx import Range
 from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
 from .state_cacher import StateCacher
 from .type_conversion import (
-    convert_to_list,
     convert_data_type,
     convert_to_cupy,
     convert_to_dst_type,
+    convert_to_list,
     convert_to_numpy,
     convert_to_tensor,
     dtype_numpy_to_torch,
