@@ -301,3 +301,15 @@ def convert_to_dst_type(
     else:
         output_type = type(dst)
     return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence)
+
+
+def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
+    """
+    Convert to list from `torch.Tensor`/`np.ndarray`/`list`/`tuple` etc.
+    Args:
+        data: data to be converted
+    Returns:
+        a list
+
+    """
+    return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
