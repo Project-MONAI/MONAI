@@ -394,9 +394,9 @@ def get_spatial_dims(
         raise ValueError("The dimensions of multiple inputs should match with each other.")
 
 
-def _get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
+def get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, **kwargs) -> BoxMode:
     """
-    Internal function that returns BoxMode object giving a representation of box mode
+    This function that return BoxMode object giving a representation of box mode
 
     Args:
         mode: a representation of box mode. If it is not given, this func will assume it is ``StandardMode``.
@@ -436,7 +436,7 @@ def _get_boxmode(mode: Union[str, BoxMode, Type[BoxMode], None] = None, *args, *
         .. code-block:: python
 
             mode = "xyzxyz"
-            _get_boxmode(mode) # will return CornerCornerModeTypeA()
+            get_boxmode(mode) # will return CornerCornerModeTypeA()
     """
     if isinstance(mode, BoxMode):
         return mode
@@ -509,8 +509,8 @@ def convert_box_mode(
             box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
             box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
     """
-    src_boxmode = _get_boxmode(src_mode)
-    dst_boxmode = _get_boxmode(dst_mode)
+    src_boxmode = get_boxmode(src_mode)
+    dst_boxmode = get_boxmode(dst_mode)
 
     # if mode not changed, deepcopy the original boxes
     if isinstance(src_boxmode, type(dst_boxmode)):
