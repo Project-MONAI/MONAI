@@ -71,7 +71,7 @@ class TraceableTransform(Transform):
             info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
 
         if key in data and isinstance(data[key], MetaTensor):
-            data[key].push_transform(info)
+            data[key].push_applied_operation(info)
         else:
             # If this is the first, create list
             if self.trace_key(key) not in data:
@@ -85,7 +85,7 @@ class TraceableTransform(Transform):
         if not self.tracing:
             return
         if key in data and isinstance(data[key], MetaTensor):
-            return data[key].pop_transform()
+            return data[key].pop_applied_operation()
         return data.get(self.trace_key(key), []).pop()
 
 
