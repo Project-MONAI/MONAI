@@ -139,7 +139,7 @@ class MetaObj:
         id_in = id(input_objs[0]) if len(input_objs) > 0 else None
         deep_copy = id(self) != id_in
         self._copy_attr("meta", input_objs, self.get_default_meta, deep_copy)
-        self._copy_attr("transforms", input_objs, self.get_default_transforms, deep_copy)
+        self._copy_attr("applied_operations", input_objs, self.get_default_applied_operations, deep_copy)
         self.is_batch = input_objs[0].is_batch if len(input_objs) > 0 else False
 
     def get_default_meta(self) -> dict:
@@ -150,11 +150,11 @@ class MetaObj:
         """
         return {}
 
-    def get_default_transforms(self) -> list:
-        """Get the default applied transforms.
+    def get_default_applied_operations(self) -> list:
+        """Get the default applied operations.
 
         Returns:
-            default applied transforms.
+            default applied operations.
         """
         return []
 
@@ -168,9 +168,9 @@ class MetaObj:
         else:
             out += "None"
 
-        out += "\nTransforms\n"
-        if self.transforms is not None:
-            for i in self.transforms:
+        out += "\nApplied operations\n"
+        if self.applied_operations is not None:
+            for i in self.applied_operations:
                 out += f"\t{str(i)}\n"
         else:
             out += "None"
@@ -190,20 +190,20 @@ class MetaObj:
         self._meta = d
 
     @property
-    def transforms(self) -> list:
-        """Get the applied transforms."""
-        return self._transforms
+    def applied_operations(self) -> list:
+        """Get the applied operations."""
+        return self._applied_operations
 
-    @transforms.setter
-    def transforms(self, t: list) -> None:
-        """Set the applied transforms."""
-        self._transforms = t
+    @applied_operations.setter
+    def applied_operations(self, t: list) -> None:
+        """Set the applied operations."""
+        self._applied_operations = t
 
-    def push_transform(self, t: Any) -> None:
-        self._transforms.append(t)
+    def push_applied_operations(self, t: Any) -> None:
+        self._applied_operations.append(t)
 
-    def pop_transform(self) -> Any:
-        return self._transforms.pop()
+    def pop_applied_operations(self) -> Any:
+        return self._applied_operations.pop()
 
     @property
     def is_batch(self) -> bool:

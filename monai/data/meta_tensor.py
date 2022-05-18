@@ -78,14 +78,14 @@ class MetaTensor(MetaObj, torch.Tensor):
         x,
         affine: torch.Tensor | None = None,
         meta: dict | None = None,
-        transforms: list | None = None,
+        applied_operations: list | None = None,
         *args,
         **kwargs,
     ) -> MetaTensor:
         return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
 
     def __init__(
-        self, x, affine: torch.Tensor | None = None, meta: dict | None = None, transforms: list | None = None
+        self, x, affine: torch.Tensor | None = None, meta: dict | None = None, applied_operations: list | None = None
     ) -> None:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
@@ -111,18 +111,18 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.affine = x.affine
         else:
             self.affine = self.get_default_affine()
-        # transforms
-        if transforms is not None:
-            self.transforms = transforms
+        # applied_operations
+        if applied_operations is not None:
+            self.applied_operations = applied_operations
         elif isinstance(x, MetaTensor):
-            self.transforms = x.transforms
+            self.applied_operations = x.applied_operations
         else:
-            self.transforms = self.get_default_transforms()
+            self.applied_operations = self.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.meta = deepcopy(self.meta)
-            self.transforms = deepcopy(self.transforms)
+            self.applied_operations = deepcopy(self.applied_operations)
         self.affine = self.affine.to(self.device)
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
@@ -244,7 +244,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         return {
             key: self.as_tensor(),
             PostFix.meta(key): deepcopy(self.meta),
-            PostFix.transforms(key): deepcopy(self.transforms),
+            PostFix.transforms(key): deepcopy(self.applied_operations),
         }
 
     @property
