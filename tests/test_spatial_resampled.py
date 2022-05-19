@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.config import USE_COMPILED
 from monai.transforms import SpatialResampleD
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TESTS = []
 
@@ -83,7 +83,7 @@ for ind, dst in enumerate(
 
 
 class TestSpatialResample(unittest.TestCase):
-    @parameterized.expand(itertools.product(TEST_NDARRAYS, TESTS))
+    @parameterized.expand(itertools.product(TEST_NDARRAYS_NO_META_TENSOR, TESTS))
     def test_flips_inverse(self, p_type, args):
         _, img, data_param, expected_output = args
         _img = p_type(img)
