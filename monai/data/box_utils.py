@@ -574,6 +574,97 @@ def convert_box_to_standard_mode(
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())
 
 
+def box_centers(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute center points of boxes
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+
+    Returns:
+        center points with size of (N, spatial_dims)
+
+    """
+    spatial_dims = get_spatial_dims(boxes=boxes)
+    return convert_box_mode(boxes=boxes, src_mode=StandardMode, dst_mode=CenterSizeMode)[:, :spatial_dims]
+
+
+def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: float = 0.01) -> NdarrayOrTensor:
+    """
+    Checks which center points are within boxes
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+        centers: center points, Nx2 or Nx3 torch tensor or ndarray.
+        eps: minimum distance to border of boxes.
+
+    Returns:
+        boolean array indicating which center points are within the boxes, sized (N,).
+
+    Reference:
+        https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/ops.py
+
+    """
+    spatial_dims = get_spatial_dims(boxes=boxes)
+
+    # compute relative position of centers compared to borders
+    # should be non-negative if centers are within boxes
+    center_to_border = [centers[:, axis] - boxes[:, axis] for axis in range(spatial_dims)] + [
+        boxes[:, axis + spatial_dims] - centers[:, axis] for axis in range(spatial_dims)
+    ]
+
+    if isinstance(boxes, np.ndarray):
+        min_center_to_border: np.ndarray = np.stack(center_to_border, axis=1).min(axis=1)
+        return min_center_to_border > eps  # array[bool]
+
+    compute_dtype = torch.float32
+    return torch.stack(center_to_border, dim=1).to(compute_dtype).min(dim=1)[0] > eps  # Tensor[bool]
+
+
+def boxes_center_distance(
+    boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor, euclidean: bool = True
+) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Distance of center points between two sets of boxes
+
+    Args:
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        euclidean: computed the euclidean distance otherwise it uses the l1 distance
+
+    Returns:
+        - The pairwise distances for every element in boxes1 and boxes2,
+          with size of (N,M) and same data type as ``boxes1``.
+        - Center points of boxes1, with size of (N,spatial_dims) and same data type as ``boxes1``.
+        - Center points of boxes2, with size of (M,spatial_dims) and same data type as ``boxes1``.
+
+    Reference:
+        https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/ops.py
+
+    """
+
+    if not isinstance(boxes1, type(boxes2)):
+        warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
+
+    # convert numpy to tensor if needed
+    boxes1_t, *_ = convert_data_type(boxes1, torch.Tensor)
+    boxes2_t, *_ = convert_data_type(boxes2, torch.Tensor)
+
+    compute_dtype = torch.float32
+
+    center1 = box_centers(boxes1_t.to(compute_dtype))  # (N, spatial_dims)
+    center2 = box_centers(boxes2_t.to(compute_dtype))  # (M, spatial_dims)
+
+    if euclidean:
+        dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()
+    else:
+        # before sum: (N, M, spatial_dims)
+        dists = (center1[:, None] - center2[None]).sum(-1)
+
+    # convert tensor back to numpy if needed
+    (dists, center1, center2), *_ = convert_to_dst_type(src=(dists, center1, center2), dst=boxes1)
+    return dists, center1, center2
+
 def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
     """
     This function checks whether the box size is non-negative.
