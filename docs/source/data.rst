@@ -330,3 +330,9 @@ Box mode converter
 .. autofunction:: monai.data.box_utils.get_boxmode
 .. autofunction:: monai.data.box_utils.convert_box_mode
 .. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
+
+Box center
+~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.box_center
+.. autofunction:: monai.data.box_utils.center_in_boxes
+.. autofunction:: monai.data.box_utils.box_center_dist
