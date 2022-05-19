@@ -635,8 +635,8 @@ def boxes_center_distance(
     Returns:
         - The pairwise distances for every element in boxes1 and boxes2,
           with size of (N,M) and same data type as ``boxes1``.
-        - Center points of boxes1, with size of (N,) and same data type as ``boxes1``.
-        - Center points of boxes2, with size of (M,) and same data type as ``boxes1``.
+        - Center points of boxes1, with size of (N,spatial_dims) and same data type as ``boxes1``.
+        - Center points of boxes2, with size of (M,spatial_dims) and same data type as ``boxes1``.
 
     Reference:
         https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/ops.py

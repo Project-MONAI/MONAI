@@ -333,6 +333,6 @@ Box mode converter
 
 Box center
 ~~~~~~~~~~
-.. autofunction:: monai.data.box_utils.box_center
-.. autofunction:: monai.data.box_utils.center_in_boxes
-.. autofunction:: monai.data.box_utils.box_center_dist
+.. autofunction:: monai.data.box_utils.box_centers
+.. autofunction:: monai.data.box_utils.centers_in_boxes
+.. autofunction:: monai.data.box_utils.boxes_center_distance
