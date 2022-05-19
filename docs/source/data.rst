@@ -337,3 +337,9 @@ Box IoU
 .. autofunction:: monai.data.box_utils.box_iou
 .. autofunction:: monai.data.box_utils.box_giou
 .. autofunction:: monai.data.box_utils.box_pair_giou
+
+Box center
+~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.box_centers
+.. autofunction:: monai.data.box_utils.centers_in_boxes
+.. autofunction:: monai.data.box_utils.boxes_center_distance
