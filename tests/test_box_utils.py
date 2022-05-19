@@ -27,7 +27,7 @@ from monai.data.box_utils import (
     convert_box_mode,
     convert_box_to_standard_mode,
 )
-from monai.utils.type_conversion import convert_data_type, convert_to_list
+from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
