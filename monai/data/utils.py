@@ -148,8 +148,8 @@ def iter_patch_slices(
     ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
 
     # choose patches by applying product to the ranges
-    for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
+    for position in product(*ranges):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
 
 
 def dense_patch_slices(
