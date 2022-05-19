@@ -677,7 +677,7 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 
     """
 
-    if type(boxes1) != type(boxes2):
+    if not isinstance(boxes1, type(boxes2)):
         warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
 
     # convert numpy to tensor if needed
@@ -716,7 +716,7 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 
     """
 
-    if type(boxes1) != type(boxes2):
+    if not isinstance(boxes1, type(boxes2)):
         warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
 
     # convert numpy to tensor if needed
@@ -772,7 +772,7 @@ def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOr
         https://giou.stanford.edu/GIoU.pdf
     """
 
-    if type(boxes1) != type(boxes2):
+    if not isinstance(boxes1, type(boxes2)):
         warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
 
     # convert numpy to tensor if needed
