@@ -37,7 +37,7 @@ def generate_param_groups(
             for "select", the parameters will be
             `select_func(network).parameters()`.
             for "filter", the parameters will be
-            `map(lambda x: x[1], filter(filter_func, network.named_parameters()))`
+            `(x[1] for x in filter(f, network.named_parameters()))`
         match_types: a list of tags to identify the matching type corresponding to the `layer_matches` functions,
             can be "select" or "filter".
         lr_values: a list of LR values corresponding to the `layer_matches` functions.
@@ -76,7 +76,7 @@ def generate_param_groups(
     def _get_filter(f):
         def _filter():
             # should eventually generate a list of network parameters
-            return map(lambda x: x[1], filter(f, network.named_parameters()))
+            return (x[1] for x in filter(f, network.named_parameters()))
 
         return _filter
 
@@ -91,7 +91,7 @@ def generate_param_groups(
             raise ValueError(f"unsupported layer match type: {ty}.")
 
         params.append({"params": layer_params(), "lr": lr})
-        _layers.extend(list(map(id, layer_params())))
+        _layers.extend([id(x) for x in layer_params()])
 
     if include_others:
         params.append({"params": filter(lambda p: id(p) not in _layers, network.parameters())})

@@ -22,9 +22,10 @@ import torch
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
-from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
+from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
@@ -216,10 +217,6 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(get_track_meta(), False)
         set_track_meta(True)
         self.assertEqual(get_track_meta(), True)
-        set_track_transforms(False)
-        self.assertEqual(get_track_transforms(), False)
-        set_track_transforms(True)
-        self.assertEqual(get_track_transforms(), True)
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -418,6 +415,70 @@ class TestMetaTensor(unittest.TestCase):
         )
         for s in (s1, s2):
             self.assertEqual(s, expected_out)
+    def test_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16), ToMetaTensord(key), FromMetaTensord(key)])
+        num_tr = len(tr.transforms)
+        data = {key: im, PostFix.meta(key): {"affine": torch.eye(4)}}
+
+        # apply one at a time
+        is_meta = isinstance(im, MetaTensor)
+        for i, _tr in enumerate(tr.transforms):
+            data = _tr(data)
+            is_meta = isinstance(_tr, ToMetaTensord)
+            if is_meta:
+                self.assertEqual(len(data), 1)  # im
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].applied_operations)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, i + 1)
+
+        # inverse one at a time
+        is_meta = isinstance(im, MetaTensor)
+        for i, _tr in enumerate(tr.transforms[::-1]):
+            data = _tr.inverse(data)
+            is_meta = isinstance(_tr, FromMetaTensord)
+            if is_meta:
+                self.assertEqual(len(data), 1)  # im
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].applied_operations)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, num_tr - i - 1)
+
+        # apply all in one go
+        data = tr({key: im, PostFix.meta(key): {"affine": torch.eye(4)}})
+        self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+        self.assertIsInstance(data[key], torch.Tensor)
+        self.assertNotIsInstance(data[key], MetaTensor)
+        n_applied = len(data[PostFix.transforms(key)])
+        self.assertEqual(n_applied, num_tr)
+
+        # inverse all in one go
+        data = tr.inverse(data)
+        self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+        self.assertIsInstance(data[key], torch.Tensor)
+        self.assertNotIsInstance(data[key], MetaTensor)
+        n_applied = len(data[PostFix.transforms(key)])
+        self.assertEqual(n_applied, 0)
+
+    def test_construct_with_pre_applied_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16)])
+        data = tr({key: im})
+        m = MetaTensor(im, applied_operations=data[PostFix.transforms(key)])
+        self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
 
 if __name__ == "__main__":
