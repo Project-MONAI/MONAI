@@ -37,9 +37,9 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 SUPPORTED_SPATIAL_DIMS = [2, 3]
 
 
-# TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the box,
+# TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the boxes,
 #      i.e., when xmin=1., xmax=2., we have w = 1.
-# TO_REMOVE = 1.0  if the bottom-right corner pixel/voxel is included in the box,
+# TO_REMOVE = 1.0  if the bottom-right corner pixel/voxel is included in the boxes,
 #       i.e., when xmin=1., xmax=2., we have w = 2.
 # Currently, only `TO_REMOVE = 0.0` is supported
 TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
@@ -83,7 +83,7 @@ class BoxMode(ABC):
         Get the mode name for the given spatial dimension using class variable ``name``.
 
         Args:
-            spatial_dims: number of spatial dimensions of the bounding box.
+            spatial_dims: number of spatial dimensions of the bounding boxes.
 
         Returns:
             ``str``: mode string name
@@ -96,7 +96,7 @@ class BoxMode(ABC):
         Convert the bounding boxes of the current mode to corners.
 
         Args:
-            boxes: bounding box, Nx4 or Nx6 torch tensor
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor
 
         Returns:
             ``Tuple``: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
@@ -120,7 +120,7 @@ class BoxMode(ABC):
                 It represents (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
 
         Returns:
-            ``Tensor``: bounding box, Nx4 or Nx6 torch tensor
+            ``Tensor``: bounding boxes, Nx4 or Nx6 torch tensor
 
         Example:
             .. code-block:: python
@@ -574,12 +574,12 @@ def convert_box_to_standard_mode(
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())
 
 
-def check_boxes(boxes: NdarrayOrTensor) -> bool:
+def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
     """
     This function checks whether the box size is non-negative.
 
     Args:
-        boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
         whether ``boxes`` is valid
@@ -596,13 +596,13 @@ def box_area(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
     This function computes the area of each box
 
     Args:
-        boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
         area of boxes, with size of (N,).
     """
 
-    if not check_boxes(boxes):
+    if not is_valid_box_values(boxes):
         raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
 
     spatial_dims = get_spatial_dims(boxes=boxes)
@@ -621,8 +621,6 @@ def box_area(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
         else:
             raise ValueError("Box area is NaN or Inf.")
 
-    # convert tensor back to numpy if needed
-    area, *_ = convert_to_dst_type(src=area_t, dst=area)
     return area
 
 
@@ -633,8 +631,8 @@ def _box_inter_union(
     This internal function computes the intersection and union area of two set of boxes.
 
     Args:
-        boxes1: bounding box, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
-        boxes2: bounding box, Mx4 or Mx6 torch tensor. The box mode is assumed to be ``StandardMode``
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor. The box mode is assumed to be ``StandardMode``
         compute_dtype: default torch.float32, dtype with which the results will be computed
 
     Returns:
@@ -669,8 +667,8 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
     Compute the intersection over union (IoU) of two set of boxes.
 
     Args:
-        boxes1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
-        boxes2: bounding box, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
         IoU, with size of (N,M) and same data type as ``boxes1``
@@ -705,14 +703,18 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 
 def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    Compute the generalized intersection over union (GIoU) of two set of boxes.
+    Compute the generalized intersection over union (GIoU) of two sets of boxes.
+    The two inputs can have different shapes.
 
     Args:
-        boxes1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
-        boxes2: bounding box, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
         GIoU, with size of (N,M) and same data type as ``boxes1``
+
+    Reference:
+        https://giou.stanford.edu/GIoU.pdf
 
     """
 
@@ -759,11 +761,11 @@ def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTenso
 def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
     """
     Compute the generalized intersection over union (GIoU) of a pair of boxes.
-    The two inputs should have same shape.
+    The two inputs should have the same shape.
 
     Args:
-        boxes1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
-        boxes2: bounding box, same shape with boxes1. The box mode is assumed to be StandardMode
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
+        boxes2: bounding boxes, same shape with boxes1. The box mode is assumed to be StandardMode
 
     Returns:
         paired GIoU, with size of (N,) and same data type as ``boxes1``

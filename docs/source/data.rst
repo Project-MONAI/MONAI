@@ -316,7 +316,7 @@ Bounding box
 ------------
 
 Box mode
-~~~~~~~~~~
+~~~~~~~~
 .. autoclass:: monai.data.box_utils.BoxMode
     :members:
 .. autoclass:: monai.data.box_utils.CornerCornerModeTypeA
@@ -332,7 +332,7 @@ Box mode converter
 .. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
 
 Box IoU
-~~~~~~~~~~~~~~~~~~
+~~~~~~~
 .. autofunction:: monai.data.box_utils.box_area
 .. autofunction:: monai.data.box_utils.box_iou
 .. autofunction:: monai.data.box_utils.box_giou
