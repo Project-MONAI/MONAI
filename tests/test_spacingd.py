@@ -18,10 +18,10 @@ from parameterized import parameterized
 
 from monai.transforms import Spacingd
 from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TESTS: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_NO_META_TENSOR:
     TESTS.append(
         (
             "spacing 3d",

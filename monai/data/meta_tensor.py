@@ -19,8 +19,7 @@ import torch
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
-from monai.data.utils import decollate_batch, list_data_collate
-from monai.transforms.utils import remove_extra_metadata
+from monai.data.utils import decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
