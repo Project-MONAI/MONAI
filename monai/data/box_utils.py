@@ -579,7 +579,7 @@ def box_centers(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
     Compute center points of boxes
 
     Args:
-        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
         center points with size of (N, spatial_dims)
@@ -594,7 +594,7 @@ def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: floa
     Checks which center points are within boxes
 
     Args:
-        boxes: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode.
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
         centers: center points, Nx2 or Nx3 torch tensor or ndarray.
         eps: minimum distance to border of boxes.
 
@@ -628,8 +628,8 @@ def boxes_center_distance(
     Distance of center points between two sets of boxes
 
     Args:
-        boxes1: bounding box, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
-        boxes2: bounding box, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
         euclidean: computed the euclidean distance otherwise it uses the l1 distance
 
     Returns:
