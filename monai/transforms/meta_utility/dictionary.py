@@ -39,7 +39,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
     Dictionary-based transform to convert MetaTensor to a dictionary.
 
     If input is `{"a": MetaTensor, "b": MetaTensor}`, then output will
-    have the form `{"a": torch.Tensor, "a_meta_dict": dict, "b": ...}`.
+    have the form `{"a": torch.Tensor, "a_meta_dict": dict, "a_transforms": list, "b": ...}`.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -47,9 +47,9 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             im: MetaTensor = d[key]  # type: ignore
             d.update(im.as_dict(key))
+            self.push_transform(d, key)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -58,8 +58,10 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
             # check transform
             _ = self.get_most_recent_transform(d, key)
             # do the inverse
-            im, meta = d[key], d.pop(PostFix.meta(key), None)
-            im = MetaTensor(im, meta=meta)  # type: ignore
+            im = d[key]
+            meta = d.pop(PostFix.meta(key), None)
+            transforms = d.pop(PostFix.transforms(key), None)
+            im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -80,8 +82,10 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
-            im, meta = d[key], d.pop(PostFix.meta(key), None)
-            im = MetaTensor(im, meta=meta)  # type: ignore
+            im = d[key]
+            meta = d.pop(PostFix.meta(key), None)
+            transforms = d.pop(PostFix.transforms(key), None)
+            im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
         return d
 
