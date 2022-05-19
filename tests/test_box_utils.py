@@ -20,9 +20,9 @@ from monai.data.box_utils import (
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
-    box_center,
-    box_center_dist,
-    center_in_boxes,
+    box_centers,
+    boxes_center_distance,
+    centers_in_boxes,
     convert_box_mode,
     convert_box_to_standard_mode,
 )
@@ -155,21 +155,21 @@ class TestCreateBoxList(unittest.TestCase):
         expected_box_standard = convert_box_to_standard_mode(boxes=expected_box, mode=mode2)
         assert_allclose(result_standard, expected_box_standard, type_test=True, device_test=True, atol=0.0)
 
-        # test box_center, center_in_boxes, box_center_dist
-        result_standard_center = box_center(result_standard)
+        # test box_centers, centers_in_boxes, boxes_center_distance
+        result_standard_center = box_centers(result_standard)
         expected_center = convert_box_mode(boxes=boxes1, src_mode=mode1, dst_mode="cccwhd")[:, :3]
         assert_allclose(result_standard_center, expected_center, type_test=True, device_test=True, atol=0.0)
 
         center = expected_center
         center[2, :] += 10
-        result_center_in_boxes = center_in_boxes(centers=center, boxes=result_standard)
-        assert_allclose(result_center_in_boxes, np.array([False, True, False]), type_test=False)
+        result_centers_in_boxes = centers_in_boxes(centers=center, boxes=result_standard)
+        assert_allclose(result_centers_in_boxes, np.array([False, True, False]), type_test=False)
 
-        center_dist, _, _ = box_center_dist(boxes1=result_standard[1:2, :], boxes2=result_standard[1:1, :])
+        center_dist, _, _ = boxes_center_distance(boxes1=result_standard[1:2, :], boxes2=result_standard[1:1, :])
         assert_allclose(center_dist, np.array([[]]), type_test=False)
-        center_dist, _, _ = box_center_dist(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
+        center_dist, _, _ = boxes_center_distance(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
-        center_dist, _, _ = box_center_dist(boxes1=result_standard[0:1, :], boxes2=result_standard[0:1, :])
+        center_dist, _, _ = boxes_center_distance(boxes1=result_standard[0:1, :], boxes2=result_standard[0:1, :])
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
 
 

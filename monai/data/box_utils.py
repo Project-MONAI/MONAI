@@ -574,9 +574,9 @@ def convert_box_to_standard_mode(
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())
 
 
-def box_center(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
+def box_centers(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    Compute center point of boxes
+    Compute center points of boxes
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
@@ -589,7 +589,7 @@ def box_center(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
     return convert_box_mode(boxes=boxes, src_mode=StandardMode, dst_mode=CenterSizeMode)[:, :spatial_dims]
 
 
-def center_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: float = 0.01) -> NdarrayOrTensor:
+def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: float = 0.01) -> NdarrayOrTensor:
     """
     Checks which center points are within boxes
 
@@ -621,7 +621,7 @@ def center_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: float
     return torch.stack(center_to_border, dim=1).to(compute_dtype).min(dim=1)[0] > eps  # Tensor[bool]
 
 
-def box_center_dist(
+def boxes_center_distance(
     boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor, euclidean: bool = True
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]:
     """
@@ -652,8 +652,8 @@ def box_center_dist(
 
     compute_dtype = torch.float32
 
-    center1 = box_center(boxes1_t.to(compute_dtype))  # (N, spatial_dims)
-    center2 = box_center(boxes2_t.to(compute_dtype))  # (M, spatial_dims)
+    center1 = box_centers(boxes1_t.to(compute_dtype))  # (N, spatial_dims)
+    center2 = box_centers(boxes2_t.to(compute_dtype))  # (M, spatial_dims)
 
     if euclidean:
         dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()
