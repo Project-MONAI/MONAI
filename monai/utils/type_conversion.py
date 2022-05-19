@@ -188,15 +188,15 @@ def convert_to_meta_tensor(
         return (
             MetaTensor(torch.as_tensor(list_ret, dtype=dtype, device=device))  # type: ignore
             if wrap_sequence
-            else list_ret  # type: ignore
-        )  # type: ignore
+            else list_ret
+        )
     elif isinstance(data, tuple):
         tuple_ret = tuple(convert_to_meta_tensor(i, dtype=dtype, device=device) for i in data)
         return (
-            MetaTensor(torch.as_tensor(tuple_ret, dtype=dtype, device=device))  # type: ignore
+            MetaTensor(torch.as_tensor(tuple_ret, dtype=dtype, device=device))  # type: ignore
             if wrap_sequence
-            else tuple_ret  # type: ignore
-        )  # type: ignore
+            else tuple_ret
+        )
     elif isinstance(data, dict):
         return {k: convert_to_meta_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
 
