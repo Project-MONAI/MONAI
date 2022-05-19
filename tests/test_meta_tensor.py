@@ -421,7 +421,7 @@ class TestMetaTensor(unittest.TestCase):
             if is_meta:
                 self.assertEqual(len(data), 1)  # im
                 self.assertIsInstance(data[key], MetaTensor)
-                n_applied = len(data[key].transforms)
+                n_applied = len(data[key].applied_operations)
             else:
                 self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
                 self.assertIsInstance(data[key], torch.Tensor)
@@ -438,7 +438,7 @@ class TestMetaTensor(unittest.TestCase):
             if is_meta:
                 self.assertEqual(len(data), 1)  # im
                 self.assertIsInstance(data[key], MetaTensor)
-                n_applied = len(data[key].transforms)
+                n_applied = len(data[key].applied_operations)
             else:
                 self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
                 self.assertIsInstance(data[key], torch.Tensor)
@@ -468,8 +468,8 @@ class TestMetaTensor(unittest.TestCase):
         _, im = self.get_im()
         tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16)])
         data = tr({key: im})
-        m = MetaTensor(im, transforms=data[PostFix.transforms(key)])
-        self.assertEqual(len(m.transforms), len(tr.transforms))
+        m = MetaTensor(im, applied_operations=data[PostFix.transforms(key)])
+        self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
 
 if __name__ == "__main__":

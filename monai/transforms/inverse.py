@@ -142,7 +142,7 @@ class InvertibleTransform(TraceableTransform):
         if not self.tracing:
             raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
         if isinstance(data[key], MetaTensor):
-            transform = data[key].transforms[-1]
+            transform = data[key].applied_operations[-1]
         else:
             transform = data[self.trace_key(key)][-1]
         self.check_transforms_match(transform)
