@@ -316,3 +316,22 @@ SlidingPatchWSIDataset
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.SlidingPatchWSIDataset
     :members:
+
+Bounding box
+------------
+
+Box mode
+~~~~~~~~~~
+.. autoclass:: monai.data.box_utils.BoxMode
+    :members:
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeA
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeB
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeC
+.. autoclass:: monai.data.box_utils.CornerSizeMode
+.. autoclass:: monai.data.box_utils.CenterSizeMode
+
+Box mode converter
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.get_boxmode
+.. autofunction:: monai.data.box_utils.convert_box_mode
+.. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
