@@ -160,9 +160,7 @@ class MetaObj:
 
     def __repr__(self) -> str:
         """String representation of class."""
-        out: str = super().__repr__()
-
-        out += "\nMetaData\n"
+        out: str = "\nMetaData\n"
         if self.meta is not None:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:
