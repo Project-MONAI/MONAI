@@ -23,7 +23,7 @@ repos:
       - id: detect-private-key
       - id: forbid-new-submodules
       - id: pretty-format-json
-        args: ['--autofix', '--no-sort-keys']
+        args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
 
