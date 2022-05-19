@@ -12,9 +12,9 @@
 from .box_utils import (
     box_centers,
     boxes_center_distance,
-    box_area, 
-    box_giou, 
-    box_iou, 
+    box_area,
+    box_giou,
+    box_iou,
     box_pair_giou
     centers_in_boxes,
     convert_box_mode,
