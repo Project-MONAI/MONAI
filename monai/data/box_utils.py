@@ -593,13 +593,23 @@ def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
 
 def box_area(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    This function computes the area of each box
+    This function computes the area (2D) or volume (3D) of each box.
+    Half precision is not recommended for this function as it may cause overflow, especially for 3D images.
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
 
     Returns:
-        area of boxes, with size of (N,).
+        area (2D) or volume (3D) of boxes, with size of (N,).
+
+    Example:
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            # we do computation with torch.float32 to avoid overflow
+            box_dtype = boxes.dtype
+            compute_dtype = torch.float32
+            area = box_area(boxes=boxes.to(dtype=compute_dtype))  # torch.float32, size of (10,)
     """
 
     if not is_valid_box_values(boxes):
