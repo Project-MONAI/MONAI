@@ -1529,6 +1529,8 @@ class RandAffineGrid(Randomizable, Transform):
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            randomize: boolean as to whether the grid parameters governing the grid
+                should be randomized.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
