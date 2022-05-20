@@ -26,10 +26,7 @@ class FlattenLabeld(MapTransform):
     12 small regions of 1's it will delineate them into 12 different label classes
     """
 
-    def __init__(
-            self,
-            keys: KeysCollection,
-    ):
+    def __init__(self, keys: KeysCollection):
         super().__init__(keys)
 
     def __call__(self, data):
@@ -53,12 +50,7 @@ class ExtractPatchd(MapTransform):
         patch_size: size of the extracted patch
     """
 
-    def __init__(
-            self,
-            keys: KeysCollection,
-            centroid_key: str = "centroid",
-            patch_size: int = 128
-    ):
+    def __init__(self, keys: KeysCollection, centroid_key: str = "centroid", patch_size: int = 128):
         super().__init__(keys)
         self.centroid_key = centroid_key
         self.patch_size = patch_size
@@ -111,13 +103,7 @@ class SplitLabeld(Transform):
         min_area: The smallest allowable object size.
     """
 
-    def __init__(
-             self,
-             label: str = "label",
-             others: str = "others",
-             mask_value: str = "mask_value",
-             min_area: int = 5
-    ):
+    def __init__(self, label: str = "label", others: str = "others", mask_value: str = "mask_value", min_area: int = 5):
 
         self.label = label
         self.others = others
@@ -159,11 +145,7 @@ class FilterImaged(MapTransform):
         min_size: The smallest allowable object size
     """
 
-    def __init__(
-            self,
-            keys: KeysCollection,
-            min_size: int = 500
-    ):
+    def __init__(self, keys: KeysCollection, min_size: int = 500):
         super().__init__(keys)
         self.min_size = min_size
 
@@ -235,12 +217,12 @@ class AddPointGuidanceSignald(RandomizableTransform):
     """
 
     def __init__(
-            self,
-            image: str = "image",
-            label: str = "label",
-            others: str = "others",
-            drop_rate: float = 0.5,
-            jitter_range: int = 3
+        self,
+        image: str = "image",
+        label: str = "label",
+        others: str = "others",
+        drop_rate: float = 0.5,
+        jitter_range: int = 3,
     ):
         super().__init__()
 
