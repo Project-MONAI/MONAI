@@ -805,7 +805,9 @@ def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor
 def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
     """
     Compute the generalized intersection over union (GIoU) of two sets of boxes.
-    The two inputs can have different shapes.
+    The two inputs can have different shapes and the func return an NxM matrix,
+    (in contrary to ``box_pair_giou``, which requires the inputs to have the same
+    shape and returns ``N`` values).
 
     Returns:
         GIoU, with size of (N,M) and same data type as ``boxes1``
