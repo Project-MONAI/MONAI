@@ -29,6 +29,7 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.intensity.array import GaussianSmooth
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
     create_control_grid,
@@ -55,7 +56,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
@@ -461,7 +462,7 @@ class Spacing(Transform):
         return output_data, affine, new_affine
 
 
-class Orientation(Transform):
+class Orientation(InvertibleTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -581,7 +582,20 @@ class Orientation(Transform):
         else:
             data_array = MetaTensor(data_array, affine=new_affine)
 
+        self.push_transform(data_array, extra_info={"old_affine": affine_np})
+
         return data_array
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        # Create inverse transform
+        orig_affine = transform[TraceKeys.EXTRA_INFO]["old_affine"]
+        orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
+        inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
+        # Apply inverse
+        data = inverse_transform(data)
+
+        return data
 
 
 class Flip(Transform):
