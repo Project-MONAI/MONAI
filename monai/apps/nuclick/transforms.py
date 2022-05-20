@@ -21,7 +21,6 @@ class FlattenLabeld(MapTransform):
             d[key] = labels.astype(np.uint8)
         return d
 
-
 class ExtractPatchd(MapTransform):
     def __init__(self, keys: KeysCollection, centroid_key="centroid", patch_size=128):
         super().__init__(keys)
@@ -105,7 +104,7 @@ class SplitLabeld(Transform):
         return res
 
 class FilterImaged(MapTransform):
-    def __init__(self, keys: KeysCollection, min_size=500):
+    def __init__(self, keys: KeysCollection, min_size: int = 500):
         super().__init__(keys)
         self.min_size = min_size
 
