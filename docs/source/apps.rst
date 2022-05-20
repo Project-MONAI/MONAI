@@ -122,3 +122,11 @@ Applications
     :members:
 .. autoclass:: TileOnGridd
     :members:
+
+`Detection`
+-----------
+
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.hard_negative_sampler
+    :members:
