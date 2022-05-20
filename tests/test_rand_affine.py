@@ -162,6 +162,31 @@ class TestRandAffine(unittest.TestCase):
         # check matching dtype
         self.assertEqual(out1.dtype, out2.dtype)
 
+    @parameterized.expand(([True], [False]))
+    def test_no_randomize(self, initial_randomize):
+        rand_affine = RandAffine(
+            prob=1,
+            rotate_range=(np.pi / 6, 0, 0),
+            translate_range=((-2, 2), (-2, 2), (-2, 2)),
+            scale_range=((-0.1, 0.1), (-0.1, 0.1), (-0.1, 0.1)),
+            spatial_size=(16, 16, 16),
+            cache_grid=True,
+            padding_mode="zeros",
+        )
+        if initial_randomize:
+            rand_affine.randomize(None)
+
+        arr = torch.randn((1, 16, 16, 16)) * 100
+
+        arr1 = rand_affine(arr, randomize=False)
+        m1 = rand_affine.rand_affine_grid.get_transformation_matrix()
+
+        arr2 = rand_affine(arr, randomize=False)
+        m2 = rand_affine.rand_affine_grid.get_transformation_matrix()
+
+        assert_allclose(m1, m2)
+        assert_allclose(arr1, arr2)
+
 
 if __name__ == "__main__":
     unittest.main()
