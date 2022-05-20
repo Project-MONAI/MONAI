@@ -103,7 +103,7 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
 
             data = {"boxes": torch.ones(10,6)}
             # convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
-            box_converter = ConvertBoxModed(box_keys=["boxes"], mode="xxyyzz")
+            box_converter = ConvertBoxToStandardModed(box_keys=["boxes"], mode="xxyyzz")
             box_converter(data)
     """
 
