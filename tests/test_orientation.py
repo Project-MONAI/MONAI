@@ -217,6 +217,24 @@ class TestOrientationCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             Orientation(**init_param)(img)
 
+    @parameterized.expand(TEST_DEVICES)
+    def test_inverse(self, device):
+        img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
+        affine = torch.tensor(
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device=device
+        )
+        meta = {"fname": "somewhere"}
+        img = MetaTensor(img_t, affine=affine, meta=meta)
+        tr = Orientation("LPS")
+        # check that image and affine have changed
+        img = tr(img)
+        self.assertNotEqual(img.shape, img_t.shape)
+        self.assertGreater((affine - img.affine).max(), 0.5)
+        # check that with inverse, image affine are back to how they were
+        img = tr.inverse(img)
+        self.assertEqual(img.shape, img_t.shape)
+        self.assertLess((affine - img.affine).max(), 1e-2)
+
 
 if __name__ == "__main__":
     unittest.main()

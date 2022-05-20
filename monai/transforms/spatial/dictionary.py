@@ -24,7 +24,6 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -621,26 +620,13 @@ class Orientationd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            old_affine = d[key].affine.clone() if isinstance(d[key], MetaTensor) else torch.eye(4)
             d[key] = self.ornt_transform(d[key])
-            self.push_transform(d, key, extra_info={"old_affine": old_affine})
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_affine = transform[TraceKeys.EXTRA_INFO]["old_affine"]
-            orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
-            inverse_transform = Orientation(
-                axcodes=orig_axcodes, as_closest_canonical=False, labels=self.ornt_transform.labels
-            )
-            # Apply inverse
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.ornt_transform.inverse(d[key])
         return d
 
 
