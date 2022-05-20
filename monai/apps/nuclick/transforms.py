@@ -57,8 +57,7 @@ class ExtractPatchd(MapTransform):
             d[key] = self.pad_to_shape(cropped, roi_size)
         return d
 
-    @staticmethod
-    def bbox(patch_size, centroid, size):
+    def bbox(self, patch_size, centroid, size):
         x, y = centroid
         m, n = size
 
@@ -74,8 +73,7 @@ class ExtractPatchd(MapTransform):
             y_start = n - patch_size
         return x_start, x_end, y_start, y_end
 
-    @staticmethod
-    def pad_to_shape(img, shape):
+    def pad_to_shape(self, img, shape):
         img_shape = img.shape[-2:]
         s_diff = np.array(shape) - np.array(img_shape)
         diff = [(0, 0), (0, s_diff[0]), (0, s_diff[1])]
@@ -98,11 +96,9 @@ class SplitLabeld(Transform):
         d = dict(data)
         label = d[self.label]
         mask_value = d[self.mask_value]
-
         mask = np.uint8(label == mask_value)
         others = (1 - mask) * label
         others = self._mask_relabeling(others[0], min_area=self.min_area)[np.newaxis]
-
         d[self.label] = mask
         d[self.others] = others
         return d
@@ -212,8 +208,7 @@ class AddPointGuidanceSignald(RandomizableTransform):
         d[self.image] = image
         return d
 
-    @staticmethod
-    def inclusion_map(mask):
+    def inclusion_map(self, mask):
         point_mask = np.zeros_like(mask)
         indices = np.argwhere(mask > 0)
         if len(indices) > 0:
@@ -222,8 +217,7 @@ class AddPointGuidanceSignald(RandomizableTransform):
 
         return point_mask
 
-    @staticmethod
-    def exclusion_map(others, jitter_range=3, drop_rate=0.5):
+    def exclusion_map(self, others, jitter_range=3, drop_rate=0.5):
         point_mask = np.zeros_like(others)
         if drop_rate == 1.0:
             return point_mask

@@ -8,7 +8,6 @@ nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
 tensorboard
 scikit-image>=0.14.2
-opencv-python==4.5.5.64
 tqdm>=4.47.0
 lmdb
 flake8>=3.8.1
@@ -38,6 +37,7 @@ openslide-python==1.1.2
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
 pandas
+opencv-python
 requests
 einops
 transformers
