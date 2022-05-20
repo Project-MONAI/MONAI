@@ -14,11 +14,10 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.detection.transforms.dictionary import BoxConvertToStandardd
+from monai.apps.detection.transforms.dictionary import ConvertBoxToStandardModed
 from monai.transforms import Invertd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-# this script test box_convert_mode, box_convert_standard_mode
 TESTS = []
 
 boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
@@ -40,7 +39,7 @@ for p in TEST_NDARRAYS:
 class TestBoxTransform(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, keys, data, expected_standard_result, expected_clip_result, expected_flip_result):
-        transform_convert_mode = BoxConvertToStandardd(**keys)
+        transform_convert_mode = ConvertBoxToStandardModed(**keys)
         result = transform_convert_mode(data)
         assert_allclose(result["boxes"], expected_standard_result, type_test=True, device_test=True, atol=0.0)
 

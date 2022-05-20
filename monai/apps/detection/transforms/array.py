@@ -16,14 +16,14 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Type, Union
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import BoxMode, convert_box_mode
+from monai.data.box_utils import BoxMode, convert_box_mode, convert_box_to_standard_mode
 from monai.transforms.transform import Transform
 from monai.utils.enums import TransformBackends
 
-__all__ = ["BoxConvertToStandard", "BoxConvertMode"]
+__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode"]
 
 
-class BoxConvertMode(Transform):
+class ConvertBoxMode(Transform):
     """
     This transform converts the boxes in src_mode to the dst_mode.
 
@@ -32,7 +32,7 @@ class BoxConvertMode(Transform):
 
             boxes = torch.ones(10,4)
             # convert boxes with format [xmin, ymin, xmax, ymax] to [xcenter, ycenter, xsize, ysize].
-            box_converter = BoxConvertMode(src_mode="xyxy", dst_mode="ccwh")
+            box_converter = ConvertBoxMode(src_mode="xyxy", dst_mode="ccwh")
             box_converter(boxes)
     """
 
@@ -91,7 +91,7 @@ class BoxConvertMode(Transform):
         return convert_box_mode(boxes, src_mode=self.src_mode, dst_mode=self.dst_mode)
 
 
-class BoxConvertToStandard(Transform):
+class ConvertBoxToStandardMode(Transform):
     """
     Convert given boxes to standard mode.
     Standard mode is "xyxy" or "xyzxyz",
@@ -102,7 +102,7 @@ class BoxConvertToStandard(Transform):
 
             boxes = torch.ones(10,6)
             # convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
-            box_converter = BoxConvertToStandard(mode="xxyyzz")
+            box_converter = ConvertBoxToStandardMode(mode="xxyyzz")
             box_converter(boxes)
     """
 
@@ -112,9 +112,9 @@ class BoxConvertToStandard(Transform):
         """
         Args:
             mode: source box mode. If it is not given, this func will assume it is ``StandardMode()``.
-                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.BoxConvertMode` .
+                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.ConvertBoxMode` .
         """
-        self.converter = BoxConvertMode(src_mode=mode, dst_mode=None)
+        self.mode = mode
 
     def __call__(self, boxes: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -125,4 +125,4 @@ class BoxConvertToStandard(Transform):
         Returns:
             bounding boxes with standard mode, with same data type as ``boxes``, does not share memory with ``boxes``
         """
-        return self.converter(boxes)
+        return convert_box_to_standard_mode(boxes, mode=self.mode)

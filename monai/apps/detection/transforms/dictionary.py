@@ -18,7 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from copy import deepcopy
 from typing import Dict, Hashable, Mapping, Type, Union
 
-from monai.apps.detection.transforms.array import BoxConvertMode, BoxConvertToStandard
+from monai.apps.detection.transforms.array import ConvertBoxMode, ConvertBoxToStandardMode
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode
@@ -26,18 +26,18 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
 
 __all__ = [
-    "BoxConvertModed",
-    "BoxConvertModeD",
-    "BoxConvertModeDict",
-    "BoxConvertToStandardd",
-    "BoxConvertToStandardD",
-    "BoxConvertToStandardDict",
+    "ConvertBoxModed",
+    "ConvertBoxModeD",
+    "ConvertBoxModeDict",
+    "ConvertBoxToStandardModed",
+    "ConvertBoxToStandardModeD",
+    "ConvertBoxToStandardModeDict",
 ]
 
 
-class BoxConvertModed(MapTransform, InvertibleTransform):
+class ConvertBoxModed(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxConvertMode`.
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.ConvertBoxMode`.
 
     This transform converts the boxes in src_mode to the dst_mode.
 
@@ -46,7 +46,7 @@ class BoxConvertModed(MapTransform, InvertibleTransform):
 
             data = {"boxes": torch.ones(10,4)}
             # convert boxes with format [xmin, ymin, xmax, ymax] to [xcenter, ycenter, xsize, ysize].
-            box_converter = BoxConvertModed(box_keys=["boxes"], src_mode="xyxy", dst_mode="ccwh")
+            box_converter = ConvertBoxModed(box_keys=["boxes"], src_mode="xyxy", dst_mode="ccwh")
             box_converter(data)
     """
 
@@ -61,42 +61,38 @@ class BoxConvertModed(MapTransform, InvertibleTransform):
         Args:
             box_keys: Keys to pick data for transformation.
             src_mode: source box mode. If it is not given, this func will assume it is ``StandardMode()``.
-                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.BoxConvertMode` .
+                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.ConvertBoxMode` .
             dst_mode: target box mode. If it is not given, this func will assume it is ``StandardMode()``.
-                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.BoxConvertMode` .
+                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.ConvertBoxMode` .
             allow_missing_keys: don't raise exception if key is missing.
 
-        See also :py:class:`monai.apps.detection,transforms.array.BoxConvertMode`
+        See also :py:class:`monai.apps.detection,transforms.array.ConvertBoxMode`
         """
         super().__init__(box_keys, allow_missing_keys)
-        self.converter = BoxConvertMode(src_mode=src_mode, dst_mode=dst_mode)
-        self.inverse_converter = BoxConvertMode(src_mode=dst_mode, dst_mode=src_mode)
+        self.converter = ConvertBoxMode(src_mode=src_mode, dst_mode=dst_mode)
+        self.inverse_converter = ConvertBoxMode(src_mode=dst_mode, dst_mode=src_mode)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        key_id = 0
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.converter(d[key])
-            key_id += 1
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
-        key_id = 0
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
             # Inverse is same as forward
             d[key] = self.inverse_converter(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
-            key_id += 1
         return d
 
 
-class BoxConvertToStandardd(MapTransform, InvertibleTransform):
+class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxConvertToStandard`.
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.ConvertBoxToStandardMode`.
 
     Convert given boxes to standard mode.
     Standard mode is "xyxy" or "xyzxyz",
@@ -107,7 +103,7 @@ class BoxConvertToStandardd(MapTransform, InvertibleTransform):
 
             data = {"boxes": torch.ones(10,6)}
             # convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
-            box_converter = BoxConvertModed(box_keys=["boxes"], mode="xxyyzz")
+            box_converter = ConvertBoxModed(box_keys=["boxes"], mode="xxyyzz")
             box_converter(data)
     """
 
@@ -121,36 +117,32 @@ class BoxConvertToStandardd(MapTransform, InvertibleTransform):
         Args:
             box_keys: Keys to pick data for transformation.
             mode: source box mode. If it is not given, this func will assume it is ``StandardMode()``.
-                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.BoxConvertMode` .
+                It follows the same format with ``src_mode`` in :class:`~monai.apps.detection.transforms.array.ConvertBoxMode` .
             allow_missing_keys: don't raise exception if key is missing.
 
-        See also :py:class:`monai.apps.detection,transforms.array.BoxConvertToStandard`
+        See also :py:class:`monai.apps.detection,transforms.array.ConvertBoxToStandardMode`
         """
         super().__init__(box_keys, allow_missing_keys)
-        self.converter = BoxConvertToStandard(mode=mode)
-        self.inverse_converter = BoxConvertMode(src_mode=None, dst_mode=mode)
+        self.converter = ConvertBoxToStandardMode(mode=mode)
+        self.inverse_converter = ConvertBoxMode(src_mode=None, dst_mode=mode)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        key_id = 0
         for key in self.key_iterator(d):
             self.push_transform(d, key)
             d[key] = self.converter(d[key])
-            key_id += 1
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
-        key_id = 0
         for key in self.key_iterator(d):
             _ = self.get_most_recent_transform(d, key)
             # Inverse is same as forward
             d[key] = self.inverse_converter(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
-            key_id += 1
         return d
 
 
-BoxConvertModeD = BoxConvertModeDict = BoxConvertModed
-BoxConvertToStandardD = BoxConvertToStandardDict = BoxConvertToStandardd
+ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
+ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
