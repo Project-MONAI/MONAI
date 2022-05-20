@@ -62,7 +62,7 @@ class NegativeSampler(BalancedPositiveNegativeSampler, AbstractSampler):
         If not enough positive samples are found, it will be padded with
         negative samples
         """
-        return super(NegativeSampler, self).__call__(target_labels, fg_probs)
+        return super().__call__(target_labels, fg_probs)
 
 
 class HardNegativeSamplerMixin(ABC):
