@@ -52,15 +52,18 @@ class TraceableTransform(Transform):
             return TraceKeys.KEY_SUFFIX
         return str(key) + TraceKeys.KEY_SUFFIX
 
-    def get_transform_info(self, data, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None) -> dict:
+    def get_transform_info(
+        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+    ) -> dict:
         """
         Return a dictionary with the relevant information pertaining to an applied
         transform.
 
         Args:
-            - data: input data. If an array or tensor, we can use `shape` to determine
-                the original size of the object (unless that has been given explicitly,
-                see `orig_size`).
+            - data: input data. Can be dictionary or MetaTensor. We can use `shape` to
+                determine the original size of the object (unless that has been given
+                explicitly, see `orig_size`).
+            - key: if data is a dictionary, data[key] will be modified
             - extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
@@ -69,11 +72,12 @@ class TraceableTransform(Transform):
 
         Returns:
             Dictionary of data pertaining to the applied transformation.
-
         """
         info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
+        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
+            info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
         elif hasattr(data, "shape"):
             info[TraceKeys.ORIG_SIZE] = data.shape[1:]
         if extra_info is not None:
@@ -123,19 +127,15 @@ class TraceableTransform(Transform):
 
         Raises:
             - RuntimeError: data is neither `MetaTensor` nor dictionary
-            - RuntimeError: data is dictionary, but `key` is `None`.
         """
         if not self.tracing:
             return
+        info = self.get_transform_info(data, key, extra_info, orig_size)
 
         if isinstance(data, MetaTensor):
-            info = self.get_transform_info(data, extra_info, orig_size)
             data.push_applied_operation(info)
         elif isinstance(data, Mapping):
-            if key is None:
-                raise RuntimeError("data is dictionary, but `key` is `None`.")
-            info = self.get_transform_info(data[key], extra_info, orig_size)
-            if isinstance(data[key], MetaTensor):
+            if key in data and isinstance(data[key], MetaTensor):
                 data[key].push_applied_operation(info)
             else:
                 # If this is the first, create list
@@ -194,16 +194,13 @@ class TraceableTransform(Transform):
 
         Raises:
             - RuntimeError: data is neither `MetaTensor` nor dictionary
-            - RuntimeError: data is dictionary, but `key` is `None`.
         """
         if not self.tracing:
             raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
         if isinstance(data, MetaTensor):
             all_transforms = data.applied_operations
         elif isinstance(data, Mapping):
-            if key is None:
-                raise RuntimeError("data is dictionary, but `key` is `None`.")
-            if isinstance(data[key], MetaTensor):
+            if key in data and isinstance(data[key], MetaTensor):
                 all_transforms = data[key].applied_operations
             else:
                 all_transforms = data[self.trace_key(key)]
@@ -246,7 +243,6 @@ class TraceableTransform(Transform):
 
         Raises:
             - RuntimeError: data is neither `MetaTensor` nor dictionary
-            - RuntimeError: data is dictionary, but `key` is `None`.
         """
         return self.get_most_recent_transform(data, key, check, pop=True)
 
