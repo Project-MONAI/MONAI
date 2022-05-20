@@ -130,6 +130,11 @@ for p in TEST_NDARRAYS:
     for in_dtype in (np.int32, np.float32):
         TEST_CASES_SKIPPED_CONSISTENCY.append((p(np.arange(9 * 10).reshape(1, 9, 10)), in_dtype))
 
+TEST_RANDOMIZE = []
+for cache_grid in (False, True):
+    for initial_randomize in (False, True):
+        TEST_RANDOMIZE.append((initial_randomize, cache_grid))
+
 
 class TestRandAffine(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -161,6 +166,31 @@ class TestRandAffine(unittest.TestCase):
         self.assertEqual(type(out1), type(out2))
         # check matching dtype
         self.assertEqual(out1.dtype, out2.dtype)
+
+    @parameterized.expand(TEST_RANDOMIZE)
+    def test_no_randomize(self, initial_randomize, cache_grid):
+        rand_affine = RandAffine(
+            prob=1,
+            rotate_range=(np.pi / 6, 0, 0),
+            translate_range=((-2, 2), (-2, 2), (-2, 2)),
+            scale_range=((-0.1, 0.1), (-0.1, 0.1), (-0.1, 0.1)),
+            spatial_size=(16, 16, 16),
+            cache_grid=cache_grid,
+            padding_mode="zeros",
+        )
+        if initial_randomize:
+            rand_affine.randomize(None)
+
+        arr = torch.randn((1, 16, 16, 16)) * 100
+
+        arr1 = rand_affine(arr, randomize=False)
+        m1 = rand_affine.rand_affine_grid.get_transformation_matrix()
+
+        arr2 = rand_affine(arr, randomize=False)
+        m2 = rand_affine.rand_affine_grid.get_transformation_matrix()
+
+        assert_allclose(m1, m2)
+        assert_allclose(arr1, arr2)
 
 
 if __name__ == "__main__":

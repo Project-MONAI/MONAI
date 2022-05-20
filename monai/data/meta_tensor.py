@@ -19,7 +19,7 @@ import torch
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
-from monai.data.utils import decollate_batch, list_data_collate
+from monai.data.utils import decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
@@ -132,12 +132,35 @@ class MetaTensor(MetaObj, torch.Tensor):
             setattr(self, attribute, val.to(self.device))
 
     @staticmethod
-    def update_meta(rets: Sequence, func, args, kwargs):
-        """Update the metadata from the output of `__torch_function__`.
-        The output could be a single object, or a sequence of them. Hence, they get
-        converted to a sequence if necessary and then processed by iterating across them.
+    def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
+        """
+        Update the metadata from the output of `MetaTensor.__torch_function__`.
 
-        For each element, if not of type `MetaTensor`, then nothing to do
+        The output of `torch.Tensor.__torch_function__` could be a single object or a
+        sequence of them. Hence, in `MetaTensor.__torch_function__` we convert them to a
+        list of not already, and then we loop across each element, processing metadata
+        as necessary. For each element, if not of type `MetaTensor`, then nothing to do.
+
+        Args:
+            rets: the output from `torch.Tensor.__torch_function__`, which has been
+                converted to a list in `MetaTensor.__torch_function__` if it wasn't
+                already a `Sequence`.
+            func: the torch function that was applied. Examples might be `torch.squeeze`
+                or `torch.Tensor.__add__`. We need this since the metadata need to be
+                treated differently if a batch of data is considered. For example,
+                slicing (`torch.Tensor.__getitem__`) the ith element of the 0th
+                dimension of a batch of data should return a ith tensor with the ith
+                metadata.
+            args: positional arguments that were passed to `func`.
+            kwargs: keyword arguments that were passed to `func`.
+
+        Returns:
+            A sequence with the same number of elements as `rets`. For each element, if
+            the input type was not `MetaTensor`, then no modifications will have been
+            made. If global parameters have been set to false (e.g.,
+            `not get_track_meta()`), then any `MetaTensor` will be converted to
+            `torch.Tensor`. Else, metadata will be propogated as necessary (see
+            :py:func:`MetaTensor._copy_meta`).
         """
         out = []
         metas = None
@@ -211,7 +234,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
-        if not isinstance(ret, Sequence):
+        if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
         else:
@@ -267,3 +290,36 @@ class MetaTensor(MetaObj, torch.Tensor):
         return type(self)(
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
+
+    @staticmethod
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+        """
+        Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
+        convert that to `torch.Tensor`, too. Remove any superfluous metadata.
+
+        Args:
+            im: Input image (`np.ndarray` or `torch.Tensor`)
+            meta: Metadata dictionary.
+
+        Returns:
+            By default, a `MetaTensor` is returned.
+            However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
+        """
+        img = torch.as_tensor(im)
+
+        # if not tracking metadata, return `torch.Tensor`
+        if not get_track_meta() or meta is None:
+            return img
+
+        # ensure affine is of type `torch.Tensor`
+        if "affine" in meta:
+            meta["affine"] = torch.as_tensor(meta["affine"])
+
+        # remove any superfluous metadata.
+        remove_extra_metadata(meta)
+
+        # return the `MetaTensor`
+        return MetaTensor(img, meta=meta)
+
+    def __repr__(self, *, tensor_contents=None):
+        return self.as_tensor().__repr__() + super().__repr__()

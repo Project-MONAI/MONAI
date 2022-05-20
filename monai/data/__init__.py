@@ -9,7 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .box_utils import convert_box_mode, convert_box_to_standard_mode
+from .box_utils import (
+    box_area,
+    box_centers,
+    box_giou,
+    box_iou,
+    box_pair_giou,
+    boxes_center_distance,
+    centers_in_boxes,
+    convert_box_mode,
+    convert_box_to_standard_mode,
+)
 from .csv_saver import CSVSaver
 from .dataloader import DataLoader
 from .dataset import (
@@ -66,6 +76,7 @@ from .utils import (
     create_file_basename,
     decollate_batch,
     dense_patch_slices,
+    get_extra_metadata_keys,
     get_random_patch,
     get_valid_patch_size,
     is_supported_format,
@@ -79,6 +90,8 @@ from .utils import (
     partition_dataset_classes,
     pickle_hashing,
     rectify_header_sform_qform,
+    remove_extra_metadata,
+    remove_keys,
     reorient_spatial_axes,
     resample_datalist,
     select_cross_validation_folds,
