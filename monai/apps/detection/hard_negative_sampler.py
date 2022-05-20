@@ -21,7 +21,7 @@
 # limitations under the License.
 
 """
-Functions in script are modified from 
+Functions in script are modified from
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/sampler.py
 
 """
