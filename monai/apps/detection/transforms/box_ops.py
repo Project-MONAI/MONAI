@@ -15,6 +15,7 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import get_spatial_dims
+from monai.transforms.utils import create_scale
 from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -69,7 +70,6 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
 
     # some operation does not support torch.float16
     # convert to float32
-    box_dtype = boxes_t.dtype
     compute_dtype = torch.float32
 
     boxes_t = boxes_t.to(dtype=compute_dtype)
@@ -116,10 +116,7 @@ def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]) -> N
     spatial_dims = get_spatial_dims(boxes=boxes)
 
     # generate affine transform corresponding to ``zoom``
-    _zoom = ensure_tuple_rep(zoom, spatial_dims)
-    _zoom = _zoom + (1.0,)
-    zoom_t = torch.Tensor(_zoom)
-    affine = torch.diag(zoom_t)
+    affine = create_scale(spatial_dims=spatial_dims, scaling_factor=zoom)
 
     return apply_affine_to_boxes(boxes=boxes, affine=affine)
 
