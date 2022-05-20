@@ -130,6 +130,11 @@ for p in TEST_NDARRAYS:
     for in_dtype in (np.int32, np.float32):
         TEST_CASES_SKIPPED_CONSISTENCY.append((p(np.arange(9 * 10).reshape(1, 9, 10)), in_dtype))
 
+TEST_RANDOMIZE = []
+for cache_grid in (False, True):
+    for initial_randomize in (False, True):
+        TEST_RANDOMIZE.append((initial_randomize, cache_grid))
+
 
 class TestRandAffine(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -162,15 +167,15 @@ class TestRandAffine(unittest.TestCase):
         # check matching dtype
         self.assertEqual(out1.dtype, out2.dtype)
 
-    @parameterized.expand(([True], [False]))
-    def test_no_randomize(self, initial_randomize):
+    @parameterized.expand(TEST_RANDOMIZE)
+    def test_no_randomize(self, initial_randomize, cache_grid):
         rand_affine = RandAffine(
             prob=1,
             rotate_range=(np.pi / 6, 0, 0),
             translate_range=((-2, 2), (-2, 2), (-2, 2)),
             scale_range=((-0.1, 0.1), (-0.1, 0.1), (-0.1, 0.1)),
             spatial_size=(16, 16, 16),
-            cache_grid=True,
+            cache_grid=cache_grid,
             padding_mode="zeros",
         )
         if initial_randomize:
