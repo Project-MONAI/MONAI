@@ -129,4 +129,10 @@ Applications
 `Hard Negative Sampler`
 ~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.hard_negative_sampler
+
+`Transforms`
+~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.transforms.array
+    :members:
+.. automodule:: monai.apps.detection.transforms.dictionary
     :members:
