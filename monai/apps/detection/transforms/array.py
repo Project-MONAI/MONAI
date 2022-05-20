@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for spatial operations
+A collection of "vanilla" transforms for box operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 

@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of dictionary-based wrappers around the "vanilla" transforms for spatial operations
-defined in :py:class:`monai.transforms.spatial.array`.
+A collection of dictionary-based wrappers around the "vanilla" transforms for box operations
+defined in :py:class:`monai.apps.detection.transforms.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
@@ -37,7 +37,7 @@ __all__ = [
 
 class BoxConvertModed(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.BoxConvertMode`.
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxConvertMode`.
 
     This transform converts the boxes in src_mode to the dst_mode.
 
@@ -96,7 +96,7 @@ class BoxConvertModed(MapTransform, InvertibleTransform):
 
 class BoxConvertToStandardd(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.BoxConvertToStandard`.
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxConvertToStandard`.
 
     Convert given boxes to standard mode.
     Standard mode is "xyxy" or "xyzxyz",
