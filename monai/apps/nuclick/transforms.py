@@ -21,6 +21,11 @@ from monai.transforms import MapTransform, RandomizableTransform, Transform
 
 
 class FlattenLabeld(MapTransform):
+    """
+    FlattenLabeld creates labels per closed object contour (defined by a connectivity). For e.g if there are
+    12 small regions of 1's it will delineate them into 12 different label classes
+    """
+
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
@@ -30,6 +35,10 @@ class FlattenLabeld(MapTransform):
 
 
 class ExtractPatchd(MapTransform):
+    """
+    Extracts a patch from the given image and label, however it is based on the centroid location
+    """
+
     def __init__(self, keys: KeysCollection, centroid_key="centroid", patch_size=128):
         super().__init__(keys)
         self.centroid_key = centroid_key
@@ -74,6 +83,11 @@ class ExtractPatchd(MapTransform):
 
 
 class SplitLabeld(Transform):
+    """
+    Extracts a single label from all the given classes, the single label is defined by mask_value, the remaining
+    labels are kept in others
+    """
+
     def __init__(self, label="label", others="others", mask_value="mask_value", min_area=5):
         self.label = label
         self.others = others
@@ -93,8 +107,7 @@ class SplitLabeld(Transform):
         d[self.others] = others
         return d
 
-    @staticmethod
-    def _mask_relabeling(mask, min_area=5):
+    def _mask_relabeling(self, mask, min_area=5):
         res = np.zeros_like(mask)
         for l in np.unique(mask):
             if l == 0:
@@ -108,6 +121,10 @@ class SplitLabeld(Transform):
 
 
 class FilterImaged(MapTransform):
+    """
+    Filters Green and Gray channel of the image
+    """
+
     def __init__(self, keys: KeysCollection, min_size: int = 500):
         super().__init__(keys)
         self.min_size = min_size
@@ -168,6 +185,10 @@ class FilterImaged(MapTransform):
 
 
 class AddPointGuidanceSignald(RandomizableTransform):
+    """
+    Add Guidance Signal
+    """
+
     def __init__(self, image="image", label="label", others="others", drop_rate=0.5, jitter_range=3):
         super().__init__()
 
