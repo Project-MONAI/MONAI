@@ -26,6 +26,12 @@ class FlattenLabeld(MapTransform):
     12 small regions of 1's it will delineate them into 12 different label classes
     """
 
+    def __init__(
+            self,
+            keys: KeysCollection,
+    ):
+        super().__init__(keys)
+
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
@@ -36,10 +42,23 @@ class FlattenLabeld(MapTransform):
 
 class ExtractPatchd(MapTransform):
     """
-    Extracts a patch from the given image and label, however it is based on the centroid location
+    Extracts a patch from the given image and label, however it is based on the centroid location.
+    The centroid location is a 2D coordinate (H, W). The extracted patch is extracted around the centroid,
+    if the centroid is towards the edge, the centroid will not be the center of the image as the patch will be
+    extracted from the edges onwards
+
+    Args:
+        keys: image, label
+        centroid_key: key where the centroid values are stored
+        patch_size: size of the extracted patch
     """
 
-    def __init__(self, keys: KeysCollection, centroid_key="centroid", patch_size=128):
+    def __init__(
+            self,
+            keys: KeysCollection,
+            centroid_key: str = "centroid",
+            patch_size: int = 128
+    ):
         super().__init__(keys)
         self.centroid_key = centroid_key
         self.patch_size = patch_size
@@ -84,9 +103,22 @@ class SplitLabeld(Transform):
     """
     Extracts a single label from all the given classes, the single label is defined by mask_value, the remaining
     labels are kept in others
+
+    Args:
+        label: label source
+        others: other labels storage key
+        mask_value: the mask_value that will be kept for binarization of the label
+        min_area: The smallest allowable object size.
     """
 
-    def __init__(self, label="label", others="others", mask_value="mask_value", min_area=5):
+    def __init__(
+             self,
+             label: str = "label",
+             others: str = "others",
+             mask_value: str = "mask_value",
+             min_area: int = 5
+    ):
+
         self.label = label
         self.others = others
         self.mask_value = mask_value
@@ -118,10 +150,20 @@ class SplitLabeld(Transform):
 
 class FilterImaged(MapTransform):
     """
-    Filters Green and Gray channel of the image
+    Filters Green and Gray channel of the image using an allowable object size, this pre-processing transform
+    is specific towards NuClick training process. More details can be referred in this paper Koohbanani,
+    Navid Alemi, et al. "NuClick: a deep learning framework for interactive segmentation of microscopic images."
+    Medical Image Analysis 65 (2020): 101771.
+
+    Args:
+        min_size: The smallest allowable object size
     """
 
-    def __init__(self, keys: KeysCollection, min_size: int = 500):
+    def __init__(
+            self,
+            keys: KeysCollection,
+            min_size: int = 500
+    ):
         super().__init__(keys)
         self.min_size = min_size
 
@@ -182,10 +224,24 @@ class FilterImaged(MapTransform):
 
 class AddPointGuidanceSignald(RandomizableTransform):
     """
-    Add Guidance Signal
+    Adds Guidance Signal to the input image
+
+    Args:
+        image: source image
+        label: source label
+        others: source others (other labels from the binary mask which are not being used for training)
+        drop_rate:
+        jitter_range: noise added to the points in the point mask for exclusion mask
     """
 
-    def __init__(self, image="image", label="label", others="others", drop_rate=0.5, jitter_range=3):
+    def __init__(
+            self,
+            image: str = "image",
+            label: str = "label",
+            others: str = "others",
+            drop_rate: float = 0.5,
+            jitter_range: int = 3
+    ):
         super().__init__()
 
         self.image = image
