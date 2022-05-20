@@ -1,17 +1,24 @@
-import random
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import math
+import random
+
 import cv2
-import skimage
 import numpy as np
+import skimage
+from skimage.morphology import remove_small_objects
 
 from monai.config import KeysCollection
-from monai.transforms import (
-    MapTransform,
-    RandomizableTransform,
-    Transform
-)
+from monai.transforms import MapTransform, RandomizableTransform, Transform
 
-from skimage.morphology import remove_small_objects
 
 class FlattenLabeld(MapTransform):
     def __call__(self, data):
@@ -20,6 +27,7 @@ class FlattenLabeld(MapTransform):
             _, labels, _, _ = cv2.connectedComponentsWithStats(d[key], 4, cv2.CV_32S)
             d[key] = labels.astype(np.uint8)
         return d
+
 
 class ExtractPatchd(MapTransform):
     def __init__(self, keys: KeysCollection, centroid_key="centroid", patch_size=128):
@@ -62,12 +70,7 @@ class ExtractPatchd(MapTransform):
         img_shape = img.shape[-2:]
         s_diff = np.array(shape) - np.array(img_shape)
         diff = [(0, 0), (0, s_diff[0]), (0, s_diff[1])]
-        return np.pad(
-            img,
-            diff,
-            mode="constant",
-            constant_values=0,
-        )
+        return np.pad(img, diff, mode="constant", constant_values=0)
 
 
 class SplitLabeld(Transform):
@@ -103,6 +106,7 @@ class SplitLabeld(Transform):
                     res[stat.coords[:, 0], stat.coords[:, 1]] = l
         return res
 
+
 class FilterImaged(MapTransform):
     def __init__(self, keys: KeysCollection, min_size: int = 500):
         super().__init__(keys)
@@ -120,18 +124,24 @@ class FilterImaged(MapTransform):
         mask_not_gray = self.filter_grays(rgb)
         mask_gray_green = mask_not_gray & mask_not_green
         mask = (
-            self.filter_remove_small_objects(mask_gray_green, min_size=self.min_size) if self.min_size else mask_gray_green
+            self.filter_remove_small_objects(mask_gray_green, min_size=self.min_size)
+            if self.min_size
+            else mask_gray_green
         )
 
         return rgb * np.dstack([mask, mask, mask])
 
-    def filter_green_channel(self, img_np, green_thresh=200, avoid_overmask=True, overmask_thresh=90, output_type="bool"):
+    def filter_green_channel(
+        self, img_np, green_thresh=200, avoid_overmask=True, overmask_thresh=90, output_type="bool"
+    ):
         g = img_np[:, :, 1]
         gr_ch_mask = (g < green_thresh) & (g > 0)
         mask_percentage = self.mask_percent(gr_ch_mask)
         if (mask_percentage >= overmask_thresh) and (green_thresh < 255) and (avoid_overmask is True):
             new_green_thresh = math.ceil((255 - green_thresh) / 2 + green_thresh)
-            gr_ch_mask = self.filter_green_channel(img_np, new_green_thresh, avoid_overmask, overmask_thresh, output_type)
+            gr_ch_mask = self.filter_green_channel(
+                img_np, new_green_thresh, avoid_overmask, overmask_thresh, output_type
+            )
         return gr_ch_mask
 
     def filter_grays(self, rgb, tolerance=15):
