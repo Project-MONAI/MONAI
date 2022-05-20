@@ -15,7 +15,15 @@ import unittest
 
 import numpy as np
 
-from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSamplesd, RepeatChanneld, ScaleIntensityd
+from monai.transforms import (
+    AddChanneld,
+    Compose,
+    FromMetaTensord,
+    LoadImaged,
+    RandSpatialCropSamplesd,
+    RepeatChanneld,
+    ScaleIntensityd,
+)
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
@@ -29,7 +37,9 @@ class TestMatshow3d(unittest.TestCase):
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"
-        xforms = Compose([LoadImaged(keys=keys), AddChanneld(keys=keys), ScaleIntensityd(keys=keys)])
+        xforms = Compose(
+            [LoadImaged(keys=keys), AddChanneld(keys=keys), FromMetaTensord(keys=keys), ScaleIntensityd(keys=keys)]
+        )
         image_path = os.path.join(testing_dir, "anatomical.nii")
         ims = xforms({keys: image_path})
 
@@ -49,6 +59,7 @@ class TestMatshow3d(unittest.TestCase):
             [
                 LoadImaged(keys=keys),
                 AddChanneld(keys=keys),
+                FromMetaTensord(keys=keys),
                 ScaleIntensityd(keys=keys),
                 RandSpatialCropSamplesd(keys=keys, roi_size=(8, 8, 5), random_size=True, num_samples=10),
             ]
@@ -78,6 +89,7 @@ class TestMatshow3d(unittest.TestCase):
             [
                 LoadImaged(keys=keys),
                 AddChanneld(keys=keys),
+                FromMetaTensord(keys=keys),
                 ScaleIntensityd(keys=keys),
                 # change to RGB color image
                 RepeatChanneld(keys=keys, repeats=3),

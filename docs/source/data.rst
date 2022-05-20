@@ -311,3 +311,28 @@ PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
+
+Bounding box
+------------
+
+Box mode
+~~~~~~~~~~
+.. autoclass:: monai.data.box_utils.BoxMode
+    :members:
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeA
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeB
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeC
+.. autoclass:: monai.data.box_utils.CornerSizeMode
+.. autoclass:: monai.data.box_utils.CenterSizeMode
+
+Box mode converter
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.get_boxmode
+.. autofunction:: monai.data.box_utils.convert_box_mode
+.. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
+
+Box center
+~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.box_centers
+.. autofunction:: monai.data.box_utils.centers_in_boxes
+.. autofunction:: monai.data.box_utils.boxes_center_distance

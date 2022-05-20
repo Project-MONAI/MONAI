@@ -18,9 +18,8 @@ from typing import Any, Callable, Sequence
 import torch
 
 from monai.config.type_definitions import NdarrayTensor
-from monai.data.meta_obj import MetaObj, get_track_meta, get_track_transforms
-from monai.data.utils import decollate_batch, list_data_collate
-from monai.transforms.utils import remove_extra_metadata
+from monai.data.meta_obj import MetaObj, get_track_meta
+from monai.data.utils import decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils.enums import PostFix
 
 __all__ = ["MetaTensor"]
@@ -74,10 +73,20 @@ class MetaTensor(MetaObj, torch.Tensor):
     """
 
     @staticmethod
-    def __new__(cls, x, affine: torch.Tensor | None = None, meta: dict | None = None, *args, **kwargs) -> MetaTensor:
+    def __new__(
+        cls,
+        x,
+        affine: torch.Tensor | None = None,
+        meta: dict | None = None,
+        applied_operations: list | None = None,
+        *args,
+        **kwargs,
+    ) -> MetaTensor:
         return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
 
-    def __init__(self, x, affine: torch.Tensor | None = None, meta: dict | None = None) -> None:
+    def __init__(
+        self, x, affine: torch.Tensor | None = None, meta: dict | None = None, applied_operations: list | None = None
+    ) -> None:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
         Else, use the default value. Similar for the affine, except this could come from
@@ -96,15 +105,24 @@ class MetaTensor(MetaObj, torch.Tensor):
                 warnings.warn("Setting affine, but the applied meta contains an affine. This will be overwritten.")
             self.affine = affine
         elif "affine" in self.meta:
-            pass  # nothing to do
+            # by using the setter function, we ensure it is converted to torch.Tensor if not already
+            self.affine = self.meta["affine"]
         elif isinstance(x, MetaTensor):
             self.affine = x.affine
         else:
             self.affine = self.get_default_affine()
+        # applied_operations
+        if applied_operations is not None:
+            self.applied_operations = applied_operations
+        elif isinstance(x, MetaTensor):
+            self.applied_operations = x.applied_operations
+        else:
+            self.applied_operations = self.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.meta = deepcopy(self.meta)
+            self.applied_operations = deepcopy(self.applied_operations)
         self.affine = self.affine.to(self.device)
 
     def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
@@ -151,7 +169,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             if not isinstance(ret, MetaTensor):
                 pass
             # if not tracking, convert to `torch.Tensor`.
-            elif not (get_track_meta() or get_track_transforms()):
+            elif not get_track_meta():
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
@@ -215,7 +233,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         #     return ret
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
-        # Convert to list (if necessary), process, and at end remove list if one was added.s
+        # Convert to list (if necessary), process, and at end remove list if one was added.
         if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
@@ -246,7 +264,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             A dictionary consisting of two keys, the main data (stored under `key`) and
                 the metadata.
         """
-        return {key: self.as_tensor(), PostFix.meta(key): self.meta}
+        return {
+            key: self.as_tensor(),
+            PostFix.meta(key): deepcopy(self.meta),
+            PostFix.transforms(key): deepcopy(self.applied_operations),
+        }
 
     @property
     def affine(self) -> torch.Tensor:
@@ -254,9 +276,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         return self.meta["affine"]  # type: ignore
 
     @affine.setter
-    def affine(self, d: torch.Tensor) -> None:
+    def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = d
+        self.meta["affine"] = torch.as_tensor(d, device=self.device)
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """

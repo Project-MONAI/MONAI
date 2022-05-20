@@ -186,13 +186,17 @@ def convert_to_meta_tensor(
     elif isinstance(data, list):
         list_ret = [convert_to_meta_tensor(i, dtype=dtype, device=device) for i in data]
         return (
-            MetaTensor(torch.as_tensor(list_ret, dtype=dtype, device=device)) if wrap_sequence else list_ret  # type: ignore
-        )  # type: ignore
+            MetaTensor(torch.as_tensor(list_ret, dtype=dtype, device=device))  # type: ignore
+            if wrap_sequence
+            else list_ret
+        )
     elif isinstance(data, tuple):
         tuple_ret = tuple(convert_to_meta_tensor(i, dtype=dtype, device=device) for i in data)
         return (
-            MetaTensor(torch.as_tensor(tuple_ret, dtype=dtype, device=device)) if wrap_sequence else tuple_ret  # type: ignore
-        )  # type: ignore
+            MetaTensor(torch.as_tensor(tuple_ret, dtype=dtype, device=device))  # type: ignore
+            if wrap_sequence
+            else tuple_ret
+        )
     elif isinstance(data, dict):
         return {k: convert_to_meta_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
 
@@ -373,3 +377,15 @@ def convert_to_dst_type(
     else:
         output_type = type(dst)
     return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence)
+
+
+def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
+    """
+    Convert to list from `torch.Tensor`/`np.ndarray`/`list`/`tuple` etc.
+    Args:
+        data: data to be converted
+    Returns:
+        a list
+
+    """
+    return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)

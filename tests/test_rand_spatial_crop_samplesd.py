@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms import Compose, RandSpatialCropSamplesd, ToTensord
 from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
@@ -41,7 +41,7 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_NO_META_TENSOR:
     TEST_CASE_2.append(
         [
             {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False},
