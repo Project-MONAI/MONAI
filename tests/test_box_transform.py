@@ -44,9 +44,7 @@ class TestBoxTransform(unittest.TestCase):
         result = transform_convert_mode(data)
         assert_allclose(result["boxes"], expected_standard_result, type_test=True, device_test=True, atol=0.0)
 
-        invert_transform_convert_mode = Invertd(
-            keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
-        )
+        invert_transform_convert_mode = Invertd(keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"])
         data_back = invert_transform_convert_mode(result)
         assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.0)
 
