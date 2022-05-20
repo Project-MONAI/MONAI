@@ -254,9 +254,9 @@ class ResizeBox(Transform):
         """
         input_ndim = get_spatial_dims(boxes=boxes) # spatial ndim
         src_spatial_size_ = ensure_tuple_rep(src_spatial_size,input_ndim)
-        
+
         if self.size_mode == "all":
-            # spatial_size must be a Sequence if size_mode is 'all'              
+            # spatial_size must be a Sequence if size_mode is 'all'
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim != input_ndim:
                 raise ValueError(
