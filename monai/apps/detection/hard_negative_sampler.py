@@ -42,9 +42,9 @@ class AbstractSampler(ABC):
         Select positive and negative anchors
 
         Args:
-            target_labels (List[Tensor]): labels for each anchor per image, List[[A]],
+            target_labels: labels for each anchor per image, List[[A]],
                 where A is the number of anchors in one image
-            fg_probs (Tensor): maximum foreground probability per anchor, [R]
+            fg_probs: maximum foreground probability per anchor, [R]
                 where R is the sum of all anchors inside one batch
 
         Returns:
@@ -72,7 +72,7 @@ class HardNegativeSamplerMixin(ABC):
         defined number of negatives from it
 
         Args:
-            pool_size (float): hard negatives are sampled from a pool of size:
+            pool_size: hard negatives are sampled from a pool of size:
                 batch_size_per_image * (1 - positive_fraction) * pool_size
         """
         self.pool_size = pool_size
@@ -82,12 +82,12 @@ class HardNegativeSamplerMixin(ABC):
         Select negative anchors
 
         Args:
-            negative (Tensor): indices of negative anchors [P],
+            negative: indices of negative anchors [P],
                 where P is the number of negative anchors
-            num_neg (int): number of negative anchors to sample
-            img_labels (Tensor): labels for all anchors in a image [A],
+            num_neg: number of negative anchors to sample
+            img_labels: labels for all anchors in a image [A],
                 where A is the number of anchors in one image
-            img_fg_probs (Tensor): maximum foreground probability per anchor [A],
+            img_fg_probs: maximum foreground probability per anchor [A],
                 where A is the the number of anchors in one image
 
         Returns:
@@ -117,9 +117,9 @@ class HardNegativeSampler(HardNegativeSamplerMixin):
         defined number of negatives from it
 
         Args:
-            batch_size_per_image (int): number of elements to be selected per image
-            positive_fraction (float): percentage of positive elements per batch
-            pool_size (float): hard negatives are sampled from a pool of size:
+            batch_size_per_image: number of elements to be selected per image
+            positive_fraction: percentage of positive elements per batch
+            pool_size: hard negatives are sampled from a pool of size:
                 batch_size_per_image * (1 - positive_fraction) * pool_size
         """
         super().__init__(pool_size=pool_size)
@@ -132,9 +132,9 @@ class HardNegativeSampler(HardNegativeSamplerMixin):
         Select hard negatives from list anchors per image
 
         Args:
-            target_labels (List[Tensor]): labels for each anchor per image, List[[A]],
+            target_labels: labels for each anchor per image, List[[A]],
                 where A is the number of anchors in one image
-            fg_probs (Tensor): maximum foreground probability per anchor, [R]
+            fg_probs: maximum foreground probability per anchor, [R]
                 where R is the sum of all anchors inside one batch
 
         Returns:
@@ -198,12 +198,12 @@ class HardNegativeSampler(HardNegativeSamplerMixin):
         Select positive anchors
 
         Args:
-            positive (Tensor): indices of positive anchors [P],
+            positive: indices of positive anchors [P],
                 where P is the number of positive anchors
-            num_pos (int): number of positive anchors to sample
-            img_labels (Tensor): labels for all anchors in a image [A],
+            num_pos: number of positive anchors to sample
+            img_labels: labels for all anchors in a image [A],
                 where A is the number of anchors in one image
-            img_fg_probs (Tensor): maximum foreground probability per anchor [A],
+            img_fg_probs: maximum foreground probability per anchor [A],
                 where A is the the number of anchors in one image
 
         Returns:
@@ -231,9 +231,9 @@ class HardNegativeSamplerBatched(HardNegativeSampler):
     def __init__(self, batch_size_per_image: int, positive_fraction: float, min_neg: int = 0, pool_size: float = 10):
         """
         Args:
-            batch_size_per_image (int): number of elements to be selected per image
-            positive_fraction (float): percentage of positive elements per batch
-            pool_size (float): hard negatives are sampled from a pool of size:
+            batch_size_per_image: number of elements to be selected per image
+            positive_fraction: percentage of positive elements per batch
+            pool_size: hard negatives are sampled from a pool of size:
                 batch_size_per_image * (1 - positive_fraction) * pool_size
         """
         super().__init__(
@@ -250,9 +250,9 @@ class HardNegativeSamplerBatched(HardNegativeSampler):
         Select hard negatives from list anchors per image
 
         Args:
-            target_labels (List[Tensor]): labels for each anchor per image, List[[A]],
+            target_labels: labels for each anchor per image, List[[A]],
                 where A is the number of anchors in one image
-            fg_probs (Tensor): maximum foreground probability per anchor, [R]
+            fg_probs: maximum foreground probability per anchor, [R]
                 where R is the sum of all anchors inside one batch
 
         Returns:
@@ -303,9 +303,9 @@ class HardNegativeSamplerFgAll(HardNegativeSamplerMixin):
         of hard negatives
 
         Args:
-            negative_ratio (float): ratio of negative to positive sample;
+            negative_ratio: ratio of negative to positive sample;
                 (samples negative_ratio * positive_anchors examples)
-            pool_size (float): hard negatives are sampled from a pool of size:
+            pool_size: hard negatives are sampled from a pool of size:
                 batch_size_per_image * (1 - positive_fraction) * pool_size
         """
         super().__init__(pool_size=pool_size)
@@ -316,9 +316,9 @@ class HardNegativeSamplerFgAll(HardNegativeSamplerMixin):
         Select hard negatives from list anchors per image
 
         Args:
-            target_labels (List[Tensor]): labels for each anchor per image, List[[A]],
+            target_labels: labels for each anchor per image, List[[A]],
                 where A is the number of anchors in one image
-            fg_probs (Tensor): maximum foreground probability per anchor, [R]
+            fg_probs: maximum foreground probability per anchor, [R]
                 where R is the sum of all anchors inside one batch
 
         Returns:
