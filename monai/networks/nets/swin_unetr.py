@@ -626,10 +626,10 @@ class SwinTransformerBlock(nn.Module):
             "attn.proj.bias",
             "norm2.weight",
             "norm2.bias",
-            "mlp.linear1.weight",
-            "mlp.linear1.bias",
-            "mlp.linear2.weight",
-            "mlp.linear2.bias",
+            "mlp.fc1.weight",
+            "mlp.fc1.bias",
+            "mlp.fc2.weight",
+            "mlp.fc2.bias",
         ]
         with torch.no_grad():
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
