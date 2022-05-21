@@ -30,7 +30,7 @@ from abc import ABC
 from typing import List
 
 import torch
-from loguru import logger
+import logging
 from torch import Tensor
 from torchvision.models.detection._utils import BalancedPositiveNegativeSampler
 
@@ -125,6 +125,7 @@ class HardNegativeSampler(HardNegativeSamplerMixin):
         self.min_neg = min_neg
         self.batch_size_per_image = batch_size_per_image
         self.positive_fraction = positive_fraction
+        logging.info("Sampling hard negatives on a per batch basis")
 
     def __call__(self, target_labels: List[Tensor], fg_probs: Tensor):
         """
@@ -242,7 +243,7 @@ class HardNegativeSamplerBatched(HardNegativeSampler):
             pool_size=pool_size,
         )
         self._batch_size_per_image = batch_size_per_image
-        logger.info("Sampling hard negatives on a per batch basis")
+        logging.info("Sampling hard negatives on a per batch basis")
 
     def __call__(self, target_labels: List[Tensor], fg_probs: Tensor):
         """
