@@ -275,8 +275,6 @@ class SwinUNETR(nn.Module):
             self.swinViT.layers4[0].downsample.norm.bias.copy_(
                 weights["state_dict"]["module.layers4.0.downsample.norm.bias"]
             )
-            self.swinViT.norm.weight.copy_(weights["state_dict"]["module.norm.weight"])
-            self.swinViT.norm.bias.copy_(weights["state_dict"]["module.norm.bias"])
 
     def forward(self, x_in):
         hidden_states_out = self.swinViT(x_in, self.normalize)
@@ -950,7 +948,6 @@ class SwinTransformer(nn.Module):
             elif i_layer == 3:
                 self.layers4.append(layer)
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
-        self.norm = norm_layer(self.num_features)
 
     def proj_out(self, x, normalize=False):
         if normalize:
