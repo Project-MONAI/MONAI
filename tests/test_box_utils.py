@@ -194,7 +194,7 @@ class TestCreateBoxList(unittest.TestCase):
         center_dist, _, _ = boxes_center_distance(boxes1=result_standard[0:1, :], boxes2=result_standard[0:1, :])
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
 
-        expected_box_standard_clip, keep = clip_boxes_to_image(expected_box_standard, spatial_size, remove_empty=True)
+        _, keep = clip_boxes_to_image(expected_box_standard, spatial_size, remove_empty=True)
         assert_allclose(
             expected_box_standard[keep,:], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
         )
