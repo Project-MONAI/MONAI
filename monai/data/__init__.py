@@ -10,7 +10,11 @@
 # limitations under the License.
 
 from .box_utils import (
+    box_area,
     box_centers,
+    box_giou,
+    box_iou,
+    box_pair_giou,
     boxes_center_distance,
     centers_in_boxes,
     convert_box_mode,

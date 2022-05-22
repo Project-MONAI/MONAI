@@ -37,9 +37,9 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 SUPPORTED_SPATIAL_DIMS = [2, 3]
 
 
-# TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the box,
+# TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the boxes,
 #      i.e., when xmin=1., xmax=2., we have w = 1.
-# TO_REMOVE = 1.0  if the bottom-right corner pixel/voxel is included in the box,
+# TO_REMOVE = 1.0  if the bottom-right corner pixel/voxel is included in the boxes,
 #       i.e., when xmin=1., xmax=2., we have w = 2.
 # Currently, only `TO_REMOVE = 0.0` is supported
 TO_REMOVE = 0.0  # xmax-xmin = w -TO_REMOVE.
@@ -83,7 +83,7 @@ class BoxMode(ABC):
         Get the mode name for the given spatial dimension using class variable ``name``.
 
         Args:
-            spatial_dims: number of spatial dimensions of the bounding box.
+            spatial_dims: number of spatial dimensions of the bounding boxes.
 
         Returns:
             ``str``: mode string name
@@ -96,7 +96,7 @@ class BoxMode(ABC):
         Convert the bounding boxes of the current mode to corners.
 
         Args:
-            boxes: bounding box, Nx4 or Nx6 torch tensor
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor
 
         Returns:
             ``Tuple``: corners of boxes, 4-element or 6-element tuple, each element is a Nx1 torch tensor.
@@ -120,7 +120,7 @@ class BoxMode(ABC):
                 It represents (xmin, ymin, xmax, ymax) or (xmin, ymin, zmin, xmax, ymax, zmax)
 
         Returns:
-            ``Tensor``: bounding box, Nx4 or Nx6 torch tensor
+            ``Tensor``: bounding boxes, Nx4 or Nx6 torch tensor
 
         Example:
             .. code-block:: python
@@ -664,3 +664,271 @@ def boxes_center_distance(
     # convert tensor back to numpy if needed
     (dists, center1, center2), *_ = convert_to_dst_type(src=(dists, center1, center2), dst=boxes1)
     return dists, center1, center2
+
+
+def is_valid_box_values(boxes: NdarrayOrTensor) -> bool:
+    """
+    This function checks whether the box size is non-negative.
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+
+    Returns:
+        whether ``boxes`` is valid
+    """
+    spatial_dims = get_spatial_dims(boxes=boxes)
+    for axis in range(0, spatial_dims):
+        if (boxes[:, spatial_dims + axis] < boxes[:, axis]).sum() > 0:
+            return False
+    return True
+
+
+def box_area(boxes: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    This function computes the area (2D) or volume (3D) of each box.
+    Half precision is not recommended for this function as it may cause overflow, especially for 3D images.
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+
+    Returns:
+        area (2D) or volume (3D) of boxes, with size of (N,).
+
+    Example:
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            # we do computation with torch.float32 to avoid overflow
+            compute_dtype = torch.float32
+            area = box_area(boxes=boxes.to(dtype=compute_dtype))  # torch.float32, size of (10,)
+    """
+
+    if not is_valid_box_values(boxes):
+        raise ValueError("Given boxes has invalid values. The box size must be non-negative.")
+
+    spatial_dims = get_spatial_dims(boxes=boxes)
+
+    area = boxes[:, spatial_dims] - boxes[:, 0] + TO_REMOVE
+    for axis in range(1, spatial_dims):
+        area = area * (boxes[:, axis + spatial_dims] - boxes[:, axis] + TO_REMOVE)
+
+    # convert numpy to tensor if needed
+    area_t, *_ = convert_data_type(area, torch.Tensor)
+
+    # check if NaN or Inf, especially for half precision
+    if area_t.isnan().any() or area_t.isinf().any():
+        if area_t.dtype is torch.float16:
+            raise ValueError("Box area is NaN or Inf. boxes is float16. Please change to float32 and test it again.")
+        else:
+            raise ValueError("Box area is NaN or Inf.")
+
+    return area
+
+
+def _box_inter_union(
+    boxes1_t: torch.Tensor, boxes2_t: torch.Tensor, compute_dtype: torch.dtype = torch.float32
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    This internal function computes the intersection and union area of two set of boxes.
+
+    Args:
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor. The box mode is assumed to be ``StandardMode``
+        compute_dtype: default torch.float32, dtype with which the results will be computed
+
+    Returns:
+        inter, with size of (N,M) and dtype of ``compute_dtype``.
+        union, with size of (N,M) and dtype of ``compute_dtype``.
+
+    """
+    spatial_dims = get_spatial_dims(boxes=boxes1_t)
+
+    # compute area with float32
+    area1 = box_area(boxes=boxes1_t.to(dtype=compute_dtype))  # (N,)
+    area2 = box_area(boxes=boxes2_t.to(dtype=compute_dtype))  # (M,)
+
+    # get the left top and right bottom points for the NxM combinations
+    lt = torch.max(boxes1_t[:, None, :spatial_dims], boxes2_t[:, :spatial_dims]).to(
+        dtype=compute_dtype
+    )  # (N,M,spatial_dims) left top
+    rb = torch.min(boxes1_t[:, None, spatial_dims:], boxes2_t[:, spatial_dims:]).to(
+        dtype=compute_dtype
+    )  # (N,M,spatial_dims) right bottom
+
+    # compute size for the intersection region for the NxM combinations
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,M,spatial_dims)
+    inter = torch.prod(wh, dim=-1, keepdim=False)  # (N,M)
+
+    union = area1[:, None] + area2 - inter
+    return inter, union
+
+
+def box_iou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute the intersection over union (IoU) of two set of boxes.
+
+    Args:
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        boxes2: bounding boxes, Mx4 or Mx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+
+    Returns:
+        IoU, with size of (N,M) and same data type as ``boxes1``
+
+    """
+
+    if not isinstance(boxes1, type(boxes2)):
+        warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
+
+    # convert numpy to tensor if needed
+    boxes1_t, *_ = convert_data_type(boxes1, torch.Tensor)
+    boxes2_t, *_ = convert_data_type(boxes2, torch.Tensor)
+
+    # we do computation with compute_dtype to avoid overflow
+    box_dtype = boxes1_t.dtype
+    compute_dtype = torch.float32
+
+    inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=compute_dtype)
+
+    # compute IoU and convert back to original box_dtype
+    iou_t = inter / (union + torch.finfo(compute_dtype).eps)  # (N,M)
+    iou_t = iou_t.to(dtype=box_dtype)
+
+    # check if NaN or Inf
+    if torch.isnan(iou_t).any() or torch.isinf(iou_t).any():
+        raise ValueError("Box IoU is NaN or Inf.")
+
+    # convert tensor back to numpy if needed
+    iou, *_ = convert_to_dst_type(src=iou_t, dst=boxes1)
+    return iou
+
+
+def box_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute the generalized intersection over union (GIoU) of two sets of boxes.
+    The two inputs can have different shapes and the func return an NxM matrix,
+    (in contrary to ``box_pair_giou``, which requires the inputs to have the same
+    shape and returns ``N`` values).
+
+    Returns:
+        GIoU, with size of (N,M) and same data type as ``boxes1``
+
+    Reference:
+        https://giou.stanford.edu/GIoU.pdf
+
+    """
+
+    if not isinstance(boxes1, type(boxes2)):
+        warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
+
+    # convert numpy to tensor if needed
+    boxes1_t, *_ = convert_data_type(boxes1, torch.Tensor)
+    boxes2_t, *_ = convert_data_type(boxes2, torch.Tensor)
+
+    spatial_dims = get_spatial_dims(boxes=boxes1_t)
+
+    # we do computation with compute_dtype to avoid overflow
+    box_dtype = boxes1_t.dtype
+    compute_dtype = torch.float32
+
+    inter, union = _box_inter_union(boxes1_t, boxes2_t, compute_dtype=compute_dtype)
+    iou = inter / (union + torch.finfo(compute_dtype).eps)  # (N,M)
+
+    # Enclosure
+    # get the left top and right bottom points for the NxM combinations
+    lt = torch.min(boxes1_t[:, None, :spatial_dims], boxes2_t[:, :spatial_dims]).to(
+        dtype=compute_dtype
+    )  # (N,M,spatial_dims) left top
+    rb = torch.max(boxes1_t[:, None, spatial_dims:], boxes2_t[:, spatial_dims:]).to(
+        dtype=compute_dtype
+    )  # (N,M,spatial_dims) right bottom
+
+    # compute size for the enclosure region for the NxM combinations
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,M,spatial_dims)
+    enclosure = torch.prod(wh, dim=-1, keepdim=False)  # (N,M)
+
+    # GIoU
+    giou_t = iou - (enclosure - union) / (enclosure + torch.finfo(compute_dtype).eps)
+    giou_t = giou_t.to(dtype=box_dtype)
+    if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
+        raise ValueError("Box GIoU is NaN or Inf.")
+
+    # convert tensor back to numpy if needed
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    return giou
+
+
+def box_pair_giou(boxes1: NdarrayOrTensor, boxes2: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute the generalized intersection over union (GIoU) of a pair of boxes.
+    The two inputs should have the same shape.
+
+    Args:
+        boxes1: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
+        boxes2: bounding boxes, same shape with boxes1. The box mode is assumed to be StandardMode
+
+    Returns:
+        paired GIoU, with size of (N,) and same data type as ``boxes1``
+
+    Reference:
+        https://giou.stanford.edu/GIoU.pdf
+
+    """
+
+    if not isinstance(boxes1, type(boxes2)):
+        warnings.warn(f"boxes1 is {type(boxes1)}, while boxes2 is {type(boxes2)}. The result will be {type(boxes1)}.")
+
+    # convert numpy to tensor if needed
+    boxes1_t, *_ = convert_data_type(boxes1, torch.Tensor)
+    boxes2_t, *_ = convert_data_type(boxes2, torch.Tensor)
+
+    if boxes1_t.shape != boxes2_t.shape:
+        raise ValueError("boxes1 and boxes2 should be paired and have same shape.")
+
+    spatial_dims = get_spatial_dims(boxes=boxes1_t)
+
+    # we do computation with compute_dtype to avoid overflow
+    box_dtype = boxes1_t.dtype
+    compute_dtype = torch.float32
+
+    # compute area
+    area1 = box_area(boxes=boxes1_t.to(dtype=compute_dtype))  # (N,)
+    area2 = box_area(boxes=boxes2_t.to(dtype=compute_dtype))  # (N,)
+
+    # Intersection
+    # get the left top and right bottom points for the boxes pair
+    lt = torch.max(boxes1_t[:, :spatial_dims], boxes2_t[:, :spatial_dims]).to(
+        dtype=compute_dtype
+    )  # (N,spatial_dims) left top
+    rb = torch.min(boxes1_t[:, spatial_dims:], boxes2_t[:, spatial_dims:]).to(
+        dtype=compute_dtype
+    )  # (N,spatial_dims) right bottom
+
+    # compute size for the intersection region for the boxes pair
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,spatial_dims)
+    inter = torch.prod(wh, dim=-1, keepdim=False)  # (N,)
+
+    # compute IoU and convert back to original box_dtype
+    union = area1 + area2 - inter
+    iou = inter / (union + torch.finfo(compute_dtype).eps)  # (N,)
+
+    # Enclosure
+    # get the left top and right bottom points for the boxes pair
+    lt = torch.min(boxes1_t[:, :spatial_dims], boxes2_t[:, :spatial_dims]).to(
+        dtype=compute_dtype
+    )  # (N,spatial_dims) left top
+    rb = torch.max(boxes1_t[:, spatial_dims:], boxes2_t[:, spatial_dims:]).to(
+        dtype=compute_dtype
+    )  # (N,spatial_dims) right bottom
+
+    # compute size for the enclose region for the boxes pair
+    wh = (rb - lt + TO_REMOVE).clamp(min=0)  # (N,spatial_dims)
+    enclosure = torch.prod(wh, dim=-1, keepdim=False)  # (N,)
+
+    giou_t = iou - (enclosure - union) / (enclosure + torch.finfo(compute_dtype).eps)
+    giou_t = giou_t.to(dtype=box_dtype)  # (N,spatial_dims)
+    if torch.isnan(giou_t).any() or torch.isinf(giou_t).any():
+        raise ValueError("Box GIoU is NaN or Inf.")
+
+    # convert tensor back to numpy if needed
+    giou, *_ = convert_to_dst_type(src=giou_t, dst=boxes1)
+    return giou
