@@ -155,10 +155,13 @@ def get_mask_edges(
         if not np.any(seg_pred | seg_gt):
             return np.zeros_like(seg_pred), np.zeros_like(seg_gt)
 
-        seg_pred, seg_gt = np.expand_dims(seg_pred, 0), np.expand_dims(seg_gt, 0)
+        channel_dim = 0
+        seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred, seg_gt = np.squeeze(cropper(seg_pred)), np.squeeze(cropper(seg_gt))
+        seg_pred, seg_gt = np.squeeze(cropper(seg_pred), axis=channel_dim), np.squeeze(
+            cropper(seg_gt), axis=channel_dim
+        )
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
