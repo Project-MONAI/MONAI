@@ -12,6 +12,7 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
+from pstats import SortKey
 import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -22,7 +23,14 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
+from monai.data.utils import (
+    AFFINE_TOL,
+    compute_shape_offset,
+    iter_patch,
+    reorient_spatial_axes,
+    to_affine_nd,
+    zoom_affine,
+)
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
@@ -68,7 +76,8 @@ __all__ = [
     "Flip",
     "GridDistortion",
     "GridSplit",
-    "Resize",
+    "GridPatch",
+    "RandGridPatch" "Resize",
     "Rotate",
     "Zoom",
     "Rotate90",
@@ -2605,3 +2614,136 @@ class GridSplit(Transform):
         )
 
         return size, steps
+
+
+class GridPatch(Transform):
+    """
+    Return all (or a subset of) the patches sweeping the entire image
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension.
+            np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
+        max_num_patches: maximum number of patches to return. No limit by default.
+        overlap: amount of overlap between patches in each dimension. Default to 0.0.
+        sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
+            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
+            and channels. Also "random" creates a random order of patches.
+            By default no sorting is being done and patches are returned in a row-major order.
+        pad_mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+        pad_opts: padding options, see `numpy.pad`
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int] = (),
+        max_num_patches: Optional[int] = None,
+        overlap: float = 0.0,
+        sort_key: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        pad_opts: Optional[Dict] = None,
+    ):
+        self.patch_size = (None,) + ensure_tuple(patch_size)  # expand to have the channel dim
+        self.start_pos = (0,) + ensure_tuple(start_pos)
+        self.pad_mode: NumpyPadMode = look_up_option(pad_mode, NumpyPadMode)
+        self.pad_opts = {} if pad_opts is None else pad_opts
+        self.overlap = overlap
+        self.max_num_patches = max_num_patches
+        self.num_pacthes = max_num_patches
+        if isinstance(sort_key, str):
+            if sort_key == "random":
+                self.sort_key = np.random.random()
+            if sort_key == "min":
+                self.sort_key = lambda x: x[0].sum()
+            if sort_key == "max":
+                self.sort_key = lambda x: -x[0].sum()
+            else:
+                ValueError(f'sort_key should be either "min", "max", or "random", "{sort_key}" was given.')
+        else:
+            self.sort_key = sort_key
+
+    def __call__(self, array: NdarrayOrTensor):
+        # create the patch iterator which sweeps the image row-by-row
+        patch_iterator = iter_patch(
+            array,
+            patch_size=self.patch_size,
+            start_pos=self.start_pos,
+            overlap=self.overlap,
+            copy_back=False,
+            mode=self.pad_mode,
+            **self.pad_opts,
+        )
+        if self.sort_key is not None:
+            output = sorted(patch_iterator, key=self.sort_key)
+        else:
+            # Get all the patches (it's required to have a defined length)
+            output = list(patch_iterator)
+        # keep up to max_num_patches
+        output = output[: self.max_num_patches]
+        self.num_pacthes = len(output)
+        return output
+
+
+class RandGridPatch(RandomizableTransform, GridPatch):
+    """
+    Return all (or a subset of) the patches sweeping the entire image with a random starting position.
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension.
+            np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
+        max_num_patches: maximum number of patches to return. No limit by default.
+        overlap: amount of overlap between patches in each dimension. Default to 0.0.
+        sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
+            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
+            and channels. Also "random" creates a random order of patches.
+            By default no sorting is being done and patches are returned in a row-major order.
+        pad_mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+        pad_opts: padding options, see `numpy.pad`
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        min_start_pos: Optional[Union[Sequence[int], int]] = None,
+        max_start_pos: Optional[Union[Sequence[int], int]] = None,
+        max_num_patches: Optional[int] = None,
+        overlap: float = 0.0,
+        sort_key: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        **pad_opts: Dict,
+    ):
+        super().__init__(
+            patch_size=patch_size,
+            start_pos=(),
+            max_num_patches=max_num_patches,
+            overlap=overlap,
+            sort_key=sort_key,
+            pad_mode=pad_mode,
+            **pad_opts,
+        )
+        self.min_start_pos = min_start_pos
+        self.max_start_pos = max_start_pos
+
+    def __call__(self, array: NdarrayOrTensor):
+        if self.min_start_pos is None:
+            min_start_pos = (0,) * (len(self.patch_size) - 1)
+        if self.max_start_pos is None:
+            max_start_pos = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size[1:]))
+        self.start_pos = tuple(self.R.randint(low=low, high=high) for low, high in zip(min_start_pos, max_start_pos))
+        return super().__call__(array)
