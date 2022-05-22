@@ -45,7 +45,7 @@ class SwinUNETR(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
-        normalize: bool = False,
+        normalize: bool = True,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
     ) -> None:
@@ -967,7 +967,7 @@ class SwinTransformer(nn.Module):
                 x = rearrange(x, "n h w c -> n c h w")
         return x
 
-    def forward(self, x, normalize=False):
+    def forward(self, x, normalize=True):
         x0 = self.patch_embed(x)
         x0 = self.pos_drop(x0)
         x0_out = self.proj_out(x0, normalize)
