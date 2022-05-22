@@ -75,7 +75,7 @@ class TestResize(NumpyImageTestCase2D):
                     out = out.cpu().detach().numpy()
                 good = np.sum(np.isclose(expected, out, atol=0.9))
                 self.assertLessEqual(
-                    np.abs(good - expected.size) / float(expected.size), 0.2, "at most 20 percent mismatch "
+                    np.abs(good - expected.size) / float(expected.size), 0.21, "at most 21 percent mismatch "
                 )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
