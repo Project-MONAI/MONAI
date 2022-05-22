@@ -66,7 +66,7 @@ class UnetResBlock(nn.Module):
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.downsample = in_channels != out_channels
-        if self.downsample:
+        if self.downsample is not False:
             self.conv3 = get_conv_layer(
                 spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
             )
