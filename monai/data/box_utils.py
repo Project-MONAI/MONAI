@@ -968,7 +968,7 @@ def spatial_crop_boxes(
     roi_end_torch = torch.maximum(roi_end_torch, roi_start_torch)
 
     # convert numpy to tensor if needed
-    boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
+    boxes_t, *_ = convert_data_type(deepcopy(boxes), torch.Tensor)
 
     # convert to float32 since torch.clamp_ does not support float16
     compute_dtype = torch.float32
