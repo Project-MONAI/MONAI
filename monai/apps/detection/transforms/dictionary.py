@@ -508,3 +508,4 @@ ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
 RandZoomBoxD = RandZoomBoxDict = RandZoomBoxd
+AffineBoxToImageCoordinateD = AffineBoxToImageCoordinateDict = AffineBoxToImageCoordinated
