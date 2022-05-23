@@ -151,11 +151,8 @@ def iter_patch_slices(
     # calculate steps, which depends on the amount of overlap
     steps = tuple(round(p * (1.0 - overlap)) for p in patch_size_)
 
-    # calculate the last starting positions
-    end_pos = tuple(s - p + 1 for s, p in zip(image_size, patch_size_))
-
     # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, end_pos, steps)))
+    ranges = tuple(starmap(range, zip(start_pos, image_size, steps)))
 
     # choose patches by applying product to the ranges
     for position in product(*ranges):
