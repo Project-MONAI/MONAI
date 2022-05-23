@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -2228,7 +2228,7 @@ class GridPatchd(MapTransform):
         )
         self.max_num_patches = max_num_patches
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Generator[Dict, None, None]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
         for patch in zip(*[self.patcher(d[key]) for key in self.keys]):

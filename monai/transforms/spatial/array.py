@@ -12,7 +12,6 @@
 A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
-from pstats import SortKey
 import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -77,7 +76,8 @@ __all__ = [
     "GridDistortion",
     "GridSplit",
     "GridPatch",
-    "RandGridPatch" "Resize",
+    "RandGridPatch",
+    "Resize",
     "Rotate",
     "Zoom",
     "Rotate90",
@@ -2658,9 +2658,10 @@ class GridPatch(Transform):
         self.overlap = overlap
         self.max_num_patches = max_num_patches
         self.num_pacthes = max_num_patches
+        self.sort_key: Optional[Callable]
         if isinstance(sort_key, str):
             if sort_key == "random":
-                self.sort_key = np.random.random()
+                self.sort_key = np.random.random
             if sort_key == "min":
                 self.sort_key = lambda x: x[0].sum()
             if sort_key == "max":
@@ -2673,7 +2674,7 @@ class GridPatch(Transform):
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
         patch_iterator = iter_patch(
-            array,
+            array,  # type: ignore
             patch_size=self.patch_size,
             start_pos=self.start_pos,
             overlap=self.overlap,
@@ -2692,7 +2693,7 @@ class GridPatch(Transform):
         return output
 
 
-class RandGridPatch(RandomizableTransform, GridPatch):
+class RandGridPatch(GridPatch, RandomizableTransform):
     """
     Return all (or a subset of) the patches sweeping the entire image with a random starting position.
 
