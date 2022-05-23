@@ -249,8 +249,13 @@ class SpatialResample(Transform):
         in_spatial_size = in_spatial_size.tolist()
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
-        img_ = convert_data_type(img, torch.Tensor, dtype=_dtype)[0]
-        xform = convert_to_dst_type(xform, img_)[0]
+        if get_track_meta():
+            img_ = img if isinstance(img, MetaTensor) else MetaTensor(img)
+            img_, *_ = convert_data_type(img, dtype=_dtype)
+        else:
+            img_, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
+
+        xform, *_ = convert_data_type(xform, output_type=type(img_), device=img_.device, dtype=img_.dtype)
         align_corners = self.align_corners if align_corners is None else align_corners
         mode = mode or self.mode
         padding_mode = padding_mode or self.padding_mode
@@ -510,14 +515,15 @@ class Spacing(InvertibleTransform):
         orig_pixdim = affine_to_spacing(orig_affine, -1)
         inverse_transform = Spacing(orig_pixdim, diagonal=self.diagonal)
         # Apply inverse
-        out: torch.Tensor = inverse_transform(
-            data,
-            mode=mode,
-            padding_mode=padding_mode,
-            align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-            dtype=self.sp_resample.dtype,
-            output_spatial_shape=orig_size,
-        )
+        with inverse_transform.trace_transform(False):
+            out: torch.Tensor = inverse_transform(
+                data,
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
+                dtype=self.sp_resample.dtype,
+                output_spatial_shape=orig_size,
+            )
         return out
 
 
@@ -652,7 +658,8 @@ class Orientation(InvertibleTransform):
         orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
         inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
         # Apply inverse
-        data = inverse_transform(data)
+        with inverse_transform.trace_transform(False):
+            data = inverse_transform(data)
 
         return data
 
