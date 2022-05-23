@@ -250,7 +250,7 @@ class SpatialResample(Transform):
         chns, additional_dims = img.shape[0], img.shape[spatial_rank + 1 :]  # beyond three spatial dims
         # resample
         if get_track_meta():
-            img_ = img if isinstance(img, MetaTensor) else MetaTensor(torch.as_tensor(img))
+            img_ = img if isinstance(img, MetaTensor) else MetaTensor(img)
             img_, *_ = convert_data_type(img, dtype=_dtype)
         else:
             img_, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
