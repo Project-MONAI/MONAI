@@ -2204,9 +2204,31 @@ class GridSplitd(MapTransform):
 
 
 class GridPatchd(MapTransform):
-    """ """
+    """
+    Generate all (or a subset of) the patches sweeping the entire image
 
-    backend = GridSplit.backend
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension.
+            np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
+        max_num_patches: maximum number of patches to return. No limit by default.
+        overlap: amount of overlap between patches in each dimension. Default to 0.0.
+        sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
+            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
+            and channels. Also "random" creates a random order of patches.
+            By default no sorting is being done and patches are returned in a row-major order.
+        pad_mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
+            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+        pad_opts: padding options, see `numpy.pad`
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = GridPatch.backend
 
     def __init__(
         self,
@@ -2252,7 +2274,7 @@ class GridPatchd(MapTransform):
 class RandGridPatchd(MapTransform, RandomizableTransform):
     """ """
 
-    backend = GridSplit.backend
+    backend = RandGridPatch.backend
 
     def __init__(
         self,
