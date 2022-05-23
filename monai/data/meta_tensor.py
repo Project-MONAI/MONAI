@@ -60,6 +60,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         - Older versions of pytorch (<=1.8), `torch.jit.trace(net, im)` may
           not work if `im` is of type `MetaTensor`. This can be resolved with
           `torch.jit.trace(net, im.as_tensor())`.
+        - For pytorch < 1.8, sharing `MetaTensor` instances across processes may not be supported.
         - A warning will be raised if in the constructor `affine` is not `None` and
           `meta` already contains the key `affine`.
         - You can query whether the `MetaTensor` is a batch with the `is_batch` attribute.
@@ -82,10 +83,17 @@ class MetaTensor(MetaObj, torch.Tensor):
         *args,
         **kwargs,
     ) -> MetaTensor:
-        return torch.as_tensor(x, *args, **kwargs).as_subclass(cls)  # type: ignore
+        _kwargs = {"device": kwargs.pop("device", None), "dtype": kwargs.pop("dtype", None)} if kwargs else {}
+        return torch.as_tensor(x, *args, **_kwargs).as_subclass(cls)  # type: ignore
 
     def __init__(
-        self, x, affine: torch.Tensor | None = None, meta: dict | None = None, applied_operations: list | None = None
+        self,
+        x,
+        affine: torch.Tensor | None = None,
+        meta: dict | None = None,
+        applied_operations: list | None = None,
+        *_args,
+        **_kwargs,
     ) -> None:
         """
         If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
