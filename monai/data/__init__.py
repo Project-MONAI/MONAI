@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+
 from .box_utils import (
     box_area,
     box_centers,
@@ -103,3 +105,21 @@ from .utils import (
 )
 from .wsi_datasets import PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
+
+with contextlib.suppress(BaseException):
+    from multiprocessing.reduction import ForkingPickler
+
+    def _rebuild_meta(cls, storage, metadata):
+        storage_offset, size, stride, meta_obj = metadata
+        t = cls([], meta=meta_obj, dtype=storage.dtype, device=storage.device)
+        t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
+        return t
+
+    def reduce_meta_tensor(meta_tensor):
+        storage = meta_tensor.storage()
+        if storage.is_cuda:
+            raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
+        metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.meta)
+        return _rebuild_meta, (type(meta_tensor), storage, metadata)
+
+    ForkingPickler.register(MetaTensor, reduce_meta_tensor)
