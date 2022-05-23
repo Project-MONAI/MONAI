@@ -284,12 +284,15 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(image_keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
+        self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
+
+        self.mode = ensure_tuple_rep(mode, len(self.image_keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.image_keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.image_keys))
+        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
+
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
         self.keep_size = keep_size
 
@@ -299,16 +302,18 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             src_spatial_size = d[box_ref_image_key].shape[1:]
-            self.push_transform(d, box_key, 
-                extra_info={"zoom": self.zoomer.zoom , "src_spatial_size":src_spatial_size}
+            self.push_transform(
+                d,
+                box_key,
+                extra_info={"zoom": self.zoomer.zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
             )
             d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
                 d[box_key], src_spatial_size=src_spatial_size
             )
 
         # zoom image, copied from monai.transforms.spatial.dictionary.Zoomd
-        for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+        for key, mode, padding_mode, align_corners in zip(
+            self.image_keys, self.mode, self.padding_mode, self.align_corners
         ):
             self.push_transform(
                 d,
@@ -317,6 +322,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                     "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                    "type": "image_key",
                 },
             )
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
@@ -326,39 +332,38 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
-        # zoom box
-        for box_key in self.box_keys:
-            transform = self.get_most_recent_transform(d, box_key)
-            # Create inverse transform
-            zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
-            src_spatial_size = np.array(transform[TraceKeys.EXTRA_INFO]["src_spatial_size"])
-            box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-            d[box_key] = box_inverse_transform(d[box_key], src_spatial_size=src_spatial_size)
-            # Remove the applied transform
-            self.pop_transform(d, box_key)
-
-        # zoom image, copied from monai.transforms.spatial.dictionary.Zoomd
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            zoom = np.array(self.zoomer.zoom)
-            inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            # Apply inverse
-            d[key] = inverse_transform(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-            )
-            # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            # zoom image, copied from monai.transforms.spatial.dictionary.Zoomd
+            if key_type == "image_key":
+                # Create inverse transform
+                zoom = np.array(self.zoomer.zoom)
+                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
+                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+                # Apply inverse
+                d[key] = inverse_transform(
+                    d[key],
+                    mode=mode,
+                    padding_mode=padding_mode,
+                    align_corners=None if align_corners == TraceKeys.NONE else align_corners,
+                )
+                # Size might be out by 1 voxel so pad
+                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
+                # Remove the applied transform
+                self.pop_transform(d, key)
 
-        print(d)
+            # zoom boxes
+            if key_type == "box_key":
+                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
+                src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
+                box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
+                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                # Remove the applied transform
+                self.pop_transform(d, key)
+
         return d
 
 
