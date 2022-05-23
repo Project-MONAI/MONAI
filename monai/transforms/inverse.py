@@ -22,7 +22,6 @@ from monai.utils.enums import TraceKeys
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
 
-
 class TraceableTransform(Transform):
     """
     Maintains a stack of applied transforms. The stack is inserted as pairs of
@@ -249,7 +248,6 @@ class TraceableTransform(Transform):
         """
         return self.get_most_recent_transform(data, key, check, pop=True)
 
-
     @contextmanager
     def trace_transform(self, to_trace: bool):
         """Temporarily set the tracing status of a transfrom with a context manager."""
@@ -257,6 +255,7 @@ class TraceableTransform(Transform):
         self.tracing = to_trace
         yield
         self.tracing = prev
+
 
 class InvertibleTransform(TraceableTransform):
     """Classes for invertible transforms.
