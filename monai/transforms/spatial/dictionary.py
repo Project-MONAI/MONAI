@@ -2254,7 +2254,7 @@ class GridPatchd(MapTransform):
         )
         self.max_num_patches = max_num_patches
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict, None, None]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
         dict_list = []
@@ -2311,7 +2311,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict, None, None]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
         dict_list = []
