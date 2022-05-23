@@ -2663,13 +2663,21 @@ class GridPatch(Transform):
             if sort_key == "random":
                 self.sort_key = np.random.random
             if sort_key == "min":
-                self.sort_key = lambda x: x[0].sum()
+                self.sort_key = self._get_array_sum
             if sort_key == "max":
-                self.sort_key = lambda x: -x[0].sum()
+                self.sort_key = self._get_negative_array_sum
             else:
                 ValueError(f'sort_key should be either "min", "max", or "random", "{sort_key}" was given.')
         else:
             self.sort_key = sort_key
+
+    @staticmethod
+    def _get_array_sum(x):
+        return x[0].sum()
+
+    @staticmethod
+    def _get_negative_array_sum(x):
+        return -x[0].sum()
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
