@@ -2651,8 +2651,8 @@ class GridPatch(Transform):
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
     ):
-        self.patch_size = (None,) + ensure_tuple(patch_size)  # expand to have the channel dim
-        self.start_pos = (0,) + ensure_tuple(start_pos)
+        self.patch_size = ensure_tuple(patch_size)
+        self.start_pos = ensure_tuple(start_pos)
         self.pad_mode: NumpyPadMode = look_up_option(pad_mode, NumpyPadMode)
         self.pad_opts = {} if pad_opts is None else pad_opts
         self.overlap = overlap
@@ -2683,8 +2683,8 @@ class GridPatch(Transform):
         # create the patch iterator which sweeps the image row-by-row
         patch_iterator = iter_patch(
             array,  # type: ignore
-            patch_size=self.patch_size,
-            start_pos=self.start_pos,
+            patch_size=(None,) + self.patch_size,  # expand to have the channel dim
+            start_pos=(0,) + self.start_pos,  # expand to have the channel dim
             overlap=self.overlap,
             copy_back=False,
             mode=self.pad_mode,
@@ -2735,7 +2735,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         overlap: float = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-        **pad_opts: Dict,
+        pad_opts: Optional[Dict] = None,
     ):
         super().__init__(
             patch_size=patch_size,
@@ -2744,22 +2744,22 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             overlap=overlap,
             sort_key=sort_key,
             pad_mode=pad_mode,
-            **pad_opts,
+            pad_opts=pad_opts,
         )
         self.min_start_pos = min_start_pos
         self.max_start_pos = max_start_pos
 
     def __call__(self, array: NdarrayOrTensor):
         if self.min_start_pos is None:
-            min_start_pos = (0,) * (len(self.patch_size) - 1)
+            min_start_pos = (0,) * len(self.patch_size)
         else:
-            min_start_pos = ensure_tuple_rep(self.min_start_pos, len(self.patch_size[1:]))
+            min_start_pos = ensure_tuple_rep(self.min_start_pos, len(self.patch_size))
         if self.max_start_pos is None:
-            max_start_pos = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size[1:]))
+            max_start_pos = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
         else:
-            max_start_pos = ensure_tuple_rep(self.max_start_pos, len(self.patch_size[1:]))
+            max_start_pos = ensure_tuple_rep(self.max_start_pos, len(self.patch_size))
 
-        self.start_pos = (0,) + tuple(
+        self.start_pos = tuple(
             self.R.randint(low=low, high=high + 1) for low, high in zip(min_start_pos, max_start_pos)
         )
         return super().__call__(array)

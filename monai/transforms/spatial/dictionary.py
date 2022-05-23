@@ -2254,10 +2254,9 @@ class GridPatchd(MapTransform):
         )
         self.max_num_patches = max_num_patches
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Generator[Dict, None, None]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
-        dict_list = []
         for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
@@ -2269,8 +2268,7 @@ class GridPatchd(MapTransform):
             location = patch[0][1]
             new_dict["patch"] = {"location": location, "size": self.patcher.patch_size}
             new_dict["start_pos"] = self.patcher.start_pos
-            dict_list.append(new_dict)
-        return dict_list
+            yield new_dict
 
 
 class RandGridPatchd(RandomizableTransform, MapTransform):
@@ -2311,10 +2309,9 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Generator[Dict, None, None]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
-        dict_list = []
         for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
@@ -2326,8 +2323,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             location = patch[0][1]
             new_dict["patch"] = {"location": location, "size": self.patcher.patch_size[1:]}
             new_dict["start_pos"] = self.patcher.start_pos
-            dict_list.append(new_dict)
-        return dict_list
+            yield new_dict
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
