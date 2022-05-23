@@ -2744,7 +2744,14 @@ class RandGridPatch(GridPatch, RandomizableTransform):
     def __call__(self, array: NdarrayOrTensor):
         if self.min_start_pos is None:
             min_start_pos = (0,) * (len(self.patch_size) - 1)
+        else:
+            min_start_pos = ensure_tuple_rep(self.min_start_pos, len(self.patch_size[1:]))
         if self.max_start_pos is None:
             max_start_pos = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size[1:]))
-        self.start_pos = tuple(self.R.randint(low=low, high=high) for low, high in zip(min_start_pos, max_start_pos))
+        else:
+            max_start_pos = ensure_tuple_rep(self.max_start_pos, len(self.patch_size[1:]))
+
+        self.start_pos = (0,) + tuple(
+            self.R.randint(low=low, high=high + 1) for low, high in zip(min_start_pos, max_start_pos)
+        )
         return super().__call__(array)
