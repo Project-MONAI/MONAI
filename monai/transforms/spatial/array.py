@@ -463,7 +463,7 @@ class Spacing(InvertibleTransform):
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
-        data_array, new_affine = self.sp_resample(
+        data_array, new_affine = self.sp_resample(  # type: ignore
             data_array,
             src_affine=affine_,
             dst_affine=new_affine,
@@ -510,7 +510,7 @@ class Spacing(InvertibleTransform):
         orig_pixdim = affine_to_spacing(orig_affine, -1)
         inverse_transform = Spacing(orig_pixdim, diagonal=self.diagonal)
         # Apply inverse
-        return inverse_transform(
+        out: torch.Tensor = inverse_transform(
             data,
             mode=mode,
             padding_mode=padding_mode,
@@ -518,6 +518,7 @@ class Spacing(InvertibleTransform):
             dtype=self.sp_resample.dtype,
             output_spatial_shape=orig_size,
         )
+        return out
 
 
 class Orientation(InvertibleTransform):
