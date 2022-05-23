@@ -251,7 +251,7 @@ class SpatialResample(Transform):
         # resample
         if get_track_meta():
             img_ = img if isinstance(img, MetaTensor) else MetaTensor(img)
-            img_, *_ = convert_data_type(img, dtype=_dtype)
+            img_, *_ = convert_data_type(img_, dtype=_dtype)
         else:
             img_, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
 
