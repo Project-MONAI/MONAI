@@ -671,9 +671,9 @@ def init_bundle(
     with open(str(docs_dir / "README.md"), "w") as o:
         readme = """
         # Your Model Name
-        
+
         Describe your model here and how to run it, for example using `inference.json`:
-        
+
         ```
         python -m monai.bundle run evaluator \
             --meta_file /path/to/bundle/configs/metadata.json \
@@ -681,7 +681,7 @@ def init_bundle(
             --dataset_dir ./input \
             --bundle_root /path/to/bundle
         ```
-        """  # noqa: W293
+        """
 
         o.write(dedent(readme))
 
