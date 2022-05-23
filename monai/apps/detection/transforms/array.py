@@ -27,7 +27,7 @@ from monai.utils.type_conversion import convert_data_type
 
 from .box_ops import apply_affine_to_boxes, resize_boxes, zoom_boxes
 
-__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode"]
+__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode", "AffineBox", "ZoomBox", "ResizeBox"]
 
 
 class ConvertBoxMode(Transform):
