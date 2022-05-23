@@ -109,8 +109,6 @@ from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIRe
 with contextlib.suppress(BaseException):
     from multiprocessing.reduction import ForkingPickler
 
-    from torch.multiprocessing.reductions import reduce_tensor
-
     def _rebuild_meta(cls, storage, metadata):
         storage_offset, size, stride, meta_obj = metadata
         t = cls([], meta=meta_obj, dtype=storage.dtype, device=storage.device)
