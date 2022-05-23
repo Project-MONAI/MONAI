@@ -17,7 +17,6 @@ import numpy as np
 import torch
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
-from monai.data.meta_tensor import MetaTensor
 from monai.data.test_time_augmentation import TestTimeAugmentation
 from monai.data.utils import pad_list_data_collate
 from monai.losses import DiceLoss
@@ -33,7 +32,6 @@ from monai.transforms import (
     RandScaleIntensityd,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.meta_utility.dictionary import FromMetaTensord, ToMetaTensord
 from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
