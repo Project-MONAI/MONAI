@@ -196,7 +196,7 @@ class TestCreateBoxList(unittest.TestCase):
 
         _, keep = clip_boxes_to_image(expected_box_standard, spatial_size, remove_empty=True)
         assert_allclose(
-            expected_box_standard[keep,:], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
+            expected_box_standard[keep, :], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
         )
 
 
