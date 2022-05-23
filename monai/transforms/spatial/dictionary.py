@@ -2271,7 +2271,7 @@ class GridPatchd(MapTransform):
             yield new_dict
 
 
-class RandGridPatchd(MapTransform, RandomizableTransform):
+class RandGridPatchd(RandomizableTransform, MapTransform):
     """ """
 
     backend = RandGridPatch.backend
@@ -2289,7 +2289,7 @@ class RandGridPatchd(MapTransform, RandomizableTransform):
         pad_opts: Optional[Dict] = None,
         allow_missing_keys: bool = False,
     ):
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.patcher = RandGridPatch(
             patch_size=patch_size,
             min_start_pos=min_start_pos,
@@ -2301,6 +2301,13 @@ class RandGridPatchd(MapTransform, RandomizableTransform):
             pad_opts=pad_opts,
         )
         self.max_num_patches = max_num_patches
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandGridPatchd":
+        self.patcher.set_random_state(seed, state)
+        super().set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Generator[Dict, None, None]:
         d = dict(data)
