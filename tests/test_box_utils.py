@@ -20,7 +20,11 @@ from monai.data.box_utils import (
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
+    box_area,
     box_centers,
+    box_giou,
+    box_iou,
+    box_pair_giou,
     boxes_center_distance,
     centers_in_boxes,
     convert_box_mode,
@@ -154,6 +158,22 @@ class TestCreateBoxList(unittest.TestCase):
         result_standard = convert_box_to_standard_mode(boxes=boxes1, mode=mode1)
         expected_box_standard = convert_box_to_standard_mode(boxes=expected_box, mode=mode2)
         assert_allclose(result_standard, expected_box_standard, type_test=True, device_test=True, atol=0.0)
+
+        # test box_area, box_iou, box_giou, box_pair_giou
+        assert_allclose(box_area(result_standard), expected_area, type_test=True, device_test=True, atol=0.0)
+        iou_metrics = (box_iou, box_giou)  # type: ignore
+        for p in iou_metrics:
+            self_iou = p(boxes1=result_standard[1:2, :], boxes2=result_standard[1:1, :])
+            assert_allclose(self_iou, np.array([[]]), type_test=False)
+
+            self_iou = p(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
+            assert_allclose(self_iou, np.array([[1.0]]), type_test=False)
+
+        self_iou = box_pair_giou(boxes1=result_standard[1:1, :], boxes2=result_standard[1:1, :])
+        assert_allclose(self_iou, np.array([]), type_test=False)
+
+        self_iou = box_pair_giou(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
+        assert_allclose(self_iou, np.array([1.0]), type_test=False)
 
         # test box_centers, centers_in_boxes, boxes_center_distance
         result_standard_center = box_centers(result_standard)

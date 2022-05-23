@@ -1612,17 +1612,23 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[NdarrayOrTensor] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            randomize: boolean as to whether the grid parameters governing the grid
+                should be randomized.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
         affine_grid = AffineGrid(
             rotate_params=self.rotate_params,
             shear_params=self.shear_params,
@@ -2127,7 +2133,7 @@ class RandAffine(RandomizableTransform):
             img, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
-            grid = self.rand_affine_grid(grid=grid)
+            grid = self.rand_affine_grid(grid=grid, randomize=randomize)
         out: NdarrayOrTensor = self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
