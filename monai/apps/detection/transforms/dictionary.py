@@ -299,7 +299,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             src_spatial_size = d[box_ref_image_key].shape[1:]
-            self.push_transform(d, box_key, 
+            self.push_transform(d, box_key,
                 extra_info={"zoom": self.zoomer.zoom , "src_spatial_size":src_spatial_size}
             )
             d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(

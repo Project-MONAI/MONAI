@@ -42,9 +42,9 @@ for p in TEST_NDARRAYS:
 
 class TestBoxTransform(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, keys, data, 
-        expected_convert_result, 
-        expected_zoom_result, expected_zoom_keepsize_result, 
+    def test_value(self, keys, data,
+        expected_convert_result,
+        expected_zoom_result, expected_zoom_keepsize_result,
         expected_clip_result, expected_flip_result
     ):
         test_dtype = [torch.float16, torch.float32]
