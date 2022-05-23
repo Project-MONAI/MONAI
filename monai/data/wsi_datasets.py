@@ -149,7 +149,8 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         data: the list of input samples including image, location, and label (see the note below for more details).
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
-        overlap: the relative amount of overlap (between 0 and 1) for patches in each direction. Defaults to 0.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         transform: transforms to be executed on input data.
         reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
 
@@ -176,7 +177,7 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         data: Sequence,
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
-        overlap: float = 0,
+        overlap: Union[Sequence[float], float] = 0.0,
         transform: Optional[Callable] = None,
         reader="cuCIM",
         **kwargs,

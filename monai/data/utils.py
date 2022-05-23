@@ -126,7 +126,7 @@ def iter_patch_slices(
     image_size: Sequence[int],
     patch_size: Union[Sequence[int], int],
     start_pos: Sequence[int] = (),
-    overlap: float = 0.0,
+    overlap: Union[Sequence[float], float] = 0.0,
 ) -> Generator[Tuple[slice, ...], None, None]:
     """
     Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
@@ -137,7 +137,8 @@ def iter_patch_slices(
         image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap between patches, which is between 0.0 and 1.0. Defaults to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
 
     Yields:
         Tuples of slice objects defining each patch
@@ -147,9 +148,10 @@ def iter_patch_slices(
     ndim = len(image_size)
     patch_size_ = get_valid_patch_size(image_size, patch_size)
     start_pos = ensure_tuple_size(start_pos, ndim)
+    overlap = ensure_tuple_rep(overlap, ndim)
 
     # calculate steps, which depends on the amount of overlap
-    steps = tuple(round(p * (1.0 - overlap)) for p in patch_size_)
+    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
 
     # collect the ranges to step over each dimension
     ranges = tuple(starmap(range, zip(start_pos, image_size, steps)))
@@ -203,7 +205,7 @@ def iter_patch(
     arr: np.ndarray,
     patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
-    overlap: float = 0.0,
+    overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
     mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
@@ -217,8 +219,8 @@ def iter_patch(
         arr: array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap between patches, which is between 0.0 and 1.0. Defaults to 0.0.
-        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
@@ -267,13 +269,13 @@ def iter_wsi_patch_location(
     image_size: Sequence[int],
     patch_size: Union[Sequence[int], int],
     start_pos: Sequence[int] = (),
-    overlap: float = 0.0,
+    overlap: Union[Sequence[float], float] = 0.0,
     downsample: float = 1.0,
     padded: bool = False,
 ):
     """
     Yield successive tuple of locations defining a patch of size `patch_size` from an image of size `image_size`,
-    with the relative overalpping of `overlap`. The patch is in the resolution level related to `downsample` ratio.
+    with the relative overlapping of `overlap`. The patch is in the resolution level related to `downsample` ratio.
     The iteration starts from position `start_pos` in the whole slide image, or starting at the origin if this isn't
     provided.
 
@@ -281,7 +283,8 @@ def iter_wsi_patch_location(
         image_size: dimensions of image
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the image, default is 0 for each dimension
-        overlap: the amount of overlap between patches, which is between 0.0 and 1.0. Defaults to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         downsample: the downsample ratio
         padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
             Note that the padding depends on the functionality of the underlying whole slide imaging reader,
@@ -292,13 +295,14 @@ def iter_wsi_patch_location(
     """
     ndim = len(image_size)
     patch_size = get_valid_patch_size(image_size, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
+    start_pos = ensure_tuple_rep(start_pos, ndim)
+    overlap = ensure_tuple_rep(overlap, ndim)
 
     # get the patch size at level=0
     patch_size_ = tuple(p * downsample for p in patch_size)
 
     # calculate steps, which depends on the amount of overlap
-    steps = tuple(round(p * (1.0 - overlap)) for p in patch_size_)
+    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
 
     # calculate the last starting location (depending on the padding)
     end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
