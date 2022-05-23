@@ -17,7 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,7 @@ from monai.transforms.spatial.array import (
     AffineGrid,
     Flip,
     GridDistortion,
+    GridPatch,
     GridSplit,
     Orientation,
     Rand2DElastic,
@@ -63,6 +64,7 @@ from monai.utils import (
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
+    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix, TraceKeys
@@ -133,6 +135,9 @@ __all__ = [
     "GridSplitd",
     "GridSplitD",
     "GridSplitDict",
+    "GridPatchd",
+    "GridPatchD",
+    "GridPatchDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -2194,6 +2199,52 @@ class GridSplitd(MapTransform):
         return output
 
 
+class GridPatchd(MapTransform):
+    """ """
+
+    backend = GridSplit.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int] = (),
+        max_num_patches: Optional[int] = None,
+        overlap: float = 0.0,
+        sort_key: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_opts: Optional[Dict] = None,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.patcher = GridPatch(
+            patch_size=patch_size,
+            start_pos=start_pos,
+            max_num_patches=max_num_patches,
+            overlap=overlap,
+            sort_key=sort_key,
+            pad_mode=pad_mode,
+            pad_opts=pad_opts,
+        )
+        self.max_num_patches = max_num_patches
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        original_spatial_shape = d[first(self.keys)].shape[1:]
+        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
+            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
+            # fill in the extra keys with unmodified data
+            for k in set(d.keys()).difference(set(self.keys)):
+                new_dict[k] = deepcopy(d[k])
+            # fill additional metadata
+            new_dict["original_spatial_shape"] = original_spatial_shape
+            # use the coordinate of the first item
+            location = patch[0][1]
+            new_dict["patch"] = {"location": location, "size": self.patcher.patch_size}
+            new_dict["start_pos"] = self.patcher.start_pos
+            yield new_dict
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2215,3 +2266,4 @@ RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
 GridSplitD = GridSplitDict = GridSplitd
+GridPatchD = GridPatchDict = GridPatchd
