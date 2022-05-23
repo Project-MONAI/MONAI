@@ -20,6 +20,7 @@ from enum import Enum
 from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Union
 
 import numpy as np
+import torch
 
 from monai.apps.detection.transforms.array import AffineBox, ConvertBoxMode, ConvertBoxToStandardMode, ZoomBox
 from monai.config import KeysCollection
@@ -31,6 +32,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "ConvertBoxModed",
@@ -198,8 +200,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
         self.image_meta_key = image_meta_key or f"{box_ref_image_key}_{image_meta_key_postfix}"
-        self.converter_to_image_coordinate = AffineBox(invert_affine=True)
-        self.converter_to_physical_coordinate = AffineBox(invert_affine=False)
+        self.converter_to_image_coordinate = AffineBox()
+        self.converter_to_physical_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -219,7 +221,12 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
                 affine = orientation_ras_lps(affine)
 
             self.push_transform(d, key, extra_info={"affine": affine})
-            d[key] = self.converter_to_image_coordinate(d[key], affine=affine)
+
+            # when convert boxes from world coordinate to image coordinate,
+            # we apply inverse affine transform
+            affine_t, *_ = convert_data_type(affine, torch.Tensor)
+            inv_affine_t = torch.inverse(affine_t)
+            d[key] = self.converter_to_image_coordinate(d[key], affine=inv_affine_t)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

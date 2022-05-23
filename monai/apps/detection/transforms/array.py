@@ -16,14 +16,12 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Sequence, Type, Union
 
 import numpy as np
-import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode, convert_box_mode, convert_box_to_standard_mode, get_spatial_dims
 from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type
 
 from .box_ops import apply_affine_to_boxes, resize_boxes, zoom_boxes
 
@@ -141,14 +139,9 @@ class ConvertBoxToStandardMode(Transform):
 class AffineBox(Transform):
     """
     Applys affine matrix to the boxes
-    Args:
-        invert_affine: whether to apply inverse affine matrix
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, invert_affine: bool = False) -> None:
-        self.invert_affine = invert_affine
 
     def __call__(self, boxes: NdarrayOrTensor, affine: Union[NdarrayOrTensor, None]) -> NdarrayOrTensor:  # type: ignore
         """
@@ -156,16 +149,10 @@ class AffineBox(Transform):
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
             affine: affine matric to be applied to the box coordinate
         """
-
-        # convert boxes to torch tensor
         if affine is None:
             return boxes
 
-        affine_t, *_ = convert_data_type(affine, torch.Tensor)
-        if self.invert_affine:
-            affine_t = torch.inverse(affine_t)
-
-        return apply_affine_to_boxes(boxes, affine=affine_t)
+        return apply_affine_to_boxes(boxes, affine=affine)
 
 
 class ZoomBox(Transform):
@@ -208,7 +195,7 @@ class ZoomBox(Transform):
         src_spatial_size = ensure_tuple_rep(src_spatial_size, spatial_dims)
         dst_spatial_size = [int(round(src_spatial_size[axis] * _zoom[axis])) for axis in range(spatial_dims)]
         zoomed_boxes = resize_boxes(boxes, src_spatial_size, dst_spatial_size)
-        
+
         # See also keep_size in monai.transforms.spatial.array.Zoom()
         if not np.allclose(np.array(src_spatial_size), np.array(dst_spatial_size)):
             for axis, (od, zd) in enumerate(zip(src_spatial_size, dst_spatial_size)):
