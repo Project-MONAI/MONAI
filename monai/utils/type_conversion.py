@@ -60,7 +60,7 @@ def dtype_torch_to_numpy(dtype):
 def dtype_numpy_to_torch(dtype):
     """Convert a numpy dtype to its torch equivalent."""
     if isinstance(dtype, str):
-        dtype = dtype.replace("torch.", "")  #  "torch.float32" -> "float32"
+        dtype = dtype.replace("torch.", "")  # "torch.float32" -> "float32"
     # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
     dtype = np.dtype(dtype) if isinstance(dtype, (type, str)) else dtype
     return look_up_option(dtype, _np_to_torch_dtype)
