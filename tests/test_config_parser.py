@@ -195,6 +195,22 @@ class TestConfigParser(unittest.TestCase):
         parser.get_parsed_content("training", lazy=True, instantiate=True, eval_expr=True)
         np.testing.assert_allclose(parser.get_parsed_content("training#1", lazy=True), [0.7942, 1.5885], atol=1e-4)
 
+    def test_contains(self):
+        empty_parser = ConfigParser({})
+        empty_parser.parse()
+
+        parser = ConfigParser({"value": 1, "entry": "string content"})
+        parser.parse()
+
+        with self.subTest("Testing empty parser"):
+            self.assertFalse("something" in empty_parser)
+
+        with self.subTest("Testing with keys"):
+            self.assertTrue("value" in parser)
+            self.assertFalse("value1" in parser)
+            self.assertTrue("entry" in parser)
+            self.assertFalse("entr" in parser)
+
 
 if __name__ == "__main__":
     unittest.main()

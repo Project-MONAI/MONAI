@@ -183,6 +183,16 @@ class ConfigParser:
         """
         self[id] = config
 
+    def __contains__(self, id: Union[str, int]) -> bool:
+        """
+        Returns True if `id` is stored in this configuration.
+        """
+        try:
+            _ = self[id]
+            return True
+        except KeyError:
+            return False
+
     def parse(self, reset: bool = True):
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
