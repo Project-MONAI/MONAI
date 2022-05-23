@@ -208,7 +208,7 @@ class ZoomBox(Transform):
         src_spatial_size = ensure_tuple_rep(src_spatial_size, spatial_dims)
         dst_spatial_size = [int(round(src_spatial_size[axis] * _zoom[axis])) for axis in range(spatial_dims)]
         zoomed_boxes = resize_boxes(boxes, src_spatial_size, dst_spatial_size)
-        
+
         # See also keep_size in monai.transforms.spatial.array.Zoom()
         if not np.allclose(np.array(src_spatial_size), np.array(dst_spatial_size)):
             for axis, (od, zd) in enumerate(zip(src_spatial_size, dst_spatial_size)):
