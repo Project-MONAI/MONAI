@@ -182,7 +182,7 @@ TESTS.append(("Rotate90d 3d", "3D", 0, False, Rotate90d(KEYS, k=2, spatial_axes=
 
 TESTS.append(("RandRotate90d 3d", "3D", 0, False, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
 
-TESTS.append(("Spacingd 3d", "3D", 3e-2, False, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
+TESTS.append(("Spacingd 3d", "3D", 3e-2, True, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
 TESTS.append(("Resized 2d", "2D", 2e-1, False, Resized(KEYS, [50, 47])))
 
