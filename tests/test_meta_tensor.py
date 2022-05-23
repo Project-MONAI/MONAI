@@ -491,11 +491,15 @@ class TestMetaTensor(unittest.TestCase):
         m = MetaTensor(im, applied_operations=data[PostFix.transforms(key)])
         self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
-    @parameterized.expand(DTYPES)
-    def test_multiprocessing(self, dtype=None):
-        """multiprocessing sharing with 'dtype'"""
+    @parameterized.expand(TESTS)
+    def test_multiprocessing(self, device=None, dtype=None):
+        """multiprocessing sharing with 'device' and 'dtype'"""
         buf = io.BytesIO()
-        t = MetaTensor([0.0, 0.0], dtype=dtype)
+        t = MetaTensor([0.0, 0.0], device=device, dtype=dtype)
+        if t.is_cuda:
+            with self.assertRaises(NotImplementedError):
+                ForkingPickler(buf).dump(t)
+            return
         ForkingPickler(buf).dump(t)
         obj = ForkingPickler.loads(buf.getvalue())
         self.assertIsInstance(obj, MetaTensor)
