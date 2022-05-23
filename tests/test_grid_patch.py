@@ -33,6 +33,21 @@ TEST_CASE_6 = [{"patch_size": (2, 2), "start_pos": (0, 2)}, A, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "start_pos": (2, 0)}, A, [A21, A22]]
 TEST_CASE_8 = [{"patch_size": (2, 2), "max_num_patches": 3, "sort_key": "max"}, A, [A22, A21, A12]]
 TEST_CASE_9 = [{"patch_size": (2, 2), "max_num_patches": 4, "sort_key": "min"}, A, [A11, A12, A21, A22]]
+TEST_CASE_10 = [{"patch_size": (2, 2), "overlap": 0.5, "max_num_patches": 3}, A, [A11, A[:, :2, 1:3], A12]]
+TEST_CASE_11 = [
+    {"patch_size": (3, 3), "max_num_patches": 2, "pad_opts": {"constant_values": 255}},
+    A,
+    [A[:, :3, :3], np.pad(A[:, :3, 3:], ((0, 0), (0, 0), (0, 2)), mode="constant", constant_values=255)],
+]
+TEST_CASE_12 = [
+    {
+        "patch_size": (3, 3),
+        "start_pos": (-2, -2),
+        "max_num_patches": 2,
+    },
+    A,
+    [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
+]
 
 
 TEST_SINGLE = []
@@ -47,6 +62,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_7])
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
+    TEST_SINGLE.append([p, *TEST_CASE_10])
+    TEST_SINGLE.append([p, *TEST_CASE_11])
+    TEST_SINGLE.append([p, *TEST_CASE_12])
 
 
 class TestSlidingPatch(unittest.TestCase):
