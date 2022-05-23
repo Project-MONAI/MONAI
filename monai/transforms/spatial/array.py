@@ -59,6 +59,7 @@ from monai.utils import (
     ensure_tuple_rep,
     ensure_tuple_size,
     fall_back_tuple,
+    get_equivalent_dtype,
     issequenceiterable,
     optional_import,
     pytorch_after,
@@ -485,7 +486,6 @@ class Spacing(InvertibleTransform):
             data_array.affine = new_affine
         else:
             data_array = MetaTensor(data_array, affine=new_affine)
-
         self.push_transform(
             data_array,
             extra_info={
@@ -493,6 +493,7 @@ class Spacing(InvertibleTransform):
                 "mode": mode.value if isinstance(mode, Enum) else mode,
                 "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                 "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                "dtype": str(np.dtype(get_equivalent_dtype(dtype, np.ndarray))) if dtype is not None else None,
             },
             orig_size=original_spatial_shape,
         )
@@ -511,6 +512,7 @@ class Spacing(InvertibleTransform):
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         orig_size = transform[TraceKeys.ORIG_SIZE]
         orig_pixdim = affine_to_spacing(orig_affine, -1)
         inverse_transform = Spacing(orig_pixdim, diagonal=self.diagonal)
@@ -521,7 +523,7 @@ class Spacing(InvertibleTransform):
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                dtype=self.sp_resample.dtype,
+                dtype=dtype or self.sp_resample.dtype,
                 output_spatial_shape=orig_size,
             )
         return out
