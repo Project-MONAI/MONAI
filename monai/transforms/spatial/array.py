@@ -2648,7 +2648,7 @@ class GridPatch(Transform):
         max_num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
-        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
     ):
         self.patch_size = (None,) + ensure_tuple(patch_size)  # expand to have the channel dim
