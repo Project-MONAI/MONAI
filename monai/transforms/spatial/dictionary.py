@@ -43,6 +43,7 @@ from monai.transforms.spatial.array import (
     RandAxisFlip,
     RandFlip,
     RandGridDistortion,
+    RandGridPatch,
     RandRotate,
     RandZoom,
     ResampleToMatch,
@@ -138,6 +139,9 @@ __all__ = [
     "GridPatchd",
     "GridPatchD",
     "GridPatchDict",
+    "RandGridPatchd",
+    "RandGridPatchD",
+    "RandGridPatchDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -2245,6 +2249,54 @@ class GridPatchd(MapTransform):
             yield new_dict
 
 
+class RandGridPatchd(MapTransform, RandomizableTransform):
+    """ """
+
+    backend = GridSplit.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        patch_size: Sequence[int],
+        min_start_pos: Optional[Union[Sequence[int], int]] = None,
+        max_start_pos: Optional[Union[Sequence[int], int]] = None,
+        max_num_patches: Optional[int] = None,
+        overlap: float = 0.0,
+        sort_key: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_opts: Optional[Dict] = None,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.patcher = RandGridPatch(
+            patch_size=patch_size,
+            min_start_pos=min_start_pos,
+            max_start_pos=max_start_pos,
+            max_num_patches=max_num_patches,
+            overlap=overlap,
+            sort_key=sort_key,
+            pad_mode=pad_mode,
+            pad_opts=pad_opts,
+        )
+        self.max_num_patches = max_num_patches
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Generator[Dict, None, None]:
+        d = dict(data)
+        original_spatial_shape = d[first(self.keys)].shape[1:]
+        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
+            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
+            # fill in the extra keys with unmodified data
+            for k in set(d.keys()).difference(set(self.keys)):
+                new_dict[k] = deepcopy(d[k])
+            # fill additional metadata
+            new_dict["original_spatial_shape"] = original_spatial_shape
+            # use the coordinate of the first item
+            location = patch[0][1]
+            new_dict["patch"] = {"location": location, "size": self.patcher.patch_size}
+            new_dict["start_pos"] = self.patcher.start_pos
+            yield new_dict
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2267,3 +2319,4 @@ ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
 GridSplitD = GridSplitDict = GridSplitd
 GridPatchD = GridPatchDict = GridPatchd
+RandGridPatchD = RandGridPatchDict = RandGridPatchd

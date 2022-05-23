@@ -266,7 +266,7 @@ class WSIReader(BaseWSIReader):
         elif self.backend == "openslide":
             self.reader = OpenSlideWSIReader(level=level, **kwargs)
         else:
-            raise ValueError(f"The supported backends are cucim and openslide, {self.backend} was given.")
+            raise ValueError(f"The supported backends are cucim and openslide, '{self.backend}' was given.")
         self.supported_suffixes = self.reader.supported_suffixes
 
     def get_level_count(self, wsi) -> int:
