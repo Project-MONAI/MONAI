@@ -41,7 +41,6 @@ for p in TEST_NDARRAYS:
 
 class TestBoxTransform(unittest.TestCase):
     @parameterized.expand(TESTS)
-<<<<<<< HEAD
     def test_value(
         self,
         keys,
@@ -51,12 +50,6 @@ class TestBoxTransform(unittest.TestCase):
         expected_zoom_keepsize_result,
         expected_clip_result,
         expected_flip_result,
-=======
-    def test_value(self, keys, data,
-        expected_convert_result,
-        expected_zoom_result, expected_zoom_keepsize_result,
-        expected_clip_result, expected_flip_result
->>>>>>> f711e3f6ce37981a492d437605b2b48d3340100f
     ):
         test_dtype = [torch.float16, torch.float32]
         for dtype in test_dtype:
@@ -94,12 +87,6 @@ class TestBoxTransform(unittest.TestCase):
             assert_allclose(
                 zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=0.0
             )
-            invert_transform_zoom = Invertd(
-                keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
-            )
-            data_back = invert_transform_zoom(zoom_result)
-            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.0)
-            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=0.0)
 
 
 if __name__ == "__main__":
