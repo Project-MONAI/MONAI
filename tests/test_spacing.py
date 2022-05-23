@@ -240,8 +240,8 @@ class TestSpacingCase(unittest.TestCase):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
         init_pixdim = ensure_tuple(init_param["pixdim"])
         init_pixdim = init_param["pixdim"][:sr]
-        norm = affine_to_spacing(res.affine, sr)
-        np.testing.assert_allclose(fall_back_tuple(init_pixdim, norm), norm)
+        norm = affine_to_spacing(res.affine, sr).cpu().numpy()
+        assert_allclose(fall_back_tuple(init_pixdim, norm), norm, type_test=False)
 
     @parameterized.expand(TESTS_TORCH)
     def test_spacing_torch(self, pixdim, img: torch.Tensor, track_meta: bool, device):
