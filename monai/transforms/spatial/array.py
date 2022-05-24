@@ -2698,7 +2698,7 @@ class GridPatch(Transform):
             output = list(patch_iterator)
         # keep up to max_num_patches
         output = output[: self.max_num_patches]
-        self.num_pacthes = len(output)
+        self.num_patches = len(output)
         return output
 
 

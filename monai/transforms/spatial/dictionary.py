@@ -2266,7 +2266,11 @@ class GridPatchd(MapTransform):
             new_dict["original_spatial_shape"] = original_spatial_shape
             # use the coordinate of the first item
             location = patch[0][1]
-            new_dict["patch"] = {"location": location, "size": self.patcher.patch_size}
+            new_dict["patch"] = {
+                "location": location,
+                "size": self.patcher.patch_size,
+                "num_patches": self.patcher.num_patches,
+            }
             new_dict["start_pos"] = self.patcher.start_pos
             yield new_dict
 
@@ -2321,7 +2325,11 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             new_dict["original_spatial_shape"] = original_spatial_shape
             # use the coordinate of the first item
             location = patch[0][1]
-            new_dict["patch"] = {"location": location, "size": self.patcher.patch_size[1:]}
+            new_dict["patch"] = {
+                "location": location,
+                "size": self.patcher.patch_size,
+                "num_patches": self.patcher.num_patches,
+            }
             new_dict["start_pos"] = self.patcher.start_pos
             yield new_dict
 
