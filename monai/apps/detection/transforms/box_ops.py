@@ -15,7 +15,7 @@ from typing import Optional, Sequence, Union
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import TO_REMOVE, COMPUTE_DTYPE, get_spatial_dims
+from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms.utils import create_scale
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
