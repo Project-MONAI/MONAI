@@ -280,7 +280,7 @@ class AddPointGuidanceSignald(RandomizableTransform):
         return point_mask
 
 
-class AddClickSignalsd(Transform):
+class AddClickSignalsd(MapTransform):
     def __init__(self, image, foreground="foreground", bb_size=128):
         self.image = image
         self.foreground = foreground
