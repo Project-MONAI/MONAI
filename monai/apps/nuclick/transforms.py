@@ -277,8 +277,8 @@ class AddPointGuidanceSignald(RandomizableTransform):
 
         return point_mask
 
-class AddClickSignalsd(Transform):
 
+class AddClickSignalsd(Transform):
     def __init__(self, image, foreground="foreground", bb_size=128):
         self.image = image
         self.foreground = foreground
@@ -300,11 +300,7 @@ class AddClickSignalsd(Transform):
         img_height = img.shape[-2]
 
         click_map, bounding_boxes = self.get_clickmap_boundingbox(
-            cx=cx,
-            cy=cy,
-            m=img_height,
-            n=img_width,
-            bb=self.bb_size
+            cx=cx, cy=cy, m=img_height, n=img_width, bb=self.bb_size
         )
 
         patches, nuc_points, other_points = self.get_patches_and_signals(
@@ -315,7 +311,7 @@ class AddClickSignalsd(Transform):
             cy=cy,
             m=img_height,
             n=img_width,
-            bb=self.bb_size
+            bb=self.bb_size,
         )
         patches = patches / 255
 
@@ -326,7 +322,6 @@ class AddClickSignalsd(Transform):
 
         d[self.image] = np.concatenate((patches, nuc_points, other_points), axis=1, dtype=np.float32)
         return d
-
 
     def get_clickmap_boundingbox(self, cx, cy, m, n, bb=128):
         click_map = np.zeros((m, n), dtype=np.uint8)
@@ -357,7 +352,6 @@ class AddClickSignalsd(Transform):
                 y_start = y_end - bb + 1
             bounding_boxes.append([x_start, y_start, x_end, y_end])
         return click_map, bounding_boxes
-
 
     def get_patches_and_signals(self, img, click_map, bounding_boxes, cx, cy, m, n, bb=128):
         # total = number of clicks
@@ -458,7 +452,7 @@ class PostFilterLabeld(MapTransform):
                 try:
                     this_mask = reconstruction(this_marker, this_mask, footprint=disk(1))
                     masks[i] = np.array([this_mask])
-                except:
+                except BaseException:
                     print("Nuclei reconstruction error #" + str(i))
         return masks  # masks(no.patches, 128, 128)
 

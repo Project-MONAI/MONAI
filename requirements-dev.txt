@@ -37,7 +37,7 @@ openslide-python==1.1.2
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
 pandas
-opencv-python
+opencv-python-headless
 requests
 einops
 transformers

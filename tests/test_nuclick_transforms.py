@@ -15,129 +15,72 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.nuclick.transforms import (
-FlattenLabeld,
-FilterImaged,
-ExtractPatchd,
-SplitLabeld,
-AddPointGuidanceSignald,
-AddClickSignalsd,
-PostFilterLabeld
+    AddClickSignalsd,
+    AddPointGuidanceSignald,
+    ExtractPatchd,
+    FilterImaged,
+    FlattenLabeld,
+    PostFilterLabeld,
+    SplitLabeld,
 )
 
 # Data Definitions
-RGB_IMAGE_1 = np.array([
-                      [[0, 0, 0],
-                       [0, 1, 0],
-                       [0, 0, 1]],
-                      [[2, 0, 2],
-                       [0, 1, 0],
-                       [1, 0, 1]],
-                      [[3, 0, 2],
-                       [0, 1, 0],
-                       [1, 3, 1]]
-                      ])
+RGB_IMAGE_1 = np.array(
+    [[[0, 0, 0], [0, 1, 0], [0, 0, 1]], [[2, 0, 2], [0, 1, 0], [1, 0, 1]], [[3, 0, 2], [0, 1, 0], [1, 3, 1]]]
+)
 
-LABEL_1 = np.array([[1, 1, 1, 0, 0, 0, 0],
-                    [1, 1, 1, 0, 0, 0, 0],
-                    [1, 1, 1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0],
-                    [1, 1, 1, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 1, 1, 1],
-                    [1, 1, 1, 0, 1, 1, 1]], dtype=np.uint8)
+LABEL_1 = np.array(
+    [
+        [1, 1, 1, 0, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0, 0],
+        [1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 0, 1, 1, 1],
+        [1, 1, 1, 0, 1, 1, 1],
+        [1, 1, 1, 0, 1, 1, 1],
+    ],
+    dtype=np.uint8,
+)
 
-LABEL_2 = np.array([[0, 0, 0, 0],
-                    [0, 0, 0, 0],
-                    [0, 0, 0, 0],
-                    [0, 0, 0, 0]], dtype=np.uint8)
+LABEL_2 = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], dtype=np.uint8)
 
-LABEL_3 = np.array([[[1, 1, 1, 1],
-                    [2, 2, 2, 2],
-                    [3, 3, 3, 3],
-                    [4, 4, 4, 4]]], dtype=np.uint8)
+LABEL_3 = np.array([[[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]]], dtype=np.uint8)
 
 IL_IMAGE_1 = np.array(
-                      [
-                          [[0, 0, 0, 0, 0],
-                           [0, 1, 0, 0, 0],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1]],
-                          [[0, 0, 0, 0, 0],
-                           [0, 1, 0, 0, 0],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1]],
-                          [[0, 0, 0, 0, 0],
-                           [0, 1, 0, 0, 0],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1],
-                           [0, 0, 1, 1, 1]],
-                      ]
-                    )
+    [
+        [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
+        [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
+        [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
+    ]
+)
 
-IL_FG_IMAGE_1 = np.array(
-                      [[0, 0, 0, 0, 0],
-                       [0, 1, 0, 0, 0],
-                       [0, 0, 1, 1, 1],
-                       [0, 0, 1, 1, 1],
-                       [0, 0, 1, 1, 1]]
-                    )
+IL_FG_IMAGE_1 = np.array([[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]])
 
 IL_LABEL_1 = np.array(
-                      [[[0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0],
-                       [0, 0, 1, 0, 0],
-                       [0, 0, 0, 0, 0],
-                       [0, 0, 0, 0, 0]]], dtype=np.uint8
-                    )
+    [[[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]]], dtype=np.uint8
+)
 
 IL_OTHERS_1 = np.array(
-                      [[[1, 1, 1, 1, 1],
-                        [2, 0, 0, 0, 2],
-                        [3, 0, 0, 0, 3],
-                        [4, 0, 0, 0, 4],
-                        [5, 5, 5, 5, 5]]], dtype=np.uint8
-                    )
+    [[[1, 1, 1, 1, 1], [2, 0, 0, 0, 2], [3, 0, 0, 0, 3], [4, 0, 0, 0, 4], [5, 5, 5, 5, 5]]], dtype=np.uint8
+)
 
 IL_IMAGE_2 = np.array(
-                      [
-                          [[0, 0, 0],
-                           [0, 1, 0],
-                           [0, 0, 1]],
-                          [[0, 0, 0],
-                           [0, 1, 0],
-                           [0, 0, 1]],
-                          [[0, 0, 0],
-                           [0, 1, 0],
-                           [0, 0, 1]]
-                      ]
-                    )
+    [[[0, 0, 0], [0, 1, 0], [0, 0, 1]], [[0, 0, 0], [0, 1, 0], [0, 0, 1]], [[0, 0, 0], [0, 1, 0], [0, 0, 1]]]
+)
 
-IL_LABEL_2 = np.array(
-                      [[[0, 0, 0],
-                        [0, 1, 0],
-                        [0, 0, 0]]], dtype=np.uint8
-                     )
+IL_LABEL_2 = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]], dtype=np.uint8)
 
 PRED_1 = np.array(
-                      [[[1, 1, 1, 1, 1],
-                        [2, 0, 0, 0, 2],
-                        [3, 0, 0, 0, 3],
-                        [4, 0, 0, 0, 4],
-                        [5, 5, 5, 5, 5]]], dtype=np.float
-                    )
+    [[[1, 1, 1, 1, 1], [2, 0, 0, 0, 2], [3, 0, 0, 0, 3], [4, 0, 0, 0, 4], [5, 5, 5, 5, 5]]], dtype=np.float32
+)
 
 NUC_POINTS_1 = np.array(
-        [[[[0, 0, 0, 0],
-           [0, 0, 0, 0],
-           [0, 0, 1, 0],
-           [0, 0, 0, 0]]],
-        [[[0, 0, 0, 0],
-          [0, 1, 0, 0],
-          [0, 0, 0, 0],
-          [0, 0, 0, 0]]]],
-        dtype=np.float
-            )
+    [
+        [[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 0]]],
+        [[[0, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]],
+    ],
+    dtype=np.float32,
+)
 BB_1 = np.array([[1, 1, 3, 3], [0, 0, 2, 2]], dtype=np.uint8)
 
 DATA_FILTER_1 = {"image": RGB_IMAGE_1}
@@ -154,21 +97,18 @@ DATA_GUIDANCE_1 = {"image": IL_IMAGE_1, "label": IL_LABEL_1, "others": IL_OTHERS
 
 DATA_CLICK_1 = {"image": IL_IMAGE_1, "foreground": [[2, 2], [1, 1]]}
 
-DATA_LABEL_FILTER_1 = {"pred": PRED_1,
-                       "nuc_points": NUC_POINTS_1,
-                       "bounding_boxes": BB_1,
-                       "img_height": 6,
-                       "img_width": 6}
+DATA_LABEL_FILTER_1 = {
+    "pred": PRED_1,
+    "nuc_points": NUC_POINTS_1,
+    "bounding_boxes": BB_1,
+    "img_height": 6,
+    "img_width": 6,
+}
 
 # Result Definitions
-EXTRACT_RESULT_TC1 = np.array([[[0, 0, 0],
-                                [0, 0, 0],
-                                [0, 0, 1]]], dtype=np.uint8)
+EXTRACT_RESULT_TC1 = np.array([[[0, 0, 0], [0, 0, 0], [0, 0, 1]]], dtype=np.uint8)
 
-SPLIT_RESULT_TC1 = np.array([[[1, 1, 1, 1],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0]]], dtype=np.uint8)
+SPLIT_RESULT_TC1 = np.array([[[1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
 
 # Test Case Definitions
 FILTER_IMAGE_TEST_CASE_1 = [{"keys": "image", "min_size": 1}, DATA_FILTER_1, [3, 3, 3]]
@@ -199,11 +139,13 @@ class TestFilterImaged(unittest.TestCase):
         result = FilterImaged(**arguments)(input_data)
         np.testing.assert_equal(result["image"].shape, expected_shape)
 
+
 class TestFlattenLabeld(unittest.TestCase):
     @parameterized.expand([FLATTEN_LABEL_TEST_CASE_1, FLATTEN_LABEL_TEST_CASE_2])
     def test_correct_num_labels(self, arguments, input_data, expected_result):
         result = FlattenLabeld(**arguments)(input_data)
         np.testing.assert_equal(np.unique(result["label"]), expected_result)
+
 
 class TestExtractPatchd(unittest.TestCase):
     @parameterized.expand([EXTRACT_TEST_CASE_1, EXTRACT_TEST_CASE_2, EXTRACT_TEST_CASE_3])
@@ -216,11 +158,13 @@ class TestExtractPatchd(unittest.TestCase):
         result = ExtractPatchd(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
 
+
 class TestSplitLabelsd(unittest.TestCase):
     @parameterized.expand([SPLIT_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SplitLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
+
 
 class TestGuidanceSignal(unittest.TestCase):
     @parameterized.expand([GUIDANCE_TEST_CASE_1])
@@ -228,17 +172,20 @@ class TestGuidanceSignal(unittest.TestCase):
         result = AddPointGuidanceSignald(**arguments)(input_data)
         np.testing.assert_equal(result["image"].shape, expected_shape)
 
+
 class TestClickSignal(unittest.TestCase):
     @parameterized.expand([CLICK_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddClickSignalsd(**arguments)(input_data)
         np.testing.assert_equal(result["image"].shape, expected_shape)
 
+
 class TestPostFilterLabel(unittest.TestCase):
     @parameterized.expand([LABEL_FILTER_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["pred"].shape, expected_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
