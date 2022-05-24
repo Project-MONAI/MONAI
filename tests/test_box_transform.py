@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.transforms.dictionary import ConvertBoxModed, ZoomBoxd
+from monai.apps.detection.transforms.dictionary import ConvertBoxModed, RandZoomBoxd, ZoomBoxd
 from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -51,7 +51,7 @@ class TestBoxTransform(unittest.TestCase):
         expected_clip_result,
         expected_flip_result,
     ):
-        test_dtype = [torch.float16, torch.float32]
+        test_dtype = [torch.float32]
         for dtype in test_dtype:
             data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
             # test ConvertBoxToStandardModed
@@ -87,6 +87,24 @@ class TestBoxTransform(unittest.TestCase):
             assert_allclose(
                 zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=0.0
             )
+
+            # test ZoomBoxd
+            transform_zoom = RandZoomBoxd(
+                image_keys="image",
+                box_keys="boxes",
+                box_ref_image_keys="image",
+                prob=1.0,
+                min_zoom=(0.3,) * 3,
+                max_zoom=(3.0,) * 3,
+                keep_size=False,
+            )
+            zoom_result = transform_zoom(data)
+            invert_transform_zoom = Invertd(
+                keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_zoom(zoom_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=0.0)
 
 
 if __name__ == "__main__":

@@ -92,21 +92,22 @@ class ConvertBoxModed(MapTransform, InvertibleTransform):
         """
         super().__init__(box_keys, allow_missing_keys)
         self.converter = ConvertBoxMode(src_mode=src_mode, dst_mode=dst_mode)
-        self.inverse_converter = ConvertBoxMode(src_mode=dst_mode, dst_mode=src_mode)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"src": self.converter.src_mode, "dst": self.converter.dst_mode})
             d[key] = self.converter(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
+            tr = self.get_most_recent_transform(d, key)
+            src_mode, dst_mode = tr[TraceKeys.EXTRA_INFO]["src"], tr[TraceKeys.EXTRA_INFO]["dst"]
+            inverse_converter = ConvertBoxMode(src_mode=dst_mode, dst_mode=src_mode)
             # Inverse is same as forward
-            d[key] = self.inverse_converter(d[key])
+            d[key] = inverse_converter(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -146,21 +147,22 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
         """
         super().__init__(box_keys, allow_missing_keys)
         self.converter = ConvertBoxToStandardMode(mode=mode)
-        self.inverse_converter = ConvertBoxMode(src_mode=None, dst_mode=mode)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
+            self.push_transform(d, key, extra_info={"mode": self.converter.mode})
             d[key] = self.converter(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
+            tr = self.get_most_recent_transform(d, key)
+            original_mode = tr[TraceKeys.EXTRA_INFO]["mode"]
+            inverse_converter = ConvertBoxMode(src_mode=None, dst_mode=original_mode)
             # Inverse is same as forward
-            d[key] = self.inverse_converter(d[key])
+            d[key] = inverse_converter(d[key])
             # Remove the applied transform
             self.pop_transform(d, key)
         return d
@@ -302,6 +304,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             src_spatial_size = d[box_ref_image_key].shape[1:]
+            dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.zoomer.zoom, src_spatial_size)]
+            self.zoomer.zoom = [ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)]
             self.push_transform(
                 d,
                 box_key,
@@ -322,6 +326,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     "mode": mode.value if isinstance(mode, Enum) else mode,
                     "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
                     "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                    "original_shape": d[key].shape[1:],
                     "type": "image_key",
                 },
             )
@@ -351,7 +356,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
+                d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
                 # Remove the applied transform
                 self.pop_transform(d, key)
 
@@ -424,13 +429,16 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
-        MapTransform.__init__(self, image_keys, allow_missing_keys)
-        RandomizableTransform.__init__(self, prob)
-        self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
+        MapTransform.__init__(self, self.image_keys + self.box_keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
+        self.mode = ensure_tuple_rep(mode, len(self.image_keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.image_keys))
+        self.align_corners = ensure_tuple_rep(align_corners, len(self.image_keys))
+
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
         self.keep_size = keep_size
 
@@ -455,69 +463,80 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             if self._do_transform:
-                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
-                    d[box_key], src_spatial_size=d[box_ref_image_key].shape[1:]
+                src_spatial_size = d[box_ref_image_key].shape[1:]
+                dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.rand_zoom._zoom, src_spatial_size)]
+                self.rand_zoom._zoom = [ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)]
+
+                self.push_transform(
+                    d,
+                    box_key,
+                    extra_info={"zoom": self.rand_zoom._zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
                 )
-                self.push_transform(d, box_key, extra_info={"zoom": self.rand_zoom._zoom})
+                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
+                    d[box_key], src_spatial_size=src_spatial_size
+                )
 
         # zoom image, copied from monai.transforms.spatial.dictionary.RandZoomd
         for key, mode, padding_mode, align_corners in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners
+            self.image_keys, self.mode, self.padding_mode, self.align_corners
         ):
             if self._do_transform:
+                self.push_transform(
+                    d,
+                    key,
+                    extra_info={
+                        "zoom": self.rand_zoom._zoom,
+                        "mode": mode.value if isinstance(mode, Enum) else mode,
+                        "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
+                        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                        "original_shape": d[key].shape[1:],
+                        "type": "image_key",
+                    },
+                )
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
-
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "zoom": self.rand_zoom._zoom,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
 
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
-        # zoom box
-        for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
-            transform = self.get_most_recent_transform(d, box_key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
-                box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                d[box_key] = box_inverse_transform(d[box_key], src_spatial_size=d[box_ref_image_key].shape[1:])
-            # Remove the applied transform
-            self.pop_transform(d, box_key)
-
         # zoom image, copied from monai.transforms.spatial.dictionary.RandZoomd
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
             # Check if random transform was actually performed (based on `prob`)
             if transform[TraceKeys.DO_TRANSFORM]:
                 # Create inverse transform
-                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                # Apply inverse
-                d[key] = inverse_transform(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-                )
-                # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
+
+                # zoom image, copied from monai.transforms.spatial.dictionary.Zoomd
+                if key_type == "image_key":
+                    zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
+                    mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+                    padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+                    align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+                    inverse_transform = Zoom(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
+                    d[key] = inverse_transform(
+                        d[key],
+                        mode=mode,
+                        padding_mode=padding_mode,
+                        align_corners=None if align_corners == TraceKeys.NONE else align_corners,
+                    )
+                    # Size might be out by 1 voxel so pad
+                    d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                    # Remove the applied transform
+                    self.pop_transform(d, key)
+
+                # zoom boxes
+                if key_type == "box_key":
+                    # Create inverse transform
+                    zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
+                    src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
+                    box_inverse_transform = ZoomBox(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
+                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                    # Remove the applied transform
+                    self.pop_transform(d, key)
         return d
 
 
