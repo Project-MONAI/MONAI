@@ -38,6 +38,7 @@ imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
 pandas
 opencv-python-headless
+opencv-python
 requests
 einops
 transformers

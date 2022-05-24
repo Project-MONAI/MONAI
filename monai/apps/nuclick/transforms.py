@@ -11,14 +11,15 @@
 import math
 import random
 
-import cv2
 import numpy as np
 import skimage
 from skimage.morphology import disk, reconstruction, remove_small_holes, remove_small_objects
 
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform, Transform
+from monai.utils import optional_import
 
+cv2, _ = optional_import("cv2")
 
 class FlattenLabeld(MapTransform):
     """

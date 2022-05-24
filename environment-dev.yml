@@ -38,6 +38,7 @@ dependencies:
   - sphinx_rtd_theme==0.5.2
   - pandas
   - opencv-python-headless
+  - opencv-python
   - requests
   - einops
   - transformers
