@@ -134,3 +134,8 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.transforms.dictionary
     :members:
+
+`Anchor`
+~~~~~~~~
+.. automodule:: monai.apps.detection.networks.utils.anchor_utils
+    :members:
