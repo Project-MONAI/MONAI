@@ -12,7 +12,7 @@
 import unittest
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
-from monai.transforms import Compose, RandAffined, Spacingd
+from monai.transforms import Compose, FromMetaTensord, RandAffined, Spacingd, ToMetaTensord
 
 
 class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
@@ -20,7 +20,9 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
         data = [{"img": create_test_image_2d(128, 128, num_seg_classes=1, channel_dim=0)[0]} for _ in range(2)]
 
         # at least 1 deterministic followed by at least 1 random
-        transform = Compose([Spacingd("img", pixdim=(1, 1)), RandAffined("img", prob=1.0)])
+        transform = Compose(
+            [ToMetaTensord("img"), Spacingd("img", pixdim=(1, 1)), FromMetaTensord("img"), RandAffined("img", prob=1.0)]
+        )
 
         # cachedataset and data loader w persistent_workers
         train_ds = CacheDataset(data, transform, cache_num=1)

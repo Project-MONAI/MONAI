@@ -62,10 +62,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         [
             LoadImaged(keys=["img", "seg"], reader=readers[0]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -79,10 +79,10 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
         [
             LoadImaged(keys=["img", "seg"], reader=readers[1]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]
@@ -190,10 +190,10 @@ def run_inference_test(root_dir, device="cuda:0"):
         [
             LoadImaged(keys=["img", "seg"]),
             EnsureChannelFirstd(keys=["img", "seg"]),
-            FromMetaTensord(["img", "seg"]),
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
+            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
         ]

@@ -24,7 +24,6 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import affine_to_spacing
 from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
@@ -425,6 +424,8 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     backend = Spacing.backend
 
+    @deprecated_arg(name="meta_keys", since="0.8")
+    @deprecated_arg(name="meta_key_postfix", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
@@ -474,19 +475,7 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
-                to the key data, default is `meta_dict`, the metadata is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
-
-        Raises:
-            TypeError: When ``meta_key_postfix`` is not a ``str``.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -495,82 +484,22 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
-    ) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype, meta_key, meta_key_postfix in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.meta_keys, self.meta_key_postfix
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            # create metadata if necessary
-            if meta_key not in d:
-                d[meta_key] = {"affine": None}
-            meta_data = d[meta_key]
             # resample array of each corresponding key
-            # using affine fetched from d[affine_key]
-            original_spatial_shape = d[key].shape[1:]
-            d[key], old_affine, new_affine = self.spacing_transform(
-                data_array=d[key],
-                affine=meta_data["affine"],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                dtype=dtype,
+            d[key] = self.spacing_transform(
+                data_array=d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "meta_key": meta_key,
-                    "old_affine": old_affine,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-                orig_size=original_spatial_shape,
-            )
-            # set the 'affine' key
-            meta_data["affine"] = new_affine
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            if self.spacing_transform.diagonal:
-                raise RuntimeError(
-                    "Spacingd:inverse not yet implemented for diagonal=True. "
-                    + "Please raise a github issue if you need this feature"
-                )
-            # Create inverse transform
-            meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
-            old_affine = np.array(transform[TraceKeys.EXTRA_INFO]["old_affine"])
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            orig_pixdim = affine_to_spacing(old_affine, -1)
-            inverse_transform = Spacing(orig_pixdim, diagonal=self.spacing_transform.diagonal)
-            # Apply inverse
-            d[key], _, new_affine = inverse_transform(
-                data_array=d[key],
-                affine=meta_data["affine"],  # type: ignore
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                dtype=dtype,
-                output_spatial_shape=orig_size,
-            )
-            meta_data["affine"] = new_affine  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+        for key in self.key_iterator(d):
+            d[key] = self.spacing_transform.inverse(d[key])
         return d
 
 

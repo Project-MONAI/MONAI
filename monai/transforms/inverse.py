@@ -8,7 +8,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
+from contextlib import contextmanager
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
@@ -245,6 +247,14 @@ class TraceableTransform(Transform):
             - RuntimeError: data is neither `MetaTensor` nor dictionary
         """
         return self.get_most_recent_transform(data, key, check, pop=True)
+
+    @contextmanager
+    def trace_transform(self, to_trace: bool):
+        """Temporarily set the tracing status of a transfrom with a context manager."""
+        prev = self.tracing
+        self.tracing = to_trace
+        yield
+        self.tracing = prev
 
 
 class InvertibleTransform(TraceableTransform):

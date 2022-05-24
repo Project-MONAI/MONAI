@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import ConvertBoxToStandardModed
 from monai.transforms import Invertd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TESTS = []
 
@@ -24,7 +24,7 @@ boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]
 image_size = [1, 5, 6, 4]
 image = np.zeros(image_size)
 
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_NO_META_TENSOR:
     TESTS.append(
         [
             {"box_keys": "boxes", "mode": "xyzwhd"},
