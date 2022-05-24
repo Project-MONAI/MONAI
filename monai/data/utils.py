@@ -286,10 +286,10 @@ def iter_wsi_patch_location(
         start_pos: starting position in the image, default is 0 for each dimension
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        downsample: the downsample ratio
+        downsample: the down-sampling ratio of the patch with respect to level 0.
         padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
             Note that the padding depends on the functionality of the underlying whole slide imaging reader,
-            and is not guranteed for all images.
+            and is not guaranteed for all images.
 
     Yields:
         Tuple of patch location
@@ -309,7 +309,7 @@ def iter_wsi_patch_location(
     end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
 
     # evaluate the starting locations for patches
-    return product(*tuple(starmap(range, zip(start_pos, end_pos, steps))))
+    return product(*starmap(range, zip(start_pos, end_pos, steps)))
 
 
 def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
