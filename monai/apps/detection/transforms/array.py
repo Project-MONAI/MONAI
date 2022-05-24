@@ -237,7 +237,7 @@ class ResizeBox(Transform):
         self.spatial_size = spatial_size
 
     def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]  # type: ignore
+        self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]
     ) -> NdarrayOrTensor:
         """
         Args:
