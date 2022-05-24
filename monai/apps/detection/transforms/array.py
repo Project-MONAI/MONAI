@@ -13,7 +13,7 @@ A collection of "vanilla" transforms for box operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Sequence, Type, Union
+from typing import Optional, Sequence, Type, Union
 
 import numpy as np
 
@@ -23,9 +23,9 @@ from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TransformBackends
 
-from .box_ops import apply_affine_to_boxes, resize_boxes, zoom_boxes
+from .box_ops import apply_affine_to_boxes, flip_boxes, resize_boxes, zoom_boxes
 
-__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode", "AffineBox", "ZoomBox", "ResizeBox"]
+__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode", "AffineBox", "ZoomBox", "ResizeBox", "FlipBox"]
 
 
 class ConvertBoxMode(Transform):
@@ -266,3 +266,33 @@ class ResizeBox(Transform):
             spatial_size_ = tuple(int(round(s * scale)) for s in src_spatial_size_)
 
         return resize_boxes(boxes, src_spatial_size_, spatial_size_)
+
+
+class FlipBox(Transform):
+    """
+    Reverses the box coordinates along the given spatial axis. Preserves shape.
+
+    Args:
+        spatial_axis: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
+        self.spatial_axis = spatial_axis
+
+    def __call__(  # type: ignore
+        self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+            spatial_size: image spatial size.
+        """
+
+        return flip_boxes(boxes, spatial_size=spatial_size, flip_axes=self.spatial_axis)
