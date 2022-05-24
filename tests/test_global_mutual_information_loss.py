@@ -18,7 +18,7 @@ from monai import transforms
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
 from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, skip_if_quick, testing_data_config
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "mri.nii")
 
