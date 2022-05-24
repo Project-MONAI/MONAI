@@ -151,7 +151,7 @@ def download(
     name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
-    repo: Optional[str] = None,
+    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
     url: Optional[str] = None,
     progress: bool = True,
     args_file: Optional[str] = None,
@@ -185,9 +185,8 @@ def download(
             Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
-        repo: repo name. If `None` and `url` is `None`, it must be provided in `args_file`.
+        repo: repo name.
             If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
-            For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -202,7 +201,13 @@ def download(
 
     _log_input_summary(tag="download", args=_args)
     name_, bundle_dir_, source_, repo_, url_, progress_ = _pop_args(
-        _args, name=None, bundle_dir=None, source="github", repo=None, url=None, progress=True
+        _args,
+        name=None,
+        bundle_dir=None,
+        source="github",
+        repo="Project-MONAI/model-zoo/hosting_storage_v1",
+        url=None,
+        progress=True,
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
@@ -232,9 +237,10 @@ def load(
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
-    repo: Optional[str] = None,
+    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
     progress: bool = True,
     device: Optional[str] = None,
+    key_in_ckpt: Optional[str] = None,
     config_files: Sequence[str] = (),
     net_name: Optional[str] = None,
     **net_kwargs,
@@ -251,11 +257,12 @@ def load(
             Default is `bundle` subfolder under`torch.hub get_dir()`.
         source: the place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
-        repo: the repo name. If the weights file does not exist locally and `url` is `None`, it must be provided.
+        repo: the repo name. This argument will be used if the model file does not exist locally.
             If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
-            For example: `Project-MONAI/MONAI-extra-test-data/0.8.1`.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
@@ -293,7 +300,7 @@ def load(
     configer = ConfigComponent(config=net_kwargs)
     model = configer.instantiate()
     model.to(device)  # type: ignore
-    model.load_state_dict(model_dict)  # type: ignore
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])
     return model
 
 
