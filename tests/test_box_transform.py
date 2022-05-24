@@ -63,34 +63,34 @@ class TestBoxTransform(unittest.TestCase):
             transform_convert_mode = ConvertBoxModed(**keys)
             convert_result = transform_convert_mode(data)
             assert_allclose(
-                convert_result["boxes"], expected_convert_result, type_test=True, device_test=True, atol=0.0
+                convert_result["boxes"], expected_convert_result, type_test=True, device_test=True, atol=1e-3
             )
 
             invert_transform_convert_mode = Invertd(
                 keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
             )
             data_back = invert_transform_convert_mode(convert_result)
-            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.0)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
 
             # test ZoomBoxd
             transform_zoom = ZoomBoxd(
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=False
             )
             zoom_result = transform_zoom(data)
-            assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.0)
+            assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_zoom = Invertd(
                 keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_zoom(zoom_result)
-            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.0)
-            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=0.0)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
             transform_zoom = ZoomBoxd(
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=True
             )
             zoom_result = transform_zoom(data)
             assert_allclose(
-                zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=0.0
+                zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=1e-3
             )
 
             # test ZoomBoxd
@@ -109,7 +109,7 @@ class TestBoxTransform(unittest.TestCase):
             )
             data_back = invert_transform_zoom(zoom_result)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
-            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=0.0)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
             # test AffineBoxToImageCoordinated
             transform_affine = AffineBoxToImageCoordinated(box_keys="boxes", box_ref_image_keys="image")
