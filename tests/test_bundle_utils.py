@@ -109,3 +109,7 @@ class TestLoadBundleConfig(unittest.TestCase):
         self.assertEqual(p["_meta_"]["test_value"], 1)
 
         self.assertEqual(p["test_dict"]["b"], "c")
+
+
+if __name__ == "__main__":
+    unittest.main()
