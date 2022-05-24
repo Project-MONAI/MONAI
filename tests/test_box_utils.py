@@ -200,7 +200,7 @@ class TestCreateBoxList(unittest.TestCase):
             expected_box_standard[keep, :], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
         )
         assert_allclose(
-            id(clipped_boxes)!=id(expected_box_standard), True, type_test=False, device_test=False, atol=0.0
+            id(clipped_boxes) != id(expected_box_standard), True, type_test=False, device_test=False, atol=0.0
         )
 
 
