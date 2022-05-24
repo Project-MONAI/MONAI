@@ -22,14 +22,14 @@ from .metric import CumulativeIterationMetric
 
 class DiceMetric(CumulativeIterationMetric):
     """
-    Compute average Dice loss between two tensors. It can support both multi-classes and multi-labels tasks.
+    Compute average Dice score between two tensors. It can support both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
     `y_preds` is expected to have binarized predictions and `y` should be in one-hot format. You can use suitable transforms
     in ``monai.transforms.post`` first to achieve binarized values.
-    The `include_background` parameter can be set to ``False`` for an instance of DiceLoss to exclude
+    The `include_background` parameter can be set to ``False`` to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
-    background so excluding it in such cases helps convergence.
+    background.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
     Args:
@@ -80,7 +80,7 @@ class DiceMetric(CumulativeIterationMetric):
             warnings.warn("y should be a binarized tensor.")
         dims = y_pred.ndimension()
         if dims < 3:
-            raise ValueError("y_pred should have at least three dimensions.")
+            raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute dice (BxC) for each channel for each batch
         return compute_meandice(
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
