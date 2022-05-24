@@ -37,7 +37,6 @@ dependencies:
   - sphinx-autodoc-typehints==1.11.1
   - sphinx_rtd_theme==0.5.2
   - pandas
-  - opencv-python-headless
   - opencv-python
   - requests
   - einops

@@ -1,5 +1,2 @@
 torch>=1.7
 numpy>=1.17
-scikit-image>=0.14.2
-opencv-python-headless
-opencv-python
