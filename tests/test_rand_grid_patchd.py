@@ -26,11 +26,7 @@ A12 = A[:, :2, 2:]
 A21 = A[:, 2:, :2]
 A22 = A[:, 2:, 2:]
 
-TEST_CASE_0 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0},
-    {"image": A},
-    [A11, A12, A21, A22],
-]
+TEST_CASE_0 = [{"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0}, {"image": A}, [A11, A12, A21, A22]]
 TEST_CASE_1 = [{"patch_size": (2, 2), "min_start_pos": 0, "max_num_patches": 3}, {"image": A}, [A11, A12, A21]]
 TEST_CASE_2 = [
     {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0, "max_num_patches": 5},
