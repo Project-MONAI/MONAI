@@ -86,9 +86,9 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_downsample(self, wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: int) -> float:
         """
-        Returns the downsample ratio of the whole slide image at a given level.
+        Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -302,16 +302,16 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_size(wsi, level)
 
-    def get_downsample(self, wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: int) -> float:
         """
-        Returns the downsample ratio of the whole slide image at a given level.
+        Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
             level: the level number where the size is calculated
 
         """
-        return self.reader.get_downsample(wsi, level)
+        return self.reader.get_downsample_ratio(wsi, level)
 
     def get_file_path(self, wsi) -> str:
         """Return the file path for the WSI object"""
@@ -393,9 +393,9 @@ class CuCIMWSIReader(BaseWSIReader):
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
     @staticmethod
-    def get_downsample(wsi, level: int) -> float:
+    def get_downsample_ratio(wsi, level: int) -> float:
         """
-        Returns the downsample ratio of the whole slide image at a given level.
+        Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
@@ -511,9 +511,9 @@ class OpenSlideWSIReader(BaseWSIReader):
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
     @staticmethod
-    def get_downsample(wsi, level: int) -> float:
+    def get_downsample_ratio(wsi, level: int) -> float:
         """
-        Returns the downsample ratio of the whole slide image at a given level.
+        Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
