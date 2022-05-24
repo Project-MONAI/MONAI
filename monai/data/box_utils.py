@@ -1004,8 +1004,7 @@ def clip_boxes_to_image(
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
-        spatial_size: The spatial size of the image where the boxes are attached.
-                len(spatial_size) should be in [2, 3].
+        spatial_size: The spatial size of the image where the boxes are attached. len(spatial_size) should be in [2, 3].
         remove_empty: whether to remove the boxes that are actually empty
 
     Returns:
