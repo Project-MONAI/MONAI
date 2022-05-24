@@ -15,7 +15,7 @@ from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.data import Dataset
-from monai.data.utils import iter_wsi_patch_location
+from monai.data.utils import iter_patch_location
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
@@ -149,6 +149,9 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         data: the list of input samples including image, location, and label (see the note below for more details).
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
+        offset: the offset of image to extract patches (the starting position of the upper left patch).
+        offset_limits: if offset is set to "random", a tuple of integers defining the lower and upper limit of the
+            random offset for all dimensions, or a tuple of tuples that defines the limits for each dimension.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         transform: transforms to be executed on input data.
@@ -177,7 +180,9 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         data: Sequence,
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
-        overlap: Union[Sequence[float], float] = 0.0,
+        overlap: Union[Tuple[float, float], float] = 0.0,
+        offset: Union[Tuple[int, int], int, str] = (0, 0),
+        offset_limits: Optional[Union[Tuple[Tuple[int, int], Tuple[int, int]], Tuple[int, int]]] = None,
         transform: Optional[Callable] = None,
         reader="cuCIM",
         **kwargs,
@@ -185,27 +190,63 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         super().__init__(data=data, size=size, level=level, transform=transform, reader=reader, **kwargs)
         self.overlap = overlap
 
+        # Set the offset config
+        self.random_offset = False
+        if isinstance(offset, str):
+            if offset == "random":
+                self.random_offset = True
+                self.offset_limits: Optional[Tuple[Tuple[int, int], Tuple[int, int]]]
+                if offset_limits is None:
+                    self.offset_limits = None
+                elif isinstance(offset_limits, tuple):
+                    if isinstance(offset_limits[0], int):
+                        self.offset_limits = (offset_limits, offset_limits)
+                    elif isinstance(offset_limits[0], tuple):
+                        self.offset_limits = offset_limits
+                    else:
+                        ValueError(
+                            "The offset limits should be either a tuple of integers or tuple of tuple of integers."
+                        )
+                else:
+                    ValueError("The offset limits should be a tuple.")
+            else:
+                ValueError(
+                    f'Invalid string for offset "{offset}". It should be either "random" as a string,'
+                    "an integer, or a tuple of integers defining the offset."
+                )
+        else:
+            self.offset = ensure_tuple_rep(offset, 2)
+
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         for sample in data:
             sliding_samples = self._evaluate_patch_coordinates(sample)
             self.data.extend(sliding_samples)
 
+    def _get_offset(self, sample):
+        if self.random_offset:
+            if self.offset_limits is None:
+                offset_limits = tuple(tuple([-s, s]) for s in self._get_size(sample))
+            else:
+                offset_limits = self.offset_limits
+            return tuple(np.random.randint(low, high) for low, high in offset_limits)
+        return self.offset
+
     def _evaluate_patch_coordinates(self, sample):
         """Define the location for each patch based on sliding-window approach"""
         wsi_obj = self._get_wsi_object(sample)
         patch_size = self._get_size(sample)
         level = self._get_level(sample)
+        start_pos = self._get_offset(sample)
 
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
         downsample = self.wsi_reader.get_downsample_ratio(wsi_obj, level)
-
+        patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
         locations = list(
-            iter_wsi_patch_location(
+            iter_patch_location(
                 image_size=wsi_size,
-                patch_size=patch_size,
-                start_pos=(0, 0),
-                downsample=downsample,
+                patch_size=patch_size_,
+                start_pos=start_pos,
                 overlap=self.overlap,
             )
         )

@@ -17,8 +17,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import SlidingPatchWSIDataset
-from monai.utils import optional_import
+from monai.utils import optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
+
+set_determinism(0)
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -134,6 +136,26 @@ TEST_CASE_SMALL_6 = [
     ],
 ]
 
+
+TEST_CASE_SMALL_7 = [
+    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}], "offset": (1, 0)},
+    [{"image": ARRAY_SMALL_0[:, 1:3, :2]}, {"image": ARRAY_SMALL_0[:, 1:3, 2:]}],
+]
+
+TEST_CASE_SMALL_8 = [
+    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}], "offset": "random", "offset_limits": (0, 2)},
+    [{"image": ARRAY_SMALL_0[:, :2, 1:3]}, {"image": ARRAY_SMALL_0[:, 2:, 1:3]}],
+]
+
+TEST_CASE_SMALL_9 = [
+    {
+        "data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}],
+        "offset": "random",
+        "offset_limits": ((0, 2), (0, 3)),
+    },
+    [{"image": ARRAY_SMALL_0[:, :2, 1:3]}, {"image": ARRAY_SMALL_0[:, 2:, 1:3]}],
+]
+
 TEST_CASE_LARGE_0 = [
     {"data": [{"image": FILE_PATH, "level": 8, "size": (64, 50)}]},
     [
@@ -193,6 +215,9 @@ class SlidingPatchWSIDatasetTests:
                 TEST_CASE_SMALL_4,
                 TEST_CASE_SMALL_5,
                 TEST_CASE_SMALL_6,
+                TEST_CASE_SMALL_7,
+                TEST_CASE_SMALL_8,
+                TEST_CASE_SMALL_9,
             ]
         )
         def test_read_patches(self, input_parameters, expected):
@@ -201,6 +226,7 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
+                # print(f"{sample=}")
                 self.assertTupleEqual(sample["image"].shape, expected[i]["image"].shape)
 
         @parameterized.expand([TEST_CASE_LARGE_0, TEST_CASE_LARGE_1])
