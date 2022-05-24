@@ -253,11 +253,11 @@ def load(
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
-        bundle_dir: the directory the weights/TorchScript module will be loaded from.
+        bundle_dir: directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: the place that saved the bundle.
+        source: place that saved the bundle.
             If `source` is `github`, the bundle should be within the releases.
-        repo: the repo name. This argument will be used if the model file does not exist locally.
+        repo: repo name.
             If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
