@@ -12,7 +12,7 @@
 import json
 import os
 import zipfile
-from typing import Any, Dict
+from typing import Any
 
 from monai.config.deviceconfig import get_config_values
 from monai.utils import optional_import
@@ -137,7 +137,7 @@ DEFAULT_INFERENCE = """
 }"""
 
 
-def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> ConfigParser:
+def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
     """
     Load the metadata and nominated configuration files from a MONAI bundle without loading the network itself.
 
