@@ -14,7 +14,7 @@ import random
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import MapTransform, RandomizableTransform, Transform
+from monai.transforms import MapTransform, RandomizableTransform, Transform, SpatialPad
 from monai.utils import optional_import
 
 cv2, _ = optional_import("cv2")
@@ -67,7 +67,7 @@ class ExtractPatchd(MapTransform):
             img = d[key]
             x_start, x_end, y_start, y_end = self.bbox(self.patch_size, centroid, img.shape[-2:])
             cropped = img[:, x_start:x_end, y_start:y_end]
-            d[key] = self.pad_to_shape(cropped, roi_size)
+            d[key] = SpatialPad(spatial_size=roi_size)(cropped)
         return d
 
     def bbox(self, patch_size, centroid, size):
@@ -85,12 +85,6 @@ class ExtractPatchd(MapTransform):
             y_end = n
             y_start = n - patch_size
         return x_start, x_end, y_start, y_end
-
-    def pad_to_shape(self, img, shape):
-        img_shape = img.shape[-2:]
-        s_diff = np.array(shape) - np.array(img_shape)
-        diff = [(0, 0), (0, s_diff[0]), (0, s_diff[1])]
-        return np.pad(img, diff, mode="constant", constant_values=0)
 
 
 class SplitLabeld(MapTransform):
@@ -281,7 +275,17 @@ class AddPointGuidanceSignald(RandomizableTransform):
 
 
 class AddClickSignalsd(MapTransform):
-    def __init__(self, image, foreground="foreground", bb_size=128):
+    """
+    Adds Guidance Signal to the input image
+
+    Args:
+        image: source image
+        label: source label
+        others: source others (other labels from the binary mask which are not being used for training)
+        drop_rate:
+        jitter_range: noise added to the points in the point mask for exclusion mask
+    """
+    def __init__(self, image: str = "image", foreground: str = "foreground", bb_size: int = 128):
         self.image = image
         self.foreground = foreground
         self.bb_size = bb_size
