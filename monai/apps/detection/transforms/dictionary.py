@@ -210,7 +210,6 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         self.image_meta_key = image_meta_key or f"{box_ref_image_keys}_{image_meta_key_postfix}"
         self.converter_to_image_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
-        print(self.image_meta_key)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
