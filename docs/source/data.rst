@@ -343,3 +343,8 @@ Box center
 .. autofunction:: monai.data.box_utils.box_centers
 .. autofunction:: monai.data.box_utils.centers_in_boxes
 .. autofunction:: monai.data.box_utils.boxes_center_distance
+
+Spatial crop box
+~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.spatial_crop_boxes
+.. autofunction:: monai.data.box_utils.clip_boxes_to_image
