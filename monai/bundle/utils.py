@@ -137,7 +137,7 @@ DEFAULT_INFERENCE = """
 }"""
 
 
-def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Dict[str, Any]:
+def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> ConfigParser:
     """
     Load the metadata and nominated configuration files from a MONAI bundle without loading the network itself.
 
