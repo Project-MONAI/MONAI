@@ -10,9 +10,9 @@
 # limitations under the License.
 
 import os
-import sys
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -99,7 +99,7 @@ class TestLoadBundleConfig(unittest.TestCase):
         cmd += ["--ckpt_file", self.dir_name + "/models/model.pt"]
 
         try:
-            subprocess.check_output(cmd,stderr=subprocess.STDOUT)
+            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             print("Output:", e.output, file=sys.stderr)
             raise

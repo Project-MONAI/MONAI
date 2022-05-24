@@ -28,101 +28,61 @@ EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
 
 
-DEFAULT_METADATA = """
-{{
+_conf_values = get_config_values()
+
+DEFAULT_METADATA = {
     "version": "0.0.1",
-    "changelog": {{
-        "0.0.1": "Initial version",
-    }},
-    "monai_version": "{MONAI}",
-    "pytorch_version": "{Pytorch}",
-    "numpy_version": "{Numpy}",
-    "optional_packages_version": {{}},
+    "changelog": {"0.0.1": "Initial version"},
+    "monai_version": _conf_values["MONAI"],
+    "pytorch_version": _conf_values["Pytorch"],
+    "numpy_version": _conf_values["Numpy"],
+    "optional_packages_version": {},
     "task": "Describe what the network predicts",
     "description": "A longer description of what the network does, use context, inputs, outputs, etc.",
     "authors": "Your Name Here",
     "copyright": "Copyright (c) Your Name Here",
-    "network_data_format":{{
-        "inputs": {{
-        }},
-        "outputs":{{
-        }}
-    }}
-}}
-""".format(
-    **get_config_values()
-)
+    "network_data_format": {"inputs": {}, "outputs": {}},
+}
 
-DEFAULT_INFERENCE = """
-{
+DEFAULT_INFERENCE = {
     "imports": ["$import glob"],
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "ckpt_path": "$@bundle_root + '/models/model.pt'",
     "dataset_dir": "/workspace/data",
     "datalist": "$list(sorted(glob.glob(@dataset_dir + '/*.jpeg')))",
-    "network_def": {
-        "_target_": "???",
-        "spatial_dims": 2,
-    },
+    "network_def": {"_target_": "???", "spatial_dims": 2},
     "network": "$@network_def.to(@device)",
     "preprocessing": {
         "_target_": "Compose",
         "transforms": [
-            {
-                "_target_": "LoadImaged",
-                "keys": "image"
-            },
-            {
-                "_target_": "AddChanneld",
-                "keys": "image"
-            },
-            {
-                "_target_": "ScaleIntensityd",
-                "keys": "image"
-            },
-            {
-                "_target_": "EnsureTyped",
-                "keys": "image",
-                "device": "@device"
-            }
-        ]
+            {"_target_": "LoadImaged", "keys": "image"},
+            {"_target_": "AddChanneld", "keys": "image"},
+            {"_target_": "ScaleIntensityd", "keys": "image"},
+            {"_target_": "EnsureTyped", "keys": "image", "device": "@device"},
+        ],
     },
-    "dataset": {
-        "_target_": "Dataset",
-        "data": "$[{'image': i} for i in @datalist]",
-        "transform": "@preprocessing"
-    },
+    "dataset": {"_target_": "Dataset", "data": "$[{'image': i} for i in @datalist]", "transform": "@preprocessing"},
     "dataloader": {
         "_target_": "DataLoader",
         "dataset": "@dataset",
         "batch_size": 1,
-        "shuffle": false,
-        "num_workers": 0
+        "shuffle": False,
+        "num_workers": 0,
     },
-    "inferer": {
-        "_target_": "SimpleInferer"
-    },
+    "inferer": {"_target_": "SimpleInferer"},
     "postprocessing": {
         "_target_": "Compose",
         "transforms": [
-            {
-                "_target_": "Activationsd",
-                "keys": "pred",
-                "softmax": true
-            },
-            {
-                "_target_": "AsDiscreted",
-                "keys": "pred",
-                "argmax": true
-            }
-        ]
+            {"_target_": "Activationsd", "keys": "pred", "softmax": True},
+            {"_target_": "AsDiscreted", "keys": "pred", "argmax": True},
+        ],
     },
     "handlers": [
         {
             "_target_": "CheckpointLoader",
             "_disabled_": "$not os.path.exists(@ckpt_path)",
             "load_path": "@ckpt_path",
-            "load_dict": {"model": "@network"}
+            "load_dict": {"model": "@network"},
         }
     ],
     "evaluator": {
@@ -132,9 +92,10 @@ DEFAULT_INFERENCE = """
         "network": "@network",
         "inferer": "@inferer",
         "postprocessing": "@postprocessing",
-        "val_handlers": "@handlers"
-    }
-}"""
+        "val_handlers": "@handlers",
+    },
+    "evaluating": ["$@evaluator.run()"],
+}
 
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
@@ -163,6 +124,7 @@ def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
 
     # bundle is a directory, read files directly
     if os.path.isdir(bundle_path):
+        conf_data = []
         parser.read_meta(f=os.path.join(bundle_path, "configs", "metadata.json"), **load_kw_args)
 
         for cname in config_names:
@@ -170,7 +132,10 @@ def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
             if not os.path.exists(cpath):
                 raise ValueError(f"Cannot find config file '{cpath}'")
 
-            parser.read_config(f=cpath, **load_kw_args)
+            # parser.read_config(f=cpath, **load_kw_args)
+            conf_data.append(cpath)
+
+        parser.read_config(f=conf_data, **load_kw_args)
     else:
         # bundle is a zip file which is either a zipped directory or a Torchscript archive
 

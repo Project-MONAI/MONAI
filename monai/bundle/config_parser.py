@@ -186,6 +186,9 @@ class ConfigParser:
     def __contains__(self, id: Union[str, int]) -> bool:
         """
         Returns True if `id` is stored in this configuration.
+
+        Args:
+            id: id to specify the expected position. See also :py:meth:`__getitem__`.
         """
         try:
             _ = self[id]
@@ -240,7 +243,7 @@ class ConfigParser:
 
         Args:
             f: filepath of the metadata file, the content must be a dictionary,
-                if providing a list of files, wil merge the content of them.
+                if providing a list of files, will merge the content of them.
                 if providing a dictionary directly, use it as metadata.
             kwargs: other arguments for ``json.load`` or ``yaml.safe_load``, depends on the file format.
 

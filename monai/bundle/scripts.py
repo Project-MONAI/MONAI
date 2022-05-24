@@ -30,6 +30,7 @@ from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state
+from monai.networks.utils import get_state_dict
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple
 
@@ -662,6 +663,12 @@ def init_bundle(
     models_dir.mkdir()
     docs_dir.mkdir()
 
+    if isinstance(metadata_str, dict):
+        metadata_str = json.dumps(metadata_str, indent=4)
+
+    if isinstance(inference_str, dict):
+        inference_str = json.dumps(inference_str, indent=4)
+
     with open(str(configs_dir / "metadata.json"), "w") as o:
         o.write(metadata_str)
 
@@ -675,7 +682,7 @@ def init_bundle(
         Describe your model here and how to run it, for example using `inference.json`:
 
         ```
-        python -m monai.bundle run evaluator \
+        python -m monai.bundle run evaluating \
             --meta_file /path/to/bundle/configs/metadata.json \
             --config_file /path/to/bundle/configs/inference.json \
             --dataset_dir ./input \
@@ -691,4 +698,4 @@ def init_bundle(
     if ckpt_file is not None:
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
     elif network is not None:
-        torch.save(network.state_dict(), str(models_dir / "model.pt"))
+        torch.save(get_state_dict(network), str(models_dir / "model.pt"))
