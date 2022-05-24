@@ -93,7 +93,7 @@ class ExtractPatchd(MapTransform):
         return np.pad(img, diff, mode="constant", constant_values=0)
 
 
-class SplitLabeld(Transform):
+class SplitLabeld(MapTransform):
     """
     Extracts a single label from all the given classes, the single label is defined by mask_value, the remaining
     labels are kept in others
