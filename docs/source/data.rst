@@ -107,15 +107,22 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
-`PatchIter`
-~~~~~~~~~~~
-.. autoclass:: PatchIter
-  :members:
-
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
   :members:
+
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
 
 Image reader
 ------------
@@ -145,10 +152,6 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
-WSIReader
-~~~~~~~~~
-.. autoclass:: WSIReader
-  :members:
 
 Image writer
 ------------
@@ -264,3 +267,79 @@ ThreadDataLoader
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+
+Meta Object
+-----------
+.. automodule:: monai.data.meta_obj
+    :members:
+
+MetaTensor
+----------
+.. autoclass:: monai.data.MetaTensor
+   :members:
+
+
+
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.BaseWSIReader
+  :members:
+
+WSIReader
+~~~~~~~~~
+.. autoclass:: monai.data.WSIReader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~~~~
+.. autoclass:: monai.data.CuCIMWSIReader
+  :members:
+
+OpenSlideWSIReader
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.OpenSlideWSIReader
+  :members:
+
+Whole slide image datasets
+--------------------------
+
+PatchWSIDataset
+~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.PatchWSIDataset
+    :members:
+
+Bounding box
+------------
+
+Box mode
+~~~~~~~~
+.. autoclass:: monai.data.box_utils.BoxMode
+    :members:
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeA
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeB
+.. autoclass:: monai.data.box_utils.CornerCornerModeTypeC
+.. autoclass:: monai.data.box_utils.CornerSizeMode
+.. autoclass:: monai.data.box_utils.CenterSizeMode
+
+Box mode converter
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.get_boxmode
+.. autofunction:: monai.data.box_utils.convert_box_mode
+.. autofunction:: monai.data.box_utils.convert_box_to_standard_mode
+
+Box IoU
+~~~~~~~
+.. autofunction:: monai.data.box_utils.box_area
+.. autofunction:: monai.data.box_utils.box_iou
+.. autofunction:: monai.data.box_utils.box_giou
+.. autofunction:: monai.data.box_utils.box_pair_giou
+
+Box center
+~~~~~~~~~~
+.. autofunction:: monai.data.box_utils.box_centers
+.. autofunction:: monai.data.box_utils.centers_in_boxes
+.. autofunction:: monai.data.box_utils.boxes_center_distance

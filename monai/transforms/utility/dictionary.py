@@ -49,7 +49,7 @@ from monai.transforms.utility.array import (
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
-    SplitChannel,
+    SplitDim,
     SqueezeDim,
     ToCupy,
     ToDevice,
@@ -61,7 +61,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import convert_to_numpy, deprecated, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -150,6 +150,9 @@ __all__ = [
     "SplitChannelD",
     "SplitChannelDict",
     "SplitChanneld",
+    "SplitDimD",
+    "SplitDimDict",
+    "SplitDimd",
     "SqueezeDimD",
     "SqueezeDimDict",
     "SqueezeDimd",
@@ -299,9 +302,9 @@ class EnsureChannelFirstd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
             meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
@@ -372,19 +375,14 @@ class RemoveRepeatedChanneld(MapTransform):
         return d
 
 
-class SplitChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be split into same count of data.
-    """
-
-    backend = SplitChannel.backend
-
+class SplitDimd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
         output_postfixes: Optional[Sequence[str]] = None,
-        channel_dim: int = 0,
+        dim: int = 0,
+        keepdim: bool = True,
+        update_meta: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -395,13 +393,17 @@ class SplitChanneld(MapTransform):
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
                 if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
-            channel_dim: which dimension of input image is the channel, default to 0.
+            dim: which dimension of input image is the channel, default to 0.
+            keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
+                dimension will be squeezed.
+            update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
+                reflect the cropped image
             allow_missing_keys: don't raise exception if key is missing.
-
         """
         super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
-        self.splitter = SplitChannel(channel_dim=channel_dim)
+        self.splitter = SplitDim(dim, keepdim)
+        self.update_meta = update_meta
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -415,7 +417,42 @@ class SplitChanneld(MapTransform):
                 if split_key in d:
                     raise RuntimeError(f"input data already contains key {split_key}.")
                 d[split_key] = r
+
+                if self.update_meta:
+                    orig_meta = d.get(PostFix.meta(key), None)
+                    if orig_meta is not None:
+                        split_meta_key = PostFix.meta(split_key)
+                        d[split_meta_key] = deepcopy(orig_meta)
+                        dim = self.splitter.dim
+                        if dim > 0:  # don't update affine if channel dim
+                            shift = np.eye(len(d[split_meta_key]["affine"]))  # type: ignore
+                            shift[dim - 1, -1] = i  # type: ignore
+                            d[split_meta_key]["affine"] = d[split_meta_key]["affine"] @ shift  # type: ignore
+
         return d
+
+
+@deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
+class SplitChanneld(SplitDimd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
+    All the input specified by `keys` should be split into same count of data.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Optional[Sequence[str]] = None,
+        channel_dim: int = 0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(
+            keys,
+            output_postfixes=output_postfixes,
+            dim=channel_dim,
+            update_meta=False,  # for backwards compatibility
+            allow_missing_keys=allow_missing_keys,
+        )
 
 
 class CastToTyped(MapTransform):
@@ -1420,7 +1457,7 @@ class MapLabelValued(MapTransform):
 class IntensityStatsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.IntensityStats`.
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1432,21 +1469,21 @@ class IntensityStatsd(MapTransform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         mask_keys: if not None, specify the mask array for the image to extract only the interested area to compute
             statistics, mask must have the same shape as the image.
             it should be a sequence of strings or None, map to the `keys`.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to store the computed statistics to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -1637,6 +1674,7 @@ EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
+SplitDimD = SplitDimDict = SplitDimd
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 EnsureTypeD = EnsureTypeDict = EnsureTyped

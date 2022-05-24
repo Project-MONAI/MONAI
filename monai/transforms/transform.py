@@ -75,7 +75,7 @@ def apply_transform(
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly. default to `False`.
+            for other metadata, log the values directly. default to `False`.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -102,7 +102,7 @@ def apply_transform(
                     # log data type, shape, range for array
                     datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
-                    # log data type and value for other meta data
+                    # log data type and value for other metadata
                     datastats(img=data, data_value=True, prefix=prefix)
 
             if isinstance(data, dict):

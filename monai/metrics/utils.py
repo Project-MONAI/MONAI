@@ -50,11 +50,10 @@ def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] 
     Args:
         f: a tensor that contains the calculated metric scores per batch and
             per class. The first two dims should be batch and class.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define the mode to reduce metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``.
             if "none", return the input f tensor and not_nans.
-        Define the mode to reduce computation result of 1 batch data. Defaults to ``"mean"``.
 
     Raises:
         ValueError: When ``reduction`` is not one of
@@ -156,10 +155,13 @@ def get_mask_edges(
         if not np.any(seg_pred | seg_gt):
             return np.zeros_like(seg_pred), np.zeros_like(seg_gt)
 
-        seg_pred, seg_gt = np.expand_dims(seg_pred, 0), np.expand_dims(seg_gt, 0)
+        channel_dim = 0
+        seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred, seg_gt = np.squeeze(cropper(seg_pred)), np.squeeze(cropper(seg_gt))
+        seg_pred, seg_gt = np.squeeze(cropper(seg_pred), axis=channel_dim), np.squeeze(
+            cropper(seg_gt), axis=channel_dim
+        )
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred

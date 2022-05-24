@@ -48,7 +48,7 @@ class TestDeleteItemsd(unittest.TestCase):
         input_data = {"image": [1, 2, 3], PostFix.meta(): {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
         result = DeleteItemsd(**input_param)(input_data)
         self.assertEqual(result[PostFix.meta()]["0008test"], 3)
-        self.assertTrue(len(result[PostFix.meta()]), 1)
+        self.assertEqual(len(result[PostFix.meta()]), 1)
 
 
 if __name__ == "__main__":
