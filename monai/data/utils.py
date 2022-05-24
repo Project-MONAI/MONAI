@@ -220,7 +220,8 @@ def iter_patch(
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
         mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
             ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
