@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import sys
 import shutil
 import subprocess
 import tempfile
@@ -96,8 +97,13 @@ class TestLoadBundleConfig(unittest.TestCase):
         cmd += ["--meta_file", self.dir_name + "/configs/metadata.json"]
         cmd += ["--config_file", self.dir_name + "/configs/test.json"]
         cmd += ["--ckpt_file", self.dir_name + "/models/model.pt"]
-        subprocess.check_call(cmd)
-
+        
+        try:
+            subprocess.check_output(cmd,stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as e:
+            print("Output:", e.output, file=sys.stderr)
+            raise
+            
         p = load_bundle_config(self.ts_file, "test.json")
 
         self.assertEqual(p["_meta_"]["test_value"], 1)
