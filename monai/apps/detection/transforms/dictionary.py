@@ -174,7 +174,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_key: The single key that represents the reference image to which ``box_keys`` are attached.
+        box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
         image_meta_key: explicitly indicate the key of the corresponding meta data dictionary.
@@ -194,40 +194,47 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
     def __init__(
         self,
         box_keys: KeysCollection,
-        box_ref_image_key: str,
+        box_ref_image_keys: str,
         allow_missing_keys: bool = False,
         image_meta_key: Union[str, None] = None,
         image_meta_key_postfix: Union[str, None] = DEFAULT_POST_FIX,
         affine_lps_to_ras=False,
     ) -> None:
         super().__init__(box_keys, allow_missing_keys)
-        self.image_meta_key = image_meta_key or f"{box_ref_image_key}_{image_meta_key_postfix}"
+        box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
+        if len(box_ref_image_keys_tuple) > 1:
+            raise ValueError(
+                "Please provide a single key for box_ref_image_keys.\
+                All boxes of box_keys are attached to box_ref_image_keys."
+            )
+        self.image_meta_key = image_meta_key or f"{box_ref_image_keys}_{image_meta_key_postfix}"
         self.converter_to_image_coordinate = AffineBox()
-        self.converter_to_physical_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
+        print(self.image_meta_key)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
+
         meta_key = self.image_meta_key
+        # extract affine matrix from meta_data
+        if meta_key not in d:
+            raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
+        if "affine" not in d[meta_key]:
+            raise ValueError(
+                f"'affine' is not found in {meta_key}. \
+                Please check whether it is the correct the image meta key."
+            )
+        affine: NdarrayOrTensor = d[meta_key]["affine"]  # type: ignore
+        if self.affine_lps_to_ras:  # RAS affine
+            affine = orientation_ras_lps(affine)
+
+        # when convert boxes from world coordinate to image coordinate,
+        # we apply inverse affine transform
+        affine_t, *_ = convert_data_type(affine, torch.Tensor)
+        inv_affine_t = torch.inverse(affine_t)
+
         for key in self.key_iterator(d):
-            # extract affine matrix from meta_data
-            if meta_key not in d:
-                raise ValueError(f"{meta_key} is not found. Please check whether it is the correct the image meta key.")
-            if "affine" not in d[meta_key]:
-                raise ValueError(
-                    f"'affine' is not found in {meta_key}. \
-                    Please check whether it is the correct the image meta key."
-                )
-            affine: NdarrayOrTensor = d[meta_key]["affine"]  # type: ignore
-            if self.affine_lps_to_ras:  # RAS affine
-                affine = orientation_ras_lps(affine)
-
             self.push_transform(d, key, extra_info={"affine": affine})
-
-            # when convert boxes from world coordinate to image coordinate,
-            # we apply inverse affine transform
-            affine_t, *_ = convert_data_type(affine, torch.Tensor)
-            inv_affine_t = torch.inverse(affine_t)
             d[key] = self.converter_to_image_coordinate(d[key], affine=inv_affine_t)
         return d
 
@@ -236,7 +243,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             affine = transform["extra_info"]["affine"]
-            d[key] = self.converter_to_physical_coordinate(d[key], affine=affine)
+            d[key] = AffineBox()(d[key], affine=affine)
             self.pop_transform(d, key)
         return d
 
@@ -304,7 +311,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         # zoom box
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             src_spatial_size = d[box_ref_image_key].shape[1:]
-            dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.zoomer.zoom, src_spatial_size)]
+            dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.zoomer.zoom, src_spatial_size)]  # type: ignore
             self.zoomer.zoom = [ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)]
             self.push_transform(
                 d,
@@ -477,7 +484,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
 
         # zoom image, copied from monai.transforms.spatial.dictionary.RandZoomd
-        for key, mode, padding_mode, align_corners in self.key_iterator(
+        for key, mode, padding_mode, align_corners in zip(
             self.image_keys, self.mode, self.padding_mode, self.align_corners
         ):
             if self._do_transform:

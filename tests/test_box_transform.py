@@ -15,7 +15,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.transforms.dictionary import ConvertBoxModed, RandZoomBoxd, ZoomBoxd
+from monai.apps.detection.transforms.dictionary import (
+    AffineBoxToImageCoordinated,
+    ConvertBoxModed,
+    RandZoomBoxd,
+    ZoomBoxd,
+)
 from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -105,6 +110,19 @@ class TestBoxTransform(unittest.TestCase):
             data_back = invert_transform_zoom(zoom_result)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=0.0)
+
+            # test AffineBoxToImageCoordinated
+            transform_affine = AffineBoxToImageCoordinated(box_keys="boxes", box_ref_image_keys="image")
+            with self.assertRaises(Exception) as context:
+                transform_affine(data)
+            self.assertTrue("Please check whether it is the correct the image meta key." in str(context.exception))
+
+            data["image_meta_dict"] = {"affine": torch.diag(1.0 / torch.Tensor([0.5, 3, 1.5, 1]))}
+            affine_result = transform_affine(data)
+            assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
+            invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
+            data_back = invert_transform_affine(affine_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
 
 
 if __name__ == "__main__":
