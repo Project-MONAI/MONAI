@@ -212,7 +212,7 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         sample["size"] = patch_size
         sample["level"] = level
         n_patches = len(locations)
-        return [{**sample, "location": locations[i], "patch_num": i, "n_patches": n_patches} for i in range(n_patches)]
+        return [{**sample, "location": loc, "num_patches": n_patches} for loc in locations]
 
     def _get_location(self, sample: Dict):
         return sample["location"]
