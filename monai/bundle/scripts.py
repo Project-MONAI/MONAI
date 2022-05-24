@@ -300,7 +300,7 @@ def load(
     configer = ConfigComponent(config=net_kwargs)
     model = configer.instantiate()
     model.to(device)  # type: ignore
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
     return model
 
 
