@@ -107,6 +107,7 @@ class SplitOnGrid(Transform):
 
         return patch_size, steps
 
+
 @deprecated(since="0.9", msg_suffix="use `monai.transforms.GridPatch` or `monai.transforms.RandGridPatch` instead.")
 class TileOnGrid(Randomizable, Transform):
     """

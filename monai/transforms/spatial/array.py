@@ -2625,7 +2625,8 @@ class GridPatch(Transform):
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
         max_num_patches: maximum number of patches to return. No limit by default.
-        overlap: amount of overlap between patches in each dimension. Default to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
             will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
@@ -2646,7 +2647,7 @@ class GridPatch(Transform):
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
         max_num_patches: Optional[int] = None,
-        overlap: float = 0.0,
+        overlap: Union[Sequence[float], float] = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
@@ -2710,7 +2711,8 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
         max_num_patches: maximum number of patches to return. No limit by default.
-        overlap: amount of overlap between patches in each dimension. Default to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
             will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
@@ -2732,7 +2734,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         min_start_pos: Optional[Union[Sequence[int], int]] = None,
         max_start_pos: Optional[Union[Sequence[int], int]] = None,
         max_num_patches: Optional[int] = None,
-        overlap: float = 0.0,
+        overlap: Union[Sequence[float], float] = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
