@@ -15,7 +15,7 @@ from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.data import Dataset
-from monai.data.utils import iter_patch_location
+from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple_rep
@@ -226,7 +226,7 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
     def _get_offset(self, sample):
         if self.random_offset:
             if self.offset_limits is None:
-                offset_limits = tuple(tuple([-s, s]) for s in self._get_size(sample))
+                offset_limits = tuple((-s, s) for s in self._get_size(sample))
             else:
                 offset_limits = self.offset_limits
             return tuple(np.random.randint(low, high) for low, high in offset_limits)
@@ -243,11 +243,8 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         downsample = self.wsi_reader.get_downsample_ratio(wsi_obj, level)
         patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
         locations = list(
-            iter_patch_location(
-                image_size=wsi_size,
-                patch_size=patch_size_,
-                start_pos=start_pos,
-                overlap=self.overlap,
+            iter_patch_position(
+                image_size=wsi_size, patch_size=patch_size_, start_pos=start_pos, overlap=self.overlap, padded=False
             )
         )
         sample["size"] = patch_size
