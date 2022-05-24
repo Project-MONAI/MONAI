@@ -75,6 +75,7 @@ class AnchorGenerator(nn.Module):
             self.generate_anchors(size, aspect_ratio) for size, aspect_ratio in zip(sizes, aspect_ratios)
         ]
 
+    # This comment comes from torchvision.
     # TODO: https://github.com/pytorch/pytorch/issues/26792
     # For every (aspect_ratios, scales) combination, output a zero-centered anchor with those values.
     # (scales, aspect_ratios) are usually an element of zip(self.scales, self.aspect_ratios)
@@ -313,9 +314,9 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             dtype: target data type of the output Tensor.
             device: target device to put the output Tensor data.
 
-            Returns:
-                For 2D images, returns [-w/2, -h/2, w/2, h/2];
-                For 3D images, returns [-w/2, -h/2, -d/2, w/2, h/2, d/2]
+        Returns:
+            For 2D images, returns [-w/2, -h/2, w/2, h/2];
+            For 3D images, returns [-w/2, -h/2, -d/2, w/2, h/2, d/2]
         """
         if device is None:
             device = torch.device("cpu")
