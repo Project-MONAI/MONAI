@@ -236,7 +236,9 @@ class ResizeBox(Transform):
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
 
-    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]) -> NdarrayOrTensor:  # type: ignore
+    def __call__(  # type: ignore
+        self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]  # type: ignore
+    ) -> NdarrayOrTensor:
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
