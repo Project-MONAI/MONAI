@@ -12,7 +12,6 @@ import math
 import random
 
 import numpy as np
-from skimage.morphology import disk, reconstruction, remove_small_holes, remove_small_objects
 
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform, Transform
@@ -20,10 +19,8 @@ from monai.utils import optional_import
 
 cv2, _ = optional_import("cv2")
 measure, _ = optional_import("skimage.measure")
-#disk, _ = optional_import("skimage.morphology.disk")
-#reconstruction, _ = optional_import("skimage.morphology.reconstruction")
-#remove_small_holes, _ = optional_import("skimage.morphology.remove_small_holes")
-#remove_small_objects, _ = optional_import("skimage.morphology.remove_small_objects")
+morphology, _ = optional_import("skimage.morphology")
+
 
 class FlattenLabeld(MapTransform):
     """
@@ -201,7 +198,7 @@ class FilterImaged(MapTransform):
         return mask_percentage
 
     def filter_remove_small_objects(self, img_np, min_size=3000, avoid_overmask=True, overmask_thresh=95):
-        rem_sm = remove_small_objects(img_np.astype(bool), min_size=min_size)
+        rem_sm = morphology.remove_small_objects(img_np.astype(bool), min_size=min_size)
         mask_percentage = self.mask_percent(rem_sm)
         if (mask_percentage >= overmask_thresh) and (min_size >= 1) and (avoid_overmask is True):
             new_min_size = round(min_size / 2)
@@ -447,15 +444,15 @@ class PostFilterLabeld(MapTransform):
 
     def post_processing(self, preds, thresh=0.33, min_size=10, min_hole=30, do_reconstruction=False, nuc_points=None):
         masks = preds > thresh
-        masks = remove_small_objects(masks, min_size=min_size)
-        masks = remove_small_holes(masks, area_threshold=min_hole)
+        masks = morphology.remove_small_objects(masks, min_size=min_size)
+        masks = morphology.remove_small_holes(masks, area_threshold=min_hole)
         if do_reconstruction:
             for i in range(len(masks)):
                 this_mask = masks[i]
                 this_marker = nuc_points[i, 0, :, :] > 0
 
                 try:
-                    this_mask = reconstruction(this_marker, this_mask, footprint=disk(1))
+                    this_mask = morphology.reconstruction(this_marker, this_mask, footprint=morphology.disk(1))
                     masks[i] = np.array([this_mask])
                 except BaseException:
                     print("Nuclei reconstruction error #" + str(i))
