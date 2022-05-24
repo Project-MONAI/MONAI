@@ -57,7 +57,7 @@ class AnchorGenerator(nn.Module):
         self, sizes: Sequence[Sequence[int]] = ((20, 30, 40),), aspect_ratios: Sequence = (((0.5, 1), (1, 0.5)),)
     ) -> None:
         super().__init__()
-        
+
         if not isinstance(sizes[0], Sequence):
             # TODO change this
             sizes = tuple((s,) for s in sizes)
