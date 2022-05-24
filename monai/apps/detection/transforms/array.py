@@ -269,7 +269,6 @@ class ResizeBox(Transform):
 class FlipBox(Transform):
     """
     Reverses the box coordinates along the given spatial axis. Preserves shape.
-    We suggest performing BoxClipToImage before this transform.
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
@@ -288,5 +287,10 @@ class FlipBox(Transform):
     def __call__(  # type: ignore
         self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
     ) -> NdarrayOrTensor:
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+            spatial_size: image spatial size.
+        """
 
         return flip_boxes(boxes, spatial_size=spatial_size, flip_axes=self.spatial_axis)
