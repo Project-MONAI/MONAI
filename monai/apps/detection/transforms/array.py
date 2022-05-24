@@ -194,7 +194,7 @@ class ZoomBox(Transform):
 
         src_spatial_size = ensure_tuple_rep(src_spatial_size, spatial_dims)
         dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self._zoom, src_spatial_size)]
-        self._zoom = tuple([ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)])
+        self._zoom = tuple(ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size))
         zoomed_boxes = zoom_boxes(boxes, self._zoom)
 
         # See also keep_size in monai.transforms.spatial.array.Zoom()
