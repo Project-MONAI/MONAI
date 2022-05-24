@@ -20,6 +20,8 @@ from monai.utils.module import look_up_option
 
 class AnchorGenerator(nn.Module):
     """
+    This module is modified from torchvision to support both 2D and 3D images.
+
     Module that generates anchors for a set of feature maps and
     image sizes.
 
@@ -55,12 +57,7 @@ class AnchorGenerator(nn.Module):
         self, sizes: Sequence[Sequence[int]] = ((20, 30, 40),), aspect_ratios: Sequence = (((0.5, 1), (1, 0.5)),)
     ) -> None:
         super().__init__()
-
-        spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
-        spatial_dims = look_up_option(spatial_dims, [2, 3])
-        self.spatial_dims = spatial_dims
-
-        # Code below come from torchvision.models.detection.anchor_utils.AnchorGenerator.__init__()
+        
         if not isinstance(sizes[0], Sequence):
             # TODO change this
             sizes = tuple((s,) for s in sizes)
@@ -68,6 +65,10 @@ class AnchorGenerator(nn.Module):
             aspect_ratios = (aspect_ratios,) * len(sizes)
 
         assert len(sizes) == len(aspect_ratios)
+
+        spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
+        spatial_dims = look_up_option(spatial_dims, [2, 3])
+        self.spatial_dims = spatial_dims
 
         self.sizes = sizes
         self.aspect_ratios = aspect_ratios
