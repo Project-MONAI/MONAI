@@ -40,11 +40,7 @@ TEST_CASE_11 = [
     [A[:, :3, :3], np.pad(A[:, :3, 3:], ((0, 0), (0, 0), (0, 2)), mode="constant", constant_values=255)],
 ]
 TEST_CASE_12 = [
-    {
-        "patch_size": (3, 3),
-        "start_pos": (-2, -2),
-        "max_num_patches": 2,
-    },
+    {"patch_size": (3, 3), "start_pos": (-2, -2), "max_num_patches": 2},
     {"image": A},
     [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
 ]
