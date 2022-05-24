@@ -132,6 +132,8 @@ Applications
 
 `Transforms`
 ~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.transforms.box_ops
+    :members:
 .. automodule:: monai.apps.detection.transforms.array
     :members:
 .. automodule:: monai.apps.detection.transforms.dictionary
