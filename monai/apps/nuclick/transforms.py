@@ -12,7 +12,6 @@ import math
 import random
 
 import numpy as np
-import skimage
 from skimage.morphology import disk, reconstruction, remove_small_holes, remove_small_objects
 
 from monai.config import KeysCollection
@@ -20,6 +19,11 @@ from monai.transforms import MapTransform, RandomizableTransform, Transform
 from monai.utils import optional_import
 
 cv2, _ = optional_import("cv2")
+measure, _ = optional_import("skimage.measure")
+#disk, _ = optional_import("skimage.morphology.disk")
+#reconstruction, _ = optional_import("skimage.morphology.reconstruction")
+#remove_small_holes, _ = optional_import("skimage.morphology.remove_small_holes")
+#remove_small_objects, _ = optional_import("skimage.morphology.remove_small_objects")
 
 class FlattenLabeld(MapTransform):
     """
@@ -128,8 +132,8 @@ class SplitLabeld(Transform):
             if l == 0:
                 continue
 
-            m = skimage.measure.label(mask == l, connectivity=1)
-            for stat in skimage.measure.regionprops(m):
+            m = measure.label(mask == l, connectivity=1)
+            for stat in measure.regionprops(m):
                 if stat.area > min_area:
                     res[stat.coords[:, 0], stat.coords[:, 1]] = l
         return res
@@ -263,7 +267,7 @@ class AddPointGuidanceSignald(RandomizableTransform):
 
         max_x = point_mask.shape[0] - 1
         max_y = point_mask.shape[1] - 1
-        stats = skimage.measure.regionprops(others)
+        stats = measure.regionprops(others)
         for stat in stats:
             x, y = stat.centroid
             if np.random.choice([True, False], p=[drop_rate, 1 - drop_rate]):
