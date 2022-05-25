@@ -221,9 +221,7 @@ def download(
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     elif source_ == "github":
         if name_ is None:
-            raise ValueError(
-                f"To download from source: Github, `name` must be provided, got {name_}."
-            )
+            raise ValueError(f"To download from source: Github, `name` must be provided, got {name_}.")
         _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
     else:
         raise NotImplementedError(
@@ -288,7 +286,7 @@ def load(
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
-    # loading with `torch.jit.load`
+    # loading with `torch.jit. load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
@@ -300,6 +298,9 @@ def load(
     configer = ConfigComponent(config=net_kwargs)
     model = configer.instantiate()
     model.to(device)  # type: ignore
+    # model_dict is required to be a state dictionary according to:
+    # https://docs.monai.io/en/latest/mb_specification.html#directory-structure
+    # Therefore, ignore the mypy type issue of the following line.
     copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
     return model
 
