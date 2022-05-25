@@ -20,6 +20,7 @@ import torch
 
 from monai.bundle.utils import load_bundle_config
 from monai.networks.nets import UNet
+from tests.utils import skip_if_windows
 
 metadata = """
 {
@@ -46,30 +47,36 @@ test_json = """
 """
 
 
+@skip_if_windows
 class TestLoadBundleConfig(unittest.TestCase):
     def setUp(self):
         self.bundle_dir = tempfile.TemporaryDirectory()
-        self.dir_name = self.bundle_dir.name + "/TestBundle"
-        self.zip_file = self.bundle_dir.name + "/TestBundle.zip"
-        self.ts_file = self.bundle_dir.name + "/TestBundle.ts"
+        self.dir_name = os.path.join(self.bundle_dir.name, "TestBundle")
+        self.configs_name = os.path.join(self.dir_name, "configs")
+        self.models_name = os.path.join(self.dir_name, "models")
+        self.metadata_name = os.path.join(self.configs_name, "metadata.json")
+        self.test_name = os.path.join(self.configs_name, "test.json")
+        self.modelpt_name = os.path.join(self.models_name, "model.pt")
+
+        self.zip_file = os.path.join(self.bundle_dir.name, "TestBundle.zip")
+        self.ts_file = os.path.join(self.bundle_dir.name, "TestBundle.ts")
 
         # create the directories for the bundle
         os.mkdir(self.dir_name)
-        os.mkdir(self.dir_name + "/configs")
-        os.mkdir(self.dir_name + "/models")
+        os.mkdir(self.configs_name)
+        os.mkdir(self.models_name)
 
         # fill bundle configs
 
-        with open(self.dir_name + "/configs/metadata.json", "w") as o:
+        with open(self.metadata_name, "w") as o:
             o.write(metadata)
 
-        with open(self.dir_name + "/configs/test.json", "w") as o:
+        with open(self.test_name, "w") as o:
             o.write(test_json)
 
         # save network
         net = UNet(2, 1, 1, [4, 8], [2])
-        torch.save(net.state_dict(), self.dir_name + "/models/model.pt")
-        # torch.jit.script(net).save(self.dir_name+"/models/model.ts")
+        torch.save(net.state_dict(), self.modelpt_name)
 
     def tearDown(self):
         self.bundle_dir.cleanup()
@@ -94,15 +101,11 @@ class TestLoadBundleConfig(unittest.TestCase):
     def test_load_config_ts(self):
         # create a Torchscript zip of the bundle
         cmd = ["python", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", self.ts_file]
-        cmd += ["--meta_file", self.dir_name + "/configs/metadata.json"]
-        cmd += ["--config_file", self.dir_name + "/configs/test.json"]
-        cmd += ["--ckpt_file", self.dir_name + "/models/model.pt"]
+        cmd += ["--meta_file", self.metadata_name]
+        cmd += ["--config_file", self.test_name]
+        cmd += ["--ckpt_file", self.modelpt_name]
 
-        try:
-            subprocess.check_output(cmd, stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as e:
-            print("Output:", e.output, file=sys.stderr)
-            raise
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
 
         p = load_bundle_config(self.ts_file, "test.json")
 

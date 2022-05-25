@@ -17,8 +17,10 @@ import unittest
 import torch
 
 from monai.networks.nets import UNet
+from tests.utils import skip_if_windows
 
 
+@skip_if_windows
 class TestBundleInit(unittest.TestCase):
     def test_bundle(self):
         with tempfile.TemporaryDirectory() as tempdir:

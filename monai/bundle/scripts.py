@@ -30,7 +30,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict
+from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple
 
@@ -630,8 +630,8 @@ def init_bundle(
     bundle_dir: PathLike,
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
-    metadata_str=DEFAULT_METADATA,
-    inference_str=DEFAULT_INFERENCE,
+    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
+    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
 ):
     """
     Initialise a new bundle directory with some default configuration files and optionally network weights.
@@ -700,4 +700,4 @@ def init_bundle(
     if ckpt_file is not None:
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
     elif network is not None:
-        torch.save(get_state_dict(network), str(models_dir / "model.pt"))
+        save_state(network, str(models_dir / "model.pt"))

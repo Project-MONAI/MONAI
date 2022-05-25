@@ -132,7 +132,6 @@ def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
             if not os.path.exists(cpath):
                 raise ValueError(f"Cannot find config file '{cpath}'")
 
-            # parser.read_config(f=cpath, **load_kw_args)
             conf_data.append(cpath)
 
         parser.read_config(f=conf_data, **load_kw_args)
