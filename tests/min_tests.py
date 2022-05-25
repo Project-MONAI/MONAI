@@ -114,6 +114,7 @@ def run_testsuit():
         "test_nifti_header_revise",
         "test_nifti_rw",
         "test_nifti_saver",
+        "test_nuclick_transforms",
         "test_occlusion_sensitivity",
         "test_orientation",
         "test_orientationd",
