@@ -276,14 +276,12 @@ class AddPointGuidanceSignald(RandomizableTransform):
 
 class AddClickSignalsd(MapTransform):
     """
-    Adds Guidance Signal to the input image
+    Adds Click Signal to the input image
 
     Args:
         image: source image
-        label: source label
-        others: source others (other labels from the binary mask which are not being used for training)
-        drop_rate:
-        jitter_range: noise added to the points in the point mask for exclusion mask
+        foreground: 2D click indices as list
+        bb_size: single integer size, defines a bounding box like (bb_size, bb_size)
     """
     def __init__(self, image: str = "image", foreground: str = "foreground", bb_size: int = 128):
         self.image = image
@@ -332,7 +330,6 @@ class AddClickSignalsd(MapTransform):
     def get_clickmap_boundingbox(self, cx, cy, m, n, bb=128):
         click_map = np.zeros((m, n), dtype=np.uint8)
 
-        # Removing points out of image dimension (these points may have been clicked unwanted)
         x_del_indices = {i for i in range(len(cx)) if cx[i] >= n or cx[i] < 0}
         y_del_indices = {i for i in range(len(cy)) if cy[i] >= m or cy[i] < 0}
         del_indices = list(x_del_indices.union(y_del_indices))
@@ -360,17 +357,16 @@ class AddClickSignalsd(MapTransform):
         return click_map, bounding_boxes
 
     def get_patches_and_signals(self, img, click_map, bounding_boxes, cx, cy, m, n, bb=128):
-        # total = number of clicks
+
         total = len(bounding_boxes)
-        img = np.array([img])  # img.shape=(1,3,m,n)
-        click_map = np.array([click_map])  # clickmap.shape=(1,m,n)
-        click_map = click_map[:, np.newaxis, ...]  # clickmap.shape=(1,1,m,n)
+        img = np.array([img])
+        click_map = np.array([click_map])
+        click_map = click_map[:, np.newaxis, ...]
 
         patches = np.ndarray((total, 3, bb, bb), dtype=np.uint8)
         nuc_points = np.ndarray((total, 1, bb, bb), dtype=np.uint8)
         other_points = np.ndarray((total, 1, bb, bb), dtype=np.uint8)
 
-        # Removing points out of image dimension (these points may have been clicked unwanted)
         x_del_indices = {i for i in range(len(cx)) if cx[i] >= n or cx[i] < 0}
         y_del_indices = {i for i in range(len(cy)) if cy[i] >= m or cy[i] < 0}
         del_indices = list(x_del_indices.union(y_del_indices))
@@ -394,13 +390,19 @@ class AddClickSignalsd(MapTransform):
             nuc_points[i] = this_click_map[0, :, y_start : y_end + 1, x_start : x_end + 1]
             other_points[i] = others_click_map[0, :, y_start : y_end + 1, x_start : x_end + 1]
 
-        # patches: (total, 3, m, n)
-        # nuc_points: (total, 1, m, n)
-        # other_points: (total, 1, m, n)
         return patches, nuc_points, other_points
 
 
 class PostFilterLabeld(MapTransform):
+    """
+    Performs Filtering of Labels on the predicted probability map
+
+    Args:
+        thresh: probability threshold for classifying a pixel as a mask
+        min_size: min_size objects that will be removed from the image, refer skimage remove_small_objects
+        min_hole: min_hole that will be removed from the image, refer skimage remove_small_holes
+        do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage
+    """
     def __init__(
         self,
         keys: KeysCollection,
@@ -460,7 +462,7 @@ class PostFilterLabeld(MapTransform):
                     masks[i] = np.array([this_mask])
                 except BaseException:
                     print("Nuclei reconstruction error #" + str(i))
-        return masks  # masks(no.patches, 128, 128)
+        return masks
 
     def gen_instance_map(self, masks, bounding_boxes, m, n, flatten=True):
         instance_map = np.zeros((m, n), dtype=np.uint16)
