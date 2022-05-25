@@ -150,8 +150,8 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 def download(
     name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
-    source: str = "github",
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: Optional[str] = "github",
+    repo: Optional[str] = "Project-MONAI/model-zoo/hosting_storage_v1",
     url: Optional[str] = None,
     progress: bool = True,
     args_file: Optional[str] = None,
@@ -183,9 +183,11 @@ def download(
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: storage location name. "github" is currently the only supported value.
-        repo: repo name. This argument is used when `source` is "github".
-            It should be in the form of "repo_owner/repo_name/release_tag".
+        source: storage location name. This argument is used when `url` is `None`.
+            If `None` and `url` is `None`, it must be provided in `args_file`.
+            If not `None`, "github" is currently the only supported value.
+        repo: repo name. This argument must be provided when `source` is used.
+            If `source` is `github`, it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -235,8 +237,8 @@ def load(
     model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
-    source: str = "github",
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: Optional[str] = "github",
+    repo: Optional[str] = "Project-MONAI/model-zoo/hosting_storage_v1",
     progress: bool = True,
     device: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
@@ -254,9 +256,11 @@ def load(
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: storage location name. "github" is currently the only supported value.
-        repo: repo name. This argument is used when `source` is "github".
-            It should be in the form of "repo_owner/repo_name/release_tag".
+        source: storage location name. This argument is used when `model_file` is not existing locally and need to be
+            downloaded first.
+            If not `None`, "github" is currently the only supported value.
+        repo: repo name. This argument must be provided when `source` is used.
+            If `source` is `github`, it should be in the form of "repo_owner/repo_name/release_tag".
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
