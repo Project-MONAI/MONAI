@@ -42,6 +42,19 @@ LABEL_1 = np.array(
     dtype=np.uint8,
 )
 
+LABEL_1_1 = np.array(
+    [
+        [1, 1, 1, 0, 0, 1, 1],
+        [1, 1, 1, 0, 0, 1, 1],
+        [1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0],
+        [1, 1, 1, 0, 2, 2, 2],
+        [1, 1, 1, 0, 2, 2, 2],
+        [1, 1, 1, 0, 2, 2, 2],
+    ],
+    dtype=np.uint8,
+)
+
 LABEL_2 = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], dtype=np.uint8)
 
 LABEL_3 = np.array([[[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]]], dtype=np.uint8)
@@ -115,6 +128,7 @@ FILTER_IMAGE_TEST_CASE_1 = [{"keys": "image", "min_size": 1}, DATA_FILTER_1, [3,
 
 FLATTEN_LABEL_TEST_CASE_1 = [{"keys": "label"}, DATA_FLATTEN_1, [0, 1, 2, 3]]
 FLATTEN_LABEL_TEST_CASE_2 = [{"keys": "label"}, DATA_FLATTEN_2, [0]]
+FLATTEN_LABEL_TEST_CASE_3 = [{"keys": "label"}, {"label": LABEL_1_1}, [0, 1, 2, 3, 4]]
 
 EXTRACT_TEST_CASE_1 = [{"keys": ["image", "label"], "patch_size": 3}, DATA_EXTRACT_1, [1, 3, 3]]
 EXTRACT_TEST_CASE_2 = [{"keys": ["image", "label"], "patch_size": 5}, DATA_EXTRACT_1, [1, 5, 5]]
@@ -141,7 +155,7 @@ class TestFilterImaged(unittest.TestCase):
 
 
 class TestFlattenLabeld(unittest.TestCase):
-    @parameterized.expand([FLATTEN_LABEL_TEST_CASE_1, FLATTEN_LABEL_TEST_CASE_2])
+    @parameterized.expand([FLATTEN_LABEL_TEST_CASE_1, FLATTEN_LABEL_TEST_CASE_2, FLATTEN_LABEL_TEST_CASE_3])
     def test_correct_num_labels(self, arguments, input_data, expected_result):
         result = FlattenLabeld(**arguments)(input_data)
         np.testing.assert_equal(np.unique(result["label"]), expected_result)
