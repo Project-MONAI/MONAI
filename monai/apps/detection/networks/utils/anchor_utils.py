@@ -9,6 +9,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# BSD 3-Clause License
+
+# Copyright (c) Soumith Chintala 2016,
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+
+"""
+This script is modified from
+https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
+"""
+
 from typing import List, Sequence, Union
 
 import torch
@@ -88,8 +112,10 @@ class AnchorGenerator(nn.Module):
             aspect_ratios = (aspect_ratios,) * len(sizes)
 
         if len(sizes) != len(aspect_ratios):
-            raise ValueError("len(sizes) and len(aspect_ratios) should be equal. \
-                It represents the number of feature maps.")
+            raise ValueError(
+                "len(sizes) and len(aspect_ratios) should be equal. \
+                It represents the number of feature maps."
+            )
 
         spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
         spatial_dims = look_up_option(spatial_dims, [2, 3])
