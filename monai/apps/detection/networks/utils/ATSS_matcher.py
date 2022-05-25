@@ -61,7 +61,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-The functions in this script are tadapted from nnDetection,
+The functions in this script are adapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/matcher.py
 which is adapted from torchvision.
 
