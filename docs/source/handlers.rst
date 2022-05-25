@@ -95,12 +95,6 @@ Metric logger
     :members:
 
 
-Segmentation saver
-------------------
-.. autoclass:: SegmentationSaver
-    :members:
-
-
 Training stats handler
 ----------------------
 .. autoclass:: StatsHandler

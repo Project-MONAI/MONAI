@@ -28,7 +28,6 @@ from .parameter_scheduler import ParamSchedulerHandler
 from .postprocessing import PostProcessing
 from .regression_metrics import MeanAbsoluteError, MeanSquaredError, PeakSignalToNoiseRatio, RootMeanSquaredError
 from .roc_auc import ROCAUC
-from .segmentation_saver import SegmentationSaver
 from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
