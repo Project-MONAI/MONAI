@@ -87,7 +87,9 @@ class AnchorGenerator(nn.Module):
         if not isinstance(aspect_ratios[0], Sequence):
             aspect_ratios = (aspect_ratios,) * len(sizes)
 
-        assert len(sizes) == len(aspect_ratios)
+        if len(sizes) != len(aspect_ratios):
+            raise ValueError("len(sizes) and len(aspect_ratios) should be equal. \
+                It represents the number of feature maps.")
 
         spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
         spatial_dims = look_up_option(spatial_dims, [2, 3])
@@ -344,8 +346,9 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
         base_anchor_shapes_t = torch.Tensor(base_anchor_shapes)
         self.cell_anchors = [self.generate_anchors_using_shape(s * base_anchor_shapes_t) for s in feature_map_scales]
 
+    @staticmethod
     def generate_anchors_using_shape(
-        self, anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: Union[torch.device, None] = None
+        anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: Union[torch.device, None] = None
     ) -> torch.Tensor:
         """
         Compute cell anchor shapes at multiple sizes and aspect ratios for the current feature map.
