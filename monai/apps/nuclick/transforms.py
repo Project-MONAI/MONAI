@@ -17,7 +17,6 @@ from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform, SpatialPad
 from monai.utils import optional_import
 
-cv2, _ = optional_import("cv2")
 measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
 
@@ -34,7 +33,7 @@ class FlattenLabeld(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            _, labels, _, _ = cv2.connectedComponentsWithStats(d[key], 4, cv2.CV_32S)
+            labels = measure.label(d[key], connectivity=1).astype(np.int32)
             d[key] = labels.astype(np.uint8)
         return d
 
