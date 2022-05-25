@@ -29,13 +29,13 @@ class ExtraFPNBlock(nn.Module):
     """
     Base class for the extra block in the FPN.
 
-    Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py    
+    Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
     """
 
     def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
         """
         Compute extended set of results of the FPN and their names.
-        
+
         Args:
             results: the result of the FPN
             x: the original feature maps
