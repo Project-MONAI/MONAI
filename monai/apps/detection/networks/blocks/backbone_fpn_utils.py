@@ -19,11 +19,9 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 from typing import Dict, List, Optional, Union
 
 from torch import Tensor, nn
-
-# from torchvision.ops import misc as misc_nn_ops
-# from torchvision.models import mobilenet
-from torchvision.models import resnet
 from torchvision.models._utils import IntermediateLayerGetter
+
+from monai.networks.nets import resnet
 
 from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool
 
