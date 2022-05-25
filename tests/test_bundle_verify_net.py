@@ -35,8 +35,8 @@ class TestVerifyNetwork(unittest.TestCase):
             ConfigParser.export_config_file(config=def_args, filepath=def_args_file)
 
             cmd = ["coverage", "run", "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file"]
-            cmd += [meta_file, "--config_file", config_file, "-n", "2", "--any", "32", "--args_file", def_args_file]
-            cmd += ["--_meta_#network_data_format#inputs#image#spatial_shape", "[32,'*','4**p*n']"]
+            cmd += [meta_file, "--config_file", config_file, "-n", "4", "--any", "16", "--args_file", def_args_file]
+            cmd += ["--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
 
             test_env = os.environ.copy()
             print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
