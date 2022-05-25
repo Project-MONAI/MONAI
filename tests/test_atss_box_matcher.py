@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-from collections import OrderedDict
 
 import torch
 from parameterized import parameterized
