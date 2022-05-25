@@ -287,7 +287,7 @@ def load(
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
-    # loading with `torch.jit. load`
+    # loading with `torch.jit.load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
