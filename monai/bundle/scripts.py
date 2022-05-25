@@ -202,13 +202,7 @@ def download(
 
     _log_input_summary(tag="download", args=_args)
     source_, repo_, progress_, name_, bundle_dir_, url_ = _pop_args(
-        _args,
-        "source",
-        "repo",
-        "progress",
-        name=None,
-        bundle_dir=None,
-        url=None,
+        _args, "source", "repo", "progress", name=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
