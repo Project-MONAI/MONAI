@@ -41,7 +41,7 @@ class _DenseLayerDecoder(nn.Module):
         dropout_prob: float,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
-        
+
     ) -> None:
         """
         Args:
@@ -52,37 +52,37 @@ class _DenseLayerDecoder(nn.Module):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-            
+
         """
         super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, 2]
         dropout_type: Callable = Dropout[Dropout.DROPOUT, 2]
-            
+
         self.layers = nn.Sequential()
 
         self.layers.add_module("preact_bna/bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.layers.add_module("preact_bna/relu", get_act_layer(name=act))
-            
+
         self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, bias=False))
 
         self.layers.add_module("conv1/norm", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("conv1/relu2", get_act_layer(name=act))
         self.layers.add_module("conv2", conv_type(num_features, out_channels, kernel_size=3, padding=1, groups=4, bias=False))
-        
+
         if dropout_prob > 0:
             self.layers.add_module("dropout", dropout_type(dropout_prob))
-            
-        
+
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        s = x.shape 
+        s = x.shape
         new_features = self.layers(x)
         x = torch.cat([x, new_features], 1)
         x = x[:,:,1:-1,1:-1]
         print("DenseBlock: ", s, new_features.shape, x.shape)
         return x
-    
+
 class _DecoderBlock(nn.Sequential):
     def __init__(
         self,
@@ -105,25 +105,25 @@ class _DecoderBlock(nn.Sequential):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-            
+
         """
         super().__init__()
-        
+
         conv_type: Callable = Conv[Conv.CONV, 2]
-            
+
         self.add_module("conva", conv_type(in_channels, in_channels // 4, kernel_size=3, bias=False))
-        
+
         _in_channels = in_channels // 4
         for i in range(layers):
-            layer = _DenseLayerDecoder(num_features, _in_channels, 
+            layer = _DenseLayerDecoder(num_features, _in_channels,
                                        out_channels, dropout_prob, act=act, norm=norm)
             _in_channels += out_channels
             self.add_module("denselayerdecoder%d" % (i + 1), layer)
-            
-       
+
+
         trans = _Transition(_in_channels, act=act, norm=norm)
-        self.add_module(f"bna_block", trans)    
-        
+        self.add_module(f"bna_block", trans)
+
         self.add_module("convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False))
 
 class _DenseLayer(nn.Sequential):
@@ -136,7 +136,7 @@ class _DenseLayer(nn.Sequential):
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         drop_first_norm_relu: int = 0,
-        
+
     ) -> None:
         """
         Args:
@@ -152,29 +152,29 @@ class _DenseLayer(nn.Sequential):
 
         conv_type: Callable = Conv[Conv.CONV, 2]
         dropout_type: Callable = Dropout[Dropout.DROPOUT, 2]
-            
+
         if not drop_first_norm_relu:
             self.add_module("preact_norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
             self.add_module("preact_relu", get_act_layer(name=act))
-            
+
         self.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False))
 
         self.add_module("norm2", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.add_module("relu2", get_act_layer(name=act))
-        
+
         if in_channels!=64 and drop_first_norm_relu:
             self.add_module("conv2", conv_type(num_features, num_features, kernel_size=3, stride=2, padding=2, bias=False))
         else:
             self.add_module("conv2", conv_type(num_features, num_features, kernel_size=3, padding=1, bias=False))
-            
+
         self.add_module("norm3", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.add_module("relu3", get_act_layer(name=act))
         self.add_module("conv3", conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False))
 
         if dropout_prob > 0:
             self.add_module("dropout", dropout_type(dropout_prob))
-            
-   
+
+
 class _Transition(nn.Sequential):
     def __init__(
         self,
@@ -218,57 +218,57 @@ class _ResidualBlock(nn.Module):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-            
+
         """
         super().__init__()
-        
+
         self.layers = nn.Sequential()
         conv_type: Callable = Conv[Conv.CONV, 2]
-        
+
         if in_channels==64:
             self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, bias=False)
         else:
             self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, stride=2, padding=1, bias=False)
-        
-        layer = _DenseLayer(num_features, in_channels, out_channels, dropout_prob, 
+
+        layer = _DenseLayer(num_features, in_channels, out_channels, dropout_prob,
                                 act=act, norm=norm, drop_first_norm_relu=True)
         self.layers.add_module("prim_denselayer%d" % (1), layer)
-        
+
         for i in range(1, layers):
             layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
             self.layers.add_module("main_denselayer%d" % (i + 1), layer)
-            
+
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
     def forward(self, x: torch.Tensor) -> torch.tensor:
-        s = x.shape 
+        s = x.shape
         sc = self.shortcut(x)
-        
+
         if s[-1] != sc.shape[-1]:
             sc = sc[:,:,:-1,:-1]
-            
+
         i=1
-        
+
         for layer in self.layers:
             x = layer.forward(x)
-            
+
             if x.shape[-1] != sc.shape[-1]:
                 x = x[:,:,:-1,:-1]
-                
+
             print("FWD ",x.shape,sc.shape)
-                
-            x = x + sc 
+
+            x = x + sc
             sc = x
             i+=1
 
         x = self.bna_block(x)
-        
+
         print("ResidualBlk: ",s, x.shape)
-        
+
         return x
 
 class _DecoderBranch(nn.ModuleList):
-    def __init__(self, 
+    def __init__(self,
         decode_config: Sequence[int] = (8, 4),
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
@@ -297,15 +297,15 @@ class _DecoderBranch(nn.ModuleList):
             )
             self.decoder_blocks.add_module(f"decoderblock{i + 1}", block)
             _in_channels = 512
-            
-            
+
+
         # output layers
         self.output_features = nn.Sequential()
         i = len(decode_config)
         block = nn.Sequential(
             OrderedDict([ ("conva", conv_type(256, 64, kernel_size=3, stride=1, bias=False, padding=1)) ])
         )
-        
+
         self.output_features.add_module(f"decoderblock{i + 1}", block)
 
         block = nn.Sequential(
@@ -315,12 +315,12 @@ class _DecoderBranch(nn.ModuleList):
                 ("conv", conv_type(64, out_channels, kernel_size=1, stride=1))
             ])
         )
-        
+
         self.output_features.add_module(f"decoderblock{i + 2}", block)
-        
-        self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, 
+
+        self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE,
                                         interp_mode=InterpolateMode.BILINEAR, bias=False)
-      
+
     def forward(self, x: torch.Tensor, short_cuts: list[torch.tensor]) -> torch.Tensor:
 
         block_number=len(short_cuts)-1
@@ -374,7 +374,7 @@ class HoverNet(nn.Module):
     ) -> None:
 
         super().__init__()
-        
+
         self.num_types = num_types
 
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
@@ -392,9 +392,9 @@ class HoverNet(nn.Module):
         _in_channels = init_features
         _out_channels = 256
         _num_features = init_features
-        
+
         self.res_blocks = nn.Sequential()
-            
+
         for i, num_layers in enumerate(block_config):
             block = _ResidualBlock(
                 layers=num_layers,
@@ -406,18 +406,18 @@ class HoverNet(nn.Module):
                 norm=norm
             )
             self.res_blocks.add_module(f"residualblock{i + 1}", block)
-                        
+
             _in_channels = _out_channels
             _out_channels *= growth_rate
             _num_features *= growth_rate
-            
-        # bottleneck convolution  
+
+        # bottleneck convolution
         self.bottleneck = nn.Sequential()
         self.bottleneck.add_module("conv_bottleneck", conv_type(_in_channels, _num_features, kernel_size=1, stride=1, padding=0, bias=False))
 
-        self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, 
+        self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE,
                                            interp_mode=InterpolateMode.BILINEAR, bias=False)
- 
+
         # decode branches
         self.nucleus_prediction = _DecoderBranch()
         self.horizontal_vertical = _DecoderBranch()
@@ -426,9 +426,9 @@ class HoverNet(nn.Module):
             self.type_prediction = _DecoderBranch(out_channels = num_types)
         else:
             self.type_prediction = None
-     
-        
-        
+
+
+
         for m in self.modules():
             if isinstance(m, conv_type):
                 nn.init.kaiming_normal_(torch.as_tensor(m.weight))
@@ -439,15 +439,15 @@ class HoverNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        
+
         imgs = x / 255.0  # to 0-1 range to match XY
         x = self.input_features(x)
         num_blocks = len(self.res_blocks)
         short_cuts = []
-      
+
         for i, block in enumerate(self.res_blocks):
             x = block.forward(x)
-            
+
             if i==0:
                 short_cuts.append(x[:,:,46:-46,46:-46])
             elif i == 1:
@@ -463,10 +463,10 @@ class HoverNet(nn.Module):
 
         x_hv = torch.tensor(x)
         x_hv = self.horizontal_vertical(x_hv, short_cuts)
-        
+
         if self.type_prediction:
             x_tp = torch.tensor(x)
             x_tp = self.type_prediction(x_tp, short_cuts)
             return {"type_prediction": x_tp, "nucleus_prediction": x_np, "horizonal_vertical": x_hv}
-               
+
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
