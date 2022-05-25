@@ -127,11 +127,13 @@ class PatchWSIDataset(Dataset):
     def _transform(self, index: int):
         # Get a single entry of data
         sample: Dict = self.data[index]
+
         # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
+
         # Get the label
         label = self._get_label(sample)
 
-        # Create put all patch information together and apply transforms
-        patch = {"image": image, "label": label, "metadata": metadata}
-        return apply_transform(self.transform, patch) if self.transform else patch
+        # Apply transforms and output
+        output = {"image": image, "label": label, "metadata": metadata}
+        return apply_transform(self.transform, output) if self.transform else output

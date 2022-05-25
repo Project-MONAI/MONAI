@@ -36,6 +36,7 @@ __all__ = [
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "BoxModeName",
 ]
 
 
@@ -225,7 +226,7 @@ class ForwardMode(Enum):
 
 
 class TraceKeys:
-    """Extra meta data keys used for traceable transforms."""
+    """Extra metadata keys used for traceable transforms."""
 
     CLASS_NAME: str = "class"
     ID: str = "id"
@@ -239,7 +240,7 @@ class TraceKeys:
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
-    Extra meta data keys used for inverse transforms.
+    Extra metadata keys used for inverse transforms.
 
     .. deprecated:: 0.8.0
         Use :class:`monai.utils.enums.TraceKeys` instead.
@@ -311,3 +312,19 @@ class JITMetadataKeys(Enum):
     TIMESTAMP = "timestamp"
     VERSION = "version"
     DESCRIPTION = "description"
+
+
+class BoxModeName(Enum):
+    """
+    Box mode names.
+    """
+
+    XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
+    XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
+    XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    XYXYZZ = "xyxyzz"  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    XYWH = "xywh"  # [xmin, ymin, xsize, ysize]
+    XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
+    CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]

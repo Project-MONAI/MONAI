@@ -62,17 +62,18 @@ class UnetResBlock(nn.Module):
         self.conv2 = get_conv_layer(
             spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
         )
-        self.conv3 = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
-        )
         self.lrelu = get_act_layer(name=act_name)
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
-        self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
             self.downsample = True
+        if self.downsample:
+            self.conv3 = get_conv_layer(
+                spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
+            )
+            self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
 
     def forward(self, inp):
         residual = inp
@@ -81,8 +82,9 @@ class UnetResBlock(nn.Module):
         out = self.lrelu(out)
         out = self.conv2(out)
         out = self.norm2(out)
-        if self.downsample:
+        if hasattr(self, "conv3"):
             residual = self.conv3(residual)
+        if hasattr(self, "norm3"):
             residual = self.norm3(residual)
         out += residual
         out = self.lrelu(out)

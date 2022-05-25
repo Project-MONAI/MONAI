@@ -48,3 +48,5 @@ types-PyYAML
 pyyaml
 fire
 jsonschema
+pynrrd
+pre-commit
