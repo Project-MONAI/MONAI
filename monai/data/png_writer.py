@@ -38,7 +38,7 @@ def write_png(
         data: input data to write to file.
         file_name: expected file name that saved on disk.
         output_spatial_shape: spatial shape of the output image.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"bicubic"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to

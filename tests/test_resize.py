@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -46,7 +46,7 @@ class TestResize(NumpyImageTestCase2D):
             ((32, 32), "area", False),
             ((32, 32, 32), "trilinear", True),
             ((256, 256), "bilinear", False),
-            ((256, 256), "nearest-exact", False),
+            ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "neareast", False),
         ]
     )
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
