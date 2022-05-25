@@ -186,20 +186,20 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
 
 class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
     """
-    Dictionary-based transfrom that converts box in world coordinate to image coordinate.
+    Dictionary-based transform that converts box in world coordinate to image coordinate.
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
-        image_meta_key: explicitly indicate the key of the corresponding meta data dictionary.
+        image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
             it is a string, map to the `box_ref_image_key`.
             if None, will try to construct meta_keys by `box_ref_image_key_{meta_key_postfix}`.
-        image_meta_key_postfix: if image_meta_keys=None, use `box_ref_image_key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        image_meta_key_postfix: if image_meta_keys=None, use `box_ref_image_key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
         affine_lps_to_ras: default ``False``. Yet if 1) the image is read by ITKReader,
@@ -265,7 +265,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
 
 class ZoomBoxd(MapTransform, InvertibleTransform):
     """
-    Dictionary-based transfrom that zooms input boxes and images with the given zoom scale.
+    Dictionary-based transform that zooms input boxes and images with the given zoom scale.
 
     Args:
         image_keys: Keys to pick image data for transformation.
@@ -394,7 +394,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
 
 class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
-    Dictionary-based transfrom that randomly zooms input boxes and images with given probability within given zoom range.
+    Dictionary-based transform that randomly zooms input boxes and images with given probability within given zoom range.
 
     Args:
         image_keys: Keys to pick image data for transformation.
@@ -557,7 +557,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
 class FlipBoxd(MapTransform, InvertibleTransform):
     """
-    Dictionary-based transfrom that flip boxes and images.
+    Dictionary-based transform that flip boxes and images.
 
     Args:
         image_keys: Keys to pick image data for transformation.
@@ -621,7 +621,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
 
 class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
-    Dictionary-based transfrom that randomly flip boxes and images with the given probabilities.
+    Dictionary-based transform that randomly flip boxes and images with the given probabilities.
 
     Args:
         image_keys: Keys to pick image data for transformation.
