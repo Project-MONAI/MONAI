@@ -64,7 +64,7 @@ class BackboneWithFPN(nn.Module):
             extra_blocks = LastLevelMaxPool()
 
         # if spatial_dims is not specified, try to find it from backbone.
-        if spatial_dims is None:    
+        if spatial_dims is None:
             if hasattr(backbone, 'spatial_dims') and isinstance(backbone.spatial_dims, int):
                 spatial_dims = backbone.spatial_dims
             elif isinstance(backbone.conv1, nn.Conv2d):
