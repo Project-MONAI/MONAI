@@ -123,6 +123,40 @@ def get_random_patch(
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
 
 
+def iter_patch_slices(
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
+    padded: bool = True,
+) -> Generator[Tuple[slice, ...], None, None]:
+    """
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
+
+    Args:
+        image_size: dimensions of array to iterate over
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+
+    Yields:
+        Tuples of slice objects defining each patch
+    """
+
+    # ensure patch_size has the right length
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
+
+    # create slices based on start position of each patch
+    for position in iter_patch_position(
+        image_size=image_size, patch_size=patch_size_, start_pos=start_pos, overlap=overlap, padded=padded
+    ):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
+
+
 def dense_patch_slices(
     image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
 ) -> List[Tuple[slice, ...]]:
@@ -163,40 +197,6 @@ def dense_patch_slices(
     return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 
-def iter_patch_slices(
-    image_size: Sequence[int],
-    patch_size: Union[Sequence[int], int],
-    start_pos: Sequence[int] = (),
-    overlap: Union[Sequence[float], float] = 0.0,
-    padded: bool = True,
-) -> Generator[Tuple[slice, ...], None, None]:
-    """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
-    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
-
-    Args:
-        image_size: dimensions of array to iterate over
-        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
-        start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
-
-    Yields:
-        Tuples of slice objects defining each patch
-    """
-
-    # ensure patch_size has the right length
-    patch_size_ = get_valid_patch_size(image_size, patch_size)
-
-    # create slices based on start position of each patch
-    for position in iter_patch_position(
-        image_size=image_size, patch_size=patch_size_, start_pos=start_pos, overlap=overlap, padded=padded
-    ):
-        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
-
-
 def iter_patch_position(
     image_size: Sequence[int],
     patch_size: Union[Sequence[int], int],
@@ -205,9 +205,9 @@ def iter_patch_position(
     padded: bool = False,
 ):
     """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
-    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
+    Yield successive tuples of upper left corner of patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
 
     Args:
         image_size: dimensions of array to iterate over
