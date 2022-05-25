@@ -8,17 +8,40 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import math
 import random
+from enum import Enum
+from typing import Union
 
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import MapTransform, RandomizableTransform, SpatialPad
+from monai.transforms import MapTransform, Randomizable, SpatialPad
 from monai.utils import optional_import
 
 measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
+
+
+class NuclickKeys(Enum):
+    """
+    Keys for nuclick transforms.
+    """
+
+    IMAGE = "image"
+    LABEL = "label"
+    OTHERS = "others"  # key of other labels from the binary mask which are not being used for training
+    FOREGROUND = "foreground"
+
+    CENTROID = "centroid"  # key where the centroid values are stored
+    MASK_VALUE = "mask_value"
+    LOCATION = "location"
+
+    NUC_POINTS = "nuc_points"
+    BOUNDING_BOXES = "bounding_boxes"
+    IMG_HEIGHT = "img_height"
+    IMG_WIDTH = "img_width"
 
 
 class FlattenLabeld(MapTransform):
@@ -33,8 +56,7 @@ class FlattenLabeld(MapTransform):
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            labels = measure.label(d[key], connectivity=1).astype(np.int32)
-            d[key] = labels.astype(np.uint8)
+            d[key] = measure.label(d[key], connectivity=1).astype(np.uint8)
         return d
 
 
@@ -47,11 +69,11 @@ class ExtractPatchd(MapTransform):
 
     Args:
         keys: image, label
-        centroid_key: key where the centroid values are stored
+        centroid_key: key where the centroid values are stored, defaults to ``"centroid"``
         patch_size: size of the extracted patch
     """
 
-    def __init__(self, keys: KeysCollection, centroid_key: str = "centroid", patch_size: int = 128):
+    def __init__(self, keys: KeysCollection, centroid_key: str = NuclickKeys.CENTROID.value, patch_size: int = 128):
         super().__init__(keys)
         self.centroid_key = centroid_key
         self.patch_size = patch_size
@@ -92,13 +114,19 @@ class SplitLabeld(MapTransform):
     labels are kept in others
 
     Args:
-        label: label source
-        others: other labels storage key
-        mask_value: the mask_value that will be kept for binarization of the label
+        label: label source, defaults to ``"label"``
+        others: other labels storage key, defaults to ``"others"``
+        mask_value: the mask_value that will be kept for binarization of the label, defaults to ``"mask_value"``
         min_area: The smallest allowable object size.
     """
 
-    def __init__(self, label: str = "label", others: str = "others", mask_value: str = "mask_value", min_area: int = 5):
+    def __init__(
+        self,
+        label: str = NuclickKeys.LABEL.value,
+        others: str = NuclickKeys.OTHERS.value,
+        mask_value: str = NuclickKeys.MASK_VALUE.value,
+        min_area: int = 5,
+    ):
 
         self.label = label
         self.others = others
@@ -199,27 +227,28 @@ class FilterImaged(MapTransform):
         return rem_sm
 
 
-class AddPointGuidanceSignald(RandomizableTransform):
+class AddPointGuidanceSignald(Randomizable, MapTransform):
     """
     Adds Guidance Signal to the input image
 
     Args:
-        image: key of source image
-        label: key of source label
+        image: key of source image, defaults to ``"image"``
+        label: key of source label, defaults to ``"label"``
         others: source others (other labels from the binary mask which are not being used for training)
-        drop_rate:
-        jitter_range: noise added to the points in the point mask for exclusion mask
+            defaults to ``"others"``
+        drop_rate: probability of dropping the signal, defaults to ``0.5``
+        jitter_range: noise added to the points in the point mask for exclusion mask, defaults to ``3``
     """
 
     def __init__(
         self,
-        image: str = "image",
-        label: str = "label",
-        others: str = "others",
+        image: str = NuclickKeys.IMAGE.value,
+        label: str = NuclickKeys.LABEL.value,
+        others: str = NuclickKeys.OTHERS.value,
         drop_rate: float = 0.5,
         jitter_range: int = 3,
     ):
-        super().__init__()
+        MapTransform.__init__(self, image)
 
         self.image = image
         self.label = label
@@ -278,12 +307,14 @@ class AddClickSignalsd(MapTransform):
     Adds Click Signal to the input image
 
     Args:
-        image: source image
-        foreground: 2D click indices as list
+        image: source image, defaults to ``"image"``
+        foreground: 2D click indices as list, defaults to ``"foreground"``
         bb_size: single integer size, defines a bounding box like (bb_size, bb_size)
     """
 
-    def __init__(self, image: str = "image", foreground: str = "foreground", bb_size: int = 128):
+    def __init__(
+        self, image: str = NuclickKeys.IMAGE.value, foreground: str = NuclickKeys.FOREGROUND.value, bb_size: int = 128
+    ):
         self.image = image
         self.foreground = foreground
         self.bb_size = bb_size
@@ -291,7 +322,7 @@ class AddClickSignalsd(MapTransform):
     def __call__(self, data):
         d = dict(data)
 
-        location = d.get("location", (0, 0))
+        location = d.get(NuclickKeys.LOCATION.value, (0, 0))
         tx, ty = location[0], location[1]
         pos = d.get(self.foreground)
         pos = (np.array(pos) - (tx, ty)).astype(int).tolist() if pos else []
@@ -319,10 +350,10 @@ class AddClickSignalsd(MapTransform):
         )
         patches = patches / 255
 
-        d["bounding_boxes"] = bounding_boxes
-        d["img_width"] = img_width
-        d["img_height"] = img_height
-        d["nuc_points"] = nuc_points
+        d[NuclickKeys.BOUNDING_BOXES.value] = bounding_boxes
+        d[NuclickKeys.IMG_WIDTH.value] = img_width
+        d[NuclickKeys.IMG_HEIGHT.value] = img_height
+        d[NuclickKeys.NUC_POINTS.value] = nuc_points
 
         d[self.image] = np.concatenate((patches, nuc_points, other_points), axis=1, dtype=np.float32)
         return d
@@ -407,10 +438,10 @@ class PostFilterLabeld(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        nuc_points="nuc_points",
-        bounding_boxes="bounding_boxes",
-        img_height="img_height",
-        img_width="img_width",
+        nuc_points: str = NuclickKeys.NUC_POINTS.value,
+        bounding_boxes: str = NuclickKeys.BOUNDING_BOXES.value,
+        img_height: str = NuclickKeys.IMG_HEIGHT.value,
+        img_width: str = NuclickKeys.IMG_WIDTH.value,
         thresh=0.33,
         min_size=10,
         min_hole=30,
