@@ -22,12 +22,12 @@ from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Unio
 import numpy as np
 import torch
 
-from monai.apps.detection.transforms.array import AffineBox, ConvertBoxMode, ConvertBoxToStandardMode, ZoomBox
+from monai.apps.detection.transforms.array import AffineBox, ConvertBoxMode, ConvertBoxToStandardMode, FlipBox, ZoomBox
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import RandZoom, SpatialPad, Zoom
+from monai.transforms import Flip, RandFlip, RandZoom, SpatialPad, Zoom
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
@@ -50,6 +50,12 @@ __all__ = [
     "RandZoomBoxd",
     "RandZoomBoxD",
     "RandZoomBoxDict",
+    "FlipBoxd",
+    "FlipBoxD",
+    "FlipBoxDict",
+    "RandFlipBoxd",
+    "RandFlipBoxD",
+    "RandFlipBoxDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -249,7 +255,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
 
 class ZoomBoxd(MapTransform, InvertibleTransform):
     """
-    Zooms input arrays with given probability within given zoom range.
+    Dictionary-based transfrom that zooms input boxes and images with the given zoom scale.
 
     Args:
         image_keys: Keys to pick image data for transformation.
@@ -295,13 +301,12 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
         super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
         self.mode = ensure_tuple_rep(mode, len(self.image_keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.image_keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.image_keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
-
-        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
         self.keep_size = keep_size
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -363,8 +368,6 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 )
                 # Size might be out by 1 voxel so pad
                 d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
-                # Remove the applied transform
-                self.pop_transform(d, key)
 
             # zoom boxes
             if key_type == "box_key":
@@ -372,15 +375,16 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                 box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
                 d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
-                # Remove the applied transform
-                self.pop_transform(d, key)
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
 
         return d
 
 
 class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     """
-    Randomly zooms input arrays with given probability within given zoom range.
+    Dictionary-based transfrom that randomly zooms input boxes and images with given probability within given zoom range.
 
     Args:
         image_keys: Keys to pick image data for transformation.
@@ -439,13 +443,12 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.box_keys = ensure_tuple(box_keys)
         MapTransform.__init__(self, self.image_keys + self.box_keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
         self.rand_zoom = RandZoom(prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, **kwargs)
         self.mode = ensure_tuple_rep(mode, len(self.image_keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.image_keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.image_keys))
-
-        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
         self.keep_size = keep_size
 
     def set_random_state(
@@ -508,14 +511,11 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
-        # zoom image, copied from monai.transforms.spatial.dictionary.RandZoomd
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             key_type = transform[TraceKeys.EXTRA_INFO]["type"]
             # Check if random transform was actually performed (based on `prob`)
             if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-
                 # zoom image, copied from monai.transforms.spatial.dictionary.Zoomd
                 if key_type == "image_key":
                     zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
@@ -531,8 +531,6 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     )
                     # Size might be out by 1 voxel so pad
                     d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
-                    # Remove the applied transform
-                    self.pop_transform(d, key)
 
                 # zoom boxes
                 if key_type == "box_key":
@@ -541,8 +539,151 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                     box_inverse_transform = ZoomBox(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
                     d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
-                    # Remove the applied transform
-                    self.pop_transform(d, key)
+
+                # Remove the applied transform
+                self.pop_transform(d, key)
+        return d
+
+
+class FlipBoxd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based transfrom that flip boxes and images.
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        spatial_axis: Spatial axes along which to flip over. Default is None.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    backend = Flip.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+
+        self.flipper = Flip(spatial_axis=spatial_axis)
+        self.box_flipper = FlipBox(spatial_axis=self.flipper.spatial_axis)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        for key in self.image_keys:
+            d[key] = self.flipper(d[key])
+            self.push_transform(d, key, extra_info={"type": "image_key"})
+
+        for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            spatial_size = d[box_ref_image_key].shape[1:]
+            d[box_key] = self.box_flipper(d[box_key], spatial_size)
+            self.push_transform(d, box_key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+
+            # flip image, copied from monai.transforms.spatial.dictionary.Flipd
+            if key_type == "image_key":
+                d[key] = self.flipper(d[key])
+
+            # flip boxes
+            if key_type == "box_key":
+                spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                d[key] = self.box_flipper(d[key], spatial_size)
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
+        return d
+
+
+class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
+    """
+    Dictionary-based transfrom that randomly flip boxes and images with the given probabilities.
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        prob: Probability of flipping.
+        spatial_axis: Spatial axes along which to flip over. Default is None.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    backend = RandFlip.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        prob: float = 0.1,
+        spatial_axis: Optional[Union[Sequence[int], int]] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        MapTransform.__init__(self, self.image_keys + self.box_keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+
+        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
+        self.box_flipper = FlipBox(spatial_axis=spatial_axis)
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandFlipBoxd":
+        super().set_random_state(seed, state)
+        self.flipper.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+
+        for key in self.image_keys:
+            if self._do_transform:
+                d[key] = self.flipper(d[key], randomize=False)
+            self.push_transform(d, key, extra_info={"type": "image_key"})
+
+        for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            spatial_size = d[box_ref_image_key].shape[1:]
+            if self._do_transform:
+                d[box_key] = self.box_flipper(d[box_key], spatial_size)
+            self.push_transform(d, box_key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[TraceKeys.DO_TRANSFORM]:
+                # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
+                if key_type == "image_key":
+                    d[key] = self.flipper(d[key], randomize=False)
+
+                # flip boxes
+                if key_type == "box_key":
+                    spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                    d[key] = self.box_flipper(d[key], spatial_size)
+
+            # Remove the applied transform
+            self.pop_transform(d, key)
         return d
 
 
@@ -551,3 +692,5 @@ ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardM
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
 RandZoomBoxD = RandZoomBoxDict = RandZoomBoxd
 AffineBoxToImageCoordinateD = AffineBoxToImageCoordinateDict = AffineBoxToImageCoordinated
+FlipBoxD = FlipBoxDict = FlipBoxd
+RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
