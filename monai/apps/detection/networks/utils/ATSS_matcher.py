@@ -61,16 +61,16 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
-The functions in this script are the almost the same with nnDetection,
+The functions in this script are tadapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/matcher.py
-which is modified from torchvision.
+which is adapted from torchvision.
 
 These are the changes compared with nndetection:
-- comments and docstrings;
-- reformat;
-- add a debug option to ATSSMatcher to help the users to tune parameters;
-- add a corner case return in ATSSMatcher.compute_matches;
-- add support for float16 cpu
+1) comments and docstrings;
+2) reformat;
+3) add a debug option to ATSSMatcher to help the users to tune parameters;
+4) add a corner case return in ATSSMatcher.compute_matches;
+5) add support for float16 cpu
 """
 
 import logging

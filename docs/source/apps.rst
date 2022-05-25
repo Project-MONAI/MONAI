@@ -134,3 +134,8 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.transforms.dictionary
     :members:
+
+`Matcher`
+~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.utils.ATSS_matcher
+    :members:
