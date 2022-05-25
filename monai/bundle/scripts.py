@@ -183,7 +183,7 @@ def download(
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
         bundle_dir: target directory to store the downloaded data.
-            Default is `bundle` subfolder under`torch.hub.get_dir()`.
+            Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             "github" is currently the only supported value.
         repo: repo name. This argument is used when `url` is `None`.
@@ -247,7 +247,7 @@ def load(
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: directory the weights/TorchScript module will be loaded from.
-            Default is `bundle` subfolder under`torch.hub.get_dir()`.
+            Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first. "github" is currently the only supported value.
         repo: repo name. This argument is used when `model_file` is not existing locally and need to be
