@@ -36,7 +36,7 @@ TEST_CASES.append(
 
 class TestFPNBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_acn_block(self, input_param, input_shape, expected_shape):
+    def test_fpn_block(self, input_param, input_shape, expected_shape):
         net = FeaturePyramidNetwork(**input_param)
         data = OrderedDict()
         data["feat0"] = torch.rand(input_shape[0])
