@@ -30,6 +30,7 @@ from monai.data.box_utils import (
     clip_boxes_to_image,
     convert_box_mode,
     convert_box_to_standard_mode,
+    non_max_suppression,
 )
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -202,6 +203,17 @@ class TestCreateBoxList(unittest.TestCase):
         assert_allclose(
             id(clipped_boxes) != id(expected_box_standard), True, type_test=False, device_test=False, atol=0.0
         )
+
+        # test non_max_suppression
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=1.0, box_overlap_metric=box_giou
+        )
+        assert_allclose(nms_box, [1, 2, 0], type_test=False)
+
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=-1.0, box_overlap_metric=box_iou
+        )
+        assert_allclose(nms_box, [1], type_test=False)
 
 
 if __name__ == "__main__":
