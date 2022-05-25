@@ -138,7 +138,7 @@ class ConvertBoxToStandardMode(Transform):
 
 class AffineBox(Transform):
     """
-    Applys affine matrix to the boxes
+    Applies affine matrix to the boxes
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -147,7 +147,7 @@ class AffineBox(Transform):
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
-            affine: affine matric to be applied to the box coordinate
+            affine: affine matrix to be applied to the box coordinate
         """
         if affine is None:
             return boxes
