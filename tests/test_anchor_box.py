@@ -49,7 +49,7 @@ class TestAnchorGenerator(unittest.TestCase):
             assert_allclose(a, a_f, type_test=True, device_test=False, atol=1e-3)
 
         images = torch.rand(image_shape)
-        feature_maps = tuple([torch.rand(fs) for fs in feature_maps_shapes])
+        feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
         result = anchor(images, feature_maps)
         result_ref = anchor_ref(image_list.ImageList(images, ([123, 122],)), feature_maps)
         for a, a_f in zip(result, result_ref):
