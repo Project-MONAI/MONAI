@@ -163,6 +163,8 @@ class FeaturePyramidNetwork(nn.Module):
         """
         This is equivalent to self.inner_blocks[idx](x),
         but torchscript doesn't support this yet
+
+        Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
         """
         num_blocks = len(self.inner_blocks)
         if idx < 0:
@@ -177,6 +179,8 @@ class FeaturePyramidNetwork(nn.Module):
         """
         This is equivalent to self.layer_blocks[idx](x),
         but torchscript doesn't support this yet
+
+        Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
         """
         num_blocks = len(self.layer_blocks)
         if idx < 0:
@@ -190,6 +194,9 @@ class FeaturePyramidNetwork(nn.Module):
     def forward(self, x: Dict[str, Tensor]) -> Dict[str, Tensor]:
         """
         Computes the FPN for a set of feature maps.
+
+        https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
+        Except that ``feat_shape = inner_lateral.shape[2:]`` instead of ``feat_shape = inner_lateral.shape[-2:]``.
 
         Args:
             x: feature maps for each feature level.
