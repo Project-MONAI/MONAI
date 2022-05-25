@@ -46,15 +46,38 @@ class AnchorGenerator(nn.Module):
         aspect_ratios: the aspect ratios of anchors. ``len(aspect_ratios) = len(sizes)``.
             For 2D images, each element of ``aspect_ratios[i]`` is a Sequence of float.
             For 3D images, each element of ``aspect_ratios[i]`` is a Sequence of 2 value Sequence.
+        indexing: choose from {'xy', 'ij'}, optional
+            Cartesian ('xy') or matrix ('ij', default) indexing of output.
+            Cartesian ('xy') indexing swaps axis 0 and 1, which is the setting inside torchvision.
+            matrix ('ij', default) indexing keeps the original axis not changed.
+            See also indexing in https://pytorch.org/docs/stable/generated/torch.meshgrid.html
 
     Reference:.
         https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
+
+    Example:
+        .. code-block:: python
+
+            # 2D example inputs for a 2-level feature maps
+            sizes = ((10,12,14,16), (20,24,28,32))
+            base_aspect_ratios = (1., 0.5,  2.)
+            aspect_ratios = (base_aspect_ratios, base_aspect_ratios)
+            AnchorGenerator(sizes, aspect_ratios)
+
+            # 3D example inputs for a 2-level feature maps
+            sizes = ((10,12,14,16), (20,24,28,32))
+            base_aspect_ratios = ((1., 1.), (1., 0.5), (0.5, 1.), (2., 2.))
+            aspect_ratios = (base_aspect_ratios, base_aspect_ratios)
+            AnchorGenerator(sizes, aspect_ratios)
     """
 
     __annotations__ = {"cell_anchors": List[torch.Tensor]}
 
     def __init__(
-        self, sizes: Sequence[Sequence[int]] = ((20, 30, 40),), aspect_ratios: Sequence = (((0.5, 1), (1, 0.5)),)
+        self,
+        sizes: Sequence[Sequence[int]] = ((20, 30, 40),),
+        aspect_ratios: Sequence = (((0.5, 1), (1, 0.5)),),
+        indexing: str = "ij",
     ) -> None:
         super().__init__()
 
@@ -69,6 +92,8 @@ class AnchorGenerator(nn.Module):
         spatial_dims = len(ensure_tuple(aspect_ratios[0][0])) + 1
         spatial_dims = look_up_option(spatial_dims, [2, 3])
         self.spatial_dims = spatial_dims
+
+        self.indexing = look_up_option(indexing, ["ij", "xy"])
 
         self.sizes = sizes
         self.aspect_ratios = aspect_ratios
@@ -171,7 +196,7 @@ class AnchorGenerator(nn.Module):
             .. code-block:: python
 
                 grid_sizes = [[100,100],[50,50]]
-                strides = [[torch.Tensor(2),torch.Tensor(2)], [torch.Tensor(4),torch.Tensor(4)]]
+                strides = [[torch.tensor(2),torch.tensor(2)], [torch.tensor(4),torch.tensor(4)]]
         """
         anchors = []
         cell_anchors = self.cell_anchors
@@ -195,13 +220,16 @@ class AnchorGenerator(nn.Module):
             for axis in range(self.spatial_dims):
                 shifts_centers.append(torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis])
 
-            shifts_centers = list(torch.meshgrid(*tuple(shifts_centers)))  # indexing="ij"
+            shifts_centers = list(torch.meshgrid(*tuple(shifts_centers), indexing="ij"))  # indexing="ij"
             for axis in range(self.spatial_dims):
                 # each element of shifts_centers is sized (WH,) or (WHD,)
                 shifts_centers[axis] = shifts_centers[axis].reshape(-1)
 
             # Expand to [x_center, y_center, x_center, y_center],
             # or [x_center, y_center, z_center, x_center, y_center, z_center]
+            if self.indexing == "xy":
+                # Cartesian ('xy') indexing swaps axis 0 and 1.
+                shifts_centers[1], shifts_centers[0] = shifts_centers[0], shifts_centers[1]
             shifts = torch.stack(shifts_centers * 2, dim=1)  # sized (WH,4) or (WHD,6)
 
             # For every (base anchor, output anchor) pair,
@@ -232,7 +260,7 @@ class AnchorGenerator(nn.Module):
             .. code-block:: python
 
                 images = torch.zeros((3,1,128,128,128))
-                feature_maps = [torch.zeros((3,16,64,64,32)), torch.zeros((3,16,32,32,16))]
+                feature_maps = [torch.zeros((3,6,64,64,32)), torch.zeros((3,6,32,32,16))]
         """
         grid_sizes = [feature_map.shape[-self.spatial_dims :] for feature_map in feature_maps]
         image_size = images.shape[-self.spatial_dims :]
@@ -280,6 +308,19 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             ``scale[i]*base_anchor_shapes`` represents the anchor shapes for feature map ``i``.
         base_anchor_shapes: a sequence which represents several anchor shapes for one feature map.
                 For N-D images, it is a Sequence of N value Sequence.
+
+    Example:
+        .. code-block:: python
+
+            # 2D example inputs for a 2-level feature maps
+            feature_map_scales = (1, 2)
+            base_anchor_shapes = ((10, 10), (6, 12), (12, 6))
+            AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
+
+            # 3D example inputs for a 2-level feature maps
+            feature_map_scales = (1, 2)
+            base_anchor_shapes = ((10, 10, 10), (12, 12, 8), (10, 10, 6), (16, 16, 10))
+            AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
     """
 
     __annotations__ = {"cell_anchors": List[torch.Tensor]}
