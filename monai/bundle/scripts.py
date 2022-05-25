@@ -14,9 +14,10 @@ import json
 import os
 import pprint
 import re
+import warnings
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 from torch.cuda import is_available
@@ -26,7 +27,7 @@ from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state
+from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple
 
@@ -291,6 +292,9 @@ def load(
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
     model_dict = torch.load(full_path, map_location=torch.device(device))
+    if not isinstance(model_dict, Mapping):
+        warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
+        model_dict = get_state_dict(model_dict)
 
     if net_name is None:
         return model_dict
@@ -298,9 +302,6 @@ def load(
     configer = ConfigComponent(config=net_kwargs)
     model = configer.instantiate()
     model.to(device)  # type: ignore
-    # model_dict is required to be a state dictionary according to:
-    # https://docs.monai.io/en/latest/mb_specification.html#directory-structure
-    # Therefore, ignore the mypy type issue of the following line.
     copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
     return model
 
