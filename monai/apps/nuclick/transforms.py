@@ -204,8 +204,8 @@ class AddPointGuidanceSignald(RandomizableTransform):
     Adds Guidance Signal to the input image
 
     Args:
-        image: source image
-        label: source label
+        image: key of source image
+        label: key of source label
         others: source others (other labels from the binary mask which are not being used for training)
         drop_rate:
         jitter_range: noise added to the points in the point mask for exclusion mask
