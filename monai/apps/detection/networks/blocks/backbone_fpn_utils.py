@@ -19,11 +19,13 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 from typing import Dict, List, Optional, Union
 
 from torch import Tensor, nn
-from torchvision.models._utils import IntermediateLayerGetter
 
 from monai.networks.nets import resnet
+from monai.utils import optional_import
 
 from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool
+
+torchvision_models, _ = optional_import("torchvision.models")
 
 
 class BackboneWithFPN(nn.Module):
@@ -61,13 +63,18 @@ class BackboneWithFPN(nn.Module):
         if extra_blocks is None:
             extra_blocks = LastLevelMaxPool()
 
-        if spatial_dims is None:
-            if isinstance(backbone.conv1, nn.Conv2d):
+        # if spatial_dims is not specified, try to find it from backbone.
+        if spatial_dims is None:    
+            if hasattr(backbone, 'spatial_dims') and isinstance(backbone.spatial_dims, int):
+                spatial_dims = backbone.spatial_dims
+            elif isinstance(backbone.conv1, nn.Conv2d):
                 spatial_dims = 2
             elif isinstance(backbone.conv1, nn.Conv3d):
                 spatial_dims = 3
+            else:
+                raise ValueError("Could not find spatial_dims of backbone, please specify it.")
 
-        self.body = IntermediateLayerGetter(backbone, return_layers=return_layers)
+        self.body = torchvision_models._utils.IntermediateLayerGetter(backbone, return_layers=return_layers)
         self.fpn = FeaturePyramidNetwork(
             spatial_dims=spatial_dims,
             in_channels_list=in_channels_list,
