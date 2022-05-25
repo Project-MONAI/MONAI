@@ -335,7 +335,12 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             the feature pyramid network (FPN). ``len(feature_map_scales)`` is the number of feature maps.
             ``scale[i]*base_anchor_shapes`` represents the anchor shapes for feature map ``i``.
         base_anchor_shapes: a sequence which represents several anchor shapes for one feature map.
-                For N-D images, it is a Sequence of N value Sequence.
+            For N-D images, it is a Sequence of N value Sequence.
+        indexing: choose from {'xy', 'ij'}, optional
+            Cartesian ('xy') or matrix ('ij', default) indexing of output.
+            Cartesian ('xy') indexing swaps axis 0 and 1, which is the setting inside torchvision.
+            matrix ('ij', default) indexing keeps the original axis not changed.
+            See also indexing in https://pytorch.org/docs/stable/generated/torch.meshgrid.html
 
     Example:
         .. code-block:: python
@@ -362,12 +367,15 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             (20, 48, 20),
             (20, 20, 48),
         ),
+        indexing: str = "ij",
     ) -> None:
         nn.Module.__init__(self)
 
         spatial_dims = len(base_anchor_shapes[0])
         spatial_dims = look_up_option(spatial_dims, [2, 3])
         self.spatial_dims = spatial_dims
+
+        self.indexing = look_up_option(indexing, ["ij", "xy"])
 
         base_anchor_shapes_t = torch.Tensor(base_anchor_shapes)
         self.cell_anchors = [self.generate_anchors_using_shape(s * base_anchor_shapes_t) for s in feature_map_scales]
