@@ -14,7 +14,7 @@ import random
 import numpy as np
 
 from monai.config import KeysCollection
-from monai.transforms import MapTransform, RandomizableTransform, Transform, SpatialPad
+from monai.transforms import MapTransform, RandomizableTransform, SpatialPad
 from monai.utils import optional_import
 
 cv2, _ = optional_import("cv2")
@@ -283,6 +283,7 @@ class AddClickSignalsd(MapTransform):
         foreground: 2D click indices as list
         bb_size: single integer size, defines a bounding box like (bb_size, bb_size)
     """
+
     def __init__(self, image: str = "image", foreground: str = "foreground", bb_size: int = 128):
         self.image = image
         self.foreground = foreground
@@ -403,6 +404,7 @@ class PostFilterLabeld(MapTransform):
         min_hole: min_hole that will be removed from the image, refer skimage remove_small_holes
         do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage
     """
+
     def __init__(
         self,
         keys: KeysCollection,
