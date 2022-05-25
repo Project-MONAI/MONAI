@@ -86,8 +86,8 @@ class BackboneWithFPN(nn.Module):
         Returns:
             feature maps after FPN layers. They are ordered from highest resolution first.
         """
-        x = self.body(x) # backbone
-        y: Dict[str, Tensor] = self.fpn(x) # FPN
+        x = self.body(x)  # backbone
+        y: Dict[str, Tensor] = self.fpn(x)  # FPN
         return y
 
 
