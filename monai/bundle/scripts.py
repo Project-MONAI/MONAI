@@ -183,10 +183,9 @@ def download(
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: place that saved the bundle.
-            If `source` is `github`, the bundle should be within the releases.
-        repo: repo name.
-            If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
+        source: storage location name. "github" is currently the only supported value.
+        repo: repo name. This argument is used when `source` is "github".
+            It should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -255,10 +254,9 @@ def load(
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: directory the weights/TorchScript module will be loaded from.
             Default is `bundle` subfolder under`torch.hub get_dir()`.
-        source: place that saved the bundle.
-            If `source` is `github`, the bundle should be within the releases.
-        repo: repo name.
-            If `source` is `github`, it should be in the form of `repo_owner/repo_name/release_tag`.
+        source: storage location name. "github" is currently the only supported value.
+        repo: repo name. This argument is used when `source` is "github".
+            It should be in the form of "repo_owner/repo_name/release_tag".
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
