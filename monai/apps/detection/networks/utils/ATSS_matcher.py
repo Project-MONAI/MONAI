@@ -287,7 +287,7 @@ class ATSSMatcher(Matcher):
         ious_inf[index] = match_quality_matrix.view(-1)[index]
         ious_inf = ious_inf.view_as(match_quality_matrix)
 
-        matched_vals, matches = ious_inf.max(dim=0)
+        matched_vals, matches = ious_inf.to(COMPUTE_DTYPE).max(dim=0)
         matches[matched_vals == -INF] = self.BELOW_LOW_THRESHOLD
         # print(f"Num matches {(matches >= 0).sum()}, Adapt IoU {iou_thresh_per_gt}")
         return match_quality_matrix, matches
