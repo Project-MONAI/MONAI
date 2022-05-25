@@ -150,8 +150,8 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 def download(
     name: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
-    source: Optional[str] = "github",
-    repo: Optional[str] = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: str = "github",
+    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
     url: Optional[str] = None,
     progress: bool = True,
     args_file: Optional[str] = None,
@@ -182,12 +182,11 @@ def download(
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
         bundle_dir: target directory to store the downloaded data.
-            Default is `bundle` subfolder under`torch.hub get_dir()`.
+            Default is `bundle` subfolder under`torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
-            If `None` and `url` is `None`, it must be provided in `args_file`.
-            If not `None`, "github" is currently the only supported value.
-        repo: repo name. This argument must be provided when `source` is used.
-            If `source` is `github`, it should be in the form of "repo_owner/repo_name/release_tag".
+            "github" is currently the only supported value.
+        repo: repo name. This argument is used when `url` is `None`.
+            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -201,12 +200,12 @@ def download(
     )
 
     _log_input_summary(tag="download", args=_args)
-    name_, bundle_dir_, source_, repo_, url_, progress_ = _pop_args(
+    source_, repo_, name_, bundle_dir_, url_, progress_ = _pop_args(
         _args,
+        "source",
+        "repo",
         name=None,
         bundle_dir=None,
-        source="github",
-        repo="Project-MONAI/model-zoo/hosting_storage_v1",
         url=None,
         progress=True,
     )
@@ -221,9 +220,9 @@ def download(
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     elif source_ == "github":
-        if name_ is None or repo_ is None:
+        if name_ is None:
             raise ValueError(
-                f"To download from source: Github, `name` and `repo` must be provided, got {name_} and {repo_}."
+                f"To download from source: Github, `name` must be provided, got {name_}."
             )
         _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
     else:
@@ -237,8 +236,8 @@ def load(
     model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
-    source: Optional[str] = "github",
-    repo: Optional[str] = "Project-MONAI/model-zoo/hosting_storage_v1",
+    source: str = "github",
+    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
     progress: bool = True,
     device: Optional[str] = None,
     key_in_ckpt: Optional[str] = None,
@@ -255,12 +254,11 @@ def load(
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
         bundle_dir: directory the weights/TorchScript module will be loaded from.
-            Default is `bundle` subfolder under`torch.hub get_dir()`.
+            Default is `bundle` subfolder under`torch.hub.get_dir()`.
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded first.
-            If not `None`, "github" is currently the only supported value.
-        repo: repo name. This argument must be provided when `source` is used.
-            If `source` is `github`, it should be in the form of "repo_owner/repo_name/release_tag".
+            downloaded first. "github" is currently the only supported value.
+        repo: repo name. This argument is used when `model_file` is not existing locally and need to be
+            downloaded first. If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
