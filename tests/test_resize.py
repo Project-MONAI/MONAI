@@ -46,9 +46,11 @@ class TestResize(NumpyImageTestCase2D):
             ((32, 32), "area", False),
             ((32, 32, 32), "trilinear", True),
             ((256, 256), "bilinear", False),
+            ((256, 256), "nearest-exact", False),
         ]
     )
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
+        """resize 'spatial_size' and 'mode'"""
         resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
         _order = 0
         if mode.endswith("linear"):

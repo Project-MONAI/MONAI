@@ -82,6 +82,7 @@ class InterpolateMode(Enum):
     """
 
     NEAREST = "nearest"
+    NEAREST_EXACT = "nearest-exact"
     LINEAR = "linear"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
