@@ -12,7 +12,6 @@
 import math
 import random
 from enum import Enum
-from typing import Union
 
 import numpy as np
 
