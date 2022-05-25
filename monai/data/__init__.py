@@ -84,6 +84,7 @@ from .utils import (
     is_supported_format,
     iter_patch,
     iter_patch_position,
+    iter_patch_slices,
     json_hashing,
     list_data_collate,
     orientation_ras_lps,
