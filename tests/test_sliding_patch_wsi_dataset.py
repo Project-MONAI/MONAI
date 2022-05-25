@@ -144,14 +144,14 @@ TEST_CASE_SMALL_7 = [
 
 TEST_CASE_SMALL_8 = [
     {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}], "offset": "random", "offset_limits": (0, 2)},
-    [{"image": ARRAY_SMALL_0[:, :2, 1:3]}, {"image": ARRAY_SMALL_0[:, 2:, 1:3]}],
+    [{"image": ARRAY_SMALL_0[:, 1:3, :2]}, {"image": ARRAY_SMALL_0[:, 1:3, 2:]}],
 ]
 
 TEST_CASE_SMALL_9 = [
     {
         "data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}],
         "offset": "random",
-        "offset_limits": ((0, 2), (0, 3)),
+        "offset_limits": ((0, 3), (0, 2)),
     },
     [{"image": ARRAY_SMALL_0[:, :2, 1:3]}, {"image": ARRAY_SMALL_0[:, 2:, 1:3]}],
 ]
@@ -226,7 +226,6 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
-                # print(f"{sample=}")
                 self.assertTupleEqual(sample["image"].shape, expected[i]["image"].shape)
 
         @parameterized.expand([TEST_CASE_LARGE_0, TEST_CASE_LARGE_1])

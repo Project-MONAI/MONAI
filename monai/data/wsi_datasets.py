@@ -17,7 +17,7 @@ import numpy as np
 from monai.data import Dataset
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
-from monai.transforms import apply_transform
+from monai.transforms import Randomizable, apply_transform
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset"]
@@ -140,7 +140,7 @@ class PatchWSIDataset(Dataset):
         return apply_transform(self.transform, output) if self.transform else output
 
 
-class SlidingPatchWSIDataset(PatchWSIDataset):
+class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
     """
     This dataset extracts patches from whole slide images (without loading the whole image)
     It also reads labels for each patch and provides each patch with its associated class labels.
@@ -161,6 +161,7 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
             - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
+        seed: random seed to randomly generate offsets. Defaults to 0.
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
     Note:
@@ -185,11 +186,12 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
         offset_limits: Optional[Union[Tuple[Tuple[int, int], Tuple[int, int]], Tuple[int, int]]] = None,
         transform: Optional[Callable] = None,
         reader="cuCIM",
+        seed: int = 0,
         **kwargs,
     ):
         super().__init__(data=data, size=size, level=level, transform=transform, reader=reader, **kwargs)
         self.overlap = overlap
-
+        self.set_random_state(seed)
         # Set the offset config
         self.random_offset = False
         if isinstance(offset, str):
@@ -229,16 +231,16 @@ class SlidingPatchWSIDataset(PatchWSIDataset):
                 offset_limits = tuple((-s, s) for s in self._get_size(sample))
             else:
                 offset_limits = self.offset_limits
-            return tuple(np.random.randint(low, high) for low, high in offset_limits)
+            return tuple(self.R.randint(low, high) for low, high in offset_limits)
         return self.offset
 
     def _evaluate_patch_coordinates(self, sample):
         """Define the location for each patch based on sliding-window approach"""
-        wsi_obj = self._get_wsi_object(sample)
         patch_size = self._get_size(sample)
         level = self._get_level(sample)
         start_pos = self._get_offset(sample)
 
+        wsi_obj = self._get_wsi_object(sample)
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
         downsample = self.wsi_reader.get_downsample_ratio(wsi_obj, level)
         patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
