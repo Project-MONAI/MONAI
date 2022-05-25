@@ -23,7 +23,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
     """
-    This internal function applies affine matrixs to the point coordinate
+    This internal function applies affine matrices to the point coordinate
 
     Args:
         points: point coordinates, Nx2 or Nx3 torch tensor or ndarray, representing [x, y] or [x, y, z]
@@ -56,7 +56,7 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
 
 def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    This function applies affine matrixs to the boxes
+    This function applies affine matrices to the boxes
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
