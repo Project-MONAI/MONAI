@@ -1003,7 +1003,8 @@ def clip_boxes_to_image(
         remove_empty: whether to remove the boxes that are actually empty
 
     Returns:
-        updated box
+        - clipped boxes, boxes[keep], does not share memory with original boxes
+        - ``keep``, it indicates whether each box in ``boxes`` are kept when ``remove_empty=True``.
     """
     spatial_dims = get_spatial_dims(boxes=boxes, spatial_size=spatial_size)
     return spatial_crop_boxes(boxes, roi_start=[0] * spatial_dims, roi_end=spatial_size, remove_empty=remove_empty)
