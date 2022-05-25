@@ -9,6 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# =========================================================================
+
+# https://github.com/pytorch/vision/blob/main/LICENSE
+
 # BSD 3-Clause License
 
 # Copyright (c) Soumith Chintala 2016,
