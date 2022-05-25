@@ -29,19 +29,22 @@ class ExtraFPNBlock(nn.Module):
     """
     Base class for the extra block in the FPN.
 
-    Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
-
-    Args:
-        results: the result of the FPN
-        x: the original feature maps
-        names: the names for each one of the original feature maps
-
-    Returns:
-        - the extended set of results of the FPN
-        - the extended set of names for the results
+    Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py    
     """
 
     def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+        """
+        Compute extended set of results of the FPN and their names.
+        
+        Args:
+            results: the result of the FPN
+            x: the original feature maps
+            names: the names for each one of the original feature maps
+
+        Returns:
+            - the extended set of results of the FPN
+            - the extended set of names for the results
+        """
         pass
 
 
@@ -78,14 +81,14 @@ class LastLevelP6P7(ExtraFPNBlock):
             nn.init.constant_(module.bias, 0)
         self.use_P5 = in_channels == out_channels
 
-    def forward(self, p: List[Tensor], c: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
-        p5, c5 = p[-1], c[-1]
-        x = p5 if self.use_P5 else c5
-        p6 = self.p6(x)
+    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+        p5, c5 = results[-1], x[-1]
+        x5 = p5 if self.use_P5 else c5
+        p6 = self.p6(x5)
         p7 = self.p7(F.relu(p6))
-        p.extend([p6, p7])
+        results.extend([p6, p7])
         names.extend(["p6", "p7"])
-        return p, names
+        return results, names
 
 
 class FeaturePyramidNetwork(nn.Module):
@@ -163,8 +166,6 @@ class FeaturePyramidNetwork(nn.Module):
         """
         This is equivalent to self.inner_blocks[idx](x),
         but torchscript doesn't support this yet
-
-        Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
         """
         num_blocks = len(self.inner_blocks)
         if idx < 0:
@@ -179,8 +180,6 @@ class FeaturePyramidNetwork(nn.Module):
         """
         This is equivalent to self.layer_blocks[idx](x),
         but torchscript doesn't support this yet
-
-        Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
         """
         num_blocks = len(self.layer_blocks)
         if idx < 0:
@@ -194,9 +193,6 @@ class FeaturePyramidNetwork(nn.Module):
     def forward(self, x: Dict[str, Tensor]) -> Dict[str, Tensor]:
         """
         Computes the FPN for a set of feature maps.
-
-        https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
-        Except that ``feat_shape = inner_lateral.shape[2:]`` instead of ``feat_shape = inner_lateral.shape[-2:]``.
 
         Args:
             x: feature maps for each feature level.

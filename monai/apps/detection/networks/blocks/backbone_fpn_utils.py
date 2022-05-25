@@ -77,8 +77,17 @@ class BackboneWithFPN(nn.Module):
         self.out_channels = out_channels
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
-        x = self.body(x)
-        y: Dict[str, Tensor] = self.fpn(x)
+        """
+        Computes the resulted feature maps of the network.
+
+        Args:
+            x: input images
+
+        Returns:
+            feature maps after FPN layers. They are ordered from highest resolution first.
+        """
+        x = self.body(x) # backbone
+        y: Dict[str, Tensor] = self.fpn(x) # FPN
         return y
 
 
