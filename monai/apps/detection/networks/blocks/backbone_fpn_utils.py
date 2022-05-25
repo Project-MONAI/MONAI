@@ -10,7 +10,8 @@
 # limitations under the License.
 
 # =========================================================================
-
+# Adapted from https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/backbone_utils.py
+# which has the following license...
 # https://github.com/pytorch/vision/blob/main/LICENSE
 #
 # BSD 3-Clause License
