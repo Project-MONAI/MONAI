@@ -10,7 +10,8 @@
 # limitations under the License.
 
 # =========================================================================
-
+# Adapted from https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
+# which has the following license...
 # https://github.com/pytorch/vision/blob/main/LICENSE
 
 # BSD 3-Clause License
@@ -33,7 +34,7 @@
 #   this software without specific prior written permission.
 
 """
-This script is modified from
+This script is adapted from
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
 """
 
