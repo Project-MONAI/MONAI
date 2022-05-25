@@ -29,6 +29,8 @@ class ExtraFPNBlock(nn.Module):
     """
     Base class for the extra block in the FPN.
 
+    Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
+
     Args:
         results: the result of the FPN
         x: the original feature maps
