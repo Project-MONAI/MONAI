@@ -708,6 +708,13 @@ class ClipBoxToImaged(MapTransform, InvertibleTransform):
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
         allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        .. code-block:: python
+
+            ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=["labels", "scores"], remove_empty=True
+            )
     """
 
     def __init__(

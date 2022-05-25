@@ -336,6 +336,15 @@ class ClipBoxToImage(Transform):
         Returns:
             - clipped boxes, does not share memory with original boxes
             - clipped labels, does not share memory with original labels
+
+        Example:
+            .. code-block:: python
+
+                boxes = torch.ones(2, 6)
+                class_labels = torch.Tensor([0, 1])
+                pred_scores = torch.Tensor([0.4, 0.5])
+                labels = (class_labels, pred_scores)
+                spatial_size = [32, 32, 32]
         """
         spatial_dims: int = get_spatial_dims(boxes=boxes)
         spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)  # match the spatial image dim
@@ -350,6 +359,6 @@ class ClipBoxToImage(Transform):
             labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
             if boxes.shape[0] != labels_t.shape[0]:
                 raise ValueError("boxes.shape[0] should be equal to the number of labels or scores.")
-            labels_t = deepcopy(labels_t)[keep_t]
+            labels_t = deepcopy(labels_t)[keep_t, ...]
             labels_clip_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
         return boxes_clip, tuple(labels_clip_list)
