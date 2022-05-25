@@ -15,7 +15,7 @@ from typing import Optional, Sequence, Union
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import TO_REMOVE, get_spatial_dims
+from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms.utils import create_scale
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
@@ -23,7 +23,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
     """
-    This internal function applies affine matrixs to the point coordinate
+    This internal function applies affine matrices to the point coordinate
 
     Args:
         points: point coordinates, Nx2 or Nx3 torch tensor or ndarray, representing [x, y] or [x, y, z]
@@ -56,7 +56,7 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
 
 def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    This function applies affine matrixs to the boxes
+    This function applies affine matrices to the boxes
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
@@ -71,9 +71,8 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
 
     # some operation does not support torch.float16
     # convert to float32
-    compute_dtype = torch.float32
 
-    boxes_t = boxes_t.to(dtype=compute_dtype)
+    boxes_t = boxes_t.to(dtype=COMPUTE_DTYPE)
     affine_t, *_ = convert_to_dst_type(src=affine, dst=boxes_t)
 
     spatial_dims = get_spatial_dims(boxes=boxes_t)
