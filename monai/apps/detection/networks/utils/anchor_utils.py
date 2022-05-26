@@ -255,7 +255,7 @@ class AnchorGenerator(nn.Module):
 
             shifts_centers = list(torch.meshgrid(*tuple(shifts_centers), indexing="ij"))  # indexing="ij"
             for axis in range(self.spatial_dims):
-                # each element of shifts_centers is sized (WH,) or (WHD,)
+                # each element of shifts_centers is sized (HW,) or (HWD,)
                 shifts_centers[axis] = shifts_centers[axis].reshape(-1)
 
             # Expand to [x_center, y_center, x_center, y_center],
@@ -263,14 +263,14 @@ class AnchorGenerator(nn.Module):
             if self.indexing == "xy":
                 # Cartesian ('xy') indexing swaps axis 0 and 1.
                 shifts_centers[1], shifts_centers[0] = shifts_centers[0], shifts_centers[1]
-            shifts = torch.stack(shifts_centers * 2, dim=1)  # sized (WH,4) or (WHD,6)
+            shifts = torch.stack(shifts_centers * 2, dim=1)  # sized (HW,4) or (HWD,6)
 
             # For every (base anchor, output anchor) pair,
             # offset each zero-centered base anchor by the center of the output anchor.
             anchors.append(
                 (shifts.view(-1, 1, self.spatial_dims * 2) + base_anchors.view(1, -1, self.spatial_dims * 2)).reshape(
                     -1, self.spatial_dims * 2
-                )  # each element sized (AWHD,4) or (AWHD,6)
+                )  # each element sized (AHWD,4) or (AHWD,6)
             )
 
         return anchors
