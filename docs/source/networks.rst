@@ -593,11 +593,6 @@ Nets
 .. autoclass:: TorchVisionFCModel
   :members:
 
-`TorchVisionFullyConvModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionFullyConvModel
-  :members:
-
 `MILModel`
 ~~~~~~~~~~
 .. autoclass:: MILModel
