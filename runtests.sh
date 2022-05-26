@@ -327,7 +327,8 @@ export PYTHONPATH="$homedir:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
 
 # by default do nothing
-cmdPrefix=""
+# cmdPrefix=""
+cmdPrefix="$(PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python) "  # FIXME https://github.com/Project-MONAI/MONAI/issues/4354
 
 if [ $doDryRun = true ]
 then
