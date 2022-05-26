@@ -14,6 +14,9 @@
 # script for running all tests
 set -e
 
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 # output formatting
 separator=""
 blue=""
@@ -327,8 +330,7 @@ export PYTHONPATH="$homedir:$PYTHONPATH"
 echo "PYTHONPATH: $PYTHONPATH"
 
 # by default do nothing
-# cmdPrefix=""
-cmdPrefix="$(PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python) "  # FIXME https://github.com/Project-MONAI/MONAI/issues/4354
+cmdPrefix=""
 
 if [ $doDryRun = true ]
 then
