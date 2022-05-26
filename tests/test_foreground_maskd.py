@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.intensity.dictionary import ForegroundMaskd
+from monai.transforms import ForegroundMaskd
 from monai.utils import optional_import, set_determinism
 
 skimage, has_skimage = optional_import("skimage")
