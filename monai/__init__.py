@@ -35,6 +35,13 @@ if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_RE
         category=RuntimeWarning,
     )
 
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except BaseException as e:
+    if "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION" in str(e):
+        # workaround https://github.com/Project-MONAI/MONAI/issues/4354
+        os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
 from .utils.module import load_submodules  # noqa: E402
 
 # handlers_* have some external decorators the users may not have installed
