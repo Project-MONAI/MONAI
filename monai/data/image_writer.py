@@ -265,11 +265,11 @@ class ImageWriter:
             affine = torch.as_tensor(affine) if affine is not None else None
             data_array = MetaTensor(data_array, affine=affine)
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
-        data_array = torch.as_tensor(data_array) if not isinstance(data_array, torch.Tensor) else data_array
         output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
         # convert back at the end
-        data_array, *_ = convert_data_type(data_array, output_type=orig_type)  # type: ignore
-        return output_array[0].as_tensor(), output_array.affine
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
+        return data_array[0], affine
 
     @classmethod
     def convert_to_channel_last(
