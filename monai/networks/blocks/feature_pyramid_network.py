@@ -88,7 +88,7 @@ class ExtraFPNBlock(nn.Module):
 class LastLevelMaxPool(ExtraFPNBlock):
     """
     Applies a max_pool2d or max_pool3d on top of the last feature map. Serves as an ``extra_blocks``
-    in :class:`~monai.apps.detection.networks.blocks.feature_pyramid_network.FeaturePyramidNetwork` .
+    in :class:`~monai.networks.blocks.feature_pyramid_network.FeaturePyramidNetwork` .
     """
 
     def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
@@ -105,7 +105,7 @@ class LastLevelP6P7(ExtraFPNBlock):
     """
     This module is used in RetinaNet to generate extra layers, P6 and P7.
     Serves as an ``extra_blocks``
-    in :class:`~monai.apps.detection.networks.blocks.feature_pyramid_network.FeaturePyramidNetwork` .
+    in :class:`~monai.networks.blocks.feature_pyramid_network.FeaturePyramidNetwork` .
     """
 
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
