@@ -41,14 +41,20 @@ class TestGetEquivalentDtype(unittest.TestCase):
                 self.assertEqual(out_dtype, n)
 
     @parameterized.expand([["float", np.float64], ["float32", np.float32], ["float64", np.float64]])
-    def test_from_string(self, dtype_str, expected):
+    def test_from_string(self, dtype_str, expected_np):
+        expected_pt = get_equivalent_dtype(expected_np, torch.Tensor)
         # numpy
         dtype = get_numpy_dtype_from_string(dtype_str)
-        self.assertEqual(dtype, expected)
+        self.assertEqual(dtype, expected_np)
         # torch
         dtype = get_torch_dtype_from_string(dtype_str)
-        self.assertEqual(dtype, get_equivalent_dtype(expected, torch.Tensor))
-
+        self.assertEqual(dtype, expected_pt)
+        # get equivalent type - numpy
+        dtype = get_equivalent_dtype(dtype_str, np.ndarray)
+        self.assertEqual(dtype, expected_np)
+        # get equivalent type - torch
+        dtype = get_equivalent_dtype(dtype_str, torch.Tensor)
+        self.assertEqual(dtype, expected_pt)
 
 
 if __name__ == "__main__":

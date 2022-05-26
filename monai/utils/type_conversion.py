@@ -32,7 +32,6 @@ __all__ = [
     "convert_to_cupy",
     "convert_to_numpy",
     "convert_to_tensor",
-    "convert_to_meta_tensor",
     "convert_to_dst_type",
 ]
 
@@ -60,6 +59,9 @@ def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
 def get_equivalent_dtype(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
 
+    The input dtype can also be a string. e.g., `"float32"` becomes `torch.float32` or
+    `np.float32` as necessary.
+
     Example::
 
         im = torch.tensor(1)
@@ -68,6 +70,8 @@ def get_equivalent_dtype(dtype, data_type):
     """
     if dtype is None:
         return None
+    if isinstance(dtype, str):
+        dtype = get_numpy_dtype_from_string(dtype)
     if data_type is torch.Tensor:
         if isinstance(dtype, torch.dtype):
             # already a torch dtype and target `data_type` is torch.Tensor
