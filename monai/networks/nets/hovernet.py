@@ -11,7 +11,7 @@
 
 import re
 from collections import OrderedDict
-from typing import Callable, Sequence, Type, Union
+from typing import Callable, Sequence, Type, Union, List
 
 import torch
 import torch.nn as nn
