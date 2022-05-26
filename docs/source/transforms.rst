@@ -743,6 +743,11 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
 
 `GridSplit`
 """""""""""
@@ -1521,6 +1526,12 @@ Spatial (Dict)
     :special-members: __call__
 
 `GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
 """"""""""""
 .. autoclass:: GridPatchd
     :members:
