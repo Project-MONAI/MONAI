@@ -12,6 +12,7 @@
 import math
 import random
 from enum import Enum
+from typing import Tuple, Union
 
 import numpy as np
 
@@ -47,15 +48,20 @@ class FlattenLabeld(MapTransform):
     """
     FlattenLabeld creates labels per closed object contour (defined by a connectivity). For e.g if there are
     12 small regions of 1's it will delineate them into 12 different label classes
+
+    Args:
+        connectivity: Max no. of orthogonal hops to consider a pixel/voxel as a neighbor. Refer skimage.measure.label
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection):
-        super().__init__(keys)
+    def __init__(self, keys: KeysCollection, connectivity: int = 1, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+        self.connectivity = connectivity
 
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
-            d[key] = measure.label(d[key], connectivity=1).astype(np.uint8)
+            d[key] = measure.label(d[key], connectivity=self.connectivity).astype(np.uint8)
         return d
 
 
@@ -70,10 +76,17 @@ class ExtractPatchd(MapTransform):
         keys: image, label
         centroid_key: key where the centroid values are stored, defaults to ``"centroid"``
         patch_size: size of the extracted patch
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, centroid_key: str = NuclickKeys.CENTROID.value, patch_size: int = 128):
-        super().__init__(keys)
+    def __init__(
+        self,
+        keys: KeysCollection,
+        centroid_key: str = NuclickKeys.CENTROID.value,
+        patch_size: Union[Tuple[int, int], int] = 128,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
         self.centroid_key = centroid_key
         self.patch_size = patch_size
 
@@ -165,10 +178,11 @@ class FilterImaged(MapTransform):
 
     Args:
         min_size: The smallest allowable object size
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
-    def __init__(self, keys: KeysCollection, min_size: int = 500):
-        super().__init__(keys)
+    def __init__(self, keys: KeysCollection, min_size: int = 500, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
         self.min_size = min_size
 
     def __call__(self, data):
@@ -432,6 +446,7 @@ class PostFilterLabeld(MapTransform):
         min_size: min_size objects that will be removed from the image, refer skimage remove_small_objects
         min_hole: min_hole that will be removed from the image, refer skimage remove_small_holes
         do_reconstruction: Boolean Flag, Perform a morphological reconstruction of an image, refer skimage
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     def __init__(
@@ -441,12 +456,13 @@ class PostFilterLabeld(MapTransform):
         bounding_boxes: str = NuclickKeys.BOUNDING_BOXES.value,
         img_height: str = NuclickKeys.IMG_HEIGHT.value,
         img_width: str = NuclickKeys.IMG_WIDTH.value,
-        thresh=0.33,
-        min_size=10,
-        min_hole=30,
-        do_reconstruction=False,
+        thresh: float = 0.33,
+        min_size: int = 10,
+        min_hole: int = 30,
+        do_reconstruction: bool = False,
+        allow_missing_keys: bool = False,
     ):
-        super().__init__(keys)
+        super().__init__(keys, allow_missing_keys)
         self.nuc_points = nuc_points
         self.bounding_boxes = bounding_boxes
         self.img_height = img_height

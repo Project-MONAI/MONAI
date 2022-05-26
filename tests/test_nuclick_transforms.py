@@ -59,6 +59,8 @@ LABEL_2 = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], dty
 
 LABEL_3 = np.array([[[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]]], dtype=np.uint8)
 
+LABEL_4 = np.array([[[4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4], [4, 4, 4, 4]]], dtype=np.uint8)
+
 IL_IMAGE_1 = np.array(
     [
         [[0, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 1]],
@@ -105,6 +107,7 @@ DATA_EXTRACT_1 = {"image": IL_IMAGE_1, "label": IL_LABEL_1, "centroid": (2, 2)}
 DATA_EXTRACT_2 = {"image": IL_IMAGE_2, "label": IL_LABEL_2, "centroid": (1, 1)}
 
 DATA_SPLIT_1 = {"label": LABEL_3, "mask_value": 1}
+DATA_SPLIT_2 = {"label": LABEL_4, "mask_value": 4}
 
 DATA_GUIDANCE_1 = {"image": IL_IMAGE_1, "label": IL_LABEL_1, "others": IL_OTHERS_1, "centroid": (2, 2)}
 
@@ -120,8 +123,10 @@ DATA_LABEL_FILTER_1 = {
 
 # Result Definitions
 EXTRACT_RESULT_TC1 = np.array([[[0, 0, 0], [0, 0, 0], [0, 0, 1]]], dtype=np.uint8)
+EXTRACT_RESULT_TC2 = np.array([[[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
 
 SPLIT_RESULT_TC1 = np.array([[[1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]], dtype=np.uint8)
+SPLIT_RESULT_TC2 = np.array([[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]], dtype=np.uint8)
 
 # Test Case Definitions
 FILTER_IMAGE_TEST_CASE_1 = [{"keys": "image", "min_size": 1}, DATA_FILTER_1, [3, 3, 3]]
@@ -135,8 +140,10 @@ EXTRACT_TEST_CASE_2 = [{"keys": ["image", "label"], "patch_size": 5}, DATA_EXTRA
 EXTRACT_TEST_CASE_3 = [{"keys": ["image", "label"], "patch_size": 1}, DATA_EXTRACT_2, [1, 1, 1]]
 
 EXTRACT_RESULT_TEST_CASE_1 = [{"keys": ["image", "label"], "patch_size": 3}, DATA_EXTRACT_1, EXTRACT_RESULT_TC1]
+EXTRACT_RESULT_TEST_CASE_2 = [{"keys": ["image", "label"], "patch_size": 4}, DATA_EXTRACT_2, EXTRACT_RESULT_TC2]
 
 SPLIT_TEST_CASE_1 = [{"label": "label", "mask_value": "mask_value", "min_area": 1}, DATA_SPLIT_1, SPLIT_RESULT_TC1]
+SPLIT_TEST_CASE_2 = [{"label": "label", "mask_value": "mask_value", "min_area": 3}, DATA_SPLIT_2, SPLIT_RESULT_TC2]
 
 GUIDANCE_TEST_CASE_1 = [{"image": "image", "label": "label", "others": "others"}, DATA_GUIDANCE_1, [5, 5, 5]]
 
@@ -167,14 +174,14 @@ class TestExtractPatchd(unittest.TestCase):
         result = ExtractPatchd(**arguments)(input_data)
         np.testing.assert_equal(result["label"].shape, expected_shape)
 
-    @parameterized.expand([EXTRACT_RESULT_TEST_CASE_1])
+    @parameterized.expand([EXTRACT_RESULT_TEST_CASE_1, EXTRACT_RESULT_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = ExtractPatchd(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
 
 
 class TestSplitLabelsd(unittest.TestCase):
-    @parameterized.expand([SPLIT_TEST_CASE_1])
+    @parameterized.expand([SPLIT_TEST_CASE_1, SPLIT_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SplitLabeld(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)
