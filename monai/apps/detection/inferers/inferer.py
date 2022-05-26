@@ -24,7 +24,7 @@ __all__ = ["SlidingWindowMultiOutputInferer"]
 
 class SlidingWindowMultiOutputInferer(Inferer):
     """
-    Sliding window method for model inference,
+    Sliding window method for model inference that supports multiple outputs,
     with `sw_batch_size` windows for every model.forward().
     Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
