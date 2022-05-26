@@ -34,7 +34,15 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 from .box_ops import apply_affine_to_boxes, flip_boxes, resize_boxes, zoom_boxes
 
-__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode", "AffineBox", "ZoomBox", "ResizeBox", "FlipBox"]
+__all__ = [
+    "ConvertBoxToStandardMode",
+    "ConvertBoxMode",
+    "AffineBox",
+    "ZoomBox",
+    "ResizeBox",
+    "FlipBox",
+    "ClipBoxToImage",
+]
 
 
 class ConvertBoxMode(Transform):
@@ -341,9 +349,10 @@ class ClipBoxToImage(Transform):
         Example:
             .. code-block:: python
 
+                # example inputs:
                 boxes = torch.ones(2, 6)
                 class_labels = torch.Tensor([0, 1])
-                pred_scores = torch.Tensor([0.4, 0.5])
+                pred_scores = torch.Tensor([[0.4,0.3,0.3], [0.5,0.1,0.4]])
                 labels = (class_labels, pred_scores)
                 spatial_size = [32, 32, 32]
         """
@@ -360,6 +369,6 @@ class ClipBoxToImage(Transform):
             labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
             if boxes.shape[0] != labels_t.shape[0]:
                 raise ValueError("boxes.shape[0] should be equal to the number of labels or scores.")
-            labels_t = deepcopy(labels_t)[keep_t, ...]
+            labels_t = deepcopy(labels_t[keep_t, ...])
             labels_clip_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
         return boxes_clip, tuple(labels_clip_list)

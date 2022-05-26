@@ -697,7 +697,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class ClipBoxToImaged(MapTransform, InvertibleTransform):
+class ClipBoxToImaged(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.ClipBoxToImage`.
 
@@ -706,7 +706,7 @@ class ClipBoxToImaged(MapTransform, InvertibleTransform):
 
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the lables corresponding to the ``box_keys``.
+        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Multiple keys are allowed.
         box_ref_image_keys: The single key that represents the reference image
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
@@ -741,7 +741,7 @@ class ClipBoxToImaged(MapTransform, InvertibleTransform):
                 All box_keys and label_keys are attached to this box_ref_image_keys."
             )
         self.label_keys = ensure_tuple(label_keys)
-        super().__init__(box_keys_tuple + self.label_keys, allow_missing_keys)
+        super().__init__(box_keys_tuple, allow_missing_keys)
 
         self.box_keys = box_keys_tuple[0]
         self.box_ref_image_keys = box_ref_image_keys_tuple[0]
@@ -750,20 +750,11 @@ class ClipBoxToImaged(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         spatial_size = d[self.box_ref_image_keys].shape[1:]
-        self.push_transform(d, self.box_keys)
-        labels = [d[label_key] for label_key in self.label_keys]
+        labels = [d[label_key] for label_key in self.label_keys]  # could be multiple arrays
         d[self.box_keys], clipped_labels = self.clipper(d[self.box_keys], labels, spatial_size)
 
         for label_key, clipped_labels_i in zip(self.label_keys, clipped_labels):
-            self.push_transform(d, label_key)
             d[label_key] = clipped_labels_i
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        # clipped boxes cannot be restored
-        for key in self.key_iterator(d):
-            self.pop_transform(d, key)
         return d
 
 
