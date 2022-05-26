@@ -227,7 +227,7 @@ Tips: if overlap*roi_size*zoom_scale is int, it usually works."
                 # zoom importance_map
                 if importance_map.shape != seg_prob.shape[2:]:
                     importance_map_zoom = (
-                        F.interpolate(
+                        F.interpolate( # F.interpolate does not support float16
                             importance_map.unsqueeze(0).unsqueeze(0).to(torch.float32), size=seg_prob.shape[2:]
                         )
                         .to(compute_dtype)
@@ -247,13 +247,16 @@ Tips: if overlap*roi_size*zoom_scale is int, it usually works."
         output_image_list[ss] = (output_image_list[ss] / count_map_list[ss]).to(compute_dtype)
     del count_map_list
 
+    # remove padding if image_size smaller than roi_size
     for ss in range(len(output_image_list)):
         if torch.isnan(output_image_list[ss]).any() or torch.isinf(output_image_list[ss]).any():
             raise ValueError("Sliding window inference results contain NaN or Inf.")
+        
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d
             for seg_prob_map_shape_d, roi_size_d in zip(output_image_list[ss].shape[2:], roi_size)
         ]
+        
         final_slicing: List[slice] = []
         for sp in range(num_spatial_dims):
             slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
@@ -267,6 +270,7 @@ Tips: if overlap*roi_size*zoom_scale is int, it usually works."
         output_image_list[ss] = output_image_list[ss][final_slicing]
 
     if dict_key is not None:
+        # if output is dict
         final_output = {}
         for k, v in zip(dict_key, output_image_list):
             final_output[k] = v

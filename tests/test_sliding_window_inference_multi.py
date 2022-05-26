@@ -299,7 +299,7 @@ class TestSlidingWindowMultiOutputInference(unittest.TestCase):
         }
         for rr, ee in zip(result, expected):
             np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
-        for rr, ee in zip(result_dict, expected_dict):
+        for rr, _ in zip(result_dict, expected_dict):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
         result = SlidingWindowMultiOutputInferer(
@@ -311,7 +311,7 @@ class TestSlidingWindowMultiOutputInference(unittest.TestCase):
         result_dict = SlidingWindowMultiOutputInferer(
             roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
         )(inputs, compute_dict)
-        for rr, ee in zip(result_dict, expected_dict):
+        for rr, _ in zip(result_dict, expected_dict):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
 
