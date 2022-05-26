@@ -251,12 +251,12 @@ Tips: if overlap*roi_size*zoom_scale is int, it usually works."
     for ss in range(len(output_image_list)):
         if torch.isnan(output_image_list[ss]).any() or torch.isinf(output_image_list[ss]).any():
             raise ValueError("Sliding window inference results contain NaN or Inf.")
-        
+
         zoom_scale = [
             seg_prob_map_shape_d / roi_size_d
             for seg_prob_map_shape_d, roi_size_d in zip(output_image_list[ss].shape[2:], roi_size)
         ]
-        
+
         final_slicing: List[slice] = []
         for sp in range(num_spatial_dims):
             slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
