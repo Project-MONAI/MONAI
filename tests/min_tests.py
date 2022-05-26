@@ -77,7 +77,6 @@ def run_testsuit():
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
-        "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_surface_distance",
