@@ -103,7 +103,7 @@ class SlidingWindowMultiOutputInferer(Inferer):
                 )
         except Exception as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try to use smaller patch size or use mode='constant' instead of mode='gaussian'. "
+                "Seems to be OOM. Please try to use smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
             ) from e
 
     def __call__(

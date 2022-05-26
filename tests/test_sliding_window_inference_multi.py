@@ -250,10 +250,10 @@ class TestSlidingWindowMultiOutputInference(unittest.TestCase):
         sw_batch_size = 10
 
         def compute(data):
-            return torch.tile(data, (2, 2)), data + 1, data[:, :, ::2, ::2] + 2, data[:, :, ::4, ::4] + 3
+            return data + 1, data[:, :, ::2, ::2] + 2, data[:, :, ::4, ::4] + 3
 
         def compute_dict(data):
-            return {0: torch.tile(data, (2, 2)), 1: data + 1, 2: data[:, :, ::2, ::2] + 2, 3: data[:, :, ::4, ::4] + 3}
+            return {1: data + 1, 2: data[:, :, ::2, ::2] + 2, 3: data[:, :, ::4, ::4] + 3}
 
         result = sliding_window_inference_multioutput(
             inputs,
@@ -286,13 +286,11 @@ class TestSlidingWindowMultiOutputInference(unittest.TestCase):
             None,
         )
         expected = (
-            np.ones((1, 1, 40, 40)),
             np.ones((1, 1, 20, 20)) + 1,
             np.ones((1, 1, 10, 10)) + 2,
             np.ones((1, 1, 5, 5)) + 3,
         )
         expected_dict = {
-            0: np.ones((1, 1, 40, 40)),
             1: np.ones((1, 1, 20, 20)) + 1,
             2: np.ones((1, 1, 10, 10)) + 2,
             3: np.ones((1, 1, 5, 5)) + 3,
