@@ -315,7 +315,7 @@ class _DecoderBranch(nn.ModuleList):
         self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE,
                                         interp_mode=InterpolateMode.BILINEAR, bias=False)
 
-    def forward(self, x: torch.Tensor, short_cuts: list[torch.Tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, short_cuts: List[torch.Tensor]) -> torch.Tensor:
 
         block_number=len(short_cuts)-1
 
