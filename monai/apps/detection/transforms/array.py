@@ -349,12 +349,13 @@ class ClipBoxToImage(Transform):
         Example:
             .. code-block:: python
 
-                # example inputs:
+                box_clipper = ClipBoxToImage(remove_empty=True)
                 boxes = torch.ones(2, 6)
                 class_labels = torch.Tensor([0, 1])
                 pred_scores = torch.Tensor([[0.4,0.3,0.3], [0.5,0.1,0.4]])
                 labels = (class_labels, pred_scores)
                 spatial_size = [32, 32, 32]
+                boxes_clip, labels_clip_tuple = box_clipper(boxes, labels, spatial_size)
         """
         spatial_dims: int = get_spatial_dims(boxes=boxes)
         spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)  # match the spatial image dim
