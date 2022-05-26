@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
-import skimage
 import torch
 
 from monai.config import DtypeLike
@@ -33,7 +32,10 @@ from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, w
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
+
+skimage, _ = optional_import("skimage")
 
 __all__ = [
     "RandGaussianNoise",
@@ -2161,37 +2163,38 @@ class ForegroundMask(Transform):
     def __init__(
         self,
         threshold: Union[Dict, Callable, str, float] = "otsu",
-        hsv_threshold: Optional[Union[Dict, Callable, str, float]] = None,
-        high_value_foreground: bool = False,
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
     ) -> None:
         self.thresholds = {}
-        if isinstance(threshold, dict):
-            for mode, th in threshold.items():
-                self._set_threshold(th, mode)
-        else:
-            self._set_threshold(threshold, "R")
-            self._set_threshold(threshold, "G")
-            self._set_threshold(threshold, "B")
+        if threshold is not None:
+            if isinstance(threshold, dict):
+                for mode, th in threshold.items():
+                    self._set_threshold(th, mode)
+            else:
+                self._set_threshold(threshold, "R")
+                self._set_threshold(threshold, "G")
+                self._set_threshold(threshold, "B")
         if hsv_threshold is not None:
             if isinstance(hsv_threshold, dict):
-                for mode, th in threshold.items():
+                for mode, th in hsv_threshold.items():
                     self._set_threshold(th, mode)
             else:
                 self._set_threshold(hsv_threshold, "H")
                 self._set_threshold(hsv_threshold, "S")
                 self._set_threshold(hsv_threshold, "V")
 
-        self.high_value_foreground = high_value_foreground
+        self.invert = invert
 
     def _set_threshold(self, threshold, mode):
         if callable(threshold):
             self.thresholds[mode] = threshold
         elif isinstance(threshold, str):
             self.thresholds[mode] = getattr(skimage.filters, "threshold_" + threshold.lower())
-        elif isinstance(threshold, float):
-            self.thresholds[mode] = threshold
+        elif isinstance(threshold, (float, int)):
+            self.thresholds[mode] = float(threshold)
         else:
-            ValueError(
+            raise ValueError(
                 f"`threshold` should be either a callable, string, or float number, {type(threshold)} was given."
             )
 
@@ -2202,8 +2205,8 @@ class ForegroundMask(Transform):
         return threshold
 
     def __call__(self, img_rgb: NdarrayOrTensor):
-        if self.high_value_foreground:
-            img_rgb = skimage.util.invert(img_rgb.invert)
+        if self.invert:
+            img_rgb = skimage.util.invert(img_rgb)
 
         foreground = np.zeros_like(img_rgb[:1])
         for img, mode in zip(img_rgb, "RGB"):
@@ -2216,6 +2219,6 @@ class ForegroundMask(Transform):
             for img, mode in zip(img_hsv, "HSV"):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
-                    foreground |= img < threshold
+                    foreground |= img > threshold
 
         return foreground
