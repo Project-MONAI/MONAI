@@ -275,6 +275,7 @@ class TestSpacingCase(unittest.TestCase):
         self.assertGreater(l2_norm_affine, 5e-2)
         # check that with inverse, image affine are back to how they were
         img = tr.inverse(img)
+        self.assertEqual(img.applied_operations, [])
         self.assertEqual(img.shape, img_t.shape)
         l2_norm_affine = ((affine - img.affine) ** 2).sum() ** 0.5
         self.assertLess(l2_norm_affine, 5e-2)
