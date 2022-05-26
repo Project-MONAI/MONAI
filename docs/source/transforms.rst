@@ -743,7 +743,7 @@ Spatial
     :members:
     :special-members: __call__
 
-`GridPatch`
+`RandGridPatch`
 """""""""""
 .. autoclass:: RandGridPatch
     :members:
@@ -1533,7 +1533,7 @@ Spatial (Dict)
 
 `RandGridPatchd`
 """"""""""""
-.. autoclass:: GridPatchd
+.. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__
 
