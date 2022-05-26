@@ -354,7 +354,7 @@ class AddClickSignalsd(MapTransform):
         d[NuclickKeys.IMG_HEIGHT.value] = img_height
         d[NuclickKeys.NUC_POINTS.value] = nuc_points
 
-        d[self.image] = np.concatenate((patches, nuc_points, other_points), axis=1, dtype=np.float32)
+        d[self.image] = np.concatenate((patches, nuc_points, other_points), axis=1).astype(dtype=np.float32)
         return d
 
     def get_clickmap_boundingbox(self, cx, cy, m, n, bb=128):
