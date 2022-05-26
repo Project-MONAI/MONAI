@@ -461,5 +461,5 @@ class HoverNet(nn.Module):
             return {"type_prediction": x_tp, "nucleus_prediction": x_np, "horizonal_vertical": x_hv}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
-   
+
 hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
