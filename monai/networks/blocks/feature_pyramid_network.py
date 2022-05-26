@@ -59,6 +59,8 @@ from torch import Tensor, nn
 
 from monai.networks.layers.factories import Conv, Pool
 
+__all__ = ["ExtraFPNBlock", "LastLevelMaxPool", "LastLevelP6P7", "FeaturePyramidNetwork"]
+
 
 class ExtraFPNBlock(nn.Module):
     """

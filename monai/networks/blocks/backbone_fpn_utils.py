@@ -62,10 +62,12 @@ from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastL
 
 torchvision_models, _ = optional_import("torchvision.models")
 
+__all__ = ["BackboneWithFPN"]
+
 
 class BackboneWithFPN(nn.Module):
     """
-    Adds a FPN on top of a model.
+    Adds an FPN on top of a model.
     Internally, it uses torchvision.models._utils.IntermediateLayerGetter to
     extract a submodel that returns the feature maps specified in return_layers.
     The same limitations of IntermediateLayerGetter apply here.

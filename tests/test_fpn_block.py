@@ -15,7 +15,7 @@ from collections import OrderedDict
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.networks.blocks.feature_pyramid_network import FeaturePyramidNetwork
+from monai.networks.blocks.feature_pyramid_network import FeaturePyramidNetwork
 
 TEST_CASES = []
 TEST_CASES.append(
