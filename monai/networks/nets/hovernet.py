@@ -74,13 +74,12 @@ class _DenseLayerDecoder(nn.Module):
             self.layers.add_module("dropout", dropout_type(dropout_prob))
 
 
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         s = x.shape
         new_features = self.layers(x)
         x = torch.cat([x, new_features], 1)
         x = x[:,:,1:-1,1:-1]
-        print("DenseBlock: ", s, new_features.shape, x.shape)
+
         return x
 
 class _DecoderBlock(nn.Sequential):
@@ -255,15 +254,11 @@ class _ResidualBlock(nn.Module):
             if x.shape[-1] != sc.shape[-1]:
                 x = x[:,:,:-1,:-1]
 
-            print("FWD ",x.shape,sc.shape)
-
             x = x + sc
             sc = x
             i+=1
 
         x = self.bna_block(x)
-
-        print("ResidualBlk: ",s, x.shape)
 
         return x
 
@@ -297,7 +292,6 @@ class _DecoderBranch(nn.ModuleList):
             )
             self.decoder_blocks.add_module(f"decoderblock{i + 1}", block)
             _in_channels = 512
-
 
         # output layers
         self.output_features = nn.Sequential()
@@ -426,8 +420,6 @@ class HoverNet(nn.Module):
             self.type_prediction = _DecoderBranch(out_channels = num_types)
         else:
             self.type_prediction = None
-
-
 
         for m in self.modules():
             if isinstance(m, conv_type):
