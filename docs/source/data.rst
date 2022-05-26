@@ -312,6 +312,11 @@ PatchWSIDataset
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
 
+SlidingPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.SlidingPatchWSIDataset
+    :members:
+
 Bounding box
 ------------
 .. automodule:: monai.data.box_utils
