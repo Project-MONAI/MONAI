@@ -127,7 +127,7 @@ An example JSON metadata file:
       "authors": "MONAI team",
       "copyright": "Copyright (c) MONAI Consortium",
       "data_source": "Task09_Spleen.tar from http://medicaldecathlon.com/",
-      "data_type": "dicom",
+      "data_type": "nibabel",
       "image_classes": "single channel data, intensity scaled to [0, 1]",
       "label_classes": "single channel data, 1 is spleen, 0 is everything else",
       "pred_classes": "2 channels OneHot data, channel 1 is spleen, channel 0 is background",
@@ -143,25 +143,25 @@ An example JSON metadata file:
           "inputs": {
               "image": {
                   "type": "image",
-                  "format": "magnitude",
-                  "modality": "MR",
+                  "format": "hounsfield",
+                  "modality": "CT",
                   "num_channels": 1,
-                  "spatial_shape": [160, 160, 160],
+                  "spatial_shape": [96, 96, 96],
                   "dtype": "float32",
                   "value_range": [0, 1],
-                  "is_patch_data": false,
+                  "is_patch_data": true,
                   "channel_def": {0: "image"}
               }
           },
           "outputs":{
               "pred": {
                   "type": "image",
-                  "format": "labels",
+                  "format": "segmentation",
                   "num_channels": 2,
-                  "spatial_shape": [160, 160, 160],
+                  "spatial_shape": [96, 96, 96],
                   "dtype": "float32",
                   "value_range": [],
-                  "is_patch_data": false,
+                  "is_patch_data": true,
                   "channel_def": {0: "background", 1: "spleen"}
               }
           }
