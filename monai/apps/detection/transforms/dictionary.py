@@ -22,7 +22,14 @@ from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Unio
 import numpy as np
 import torch
 
-from monai.apps.detection.transforms.array import AffineBox, ConvertBoxMode, ConvertBoxToStandardMode, FlipBox, ZoomBox
+from monai.apps.detection.transforms.array import (
+    AffineBox,
+    ClipBoxToImage,
+    ConvertBoxMode,
+    ConvertBoxToStandardMode,
+    FlipBox,
+    ZoomBox,
+)
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import BoxMode
@@ -56,6 +63,9 @@ __all__ = [
     "RandFlipBoxd",
     "RandFlipBoxD",
     "RandFlipBoxDict",
+    "ClipBoxToImaged",
+    "ClipBoxToImageD",
+    "ClipBoxToImageDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -264,7 +274,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
@@ -401,7 +411,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
             to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
             If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
@@ -687,6 +697,67 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
+class ClipBoxToImaged(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.ClipBoxToImage`.
+
+    Clip the bounding boxes and the associated labels/scores to makes sure they are within the image.
+    There might be multiple keys of labels/scores associated with one key of boxes.
+
+    Args:
+        box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Multiple keys are allowed.
+        box_ref_image_keys: The single key that represents the reference image
+            to which ``box_keys`` and ``label_keys`` are attached.
+        remove_empty: whether to remove the boxes that are actually empty
+        allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        .. code-block:: python
+
+            ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=["labels", "scores"], remove_empty=True
+            )
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        label_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        remove_empty: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        box_keys_tuple = ensure_tuple(box_keys)
+        if len(box_keys_tuple) != 1:
+            raise ValueError(
+                "Please provide a single key for box_keys.\
+                All label_keys are attached to this box_keys."
+            )
+        box_ref_image_keys_tuple = ensure_tuple(box_ref_image_keys)
+        if len(box_ref_image_keys_tuple) != 1:
+            raise ValueError(
+                "Please provide a single key for box_ref_image_keys.\
+                All box_keys and label_keys are attached to this box_ref_image_keys."
+            )
+        self.label_keys = ensure_tuple(label_keys)
+        super().__init__(box_keys_tuple, allow_missing_keys)
+
+        self.box_keys = box_keys_tuple[0]
+        self.box_ref_image_keys = box_ref_image_keys_tuple[0]
+        self.clipper = ClipBoxToImage(remove_empty=remove_empty)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        spatial_size = d[self.box_ref_image_keys].shape[1:]
+        labels = [d[label_key] for label_key in self.label_keys]  # could be multiple arrays
+        d[self.box_keys], clipped_labels = self.clipper(d[self.box_keys], labels, spatial_size)
+
+        for label_key, clipped_labels_i in zip(self.label_keys, clipped_labels):
+            d[label_key] = clipped_labels_i
+        return d
+
+
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
@@ -694,3 +765,4 @@ RandZoomBoxD = RandZoomBoxDict = RandZoomBoxd
 AffineBoxToImageCoordinateD = AffineBoxToImageCoordinateDict = AffineBoxToImageCoordinated
 FlipBoxD = FlipBoxDict = FlipBoxd
 RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
+ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
