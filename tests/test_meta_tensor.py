@@ -267,7 +267,7 @@ class TestMetaTensor(unittest.TestCase):
         im_conv = conv(im)
         with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
-        self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
+        self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
 
     def test_out(self):
         """Test when `out` is given as an argument."""
