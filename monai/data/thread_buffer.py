@@ -105,8 +105,10 @@ class _ProcessQueue(Queue):
 class _ProcessThreadContext(SpawnContext):
     _name = "processthread"
 
-    Process = _ProcessThread  # threads will be created which looks like processes
-    Queue = _ProcessQueue  # thread queue used in place of process queue to avoid some weird cleanup errors
+    # threads will be created which looks like processes
+    Process = _ProcessThread  # type: ignore
+    # thread queue used in place of process queue to avoid some weird cleanup errors
+    Queue = _ProcessQueue  # type: ignore
 
 
 class ThreadDataLoader(DataLoader):
@@ -142,7 +144,7 @@ class ThreadDataLoader(DataLoader):
         buffer_size: number of items to buffer from the data source.
         buffer_timeout: time to wait for an item from the buffer, or to wait while the buffer is full when adding items.
         repeats: number of times to yield the same batch.
-        use_thread_workers: if True and num_workers > 1 the workers are created as threads instead of processes
+        use_thread_workers: if True and num_workers > 0 the workers are created as threads instead of processes
         kwargs: other arguments for `DataLoader` except for `dataset`.
 
     """
@@ -158,7 +160,7 @@ class ThreadDataLoader(DataLoader):
     ):
         # if workers should be threads, create a new multiprocessing context with the process and queue types
         # substituted with the shim types given above
-        if use_thread_workers and kwargs.get("num_workers", 0) > 1:
+        if use_thread_workers and kwargs.get("num_workers", 0) > 0:
             kwargs["multiprocessing_context"] = _ProcessThreadContext()
             kwargs["persistent_workers"] = False
 
