@@ -338,7 +338,7 @@ class ClipBoxToImage(Transform):
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
-            labels: Sequence of int array. Each element represents classification labels or scores
+            labels: Sequence of array. Each element represents classification labels or scores
                 corresponding to ``boxes``, sized (N,).
             spatial_size: The spatial size of the image where the boxes are attached. len(spatial_size) should be in [2, 3].
 
