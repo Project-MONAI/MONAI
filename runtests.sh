@@ -14,6 +14,9 @@
 # script for running all tests
 set -e
 
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 # output formatting
 separator=""
 blue=""
@@ -51,6 +54,7 @@ doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
 doDistTests=false
+doPrecommit=false
 
 NUM_PARALLEL=1
 
@@ -59,7 +63,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
+    echo "            [--copyright] [--build] [--clean] [--precommit] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -78,6 +82,7 @@ function print_usage {
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
+    echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks"
@@ -146,6 +151,8 @@ function clang_format {
         exit 1
     fi
     find monai/csrc -type f | while read i; do $clang_format_tool -style=file -i $i; done
+    find monai/_extensions -type f -name "*.cpp" -o -name "*.h" -o -name "*.cuh" -o -name "*.cu" |\
+        while read i; do $clang_format_tool -style=file -i $i; done
 }
 
 function clean_py {
@@ -272,6 +279,9 @@ do
         ;;
         --pylint)
             doPylintFormat=true
+        ;;
+        --precommit)
+            doPrecommit=true
         ;;
         --pytype)
             doPytypeFormat=true
@@ -405,7 +415,7 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}isort --version
+    ${cmdPrefix}${PY_EXE} -m isort --version
 
     if [ $doIsortFix = true ]
     then
@@ -481,6 +491,29 @@ then
     then
         print_style_fail_msg
         exit ${flake8_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+if [ $doPrecommit = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pre-commit${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pre_commit
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pre_commit run --all-files
+
+    pre_commit_status=$?
+    if [ ${pre_commit_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pre_commit_status}
     else
         echo "${green}passed!${noColor}"
     fi

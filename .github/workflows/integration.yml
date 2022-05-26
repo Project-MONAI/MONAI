@@ -8,7 +8,7 @@ jobs:
   integration-py3:
     container:
       image: nvcr.io/nvidia/pytorch:21.12-py3  # CUDA 11.5
-      options: --gpus all
+      options: --gpus all  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, common]
     steps:
     # checkout the pull request branch

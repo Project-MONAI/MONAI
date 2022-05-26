@@ -40,6 +40,7 @@ class TestAllImport(unittest.TestCase):
         to_exclude = {"MapTransform"}  # except for these transforms
         to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision"}
         to_exclude_docs.update({"DeleteItems", "SelectItems", "CopyItems", "ConcatItems"})
+        to_exclude_docs.update({"ToMetaTensor", "FromMetaTensor"})
         xforms = {
             name: obj
             for name, obj in monai.transforms.__dict__.items()

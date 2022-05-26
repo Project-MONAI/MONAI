@@ -561,17 +561,17 @@ class Invertd(MapTransform):
             orig_keys: the key of the original input data in the dict.
                 the transform trace information of ``transforms`` should be stored at ``{orig_keys}_transforms``.
                 It can also be a list of keys, each matches the ``keys``.
-            meta_keys: The key to output the inverted meta data dictionary.
-                The meta data is a dictionary optionally containing: filename, original_shape.
+            meta_keys: The key to output the inverted metadata dictionary.
+                The metadata is a dictionary optionally containing: filename, original_shape.
                 It can be a sequence of strings, maps to ``keys``.
-                If None, will try to create a meta data dict with the default key: `{key}_{meta_key_postfix}`.
-            orig_meta_keys: the key of the meta data of original input data.
-                The meta data is a dictionary optionally containing: filename, original_shape.
+                If None, will try to create a metadata dict with the default key: `{key}_{meta_key_postfix}`.
+            orig_meta_keys: the key of the metadata of original input data.
+                The metadata is a dictionary optionally containing: filename, original_shape.
                 It can be a sequence of strings, maps to the `keys`.
-                If None, will try to create a meta data dict with the default key: `{orig_key}_{meta_key_postfix}`.
-                This meta data dict will also be included in the inverted dict, stored in `meta_keys`.
+                If None, will try to create a metadata dict with the default key: `{orig_key}_{meta_key_postfix}`.
+                This metadata dict will also be included in the inverted dict, stored in `meta_keys`.
             meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to fetch the
-                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`. Default: ``"meta_dict"``.
+                metadata from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`. Default: ``"meta_dict"``.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 It also can be a list of bool, each matches to the `keys` data.
@@ -660,7 +660,7 @@ class Invertd(MapTransform):
 
 class SaveClassificationd(MapTransform):
     """
-    Save the classification results and meta data into CSV file or other storage.
+    Save the classification results and metadata into CSV file or other storage.
 
     """
 
@@ -681,16 +681,16 @@ class SaveClassificationd(MapTransform):
         Args:
             keys: keys of the corresponding items to model output, this transform only supports 1 key.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
                 will extract the filename of input image to save classification results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
             saver: the saver instance to save classification results, if None, create a CSVSaver internally.
                 the saver must provide `save(data, meta_data)` and `finalize()` APIs.

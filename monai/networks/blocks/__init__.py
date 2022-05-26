@@ -20,7 +20,7 @@ from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlo
 from .fcn import FCN, GCN, MCFCN, Refine
 from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlock, LocalNetUpSampleBlock
 from .mlp import MLPBlock
-from .patchembedding import PatchEmbeddingBlock
+from .patchembedding import PatchEmbed, PatchEmbeddingBlock
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
 from .segresnet_block import ResBlock
 from .selfattention import SABlock
