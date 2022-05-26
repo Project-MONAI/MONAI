@@ -1659,6 +1659,24 @@ class HistogramNormalized(MapTransform):
 
 
 class ForegroundMaskd(MapTransform):
+    """
+    Creates a binary mask that defines the foreground.
+    This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
+    low values (dark) while the background is white.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        threshold: an int or a float number that defines the threshold for the input image. Or a callable that receives
+            each dimension of the image and calculate the threshold, or a string  the defines such callable from
+            skimage.filter.threshold_xxxx. Also a dictionary can be passed that defines such thresholds for each channel.
+            like {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean }
+        hsv_threshold: similar to threshold but for HSV color space ("H", "S", and "V").
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
     def __init__(
         self,
         keys: KeysCollection,

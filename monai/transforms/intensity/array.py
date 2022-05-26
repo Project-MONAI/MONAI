@@ -2178,11 +2178,11 @@ class ForegroundMask(Transform):
 
     def __init__(
         self,
-        threshold: Union[Dict, Callable, str, float] = "otsu",
+        threshold: Union[Dict, Callable, str, float, int] = "otsu",
         hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
         invert: bool = False,
     ) -> None:
-        self.thresholds = {}
+        self.thresholds: Dict[str, Union[Callable, float]] = {}
         if threshold is not None:
             if isinstance(threshold, dict):
                 for mode, th in threshold.items():
@@ -2230,7 +2230,7 @@ class ForegroundMask(Transform):
             if threshold:
                 foreground |= img < threshold
 
-        if set(list("HSV")) & set(self.thresholds.keys()):
+        if set("HSV") & set(self.thresholds.keys()):
             img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
             for img, mode in zip(img_hsv, "HSV"):
                 threshold = self._get_threshold(img, mode)
