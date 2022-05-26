@@ -701,6 +701,9 @@ class ClipBoxToImaged(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.ClipBoxToImage`.
 
+    Clip the bounding boxes and the associated labels/scores to makes sure they are within the image.
+    There might be multiple keys of labels/scores associated with one key of boxes.
+
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         label_keys: Keys that represents the lables corresponding to the ``box_keys``.
