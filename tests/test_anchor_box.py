@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.networks.utils.anchor_utils import AnchorGenerator
+from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.utils import optional_import
 from tests.utils import assert_allclose
 
