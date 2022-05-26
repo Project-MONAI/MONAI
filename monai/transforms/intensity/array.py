@@ -2160,6 +2160,22 @@ class RandIntensityRemap(RandomizableTransform):
 
 
 class ForegroundMask(Transform):
+    """
+    Creates a binary mask that defines the foreground.
+    This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
+    low values (dark) while the background is white.
+
+    Args:
+        threshold: an int or a float number that defines the threshold for the input image. Or a callable that receives
+            each dimension of the image and calculate the threshold, or a string  the defines such callable from
+            skimage.filter.threshold_xxxx. Also a dictionary can be passed that defines such thresholds for each channel.
+            like {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean }
+        hsv_threshold: similar to threshold but for HSV color space ("H", "S", and "V").
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+
+    """
+
     def __init__(
         self,
         threshold: Union[Dict, Callable, str, float] = "otsu",
@@ -2170,7 +2186,7 @@ class ForegroundMask(Transform):
         if threshold is not None:
             if isinstance(threshold, dict):
                 for mode, th in threshold.items():
-                    self._set_threshold(th, mode)
+                    self._set_threshold(th, mode.upper())
             else:
                 self._set_threshold(threshold, "R")
                 self._set_threshold(threshold, "G")
@@ -2178,7 +2194,7 @@ class ForegroundMask(Transform):
         if hsv_threshold is not None:
             if isinstance(hsv_threshold, dict):
                 for mode, th in hsv_threshold.items():
-                    self._set_threshold(th, mode)
+                    self._set_threshold(th, mode.upper())
             else:
                 self._set_threshold(hsv_threshold, "H")
                 self._set_threshold(hsv_threshold, "S")

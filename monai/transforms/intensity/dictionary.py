@@ -23,6 +23,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
@@ -88,6 +89,7 @@ __all__ = [
     "RandCoarseDropoutd",
     "RandCoarseShuffled",
     "HistogramNormalized",
+    "ForegroundMaskd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -146,6 +148,8 @@ __all__ = [
     "HistogramNormalizeDict",
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
+    "ForegroundMaskD",
+    "ForegroundMaskDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1654,6 +1658,29 @@ class HistogramNormalized(MapTransform):
         return d
 
 
+class ForegroundMaskd(MapTransform):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        threshold: Union[Dict, Callable, str, float] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ForegroundMask(threshold=threshold, hsv_threshold=hsv_threshold, invert=invert)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1683,3 +1710,4 @@ RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
+ForegroundMaskD = ForegroundMaskDict = ForegroundMask
