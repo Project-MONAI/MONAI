@@ -264,6 +264,8 @@ class ImageWriter:
         if not isinstance(data_array, MetaTensor):
             affine = torch.as_tensor(affine) if affine is not None else None
             data_array = MetaTensor(data_array, affine=affine)
+        if affine is not None:
+            data_array.affine = affine  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
         # convert back at the end
