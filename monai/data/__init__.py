@@ -83,6 +83,7 @@ from .utils import (
     get_valid_patch_size,
     is_supported_format,
     iter_patch,
+    iter_patch_position,
     iter_patch_slices,
     json_hashing,
     list_data_collate,
@@ -103,7 +104,7 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
-from .wsi_datasets import PatchWSIDataset
+from .wsi_datasets import PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
 
 with contextlib.suppress(BaseException):

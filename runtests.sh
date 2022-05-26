@@ -14,6 +14,9 @@
 # script for running all tests
 set -e
 
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
 # output formatting
 separator=""
 blue=""
