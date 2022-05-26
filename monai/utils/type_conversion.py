@@ -70,8 +70,6 @@ def get_equivalent_dtype(dtype, data_type):
     """
     if dtype is None:
         return None
-    if isinstance(dtype, str):
-        dtype = get_numpy_dtype_from_string(dtype)
     if data_type is torch.Tensor:
         if isinstance(dtype, torch.dtype):
             # already a torch dtype and target `data_type` is torch.Tensor

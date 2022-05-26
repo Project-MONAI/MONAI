@@ -49,12 +49,6 @@ class TestGetEquivalentDtype(unittest.TestCase):
         # torch
         dtype = get_torch_dtype_from_string(dtype_str)
         self.assertEqual(dtype, expected_pt)
-        # get equivalent type - numpy
-        dtype = get_equivalent_dtype(dtype_str, np.ndarray)
-        self.assertEqual(dtype, expected_np)
-        # get equivalent type - torch
-        dtype = get_equivalent_dtype(dtype_str, torch.Tensor)
-        self.assertEqual(dtype, expected_pt)
 
 
 if __name__ == "__main__":
