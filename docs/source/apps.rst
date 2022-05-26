@@ -134,10 +134,3 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.transforms.dictionary
     :members:
-
-`FPN`
-~~~~~
-.. automodule:: monai.apps.detection.networks.blocks.feature_pyramid_network
-    :members:
-.. automodule:: monai.apps.detection.networks.blocks.backbone_fpn_utils
-    :members:
