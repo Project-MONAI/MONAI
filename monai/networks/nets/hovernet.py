@@ -239,7 +239,7 @@ class _ResidualBlock(nn.Module):
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
-    def forward(self, x: torch.Tensor) -> torch.tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         s = x.shape
         sc = self.shortcut(x)
 
@@ -315,7 +315,7 @@ class _DecoderBranch(nn.ModuleList):
         self.upsample = UpSample(2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE,
                                         interp_mode=InterpolateMode.BILINEAR, bias=False)
 
-    def forward(self, x: torch.Tensor, short_cuts: list[torch.tensor]) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, short_cuts: list[torch.Tensor]) -> torch.Tensor:
 
         block_number=len(short_cuts)-1
 
