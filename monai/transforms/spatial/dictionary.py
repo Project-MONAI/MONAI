@@ -2331,6 +2331,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             pad_opts=pad_opts,
             seed=seed,
         )
+        self.set_random_state(seed)
         self.max_num_patches = max_num_patches
 
     def set_random_state(

@@ -51,6 +51,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     PytorchPadMode,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -63,7 +64,7 @@ from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type
 
 nib, has_nib = optional_import("nibabel")
 
@@ -2684,8 +2685,9 @@ class GridPatch(Transform):
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
+        array_np, *_ = convert_data_type(array, np.ndarray)
         patch_iterator = iter_patch(
-            array,  # type: ignore
+            array_np,
             patch_size=(None,) + self.patch_size,  # expand to have the channel dim
             start_pos=(0,) + self.start_pos,  # expand to have the channel dim
             overlap=self.overlap,
@@ -2701,6 +2703,8 @@ class GridPatch(Transform):
         # keep up to max_num_patches
         output = output[: self.max_num_patches]
         self.num_patches = len(output)
+        if not isinstance(array, np.ndarray):
+            output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
         return output
 
 
