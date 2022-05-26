@@ -63,11 +63,13 @@ can be parameterized with the factory name and the arguments to pass to the crea
 import warnings
 from typing import Any, Callable, Dict, Tuple, Type, Union
 
+import torch
 import torch.nn as nn
 
 from monai.utils import look_up_option, optional_import
 
 InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -263,8 +265,21 @@ def instance_nvfuser_factory(dim):
     if dim != 3:
         warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
         return types[dim - 1]
-    if not has_nvfuser:
-        warnings.warn("`apex.normalization.InstanceNorm3dNVFuser` is not found, use nn.InstanceNorm3d instead.")
+    # test InstanceNorm3dNVFuser installation with a basic example
+    has_nvfuser_flag = has_nvfuser
+    if not torch.cuda.is_available():
+        return nn.InstanceNorm3d
+    try:
+        layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
+        inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
+        out = layer(inp)
+        del inp, out, layer
+    except Exception:
+        has_nvfuser_flag = False
+    if not has_nvfuser_flag:
+        warnings.warn(
+            "`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead."
+        )
         return nn.InstanceNorm3d
     return InstanceNorm3dNVFuser
 

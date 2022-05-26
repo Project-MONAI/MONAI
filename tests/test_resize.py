@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -46,9 +46,11 @@ class TestResize(NumpyImageTestCase2D):
             ((32, 32), "area", False),
             ((32, 32, 32), "trilinear", True),
             ((256, 256), "bilinear", False),
+            ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "nearest", False),
         ]
     )
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
+        """resize 'spatial_size' and 'mode'"""
         resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
         _order = 0
         if mode.endswith("linear"):
@@ -75,7 +77,7 @@ class TestResize(NumpyImageTestCase2D):
                     out = out.cpu().detach().numpy()
                 good = np.sum(np.isclose(expected, out, atol=0.9))
                 self.assertLessEqual(
-                    np.abs(good - expected.size) / float(expected.size), 0.2, "at most 20 percent mismatch "
+                    np.abs(good - expected.size) / float(expected.size), 0.21, "at most 21 percent mismatch "
                 )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])

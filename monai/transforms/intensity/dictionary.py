@@ -297,18 +297,18 @@ class ShiftIntensityd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
             factor_key: if not None, use it as the key to extract a value from the corresponding
-                meta data dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
+                metadata dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
-                and store in the meta data.
+                and store in the metadata.
                 it also can be a sequence of strings, map to `keys`.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 used to extract the factor value is `factor_key` is not None.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -356,18 +356,18 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             factor_key: if not None, use it as the key to extract a value from the corresponding
-                meta data dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
+                metadata dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
-                and store in the meta data.
+                and store in the metadata.
                 it also can be a sequence of strings, map to `keys`.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 used to extract the factor value is `factor_key` is not None.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             prob: probability of rotating.
                 (Default 0.1, with 10% probability it returns a rotated array.)

@@ -311,3 +311,8 @@ PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
+
+Bounding box
+------------
+.. automodule:: monai.data.box_utils
+    :members:

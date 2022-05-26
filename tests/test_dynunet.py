@@ -17,10 +17,8 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from monai.utils import optional_import
+from monai.utils.module import pytorch_after
 from tests.utils import skip_if_no_cuda, skip_if_windows, test_script_save
-
-_, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -123,7 +121,6 @@ class TestDynUNet(unittest.TestCase):
 
 @skip_if_no_cuda
 @skip_if_windows
-@unittest.skipUnless(has_nvfuser, "To use `instance_nvfuser`, `apex.normalization.InstanceNorm3dNVFuser` is needed.")
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
     @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
     def test_consistency(self, input_param, input_shape, _):
@@ -145,7 +142,11 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                         with eval_mode(net_fuser):
                             result_fuser = net_fuser(input_tensor)
 
-                        torch.testing.assert_close(result, result_fuser)
+                        # torch.testing.assert_allclose() is deprecated since 1.12 and will be removed in 1.14
+                        if pytorch_after(1, 12):
+                            torch.testing.assert_close(result, result_fuser)
+                        else:
+                            torch.testing.assert_allclose(result, result_fuser)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):

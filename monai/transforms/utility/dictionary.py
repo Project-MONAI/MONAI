@@ -302,9 +302,9 @@ class EnsureChannelFirstd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
             meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
@@ -1457,7 +1457,7 @@ class MapLabelValued(MapTransform):
 class IntensityStatsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.IntensityStats`.
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1469,21 +1469,21 @@ class IntensityStatsd(MapTransform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         mask_keys: if not None, specify the mask array for the image to extract only the interested area to compute
             statistics, mask must have the same shape as the image.
             it should be a sequence of strings or None, map to the `keys`.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to store the computed statistics to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 

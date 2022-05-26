@@ -52,10 +52,12 @@ class TestCKPTExport(unittest.TestCase):
             subprocess.check_call(cmd)
             self.assertTrue(os.path.exists(ts_file))
 
-            _, metadata, extra_files = load_net_with_metadata(ts_file, more_extra_files=["inference", "def_args"])
+            _, metadata, extra_files = load_net_with_metadata(
+                ts_file, more_extra_files=["inference.json", "def_args.json"]
+            )
             self.assertTrue("schema" in metadata)
-            self.assertTrue("meta_file" in json.loads(extra_files["def_args"]))
-            self.assertTrue("network_def" in json.loads(extra_files["inference"]))
+            self.assertTrue("meta_file" in json.loads(extra_files["def_args.json"]))
+            self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
 
 
 if __name__ == "__main__":

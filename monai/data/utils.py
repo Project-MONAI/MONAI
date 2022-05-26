@@ -85,6 +85,9 @@ __all__ = [
     "to_affine_nd",
     "worker_init_fn",
     "zoom_affine",
+    "remove_keys",
+    "remove_extra_metadata",
+    "get_extra_metadata_keys",
 ]
 
 # module to be used by `torch.save`
@@ -145,8 +148,8 @@ def iter_patch_slices(
     ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
 
     # choose patches by applying product to the ranges
-    for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
+    for position in product(*ranges):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
 
 
 def dense_patch_slices(
@@ -1320,3 +1323,66 @@ def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
     if isinstance(affine, torch.Tensor):
         return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
     return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore
+
+
+def remove_keys(data: dict, keys: List[str]) -> None:
+    """
+    Remove keys from a dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        data: dictionary to be modified.
+        keys: keys to be deleted from dictionary.
+
+    Returns:
+        `None`
+    """
+    for k in keys:
+        _ = data.pop(k, None)
+
+
+def remove_extra_metadata(meta: dict) -> None:
+    """
+    Remove extra metadata from the dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        meta: dictionary containing metadata to be modified.
+
+    Returns:
+        `None`
+    """
+    keys = get_extra_metadata_keys()
+    remove_keys(data=meta, keys=keys)
+
+
+def get_extra_metadata_keys() -> List[str]:
+    """
+    Get a list of unnecessary keys for metadata that can be removed.
+
+    Returns:
+        List of keys to be removed.
+    """
+    keys = [
+        "srow_x",
+        "srow_y",
+        "srow_z",
+        "quatern_b",
+        "quatern_c",
+        "quatern_d",
+        "qoffset_x",
+        "qoffset_y",
+        "qoffset_z",
+        "dim",
+        "pixdim",
+        *[f"dim[{i}]" for i in range(8)],
+        *[f"pixdim[{i}]" for i in range(8)],
+    ]
+
+    # TODO: it would be good to remove these, but they are currently being used in the
+    # codebase.
+    # keys += [
+    #     "original_affine",
+    #     "spatial_shape",
+    #     "spacing",
+    # ]
+
+    return keys

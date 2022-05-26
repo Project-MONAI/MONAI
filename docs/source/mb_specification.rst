@@ -6,7 +6,7 @@ MONAI Bundle Specification
 Overview
 ========
 
-This is the specification for the MONAI Bundle (MB) format of portable described deep learning models. The objective of a MB is to define a packaged network or model which includes the critical information necessary to allow users and  programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a model as a pickled state dictionary and/or a Torchscript object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
+This is the specification for the MONAI Bundle (MB) format of portable described deep learning models. The objective of a MB is to define a packaged network or model which includes the critical information necessary to allow users and programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a single network as a pickled state dictionary plus optionally a Torchscript object and/or an ONNX object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include.
 
 This specification defines the directory structure a bundle must have and the necessary files it must contain. Additional files may be included and the directory packaged into a zip file or included as extra files directly in a Torchscript file.
 
@@ -22,26 +22,35 @@ A MONAI Bundle is defined primarily as a directory with a set of specifically na
   ┃  ┗━ metadata.json
   ┣━ models
   ┃  ┣━ model.pt
-  ┃  ┗━ model.ts
+  ┃  ┣━ *model.ts
+  ┃  ┗━ *model.onnx
   ┗━ docs
-     ┣━ README.md
-     ┗━ license.txt
+     ┣━ *README.md
+     ┗━ *license.txt
 
 
-These files mostly are required to be present with the given names for the directory to define a valid bundle:
+The following files are **required** to be present with the given filenames for the directory to define a valid bundle:
 
 * **metadata.json**: metadata information in JSON format relating to the type of model, definition of input and output tensors, versions of the model and used software, and other information described below.
 * **model.pt**: the state dictionary of a saved model, the information to instantiate the model must be found in the metadata file.
+
+The following files are optional but must have these names in the directory given above:
+
 * **model.ts**: the Torchscript saved model if the model is compatible with being saved correctly in this format.
+* **model.onnx**: the ONNX model if the model is compatible with being saved correctly in this format.
 * **README.md**: plain-language information on the model, how to use it, author information, etc. in Markdown format.
 * **license.txt**: software license attached to the model, can be left blank if no license needed.
+
+Other files can be included in any of the above directories. For example, `configs` can contain further configuration JSON or YAML files to define scripts for training or inference, overriding configuration values, environment definitions such as network instantiations, and so forth. One common file to include is `inference.json` which is used to define a basic inference script which uses input files with the stored network to produce prediction output files.
 
 Archive Format
 ==============
 
-The bundle directory and its contents can be compressed into a zip file to constitute a single file package. When unzipped into a directory this file will reproduce the above directory structure, and should itself also be named after the model it contains.
+The bundle directory and its contents can be compressed into a zip file to constitute a single file package. When unzipped into a directory this file will reproduce the above directory structure, and should itself also be named after the model it contains. For example, `ModelName.zip` would contain at least `ModelName/configs/metadata.json` and `ModelName/models/model.pt`, thus when unzipped would place files into the directory `ModelName` rather than into the current working directory.
 
-The Torchscript file format is also just a zip file with a specific structure. When creating such an archive with `save_net_with_metadata` a MB-compliant Torchscript file can be created by including the contents of `metadata.json` as the `meta_values` argument of the function, and other files included as `more_extra_files` entries. These will be stored in a `extras` directory in the zip file and can be retrieved with `load_net_with_metadata` or with any other library/tool that can read zip data. In this format the `model.*` files are obviously not needed by `README.md` and `license.txt` can be added as more extra files.
+The Torchscript file format is also just a zip file with a specific structure. When creating such an archive with `save_net_with_metadata` a MB-compliant Torchscript file can be created by including the contents of `metadata.json` as the `meta_values` argument of the function, and other files included as `more_extra_files` entries. These will be stored in a `extras` directory in the zip file and can be retrieved with `load_net_with_metadata` or with any other library/tool that can read zip data. In this format the `model.*` files are obviously not needed but `README.md` and `license.txt` as well as any others provided can be added as more extra files.
+
+The `bundle` submodule of MONAI contains a number of command line programs. To produce a Torchscript bundle use `ckpt_export` with a set of specified components such as the saved weights file and metadata file. Config files can be provided as JSON or YAML dictionaries defining Python constructs used by the `ConfigParser`, however regardless of format the produced bundle Torchscript object will store the files as JSON.
 
 metadata.json File
 ==================

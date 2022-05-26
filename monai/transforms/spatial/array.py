@@ -137,8 +137,8 @@ class SpatialResample(Transform):
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], np.ndarray, int]] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
@@ -253,7 +253,7 @@ class SpatialResample(Transform):
                 )
                 xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
-                affine=xform, spatial_size=spatial_size, norm_coords=False, image_only=True, dtype=_dtype
+                affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
             )
             output_data = affine_xform(img_, mode=mode, padding_mode=padding_mode)
         else:
@@ -274,7 +274,7 @@ class SpatialResample(Transform):
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given meta data. The affine matrix will be aligned,
+    """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
     def __call__(  # type: ignore
@@ -282,8 +282,8 @@ class ResampleToMatch(SpatialResample):
         img: NdarrayOrTensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
-        mode: Union[GridSampleMode, str, None] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str, None] = GridSamplePadMode.BORDER,
+        mode: Union[GridSampleMode, str, None] = None,
+        padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ):
@@ -617,7 +617,7 @@ class Resize(Transform):
             which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
             https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
             #albumentations.augmentations.geometric.resize.LongestMaxSize.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         align_corners: This only has an effect when mode is
@@ -663,7 +663,8 @@ class Resize(Transform):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
-            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+                ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             align_corners: This only has an effect when mode is
@@ -856,7 +857,7 @@ class Zoom(Transform):
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -903,7 +904,8 @@ class Zoom(Transform):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
-            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+                ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -1231,7 +1233,7 @@ class RandZoom(RandomizableTransform):
             to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
             If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -1299,7 +1301,7 @@ class RandZoom(RandomizableTransform):
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
-            mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
                 The interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -1520,17 +1522,23 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
+        self,
+        spatial_size: Optional[Sequence[int]] = None,
+        grid: Optional[NdarrayOrTensor] = None,
+        randomize: bool = True,
     ) -> NdarrayOrTensor:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
+            randomize: boolean as to whether the grid parameters governing the grid
+                should be randomized.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
-        self.randomize()
+        if randomize:
+            self.randomize()
         affine_grid = AffineGrid(
             rotate_params=self.rotate_params,
             shear_params=self.shear_params,
@@ -1733,6 +1741,7 @@ class Affine(Transform):
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
+    @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
@@ -1743,6 +1752,7 @@ class Affine(Transform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.REFLECTION,
+        normalized: bool = False,
         norm_coords: bool = True,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
@@ -1787,11 +1797,11 @@ class Affine(Transform):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            norm_coords: whether to normalize the coordinates from `[-(size-1)/2, (size-1)/2]` to
-                `[0, size - 1]` or `[-1, 1]` to be compatible with the underlying resampling API.
-                If the coordinates are generated by ``monai.transforms.utils.create_grid``
-                and the ``affine`` doesn't include the normalization, this argument should be set to ``True``.
-                If the output `self.affine_grid` is already normalized, this argument should be set to ``False``.
+            normalized: indicating whether the provided `affine` is defined to include a normalization
+                transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` (defined in ``create_grid``) to
+                `[0, size - 1]` or `[-1, 1]` in order to be compatible with the underlying resampling API.
+                If `normalized=False`, additional coordinate normalization will be applied before resampling.
+                See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
@@ -1800,6 +1810,9 @@ class Affine(Transform):
 
         .. deprecated:: 0.6.0
             ``as_tensor_output`` is deprecated.
+        .. deprecated:: 0.8.1
+            ``norm_coords`` is deprecated, please use ``normalized`` instead
+            (the new flag is a negation, i.e., ``norm_coords == not normalized``).
 
         """
         self.affine_grid = AffineGrid(
@@ -1812,7 +1825,7 @@ class Affine(Transform):
             device=device,
         )
         self.image_only = image_only
-        self.resampler = Resample(norm_coords=norm_coords, device=device, dtype=dtype)
+        self.resampler = Resample(norm_coords=not normalized, device=device, dtype=dtype)
         self.spatial_size = spatial_size
         self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
@@ -2030,7 +2043,7 @@ class RandAffine(RandomizableTransform):
             img, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
-            grid = self.rand_affine_grid(grid=grid)
+            grid = self.rand_affine_grid(grid=grid, randomize=randomize)
         out: NdarrayOrTensor = self.resampler(
             img=img, grid=grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
@@ -2535,62 +2548,62 @@ class GridSplit(Transform):
         # Patch size
         self.size = None if size is None else ensure_tuple_rep(size, len(self.grid))
 
-    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
-        if self.grid == (1, 1) and self.size is None:
-            if isinstance(image, torch.Tensor):
-                return torch.stack([image])
-            elif isinstance(image, np.ndarray):
-                return np.stack([image])  # type: ignore
-            else:
-                raise ValueError(f"Input type [{type(image)}] is not supported.")
+    def __call__(
+        self, image: NdarrayOrTensor, size: Optional[Union[int, Tuple[int, int], np.ndarray]] = None
+    ) -> List[NdarrayOrTensor]:
+        input_size = self.size if size is None else ensure_tuple_rep(size, len(self.grid))
 
-        size, steps = self._get_params(image.shape[1:])
-        patches: NdarrayOrTensor
+        if self.grid == (1, 1) and input_size is None:
+            return [image]
+
+        split_size, steps = self._get_params(image.shape[1:], input_size)
+        patches: List[NdarrayOrTensor]
         if isinstance(image, torch.Tensor):
-            patches = (
-                image.unfold(1, size[0], steps[0])
-                .unfold(2, size[1], steps[1])
+            unfolded_image = (
+                image.unfold(1, split_size[0], steps[0])
+                .unfold(2, split_size[1], steps[1])
                 .flatten(1, 2)
                 .transpose(0, 1)
-                .contiguous()
             )
+            # Make a list of contiguous patches
+            patches = [p.contiguous() for p in unfolded_image]
         elif isinstance(image, np.ndarray):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
             n_channels = image.shape[0]
-            patches = as_strided(
+            strided_image = as_strided(
                 image,
-                shape=(*self.grid, n_channels, size[0], size[1]),
+                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
                 writeable=False,
             )
-            # flatten the first two dimensions
-            patches = patches.reshape(np.prod(patches.shape[:2]), *patches.shape[2:])
-            # make it a contiguous array
-            patches = np.ascontiguousarray(patches)
+            # Flatten the first two dimensions
+            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+            # Make a list of contiguous patches
+            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
         return patches
 
-    def _get_params(self, image_size: Union[Sequence[int], np.ndarray]):
+    def _get_params(
+        self, image_size: Union[Sequence[int], np.ndarray], size: Optional[Union[Sequence[int], np.ndarray]] = None
+    ):
         """
         Calculate the size and step required for splitting the image
         Args:
             The size of the input image
         """
-        if self.size is not None:
-            # Set the split size to the given default size
-            if any(self.size[i] > image_size[i] for i in range(len(self.grid))):
-                raise ValueError("The image size ({image_size})is smaller than the requested split size ({self.size})")
-            split_size = self.size
-        else:
+        if size is None:
             # infer each sub-image size from the image size and the grid
-            split_size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+            size = tuple(image_size[i] // self.grid[i] for i in range(len(self.grid)))
+
+        if any(size[i] > image_size[i] for i in range(len(self.grid))):
+            raise ValueError(f"The image size ({image_size})is smaller than the requested split size ({size})")
 
         steps = tuple(
-            (image_size[i] - split_size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
+            (image_size[i] - size[i]) // (self.grid[i] - 1) if self.grid[i] > 1 else image_size[i]
             for i in range(len(self.grid))
         )
 
-        return split_size, steps
+        return size, steps

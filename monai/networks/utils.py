@@ -138,11 +138,17 @@ def normalize_transform(
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
+    zero_centered: bool = False,
 ) -> torch.Tensor:
     """
     Compute an affine matrix according to the input shape.
     The transform normalizes the homogeneous image coordinates to the
-    range of `[-1, 1]`.
+    range of `[-1, 1]`.  Currently the following source coordinates are supported:
+
+        - `align_corners=False`, `zero_centered=False`, normalizing from ``[-0.5, d-0.5]``.
+        - `align_corners=True`, `zero_centered=False`, normalizing from ``[0, d-1]``.
+        - `align_corners=False`, `zero_centered=True`, normalizing from ``[-(d+1)/2, (d-1)/2]``.
+        - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
 
     Args:
         shape: input spatial shape
@@ -151,25 +157,32 @@ def normalize_transform(
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+        zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
+            Setting this flag and `align_corners` will jointly specify the normalization source range.
     """
     norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = -1.0
+        if not zero_centered:  # else shift is 0
+            norm[:-1, -1] = -1.0
     else:
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - 1.0
+        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - (0.0 if zero_centered else 1.0)
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
     return norm
 
 
 def to_norm_affine(
-    affine: torch.Tensor, src_size: Sequence[int], dst_size: Sequence[int], align_corners: bool = False
+    affine: torch.Tensor,
+    src_size: Sequence[int],
+    dst_size: Sequence[int],
+    align_corners: bool = False,
+    zero_centered: bool = False,
 ) -> torch.Tensor:
     """
     Given ``affine`` defined for coordinates in the pixel space, compute the corresponding affine
@@ -182,6 +195,8 @@ def to_norm_affine(
         align_corners: if True, consider -1 and 1 to refer to the centers of the
             corner pixels rather than the image corners.
             See also: https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.grid_sample
+        zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
+            See also: :py:func:`monai.networks.utils.normalize_transform`.
 
     Raises:
         TypeError: When ``affine`` is not a ``torch.Tensor``.
@@ -197,8 +212,8 @@ def to_norm_affine(
     if sr != len(src_size) or sr != len(dst_size):
         raise ValueError(f"affine suggests {sr}D, got src={len(src_size)}D, dst={len(dst_size)}D.")
 
-    src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners)
-    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners)
+    src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
+    dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
     return src_xform @ affine @ torch.inverse(dst_xform)
 
 
