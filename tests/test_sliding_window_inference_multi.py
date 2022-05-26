@@ -285,16 +285,8 @@ class TestSlidingWindowMultiOutputInference(unittest.TestCase):
             has_tqdm,
             None,
         )
-        expected = (
-            np.ones((1, 1, 20, 20)) + 1,
-            np.ones((1, 1, 10, 10)) + 2,
-            np.ones((1, 1, 5, 5)) + 3,
-        )
-        expected_dict = {
-            1: np.ones((1, 1, 20, 20)) + 1,
-            2: np.ones((1, 1, 10, 10)) + 2,
-            3: np.ones((1, 1, 5, 5)) + 3,
-        }
+        expected = (np.ones((1, 1, 20, 20)) + 1, np.ones((1, 1, 10, 10)) + 2, np.ones((1, 1, 5, 5)) + 3)
+        expected_dict = {1: np.ones((1, 1, 20, 20)) + 1, 2: np.ones((1, 1, 10, 10)) + 2, 3: np.ones((1, 1, 5, 5)) + 3}
         for rr, ee in zip(result, expected):
             np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
         for rr, _ in zip(result_dict, expected_dict):
