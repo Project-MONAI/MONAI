@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.networks.utils.ATSS_matcher import ATSSMatcher
+from monai.apps.detection.utils.ATSS_matcher import ATSSMatcher
 from monai.data.box_utils import box_iou
 from tests.utils import assert_allclose
 

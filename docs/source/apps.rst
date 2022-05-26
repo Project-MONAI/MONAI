@@ -137,5 +137,5 @@ Applications
 
 `Matcher`
 ~~~~~~~~~
-.. automodule:: monai.apps.detection.networks.utils.ATSS_matcher
+.. automodule:: monai.apps.detection.utils.ATSS_matcher
     :members:
