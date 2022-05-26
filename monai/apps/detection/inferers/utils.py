@@ -46,8 +46,10 @@ def sliding_window_inference_multioutput(
     The outputs of `predictor` should either be Sequence with same length, or Dict with torch.Tensor values ans same keys.
     Each output in the Sequence or Dict value is allowed to have different resolutions with the input.
     e.g., the input size patch size is [128,128,128], the output patch sizes could be [128, 64, 256], [64, 32, 128].
-    The sliding window ensemble is performed on the zoomed grids. But please make sure the scale is int.
-    Also, `overlap*roi_size` should be divisible with the int scale for all the axis.
+    But in this case, the parameter `overlap` and `roi_size` need to be carefully chosen
+    to ensure the output ROI is still int.
+    If the ratio between output and input spatial size `zoom_scale` is not 1,
+    we recommend `overlap*roi_size*zoom_scale` to be int.
 
     When roi_size is larger than the inputs' spatial size, the input image are padded during inference.
     To maintain the same spatial sizes, the output image will be cropped to the original input size.
@@ -65,9 +67,10 @@ def sliding_window_inference_multioutput(
             Each output in the Sequence or Dict value has same batch_size, i.e. NM'H'W'[D'];
             where H'W'[D'] represents the output patch spatial size, M is the number of output channels, N is `sw_batch_size`,
             e.g., the input shape is (7, 1, 128,128,128), the output shape could be (7, 5, 128, 64, 256), (7, 4, 64, 32, 128).
-            The sliding window ensemble is performed on the zoomed grids.
-            But please make sure the scale is int, i.e., `s = H/H'` should be int.
-            Also, `overlap*roi_size` should be divisible with `s` for all the axis.
+            But in this case, the parameter `overlap` and `roi_size` need to be carefully chosen
+            to ensure the output ROI is still int.
+            If the ratio between output and input spatial size `zoom_scale` is not 1,
+            we recommend `overlap*roi_size*zoom_scale` to be int.
         overlap: Amount of overlap between scans.
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
