@@ -64,7 +64,7 @@ class Evaluator(Workflow):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
@@ -179,7 +179,7 @@ class SupervisedEvaluator(Evaluator):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
@@ -321,7 +321,7 @@ class EnsembleEvaluator(Evaluator):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.

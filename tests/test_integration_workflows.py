@@ -30,7 +30,6 @@ from monai.handlers import (
     CheckpointSaver,
     LrScheduleHandler,
     MeanDice,
-    SegmentationSaver,
     StatsHandler,
     TensorBoardImageHandler,
     TensorBoardStatsHandler,
@@ -256,12 +255,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     val_handlers = [
         StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
-        SegmentationSaver(
-            output_dir=root_dir,
-            output_postfix="seg_handler",
-            batch_transform=from_engine(PostFix.meta("image")),
-            output_transform=from_engine("pred"),
-        ),
     ]
 
     evaluator = SupervisedEvaluator(
