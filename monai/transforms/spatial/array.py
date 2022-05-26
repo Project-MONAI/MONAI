@@ -2723,6 +2723,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
         pad_opts: padding options, see `numpy.pad`
+        seed: random seed to generate offsets
 
     """
 
@@ -2738,6 +2739,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
+        seed: int = 0,
     ):
         super().__init__(
             patch_size=patch_size,
@@ -2748,6 +2750,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             pad_mode=pad_mode,
             pad_opts=pad_opts,
         )
+        self.set_random_state(seed)
         self.min_start_pos = min_start_pos
         self.max_start_pos = max_start_pos
 
