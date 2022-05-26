@@ -29,16 +29,6 @@ def _enter_pr_4800(self):
     return self
 
 
-try:
-    from torch.utils.tensorboard import SummaryWriter
-except BaseException as e:
-    if "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION" in str(e):
-        # workaround https://github.com/Project-MONAI/MONAI/issues/4354
-        import os
-
-        os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
-
-
 # workaround for https://bugs.python.org/issue29620
 try:
     # Suppression for issue #494:  tests/__init__.py:34: error: Cannot assign to a method
