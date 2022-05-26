@@ -28,6 +28,12 @@ class SlidingWindowMultiOutputInferer(Inferer):
     with `sw_batch_size` windows for every model.forward().
     Usage example can be found in the :py:class:`monai.inferers.Inferer` base class.
 
+    Each output of the predictor is allowed to have zoomed shape compared with the inputs.
+    But in this case, the parameter `overlap` and `roi_size` need to be carefully chosen 
+    to ensure the output ROI is still int.
+    If the ratio between output and input spatial size `zoom_scale` is not 1, 
+    we recommend `overlap*roi_size*zoom_scale` to be int.
+
     Args:
         roi_size: the window size to execute SlidingWindow evaluation.
             If it has non-positive components, the corresponding `inputs` size will be used.
