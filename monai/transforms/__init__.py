@@ -322,6 +322,7 @@ from .spatial.array import (
     RandDeformGrid,
     RandFlip,
     RandGridDistortion,
+    RandGridPatch,
     RandRotate,
     RandRotate90,
     RandZoom,
