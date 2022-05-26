@@ -13,19 +13,36 @@ A collection of "vanilla" transforms for box operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Optional, Sequence, Type, Union
+from copy import deepcopy
+from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
+import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import BoxMode, convert_box_mode, convert_box_to_standard_mode, get_spatial_dims
+from monai.data.box_utils import (
+    BoxMode,
+    clip_boxes_to_image,
+    convert_box_mode,
+    convert_box_to_standard_mode,
+    get_spatial_dims,
+)
 from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 from .box_ops import apply_affine_to_boxes, flip_boxes, resize_boxes, zoom_boxes
 
-__all__ = ["ConvertBoxToStandardMode", "ConvertBoxMode", "AffineBox", "ZoomBox", "ResizeBox", "FlipBox"]
+__all__ = [
+    "ConvertBoxToStandardMode",
+    "ConvertBoxMode",
+    "AffineBox",
+    "ZoomBox",
+    "ResizeBox",
+    "FlipBox",
+    "ClipBoxToImage",
+]
 
 
 class ConvertBoxMode(Transform):
@@ -296,3 +313,63 @@ class FlipBox(Transform):
         """
 
         return flip_boxes(boxes, spatial_size=spatial_size, flip_axes=self.spatial_axis)
+
+
+class ClipBoxToImage(Transform):
+    """
+    Clip the bounding boxes and the associated labels/scores to makes sure they are within the image.
+    There might be multiple arryas of labels/scores associated with one array of boxes.
+
+    Args:
+        remove_empty: whether to remove the boxes and corresponding labels that are actually empty
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, remove_empty: bool = False) -> None:
+        self.remove_empty = remove_empty
+
+    def __call__(  # type: ignore
+        self,
+        boxes: NdarrayOrTensor,
+        labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor],
+        spatial_size: Union[Sequence[int], int],
+    ) -> Tuple[NdarrayOrTensor, Tuple]:
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+            labels: Sequence of array. Each element represents classification labels or scores
+                corresponding to ``boxes``, sized (N,).
+            spatial_size: The spatial size of the image where the boxes are attached. len(spatial_size) should be in [2, 3].
+
+        Returns:
+            - clipped boxes, does not share memory with original boxes
+            - clipped labels, does not share memory with original labels
+
+        Example:
+            .. code-block:: python
+
+                box_clipper = ClipBoxToImage(remove_empty=True)
+                boxes = torch.ones(2, 6)
+                class_labels = torch.Tensor([0, 1])
+                pred_scores = torch.Tensor([[0.4,0.3,0.3], [0.5,0.1,0.4]])
+                labels = (class_labels, pred_scores)
+                spatial_size = [32, 32, 32]
+                boxes_clip, labels_clip_tuple = box_clipper(boxes, labels, spatial_size)
+        """
+        spatial_dims: int = get_spatial_dims(boxes=boxes)
+        spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)  # match the spatial image dim
+
+        boxes_clip, keep = clip_boxes_to_image(boxes, spatial_size, self.remove_empty)
+
+        labels_tuple = ensure_tuple(labels)
+        labels_clip_list = []
+
+        keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
+        for i in range(len(labels_tuple)):
+            labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
+            if boxes.shape[0] != labels_t.shape[0]:
+                raise ValueError("boxes.shape[0] should be equal to the number of labels or scores.")
+            labels_t = deepcopy(labels_t[keep_t, ...])
+            labels_clip_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
+        return boxes_clip, tuple(labels_clip_list)
