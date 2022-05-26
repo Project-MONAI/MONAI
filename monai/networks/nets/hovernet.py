@@ -16,13 +16,12 @@ from typing import Callable, Sequence, Type, Union, List
 import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
-
 from monai.networks.layers.factories import Conv, Dropout, Pool
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.networks.blocks import UpSample
 from monai.utils.module import look_up_option
 from monai.utils import InterpolateMode, UpsampleMode
-#from monai.networks.blocks.localnet_block import ResidualBlock
+
 
 __all__ = [
    "hovernet",
@@ -462,3 +461,5 @@ class HoverNet(nn.Module):
             return {"type_prediction": x_tp, "nucleus_prediction": x_np, "horizonal_vertical": x_hv}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
+   
+hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
