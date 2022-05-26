@@ -92,7 +92,8 @@ class SlidingWindowMultiOutputInferer(Inferer):
         self.device = device
         self.progress = progress
 
-        # compute_importance_map takes long time when computing on cpu. We thus compute it once and then save it for future usage
+        # compute_importance_map takes long time when computing on cpu. We thus
+        # compute it once and then save it for future usage
         self.importance_map_roi_size = None
         try:
             if isinstance(roi_size, Sequence) and min(roi_size) > 0:
