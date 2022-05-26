@@ -137,5 +137,5 @@ Applications
 
 `Anchor`
 ~~~~~~~~
-.. automodule:: monai.apps.detection.networks.utils.anchor_utils
+.. automodule:: monai.apps.detection.utils.anchor_utils
     :members:
