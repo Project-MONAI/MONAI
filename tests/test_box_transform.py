@@ -17,6 +17,8 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
+    BoxMaskToBoxd,
+    BoxToBoxMaskd,
     ClipBoxToImaged,
     ConvertBoxModed,
     FlipBoxd,
@@ -27,8 +29,7 @@ from monai.apps.detection.transforms.dictionary import (
 from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TESTS = []
-
+TESTS_3D = []
 boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]
 labels = [1, 1, 0]
 scores = [[0.2, 0.8], [0.3, 0.7], [0.6, 0.4]]
@@ -36,7 +37,7 @@ image_size = [1, 4, 6, 4]
 image = np.zeros(image_size)
 
 for p in TEST_NDARRAYS:
-    TESTS.append(
+    TESTS_3D.append(
         [
             {"box_keys": "boxes", "dst_mode": "xyzwhd"},
             {"boxes": p(boxes), "image": p(image), "labels": p(labels), "scores": p(scores)},
@@ -48,10 +49,41 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+TESTS_2D = []
+boxes = [[0, 1, 2, 2], [0, 0, 1, 1]]
+labels = [1, 0]
+image_size = [1, 2, 2]
+image = np.zeros(image_size)
+for p in TEST_NDARRAYS:
+    TESTS_2D.append(
+        [{"boxes": p(boxes), "image": p(image), "labels": p(labels)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
+    )
+
 
 class TestBoxTransform(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_value(
+    @parameterized.expand(TESTS_2D)
+    def test_value_2d(self, data, expected_mask):
+        test_dtype = [torch.float32, torch.float16]
+        for dtype in test_dtype:
+            data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
+            transform_to_mask = BoxToBoxMaskd(
+                box_keys="boxes",
+                box_mask_keys="box_mask",
+                box_ref_image_keys="image",
+                label_keys="labels",
+                min_fg_label=0,
+                ellipse_mask=True,
+            )
+            transform_to_box = BoxMaskToBoxd(
+                box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
+            )
+            data_mask = transform_to_mask(data)
+            assert_allclose(data_mask["box_mask"], expected_mask, type_test=True, device_test=True, atol=1e-3)
+            data_back = transform_to_box(data_mask)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+
+    @parameterized.expand(TESTS_3D)
+    def test_value_3d(
         self,
         keys,
         data,
@@ -61,7 +93,7 @@ class TestBoxTransform(unittest.TestCase):
         expected_flip_result,
         expected_clip_result,
     ):
-        test_dtype = [torch.float32]
+        test_dtype = [torch.float16]
         for dtype in test_dtype:
             data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
             # test ConvertBoxToStandardModed
