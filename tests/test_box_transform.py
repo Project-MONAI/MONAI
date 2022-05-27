@@ -17,11 +17,11 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
-    MaskToBoxd,
     BoxToMaskd,
     ClipBoxToImaged,
     ConvertBoxModed,
     FlipBoxd,
+    MaskToBoxd,
     RandFlipBoxd,
     RandZoomBoxd,
     ZoomBoxd,
