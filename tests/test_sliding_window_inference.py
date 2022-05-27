@@ -241,15 +241,15 @@ class TestSlidingWindowInference(unittest.TestCase):
 
     def test_multioutput(self):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = torch.ones((1, 1, 20, 20)).to(device=device)
+        inputs = torch.ones((1, 6, 20, 20)).to(device=device)
         roi_shape = (8, 8)
         sw_batch_size = 10
 
         def compute(data):
-            return data + 1, data[:, :, ::2, ::2] + 2, data[:, :, ::4, ::4] + 3
+            return data + 1, data[:, ::3, ::2, ::2] + 2, data[:, ::2, ::4, ::4] + 3
 
         def compute_dict(data):
-            return {1: data + 1, 2: data[:, :, ::2, ::2] + 2, 3: data[:, :, ::4, ::4] + 3}
+            return {1: data + 1, 2: data[:, ::3, ::2, ::2] + 2, 3: data[:, ::2, ::4, ::4] + 3}
 
         result = sliding_window_inference(
             inputs,
@@ -281,8 +281,8 @@ class TestSlidingWindowInference(unittest.TestCase):
             has_tqdm,
             None,
         )
-        expected = (np.ones((1, 1, 20, 20)) + 1, np.ones((1, 1, 10, 10)) + 2, np.ones((1, 1, 5, 5)) + 3)
-        expected_dict = {1: np.ones((1, 1, 20, 20)) + 1, 2: np.ones((1, 1, 10, 10)) + 2, 3: np.ones((1, 1, 5, 5)) + 3}
+        expected = (np.ones((1, 6, 20, 20)) + 1, np.ones((1, 2, 10, 10)) + 2, np.ones((1, 3, 5, 5)) + 3)
+        expected_dict = {1: np.ones((1, 6, 20, 20)) + 1, 2: np.ones((1, 2, 10, 10)) + 2, 3: np.ones((1, 3, 5, 5)) + 3}
         for rr, ee in zip(result, expected):
             np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
         for rr, _ in zip(result_dict, expected_dict):
