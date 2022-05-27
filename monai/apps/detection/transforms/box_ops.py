@@ -262,6 +262,7 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
             boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
             # squeeze it to a ellipse/ellipsoid mask
             zoom_factor = [box_size[axis] / float(max_box_size) for axis in range(spatial_dims)]
+            # scipy zoom does not support float16 cpu
             boxes_only_mask = scipy.ndimage.zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
         else:
             # generate a rect mask

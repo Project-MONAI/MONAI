@@ -94,7 +94,7 @@ class TestBoxTransform(unittest.TestCase):
         expected_flip_result,
         expected_clip_result,
     ):
-        test_dtype = [torch.float16]
+        test_dtype = [torch.float32]
         for dtype in test_dtype:
             data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
             # test ConvertBoxToStandardModed
