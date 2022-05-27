@@ -22,7 +22,7 @@ from .array import SplitOnGrid, TileOnGrid
 __all__ = ["SplitOnGridd", "SplitOnGridD", "SplitOnGridDict", "TileOnGridd", "TileOnGridD", "TileOnGridDict"]
 
 
-@deprecated(since="0.9", msg_suffix="use `monai.transforms.GridSplitd` instead.")
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridSplitd` instead.")
 class SplitOnGridd(MapTransform):
     """
     Split the image into patches based on the provided grid shape.
@@ -57,7 +57,7 @@ class SplitOnGridd(MapTransform):
         return d
 
 
-@deprecated(since="0.9", msg_suffix="use `monai.transforms.GridPatchd` or `monai.transforms.RandGridPatchd` instead.")
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridPatchd` or `monai.transforms.RandGridPatchd` instead.")
 class TileOnGridd(Randomizable, MapTransform):
     """
     Tile the 2D image into patches on a grid and maintain a subset of it.

@@ -1532,7 +1532,7 @@ Spatial (Dict)
     :special-members: __call__
 
 `RandGridPatchd`
-"""""""""""""""""
+""""""""""""""""
 .. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__

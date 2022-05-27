@@ -2205,7 +2205,8 @@ class GridSplitd(MapTransform):
 
 class GridPatchd(MapTransform):
     """
-    Generate all (or a subset of) the patches sweeping the entire image
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
+    It can sort the patches and return all or a subset of them.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -2214,7 +2215,7 @@ class GridPatchd(MapTransform):
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
         fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
-        sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
             will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
@@ -2237,7 +2238,7 @@ class GridPatchd(MapTransform):
         start_pos: Sequence[int] = (),
         fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
-        sort_key: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
         allow_missing_keys: bool = False,
@@ -2248,7 +2249,7 @@ class GridPatchd(MapTransform):
             start_pos=start_pos,
             fix_num_patches=fix_num_patches,
             overlap=overlap,
-            sort_key=sort_key,
+            sort_fn=sort_fn,
             pad_mode=pad_mode,
             pad_opts=pad_opts,
         )
@@ -2274,17 +2275,20 @@ class GridPatchd(MapTransform):
 
 class RandGridPatchd(RandomizableTransform, MapTransform):
     """
-    Return all (or a subset of) the patches sweeping the entire image with a random starting position.
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
+    and with random offset for the starting position of upper left corner of the image.
+    It can sort the patches and return all or a subset of them.
 
     Args:
         keys: keys of the corresponding items to be transformed.
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
-        start_pos: starting position in the array, default is 0 for each dimension.
-            np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
+        min_start_pos: the minimum range of starting position to be selected randomly. Defaults to 0.
+        max_start_pos: the maximum range of starting position to be selected randomly.
+            Defaults to image size modulo patch size.
         fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
             will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
@@ -2310,7 +2314,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         max_start_pos: Optional[Union[Sequence[int], int]] = None,
         fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
-        sort_key: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
         seed: int = 0,
@@ -2323,7 +2327,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             max_start_pos=max_start_pos,
             fix_num_patches=fix_num_patches,
             overlap=overlap,
-            sort_key=sort_key,
+            sort_fn=sort_fn,
             pad_mode=pad_mode,
             pad_opts=pad_opts,
             seed=seed,

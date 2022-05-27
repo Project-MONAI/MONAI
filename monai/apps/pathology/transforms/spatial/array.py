@@ -23,7 +23,7 @@ from monai.utils.enums import TransformBackends
 __all__ = ["SplitOnGrid", "TileOnGrid"]
 
 
-@deprecated(since="0.9", msg_suffix="use `monai.transforms.GridSplit` instead.")
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridSplit` instead.")
 class SplitOnGrid(Transform):
     """
     Split the image into patches based on the provided grid shape.
@@ -108,7 +108,7 @@ class SplitOnGrid(Transform):
         return patch_size, steps
 
 
-@deprecated(since="0.9", msg_suffix="use `monai.transforms.GridPatch` or `monai.transforms.RandGridPatch` instead.")
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridPatch` or `monai.transforms.RandGridPatch` instead.")
 class TileOnGrid(Randomizable, Transform):
     """
     Tile the 2D image into patches on a grid and maintain a subset of it.
