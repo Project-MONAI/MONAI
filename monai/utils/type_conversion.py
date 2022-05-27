@@ -60,6 +60,9 @@ def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
 def get_equivalent_dtype(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
 
+    The input dtype can also be a string. e.g., `"float32"` becomes `torch.float32` or
+    `np.float32` as necessary.
+
     Example::
 
         im = torch.tensor(1)
