@@ -774,6 +774,12 @@ class BoxToBoxMaskd(MapTransform):
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
     The output d[box_mask_key] will have background intensity 0, since the following operations may pad 0 on the border.
 
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously. 
+    It is performed with the following steps. 
+    1) use BoxToBoxMaskd to covert boxes and labels to box_masks; 
+    2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+    3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
+
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
@@ -790,11 +796,28 @@ class BoxToBoxMaskd(MapTransform):
     Example:
         .. code-block:: python
 
-            BoxToBoxMaskd(
-                box_keys="boxes", box_mask_keys="box_mask",
-                box_ref_image_keys="image", label_keys="labels",
-                min_fg_label=0, ellipse_mask=True
+            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and images together.
+            import numpy as np
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd
+            transforms = Compose(
+                [
+                    BoxToBoxMaskd(
+                        box_keys="boxes", label_keys="labels",
+                        box_mask_keys="box_mask", box_ref_image_keys="image", 
+                        min_fg_label=0, ellipse_mask=True
+                    ),
+                    RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
+                        prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
+                        keep_size=True,padding_mode="zeros"
+                    ),
+                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    BoxMaskToBoxd(
+                        box_mask_keys="box_mask", box_keys="boxes", 
+                        label_keys="labels", min_fg_label=0
+                    )
+                ]
             )
+            
     """
 
     def __init__(
@@ -836,6 +859,12 @@ class BoxMaskToBoxd(MapTransform):
     Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxToBoxMaskd` .
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
 
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously. 
+    It is performed with the following steps. 
+    1) use BoxToBoxMaskd to covert boxes and labels to box_masks; 
+    2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+    3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
+
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
@@ -848,9 +877,26 @@ class BoxMaskToBoxd(MapTransform):
     Example:
         .. code-block:: python
 
-            BoxMaskToBoxd(
-                box_keys="boxes", box_mask_keys="box_mask",
-                label_keys="labels", min_fg_label=0
+            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and images together.
+            import numpy as np
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd
+            transforms = Compose(
+                [
+                    BoxToBoxMaskd(
+                        box_keys="boxes", label_keys="labels",
+                        box_mask_keys="box_mask", box_ref_image_keys="image", 
+                        min_fg_label=0, ellipse_mask=True
+                    ),
+                    RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
+                        prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
+                        keep_size=True,padding_mode="zeros"
+                    ),
+                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    BoxMaskToBoxd(
+                        box_mask_keys="box_mask", box_keys="boxes", 
+                        label_keys="labels", min_fg_label=0
+                    )
+                ]
             )
     """
 
