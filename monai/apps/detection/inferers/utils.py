@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Sequence, Union
+from typing import Any, Callable, Dict, List, Sequence, Union, Tuple
 
 import torch
 import torch.nn.functional as F
