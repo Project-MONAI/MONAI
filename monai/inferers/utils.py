@@ -54,11 +54,11 @@ def sliding_window_inference(
 
     The outputs of `predictor` could be a tensor, a tuple, or a dictionary of tensors.
     Each output in the tuple or dict value is allowed to have different resolutions with respect to the input.
-    e.g., the input patch spatial size is [128,128,128], the output patch sizes could be ([128,64,256], [64,32,128]).
-    In this case, the parameter `overlap` and `roi_size` need to be carefully chosen
-    to ensure the output ROI is still int.
-    If the predictor's input and output spatial sizes are not equal, we recommend choosing the parameters so that
-    `overlap*roi_size*output_size/input_size` is an integer (for each spatial dimension).
+    e.g., the input patch spatial size is [128,128,128], the output (a tuple of two patches) patch sizes
+    could be ([128,64,256], [64,32,128]).
+    In this case, the parameter `overlap` and `roi_size` need to be carefully chosen to ensure the output ROI is still
+    an integer. If the predictor's input and output spatial sizes are not equal, we recommend choosing the parameters
+    so that `overlap*roi_size*output_size/input_size` is an integer (for each spatial dimension).
 
     When roi_size is larger than the inputs' spatial size, the input image are padded during inference.
     To maintain the same spatial sizes, the output image will be cropped to the original input size.

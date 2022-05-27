@@ -120,7 +120,7 @@ class SlidingWindowInferer(Inferer):
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
         progress: whether to print a tqdm progress bar.
-        cache_roi_weight_map: whether to precompute
+        cache_roi_weight_map: whether to precompute the ROI weight map.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
