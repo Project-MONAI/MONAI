@@ -185,6 +185,8 @@ IgniteEngine, _ = optional_import("ignite.engine", 0.4.8, min_version, "Engine")
 class Workflow(IgniteEngine):
     ...
 ```
+If any of the newly added test program depends on the optional packages, please add it to the `exclude cases` of [min_tests](https://github.com/Project-MONAI/MONAI/blob/dev/tests/min_tests.py) to skip the minimal testing for it.
+
 To involve and config a new optional package in a pull request, please add the necessary information to below files:
 [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg), [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt), [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt), [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml), [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md), [deviceconfig.py]https://github.com/Project-MONAI/MONAI/blob/dev/monai/config/deviceconfig.py.
 
