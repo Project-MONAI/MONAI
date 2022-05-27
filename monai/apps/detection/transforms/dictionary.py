@@ -24,8 +24,8 @@ import torch
 
 from monai.apps.detection.transforms.array import (
     AffineBox,
-    BoxMaskToBox,
-    BoxToBoxMask,
+    MaskToBox,
+    BoxToMask,
     ClipBoxToImage,
     ConvertBoxMode,
     ConvertBoxToStandardMode,
@@ -68,12 +68,12 @@ __all__ = [
     "ClipBoxToImaged",
     "ClipBoxToImageD",
     "ClipBoxToImageDict",
-    "BoxToBoxMaskd",
-    "BoxToBoxMaskD",
-    "BoxToBoxMaskDict",
-    "BoxMaskToBoxd",
-    "BoxMaskToBoxD",
-    "BoxMaskToBoxDict",
+    "BoxToMaskd",
+    "BoxToMaskD",
+    "BoxToMaskDict",
+    "MaskToBoxd",
+    "MaskToBoxD",
+    "MaskToBoxDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -767,18 +767,18 @@ class ClipBoxToImaged(MapTransform):
         return d
 
 
-class BoxToBoxMaskd(MapTransform):
+class BoxToMaskd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxToBoxMask`.
-    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxMaskToBoxd` .
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
+    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.MaskToBoxd` .
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
     The output d[box_mask_key] will have background intensity 0, since the following operations may pad 0 on the border.
 
     This is the general solution for transforms that need to be applied on images and boxes simultaneously.
     It is performed with the following steps.
-    1) use BoxToBoxMaskd to covert boxes and labels to box_masks;
+    1) use BoxToMaskd to covert boxes and labels to box_masks;
     2) do transforms, e.g., rotation or cropping, on images and box_masks together;
-    3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
+    3) use MaskToBoxd to convert box_masks back to boxes and labels.
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
@@ -801,7 +801,7 @@ class BoxToBoxMaskd(MapTransform):
             from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(
                 [
-                    BoxToBoxMaskd(
+                    BoxToMaskd(
                         box_keys="boxes", label_keys="labels",
                         box_mask_keys="box_mask", box_ref_image_keys="image",
                         min_fg_label=0, ellipse_mask=True
@@ -811,7 +811,7 @@ class BoxToBoxMaskd(MapTransform):
                         keep_size=True,padding_mode="zeros"
                     ),
                     RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
-                    BoxMaskToBoxd(
+                    MaskToBoxd(
                         box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
                     )
@@ -839,7 +839,7 @@ class BoxToBoxMaskd(MapTransform):
             raise ValueError("Please make sure len(label_keys)==len(box_keys)==len(box_mask_keys)!")
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
         self.bg_label = min_fg_label - 1  # make sure background label is always smaller than fg labels.
-        self.converter = BoxToBoxMask(bg_label=self.bg_label, ellipse_mask=ellipse_mask)
+        self.converter = BoxToMask(bg_label=self.bg_label, ellipse_mask=ellipse_mask)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -854,17 +854,17 @@ class BoxToBoxMaskd(MapTransform):
         return d
 
 
-class BoxMaskToBoxd(MapTransform):
+class MaskToBoxd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxMaskToBox`.
-    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxToBoxMaskd` .
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.MaskToBox`.
+    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxToMaskd` .
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
 
     This is the general solution for transforms that need to be applied on images and boxes simultaneously.
     It is performed with the following steps.
-    1) use BoxToBoxMaskd to covert boxes and labels to box_masks;
+    1) use BoxToMaskd to covert boxes and labels to box_masks;
     2) do transforms, e.g., rotation or cropping, on images and box_masks together;
-    3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
+    3) use MaskToBoxd to convert box_masks back to boxes and labels.
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
@@ -883,7 +883,7 @@ class BoxMaskToBoxd(MapTransform):
             from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(
                 [
-                    BoxToBoxMaskd(
+                    BoxToMaskd(
                         box_keys="boxes", label_keys="labels",
                         box_mask_keys="box_mask", box_ref_image_keys="image",
                         min_fg_label=0, ellipse_mask=True
@@ -893,7 +893,7 @@ class BoxMaskToBoxd(MapTransform):
                         keep_size=True,padding_mode="zeros"
                     ),
                     RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
-                    BoxMaskToBoxd(
+                    MaskToBoxd(
                         box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
                     )
@@ -919,14 +919,14 @@ class BoxMaskToBoxd(MapTransform):
         if not len(self.label_keys) == len(self.box_keys) == len(self.box_mask_keys):
             raise ValueError("Please make sure len(label_keys)==len(box_keys)==len(box_mask_keys)!")
         self.bg_label = min_fg_label - 1  # make sure background label is always smaller than fg labels.
-        self.converter = BoxMaskToBox(bg_label=self.bg_label, box_dtype=box_dtype, label_dtype=label_dtype)
+        self.converter = MaskToBox(bg_label=self.bg_label, box_dtype=box_dtype, label_dtype=label_dtype)
         self.box_dtype = box_dtype
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
 
         for box_key, label_key, box_mask_key in zip(self.box_keys, self.label_keys, self.box_mask_keys):
-            d[box_mask_key] += self.bg_label  # pairs with the operation in BoxToBoxMaskd
+            d[box_mask_key] += self.bg_label  # pairs with the operation in BoxToMaskd
             d[box_key], d[label_key] = self.converter(d[box_mask_key])
         return d
 
@@ -939,5 +939,5 @@ AffineBoxToImageCoordinateD = AffineBoxToImageCoordinateDict = AffineBoxToImageC
 FlipBoxD = FlipBoxDict = FlipBoxd
 RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
 ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
-BoxToBoxMaskD = BoxToBoxMaskDict = BoxToBoxMaskd
-BoxMaskToBoxD = BoxMaskToBoxDict = BoxMaskToBoxd
+BoxToMaskD = BoxToMaskDict = BoxToMaskd
+MaskToBoxD = MaskToBoxDict = MaskToBoxd
