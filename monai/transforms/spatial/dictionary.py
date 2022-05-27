@@ -2212,7 +2212,7 @@ class GridPatchd(MapTransform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        num_patches: number of patches to return. Defaults to None, which return all the available patches.
+        fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
             will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
@@ -2235,7 +2235,7 @@ class GridPatchd(MapTransform):
         keys: KeysCollection,
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
-        num_patches: Optional[int] = None,
+        fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
@@ -2246,7 +2246,7 @@ class GridPatchd(MapTransform):
         self.patcher = GridPatch(
             patch_size=patch_size,
             start_pos=start_pos,
-            num_patches=num_patches,
+            fix_num_patches=fix_num_patches,
             overlap=overlap,
             sort_key=sort_key,
             pad_mode=pad_mode,
@@ -2276,7 +2276,7 @@ class GridPatchd(MapTransform):
         return output
 
 
-class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
+class RandGridPatchd(RandomizableTransform, MapTransform):
     """
     Return all (or a subset of) the patches sweeping the entire image with a random starting position.
 
@@ -2285,7 +2285,7 @@ class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        num_patches: number of patches to return. Defaults to None, which return all the available patches.
+        fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
@@ -2312,7 +2312,7 @@ class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
         patch_size: Sequence[int],
         min_start_pos: Optional[Union[Sequence[int], int]] = None,
         max_start_pos: Optional[Union[Sequence[int], int]] = None,
-        num_patches: Optional[int] = None,
+        fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
@@ -2325,7 +2325,7 @@ class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
             patch_size=patch_size,
             min_start_pos=min_start_pos,
             max_start_pos=max_start_pos,
-            num_patches=num_patches,
+            fix_num_patches=fix_num_patches,
             overlap=overlap,
             sort_key=sort_key,
             pad_mode=pad_mode,
@@ -2338,8 +2338,30 @@ class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandGridPatchd":
         self.patcher.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+        RandomizableTransform.set_random_state(self, seed, state)
         return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+        d = dict(data)
+        original_spatial_shape = d[first(self.keys)].shape[1:]
+        output = []
+        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
+            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
+            # fill in the extra keys with unmodified data
+            for k in set(d.keys()).difference(set(self.keys)):
+                new_dict[k] = deepcopy(d[k])
+            # fill additional metadata
+            new_dict["original_spatial_shape"] = original_spatial_shape
+            # use the coordinate of the first item
+            location = patch[0][1]
+            new_dict["patch"] = {
+                "location": location,
+                "size": self.patcher.patch_size,
+                "num_patches": self.patcher.num_patches,
+            }
+            new_dict["start_pos"] = self.patcher.start_pos
+            output.append(new_dict)
+        return output
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
