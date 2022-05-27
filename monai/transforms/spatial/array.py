@@ -2705,11 +2705,11 @@ class GridPatch(Transform):
                     patch = np.ones((array.shape[0], *self.patch_size)) * self.pad_opts["constant_values"]
                 else:
                     patch = np.zeros((array.shape[0], *self.patch_size))
-                location = (None,) * len(self.patch_size)
+                location = np.zeros((3, len(self.patch_size)))
                 output += [(patch, location)] * (self.num_patches - len(output))
 
         if not isinstance(array, np.ndarray):
-            output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
+            output = [(convert_to_dst_type(src=patch, dst=array)[0], loc) for patch, loc in output]
         return output
 
 
