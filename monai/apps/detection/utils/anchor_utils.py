@@ -44,6 +44,7 @@ import torch
 from torch import Tensor, nn
 
 from monai.utils import ensure_tuple
+from monai.utils.misc import issequenceiterable
 from monai.utils.module import look_up_option
 
 
@@ -110,13 +111,14 @@ class AnchorGenerator(nn.Module):
     ) -> None:
         super().__init__()
 
-        if not isinstance(sizes[0], Sequence):
-            # TODO change this
-            sizes = tuple((s,) for s in sizes)
-        if not isinstance(aspect_ratios[0], Sequence):
-            aspect_ratios = (aspect_ratios,) * len(sizes)
+        if not issequenceiterable(sizes[0]):
+            self.sizes = tuple((s,) for s in sizes)
+        else:
+            self.sizes = ensure_tuple(sizes)
+        if not issequenceiterable(aspect_ratios[0]):
+            aspect_ratios = (aspect_ratios,) * len(self.sizes)
 
-        if len(sizes) != len(aspect_ratios):
+        if len(self.sizes) != len(aspect_ratios):
             raise ValueError(
                 "len(sizes) and len(aspect_ratios) should be equal. \
                 It represents the number of feature maps."
@@ -128,10 +130,9 @@ class AnchorGenerator(nn.Module):
 
         self.indexing = look_up_option(indexing, ["ij", "xy"])
 
-        self.sizes = sizes
         self.aspect_ratios = aspect_ratios
         self.cell_anchors = [
-            self.generate_anchors(size, aspect_ratio) for size, aspect_ratio in zip(sizes, aspect_ratios)
+            self.generate_anchors(size, aspect_ratio) for size, aspect_ratio in zip(self.sizes, aspect_ratios)
         ]
 
     # This comment comes from torchvision.
@@ -163,8 +164,6 @@ class AnchorGenerator(nn.Module):
                 For each s in scales, returns [s, s*aspect_ratios[j]] for 2D images,
                 and [s, s*aspect_ratios[j,0],s*aspect_ratios[j,1]] for 3D images.
         """
-        if device is None:
-            device = torch.device("cpu")
         scales_t = torch.as_tensor(scales, dtype=dtype, device=device)  # sized (N,)
         aspect_ratios_t = torch.as_tensor(aspect_ratios, dtype=dtype, device=device)  # sized (M,) or (M,2)
         if (self.spatial_dims >= 3) and (len(aspect_ratios_t.shape) != 2):
@@ -402,8 +401,6 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             For 2D images, returns [-w/2, -h/2, w/2, h/2];
             For 3D images, returns [-w/2, -h/2, -d/2, w/2, h/2, d/2]
         """
-        if device is None:
-            device = torch.device("cpu")
         half_anchor_shapes = anchor_shapes / 2.0
         base_anchors = torch.cat([-half_anchor_shapes, half_anchor_shapes], dim=1)
         return base_anchors.round().to(dtype).to(device)
