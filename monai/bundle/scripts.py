@@ -17,6 +17,8 @@ import re
 import warnings
 from logging.config import fileConfig
 from pathlib import Path
+from shutil import copyfile
+from textwrap import dedent
 from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
@@ -25,9 +27,10 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict
+from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
 from monai.utils import check_parent_dir, get_equivalent_dtype, min_version, optional_import
 from monai.utils.misc import ensure_tuple
 
@@ -621,3 +624,80 @@ def ckpt_export(
         more_extra_files=extra_files,
     )
     logger.info(f"exported to TorchScript file: {filepath_}.")
+
+
+def init_bundle(
+    bundle_dir: PathLike,
+    ckpt_file: Optional[PathLike] = None,
+    network: Optional[torch.nn.Module] = None,
+    metadata_str: Union[Dict, str] = DEFAULT_METADATA,
+    inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
+):
+    """
+    Initialise a new bundle directory with some default configuration files and optionally network weights.
+
+    Typical usage example:
+
+    .. code-block:: bash
+
+        python -m monai.bundle init_bundle /path/to/bundle_dir network_ckpt.pt
+
+    Args:
+        bundle_dir: directory name to create, must not exist but parent direct must exist
+        ckpt_file: optional checkpoint file to copy into bundle
+        network: if given instead of ckpt_file this network's weights will be stored in bundle
+    """
+
+    bundle_dir = Path(bundle_dir).absolute()
+
+    if bundle_dir.exists():
+        raise ValueError(f"Specified bundle directory '{str(bundle_dir)}' already exists")
+
+    if not bundle_dir.parent.is_dir():
+        raise ValueError(f"Parent directory of specified bundle directory '{str(bundle_dir)}' does not exist")
+
+    configs_dir = bundle_dir / "configs"
+    models_dir = bundle_dir / "models"
+    docs_dir = bundle_dir / "docs"
+
+    bundle_dir.mkdir()
+    configs_dir.mkdir()
+    models_dir.mkdir()
+    docs_dir.mkdir()
+
+    if isinstance(metadata_str, dict):
+        metadata_str = json.dumps(metadata_str, indent=4)
+
+    if isinstance(inference_str, dict):
+        inference_str = json.dumps(inference_str, indent=4)
+
+    with open(str(configs_dir / "metadata.json"), "w") as o:
+        o.write(metadata_str)
+
+    with open(str(configs_dir / "inference.json"), "w") as o:
+        o.write(inference_str)
+
+    with open(str(docs_dir / "README.md"), "w") as o:
+        readme = """
+        # Your Model Name
+
+        Describe your model here and how to run it, for example using `inference.json`:
+
+        ```
+        python -m monai.bundle run evaluating \
+            --meta_file /path/to/bundle/configs/metadata.json \
+            --config_file /path/to/bundle/configs/inference.json \
+            --dataset_dir ./input \
+            --bundle_root /path/to/bundle
+        ```
+        """
+
+        o.write(dedent(readme))
+
+    with open(str(docs_dir / "license.txt"), "w") as o:
+        o.write("Select a license and place its terms here\n")
+
+    if ckpt_file is not None:
+        copyfile(str(ckpt_file), str(models_dir / "model.pt"))
+    elif network is not None:
+        save_state(network, str(models_dir / "model.pt"))
