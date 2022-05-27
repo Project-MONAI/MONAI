@@ -148,6 +148,13 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
                 for i, item in enumerate(result):
                     self.assertEqual(item[PostFix.meta(k)]["patch_index"], i)
 
+    def test_correct_center(self):
+        cropper = RandCropByPosNegLabeld(keys="label", label_key="label", spatial_size=[3, 3])
+        cropper.set_random_state(0)
+        test_image = {"label": np.asarray([[[1, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1]]])}
+        result = cropper(test_image)
+        np.testing.assert_allclose(result[0]["label"], np.asarray([[[0, 0, 1], [0, 0, 0], [0, 0, 0]]]))
+
 
 if __name__ == "__main__":
     unittest.main()
