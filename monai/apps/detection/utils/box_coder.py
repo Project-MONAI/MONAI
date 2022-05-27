@@ -124,7 +124,7 @@ class BoxCoder:
         .. code-block:: python
 
             box_coder = BoxCoder(weights=[1., 1., 1., 1., 1., 1.])
-            gt_boxes = torch.ones(10,6)
+            gt_boxes = torch.tensor([[1,2,1,4,5,6],[1,3,2,7,8,9]])
             proposals = gt_boxes + torch.rand(gt_boxes.shape)
             rel_gt_boxes = box_coder.encode_single(gt_boxes, proposals)
             gt_back = box_coder.decode_single(rel_gt_boxes, proposals)
