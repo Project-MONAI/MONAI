@@ -34,8 +34,8 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 from .box_ops import (
     apply_affine_to_boxes,
-    convert_boxes_to_masks,
-    convert_masks_to_boxes,
+    convert_box_to_mask,
+    convert_mask_to_box,
     flip_boxes,
     resize_boxes,
     zoom_boxes,
@@ -417,7 +417,7 @@ class BoxToMask(Transform):
                 The foreground region in channel c has intensity of labels[c].
                 The background intensity is bg_label.
         """
-        return convert_boxes_to_masks(boxes, labels, spatial_size, self.bg_label, self.ellipse_mask)
+        return convert_box_to_mask(boxes, labels, spatial_size, self.bg_label, self.ellipse_mask)
 
 
 class MaskToBox(Transform):
@@ -450,4 +450,4 @@ class MaskToBox(Transform):
             - bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
             - classification foreground(fg) labels, dtype should be int, sized (N,).
         """
-        return convert_masks_to_boxes(boxes_mask, self.bg_label, self.box_dtype, self.label_dtype)
+        return convert_mask_to_box(boxes_mask, self.bg_label, self.box_dtype, self.label_dtype)

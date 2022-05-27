@@ -192,7 +192,7 @@ def flip_boxes(
     return flip_boxes
 
 
-def convert_boxes_to_masks(
+def convert_box_to_mask(
     boxes: NdarrayOrTensor,
     labels: NdarrayOrTensor,
     spatial_size: Union[Sequence[int], int],
@@ -284,7 +284,7 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
     return convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)[0]
 
 
-def convert_masks_to_boxes(
+def convert_mask_to_box(
     boxes_mask: NdarrayOrTensor, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
