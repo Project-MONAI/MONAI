@@ -27,9 +27,9 @@ A21 = A[:, 2:, :2]
 A22 = A[:, 2:, 2:]
 
 TEST_CASE_0 = [{"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0}, {"image": A}, [A11, A12, A21, A22]]
-TEST_CASE_1 = [{"patch_size": (2, 2), "min_start_pos": 0, "num_patches": 3}, {"image": A}, [A11, A12, A21]]
+TEST_CASE_1 = [{"patch_size": (2, 2), "min_start_pos": 0, "fix_num_patches": 3}, {"image": A}, [A11, A12, A21]]
 TEST_CASE_2 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0, "num_patches": 5},
+    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0, "fix_num_patches": 5},
     {"image": A},
     [A11, A12, A21, A22, np.zeros((3, 2, 2))],
 ]
@@ -39,7 +39,7 @@ TEST_CASE_5 = [{"patch_size": (2, 2), "min_start_pos": 2, "max_start_pos": 2}, {
 TEST_CASE_6 = [{"patch_size": (2, 2), "min_start_pos": (0, 2), "max_start_pos": (0, 2)}, {"image": A}, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "min_start_pos": 1, "max_start_pos": 2}, {"image": A}, [A22]]
 TEST_CASE_8 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 1, "num_patches": 1, "sort_key": "max"},
+    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 1, "fix_num_patches": 1, "sort_key": "max"},
     {"image": A},
     [A[:, 1:3, 1:3]],
 ]
@@ -49,7 +49,7 @@ TEST_CASE_9 = [
         "min_start_pos": -3,
         "max_start_pos": -1,
         "sort_key": "min",
-        "num_patches": 1,
+        "fix_num_patches": 1,
         "pad_opts": {"constant_values": 255},
     },
     {"image": A},
