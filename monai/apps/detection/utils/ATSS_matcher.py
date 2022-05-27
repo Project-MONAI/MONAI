@@ -84,7 +84,7 @@ from monai.data.box_utils import COMPUTE_DTYPE, box_iou, boxes_center_distance, 
 from monai.utils.type_conversion import convert_to_tensor
 
 # -INF should be smaller than the lower bound of similarity_fn output.
-INF = 100.  # not really inf but here it is sufficient
+INF = float("inf")
 
 
 class Matcher(ABC):
