@@ -207,7 +207,11 @@ def convert_boxes_to_masks(
         labels: classification foreground(fg) labels corresponding to `boxes`, dtype should be int, sized (N,).
         spatial_size: image spatial size.
         bg_label: background labels for the output mask image, make sure it is smaller than any fg labels.
-        ellipse_mask: whether to make the foregound mask an ellipse (2D) or ellipsoid (3D).
+        ellipse_mask: bool.
+            If True, it assumes the object shape is close to ellipse or ellipsoid.
+            If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+            See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
 
     Return:
         - int16 array, sized (num_box, H, W). Each channel represents a box.
