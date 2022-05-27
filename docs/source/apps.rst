@@ -139,3 +139,8 @@ Applications
 ~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.ATSS_matcher
     :members:
+
+`Box coder`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_coder
+    :members:
