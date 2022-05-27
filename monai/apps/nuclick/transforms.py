@@ -126,7 +126,7 @@ class SplitLabeld(MapTransform):
     labels are kept in others
 
     Args:
-        label: label source, defaults to ``"label"``
+        label: key of the label source
         others: other labels storage key, defaults to ``"others"``
         mask_value: the mask_value that will be kept for binarization of the label, defaults to ``"mask_value"``
         min_area: The smallest allowable object size.
@@ -134,19 +134,29 @@ class SplitLabeld(MapTransform):
 
     def __init__(
         self,
-        label: str = NuclickKeys.LABEL.value,
+        keys: KeysCollection,
+        # label: str = NuclickKeys.LABEL.value,
         others: str = NuclickKeys.OTHERS.value,
         mask_value: str = NuclickKeys.MASK_VALUE.value,
         min_area: int = 5,
     ):
 
-        self.label = label
+        # self.label = label
+        super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value
         self.min_area = min_area
 
     def __call__(self, data):
         d = dict(data)
+
+        if len(self.keys) > 1:
+            print("Only 'label' key is supported, more than 1 key was found")
+            return None
+
+        for key in self.keys:
+            self.label = key
+
         label = d[self.label]
         mask_value = d[self.mask_value]
         mask = np.uint8(label == mask_value)
