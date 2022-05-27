@@ -171,7 +171,7 @@ class SlidingWindowInferer(Inferer):
 
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
         """
 
         Args:
