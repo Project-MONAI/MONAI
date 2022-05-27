@@ -24,12 +24,12 @@ import torch
 
 from monai.apps.detection.transforms.array import (
     AffineBox,
-    MaskToBox,
     BoxToMask,
     ClipBoxToImage,
     ConvertBoxMode,
     ConvertBoxToStandardMode,
     FlipBox,
+    MaskToBox,
     ZoomBox,
 )
 from monai.config import KeysCollection
