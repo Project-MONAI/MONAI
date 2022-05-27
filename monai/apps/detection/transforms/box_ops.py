@@ -22,7 +22,7 @@ from monai.utils import look_up_option, optional_import
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-scipy_ndimage, _ = optional_import("scipy.ndimage")
+scipy, _ = optional_import("scipy")
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
@@ -262,7 +262,7 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
             boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
             # squeeze it to a ellipse/ellipsoid mask
             zoom_factor = [box_size[axis] / float(max_box_size) for axis in range(spatial_dims)]
-            boxes_only_mask = scipy_ndimage.zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
+            boxes_only_mask = scipy.ndimage.zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
         else:
             # generate a rect mask
             boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])
