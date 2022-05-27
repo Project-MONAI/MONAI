@@ -17,8 +17,8 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
-    BoxMaskToBoxd,
-    BoxToBoxMaskd,
+    MaskToBoxd,
+    BoxToMaskd,
     ClipBoxToImaged,
     ConvertBoxModed,
     FlipBoxd,
@@ -66,7 +66,7 @@ class TestBoxTransform(unittest.TestCase):
         test_dtype = [torch.float32, torch.float16]
         for dtype in test_dtype:
             data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
-            transform_to_mask = BoxToBoxMaskd(
+            transform_to_mask = BoxToMaskd(
                 box_keys="boxes",
                 box_mask_keys="box_mask",
                 box_ref_image_keys="image",
@@ -74,7 +74,7 @@ class TestBoxTransform(unittest.TestCase):
                 min_fg_label=0,
                 ellipse_mask=True,
             )
-            transform_to_box = BoxMaskToBoxd(
+            transform_to_box = MaskToBoxd(
                 box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
             )
             data_mask = transform_to_mask(data)
