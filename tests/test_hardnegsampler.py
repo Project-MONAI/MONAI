@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.detection.utils.hard_negative_sampler import HardNegativeSampler
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import assert_allclose
 
 TEST_CASE = []
 TEST_CASE.append([[], [], [], [torch.tensor([]), torch.tensor([])], [torch.tensor([]), torch.tensor([])]])
