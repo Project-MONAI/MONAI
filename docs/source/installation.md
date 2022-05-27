@@ -50,7 +50,7 @@ python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 
 ## From conda-forge
 
-To install the [current milestone release](https://pypi.org/project/monai/):
+To install the [current milestone release](https://anaconda.org/conda-forge/monai):
 ```bash
 conda install -c conda-forge monai
 ```

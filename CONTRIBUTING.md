@@ -5,7 +5,7 @@
     1. [Unit testing](#unit-testing)
     1. [Building the documentation](#building-the-documentation)
     1. [Automatic code formatting](#automatic-code-formatting)
-    1. [Involve new package](#involve-new-package)
+    1. [Adding new optional dependencies](#adding-new-optional-dependencies)
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
     1. [Backwards compatibility](#backwards-compatibility)
@@ -172,25 +172,47 @@ The first line of the comment must be `/black` so that it will be interpreted by
 - [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
 - Repeat the above steps if necessary.
 
-#### Involve new package
-Except for `torch` and `numpy`, all the other packages are `optional import` for MONAI. All the existing optional packages are listed in [install dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
+#### Adding new optional dependencies
+In addition to the minimal requirements of PyTorch and Numpy, MONAI's core modules are built optionally based on 3rd-party packages.
+The current set of dependencies is listed in [installing dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
 
-Sample code of import logic:
+To allow for flexible integration of MONAI with other systems and environments,
+the optional dependency APIs are always invoked lazily. For example,
 ```py
-from monai.utils import min_version, optional_import
+from monai.utils import optional_import
+itk, _ = optional_import("itk", ...)
 
-IgniteEngine, _ = optional_import("ignite.engine", 0.4.8, min_version, "Engine")
-
-
-class Workflow(IgniteEngine):
+class ITKReader(ImageReader):
     ...
+    def read(self, ...):
+        return itk.imread(...)
 ```
-If any of the newly added test program depends on the optional packages, please add it to the `exclude cases` of [min_tests](https://github.com/Project-MONAI/MONAI/blob/dev/tests/min_tests.py) to skip the minimal testing for it.
+The availability of the external `itk.imread` API is not required unless `monai.data.ITKReader.read` is called by the user.
+Integration tests with minimal requirements are deployed to ensure this strategy.
 
-To involve and config a new optional package in a pull request, please add the necessary information to below files:
-[setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg), [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt), [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt), [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml), [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md), [deviceconfig.py]https://github.com/Project-MONAI/MONAI/blob/dev/monai/config/deviceconfig.py.
+To add new optional dependencies, please communicate with the core team during pull request reviews,
+and add the necessary information (at least) to the following files:
+- [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
+- [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (pip requirements.txt file)
+- [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
+- [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
 
-Usually, developer can search `pandas` in the above files as reference to add the new content.
+When writing unit tests that use 3rd-party packages, it is a good practice to always consider
+an appropriate fallback default behaviour when the packages are not installed in
+the testing environment. For example:
+```py
+from monai.utils import optional_import
+plt, has_matplotlib = optional_import("matplotlib.pyplot")
+
+@skipUnless(has_matplotlib, "Matplotlib required")
+class TestBlendImages(unittest.TestCase):
+```
+It skips the test cases when `matplotlib.pyplot` APIs are not available.
+
+Alternatively, add the test file name to the ``exclude_cases`` in `tests/min_tests.py` to completely skip the test
+cases when running in a minimal setup.
+
+
 
 #### Signing your work
 MONAI enforces the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) on all pull requests.
