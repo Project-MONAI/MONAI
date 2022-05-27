@@ -109,7 +109,7 @@ class SlidingWindowMultiOutputInferer(Inferer):
 
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
         """
         Args:
             inputs: model input data for inference.
