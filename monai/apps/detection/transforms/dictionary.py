@@ -774,9 +774,9 @@ class BoxToBoxMaskd(MapTransform):
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
     The output d[box_mask_key] will have background intensity 0, since the following operations may pad 0 on the border.
 
-    This is the general solution for transforms that need to be applied on images and boxes simultaneously. 
-    It is performed with the following steps. 
-    1) use BoxToBoxMaskd to covert boxes and labels to box_masks; 
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously.
+    It is performed with the following steps.
+    1) use BoxToBoxMaskd to covert boxes and labels to box_masks;
     2) do transforms, e.g., rotation or cropping, on images and box_masks together;
     3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
 
@@ -803,7 +803,7 @@ class BoxToBoxMaskd(MapTransform):
                 [
                     BoxToBoxMaskd(
                         box_keys="boxes", label_keys="labels",
-                        box_mask_keys="box_mask", box_ref_image_keys="image", 
+                        box_mask_keys="box_mask", box_ref_image_keys="image",
                         min_fg_label=0, ellipse_mask=True
                     ),
                     RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
@@ -812,13 +812,13 @@ class BoxToBoxMaskd(MapTransform):
                     ),
                     RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
                     BoxMaskToBoxd(
-                        box_mask_keys="box_mask", box_keys="boxes", 
+                        box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
                     )
                     DeleteItemsd(keys=["box_mask"]),
                 ]
             )
-            
+
     """
 
     def __init__(
@@ -860,9 +860,9 @@ class BoxMaskToBoxd(MapTransform):
     Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxToBoxMaskd` .
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
 
-    This is the general solution for transforms that need to be applied on images and boxes simultaneously. 
-    It is performed with the following steps. 
-    1) use BoxToBoxMaskd to covert boxes and labels to box_masks; 
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously.
+    It is performed with the following steps.
+    1) use BoxToBoxMaskd to covert boxes and labels to box_masks;
     2) do transforms, e.g., rotation or cropping, on images and box_masks together;
     3) use BoxMaskToBoxd to convert box_masks back to boxes and labels.
 
@@ -885,7 +885,7 @@ class BoxMaskToBoxd(MapTransform):
                 [
                     BoxToBoxMaskd(
                         box_keys="boxes", label_keys="labels",
-                        box_mask_keys="box_mask", box_ref_image_keys="image", 
+                        box_mask_keys="box_mask", box_ref_image_keys="image",
                         min_fg_label=0, ellipse_mask=True
                     ),
                     RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
@@ -894,7 +894,7 @@ class BoxMaskToBoxd(MapTransform):
                     ),
                     RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
                     BoxMaskToBoxd(
-                        box_mask_keys="box_mask", box_keys="boxes", 
+                        box_mask_keys="box_mask", box_keys="boxes",
                         label_keys="labels", min_fg_label=0
                     )
                     DeleteItemsd(keys=["box_mask"]),
