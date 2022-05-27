@@ -2627,7 +2627,7 @@ class GridPatch(Transform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        max_num_patches: maximum number of patches to return. No limit by default.
+        num_patches: number of patches to return. Defaults to None, which return all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
@@ -2649,7 +2649,7 @@ class GridPatch(Transform):
         self,
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
-        max_num_patches: Optional[int] = None,
+        num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
@@ -2660,8 +2660,7 @@ class GridPatch(Transform):
         self.pad_mode: NumpyPadMode = look_up_option(pad_mode, NumpyPadMode)
         self.pad_opts = {} if pad_opts is None else pad_opts
         self.overlap = overlap
-        self.max_num_patches = max_num_patches
-        self.num_pacthes = max_num_patches
+        self.num_patches = num_patches
         self.sort_key: Optional[Callable]
         if isinstance(sort_key, str):
             if sort_key == "random":
@@ -2698,11 +2697,17 @@ class GridPatch(Transform):
         if self.sort_key is not None:
             output = sorted(patch_iterator, key=self.sort_key)
         else:
-            # Get all the patches (it's required to have a defined length)
             output = list(patch_iterator)
-        # keep up to max_num_patches
-        output = output[: self.max_num_patches]
-        self.num_patches = len(output)
+        if self.num_patches:
+            output = output[: self.num_patches]
+            if len(output) < self.num_patches:
+                if self.pad_opts.get("constant_values"):
+                    patch = np.ones((array.shape[0], *self.patch_size)) * self.pad_opts["constant_values"]
+                else:
+                    patch = np.zeros((array.shape[0], *self.patch_size))
+                location = (None,) * len(self.patch_size)
+                output += [(patch, location)] * (self.num_patches - len(output))
+
         if not isinstance(array, np.ndarray):
             output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
         return output
@@ -2716,7 +2721,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension.
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        max_num_patches: maximum number of patches to return. No limit by default.
+        num_patches: number of patches to return. Defaults to None, which return all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_key: a callable or string that defines the order of the patches to be returned. If it is a callable, it
@@ -2740,7 +2745,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         patch_size: Sequence[int],
         min_start_pos: Optional[Union[Sequence[int], int]] = None,
         max_start_pos: Optional[Union[Sequence[int], int]] = None,
-        max_num_patches: Optional[int] = None,
+        num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_key: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
@@ -2750,7 +2755,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         super().__init__(
             patch_size=patch_size,
             start_pos=(),
-            max_num_patches=max_num_patches,
+            num_patches=num_patches,
             overlap=overlap,
             sort_key=sort_key,
             pad_mode=pad_mode,
