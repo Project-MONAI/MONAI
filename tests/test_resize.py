@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, pytorch_after
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -28,6 +28,8 @@ TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, 
 TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": True}, (6, 10, 15)]
 
 TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
+
+diff_t = 0.3 if is_tf32_env() else 0.2
 
 
 class TestResize(NumpyImageTestCase2D):
@@ -78,7 +80,7 @@ class TestResize(NumpyImageTestCase2D):
                     out = out.cpu().detach().numpy()
                 good = np.sum(np.isclose(expected, out, atol=0.9))
                 self.assertLessEqual(
-                    np.abs(good - expected.size) / float(expected.size), 0.21, "at most 21 percent mismatch "
+                    np.abs(good - expected.size) / float(expected.size), diff_t, f"at most {diff_t} percent mismatch "
                 )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
