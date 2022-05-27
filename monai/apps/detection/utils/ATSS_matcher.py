@@ -95,6 +95,7 @@ class Matcher(ABC):
         similarity_fn: function for similarity computation between
             boxes and anchors
     """
+
     BELOW_LOW_THRESHOLD: int = -1
     BETWEEN_THRESHOLDS: int = -2
 
