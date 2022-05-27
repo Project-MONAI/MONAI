@@ -2264,10 +2264,9 @@ class GridPatchd(MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            location = patch[0][1]  # use the coordinate of the first item
-            new_dict["location"]= location,
-            new_dict["patch_size"] = self.patcher.patch_size,
-            new_dict["num_patches"] = self.patcher.num_patches,
+            new_dict["location"] = patch[0][1]  # use the coordinate of the first item
+            new_dict["patch_size"] = self.patcher.patch_size
+            new_dict["num_patches"] = self.patcher.num_patches
             new_dict["start_pos"] = self.patcher.start_pos
             output.append(new_dict)
         return output
@@ -2349,10 +2348,9 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            location = patch[0][1]  # use the coordinate of the first item
-            new_dict["location"]= location,
-            new_dict["patch_size"] = self.patcher.patch_size,
-            new_dict["num_patches"] = self.patcher.num_patches,
+            new_dict["location"] = patch[0][1]  # use the coordinate of the first item
+            new_dict["patch_size"] = self.patcher.patch_size
+            new_dict["num_patches"] = self.patcher.num_patches
             new_dict["start_pos"] = self.patcher.start_pos
             output.append(new_dict)
         return output
