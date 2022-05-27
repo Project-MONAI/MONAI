@@ -83,21 +83,22 @@ from torch import Tensor
 from monai.data.box_utils import COMPUTE_DTYPE, box_iou, boxes_center_distance, centers_in_boxes
 from monai.utils.type_conversion import convert_to_tensor
 
-INF = 100  # not really inf but here it is sufficient
+# -INF should be smaller than the lower bound of similarity_fn output.
+INF = 100.  # not really inf but here it is sufficient
 
 
 class Matcher(ABC):
+    """
+    Base class of Matcher, which matches boxes and anchors to each other
+
+    Args:
+        similarity_fn: function for similarity computation between
+            boxes and anchors
+    """
     BELOW_LOW_THRESHOLD: int = -1
     BETWEEN_THRESHOLDS: int = -2
 
-    def __init__(self, similarity_fn: Callable[[Tensor, Tensor], Tensor] = box_iou):  # type: ignore
-        """
-        Matches boxes and anchors to each other
-
-        Args:
-            similarity_fn: function for similarity computation between
-                boxes and anchors
-        """
+    def __init__(self, similarity_fn: Callable[[Tensor, Tensor], Tensor] = box_iou):  # type: ignore        
         self.similarity_fn = similarity_fn
 
     def __call__(
@@ -169,7 +170,7 @@ class ATSSMatcher(Matcher):
         num_candidates: int = 4,
         similarity_fn: Callable[[Tensor, Tensor], Tensor] = box_iou,  # type: ignore
         center_in_gt: bool = True,
-        debug=False,
+        debug: bool = False,
     ):
         """
         Compute matching based on ATSS
