@@ -40,7 +40,7 @@ def sliding_window_inference_multioutput(
     importance_map_roi_size: Union[torch.Tensor, None] = None,
     *args: Any,
     **kwargs: Any,
-) -> Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]:
+) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
     """
     Sliding window inference on `inputs` with a multi-output `predictor`.
     The outputs of `predictor` should either be Sequence with same length, or Dict with torch.Tensor values ans same keys.
