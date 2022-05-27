@@ -47,6 +47,7 @@ class TestResize(NumpyImageTestCase2D):
             ((32, 32, 32), "trilinear", True),
             ((256, 256), "bilinear", False),
             ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "nearest", False),
+            ((128, 64), "area", True),  # already in a good shape
         ]
     )
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
