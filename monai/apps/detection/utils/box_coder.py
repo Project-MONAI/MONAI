@@ -72,7 +72,6 @@ from monai.utils.module import look_up_option
 def encode_boxes(gt_boxes: Tensor, proposals: Tensor, weights: Tensor) -> Tensor:
     """
     Encode a set of proposals with respect to some reference ground truth (gt) boxes.
-    Assuming all boxes are with xyxy or xyzxyz mode.
 
     Args:
         gt_boxes: gt boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
@@ -141,7 +140,6 @@ class BoxCoder:
     def encode(self, gt_boxes: Sequence[Tensor], proposals: Sequence[Tensor]) -> Tuple[Tensor]:
         """
         Encode a set of proposals with respect to some ground truth (gt) boxes.
-        Assuming all boxes are with xyxy or xyzxyz mode.
 
         Args:
             gt_boxes: list of gt boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
@@ -164,7 +162,6 @@ class BoxCoder:
     def encode_single(self, gt_boxes: Tensor, proposals: Tensor) -> Tensor:
         """
         Encode proposals with respect to ground truth (gt) boxes.
-        Assuming all boxes are with xyxy or xyzxyz mode.
 
         Args:
             gt_boxes: gt boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
@@ -182,7 +179,6 @@ class BoxCoder:
     def decode(self, rel_codes: Tensor, reference_boxes: Sequence[Tensor]) -> Tensor:
         """
         From a set of original reference_boxes and encoded relative box offsets,
-        get the decoded boxes with xyxy or xyzxyz mode
 
         Args:
             rel_codes: encoded boxes, Nx4 or Nx6 torch tensor.
@@ -190,7 +186,7 @@ class BoxCoder:
                 The box mode is assumed to be ``StandardMode``
 
         Return:
-            decoded boxes, Nx1x4 or Nx1x6 torch tensor.
+            decoded boxes, Nx1x4 or Nx1x6 torch tensor. The box mode will be ``StandardMode``
         """
         if not isinstance(reference_boxes, Sequence) or (not isinstance(rel_codes, torch.Tensor)):
             raise ValueError("Input arguments wrong type.")
@@ -210,14 +206,13 @@ class BoxCoder:
     def decode_single(self, rel_codes: Tensor, reference_boxes: Tensor) -> Tensor:
         """
         From a set of original boxes and encoded relative box offsets,
-        get the decoded boxes with xyxy or xyzxyz mode
 
         Args:
             rel_codes: encoded boxes, Nx4 or Nx6 torch tensor.
             reference_boxes: reference boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
 
         Return:
-            decoded boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
+            decoded boxes, Nx4 or Nx6 torch tensor. The box mode will to be ``StandardMode``
         """
         reference_boxes = reference_boxes.to(rel_codes.dtype)
 
