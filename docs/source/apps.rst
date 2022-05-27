@@ -128,7 +128,7 @@ Applications
 
 `Hard Negative Sampler`
 ~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: monai.apps.detection.hard_negative_sampler
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
 
 `Transforms`
 ~~~~~~~~~~~~
