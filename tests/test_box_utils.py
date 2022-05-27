@@ -27,8 +27,10 @@ from monai.data.box_utils import (
     box_pair_giou,
     boxes_center_distance,
     centers_in_boxes,
+    clip_boxes_to_image,
     convert_box_mode,
     convert_box_to_standard_mode,
+    non_max_suppression,
 )
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -142,6 +144,7 @@ class TestCreateBoxList(unittest.TestCase):
         boxes1 = convert_data_type(input_data["boxes"], dtype=np.float32)[0]
         mode1 = input_data["mode"]
         half_bool = input_data["half"]
+        spatial_size = input_data["spatial_size"]
 
         # test float16
         if half_bool:
@@ -191,6 +194,26 @@ class TestCreateBoxList(unittest.TestCase):
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
         center_dist, _, _ = boxes_center_distance(boxes1=result_standard[0:1, :], boxes2=result_standard[0:1, :])
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
+
+        # test clip_boxes_to_image
+        clipped_boxes, keep = clip_boxes_to_image(expected_box_standard, spatial_size, remove_empty=True)
+        assert_allclose(
+            expected_box_standard[keep, :], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
+        )
+        assert_allclose(
+            id(clipped_boxes) != id(expected_box_standard), True, type_test=False, device_test=False, atol=0.0
+        )
+
+        # test non_max_suppression
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=1.0, box_overlap_metric=box_giou
+        )
+        assert_allclose(nms_box, [1, 2, 0], type_test=False)
+
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=-1.0, box_overlap_metric=box_iou
+        )
+        assert_allclose(nms_box, [1], type_test=False)
 
 
 if __name__ == "__main__":

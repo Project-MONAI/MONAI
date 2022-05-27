@@ -9,20 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from copy import deepcopy
+from typing import Optional, Sequence, Union
 
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import get_spatial_dims
+from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms.utils import create_scale
-from monai.utils.misc import ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
     """
-    This internal function applies affine matrixs to the point coordinate
+    This internal function applies affine matrices to the point coordinate
 
     Args:
         points: point coordinates, Nx2 or Nx3 torch tensor or ndarray, representing [x, y] or [x, y, z]
@@ -55,7 +56,7 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
 
 def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> NdarrayOrTensor:
     """
-    This function applies affine matrixs to the boxes
+    This function applies affine matrices to the boxes
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be StandardMode
@@ -70,9 +71,8 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
 
     # some operation does not support torch.float16
     # convert to float32
-    compute_dtype = torch.float32
 
-    boxes_t = boxes_t.to(dtype=compute_dtype)
+    boxes_t = boxes_t.to(dtype=COMPUTE_DTYPE)
     affine_t, *_ = convert_to_dst_type(src=affine, dst=boxes_t)
 
     spatial_dims = get_spatial_dims(boxes=boxes_t)
@@ -151,3 +151,38 @@ def resize_boxes(
     zoom = [dst_spatial_size[axis] / float(src_spatial_size[axis]) for axis in range(spatial_dims)]
 
     return zoom_boxes(boxes=boxes, zoom=zoom)
+
+
+def flip_boxes(
+    boxes: NdarrayOrTensor,
+    spatial_size: Union[Sequence[int], int],
+    flip_axes: Optional[Union[Sequence[int], int]] = None,
+) -> NdarrayOrTensor:
+    """
+    Flip boxes when the corresponding image is flipped
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        spatial_size: image spatial size.
+        flip_axes: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
+    Returns:
+        flipped boxes, with same data type as ``boxes``, does not share memory with ``boxes``
+    """
+    spatial_dims: int = get_spatial_dims(boxes=boxes)
+    spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
+    if flip_axes is None:
+        flip_axes = tuple(range(0, spatial_dims))
+    flip_axes = ensure_tuple(flip_axes)
+
+    # flip box
+    flip_boxes = deepcopy(boxes)
+    for axis in flip_axes:
+        flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
+        flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
+
+    return flip_boxes
