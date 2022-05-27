@@ -2252,7 +2252,6 @@ class GridPatchd(MapTransform):
             pad_mode=pad_mode,
             pad_opts=pad_opts,
         )
-        self.num_patches = num_patches
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
         d = dict(data)
@@ -2277,7 +2276,7 @@ class GridPatchd(MapTransform):
         return output
 
 
-class RandGridPatchd(RandomizableTransform, MapTransform):
+class RandGridPatchd(RandomizableTransform, GridPatchd, MapTransform):
     """
     Return all (or a subset of) the patches sweeping the entire image with a random starting position.
 
@@ -2334,7 +2333,6 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             seed=seed,
         )
         self.set_random_state(seed)
-        self.num_patches = num_patches
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -2342,27 +2340,6 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         self.patcher.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
-        d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        output = []
-        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            location = patch[0][1]  # use the coordinate of the first item
-            new_dict["patch"] = {
-                "location": location,
-                "size": self.patcher.patch_size,
-                "num_patches": self.patcher.num_patches,
-            }
-            new_dict["start_pos"] = self.patcher.start_pos
-            output.append(new_dict)
-        return output
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
