@@ -705,9 +705,6 @@ class Resize(Transform):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
-        if tuple(img.shape[1:]) == spatial_size_:
-            return img
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
 
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
             return img
