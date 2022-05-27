@@ -50,6 +50,7 @@ __all__ = [
     "FlipBox",
     "ClipBoxToImage",
     "BoxToBoxMask",
+    "BoxMaskToBox",
 ]
 
 
