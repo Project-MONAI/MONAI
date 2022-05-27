@@ -49,8 +49,8 @@ __all__ = [
     "ResizeBox",
     "FlipBox",
     "ClipBoxToImage",
-    "BoxToBoxMask",
-    "BoxMaskToBox",
+    "BoxToMask",
+    "MaskToBox",
 ]
 
 
@@ -384,7 +384,7 @@ class ClipBoxToImage(Transform):
         return boxes_clip, tuple(labels_clip_list)
 
 
-class BoxToBoxMask(Transform):
+class BoxToMask(Transform):
     """
     Convert box to int16 mask image, which has the same size with the input image.
 
@@ -420,10 +420,10 @@ class BoxToBoxMask(Transform):
         return convert_boxes_to_masks(boxes, labels, spatial_size, self.bg_label, self.ellipse_mask)
 
 
-class BoxMaskToBox(Transform):
+class MaskToBox(Transform):
     """
     Convert int16 mask image to box, which has the same size with the input image.
-    Pairs with :py:class:`monai.apps.detection.transforms.array.BoxToBoxMask`.
+    Pairs with :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
 
     Args:
