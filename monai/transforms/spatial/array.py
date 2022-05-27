@@ -709,6 +709,9 @@ class Resize(Transform):
             return img
         img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
 
+        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
+            return img
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
             if anti_aliasing_sigma is None:
