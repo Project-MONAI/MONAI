@@ -796,9 +796,9 @@ class BoxToBoxMaskd(MapTransform):
     Example:
         .. code-block:: python
 
-            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and images together.
+            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and image together.
             import numpy as np
-            from monai.transforms import Compose, RandRotated, RandSpatialCropd
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(
                 [
                     BoxToBoxMaskd(
@@ -815,6 +815,7 @@ class BoxToBoxMaskd(MapTransform):
                         box_mask_keys="box_mask", box_keys="boxes", 
                         label_keys="labels", min_fg_label=0
                     )
+                    DeleteItemsd(keys=["box_mask"]),
                 ]
             )
             
@@ -879,7 +880,7 @@ class BoxMaskToBoxd(MapTransform):
 
             # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and images together.
             import numpy as np
-            from monai.transforms import Compose, RandRotated, RandSpatialCropd
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(
                 [
                     BoxToBoxMaskd(
@@ -896,6 +897,7 @@ class BoxMaskToBoxd(MapTransform):
                         box_mask_keys="box_mask", box_keys="boxes", 
                         label_keys="labels", min_fg_label=0
                     )
+                    DeleteItemsd(keys=["box_mask"]),
                 ]
             )
     """
