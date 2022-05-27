@@ -138,3 +138,8 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.transforms.dictionary
     :members:
+
+`Box coder`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_coder
+    :members:
