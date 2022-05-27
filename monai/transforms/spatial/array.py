@@ -330,6 +330,8 @@ class SpatialResample(InvertibleTransform):
         # source becomes destination
         kw_args["dst_affine"] = kw_args.pop("src_affine")
         kw_args["spatial_size"] = transform[TraceKeys.ORIG_SIZE]
+        if kw_args.get("align_corners") == TraceKeys.NONE:
+            kw_args["align_corners"] = False
         with self.trace_transform(False):
             # we can't use `self.__call__` in case a child class calls this inverse.
             out: torch.Tensor = SpatialResample.__call__(self, data, **kw_args)
