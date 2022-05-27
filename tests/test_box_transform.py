@@ -81,6 +81,7 @@ class TestBoxTransform(unittest.TestCase):
             assert_allclose(data_mask["box_mask"], expected_mask, type_test=True, device_test=True, atol=1e-3)
             data_back = transform_to_box(data_mask)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
 
     @parameterized.expand(TESTS_3D)
     def test_value_3d(
