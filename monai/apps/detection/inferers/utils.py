@@ -10,13 +10,14 @@
 # limitations under the License.
 
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Sequence, Union, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.inferers.utils import _get_scan_interval
+from monai.transforms import Resize
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple, fall_back_tuple, look_up_option, optional_import
 
 tqdm, _ = optional_import("tqdm", name="tqdm")
@@ -146,7 +147,7 @@ def sliding_window_inference_multioutput(
             ).to(compute_dtype)
         except Exception as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try to use smaller patch size or use mode='constant' instead of mode='gaussian'. "
+                "Seems to be OOM. Please try to use smaller patch size or mode='constant' instead of mode='gaussian'. "
             ) from e
     # importance_map cannot be 0, otherwise we may end up with nans!
     min_non_zero = importance_map[importance_map != 0].min().item()
@@ -183,14 +184,14 @@ def sliding_window_inference_multioutput(
         for ss in range(len(seg_prob_tuple)):
             seg_prob = seg_prob_tuple[ss].to(device)  # BxCxMxNxP or BxCxMxN
 
-            # compute zoom scal: out_roi_size/in_roi_size
+            # compute zoom scale: out_roi_size/in_roi_size
             zoom_scale = []
             for axis in range(num_spatial_dims):
                 scale = seg_prob.shape[2 + axis] / float(window_data.shape[2 + axis])
                 if not (image_size[axis] * scale).is_integer():
                     raise ValueError(
-                        f"For axis-{axis}, output[{ss}] will have non-integer shape. Spatial \
-zoom_scale between output[{ss}] and input is {scale}. Please pad inputs."
+                        f"For axis-{axis}, output[{ss}] will have non-integer shape. Spatial "
+                        f"zoom_scale between output[{ss}] and input is {scale}. Please pad inputs."
                     )
                 zoom_scale.append(scale)
 
@@ -206,6 +207,9 @@ zoom_scale between output[{ss}] and input is {scale}. Please pad inputs."
                 _initialized_list[ss] = True
                 _initialized_list.append(False)
 
+            # resizing the importance_map
+            resizer = Resize(spatial_size=seg_prob.shape[2:], mode="nearest", anti_aliasing=False)
+
             # store the result in the proper location of the full output. Apply weights from importance map.
             for idx, original_idx in zip(slice_range, unravel_slice):
                 # zoom roi
@@ -215,26 +219,15 @@ zoom_scale between output[{ss}] and input is {scale}. Please pad inputs."
                     zoomed_end = original_idx[axis].stop * zoom_scale[axis - 2]
                     if not zoomed_start.is_integer() or (not zoomed_end.is_integer()):
                         raise ValueError(
-                            f"For axis-{axis-2} of output[{ss}], the output roi range is not int. \
-Input roi range is ({original_idx[axis].start}, {original_idx[axis].stop}). \
-Spatial zoom_scale between output[{ss}] and input is {zoom_scale[axis - 2]}. \
-Corresponding output roi range is ({zoomed_start}, {zoomed_end}).\n\
-Please change overlap ({overlap}) or roi_size ({roi_size[axis-2]}) for axis-{axis-2}. \
-Tips: if overlap*roi_size*zoom_scale is int, it usually works."
+                            f"For axis-{axis-2} of output[{ss}], the output roi range is not int. "
+                            f"Input roi range is ({original_idx[axis].start}, {original_idx[axis].stop}). "
+                            f"Spatial zoom_scale between output[{ss}] and input is {zoom_scale[axis - 2]}. "
+                            f"Corresponding output roi range is ({zoomed_start}, {zoomed_end}).\n"
+                            f"Please change overlap ({overlap}) or roi_size ({roi_size[axis-2]}) for axis-{axis-2}. "
+                            "Tips: if overlap*roi_size*zoom_scale is int, it usually works."
                         )
                     original_idx_zoom[axis] = slice(int(round(zoomed_start)), int(round(zoomed_end)), None)
-                # zoom importance_map
-                if importance_map.shape != seg_prob.shape[2:]:
-                    importance_map_zoom = (
-                        F.interpolate(  # F.interpolate does not support float16
-                            importance_map.unsqueeze(0).unsqueeze(0).to(torch.float32), size=seg_prob.shape[2:]
-                        )
-                        .to(compute_dtype)
-                        .squeeze(0)
-                        .squeeze(0)
-                    )
-                else:
-                    importance_map_zoom = importance_map
+                importance_map_zoom = resizer(importance_map.unsqueeze(0))[0].to(compute_dtype)
                 # store results and weights
                 output_image_list[ss][original_idx_zoom] += importance_map_zoom * seg_prob[idx - slice_g]
                 count_map_list[ss][original_idx_zoom] += (
