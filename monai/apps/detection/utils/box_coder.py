@@ -88,9 +88,9 @@ def encode_boxes(gt_boxes: Tensor, proposals: Tensor, weights: Tensor) -> Tensor
     spatial_dims = look_up_option(len(weights), [4, 6]) // 2
 
     if not is_valid_box_values(gt_boxes):
-        raise ValueError("gt_boxes is not valid. Please check if it contains enmpty boxes.")
+        raise ValueError("gt_boxes is not valid. Please check if it contains empty boxes.")
     if not is_valid_box_values(proposals):
-        raise ValueError("proposals is not valid. Please check if it contains enmpty boxes.")
+        raise ValueError("proposals is not valid. Please check if it contains empty boxes.")
 
     # implementation starts here
     ex_cccwhd: Tensor = convert_box_mode(proposals, src_mode=StandardMode, dst_mode=CenterSizeMode)  # type: ignore
@@ -124,7 +124,7 @@ class BoxCoder:
         .. code-block:: python
 
             box_coder = BoxCoder(weights=[1., 1., 1., 1., 1., 1.])
-            gt_boxes = torch.ones(10,6)
+            gt_boxes = torch.tensor([[1,2,1,4,5,6],[1,3,2,7,8,9]])
             proposals = gt_boxes + torch.rand(gt_boxes.shape)
             rel_gt_boxes = box_coder.encode_single(gt_boxes, proposals)
             gt_back = box_coder.decode_single(rel_gt_boxes, proposals)

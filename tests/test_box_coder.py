@@ -12,7 +12,6 @@
 import unittest
 
 import torch
-from parameterized import parameterized
 
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.transforms import CastToType
