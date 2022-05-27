@@ -851,6 +851,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -1021,6 +1023,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
