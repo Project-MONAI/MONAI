@@ -68,7 +68,6 @@ from monai.data.box_utils import (
 from monai.utils.module import look_up_option
 
 
-# @torch.jit._script_if_tracing
 def encode_boxes(gt_boxes: Tensor, proposals: Tensor, weights: Tensor) -> Tensor:
     """
     Encode a set of proposals with respect to some reference ground truth (gt) boxes.
