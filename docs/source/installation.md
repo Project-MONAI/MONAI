@@ -11,7 +11,7 @@
 3. [Validating the install](#validating-the-install)
 4. [MONAI version string](#monai-version-string)
 5. [From DockerHub](#from-dockerhub)
-6. [Installing the recommended dependencies](#Installing-the-recommended-dependencies)
+6. [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
 ---
 

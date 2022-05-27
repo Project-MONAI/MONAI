@@ -5,6 +5,7 @@
     1. [Unit testing](#unit-testing)
     1. [Building the documentation](#building-the-documentation)
     1. [Automatic code formatting](#automatic-code-formatting)
+    1. [Involve new package](#involve-new-package)
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
     1. [Backwards compatibility](#backwards-compatibility)
@@ -170,6 +171,24 @@ The first line of the comment must be `/black` so that it will be interpreted by
 - [Auto] The GitHub action tries to format all Python files (using [`psf/Black`](https://github.com/psf/black)) in the branch and makes a commit under the name "MONAI bot" if there's code change. The actual formatting action is deployed at [project-monai/monai-code-formatter](https://github.com/Project-MONAI/monai-code-formatter).
 - [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
 - Repeat the above steps if necessary.
+
+#### Involve new package
+Except for `torch` and `numpy`, all the other packages are `optional import` for MONAI. All the existing optional packages are listed in [install dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
+
+Sample code of import logic:
+```py
+from monai.utils import min_version, optional_import
+
+IgniteEngine, _ = optional_import("ignite.engine", 0.4.8, min_version, "Engine")
+
+
+class Workflow(IgniteEngine):
+    ...
+```
+To involve and config a new optional package in a pull request, please add the necessary information to below files:
+[setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg), [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt), [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt), [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml), [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md), [deviceconfig.py]https://github.com/Project-MONAI/MONAI/blob/dev/monai/config/deviceconfig.py.
+
+Usually, developer can search `pandas` in the above files as reference to add the new content.
 
 #### Signing your work
 MONAI enforces the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) on all pull requests.
