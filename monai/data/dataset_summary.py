@@ -54,12 +54,12 @@ class DatasetSummary:
             dataset: dataset from which to load the data.
             image_key: key name of images (default: ``image``).
             label_key: key name of labels (default: ``label``).
-            meta_key: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_key: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 if None, will try to construct meta_keys by `{image_key}_{meta_key_postfix}`.
-            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the meta data from dict,
-                the meta data is a dictionary object (default: ``meta_dict``).
+            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the metadata from dict,
+                the metadata is a dictionary object (default: ``meta_dict``).
             num_workers: how many subprocesses to use for data loading.
                 ``0`` means that the data will be loaded in the main process (default: ``0``).
             kwargs: other parameters (except `batch_size` and `num_workers`) for DataLoader,
@@ -76,12 +76,12 @@ class DatasetSummary:
 
     def collect_meta_data(self):
         """
-        This function is used to collect the meta data for all images of the dataset.
+        This function is used to collect the metadata for all images of the dataset.
         """
 
         for data in self.data_loader:
             if self.meta_key not in data:
-                raise ValueError(f"To collect meta data for the dataset, key `{self.meta_key}` must exist in `data`.")
+                raise ValueError(f"To collect metadata for the dataset, key `{self.meta_key}` must exist in `data`.")
             self.all_meta_data.append(data[self.meta_key])
 
     def get_target_spacing(self, spacing_key: str = "pixdim", anisotropic_threshold: int = 3, percentile: float = 10.0):
@@ -93,7 +93,7 @@ class DatasetSummary:
         After loading with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
 
         Args:
-            spacing_key: key of spacing in meta data (default: ``pixdim``).
+            spacing_key: key of spacing in metadata (default: ``pixdim``).
             anisotropic_threshold: threshold to decide if the target spacing is anisotropic (default: ``3``).
             percentile: for anisotropic target spacing, use the percentile of all spacings of the anisotropic axis to
                 replace that axis.

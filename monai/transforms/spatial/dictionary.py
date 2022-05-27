@@ -34,6 +34,7 @@ from monai.transforms.spatial.array import (
     AffineGrid,
     Flip,
     GridDistortion,
+    GridSplit,
     Orientation,
     Rand2DElastic,
     Rand3DElastic,
@@ -129,6 +130,9 @@ __all__ = [
     "ZoomDict",
     "RandZoomD",
     "RandZoomDict",
+    "GridSplitd",
+    "GridSplitD",
+    "GridSplitDict",
 ]
 
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
@@ -186,13 +190,13 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             meta_src_keys: the key of the corresponding ``src_affine`` in the metadata dictionary.
@@ -310,7 +314,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            template_key: key to meta data that output should be resampled to match.
+            template_key: key to metadata that output should be resampled to match.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -470,13 +474,13 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
@@ -608,13 +612,13 @@ class Orientationd(MapTransform, InvertibleTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 For example, to handle key `image`,  read/write affine matrices from the
                 metadata `image_meta_dict` dictionary's `affine` field.
             allow_missing_keys: don't raise exception if key is missing.
@@ -802,7 +806,7 @@ class Resized(MapTransform, InvertibleTransform):
             which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
             https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
             #albumentations.augmentations.geometric.resize.LongestMaxSize.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
@@ -1825,7 +1829,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
@@ -1925,7 +1929,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
             to keep the original spatial shape ratio.
             If a sequence, max_zoom should contain one value for each spatial axis.
             If 2 values provided for 3D data, use the first value for both H & W dims to keep the same zoom ratio.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"area"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
@@ -2149,6 +2153,47 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         return d
 
 
+class GridSplitd(MapTransform):
+    """
+    Split the image into patches based on the provided grid in 2D.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
+        size: a tuple or an integer that defines the output patch sizes,
+            or a dictionary that define it seperately for each key, like {"image": 3, "mask", (2, 2)}.
+            If it's an integer, the value will be repeated for each dimension.
+            The default is None, where the patch size will be inferred from the grid shape.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    Note: This transform currently support only image with two spatial dimensions.
+    """
+
+    backend = GridSplit.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        grid: Tuple[int, int] = (2, 2),
+        size: Optional[Union[int, Tuple[int, int], Dict[Hashable, Union[int, Tuple[int, int], None]]]] = None,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.grid = grid
+        self.size = size if isinstance(size, dict) else {key: size for key in self.keys}
+        self.splitter = GridSplit(grid=grid)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        n_outputs = np.prod(self.grid)
+        output: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(n_outputs)]
+        for key in self.key_iterator(d):
+            result = self.splitter(d[key], self.size[key])
+            for i in range(n_outputs):
+                output[i][key] = result[i]
+        return output
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2169,3 +2214,4 @@ RotateD = RotateDict = Rotated
 RandRotateD = RandRotateDict = RandRotated
 ZoomD = ZoomDict = Zoomd
 RandZoomD = RandZoomDict = RandZoomd
+GridSplitD = GridSplitDict = GridSplitd

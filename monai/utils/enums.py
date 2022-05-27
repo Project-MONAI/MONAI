@@ -36,6 +36,7 @@ __all__ = [
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "BoxModeName",
 ]
 
 
@@ -81,6 +82,7 @@ class InterpolateMode(Enum):
     """
 
     NEAREST = "nearest"
+    NEAREST_EXACT = "nearest-exact"
     LINEAR = "linear"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
@@ -141,7 +143,7 @@ class Average(Enum):
 
 class MetricReduction(Enum):
     """
-    See also: :py:class:`monai.metrics.meandice.DiceMetric`
+    See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
 
     NONE = "none"
@@ -225,21 +227,21 @@ class ForwardMode(Enum):
 
 
 class TraceKeys:
-    """Extra meta data keys used for traceable transforms."""
+    """Extra metadata keys used for traceable transforms."""
 
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    CLASS_NAME: str = "class"
+    ID: str = "id"
+    ORIG_SIZE: str = "orig_size"
+    EXTRA_INFO: str = "extra_info"
+    DO_TRANSFORM: str = "do_transforms"
+    KEY_SUFFIX: str = "_transforms"
+    NONE: str = "none"
 
 
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
-    Extra meta data keys used for inverse transforms.
+    Extra metadata keys used for inverse transforms.
 
     .. deprecated:: 0.8.0
         Use :class:`monai.utils.enums.TraceKeys` instead.
@@ -287,6 +289,10 @@ class PostFix:
     def orig_meta(key: Optional[str] = None):
         return PostFix._get_str(key, "orig_meta_dict")
 
+    @staticmethod
+    def transforms(key: Optional[str] = None):
+        return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
+
 
 class TransformBackends(Enum):
     """
@@ -307,3 +313,19 @@ class JITMetadataKeys(Enum):
     TIMESTAMP = "timestamp"
     VERSION = "version"
     DESCRIPTION = "description"
+
+
+class BoxModeName(Enum):
+    """
+    Box mode names.
+    """
+
+    XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
+    XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
+    XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    XYXYZZ = "xyxyzz"  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    XYWH = "xywh"  # [xmin, ymin, xsize, ysize]
+    XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
+    CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]

@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: [1.6.0, 1.7.1, 1.8.1, 1.9.1, 1.10.1, latest]
+        pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v2
@@ -148,16 +148,14 @@ jobs:
         # min. requirements
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
           python -m pip install torch
-        elif [ ${{ matrix.pytorch-version }} == "1.6.0" ]; then
-          python -m pip install torch==1.6.0
         elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
           python -m pip install torch==1.7.1
         elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
           python -m pip install torch==1.8.1
         elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
           python -m pip install torch==1.9.1
-        elif [ ${{ matrix.pytorch-version }} == "1.10.1" ]; then
-          python -m pip install torch==1.10.1
+        elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
+          python -m pip install torch==1.10.2
         fi
         python -m pip install -r requirements-min.txt
         python -m pip list

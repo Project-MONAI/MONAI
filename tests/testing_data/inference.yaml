@@ -1,7 +1,6 @@
 ---
 dataset_dir: "/workspace/data/Task09_Spleen"
 device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
-set_seed: "$monai.utils.set_determinism(0)"
 print_test_name: "$print('yaml_test')"
 network_def:
   _target_: UNet
@@ -71,7 +70,6 @@ evaluator:
   _target_: SupervisedEvaluator
   _requires_:
     - "$print('test_in_line_yaml')"
-    - "@set_seed"
     - "@print_test_name"
   device: "@device"
   val_data_loader: "@dataloader"
@@ -79,3 +77,6 @@ evaluator:
   inferer: "@inferer"
   postprocessing: "@postprocessing"
   amp: false
+evaluating:
+  - "$monai.utils.set_determinism(0)"
+  - "$@evaluator.run()"

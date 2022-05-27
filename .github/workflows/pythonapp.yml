@@ -105,6 +105,7 @@ jobs:
         python -m unittest -v
       env:
         QUICKTEST: True
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   packaging:
     runs-on: ubuntu-latest
@@ -137,7 +138,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=1.6 torchvision
+        python -m pip install torch>=1.7 torchvision
     - name: Check packages
       run: |
         pip uninstall monai
@@ -189,6 +190,8 @@ jobs:
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
+      env:
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   build-docs:
     runs-on: ubuntu-latest

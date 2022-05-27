@@ -851,6 +851,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -903,7 +905,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         allow_smaller: bool = False,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
             raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
@@ -925,7 +927,6 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
@@ -979,7 +980,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
+                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
                 results.append(cropper(img))
 
         return results
@@ -1021,6 +1023,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -1061,7 +1065,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         indices: Optional[List[NdarrayOrTensor]] = None,
         allow_smaller: bool = False,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size = spatial_size
         self.ratios = ratios
         self.label = label
         self.num_classes = num_classes
@@ -1078,7 +1082,6 @@ class RandCropByLabelClasses(Randomizable, Transform):
         indices: Optional[List[NdarrayOrTensor]] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
             if self.indices is not None:
@@ -1119,7 +1122,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results.append(cropper(img))
 
         return results

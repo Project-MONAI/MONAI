@@ -59,7 +59,7 @@ class ImageDataset(Dataset, Randomizable):
             image_only: if True return only the image volume, otherwise, return image volume and the metadata.
             transform_with_metadata: if True, the metadata will be passed to the transforms whenever possible.
             dtype: if not None convert the loaded image to this data type.
-            reader: register reader to load image file and meta data, if None, will use the default readers.
+            reader: register reader to load image file and metadata, if None, will use the default readers.
                 If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
                 parameters, supported reader name: "NibabelReader", "PILReader", "ITKReader", "NumpyReader"
             args: additional parameters for reader if providing a reader name.
