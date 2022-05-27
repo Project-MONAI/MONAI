@@ -98,7 +98,7 @@ class Matcher(ABC):
     BELOW_LOW_THRESHOLD: int = -1
     BETWEEN_THRESHOLDS: int = -2
 
-    def __init__(self, similarity_fn: Callable[[Tensor, Tensor], Tensor] = box_iou):  # type: ignore        
+    def __init__(self, similarity_fn: Callable[[Tensor, Tensor], Tensor] = box_iou):  # type: ignore
         self.similarity_fn = similarity_fn
 
     def __call__(
