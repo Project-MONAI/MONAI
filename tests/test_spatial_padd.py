@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SpatialPadd
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric", "mode": "constant"},
@@ -46,7 +47,10 @@ class TestSpatialPadd(unittest.TestCase):
     def test_pad_shape(self, input_param, input_data, expected_val):
         padder = SpatialPadd(**input_param)
         result = padder(input_data)
-        np.testing.assert_allclose(result["img"].shape, expected_val.shape)
+        assert_allclose(result["img"].shape, expected_val.shape)
+        # test inverse
+        inv_result = padder.inverse(result)
+        assert_allclose(inv_result["img"].shape, input_data["img"].shape)
 
 
 if __name__ == "__main__":

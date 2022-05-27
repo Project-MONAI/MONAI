@@ -23,6 +23,7 @@ from math import ceil, floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.config import IndexSelection, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -33,6 +34,7 @@ from monai.transforms.croppad.array import (
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
+    PadBase,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
     ResizeWithPadOrCrop,
@@ -56,6 +58,7 @@ from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
     "PadModeSequence",
+    "PadBased",
     "SpatialPadd",
     "BorderPadd",
     "DivisiblePadd",
@@ -108,7 +111,49 @@ PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], Nump
 DEFAULT_POST_FIX = PostFix.meta()
 
 
-class SpatialPadd(MapTransform, InvertibleTransform):
+class PadBased(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.PadBase`.
+    """
+
+    backend = PadBase.backend
+
+    def __init__(
+        self, keys: KeysCollection, mode: PadModeSequence = NumpyPadMode.CONSTANT, allow_missing_keys: bool = False
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        self.padder: Optional[PadBase] = None
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        if self.padder is None:
+            raise RuntimeError("PadBased should not be called directly, please use an inherited class.")
+        d = dict(data)
+        for key, m in self.key_iterator(d, self.mode):
+            d[key] = self.padder(d[key], mode=m)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        for key in self.key_iterator(data):
+            data[key] = self.padder.inverse(data[key])
+        return data
+
+
+class SpatialPadd(PadBased):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
@@ -148,39 +193,11 @@ class SpatialPadd(MapTransform, InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        super().__init__(keys, mode, allow_missing_keys)
         self.padder = SpatialPad(spatial_size, method, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-            d[key] = self.padder(d[key], mode=m)
-        return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            if self.padder.method == Method.SYMMETRIC:
-                current_size = d[key].shape[1:]
-                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
-            else:
-                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
-
-            inverse_transform = SpatialCrop(roi_center, orig_size)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
-
-class BorderPadd(MapTransform, InvertibleTransform):
+class BorderPadd(PadBased):
     """
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
@@ -223,43 +240,11 @@ class BorderPadd(MapTransform, InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        super().__init__(keys, mode, allow_missing_keys)
         self.padder = BorderPad(spatial_border=spatial_border, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-            d[key] = self.padder(d[key], mode=m)
-        return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            roi_start = np.array(self.padder.spatial_border)
-            # Need to convert single value to [min1,min2,...]
-            if roi_start.size == 1:
-                roi_start = np.full((len(orig_size)), roi_start)
-            # need to convert [min1,max1,min2,...] to [min1,min2,...]
-            elif roi_start.size == 2 * orig_size.size:
-                roi_start = roi_start[::2]
-            roi_end = np.array(transform[TraceKeys.ORIG_SIZE]) + roi_start
-
-            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
-
-class DivisiblePadd(MapTransform, InvertibleTransform):
+class DivisiblePadd(PadBased):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
@@ -299,34 +284,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
+        super().__init__(keys, mode, allow_missing_keys)
         self.padder = DivisiblePad(k=k, method=method, **kwargs)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-            d[key] = self.padder(d[key], mode=m)
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            roi_start = np.floor((current_size - orig_size) / 2)
-            roi_end = orig_size + roi_start
-            inverse_transform = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
 
 
 class SpatialCropd(MapTransform, InvertibleTransform):
@@ -1527,6 +1486,7 @@ class BoundingRectd(MapTransform):
         return d
 
 
+PadBaseD = PadBaseDict = PadBased
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd

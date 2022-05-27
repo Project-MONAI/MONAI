@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import SpatialPad
+from monai.transforms import Pad
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -48,9 +48,8 @@ MODES += PT_MODES
 MODES += [PytorchPadMode(i) for i in PT_MODES]
 
 for mode in MODES:
-    TESTS.append([{"spatial_size": [3, 4], "method": "end", "mode": mode}, (1, 2, 3), (1, 3, 4)])
-
-    TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric", "mode": mode}, (3, 8, 8, 4), (3, 15, 8, 4)])
+    TESTS.append([{"to_pad": [(0, 0), (1, 0), (2, 3)], "mode": mode}, (1, 2, 3), (1, 3, 8)])
+    TESTS.append([{"to_pad": [(0, 0), (1, 0), (2, 3), (1, 4)], "mode": mode}, (3, 8, 8, 4), (3, 9, 13, 9)])
 
 
 class TestSpatialPad(unittest.TestCase):
@@ -62,7 +61,7 @@ class TestSpatialPad(unittest.TestCase):
     def test_pad_shape(self, input_param, input_shape, expected_shape):
         base_comparison = None
         input_data = self.get_arr(input_shape)
-        padder = SpatialPad(**input_param)
+        padder = Pad(**input_param)
         # check result is the same regardless of input type
         for p in TEST_NDARRAYS:
             r1 = padder(p(input_data))
@@ -87,12 +86,12 @@ class TestSpatialPad(unittest.TestCase):
         for p in TEST_NDARRAYS:
             im = p(np.zeros((3, 8, 4)))
             kwargs = {"value": 2} if isinstance(im, torch.Tensor) else {"constant_values": ((0, 0), (1, 1), (2, 2))}
-            padder = SpatialPad(spatial_size=[15, 8], method="end", mode="constant", **kwargs)
+            padder = Pad([(0, 0), (3, 4), (5, 6)], mode="constant", **kwargs)
             result = padder(im)
             if isinstance(result, torch.Tensor):
                 result = result.cpu()
             # central section should remain unchanged
-            assert_allclose(result[:, :8, :4], im, type_test=False)
+            assert_allclose(result[:, 3 : 3 + 8, 5 : 5 + 4], im, type_test=False)
             expected_vals = [0, 2] if isinstance(im, torch.Tensor) else [0, 1, 2]
             assert_allclose(np.unique(result), expected_vals, type_test=False)
             # check inverse
