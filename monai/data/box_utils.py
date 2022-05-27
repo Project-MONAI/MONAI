@@ -1051,7 +1051,7 @@ def non_max_suppression(
     scores_t, *_ = convert_to_dst_type(scores, boxes_t)
 
     # sort boxes in desending order according to the scores
-    _, sort_idxs = torch.sort(scores_t, descending=True)
+    sort_idxs = torch.argsort(scores_t, dim=0, descending=True)
     boxes_sort = deepcopy(boxes_t)[sort_idxs, :]
 
     # initialize the list of picked indexes

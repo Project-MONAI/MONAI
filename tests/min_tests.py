@@ -77,7 +77,6 @@ def run_testsuit():
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
-        "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_surface_distance",
@@ -169,6 +168,8 @@ def run_testsuit():
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
+        "test_bundle_utils",
+        "test_bundle_init_bundle",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
