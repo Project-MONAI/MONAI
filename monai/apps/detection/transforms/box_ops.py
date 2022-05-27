@@ -14,14 +14,15 @@ from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from scipy.ndimage import zoom as scipy_zoom
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms.utils import create_scale
-from monai.utils import look_up_option
+from monai.utils import look_up_option, optional_import
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+
+scipy_ndimage, _ = optional_import("scipy.ndimage")
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
@@ -257,7 +258,7 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
             boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
             # squeeze it to a ellipse/ellipsoid mask
             zoom_factor = [box_size[axis] / float(max_box_size) for axis in range(spatial_dims)]
-            boxes_only_mask = scipy_zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
+            boxes_only_mask = scipy_ndimage.zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
         else:
             # generate a rect mask
             boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])

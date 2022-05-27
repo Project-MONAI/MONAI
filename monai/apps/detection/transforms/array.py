@@ -391,6 +391,7 @@ class BoxToBoxMask(Transform):
         bg_label: background labels for the output mask image, make sure it is smaller than any foreground(fg) labels.
         ellipse_mask: whether to make the foregound mask an ellipse (2D) or ellipsoid (3D).
     """
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, bg_label: int = -1, ellipse_mask: bool = False) -> None:
@@ -425,6 +426,7 @@ class BoxMaskToBox(Transform):
         box_dtype: output dtype for boxes
         label_dtype: output dtype for labels
     """
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long) -> None:

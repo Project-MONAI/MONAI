@@ -73,7 +73,7 @@ __all__ = [
     "BoxToBoxMaskDict",
     "BoxMaskToBoxd",
     "BoxMaskToBoxD",
-    "BoxMaskToBoxDict"
+    "BoxMaskToBoxDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
