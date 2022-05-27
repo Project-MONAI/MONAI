@@ -14,6 +14,7 @@ from typing import Optional, Sequence, Union
 
 import torch
 
+from monai.utils import look_up_option
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms.utils import create_scale
@@ -186,3 +187,107 @@ def flip_boxes(
         flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
 
     return flip_boxes
+
+def convert_boxes_to_mask(
+    boxes: NdarrayOrTensor, 
+    spatial_size: Union[Sequence[int], int],
+    labels: Union[Sequence[int], torch.Tensor, np.ndarray],
+    bg_label: int = -1, 
+    ellipse_mask: bool = False
+    ) -> NdarrayOrTensor:
+    """
+    Convert box to int8 image, which has the same size with the input image,
+    Each channel represents one box. The box region will have intensity of labels, the background intensity is bg_label
+    Box mask may take a lot of memory, so we generate box mask as numpy array
+
+    Args:
+        bg_label: background labels for the output box image, just in case one of the fg labels is 0
+    """
+    spatial_dims: int = get_spatial_dims(boxes=boxes)
+    spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
+
+    labels = box_utils.convert_to_list(labels)
+    # if no box, return empty mask
+    if len(labels)==0:
+        return np.ones([1]+spatial_size,dtype=np.int8)*np.int8(bg_label)
+    
+    if bg_label >= min(labels):
+        raise ValueError(f"bg_label should be smaller than any foreground box labels. min(box_labels)={min(labels)}, while bg_label={bg_label}")
+
+    if len(labels) != boxes.shape[0]:
+        raise ValueError("Number of labels should equal to number of boxes.")
+    
+    boxes_mask = np.ones([len(labels)]+spatial_size,dtype=np.int8)*np.int8(bg_label)
+    boxes,_,_ = convert_data_type(boxes,dtype=np.int16)
+    for b in range(boxes.shape[0]):
+        # draw a circle/ball mask
+        box_size = [boxes[b,axis+spatial_dims].item()-boxes[b,axis].item() for axis in range(spatial_dims)]
+        if self.ellipse_mask:
+            max_box_size = max(box_size)
+            radius = max_box_size/2.0
+            center = (max_box_size-1)/2.0
+            boxes_only_mask = np.ones([max_box_size]*spatial_dims,dtype=np.int8)*np.int8(bg_label) # a square/cube mask
+            if spatial_dims == 2:
+                Y, X = np.ogrid[:max_box_size, :max_box_size]
+                dist_from_center = (X-center)**2 + (Y-center)**2
+            elif spatial_dims == 3:
+                Y, X, Z = np.ogrid[:max_box_size, :max_box_size, :max_box_size]
+                dist_from_center = (X-center)**2 + (Y-center)**2+ (Z-center)**2
+            boxes_only_mask[dist_from_center <= radius**2] = np.int8(labels[b])
+
+            # squeeze it to a ellipse/ellipsoid
+            zoom_factor = [box_size[axis]/float(max_box_size) for axis in range(spatial_dims)]
+            boxes_only_mask = scipy.ndimage.zoom(boxes_only_mask,zoom=zoom_factor,mode='nearest',prefilter=False)
+        else:
+            boxes_only_mask = np.ones(box_size,dtype=np.int8)*np.int8(labels[b]) 
+
+        # apply to global mask
+        if spatial_dims == 2:
+            boxes_mask[b, boxes[b,0]:boxes[b,spatial_dims], boxes[b,1]:boxes[b,1+spatial_dims] ] = boxes_only_mask
+        if spatial_dims == 3:
+            boxes_mask[b, boxes[b,0]:boxes[b,spatial_dims], boxes[b,1]:boxes[b,1+spatial_dims], boxes[b,2]:boxes[b,2+spatial_dims] ] = boxes_only_mask
+
+    # if isinstance(boxes, torch.Tensor):
+    #     boxes_mask = torch.from_numpy(boxes_mask)
+
+    return boxes_mask
+
+def convert_mask_to_boxes(boxes_mask: NdarrayOrTensor, bg_label: int = -1) -> NdarrayOrTensor:
+    """
+    Convert binary mask image to box, which has the same size with the input image
+
+    Args:
+        boxes_mask: sized (num_box, H, W) or (num_box, H, W, D)
+        bg_label: background labels for the boxes_mask
+
+    Return:
+        - boxes
+        - labelss
+    """
+    look_up_option(len(boxes_mask.shape), [3,4])
+    spatial_size = list(boxes_mask.shape[1:])
+    spatial_dims = box_utils.get_spatial_dims(spatial_size=spatial_size)
+
+    if isinstance(boxes_mask, torch.Tensor):
+        boxes_mask = boxes_mask.cpu().detach().numpy()
+    
+    boxes = []
+    labels = []
+    for b in range(boxes_mask.shape[0]):
+        fg_indices = np.nonzero(boxes_mask[b,...]-bg_label)
+        if fg_indices[0].shape[0] == 0:
+            continue
+        boxes_b = []
+        for fd_i in fg_indices:
+            boxes_b.append(min(fd_i)) # top left corner
+        for fd_i in fg_indices:
+            boxes_b.append(max(fd_i)+1) # bottom right corner
+        if spatial_dims == 2:
+            labels.append(boxes_mask[b,boxes_b[0],boxes_b[1]])
+        if spatial_dims == 3:
+            labels.append(boxes_mask[b,boxes_b[0],boxes_b[1],boxes_b[2]])
+        boxes.append(boxes_b)
+
+    if len(boxes) == 0:
+        return np.zeros([0,2*spatial_dims]), np.zeros([0])
+    return np.asarray(boxes),np.asarray(labels)
