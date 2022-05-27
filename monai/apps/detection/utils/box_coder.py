@@ -63,6 +63,7 @@ from monai.data.box_utils import (
     StandardMode,
     convert_box_mode,
     convert_box_to_standard_mode,
+    is_valid_box_values,
 )
 from monai.utils.module import look_up_option
 
@@ -86,6 +87,11 @@ def encode_boxes(gt_boxes: Tensor, proposals: Tensor, weights: Tensor) -> Tensor
         raise ValueError("gt_boxes.shape[0] should be equal to proposals.shape[0].")
     spatial_dims = look_up_option(len(weights), [4, 6]) // 2
 
+    if not is_valid_box_values(gt_boxes):
+        raise ValueError("gt_boxes is not valid. Please check if it contains enmpty boxes.")
+    if not is_valid_box_values(proposals):
+        raise ValueError("proposals is not valid. Please check if it contains enmpty boxes.")
+
     # implementation starts here
     ex_cccwhd: Tensor = convert_box_mode(proposals, src_mode=StandardMode, dst_mode=CenterSizeMode)  # type: ignore
     gt_cccwhd: Tensor = convert_box_mode(gt_boxes, src_mode=StandardMode, dst_mode=CenterSizeMode)  # type: ignore
@@ -97,7 +103,11 @@ def encode_boxes(gt_boxes: Tensor, proposals: Tensor, weights: Tensor) -> Tensor
     targets_dwhd = weights[spatial_dims:].unsqueeze(0) * torch.log(
         gt_cccwhd[:, spatial_dims:] / ex_cccwhd[:, spatial_dims:]
     )
+
     targets = torch.cat((targets_dxyz, targets_dwhd), dim=1)
+    # torch.log may cause NaN or Inf
+    if torch.isnan(targets).any() or torch.isinf(targets).any():
+        raise ValueError("targets is NaN or Inf.")
     return targets
 
 
@@ -109,6 +119,16 @@ class BoxCoder:
     Args:
         weights: 4-element tuple or 6-element tuple
         boxes_xform_clip: high threshold to prevent sending too large values into torch.exp()
+
+    Example:
+        .. code-block:: python
+
+            box_coder = BoxCoder(weights=[1., 1., 1., 1., 1., 1.])
+            gt_boxes = torch.ones(10,6)
+            proposals = gt_boxes + torch.rand(gt_boxes.shape)
+            rel_gt_boxes = box_coder.encode_single(gt_boxes, proposals)
+            gt_back = box_coder.decode_single(rel_gt_boxes, proposals)
+            # We expect gt_back to be equal to gt_boxes
     """
 
     def __init__(self, weights: Tuple[float], boxes_xform_clip: Union[float, None] = None) -> None:
