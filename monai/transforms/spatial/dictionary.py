@@ -158,6 +158,9 @@ class SpatialResampled(MapTransform, InvertibleTransform):
 
     backend = SpatialResample.backend
 
+    @deprecated_arg(name="meta_keys", since="0.8")
+    @deprecated_arg(name="meta_key_postfix", since="0.8")
+    @deprecated_arg(name="meta_src_keys", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
@@ -168,7 +171,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         meta_src_keys: Optional[KeysCollection] = "src_affine",
-        meta_dst_keys: Optional[KeysCollection] = "dst_affine",
+        dst_keys: Optional[KeysCollection] = "dst_affine",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -189,16 +192,6 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys=None, use `key_{postfix}` to fetch the metadata according
-                to the key data, default is `meta_dict`, the metadata is a dictionary object.
-                For example, to handle key `image`,  read/write affine matrices from the
-                metadata `image_meta_dict` dictionary's `affine` field.
-            meta_src_keys: the key of the corresponding ``src_affine`` in the metadata dictionary.
             meta_dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -208,90 +201,28 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.meta_src_keys = ensure_tuple_rep(meta_src_keys, len(self.keys))
-        self.meta_dst_keys = ensure_tuple_rep(meta_dst_keys, len(self.keys))
+        self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
-    def __call__(
-        self, data: Mapping[Union[Hashable, str], Dict[str, NdarrayOrTensor]]
-    ) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype, *metakeyinfo) in self.key_iterator(
-            d,
-            self.mode,
-            self.padding_mode,
-            self.align_corners,
-            self.dtype,
-            self.meta_keys,
-            self.meta_key_postfix,
-            self.meta_src_keys,
-            self.meta_dst_keys,
+        for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
         ):
-            meta_key, meta_key_postfix, meta_src_key, meta_dst_key = metakeyinfo
-            meta_key = meta_key or f"{key}_{meta_key_postfix}"
-            # create metadata if necessary
-            if meta_key not in d:
-                d[meta_key] = {meta_src_key: None, meta_dst_key: None}
-            meta_data = d[meta_key]
-            original_spatial_shape = d[key].shape[1:]
-            d[key], meta_data[meta_dst_key] = self.sp_transform(  # write dst affine because the dtype might change
+            d[key] = self.sp_transform(
                 img=d[key],
-                src_affine=meta_data[meta_src_key],
-                dst_affine=meta_data[meta_dst_key],
+                dst_affine=d[dst_key],
                 spatial_size=None,  # None means shape auto inferred
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
             )
-            meta_data[meta_dst_key], meta_data[meta_src_key] = meta_data[meta_src_key], meta_data[meta_dst_key]
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "meta_key": meta_key,
-                    "meta_src_key": meta_src_key,
-                    "meta_dst_key": meta_dst_key,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-                orig_size=original_spatial_shape,
-            )
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            meta_data = d[transform[TraceKeys.EXTRA_INFO]["meta_key"]]
-            src_key = transform[TraceKeys.EXTRA_INFO]["meta_src_key"]
-            dst_key = transform[TraceKeys.EXTRA_INFO]["meta_dst_key"]
-            src_affine = meta_data[src_key]
-            dst_affine = meta_data[dst_key]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            inverse_transform = SpatialResample()
-            # Apply inverse
-            d[key], dst_affine = inverse_transform(
-                img=d[key],
-                src_affine=src_affine,
-                dst_affine=dst_affine,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                dtype=dtype,
-                spatial_size=orig_size,
-            )
-            meta_data[src_key], meta_data[dst_key] = dst_affine, meta_data[src_key]  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
+        for key in self.key_iterator(d):
+            d[key] = self.sp_transform.inverse(d[key])
         return d
 
 
@@ -300,10 +231,12 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
     backend = ResampleToMatch.backend
 
+    @deprecated_arg(name="template_key", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
-        template_key: str,
+        key_dst: str,
+        template_key: Optional[str] = None,
         mode: GridSampleModeSequence = GridSampleMode.BILINEAR,
         padding_mode: GridSamplePadModeSequence = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
@@ -313,7 +246,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            template_key: key to metadata that output should be resampled to match.
+            key_dst: key of image to resample to match.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
@@ -332,79 +265,32 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.template_key = template_key
+        self.key_dst = key_dst
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
-    def __call__(self, data):
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        dst_meta = d[self.template_key]
         for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            src_meta_key = PostFix.meta(key)
-            src_meta = d[src_meta_key]
-
-            orig_spatial_shape = d[key].shape[1:]
-            orig_meta = deepcopy(src_meta)
-
-            img, new_meta = self.resampler(
+            d[key] = self.resampler(
                 img=d[key],
-                src_meta=src_meta,
-                dst_meta=dst_meta,
+                img_dst=d[self.key_dst],
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
             )
-            d[key] = img
-            d[src_meta_key] = new_meta
-
-            # track the transform for the inverse
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "orig_meta": orig_meta,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-                orig_size=orig_spatial_shape,
-            )
-
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_meta = transform[TraceKeys.EXTRA_INFO]["orig_meta"]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-
-            src_meta_key = PostFix.meta(key)
-            src_meta = d[src_meta_key]
-
-            img, new_meta = self.resampler(
-                img=d[key],
-                src_meta=src_meta,  # type: ignore
-                dst_meta=orig_meta,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=align_corners,
-                dtype=dtype,
-            )
-            d[key] = img
-            d[src_meta_key] = new_meta
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
+        for key in self.key_iterator(d):
+            d[key] = self.resampler.inverse(d[key])
         return d
 
 

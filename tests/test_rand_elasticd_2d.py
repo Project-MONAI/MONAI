@@ -16,12 +16,12 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand2DElasticd
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_NO_META_TENSOR:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
