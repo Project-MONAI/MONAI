@@ -2228,13 +2228,15 @@ class ForegroundMask(Transform):
         for img, mode in zip(img_rgb, "RGB"):
             threshold = self._get_threshold(img, mode)
             if threshold:
-                foreground |= img < threshold
+                foreground |= img <= threshold
 
         if set("HSV") & set(self.thresholds.keys()):
             img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
+            hsv_foreground = np.zeros_like(img_rgb[:1])
             for img, mode in zip(img_hsv, "HSV"):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
-                    foreground |= img > threshold
+                    hsv_foreground |= img > threshold
+            foreground &= hsv_foreground
 
         return foreground
