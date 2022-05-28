@@ -95,6 +95,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
 
+
 class TestRetinaNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_retina_shape(self, model, input_param, input_shape):
