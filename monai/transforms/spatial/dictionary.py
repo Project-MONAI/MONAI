@@ -2259,7 +2259,7 @@ class GridPatchd(MapTransform):
         original_spatial_shape = d[first(self.keys)].shape[1:]
         output = []
         results = [self.patcher(d[key]) for key in self.keys]
-        num_patches = min([len(r) for r in results])
+        num_patches = min(len(r) for r in results)
         for patch in zip(*results):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
@@ -2345,7 +2345,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         original_spatial_shape = d[first(self.keys)].shape[1:]
         output = []
         results = [self.patcher(d[key]) for key in self.keys]
-        num_patches = min([len(r) for r in results])
+        num_patches = min(len(r) for r in results)
         for patch in zip(*results):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
