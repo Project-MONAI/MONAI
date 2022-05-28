@@ -337,13 +337,14 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, globals: Optional[Dict] = None):
+    def evaluate(self, globals: Optional[Dict] = None, locals: Optional[Dict] = None):
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
-            globals: besides ``self.globals``, may also have other global symbols used in the expression at runtime.
+            globals: besides ``self.globals``, other global symbols used in the expression at runtime.
+            locals: besides ``globals``, may also have some local symbols used in the expression at runtime.
 
         """
         value = self.get_config()
@@ -357,7 +358,7 @@ class ConfigExpression(ConfigItem):
         globals_ = dict(self.globals)
         if globals is not None:
             globals_.update(globals)
-        return eval(value[len(self.prefix) :], globals_)
+        return eval(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
     def is_expression(cls, config: Union[Dict, List, str]) -> bool:
