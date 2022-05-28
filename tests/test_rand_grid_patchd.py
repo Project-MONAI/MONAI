@@ -39,7 +39,7 @@ TEST_CASE_5 = [{"patch_size": (2, 2), "min_start_pos": 2, "max_start_pos": 2}, {
 TEST_CASE_6 = [{"patch_size": (2, 2), "min_start_pos": (0, 2), "max_start_pos": (0, 2)}, {"image": A}, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "min_start_pos": 1, "max_start_pos": 2}, {"image": A}, [A22]]
 TEST_CASE_8 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 1, "fix_num_patches": 1, "sort_key": "max"},
+    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 1, "fix_num_patches": 1, "sort_fn": "max"},
     {"image": A},
     [A[:, 1:3, 1:3]],
 ]
@@ -48,7 +48,7 @@ TEST_CASE_9 = [
         "patch_size": (3, 3),
         "min_start_pos": -3,
         "max_start_pos": -1,
-        "sort_key": "min",
+        "sort_fn": "min",
         "fix_num_patches": 1,
         "pad_opts": {"constant_values": 255},
     },

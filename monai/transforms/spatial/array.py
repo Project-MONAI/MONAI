@@ -36,6 +36,7 @@ from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
+    convert_pad_mode,
     create_control_grid,
     create_grid,
     create_rotate,
@@ -2655,12 +2656,12 @@ class GridPatch(Transform):
         fix_num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
     ):
         self.patch_size = ensure_tuple(patch_size)
         self.start_pos = ensure_tuple(start_pos)
-        self.pad_mode: NumpyPadMode = look_up_option(pad_mode, NumpyPadMode)
+        self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
         self.pad_opts = {} if pad_opts is None else pad_opts
         self.overlap = overlap
         self.num_patches = 0

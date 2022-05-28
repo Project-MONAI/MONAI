@@ -31,8 +31,8 @@ TEST_CASE_4 = [{"patch_size": (2, 2), "start_pos": (0, 0)}, A, [A11, A12, A21, A
 TEST_CASE_5 = [{"patch_size": (2, 2), "start_pos": (2, 2)}, A, [A22]]
 TEST_CASE_6 = [{"patch_size": (2, 2), "start_pos": (0, 2)}, A, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "start_pos": (2, 0)}, A, [A21, A22]]
-TEST_CASE_8 = [{"patch_size": (2, 2), "fix_num_patches": 3, "sort_key": "max"}, A, [A22, A21, A12]]
-TEST_CASE_9 = [{"patch_size": (2, 2), "fix_num_patches": 4, "sort_key": "min"}, A, [A11, A12, A21, A22]]
+TEST_CASE_8 = [{"patch_size": (2, 2), "fix_num_patches": 3, "sort_fn": "max"}, A, [A22, A21, A12]]
+TEST_CASE_9 = [{"patch_size": (2, 2), "fix_num_patches": 4, "sort_fn": "min"}, A, [A11, A12, A21, A22]]
 TEST_CASE_10 = [{"patch_size": (2, 2), "overlap": 0.5, "fix_num_patches": 3}, A, [A11, A[:, :2, 1:3], A12]]
 TEST_CASE_11 = [
     {"patch_size": (3, 3), "fix_num_patches": 2, "pad_opts": {"constant_values": 255}},
