@@ -115,12 +115,10 @@ class Matcher(ABC):
             num_anchors_per_loc: number of anchors per position
 
         Returns:
-            - matrix which contains the similarity from each boxes
-                to each anchor [N, M]
+            - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
                 anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used)
-                [M]
+                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
 
         Note:
             ``StandardMode`` = :class:`~monai.data.box_utils.CornerCornerModeTypeA`,
@@ -133,14 +131,13 @@ class Matcher(ABC):
             match_quality_matrix = torch.tensor([]).to(anchors)
             matches = torch.empty(num_anchors, dtype=torch.int64).fill_(self.BELOW_LOW_THRESHOLD)
             return match_quality_matrix, matches
-        else:
-            # at least one ground truth
-            return self.compute_matches(
-                boxes=boxes,
-                anchors=anchors,
-                num_anchors_per_level=num_anchors_per_level,
-                num_anchors_per_loc=num_anchors_per_loc,
-            )
+        # at least one ground truth
+        return self.compute_matches(
+            boxes=boxes,
+            anchors=anchors,
+            num_anchors_per_level=num_anchors_per_level,
+            num_anchors_per_loc=num_anchors_per_loc,
+        )
 
     def compute_matches(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
@@ -155,12 +152,10 @@ class Matcher(ABC):
             num_anchors_per_loc: number of anchors per position
 
         Returns:
-            - matrix which contains the similarity from each boxes
-                to each anchor [N, M]
+            - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
                 anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used)
-                [M]
+                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
         """
         raise NotImplementedError
 
@@ -174,18 +169,16 @@ class ATSSMatcher(Matcher):
         debug: bool = False,
     ):
         """
-        Compute matching based on ATSS
-        https://arxiv.org/abs/1912.02424
+        Compute matching based on ATSS https://arxiv.org/abs/1912.02424
         `Bridging the Gap Between Anchor-based and Anchor-free Detection
         via Adaptive Training Sample Selection`
 
         Args:
             num_candidates: number of positions to select candidates from.
                 Smaller value will result in a higher matcher threshold and less matched candidates.
-            similarity_fn: function for similarity computation between
-                boxes and anchors
+            similarity_fn: function for similarity computation between boxes and anchors
             center_in_gt: If False (default), matched anchor center points do not need
-                to lie withing the ground truth box. Recommand False for small objects.
+                to lie withing the ground truth box. Recommend False for small objects.
                 If True, will result in a strict matcher and less matched candidates.
             debug: if True, will print the matcher threshold in order to
                 tune ``num_candidates`` and ``center_in_gt``.
@@ -205,8 +198,7 @@ class ATSSMatcher(Matcher):
         """
         Compute matches according to ATTS for a single image
         Adapted from
-        (https://github.com/sfzhang15/ATSS/blob/79dfb28bd1/atss_core/modeling/rpn/atss
-        /loss.py#L180-L184)
+        (https://github.com/sfzhang15/ATSS/blob/79dfb28bd1/atss_core/modeling/rpn/atss/loss.py#L180-L184)
 
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -215,12 +207,10 @@ class ATSSMatcher(Matcher):
             num_anchors_per_loc: number of anchors per position
 
         Returns:
-            Tensor: matrix which contains the similarity from each boxes
-                to each anchor [N, M]
+            Tensor: matrix which contains the similarity from each boxes to each anchor [N, M]
             Tensor: vector which contains the matched box index for all
                 anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used)
-                [M]
+                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
 
         Note:
             ``StandardMode`` = :class:`~monai.data.box_utils.CornerCornerModeTypeA`,

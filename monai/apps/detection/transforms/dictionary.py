@@ -706,7 +706,7 @@ class ClipBoxToImaged(MapTransform):
 
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Multiple keys are allowed.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
         box_ref_image_keys: The single key that represents the reference image
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty

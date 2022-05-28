@@ -18,8 +18,7 @@ from monai.apps.detection.utils.ATSS_matcher import ATSSMatcher
 from monai.data.box_utils import box_iou
 from tests.utils import assert_allclose
 
-TEST_CASES = []
-TEST_CASES.append(
+TEST_CASES = [
     [
         {"num_candidates": 2, "similarity_fn": box_iou, "center_in_gt": False},
         torch.tensor([[0, 1, 2, 3, 2, 5]], dtype=torch.float16),
@@ -28,7 +27,7 @@ TEST_CASES.append(
         3,
         torch.tensor([0, -1, -1]),
     ]
-)
+]
 
 
 class TestATSS(unittest.TestCase):
