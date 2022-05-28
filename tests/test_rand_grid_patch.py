@@ -15,7 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.spatial.array import RandGridPatch
+from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose
+
+set_determinism(1234)
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -71,7 +74,8 @@ class TestSlidingPatch(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
     def test_split_patch_single_call(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
-        splitter = RandGridPatch(seed=1234, **input_parameters)
+        splitter = RandGridPatch(**input_parameters)
+        splitter.set_random_state(1234)
         output = list(splitter(input_image))
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):

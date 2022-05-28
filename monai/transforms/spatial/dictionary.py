@@ -2317,7 +2317,6 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
-        seed: int = 0,
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -2330,15 +2329,13 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             sort_fn=sort_fn,
             pad_mode=pad_mode,
             pad_opts=pad_opts,
-            seed=seed,
         )
-        self.set_random_state(seed)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandGridPatchd":
         self.patcher.set_random_state(seed, state)
-        RandomizableTransform.set_random_state(self, seed, state)
+        super().set_random_state(seed, state)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:

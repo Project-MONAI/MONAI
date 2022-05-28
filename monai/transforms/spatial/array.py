@@ -2758,7 +2758,6 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
-        seed: int = 0,
     ):
         super().__init__(
             patch_size=patch_size,
@@ -2769,7 +2768,6 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             pad_mode=pad_mode,
             pad_opts=pad_opts,
         )
-        self.set_random_state(seed)
         self.min_start_pos = min_start_pos
         self.max_start_pos = max_start_pos
 

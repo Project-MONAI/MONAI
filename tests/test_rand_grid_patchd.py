@@ -80,7 +80,7 @@ class TestSlidingPatch(unittest.TestCase):
             if k == image_key:
                 input_dict[k] = in_type(v)
         splitter = RandGridPatchd(keys=image_key, **input_parameters)
-        splitter.set_random_state(state=np.random.RandomState(1234))
+        splitter.set_random_state(1234)
         output = list(splitter(input_dict))
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
