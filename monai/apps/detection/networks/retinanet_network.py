@@ -23,9 +23,9 @@ from monai.utils.misc import issequenceiterable
 
 from .base_detection_network import BaseDetectionNetwork
 
-
 _validate_trainable_layers, _ = optional_import(
-    "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers")
+    "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers"
+)
 
 
 class RetinaNetClassificationHead(nn.Module):
