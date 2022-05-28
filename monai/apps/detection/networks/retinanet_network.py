@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import math
-from typing import TYPE_CHECKING, Callable, Dict, List, Sequence, Union
+from typing import Callable, Dict, List, Sequence, Union
 
 import torch
 from torch import Tensor, nn
@@ -23,14 +23,9 @@ from monai.utils.misc import issequenceiterable
 
 from .base_detection_network import BaseDetectionNetwork
 
-if TYPE_CHECKING:
-    from torchvision.models.detection.backbone_utils import _validate_trainable_layers
 
-    has_torchvision = True
-else:
-    _validate_trainable_layers, has_torchvision = optional_import(
-        "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers"
-    )
+_validate_trainable_layers, _ = optional_import(
+    "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers")
 
 
 class RetinaNetClassificationHead(nn.Module):
