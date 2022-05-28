@@ -188,7 +188,7 @@ class RetinaNet(BaseDetectionNetwork):
 
             from monai.networks.nets import resnet
             spatial_dims = 3  # 3D network
-            conv1_t_stride = (2,2,1)  # stride of first convolutional layer in backbone                       
+            conv1_t_stride = (2,2,1)  # stride of first convolutional layer in backbone
             backbone = resnet.ResNet(
                 spatial_dims = spatial_dims,
                 block = resnet.ResNetBottleneck,
@@ -200,7 +200,7 @@ class RetinaNet(BaseDetectionNetwork):
             )
             # This feature_extractor outputs 4-level feature maps.
             # number of output feature maps is len(returned_layers)+1
-            returned_layers = [1,2,3]  # returned layer from feature pyramid network  
+            returned_layers = [1,2,3]  # returned layer from feature pyramid network
             feature_extractor = resnet_fpn_feature_extractor(
                 backbone = backbone,
                 spatial_dims = spatial_dims,
@@ -208,9 +208,9 @@ class RetinaNet(BaseDetectionNetwork):
                 trainable_backbone_layers = None,
                 returned_layers = returned_layers,
             )
-            # This feature_extractor requires input imgage spatial size 
+            # This feature_extractor requires input imgage spatial size
             # to be divisible by (32, 32, 16).
-            size_divisible = tuple(2*s*2**max(returned_layers) for s in conv1_t_stride)           
+            size_divisible = tuple(2*s*2**max(returned_layers) for s in conv1_t_stride)
             model = RetinaNet(
                 spatial_dims = spatial_dims,
                 num_classes = 5,
