@@ -2593,7 +2593,7 @@ class GridSplit(Transform):
             # Flatten the first two dimensions
             strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
             # Make a list of contiguous patches
-            patches = [np.ascontiguousarray(p) for p in strided_image]
+            patches = [np.copy(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
