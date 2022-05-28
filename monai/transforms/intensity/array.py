@@ -2161,9 +2161,9 @@ class RandIntensityRemap(RandomizableTransform):
 
 class ForegroundMask(Transform):
     """
-    Creates a binary mask that defines the foreground.
+    Creates a binary mask that defines the foreground based on thresholds in RGB or HSV color sapce.
     This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
-    low values (dark) while the background is white.
+    low values (dark) while the background has high values (white). Otherwise, set `invert` argument to `True`.
 
     Args:
         threshold: an int or a float number that defines the threshold for the input image. Or a callable that receives
@@ -2224,12 +2224,14 @@ class ForegroundMask(Transform):
         if self.invert:
             img_rgb = skimage.util.invert(img_rgb)
 
-        foreground = np.zeros_like(img_rgb[:1])
-        for img, mode in zip(img_rgb, "RGB"):
-            threshold = self._get_threshold(img, mode)
-            if threshold:
-                foreground |= img <= threshold
-
+        foregrounds = []
+        if set("RGB") & set(self.thresholds.keys()):
+            rgb_foreground = np.zeros_like(img_rgb[:1])
+            for img, mode in zip(img_rgb, "RGB"):
+                threshold = self._get_threshold(img, mode)
+                if threshold:
+                    rgb_foreground |= img <= threshold
+            foregrounds.append(rgb_foreground)
         if set("HSV") & set(self.thresholds.keys()):
             img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
             hsv_foreground = np.zeros_like(img_rgb[:1])
@@ -2237,6 +2239,8 @@ class ForegroundMask(Transform):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
                     hsv_foreground |= img > threshold
-            foreground &= hsv_foreground
+            foregrounds.append(hsv_foreground)
 
-        return foreground
+        if foregrounds:
+            return np.stack(foregrounds).all(axis=0)
+        return np.zeros_like(img_rgb[:1])
