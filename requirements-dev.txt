@@ -40,7 +40,7 @@ pandas
 requests
 einops
 transformers
-mlflow
+mlflow!=1.26.1  # https://github.com/Project-MONAI/MONAI/issues/4375
 matplotlib!=3.5.0
 tensorboardX
 types-PyYAML
