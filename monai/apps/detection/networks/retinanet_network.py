@@ -181,6 +181,46 @@ class RetinaNet(BaseDetectionNetwork):
             It can be the output of ``resnet_fpn_feature_extractor(*args, **kwargs)``.
         size_divisible: the spatial size of the network input should be divisible by size_divisible,
             decided by the feature_extractor.
+
+    Example:
+
+        .. code-block:: python
+
+            from monai.networks.nets import resnet
+            spatial_dims = 3  # 3D network
+            conv1_t_stride = (2,2,1)  # stride of first convolutional layer in backbone                       
+            backbone = resnet.ResNet(
+                spatial_dims = spatial_dims,
+                block = resnet.ResNetBottleneck,
+                layers = [3, 4, 6, 3],
+                block_inplanes = resnet.get_inplanes(),
+                n_input_channels= 1,
+                conv1_t_stride = conv1_t_stride,
+                conv1_t_size = (7,7,7),
+            )
+            # This feature_extractor outputs 4-level feature maps.
+            # number of output feature maps is len(returned_layers)+1
+            returned_layers = [1,2,3]  # returned layer from feature pyramid network  
+            feature_extractor = resnet_fpn_feature_extractor(
+                backbone = backbone,
+                spatial_dims = spatial_dims,
+                pretrained_backbone = False,
+                trainable_backbone_layers = None,
+                returned_layers = returned_layers,
+            )
+            # This feature_extractor requires input imgage spatial size 
+            # to be divisible by (32, 32, 16).
+            size_divisible = tuple(2*s*2**max(returned_layers) for s in conv1_t_stride)           
+            model = RetinaNet(
+                spatial_dims = spatial_dims,
+                num_classes = 5,
+                num_anchors = 6,
+                feature_extractor=feature_extractor,
+                size_divisible = size_divisible,
+            ).to(device)
+            result = model(torch.rand(2, 1, 128,128,128))
+            cls_logits_maps = result["cls_logits"]  # a list of len(returned_layers)+1 Tensor
+            box_regression_maps = result["box_regression"]  # a list of len(returned_layers)+1 Tensor
     """
 
     def __init__(
@@ -287,19 +327,31 @@ def resnet_fpn_feature_extractor(
         .. code-block:: python
 
             from monai.networks.nets import resnet
+            spatial_dims = 3 # 3D network
             backbone = resnet.ResNet(
+                spatial_dims = spatial_dims,
                 block = resnet.ResNetBottleneck,
                 layers = [3, 4, 6, 3],
                 block_inplanes = resnet.get_inplanes(),
                 n_input_channels= 1,
                 conv1_t_stride = (2,2,1),
                 conv1_t_size = (7,7,7),
-            ).to(device)
+            )
+            # This feature_extractor outputs 4-level feature maps.
+            # number of output feature maps is len(returned_layers)+1
             feature_extractor = resnet_fpn_feature_extractor(
                 backbone = backbone,
+                spatial_dims = spatial_dims,
                 pretrained_backbone = False,
                 trainable_backbone_layers = None,
                 returned_layers = [1,2,3],
+            )
+            model = RetinaNet(
+                spatial_dims = spatial_dims,
+                num_classes = 5,
+                num_anchors = 6,
+                feature_extractor=feature_extractor,
+                size_divisible = 32,
             ).to(device)
     """
     # If pretrained_backbone is False, valid_trainable_backbone_layers = 5.

@@ -84,6 +84,7 @@ class BackboneWithFPN(nn.Module):
         in_channels_list: number of channels for each feature map
             that is returned, in the order they are present in the OrderedDict
         out_channels: number of channels in the FPN.
+        spatial_dims: 2D or 3D images
     """
 
     def __init__(
@@ -144,7 +145,8 @@ def _resnet_fpn_extractor(
 ) -> BackboneWithFPN:
     """
     Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/backbone_utils.py
-    Except that ``in_channels_stage2 = backbone.in_planes // 8`` instead of ``in_channels_stage2 = backbone.inplanes // 8``
+    Except that ``in_channels_stage2 = backbone.in_planes // 8`` instead of ``in_channels_stage2 = backbone.inplanes // 8``,
+    and it requires spatial_dims: 2D or 3D images.
     """
 
     # select layers that wont be frozen
