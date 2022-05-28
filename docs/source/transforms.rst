@@ -446,6 +446,13 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -1327,6 +1334,11 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
