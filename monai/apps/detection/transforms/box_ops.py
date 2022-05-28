@@ -17,6 +17,7 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
+from monai.transforms import Resize
 from monai.transforms.utils import create_scale
 from monai.utils import look_up_option, optional_import
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
@@ -184,12 +185,12 @@ def flip_boxes(
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
-    flip_boxes = deepcopy(boxes)
+    _flip_boxes = deepcopy(boxes)
     for axis in flip_axes:
-        flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
-        flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
+        _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
+        _flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
 
-    return flip_boxes
+    return _flip_boxes
 
 
 def convert_box_to_mask(
@@ -208,10 +209,11 @@ def convert_box_to_mask(
         spatial_size: image spatial size.
         bg_label: background labels for the output mask image, make sure it is smaller than any fg labels.
         ellipse_mask: bool.
-            If True, it assumes the object shape is close to ellipse or ellipsoid.
-            If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
-            If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
-            See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
+
+            - If True, it assumes the object shape is close to ellipse or ellipsoid.
+            - If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            - If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+              See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
 
     Return:
         - int16 array, sized (num_box, H, W). Each channel represents a box.
@@ -230,8 +232,8 @@ def convert_box_to_mask(
     # bg_label should be smaller than labels
     if bg_label >= min(labels):
         raise ValueError(
-            f"bg_label should be smaller than any foreground box labels. \
-min(labels)={min(labels)}, while bg_label={bg_label}"
+            f"bg_label should be smaller than any foreground box labels.\n"
+            f"min(labels)={min(labels)}, while bg_label={bg_label}"
         )
 
     if labels.shape[0] != boxes.shape[0]:
@@ -240,8 +242,7 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
     # allocate memory for boxes_mask_np
     boxes_mask_np = np.ones((labels.shape[0],) + spatial_size, dtype=np.int16) * np.int16(bg_label)
 
-    boxes_np: np.ndarray = convert_data_type(boxes, np.ndarray)[0]
-    boxes_np = np.round(boxes_np).astype(np.int32)
+    boxes_np: np.ndarray = convert_data_type(boxes, np.ndarray, dtype=np.int32)[0]
     labels_np, *_ = convert_to_dst_type(src=labels, dst=boxes_np)
     for b in range(boxes_np.shape[0]):
         # generate a foreground mask
@@ -253,34 +254,19 @@ min(labels)={min(labels)}, while bg_label={bg_label}"
             center = (max_box_size - 1) / 2.0
             boxes_only_mask = np.ones([max_box_size] * spatial_dims, dtype=np.int16) * np.int16(bg_label)
             # apply label intensity to circle/ball foreground
-            if spatial_dims == 2:
-                grid_y, grid_x = np.ogrid[:max_box_size, :max_box_size]
-                dist_from_center = (grid_x - center) ** 2 + (grid_y - center) ** 2
-            elif spatial_dims == 3:
-                grid_y, grid_x, grid_z = np.ogrid[:max_box_size, :max_box_size, :max_box_size]
-                dist_from_center = (grid_x - center) ** 2 + (grid_y - center) ** 2 + (grid_z - center) ** 2
+            ranges = tuple(slice(0, max_box_size) for _ in range(spatial_dims))
+            dist_from_center = sum((grid - center) ** 2 for grid in np.ogrid[ranges])
             boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
             # squeeze it to a ellipse/ellipsoid mask
-            zoom_factor = [box_size[axis] / float(max_box_size) for axis in range(spatial_dims)]
-            # scipy zoom does not support float16 cpu
-            boxes_only_mask = scipy.ndimage.zoom(boxes_only_mask, zoom=zoom_factor, mode="nearest", prefilter=False)
+            resizer = Resize(spatial_size=box_size, mode="nearest", anti_aliasing=False)
+            boxes_only_mask = resizer(boxes_only_mask[None])[0]  # type: ignore
         else:
             # generate a rect mask
-            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])
-
+            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])  # type: ignore
         # apply to global mask
-        if spatial_dims == 2:
-            boxes_mask_np[
-                b, boxes_np[b, 0] : boxes_np[b, spatial_dims], boxes_np[b, 1] : boxes_np[b, 1 + spatial_dims]
-            ] = boxes_only_mask
-        if spatial_dims == 3:
-            boxes_mask_np[
-                b,
-                boxes_np[b, 0] : boxes_np[b, spatial_dims],
-                boxes_np[b, 1] : boxes_np[b, 1 + spatial_dims],
-                boxes_np[b, 2] : boxes_np[b, 2 + spatial_dims],
-            ] = boxes_only_mask
-
+        slicing = [b]
+        slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type:ignore
+        boxes_mask_np[tuple(slicing)] = boxes_only_mask
     return convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)[0]
 
 

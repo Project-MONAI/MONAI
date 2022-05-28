@@ -772,31 +772,34 @@ class BoxToMaskd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
     Pairs with :py:class:`monai.apps.detection.transforms.dictionary.MaskToBoxd` .
     Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
-    The output d[box_mask_key] will have background intensity 0, since the following operations may pad 0 on the border.
+    The output ``d[box_mask_key]`` will have background intensity 0, since the following operations
+    may pad 0 on the border.
 
     This is the general solution for transforms that need to be applied on images and boxes simultaneously.
     It is performed with the following steps.
-    1) use BoxToMaskd to covert boxes and labels to box_masks;
-    2) do transforms, e.g., rotation or cropping, on images and box_masks together;
-    3) use MaskToBoxd to convert box_masks back to boxes and labels.
+
+        1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
+        2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+        3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Same length with ``box_keys``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
         box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
         min_fg_label: min foreground box label.
         ellipse_mask: bool.
-            If True, it assumes the object shape is close to ellipse or ellipsoid.
-            If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
-            If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
-            See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
+
+            - If True, it assumes the object shape is close to ellipse or ellipsoid.
+            - If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            - If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+              See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
         allow_missing_keys: don't raise exception if key is missing.
 
     Example:
         .. code-block:: python
 
-            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and image together.
+            # This code snippet creates transforms (random rotation and cropping) on boxes, labels, and image together.
             import numpy as np
             from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(
@@ -862,14 +865,15 @@ class MaskToBoxd(MapTransform):
 
     This is the general solution for transforms that need to be applied on images and boxes simultaneously.
     It is performed with the following steps.
-    1) use BoxToMaskd to covert boxes and labels to box_masks;
-    2) do transforms, e.g., rotation or cropping, on images and box_masks together;
-    3) use MaskToBoxd to convert box_masks back to boxes and labels.
+
+        1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
+        2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+        3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
 
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Same length with ``box_keys``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
         min_fg_label: min foreground box label.
         box_dtype: output dtype for box_keys
         label_dtype: output dtype for label_keys
@@ -878,7 +882,7 @@ class MaskToBoxd(MapTransform):
     Example:
         .. code-block:: python
 
-            # This code snippet creates transforms (random rotation and croppping) on boxes, labels, and images together.
+            # This code snippet creates transforms (random rotation and cropping) on boxes, labels, and images together.
             import numpy as np
             from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
             transforms = Compose(

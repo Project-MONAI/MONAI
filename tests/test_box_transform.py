@@ -72,13 +72,37 @@ class TestBoxTransform(unittest.TestCase):
                 box_ref_image_keys="image",
                 label_keys="labels",
                 min_fg_label=0,
-                ellipse_mask=True,
+                ellipse_mask=False,
             )
             transform_to_box = MaskToBoxd(
                 box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
             )
             data_mask = transform_to_mask(data)
             assert_allclose(data_mask["box_mask"], expected_mask, type_test=True, device_test=True, atol=1e-3)
+            data_back = transform_to_box(data_mask)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
+
+    def test_value_3d_mask(self):
+        test_dtype = [torch.float32, torch.float16]
+        image = np.zeros((1, 32, 33, 34))
+        boxes = np.array([[7, 8, 9, 10, 12, 13], [1, 3, 5, 2, 5, 9], [0, 0, 0, 1, 1, 1]])
+        data = {"image": image, "boxes": boxes, "labels": np.array((1, 0, 3))}
+        for dtype in test_dtype:
+            data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
+            transform_to_mask = BoxToMaskd(
+                box_keys="boxes",
+                box_mask_keys="box_mask",
+                box_ref_image_keys="image",
+                label_keys="labels",
+                min_fg_label=0,
+                ellipse_mask=False,
+            )
+            transform_to_box = MaskToBoxd(
+                box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
+            )
+            data_mask = transform_to_mask(data)
+            assert_allclose(data_mask["box_mask"].shape, (3, 32, 33, 34), type_test=True, device_test=True, atol=1e-3)
             data_back = transform_to_box(data_mask)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
