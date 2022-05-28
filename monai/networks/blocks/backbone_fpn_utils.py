@@ -97,9 +97,6 @@ class BackboneWithFPN(nn.Module):
     ) -> None:
         super().__init__()
 
-        if extra_blocks is None:
-            extra_blocks = LastLevelMaxPool()
-
         # if spatial_dims is not specified, try to find it from backbone.
         if spatial_dims is None:
             if hasattr(backbone, "spatial_dims") and isinstance(backbone.spatial_dims, int):
@@ -110,6 +107,9 @@ class BackboneWithFPN(nn.Module):
                 spatial_dims = 3
             else:
                 raise ValueError("Could not find spatial_dims of backbone, please specify it.")
+
+        if extra_blocks is None:
+            extra_blocks = LastLevelMaxPool(spatial_dims)
 
         self.body = torchvision_models._utils.IntermediateLayerGetter(backbone, return_layers=return_layers)
         self.fpn = FeaturePyramidNetwork(
@@ -137,7 +137,8 @@ class BackboneWithFPN(nn.Module):
 
 def _resnet_fpn_extractor(
     backbone: resnet.ResNet,
-    trainable_layers: int,
+    spatial_dims: int,
+    trainable_layers: int = 5,
     returned_layers: Optional[List[int]] = None,
     extra_blocks: Optional[ExtraFPNBlock] = None,
 ) -> BackboneWithFPN:
@@ -157,7 +158,7 @@ def _resnet_fpn_extractor(
             parameter.requires_grad_(False)
 
     if extra_blocks is None:
-        extra_blocks = LastLevelMaxPool()
+        extra_blocks = LastLevelMaxPool(spatial_dims)
 
     if returned_layers is None:
         returned_layers = [1, 2, 3, 4]
@@ -168,4 +169,6 @@ def _resnet_fpn_extractor(
     in_channels_stage2 = backbone.in_planes // 8
     in_channels_list = [in_channels_stage2 * 2 ** (i - 1) for i in returned_layers]
     out_channels = 256
-    return BackboneWithFPN(backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks)
+    return BackboneWithFPN(
+        backbone, return_layers, in_channels_list, out_channels, extra_blocks=extra_blocks, spatial_dims=spatial_dims
+    )

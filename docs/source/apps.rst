@@ -126,6 +126,11 @@ Applications
 `Detection`
 -----------
 
+`RetinaNet`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.base_detection_network
+.. automodule:: monai.apps.detection.networks.retinanet_network
+
 `Transforms`
 ~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.transforms.box_ops
