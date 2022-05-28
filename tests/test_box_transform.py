@@ -17,6 +17,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
+    ClipBoxToImaged,
     ConvertBoxModed,
     FlipBoxd,
     RandFlipBoxd,
@@ -29,6 +30,8 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 TESTS = []
 
 boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]
+labels = [1, 1, 0]
+scores = [[0.2, 0.8], [0.3, 0.7], [0.6, 0.4]]
 image_size = [1, 4, 6, 4]
 image = np.zeros(image_size)
 
@@ -36,7 +39,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"box_keys": "boxes", "dst_mode": "xyzwhd"},
-            {"boxes": p(boxes), "image": p(image)},
+            {"boxes": p(boxes), "image": p(image), "labels": p(labels), "scores": p(scores)},
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]),
             p([[0, 0, 0, 0, 0, 0], [0, 3, 0, 1, 9, 4.5], [0, 3, 1.5, 1, 9, 6]]),
             p([[1, -6, -1, 1, -6, -1], [1, -3, -1, 2, 3, 3.5], [1, -3, 0.5, 2, 3, 5]]),
@@ -155,6 +158,21 @@ class TestBoxTransform(unittest.TestCase):
                 data_back = invert_transform_flip(flip_result)
                 assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
                 assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            # test ClipBoxToImaged
+            transform_clip = ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=["labels", "scores"], remove_empty=True
+            )
+            clip_result = transform_clip(data)
+            assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
+            assert_allclose(clip_result["labels"], data["labels"][1:], type_test=True, device_test=True, atol=1e-3)
+            assert_allclose(clip_result["scores"], data["scores"][1:], type_test=True, device_test=True, atol=1e-3)
+
+            transform_clip = ClipBoxToImaged(
+                box_keys="boxes", box_ref_image_keys="image", label_keys=[], remove_empty=True
+            )  # corner case when label_keys is empty
+            clip_result = transform_clip(data)
+            assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
 
 
 if __name__ == "__main__":

@@ -12,12 +12,14 @@
 from .acti_norm import ADN
 from .activation import MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
+from .backbone_fpn_utils import BackboneWithFPN
 from .convolutions import Convolution, ResidualUnit
 from .crf import CRF
 from .dints_block import ActiConvNormBlock, FactorizedIncreaseBlock, FactorizedReduceBlock, P3DActiConvNormBlock
 from .downsample import MaxAvgPool
 from .dynunet_block import UnetBasicBlock, UnetOutBlock, UnetResBlock, UnetUpBlock, get_output_padding, get_padding
 from .fcn import FCN, GCN, MCFCN, Refine
+from .feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork, LastLevelMaxPool, LastLevelP6P7
 from .localnet_block import LocalNetDownSampleBlock, LocalNetFeatureExtractorBlock, LocalNetUpSampleBlock
 from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
