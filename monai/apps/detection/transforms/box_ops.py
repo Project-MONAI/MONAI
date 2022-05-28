@@ -10,15 +10,20 @@
 # limitations under the License.
 
 from copy import deepcopy
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
+import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
+from monai.transforms import Resize
 from monai.transforms.utils import create_scale
+from monai.utils import look_up_option, optional_import
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+
+scipy, _ = optional_import("scipy")
 
 
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
@@ -180,9 +185,136 @@ def flip_boxes(
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
-    flip_boxes = deepcopy(boxes)
+    _flip_boxes = deepcopy(boxes)
     for axis in flip_axes:
-        flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
-        flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
+        _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
+        _flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
 
-    return flip_boxes
+    return _flip_boxes
+
+
+def convert_box_to_mask(
+    boxes: NdarrayOrTensor,
+    labels: NdarrayOrTensor,
+    spatial_size: Union[Sequence[int], int],
+    bg_label: int = -1,
+    ellipse_mask: bool = False,
+) -> NdarrayOrTensor:
+    """
+    Convert box to int16 mask image, which has the same size with the input image.
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+        labels: classification foreground(fg) labels corresponding to `boxes`, dtype should be int, sized (N,).
+        spatial_size: image spatial size.
+        bg_label: background labels for the output mask image, make sure it is smaller than any fg labels.
+        ellipse_mask: bool.
+
+            - If True, it assumes the object shape is close to ellipse or ellipsoid.
+            - If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            - If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+              See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
+
+    Return:
+        - int16 array, sized (num_box, H, W). Each channel represents a box.
+            The foreground region in channel c has intensity of labels[c].
+            The background intensity is bg_label.
+    """
+    spatial_dims: int = get_spatial_dims(boxes=boxes)
+    spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
+
+    # if no box, return empty mask
+    if len(labels) == 0:
+        boxes_mask_np = np.ones((1,) + spatial_size, dtype=np.int16) * np.int16(bg_label)
+        boxes_mask, *_ = convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)
+        return boxes_mask
+
+    # bg_label should be smaller than labels
+    if bg_label >= min(labels):
+        raise ValueError(
+            f"bg_label should be smaller than any foreground box labels.\n"
+            f"min(labels)={min(labels)}, while bg_label={bg_label}"
+        )
+
+    if labels.shape[0] != boxes.shape[0]:
+        raise ValueError("Number of labels should equal to number of boxes.")
+
+    # allocate memory for boxes_mask_np
+    boxes_mask_np = np.ones((labels.shape[0],) + spatial_size, dtype=np.int16) * np.int16(bg_label)
+
+    boxes_np: np.ndarray = convert_data_type(boxes, np.ndarray, dtype=np.int32)[0]
+    labels_np, *_ = convert_to_dst_type(src=labels, dst=boxes_np)
+    for b in range(boxes_np.shape[0]):
+        # generate a foreground mask
+        box_size = [boxes_np[b, axis + spatial_dims] - boxes_np[b, axis] for axis in range(spatial_dims)]
+        if ellipse_mask:
+            # initialize a square/cube mask
+            max_box_size = max(box_size)
+            radius = max_box_size / 2.0
+            center = (max_box_size - 1) / 2.0
+            boxes_only_mask = np.ones([max_box_size] * spatial_dims, dtype=np.int16) * np.int16(bg_label)
+            # apply label intensity to circle/ball foreground
+            ranges = tuple(slice(0, max_box_size) for _ in range(spatial_dims))
+            dist_from_center = sum((grid - center) ** 2 for grid in np.ogrid[ranges])
+            boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
+            # squeeze it to a ellipse/ellipsoid mask
+            resizer = Resize(spatial_size=box_size, mode="nearest", anti_aliasing=False)
+            boxes_only_mask = resizer(boxes_only_mask[None])[0]  # type: ignore
+        else:
+            # generate a rect mask
+            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])  # type: ignore
+        # apply to global mask
+        slicing = [b]
+        slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type:ignore
+        boxes_mask_np[tuple(slicing)] = boxes_only_mask
+    return convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)[0]
+
+
+def convert_mask_to_box(
+    boxes_mask: NdarrayOrTensor, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long
+) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Convert int16 mask image to box, which has the same size with the input image
+
+    Args:
+        boxes_mask: int16 array, sized (num_box, H, W). Each channel represents a box.
+            The foreground region in channel c has intensity of labels[c].
+            The background intensity is bg_label.
+        bg_label: background labels for the boxes_mask
+        box_dtype: output dtype for boxes
+        label_dtype: output dtype for labels
+
+    Return:
+        - bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+        - classification foreground(fg) labels, dtype should be int, sized (N,).
+    """
+    look_up_option(len(boxes_mask.shape), [3, 4])
+    spatial_size = list(boxes_mask.shape[1:])
+    spatial_dims = get_spatial_dims(spatial_size=spatial_size)
+
+    boxes_mask_np, *_ = convert_data_type(boxes_mask, np.ndarray)
+
+    boxes_list = []
+    labels_list = []
+    for b in range(boxes_mask_np.shape[0]):
+        fg_indices = np.nonzero(boxes_mask_np[b, ...] - bg_label)
+        if fg_indices[0].shape[0] == 0:
+            continue
+        boxes_b = []
+        for fd_i in fg_indices:
+            boxes_b.append(min(fd_i))  # top left corner
+        for fd_i in fg_indices:
+            boxes_b.append(max(fd_i) + 1 - TO_REMOVE)  # bottom right corner
+        if spatial_dims == 2:
+            labels_list.append(boxes_mask_np[b, boxes_b[0], boxes_b[1]])
+        if spatial_dims == 3:
+            labels_list.append(boxes_mask_np[b, boxes_b[0], boxes_b[1], boxes_b[2]])
+        boxes_list.append(boxes_b)
+
+    if len(boxes_list) == 0:
+        boxes_np, labels_np = np.zeros([0, 2 * spatial_dims]), np.zeros([0])
+    else:
+        boxes_np, labels_np = np.asarray(boxes_list), np.asarray(labels_list)
+    boxes, *_ = convert_to_dst_type(src=boxes_np, dst=boxes_mask, dtype=box_dtype)
+    labels, *_ = convert_to_dst_type(src=labels_np, dst=boxes_mask, dtype=label_dtype)
+    return boxes, labels
