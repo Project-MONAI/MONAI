@@ -2176,6 +2176,8 @@ class ForegroundMask(Transform):
 
     """
 
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
     def __init__(
         self,
         threshold: Union[Dict, Callable, str, float, int] = "otsu",
@@ -2220,7 +2222,8 @@ class ForegroundMask(Transform):
             return threshold(image)
         return threshold
 
-    def __call__(self, img_rgb: NdarrayOrTensor):
+    def __call__(self, image: NdarrayOrTensor):
+        img_rgb, *_ = convert_data_type(image, np.ndarray)
         if self.invert:
             img_rgb = skimage.util.invert(img_rgb)
 
@@ -2242,5 +2245,7 @@ class ForegroundMask(Transform):
             foregrounds.append(hsv_foreground)
 
         if foregrounds:
-            return np.stack(foregrounds).all(axis=0)
-        return np.zeros_like(img_rgb[:1])
+            mask = np.stack(foregrounds).all(axis=0)
+        else:
+            mask = np.zeros_like(img_rgb[:1])
+        return convert_to_dst_type(src=mask, dst=image)[0]

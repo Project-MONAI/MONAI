@@ -16,6 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms.intensity.array import ForegroundMask
 from monai.utils import optional_import, set_determinism
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 skimage, has_skimage = optional_import("skimage")
 set_determinism(1234)
@@ -43,30 +44,29 @@ TEST_CASE_12 = [{"threshold": None, "hsv_threshold": "otsu"}, IMAGE1, np.ones_li
 TEST_CASE_13 = [{"threshold": None, "hsv_threshold": {"S": "otsu"}}, IMAGE1, MASK]
 TEST_CASE_14 = [{"threshold": 100, "invert": True}, IMAGE1, np.logical_not(MASK)]
 
+TESTS = []
+for p in TEST_NDARRAYS:
+    TESTS.append([p, *TEST_CASE_0])
+    TESTS.append([p, *TEST_CASE_1])
+    TESTS.append([p, *TEST_CASE_2])
+    TESTS.append([p, *TEST_CASE_3])
+    TESTS.append([p, *TEST_CASE_4])
+    TESTS.append([p, *TEST_CASE_5])
+    TESTS.append([p, *TEST_CASE_6])
+    TESTS.append([p, *TEST_CASE_7])
+    TESTS.append([p, *TEST_CASE_8])
+    TESTS.append([p, *TEST_CASE_9])
+    TESTS.append([p, *TEST_CASE_10])
+    TESTS.append([p, *TEST_CASE_11])
+    TESTS.append([p, *TEST_CASE_12])
+
 
 class TestForegroundMask(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-            TEST_CASE_9,
-            TEST_CASE_10,
-            TEST_CASE_11,
-            TEST_CASE_12,
-            TEST_CASE_13,
-            TEST_CASE_14,
-        ]
-    )
-    def test_foreground_mask(self, arguments, image, mask):
-        result = ForegroundMask(**arguments)(image)
-        np.testing.assert_allclose(result, mask)
+    @parameterized.expand(TESTS)
+    def test_foreground_mask(self, in_type, arguments, image, mask):
+        input_image = in_type(image)
+        result = ForegroundMask(**arguments)(input_image)
+        assert_allclose(result, mask, type_test=False)
 
 
 if __name__ == "__main__":
