@@ -24,7 +24,7 @@ from monai.utils.misc import issequenceiterable
 from .base_detection_network import BaseDetectionNetwork
 
 if TYPE_CHECKING:
-    import torchvision
+    from torchvision.models.detection.backbone_utils import _validate_trainable_layers
 
     has_torchvision = True
 else:
