@@ -206,13 +206,13 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                     elif isinstance(offset_limits[0], tuple):
                         self.offset_limits = offset_limits
                     else:
-                        ValueError(
+                        raise ValueError(
                             "The offset limits should be either a tuple of integers or tuple of tuple of integers."
                         )
                 else:
-                    ValueError("The offset limits should be a tuple.")
+                    raise ValueError("The offset limits should be a tuple.")
             else:
-                ValueError(
+                raise ValueError(
                     f'Invalid string for offset "{offset}". It should be either "random" as a string,'
                     "an integer, or a tuple of integers defining the offset."
                 )
