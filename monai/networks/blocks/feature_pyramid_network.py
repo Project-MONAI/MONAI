@@ -91,11 +91,12 @@ class LastLevelMaxPool(ExtraFPNBlock):
     in :class:`~monai.networks.blocks.feature_pyramid_network.FeaturePyramidNetwork` .
     """
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
-        spatial_dims = len(results[0].shape) - 2
+    def __init__(self, spatial_dims: int):
+        super().__init__()
         pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
         self.maxpool = pool_type(kernel_size=1, stride=2, padding=0)
 
+    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
         names.append("pool")
         results.append(self.maxpool(results[-1]))
         return results, names
