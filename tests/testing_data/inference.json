@@ -30,6 +30,12 @@
         "_target_": "Compose",
         "transforms": [
             {
+                "_target_": "Lambdad",
+                "keys": "image",
+                "func": "$lambda x: print(x.split(@dataset_dir))",
+                "overwrite": false
+            },
+            {
                 "_target_": "LoadImaged",
                 "keys": "image"
             },
