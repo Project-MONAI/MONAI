@@ -126,6 +126,10 @@ Applications
 `Detection`
 -----------
 
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
+
 `Transforms`
 ~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.transforms.box_ops
