@@ -245,13 +245,13 @@ class RetinaNet(BaseDetectionNetwork):
             )
         self.feature_extractor = feature_extractor
 
-        feature_map_channels: int = self.feature_extractor.out_channels
+        self.feature_map_channels: int = self.feature_extractor.out_channels
         self.num_anchors = num_anchors
         self.classification_head = RetinaNetClassificationHead(
-            feature_map_channels, self.num_anchors, self.num_classes, spatial_dims=self.spatial_dims
+            self.feature_map_channels, self.num_anchors, self.num_classes, spatial_dims=self.spatial_dims
         )
         self.regression_head = RetinaNetRegressionHead(
-            feature_map_channels, self.num_anchors, spatial_dims=self.spatial_dims
+            self.feature_map_channels, self.num_anchors, spatial_dims=self.spatial_dims
         )
 
         self.cls_key = "cls_logits"
