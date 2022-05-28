@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
@@ -164,6 +165,8 @@ class SlidingWindowInferer(Inferer):
                 self.roi_weight_map = compute_importance_map(
                     ensure_tuple(self.roi_size), mode=mode, sigma_scale=sigma_scale, device=device
                 )
+            if cache_roi_weight_map and self.roi_weight_map is None:
+                warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
         except BaseException as e:
             raise RuntimeError(
                 "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
@@ -269,7 +272,7 @@ class SliceInferer(SlidingWindowInferer):
 
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
         """
         Args:
             inputs: 3D input for inference

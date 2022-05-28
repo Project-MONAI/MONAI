@@ -177,6 +177,11 @@ class TestSlidingWindowInference(unittest.TestCase):
         )
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
+        result = SlidingWindowInferer(
+            roi_shape, sw_batch_size, overlap=0.5, mode="gaussian", sigma_scale=[1.0, 1.0], cache_roi_weight_map=True
+        )(inputs, _Pred().compute)
+        np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
+
     def test_cval(self):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
         inputs = torch.ones((1, 1, 3, 3)).to(device=device)
