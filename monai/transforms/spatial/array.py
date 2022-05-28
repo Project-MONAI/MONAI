@@ -2756,7 +2756,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         fix_num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
         seed: int = 0,
     ):

@@ -2239,7 +2239,7 @@ class GridPatchd(MapTransform):
         fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
         allow_missing_keys: bool = False,
     ):
@@ -2315,7 +2315,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         fix_num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        pad_mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         pad_opts: Optional[Dict] = None,
         seed: int = 0,
         allow_missing_keys: bool = False,
