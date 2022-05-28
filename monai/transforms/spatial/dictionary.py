@@ -2258,7 +2258,9 @@ class GridPatchd(MapTransform):
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
         output = []
-        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
+        results = [self.patcher(d[key]) for key in self.keys]
+        num_patches = min([len(r) for r in results])
+        for patch in zip(*results):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
             for k in set(d.keys()).difference(set(self.keys)):
@@ -2267,7 +2269,7 @@ class GridPatchd(MapTransform):
             new_dict["original_spatial_shape"] = original_spatial_shape
             new_dict["location"] = patch[0][1]  # use the coordinate of the first item
             new_dict["patch_size"] = self.patcher.patch_size
-            new_dict["num_patches"] = self.patcher.num_patches
+            new_dict["num_patches"] = num_patches
             new_dict["start_pos"] = self.patcher.start_pos
             output.append(new_dict)
         return output
@@ -2342,7 +2344,9 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
         output = []
-        for patch in zip(*[self.patcher(d[key]) for key in self.keys]):
+        results = [self.patcher(d[key]) for key in self.keys]
+        num_patches = min([len(r) for r in results])
+        for patch in zip(*results):
             new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
             # fill in the extra keys with unmodified data
             for k in set(d.keys()).difference(set(self.keys)):
@@ -2351,7 +2355,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             new_dict["original_spatial_shape"] = original_spatial_shape
             new_dict["location"] = patch[0][1]  # use the coordinate of the first item
             new_dict["patch_size"] = self.patcher.patch_size
-            new_dict["num_patches"] = self.patcher.num_patches
+            new_dict["num_patches"] = num_patches
             new_dict["start_pos"] = self.patcher.start_pos
             output.append(new_dict)
         return output

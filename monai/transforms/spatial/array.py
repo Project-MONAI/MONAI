@@ -2664,7 +2664,6 @@ class GridPatch(Transform):
         self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
         self.pad_opts = {} if pad_opts is None else pad_opts
         self.overlap = overlap
-        self.num_patches = 0
         self.fix_num_patches = fix_num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
@@ -2714,7 +2713,7 @@ class GridPatch(Transform):
                 output += [(patch, location)] * (self.fix_num_patches - len(output))
 
         output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
-        self.num_patches = len(output)
+
         return output
 
 

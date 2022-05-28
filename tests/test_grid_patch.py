@@ -63,9 +63,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_12])
 
 
-class TestSlidingPatch(unittest.TestCase):
+class TestGridPatch(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
-    def test_split_patch_single_call(self, in_type, input_parameters, image, expected):
+    def test_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = GridPatch(**input_parameters)
         output = list(splitter(input_image))

@@ -63,9 +63,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_12])
 
 
-class TestSlidingPatch(unittest.TestCase):
+class TestGridPatchd(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
-    def test_split_patch_single_call(self, in_type, input_parameters, image_dict, expected):
+    def test_grid_patchd(self, in_type, input_parameters, image_dict, expected):
         image_key = "image"
         input_dict = {}
         for k, v in image_dict.items():

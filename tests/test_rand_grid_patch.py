@@ -70,9 +70,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_9])
 
 
-class TestSlidingPatch(unittest.TestCase):
+class TestRandGridPatch(unittest.TestCase):
     @parameterized.expand(TEST_SINGLE)
-    def test_split_patch_single_call(self, in_type, input_parameters, image, expected):
+    def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
         splitter.set_random_state(1234)
