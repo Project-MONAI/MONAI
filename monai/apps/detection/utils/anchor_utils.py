@@ -403,4 +403,4 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
         """
         half_anchor_shapes = anchor_shapes / 2.0
         base_anchors = torch.cat([-half_anchor_shapes, half_anchor_shapes], dim=1)
-        return base_anchors.round().to(dtype).to(device)
+        return base_anchors.round().to(dtype=dtype, device=device)

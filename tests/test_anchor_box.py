@@ -18,9 +18,7 @@ from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.utils import optional_import
 from tests.utils import assert_allclose
 
-torch_anchor_utils, _ = optional_import("torchvision.models.detection.anchor_utils", version="0.12")
-image_list, _ = optional_import("torchvision.models.detection.image_list", version="0.12")
-
+_, has_torchvision = optional_import("torchvision")
 
 TEST_CASES_2D = []
 TEST_CASES_2D.append(
@@ -32,9 +30,14 @@ TEST_CASES_2D.append(
 )
 
 
+@unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestAnchorGenerator(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2D)
     def test_anchor_2d(self, input_param, image_shape, feature_maps_shapes):
+
+        torch_anchor_utils, _ = optional_import("torchvision.models.detection.anchor_utils")
+        image_list, _ = optional_import("torchvision.models.detection.image_list")
+
         # test it behaves the same with torchvision for 2d
         anchor = AnchorGenerator(**input_param, indexing="xy")
         anchor_ref = torch_anchor_utils.AnchorGenerator(**input_param)
