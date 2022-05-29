@@ -1730,4 +1730,4 @@ RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
-ForegroundMaskD = ForegroundMaskDict = ForegroundMask
+ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd

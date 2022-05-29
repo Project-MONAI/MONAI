@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import ForegroundMaskd
+from monai.transforms.intensity.dictionary import ForegroundMaskd
 from monai.utils import optional_import, set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
