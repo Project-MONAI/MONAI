@@ -18,21 +18,28 @@ from ignite.engine import Engine
 from parameterized import parameterized
 from torch.utils.data import DataLoader
 
-from monai.apps.pathology.handlers import ProbMapProducer
+from monai.handlers import ProbMapProducer
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ValidationHandler
 
 TEST_CASE_0 = ["temp_image_inference_output_1", 2]
 TEST_CASE_1 = ["temp_image_inference_output_2", 9]
-TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
+TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
     def __init__(self, name, size):
         super().__init__(
             data=[
-                {"name": name, "mask_shape": (size, size), "mask_locations": [[i, i] for i in range(size)], "level": 0}
+                {
+                    "image": name,
+                    "num_patches": size,
+                    "map_size": np.array([size, size]),
+                    "map_center": np.array([i, i]),
+                    "map_level": 0,
+                }
+                for i in range(size)
             ]
         )
         self.len = size
@@ -41,7 +48,17 @@ class TestDataset(Dataset):
         return self.len
 
     def __getitem__(self, index):
-        return {"name": self.data[0]["name"], "mask_location": self.data[0]["mask_locations"][index], "pred": index + 1}
+        return {
+            "image": np.zeros((3, 2, 2)),
+            "num_patches": self.data[index]["num_patches"],
+            "metadata": {
+                "path": self.data[index]["image"],
+                "map_size": self.data[index]["map_size"],
+                "map_center": self.data[index]["map_center"],
+                "map_level": self.data[index]["map_level"],
+            },
+            "pred": index + 1,
+        }
 
 
 class TestEvaluator(Evaluator):

@@ -28,7 +28,7 @@ else:
 
 class ProbMapProducer:
     """
-    Event handler triggered on completing every iteration to save the probability map
+    Event handler triggered on completing every iteration to calculate and save the probability map
     """
 
     def __init__(
@@ -65,15 +65,18 @@ class ProbMapProducer:
 
         data_loader = engine.data_loader  # type: ignore
         self.num_images = len(data_loader.dataset.data)
-        wsi_list = list(
-            set((d["image"], d["num_patches"], d["map_size"], d["map_level"]) for d in data_loader.dataset.data)
+        # Extract unite images from patch data
+        image_set = set(
+            (sample["image"], sample["num_patches"], tuple(sample["map_size"])) for sample in data_loader.dataset.data
         )
-        if len(wsi_list) != len([d[0] for d in wsi_list]):
+        if len(image_set) != len([d[0] for d in image_set]):
             raise ValueError("Same image has different value of num_patches!")
-        for sample in wsi_list:
-            name = sample["image"]
-            self.prob_map[name] = np.zeros(sample["map_size"], dtype=self.dtype)
-            self.counter[name] = sample["num_patches"]
+
+        # Initialized probability maps for all the images
+        for sample in image_set:
+            name = sample[0]
+            self.counter[name] = sample[1]
+            self.prob_map[name] = np.zeros(sample[2], dtype=self.dtype)
 
         if self._name is None:
             self.logger = engine.logger
