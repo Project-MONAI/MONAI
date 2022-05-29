@@ -24,15 +24,17 @@ import torch
 
 from monai.apps.detection.transforms.array import (
     AffineBox,
+    BoxToMask,
     ClipBoxToImage,
     ConvertBoxMode,
     ConvertBoxToStandardMode,
     FlipBox,
+    MaskToBox,
     ZoomBox,
 )
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import BoxMode
+from monai.data.box_utils import COMPUTE_DTYPE, BoxMode
 from monai.data.utils import orientation_ras_lps
 from monai.transforms import Flip, RandFlip, RandZoom, SpatialPad, Zoom
 from monai.transforms.inverse import InvertibleTransform
@@ -66,6 +68,12 @@ __all__ = [
     "ClipBoxToImaged",
     "ClipBoxToImageD",
     "ClipBoxToImageDict",
+    "BoxToMaskd",
+    "BoxToMaskD",
+    "BoxToMaskDict",
+    "MaskToBoxd",
+    "MaskToBoxD",
+    "MaskToBoxDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -246,7 +254,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         # when convert boxes from world coordinate to image coordinate,
         # we apply inverse affine transform
         affine_t, *_ = convert_data_type(affine, torch.Tensor)
-        inv_affine_t = torch.inverse(affine_t)
+        # torch.inverse should not run in half precision
+        inv_affine_t = torch.inverse(affine_t.to(COMPUTE_DTYPE))
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -706,7 +715,7 @@ class ClipBoxToImaged(MapTransform):
 
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the lables corresponding to the ``box_keys``. Multiple keys are allowed.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
         box_ref_image_keys: The single key that represents the reference image
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
@@ -758,6 +767,174 @@ class ClipBoxToImaged(MapTransform):
         return d
 
 
+class BoxToMaskd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
+    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.MaskToBoxd` .
+    Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
+    The output ``d[box_mask_key]`` will have background intensity 0, since the following operations
+    may pad 0 on the border.
+
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously.
+    It is performed with the following steps.
+
+        1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
+        2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+        3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
+
+    Args:
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        min_fg_label: min foreground box label.
+        ellipse_mask: bool.
+
+            - If True, it assumes the object shape is close to ellipse or ellipsoid.
+            - If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            - If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+              See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        .. code-block:: python
+
+            # This code snippet creates transforms (random rotation and cropping) on boxes, labels, and image together.
+            import numpy as np
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
+            transforms = Compose(
+                [
+                    BoxToMaskd(
+                        box_keys="boxes", label_keys="labels",
+                        box_mask_keys="box_mask", box_ref_image_keys="image",
+                        min_fg_label=0, ellipse_mask=True
+                    ),
+                    RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
+                        prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
+                        keep_size=True,padding_mode="zeros"
+                    ),
+                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    MaskToBoxd(
+                        box_mask_keys="box_mask", box_keys="boxes",
+                        label_keys="labels", min_fg_label=0
+                    )
+                    DeleteItemsd(keys=["box_mask"]),
+                ]
+            )
+
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        box_mask_keys: KeysCollection,
+        label_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        min_fg_label: int,
+        ellipse_mask: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(box_keys, allow_missing_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        self.label_keys = ensure_tuple(label_keys)
+        self.box_mask_keys = ensure_tuple(box_mask_keys)
+        if not len(self.label_keys) == len(self.box_keys) == len(self.box_mask_keys):
+            raise ValueError("Please make sure len(label_keys)==len(box_keys)==len(box_mask_keys)!")
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+        self.bg_label = min_fg_label - 1  # make sure background label is always smaller than fg labels.
+        self.converter = BoxToMask(bg_label=self.bg_label, ellipse_mask=ellipse_mask)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        for box_key, label_key, box_mask_key, box_ref_image_key in zip(
+            self.box_keys, self.label_keys, self.box_mask_keys, self.box_ref_image_keys
+        ):
+            spatial_size = d[box_ref_image_key].shape[1:]
+            d[box_mask_key] = self.converter(d[box_key], d[label_key], spatial_size)
+            # make box mask background intensity to be 0, since the following operations may pad 0 on the border.
+            d[box_mask_key] -= self.bg_label
+        return d
+
+
+class MaskToBoxd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.detection.transforms.array.MaskToBox`.
+    Pairs with :py:class:`monai.apps.detection.transforms.dictionary.BoxToMaskd` .
+    Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
+
+    This is the general solution for transforms that need to be applied on images and boxes simultaneously.
+    It is performed with the following steps.
+
+        1) use ``BoxToMaskd`` to covert boxes and labels to box_masks;
+        2) do transforms, e.g., rotation or cropping, on images and box_masks together;
+        3) use ``MaskToBoxd`` to convert box_masks back to boxes and labels.
+
+    Args:
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        min_fg_label: min foreground box label.
+        box_dtype: output dtype for box_keys
+        label_dtype: output dtype for label_keys
+        allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        .. code-block:: python
+
+            # This code snippet creates transforms (random rotation and cropping) on boxes, labels, and images together.
+            import numpy as np
+            from monai.transforms import Compose, RandRotated, RandSpatialCropd, DeleteItemsd
+            transforms = Compose(
+                [
+                    BoxToMaskd(
+                        box_keys="boxes", label_keys="labels",
+                        box_mask_keys="box_mask", box_ref_image_keys="image",
+                        min_fg_label=0, ellipse_mask=True
+                    ),
+                    RandRotated(keys=["image","box_mask"],mode=["nearest","nearest"],
+                        prob=0.2,range_x=np.pi/6,range_y=np.pi/6,range_z=np.pi/6,
+                        keep_size=True,padding_mode="zeros"
+                    ),
+                    RandSpatialCropd(keys=["image","box_mask"],roi_size=128, random_size=False),
+                    MaskToBoxd(
+                        box_mask_keys="box_mask", box_keys="boxes",
+                        label_keys="labels", min_fg_label=0
+                    )
+                    DeleteItemsd(keys=["box_mask"]),
+                ]
+            )
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        box_mask_keys: KeysCollection,
+        label_keys: KeysCollection,
+        min_fg_label: int,
+        box_dtype=torch.float32,
+        label_dtype=torch.long,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(box_keys, allow_missing_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        self.label_keys = ensure_tuple(label_keys)
+        self.box_mask_keys = ensure_tuple(box_mask_keys)
+        if not len(self.label_keys) == len(self.box_keys) == len(self.box_mask_keys):
+            raise ValueError("Please make sure len(label_keys)==len(box_keys)==len(box_mask_keys)!")
+        self.bg_label = min_fg_label - 1  # make sure background label is always smaller than fg labels.
+        self.converter = MaskToBox(bg_label=self.bg_label, box_dtype=box_dtype, label_dtype=label_dtype)
+        self.box_dtype = box_dtype
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        for box_key, label_key, box_mask_key in zip(self.box_keys, self.label_keys, self.box_mask_keys):
+            d[box_mask_key] += self.bg_label  # pairs with the operation in BoxToMaskd
+            d[box_key], d[label_key] = self.converter(d[box_mask_key])
+        return d
+
+
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
@@ -766,3 +943,5 @@ AffineBoxToImageCoordinateD = AffineBoxToImageCoordinateDict = AffineBoxToImageC
 FlipBoxD = FlipBoxDict = FlipBoxd
 RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
 ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
+BoxToMaskD = BoxToMaskDict = BoxToMaskd
+MaskToBoxD = MaskToBoxDict = MaskToBoxd
