@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 
-from monai.inferers.utils import sliding_window_inference
+from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
@@ -120,6 +121,7 @@ class SlidingWindowInferer(Inferer):
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
         progress: whether to print a tqdm progress bar.
+        cache_roi_weight_map: whether to precompute the ROI weight map.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -139,6 +141,7 @@ class SlidingWindowInferer(Inferer):
         sw_device: Union[torch.device, str, None] = None,
         device: Union[torch.device, str, None] = None,
         progress: bool = False,
+        cache_roi_weight_map: bool = False,
     ) -> None:
         Inferer.__init__(self)
         self.roi_size = roi_size
@@ -152,9 +155,26 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
 
+        # compute_importance_map takes long time when computing on cpu. We thus
+        # compute it once if it's static and then save it for future usage
+        self.roi_weight_map = None
+        try:
+            if cache_roi_weight_map and isinstance(roi_size, Sequence) and min(roi_size) > 0:  # non-dynamic roi size
+                if device is None:
+                    device = "cpu"
+                self.roi_weight_map = compute_importance_map(
+                    ensure_tuple(self.roi_size), mode=mode, sigma_scale=sigma_scale, device=device
+                )
+            if cache_roi_weight_map and self.roi_weight_map is None:
+                warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
+        except BaseException as e:
+            raise RuntimeError(
+                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
+            ) from e
+
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
         """
 
         Args:
@@ -165,7 +185,7 @@ class SlidingWindowInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        return sliding_window_inference(
+        return sliding_window_inference(  # type: ignore
             inputs,
             self.roi_size,
             self.sw_batch_size,
@@ -178,6 +198,7 @@ class SlidingWindowInferer(Inferer):
             self.sw_device,
             self.device,
             self.progress,
+            self.roi_weight_map,
             *args,
             **kwargs,
         )
@@ -251,7 +272,7 @@ class SliceInferer(SlidingWindowInferer):
 
     def __call__(
         self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
         """
         Args:
             inputs: 3D input for inference
