@@ -18,7 +18,7 @@ from torch import Tensor, nn
 from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.layers.factories import Conv
 from monai.networks.nets import resnet
-from monai.utils import optional_import, ensure_tuple_rep, look_up_option
+from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 from monai.utils.misc import issequenceiterable
 
 _validate_trainable_layers, _ = optional_import(
