@@ -1,7 +1,6 @@
 {
     "dataset_dir": "/workspace/data/Task09_Spleen",
-    "test_image_path": "test image path:",
-    "log_func": "$lambda x: print(@test_image_path + x)",
+    "test_collate": "$monai.data.list_data_collate",
     "import_glob": "$import glob",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "print_test_name": "$print('json_test')",
@@ -31,12 +30,6 @@
     "preprocessing": {
         "_target_": "Compose",
         "transforms": [
-            {
-                "_target_": "Lambdad",
-                "keys": "image",
-                "func": "@log_func",
-                "overwrite": false
-            },
             {
                 "_target_": "LoadImaged",
                 "keys": "image"
@@ -70,7 +63,8 @@
         "dataset": "@dataset",
         "batch_size": 1,
         "shuffle": false,
-        "num_workers": 4
+        "num_workers": 4,
+        "collate_fn": "$lambda x: @test_collate(x)"
     },
     "inferer": {
         "_target_": "SlidingWindowInferer",
