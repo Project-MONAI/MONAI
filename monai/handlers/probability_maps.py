@@ -63,20 +63,14 @@ class ProbMapProducer:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
 
-        data_loader = engine.data_loader  # type: ignore
-        self.num_images = len(data_loader.dataset.data)
-        # Extract unite images from patch data
-        image_set = set(
-            (sample["image"], sample["num_patches"], tuple(sample["map_size"])) for sample in data_loader.dataset.data
-        )
-        if len(image_set) != len([d[0] for d in image_set]):
-            raise ValueError("Same image has different value of num_patches!")
+        image_data = engine.data_loader.dataset.image_data  # type: ignore
+        self.num_images = len(image_data)
 
         # Initialized probability maps for all the images
-        for sample in image_set:
-            name = sample[0]
-            self.counter[name] = sample[1]
-            self.prob_map[name] = np.zeros(sample[2], dtype=self.dtype)
+        for sample in image_data:
+            name = sample["image"]
+            self.counter[name] = sample["num_patches"]
+            self.prob_map[name] = np.zeros(sample["map_size"], dtype=self.dtype)
 
         if self._name is None:
             self.logger = engine.logger

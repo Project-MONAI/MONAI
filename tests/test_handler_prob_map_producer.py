@@ -18,10 +18,9 @@ from ignite.engine import Engine
 from parameterized import parameterized
 from torch.utils.data import DataLoader
 
-from monai.handlers import ProbMapProducer
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
-from monai.handlers import ValidationHandler
+from monai.handlers import ProbMapProducer, ValidationHandler
 
 TEST_CASE_0 = ["temp_image_inference_output_1", 2]
 TEST_CASE_1 = ["temp_image_inference_output_2", 9]
@@ -42,10 +41,7 @@ class TestDataset(Dataset):
                 for i in range(size)
             ]
         )
-        self.len = size
-
-    def __len__(self):
-        return self.len
+        self.image_data = [{"image": name, "num_patches": size, "map_size": np.array([size, size])}]
 
     def __getitem__(self, index):
         return {

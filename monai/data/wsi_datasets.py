@@ -223,8 +223,8 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         self.map_level = map_level
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
-        self.wsi_data = data
-        for sample in self.wsi_data:
+        self.image_data = data
+        for sample in self.image_data:
             patch_samples = self._evaluate_patch_coordinates(sample)
             self.data.extend(patch_samples)
 
@@ -252,18 +252,14 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                 image_size=wsi_size, patch_size=patch_size_, start_pos=start_pos, overlap=self.overlap, padded=False
             )
         )
+        n_patches = len(locations)
         sample["size"] = np.array(patch_size)
         sample["level"] = level
-        n_patches = len(locations)
+        sample["num_patches"] = n_patches
+        sample["map_level"] = self.map_level
+        sample["map_size"] = np.array(self.wsi_reader.get_size(wsi_obj, self.map_level))
         return [
-            {
-                **sample,
-                "location": np.array(loc),
-                "num_patches": n_patches,
-                "map_level": self.map_level,
-                "map_size": np.array(self.wsi_reader.get_size(wsi_obj, self.map_level)),
-                "map_center": self.downsample_center(loc, patch_size, ratio),
-            }
+            {**sample, "location": np.array(loc), "map_center": self.downsample_center(loc, patch_size, ratio)}
             for loc in locations
         ]
 
