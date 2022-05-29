@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-from typing import TYPE_CHECKING
 
 import torch
 from parameterized import parameterized
@@ -20,12 +19,7 @@ from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
 
-if TYPE_CHECKING:
-    import torchvision
-
-    has_torchvision = True
-else:
-    torchvision, has_torchvision = optional_import("torchvision")
+_, has_torchvision = optional_import("torchvision")
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -96,6 +90,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A
         TEST_CASES.append([model, *case])
 
 
+@unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_retina_shape(self, model, input_param, input_shape):
