@@ -14,9 +14,9 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.utils.anchor_utils import AnchorGenerator
+from monai.apps.detection.utils.anchor_utils import AnchorGenerator, AnchorGeneratorWithAnchorShape
 from monai.utils import optional_import
-from tests.utils import assert_allclose
+from tests.utils import assert_allclose, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -26,6 +26,15 @@ TEST_CASES_2D.append(
         {"sizes": ((10, 12, 14, 16), (20, 24, 28, 32)), "aspect_ratios": ((1.0, 0.5, 2.0), (1.0, 0.5, 2.0))},
         (5, 3, 128, 128),
         ((5, 7, 64, 32), (5, 7, 32, 16)),
+    ]
+)
+
+TEST_CASES_SHAPE_3D = []
+TEST_CASES_SHAPE_3D.append(
+    [
+        {"feature_map_scales": (1, 2), "base_anchor_shapes": ((4, 3, 6), (8, 2, 4))},
+        (5, 3, 128, 128, 128),
+        ((5, 7, 64, 32, 32), (5, 7, 32, 16, 16)),
     ]
 )
 
@@ -57,6 +66,22 @@ class TestAnchorGenerator(unittest.TestCase):
         result_ref = anchor_ref(image_list.ImageList(images, ([123, 122],)), feature_maps)
         for a, a_f in zip(result, result_ref):
             assert_allclose(a, a_f, type_test=True, device_test=False, atol=0.1)
+
+    @parameterized.expand(TEST_CASES_2D)
+    def test_script_2d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torchscript
+        anchor = AnchorGenerator(**input_param, indexing="xy")
+        images = torch.rand(image_shape)
+        feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
+        test_script_save(anchor, images, feature_maps)
+
+    @parameterized.expand(TEST_CASES_SHAPE_3D)
+    def test_script_3d(self, input_param, image_shape, feature_maps_shapes):
+        # test whether support torchscript
+        anchor = AnchorGeneratorWithAnchorShape(**input_param, indexing="ij")
+        images = torch.rand(image_shape)
+        feature_maps = tuple(torch.rand(fs) for fs in feature_maps_shapes)
+        test_script_save(anchor, images, feature_maps)
 
 
 if __name__ == "__main__":

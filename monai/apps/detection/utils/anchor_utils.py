@@ -92,13 +92,13 @@ class AnchorGenerator(nn.Module):
             sizes = ((10,12,14,16), (20,24,28,32))
             base_aspect_ratios = (1., 0.5,  2.)
             aspect_ratios = (base_aspect_ratios, base_aspect_ratios)
-            AnchorGenerator(sizes, aspect_ratios)
+            anchor_generator = AnchorGenerator(sizes, aspect_ratios)
 
             # 3D example inputs for a 2-level feature maps
             sizes = ((10,12,14,16), (20,24,28,32))
             base_aspect_ratios = ((1., 1.), (1., 0.5), (0.5, 1.), (2., 2.))
             aspect_ratios = (base_aspect_ratios, base_aspect_ratios)
-            AnchorGenerator(sizes, aspect_ratios)
+            anchor_generator = AnchorGenerator(sizes, aspect_ratios)
     """
 
     __annotations__ = {"cell_anchors": List[torch.Tensor]}
@@ -212,9 +212,7 @@ class AnchorGenerator(nn.Module):
         """
         return [c.shape[0] for c in self.cell_anchors]
 
-    def grid_anchors(
-        self, grid_sizes: Sequence[Sequence[int]], strides: Sequence[Sequence[Tensor]]
-    ) -> Sequence[Tensor]:
+    def grid_anchors(self, grid_sizes: List[List[int]], strides: List[List[Tensor]]) -> List[Tensor]:
         """
         Every combination of (a, (g, s), i) in (self.cell_anchors, zip(grid_sizes, strides), 0:spatial_dims)
         corresponds to a feature map.
@@ -252,7 +250,16 @@ class AnchorGenerator(nn.Module):
             for axis in range(self.spatial_dims):
                 shifts_centers.append(torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis])
 
-            shifts_centers = list(torch.meshgrid(*tuple(shifts_centers), indexing="ij"))  # indexing="ij"
+            # to support torchscript, cannot directly use torch.meshgrid(shifts_centers).
+            if self.spatial_dims == 2:
+                shifts_centers = list(
+                    torch.meshgrid([shifts_centers[0], shifts_centers[1]], indexing="ij")
+                )  # indexing="ij"
+            else:
+                shifts_centers = list(
+                    torch.meshgrid([shifts_centers[0], shifts_centers[1], shifts_centers[2]], indexing="ij")
+                )  # indexing="ij"
+
             for axis in range(self.spatial_dims):
                 # each element of shifts_centers is sized (HW,) or (HWD,)
                 shifts_centers[axis] = shifts_centers[axis].reshape(-1)
@@ -294,7 +301,7 @@ class AnchorGenerator(nn.Module):
                 images = torch.zeros((3,1,128,128,128))
                 feature_maps = [torch.zeros((3,6,64,64,32)), torch.zeros((3,6,32,32,16))]
         """
-        grid_sizes = [feature_map.shape[-self.spatial_dims :] for feature_map in feature_maps]
+        grid_sizes = [list(feature_map.shape[-self.spatial_dims :]) for feature_map in feature_maps]
         image_size = images.shape[-self.spatial_dims :]
         batchsize = images.shape[0]
         dtype, device = feature_maps[0].dtype, feature_maps[0].device
@@ -317,7 +324,7 @@ class AnchorGenerator(nn.Module):
         return [torch.cat(anchors_per_image) for anchors_per_image in anchors]
 
 
-class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
+class AnchorGeneratorWithAnchorShape(AnchorGenerator):
     """
     Module that generates anchors for a set of feature maps and
     image sizes, inherited from :py:class:`~monai.apps.detection.networks.utils.anchor_utils.AnchorGenerator`
@@ -352,12 +359,12 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
             # 2D example inputs for a 2-level feature maps
             feature_map_scales = (1, 2)
             base_anchor_shapes = ((10, 10), (6, 12), (12, 6))
-            AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
+            anchor_generator = AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
 
             # 3D example inputs for a 2-level feature maps
             feature_map_scales = (1, 2)
             base_anchor_shapes = ((10, 10, 10), (12, 12, 8), (10, 10, 6), (16, 16, 10))
-            AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
+            anchor_generator = AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
     """
 
     __annotations__ = {"cell_anchors": List[torch.Tensor]}
@@ -373,6 +380,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator, nn.Module):
         ),
         indexing: str = "ij",
     ) -> None:
+
         nn.Module.__init__(self)
 
         spatial_dims = len(base_anchor_shapes[0])
