@@ -70,9 +70,9 @@
     },
     "configs": {
         "test_meta_file": {
-            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_202203171008.json",
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
             "hash_type": "md5",
-            "hash_val": "e3a7e23d1113a1f3e6c69f09b6f9ce2c"
+            "hash_val": "662135097106b71067cd1fc657f8720f"
         }
     }
 }

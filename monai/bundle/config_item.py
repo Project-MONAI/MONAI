@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 from monai.bundle.utils import EXPR_KEY
 from monai.utils import ensure_tuple, first, instantiate, optional_import
 
-__all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent"]
+__all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
 
 class Instantiable(ABC):
@@ -173,7 +173,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
           of the dependencies for this ``ConfigComponent`` object. These dependencies will be
           evaluated/instantiated before this object is instantiated.  It is useful when the
-          component doesn't explicitly depends on the other `ConfigItems` via its arguments,
+          component doesn't explicitly depend on the other `ConfigItems` via its arguments,
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
 
@@ -302,7 +302,7 @@ class ConfigExpression(ConfigItem):
 
         config = "$monai.__version__"
         expression = ConfigExpression(config, id="test", globals={"monai": monai})
-        print(expression.execute())
+        print(expression.evaluate())
 
     Args:
         config: content of a config item.
@@ -312,7 +312,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = EXPR_KEY
-    run_eval = False if os.environ.get("MONAI_EVAL_EXPR", "1") == "0" else True
+    run_eval = not os.environ.get("MONAI_EVAL_EXPR", "1") == "0"
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)

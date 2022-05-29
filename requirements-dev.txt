@@ -15,7 +15,7 @@ flake8-bugbear
 flake8-comprehensions
 flake8-executable
 flake8-pyi
-pylint
+pylint!=2.13  # https://github.com/PyCQA/pylint/issues/5969
 mccabe
 pep8-naming
 pycodestyle
@@ -32,7 +32,7 @@ Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.2
-cucim>=21.8.2; platform_system == "Linux"
+cucim==22.2.1; platform_system == "Linux"
 openslide-python==1.1.2
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
@@ -40,10 +40,12 @@ pandas
 requests
 einops
 transformers
-mlflow
+mlflow!=1.26.1  # https://github.com/Project-MONAI/MONAI/issues/4375
 matplotlib!=3.5.0
 tensorboardX
 types-PyYAML
 pyyaml
 fire
 jsonschema
+pynrrd
+pre-commit

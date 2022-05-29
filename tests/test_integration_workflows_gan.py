@@ -117,6 +117,7 @@ def run_training_test(root_dir, device="cuda:0"):
         latent_shape=latent_size,
         key_train_metric=key_train_metric,
         train_handlers=train_handlers,
+        to_kwargs={"memory_format": torch.preserve_format, "dtype": torch.float32},
     )
     trainer.run()
 

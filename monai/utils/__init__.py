@@ -17,6 +17,7 @@ from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_
 from .enums import (
     Average,
     BlendMode,
+    BoxModeName,
     ChannelMatching,
     CommonKeys,
     DiceCEReduction,
@@ -88,10 +89,13 @@ from .type_conversion import (
     convert_data_type,
     convert_to_cupy,
     convert_to_dst_type,
+    convert_to_list,
     convert_to_numpy,
     convert_to_tensor,
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     get_dtype,
     get_equivalent_dtype,
+    get_numpy_dtype_from_string,
+    get_torch_dtype_from_string,
 )

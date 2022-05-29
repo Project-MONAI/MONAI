@@ -122,3 +122,25 @@ Applications
     :members:
 .. autoclass:: TileOnGridd
     :members:
+
+`Detection`
+-----------
+
+`Transforms`
+~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.transforms.box_ops
+    :members:
+.. automodule:: monai.apps.detection.transforms.array
+    :members:
+.. automodule:: monai.apps.detection.transforms.dictionary
+    :members:
+
+`Matcher`
+~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.ATSS_matcher
+    :members:
+
+`Box coder`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_coder
+    :members:

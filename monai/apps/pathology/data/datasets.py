@@ -35,6 +35,7 @@ class PatchWSIDataset(Dataset):
         transform: transforms to be executed on input data.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The input data has the following form as an example:
@@ -56,6 +57,7 @@ class PatchWSIDataset(Dataset):
         patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ):
         super().__init__(data, transform)
 
@@ -65,7 +67,7 @@ class PatchWSIDataset(Dataset):
 
         self.image_path_list = list({x["image"] for x in self.data})
         self.image_reader_name = image_reader_name.lower()
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
         self.wsi_object_dict = None
         if self.image_reader_name != "openslide":
             # OpenSlide causes memory issue if we prefetch image objects
@@ -119,10 +121,10 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
             default to `True`. if the random transforms don't modify the cache content
@@ -130,6 +132,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        kwargs: additional parameters for ``WSIReader``
 
     """
 
@@ -149,6 +152,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        **kwargs,
     ):
         patch_wsi_dataset = PatchWSIDataset(
             data=data,
@@ -156,6 +160,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
             grid_shape=grid_shape,
             patch_size=patch_size,
             image_reader_name=image_reader_name,
+            **kwargs,
         )
         super().__init__(
             data=patch_wsi_dataset,  # type: ignore
@@ -183,7 +188,8 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: the size of patches to be extracted from the whole slide image for inference.
         transform: transforms to be executed on extracted patches.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
-        Defaults to CuCIM.
+            Defaults to CuCIM.
+        kwargs: additional parameters for ``WSIReader``
 
     Note:
         The resulting output (probability maps) after performing inference using this dataset is
@@ -196,6 +202,7 @@ class MaskedInferenceWSIDataset(Dataset):
         patch_size: Union[int, Tuple[int, int]],
         transform: Optional[Callable] = None,
         image_reader_name: str = "cuCIM",
+        **kwargs,
     ) -> None:
         super().__init__(data, transform)
 
@@ -203,7 +210,7 @@ class MaskedInferenceWSIDataset(Dataset):
 
         # set up whole slide image reader
         self.image_reader_name = image_reader_name.lower()
-        self.image_reader = WSIReader(image_reader_name)
+        self.image_reader = WSIReader(backend=image_reader_name, **kwargs)
 
         # process data and create a list of dictionaries containing all required data and metadata
         self.data = self._prepare_data(data)

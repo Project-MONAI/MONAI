@@ -32,6 +32,7 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
+        rm -rf /github/home/.cache/torch/hub/mmars/
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Loading MMARs

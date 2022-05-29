@@ -118,6 +118,7 @@ class TestRandCropByPosNegLabel(unittest.TestCase):
             cropper = RandCropByPosNegLabel(**input_param_mod)
             cropper.set_random_state(0)
             result = cropper(**input_data_mod)
+            self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
 
             self.assertIsInstance(result, list)
             self.assertTupleEqual(result[0].shape, expected_shape)

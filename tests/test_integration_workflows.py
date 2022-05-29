@@ -19,18 +19,18 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
+from ignite.engine import Events
 from ignite.metrics import Accuracy
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d
+from monai.data import create_test_image_3d, decollate_batch
 from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
     CheckpointSaver,
     LrScheduleHandler,
     MeanDice,
-    SegmentationSaver,
     StatsHandler,
     TensorBoardImageHandler,
     TensorBoardStatsHandler,
@@ -47,6 +47,7 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImage,
     SaveImaged,
     ScaleIntensityd,
     ToTensord,
@@ -54,7 +55,7 @@ from monai.transforms import (
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
 
 TASK = "integration_workflows"
 
@@ -147,7 +148,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         metric_cmp_fn=lambda cur, prev: cur >= prev,  # if greater or equal, treat as new best metric
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
 
     train_postprocessing = Compose(
@@ -200,8 +203,10 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         postprocessing=train_postprocessing,
         key_train_metric={"train_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         train_handlers=train_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
         optim_set_to_none=True,
+        to_kwargs={"memory_format": torch.preserve_format},
+        amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
     trainer.run()
 
@@ -252,13 +257,16 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     val_handlers = [
         StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
-        SegmentationSaver(
-            output_dir=root_dir,
-            output_postfix="seg_handler",
-            batch_transform=from_engine(PostFix.meta("image")),
-            output_transform=from_engine("pred"),
-        ),
     ]
+
+    saver = SaveImage(output_dir=root_dir, output_postfix="seg_handler")
+
+    def save_func(engine):
+        meta_data = from_engine(PostFix.meta("image"))(engine.state.batch)
+        if isinstance(meta_data, dict):
+            meta_data = decollate_batch(meta_data)
+        for m, o in zip(meta_data, from_engine("pred")(engine.state.output)):
+            saver(o, m)
 
     evaluator = SupervisedEvaluator(
         device=device,
@@ -271,8 +279,9 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         },
         additional_metrics={"val_acc": Accuracy(output_transform=from_engine(["pred", "label"]))},
         val_handlers=val_handlers,
-        amp=True if amp else False,
+        amp=bool(amp),
     )
+    evaluator.add_event_handler(Events.ITERATION_COMPLETED, save_func)
     evaluator.run()
 
     return evaluator.state.best_metric
