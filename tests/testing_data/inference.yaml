@@ -1,5 +1,6 @@
 ---
 dataset_dir: "/workspace/data/Task09_Spleen"
+test_image_path: "test image path:"
 device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
 print_test_name: "$print('yaml_test')"
 network_def:
@@ -24,6 +25,10 @@ network: need override
 preprocessing:
   _target_: Compose
   transforms:
+  - _target_: Lambdad
+    keys: image
+    func: "$lambda x: print(@test_image_path + x)"
+    overwrite: false
   - _target_: LoadImaged
     keys: image
   - _target_: EnsureChannelFirstd
