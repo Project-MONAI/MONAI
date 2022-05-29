@@ -16,8 +16,8 @@ from unittest import skipUnless
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import SlidingPatchWSIDataset
-from monai.utils import optional_import, set_determinism
+from monai.data import DataLoader, SlidingPatchWSIDataset
+from monai.utils import first, optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
@@ -233,11 +233,11 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"]["patch"]["level"], expected[i]["level"])
-                self.assertTupleEqual(sample["metadata"]["patch"]["size"], expected[i]["size"])
+                self.assertEqual(sample["metadata"]["patch_level"], expected[i]["level"])
+                self.assertTupleEqual(tuple(sample["metadata"]["patch_size"]), expected[i]["size"])
                 steps = [round(expected[i]["ratio"] * s) for s in expected[i]["size"]]
                 expected_location = tuple(expected[i]["step_loc"][j] * steps[j] for j in range(len(steps)))
-                self.assertTupleEqual(sample["metadata"]["patch"]["location"], expected_location)
+                self.assertTupleEqual(tuple(sample["metadata"]["patch_location"]), expected_location)
 
 
 @skipUnless(has_cucim, "Requires cucim")

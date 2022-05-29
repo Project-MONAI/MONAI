@@ -140,8 +140,10 @@ class BaseWSIReader(ImageReader):
             "backend": self.backend,
             "original_channel_dim": 0,
             "spatial_shape": np.asarray(patch.shape[1:]),
-            "wsi": {"path": self.get_file_path(wsi)},
-            "patch": {"location": location, "size": size, "level": level},
+            "path": self.get_file_path(wsi),
+            "patch_location": np.asarray(location),
+            "patch_size": np.asarray(size),
+            "patch_level": level,
         }
         return metadata
 
@@ -232,16 +234,16 @@ class BaseWSIReader(ImageReader):
                         "backend": each_meta["backend"],
                         "original_channel_dim": each_meta["original_channel_dim"],
                         "spatial_shape": each_meta["spatial_shape"],
-                        "wsi": [each_meta["wsi"]],
-                        "patch": [each_meta["patch"]],
                     }
+                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
+                        metadata[k] = [each_meta[k]]
                 else:
                     if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
                         raise ValueError("original_channel_dim is not consistent across wsi objects.")
                     if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
                         raise ValueError("spatial_shape is not consistent across wsi objects.")
-                    metadata["wsi"].append(each_meta["wsi"])
-                    metadata["patch"].append(each_meta["patch"])
+                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
+                        metadata[k].append(each_meta[k])
 
         return _stack_images(patch_list, metadata), metadata
 
