@@ -18,10 +18,8 @@ from torch import Tensor, nn
 from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.layers.factories import Conv
 from monai.networks.nets import resnet
-from monai.utils import optional_import
+from monai.utils import optional_import, ensure_tuple_rep, look_up_option
 from monai.utils.misc import issequenceiterable
-
-from .base_detection_network import BaseDetectionNetwork
 
 _validate_trainable_layers, _ = optional_import(
     "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers"
@@ -167,7 +165,7 @@ class RetinaNetRegressionHead(nn.Module):
         return box_regression_maps
 
 
-class RetinaNet(BaseDetectionNetwork):
+class RetinaNet(nn.Module):
     """
     The network used in RetinaNet.
 
@@ -235,7 +233,11 @@ class RetinaNet(BaseDetectionNetwork):
         feature_extractor,
         size_divisible: Union[Sequence[int], int] = 1,
     ):
-        super().__init__(spatial_dims, num_classes, size_divisible)
+        super().__init__()
+
+        self.spatial_dims = look_up_option(spatial_dims, supported=[1, 2, 3])
+        self.num_classes = num_classes
+        self.size_divisible = ensure_tuple_rep(size_divisible, self.spatial_dims)
 
         if not hasattr(feature_extractor, "out_channels"):
             raise ValueError(
