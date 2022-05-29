@@ -168,3 +168,8 @@ Utilities
 ---------
 .. automodule:: monai.handlers.utils
   :members:
+
+Probability Map Handlers
+------------------------
+.. automodule:: monai.handlers.probability_maps
+  :members:
