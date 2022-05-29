@@ -171,7 +171,7 @@ class RetinaNet(nn.Module):
 
     It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
     ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
-    ``head_outputs[self.box_key]`` is the predicted box regression maps, a list of Tensor.
+    ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
 
     Args:
         spatial_dims: number of spatial dimensions of the images. We support both 2D and 3D images.
@@ -256,22 +256,22 @@ class RetinaNet(nn.Module):
             self.feature_map_channels, self.num_anchors, spatial_dims=self.spatial_dims
         )
 
-        self.cls_key = "cls_logits"
-        self.box_key = "box_regression"
+        self.cls_key = "classification"
+        self.box_reg_key = "box_regression"
 
     def forward(self, images: Tensor) -> Dict[str, List[Tensor]]:
         """
         It takes an image tensor as inputs, and outputs a dictionary ``head_outputs``.
         ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
-        ``head_outputs[self.box_key]`` is the predicted box regression maps, a list of Tensor.
+        ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
 
         Args:
             images: input images, sized (B, img_channels, H, W) or (B, img_channels, H, W, D).
 
         Return:
-            a dictionary ``head_outputs`` with keys including self.cls_key and self.box_key.
+            a dictionary ``head_outputs`` with keys including self.cls_key and self.box_reg_key.
             ``head_outputs[self.cls_key]`` is the predicted classification maps, a list of Tensor.
-            ``head_outputs[self.box_key]`` is the predicted box regression maps, a list of Tensor.
+            ``head_outputs[self.box_reg_key]`` is the predicted box regression maps, a list of Tensor.
 
         """
         # compute features maps list from the input images.
@@ -290,8 +290,8 @@ class RetinaNet(nn.Module):
         head_outputs = {}
         if hasattr(self, "cls_key"):
             head_outputs[self.cls_key] = self.classification_head(feature_maps)
-        if hasattr(self, "box_key"):
-            head_outputs[self.box_key] = self.regression_head(feature_maps)
+        if hasattr(self, "box_reg_key"):
+            head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
 
         return head_outputs
 

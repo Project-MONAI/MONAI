@@ -128,7 +128,7 @@ class TestRetinaNet(unittest.TestCase):
             )
 
             self.assertEqual(tuple(cc.shape for cc in result[net.cls_key]), expected_cls_shape)
-            self.assertEqual(tuple(cc.shape for cc in result[net.box_key]), expected_box_shape)
+            self.assertEqual(tuple(cc.shape for cc in result[net.box_reg_key]), expected_box_shape)
 
 
 if __name__ == "__main__":
