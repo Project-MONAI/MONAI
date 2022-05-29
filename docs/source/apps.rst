@@ -128,8 +128,6 @@ Applications
 
 `RetinaNet`
 ~~~~~~~~~~~
-.. automodule:: monai.apps.detection.networks.base_detection_network
-    :members:
 .. automodule:: monai.apps.detection.networks.retinanet_network
     :members:
 
