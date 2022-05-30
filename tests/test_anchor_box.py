@@ -39,7 +39,7 @@ TEST_CASES_SHAPE_3D.append(
 )
 
 
-@SkipIfBeforePyTorchVersion((1, 9))
+@SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestAnchorGenerator(unittest.TestCase):
     @parameterized.expand(TEST_CASES_2D)
