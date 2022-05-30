@@ -62,8 +62,8 @@ class RetinaNetDetector(nn.Module):
      :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
 
     The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
-                one for each image, and should be in 0-1 range. Different images can have different sizes.
-                Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
+    one for each image, and should be in 0-1 range. Different images can have different sizes.
+    Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
 
     The behavior of the model changes depending if it is in training or evaluation mode.
 
@@ -731,7 +731,7 @@ class RetinaNetDetector(nn.Module):
         Return:
             a dict of several kinds of losses.
         """
-        pass
+        return {}
 
 
 def retinanet_resnet50_fpn_detector(
