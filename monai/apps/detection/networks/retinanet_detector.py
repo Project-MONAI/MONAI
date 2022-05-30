@@ -144,8 +144,8 @@ class RetinaNetDetector(nn.Module):
         """
         Set keys for the training targets and inference outputs.
         During training, both box_key and label_key should be keys in the targets
-        when performing ``self.forward(image_list, targets)``.
-        During inference, they will be the keys in the output dict of `self.forward(image_list)``.
+        when performing ``self.forward(input_images, targets)``.
+        During inference, they will be the keys in the output dict of `self.forward(input_images)``.
         """
         self.target_box_key = box_key
         self.target_label_key = label_key
@@ -239,13 +239,13 @@ class RetinaNetDetector(nn.Module):
         self.detections_per_img = detections_per_img
 
     def forward(
-        self, image_list: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
+        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
     ) -> Union[Dict[str, Tensor], List[Dict[str, Tensor]]]:
         """
         Returns a dict of losses during training, or a list predicted dict of boxes and labels during inference.
 
         Args:
-            image_list: a list of images to be processed
+            input_images: a list of images to be processed
             targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
                 ground-truth boxes present in the image (optional).
 
@@ -254,30 +254,30 @@ class RetinaNetDetector(nn.Module):
             including self.cls_key and self.box_reg_key, representing classification loss and box regression loss.
 
             If evaluation mode, will return a list of detection results.
-            Each element corresponds to an images in ``image_list``, is a dict with at least three keys,
+            Each element corresponds to an images in ``input_images``, is a dict with at least three keys,
             including self.target_box_key, self.target_label_key, self.pred_score_key,
             representing predicted boxes, classification labels, and classification scores.
 
         """
         # security check
-        if isinstance(image_list, Tensor):
-            if len(image_list.shape) != self.spatial_dims + 2:
+        if isinstance(input_images, Tensor):
+            if len(input_images.shape) != self.spatial_dims + 2:
                 raise ValueError(
-                    "When image_list is a Tensor, its need to be (self.spatial_dims + 2)-D."
-                    f"In this case, it should be a {(self.spatial_dims + 2)}-D Tensor, got Tensor shape {image_list.shape}."
+                    "When input_images is a Tensor, its need to be (self.spatial_dims + 2)-D."
+                    f"In this case, it should be a {(self.spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
                 )
-        elif torch.jit.isinstance(image_list, List[Tensor]):
-            for img in image_list:
+        elif torch.jit.isinstance(input_images, List[Tensor]):
+            for img in input_images:
                 if len(img.shape) != self.spatial_dims + 1:
                     raise ValueError(
-                        "When image_list is a List[Tensor[, each element should have be (self.spatial_dims + 1)-D."
+                        "When input_images is a List[Tensor[, each element should have be (self.spatial_dims + 1)-D."
                         f"In this case, it should be a {(self.spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
                     )
         else:
-            raise ValueError("image_list needs to be a List[Tensor] or Tensor.")
+            raise ValueError("input_images needs to be a List[Tensor] or Tensor.")
 
         if self.training:
-            self.check_training_inputs(image_list, targets)
+            self.check_training_inputs(input_images, targets)
             if not hasattr(self, "proposal_matcher"):
                 raise AttributeError(
                     "Matcher is not set. Please refer to self.set_regular_matcher(*), "
@@ -293,7 +293,7 @@ class RetinaNetDetector(nn.Module):
 
         # pad list of images to a single Tensor images
         # image_sizes stores the original spatial_size of each image before padding.
-        images, image_sizes = self.preprocess_images(image_list)
+        images, image_sizes = self.preprocess_images(input_images)
 
         # generate network outputs. only use inferer in evaluation mode.
         head_output = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
@@ -312,54 +312,52 @@ class RetinaNetDetector(nn.Module):
         detections = self.postprocess_detections(head_outputs, anchors, image_sizes, num_anchor_locs_per_level)
         return detections
 
-    def check_training_inputs(
-        self, image_list: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
-    ) -> None:
-        """
-        Security check for the inputs during training.
-        Will raise various of ValueError if not pass the check.
-
-        Args:
-            image_list: a list of images to be processed
-            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
-                ground-truth boxes present in the image.
-        """
-        pass
-
-    def preprocess_images(self, image_list: Union[List[Tensor], Tensor]) -> Tuple[Tensor, List]:
+    def preprocess_images(self, input_images: Union[List[Tensor], Tensor]) -> Tuple[Tensor, List[List[int]]]:
         """
         Preprocess the list of input images, pad them
         to create a (B, C, H, W) or (B, C, H, W, D) Tensor as network input.
 
         Args:
-            image_list: a list of images to be processed
+            input_images: a list of images to be processed
 
         Return:
             - images, a (B, C, H, W) or (B, C, H, W, D) Tensor as network input
             - image_sizes, the original spatial size of each image
         """
-        image_sizes = [img.shape[-self.spatial_dims :] for img in image_list]
+        if torch.jit.isinstance(input_images, List[Tensor]):
+            image_sizes = [img.shape[-self.spatial_dims :] for img in input_images]
+            in_channels = input_images[0].shape[0]
+            dtype = input_images[0].dtype
+            device = input_images[0].device
+        elif isinstance(input_images, Tensor):
+            image_sizes = [input_images.shape[-self.spatial_dims :] for _ in range(input_images.shape[0])]
+            in_channels = input_images.shape[1]
+            dtype = input_images.dtype
+            device = input_images.device
 
         # compute max_spatial_size
         image_sizes_t = torch.tensor(image_sizes)
         max_spatial_size_t, _ = torch.max(image_sizes_t, dim=0)
-        max_spatial_size = tuple(
-            int(torch.ceil(s / float(sd)).item() * sd) for s, sd in zip(max_spatial_size_t, self.size_divisible)
-        )
+
+        if len(max_spatial_size_t) != self.spatial_dims or len(self.size_divisible) != self.spatial_dims:
+            raise ValueError(" Require len(max_spatial_size_t) == self.spatial_dims ==len(self.size_divisible).")
+        max_spatial_size = [
+            int(
+                torch.ceil(max_spatial_size_t[axis] / float(self.size_divisible[axis])).item()
+                * self.size_divisible[axis]
+            )
+            for axis in range(self.spatial_dims)
+        ]
 
         # allocate memory for the padded images
-        images = torch.zeros(
-            (len(image_list), image_list[0].shape[0]) + max_spatial_size,
-            dtype=image_list[0].dtype,
-            device=image_list[0].device,
-        )
+        images = torch.zeros([len(image_sizes), in_channels] + max_spatial_size, dtype=dtype, device=device)
 
         # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
         padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode="edge")
-        for idx, img in enumerate(image_list):
+        for idx, img in enumerate(input_images):
             images[idx, ...] = padder(img)  # type: ignore
 
-        return images, image_sizes
+        return images, [list(ss) for ss in image_sizes]
 
     def forward_network(self, images: Tensor, use_inferer: Union[bool, None] = None) -> Dict[str, List[Tensor]]:
         """
@@ -566,7 +564,7 @@ class RetinaNetDetector(nn.Module):
         self,
         head_outputs: Dict[str, Tensor],
         anchors: List[Tensor],
-        image_sizes: List[Sequence],
+        image_sizes: List[List[int]],
         num_anchor_locs_per_level: Sequence[int],
         need_sigmoid: bool = True,
     ) -> List:
@@ -663,6 +661,20 @@ class RetinaNetDetector(nn.Module):
             )
 
         return detections
+
+    def check_training_inputs(
+        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
+    ) -> None:
+        """
+        Security check for the inputs during training.
+        Will raise various of ValueError if not pass the check.
+
+        Args:
+            input_images: a list of images to be processed
+            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+        """
+        pass
 
     def compute_loss(
         self,

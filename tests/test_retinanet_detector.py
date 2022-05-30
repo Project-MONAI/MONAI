@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 import unittest
 
 import torch
@@ -94,27 +95,24 @@ TEST_CASES_TS = [TEST_CASE_1]
 @SkipIfBeforePyTorchVersion((1, 9))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNetDetector(unittest.TestCase):
-    # @parameterized.expand(TEST_CASES)
-    # def test_retina_detector_shape(self, input_param, input_shape):
-    #     returned_layers = [1]
-    #     anchor_generator = AnchorGeneratorWithAnchorShape(
-    #         feature_map_scales= (1, 2),
-    #         base_anchor_shapes= ((8,)*input_param["spatial_dims"],)
-    #     )
-    #     detector = retinanet_resnet50_fpn_detector(
-    #         **input_param,
-    #         anchor_generator = anchor_generator,
-    #         returned_layers=returned_layers
-    #     ).to(device)
+    @parameterized.expand(TEST_CASES)
+    def test_retina_detector_shape(self, input_param, input_shape):
+        returned_layers = [1]
+        anchor_generator = AnchorGeneratorWithAnchorShape(
+            feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
+        )
+        detector = retinanet_resnet50_fpn_detector(
+            **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
+        ).to(device)
 
-    #     with eval_mode(detector):
-    #         input_data = torch.randn(input_shape).to(device)
-    #         result = detector.forward(input_data)
-    #         assert len(result) == len(result)
+        with eval_mode(detector):
+            input_data = torch.randn(input_shape).to(device)
+            result = detector.forward(input_data)
+            assert len(result) == len(result)
 
-    #         input_data = [torch.randn(input_shape[1:]).to(device) for _ in range(random.randint(1, 9))]
-    #         result = detector.forward(input_data)
-    #         assert len(result) == len(result)
+            input_data = [torch.randn(input_shape[1:]).to(device) for _ in range(random.randint(1, 9))]
+            result = detector.forward(input_data)
+            assert len(result) == len(result)
 
     @parameterized.expand(TEST_CASES_TS)
     def test_script(self, input_param, input_shape):
@@ -129,7 +127,6 @@ class TestRetinaNetDetector(unittest.TestCase):
         with eval_mode(detector):
             input_data = torch.randn(input_shape).to(device)
             test_script_save(detector.network, input_data)
-            test_script_save(detector, input_data)
 
 
 if __name__ == "__main__":
