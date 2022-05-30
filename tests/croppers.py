@@ -76,4 +76,3 @@ class CropTest(unittest.TestCase):
                 out_im = result["img"] if is_map else result
                 self.assertIsInstance(out_im, MetaTensor)
                 assert_allclose(out_im, expected_array, type_test=False)
-
