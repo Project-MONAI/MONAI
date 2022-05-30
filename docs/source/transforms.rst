@@ -554,6 +554,15 @@ Post-processing
     :members:
     :special-members: __call__
 
+Signal
+^^^^^^^
+
+`SignalResample`
+"""""""""""""""""
+.. autoclass:: SignalResample
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 

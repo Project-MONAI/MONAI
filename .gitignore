@@ -138,3 +138,5 @@ tests/testing_data/schema.json
 # VSCode
 .vscode/
 *.zip
+
+test_monai.ipynb
