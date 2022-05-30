@@ -62,7 +62,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import GridPatchSort, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type
@@ -2662,14 +2662,17 @@ class GridPatch(Transform):
         self.num_patches = num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
-            if sort_fn == "random":
+            if sort_fn == GridPatchSort.RANDOM.value:
                 self.sort_fn = np.random.random
-            if sort_fn == "min":
+            elif sort_fn == GridPatchSort.MIN.value:
                 self.sort_fn = self.get_patch_sum
-            if sort_fn == "max":
+            elif sort_fn == GridPatchSort.MAX.value:
                 self.sort_fn = self.get_negative_patch_sum
             else:
-                ValueError(f'sort_fn should be either "min", "max", or "random", "{sort_fn}" was given.')
+                raise ValueError(
+                    f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                    [enum.value for enum in GridPatchSort],
+                )
         else:
             self.sort_fn = sort_fn
 
