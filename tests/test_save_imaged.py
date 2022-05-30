@@ -18,7 +18,6 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import SaveImaged
-from monai.utils.enums import PostFix
 
 TEST_CASE_1 = [
     {"img": MetaTensor(torch.randint(0, 255, (1, 2, 3, 4)), meta={"filename_or_obj": "testfile0.nii.gz"})},
