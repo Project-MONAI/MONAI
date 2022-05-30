@@ -16,8 +16,8 @@ from unittest import skipUnless
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import DataLoader, SlidingPatchWSIDataset
-from monai.utils import first, optional_import, set_determinism
+from monai.data import SlidingPatchWSIDataset
+from monai.utils import optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
