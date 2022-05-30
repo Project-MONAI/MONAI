@@ -211,6 +211,16 @@ class TestConfigParser(unittest.TestCase):
             self.assertTrue("entry" in parser)
             self.assertFalse("entr" in parser)
 
+    def test_lambda_reference(self):
+        configs = {
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=configs)
+        trans = parser.get_parsed_content(id="transform")
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
 
 if __name__ == "__main__":
     unittest.main()

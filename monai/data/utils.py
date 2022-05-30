@@ -981,7 +981,7 @@ def compute_importance_map(
     mode = look_up_option(mode, BlendMode)
     device = torch.device(device)
     if mode == BlendMode.CONSTANT:
-        importance_map = torch.ones(patch_size, device=device).float()
+        importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
@@ -994,15 +994,10 @@ def compute_importance_map(
         importance_map = importance_map.squeeze(0).squeeze(0)
         importance_map = importance_map / torch.max(importance_map)
         importance_map = importance_map.float()
-
-        # importance_map cannot be 0, otherwise we may end up with nans!
-        min_non_zero = importance_map[importance_map != 0].min().item()
-        importance_map = torch.clamp(importance_map, min=min_non_zero)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
-
     return importance_map
 
 

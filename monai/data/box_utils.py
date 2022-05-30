@@ -1039,7 +1039,7 @@ def non_max_suppression(
 
     # returns empty array if boxes is empty
     if boxes.shape[0] == 0:
-        return convert_to_dst_type(src=np.array([]), dst=boxes)[0]
+        return convert_to_dst_type(src=np.array([]), dst=boxes, dtype=torch.long)[0]
 
     if boxes.shape[0] != scores.shape[0]:
         raise ValueError(
