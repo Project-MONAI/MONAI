@@ -43,8 +43,10 @@ TEST_CASE_8 = [
 ]
 # test execute some function in args, test pre-imported global packages `monai`
 TEST_CASE_9 = ["collate_fn", "$monai.data.list_data_collate"]
-# test lambda function, should not execute the lambda function, just change the string
+# test lambda function
 TEST_CASE_10 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
+# test regular expression with reference
+TEST_CASE_11 = ["collate_fn", "$var + 100"]
 
 
 class TestConfigItem(unittest.TestCase):
@@ -72,12 +74,17 @@ class TestConfigItem(unittest.TestCase):
         if isinstance(ret, LoadImaged):
             self.assertEqual(ret.keys[0], "image")
 
-    @parameterized.expand([TEST_CASE_9, TEST_CASE_10])
+    @parameterized.expand([TEST_CASE_9, TEST_CASE_10, TEST_CASE_11])
     def test_expression(self, id, test_input):
         configer = ConfigExpression(id=id, config=test_input, globals={"monai": monai, "torch": torch})
         var = 100
-        ret = configer.evaluate(locals={"var": var})
-        self.assertTrue(isinstance(ret, Callable))
+        ret = configer.evaluate(globals={"var": var, "monai": monai})  # `{"monai": monai}` to verify the warning
+        if isinstance(ret, Callable):
+            self.assertTrue(isinstance(ret([torch.tensor(1), torch.tensor(2)]), torch.Tensor))
+        else:
+            # also test the `locals` for regular expressions
+            ret = configer.evaluate(locals={"var": var})
+            self.assertEqual(ret, 200)
 
     def test_lazy_instantiation(self):
         config = {"_target_": "DataLoader", "dataset": Dataset(data=[1, 2]), "batch_size": 2}
