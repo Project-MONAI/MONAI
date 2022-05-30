@@ -43,6 +43,7 @@ from typing import List, Sequence, Union
 import torch
 from torch import Tensor, nn
 
+from monai.networks.utils import meshgrid_ij
 from monai.utils import ensure_tuple
 from monai.utils.misc import issequenceiterable
 from monai.utils.module import look_up_option
@@ -246,19 +247,13 @@ class AnchorGenerator(nn.Module):
 
             # compute anchor centers regarding to the image.
             # shifts_centers is [x_center, y_center] or [x_center, y_center, z_center]
-            shifts_centers = []
-            for axis in range(self.spatial_dims):
-                shifts_centers.append(torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis])
+            shifts_centers = [
+                torch.arange(0, size[axis], dtype=torch.int32, device=device) * stride[axis]
+                for axis in range(self.spatial_dims)
+            ]
 
             # to support torchscript, cannot directly use torch.meshgrid(shifts_centers).
-            if self.spatial_dims == 2:
-                shifts_centers = list(
-                    torch.meshgrid([shifts_centers[0], shifts_centers[1]], indexing="ij")
-                )  # indexing="ij"
-            else:
-                shifts_centers = list(
-                    torch.meshgrid([shifts_centers[0], shifts_centers[1], shifts_centers[2]], indexing="ij")
-                )  # indexing="ij"
+            shifts_centers = list(meshgrid_ij(*shifts_centers))  # indexing="ij"
 
             for axis in range(self.spatial_dims):
                 # each element of shifts_centers is sized (HW,) or (HWD,)

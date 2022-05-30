@@ -566,8 +566,8 @@ def convert_to_torchscript(
 
 
 def meshgrid_ij(*tensors):
-    if pytorch_after(1, 10):
-        return torch.meshgrid(*tensors, indexing="ij")
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10
     return torch.meshgrid(*tensors)
 
 
