@@ -357,7 +357,10 @@ class ConfigExpression(ConfigItem):
             return f"{value[len(self.prefix) :]}"
         globals_ = dict(self.globals)
         if globals is not None:
-            globals_.update(globals)
+            for k, v in globals.items():
+                if k in globals_:
+                    warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
+                globals_[k] = v
         return eval(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
