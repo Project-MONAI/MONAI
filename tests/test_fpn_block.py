@@ -18,7 +18,10 @@ from parameterized import parameterized
 from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.blocks.feature_pyramid_network import FeaturePyramidNetwork
 from monai.networks.nets.resnet import resnet50
+from monai.utils import optional_import
 from tests.utils import test_script_save
+
+_, has_torchvision = optional_import("torchvision")
 
 TEST_CASES = []
 TEST_CASES.append(
@@ -63,6 +66,7 @@ class TestFPNBlock(unittest.TestCase):
         test_script_save(net, data)
 
 
+@unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestFPN(unittest.TestCase):
     @parameterized.expand(TEST_CASES2)
     def test_fpn(self, input_param, input_shape, expected_shape):
