@@ -13,22 +13,16 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-import warnings
-from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
-
 import numpy as np
-from numpy.lib.stride_tricks import as_strided
 
-from monai.config import DtypeLike
-from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import Transform
 from monai.utils import optional_import
+from monai.utils.enums import TransformBackends
 
 zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
 resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
 fft, has_resample_fft = optional_import("scipy.signal", name="resample")
-from monai.utils.enums import TransformBackends
+
 
 __all__ = ["SignalResample"]
 
@@ -45,7 +39,8 @@ class SignalResample(Transform):
     ) -> None:
         """
         Args:
-            method: which method to be used to resample the signal, default is interpolation. Available options : {``"interpolation"``, ``"polynomial"``, ``"fourier"``}
+            method: which method to be used to resample the signal, default is interpolation.
+            Available options : {``"interpolation"``, ``"polynomial"``, ``"fourier"``}
             current_sample_rate: initial sampling rate of the signal
             target_sample_rate: target signal sample rate
         """

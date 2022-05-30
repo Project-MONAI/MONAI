@@ -607,15 +607,6 @@ def _call_original_func(name, module, *args, **kwargs):
     return f(*args, **kwargs)
 
 
-class NumpySignalTestCase(unittest.TestCase):
-    sig_length = 1000
-    input_channels = 6
-    output_channels = 6
-
-    def setUp(self):
-        self.sig = np.array([np.math.sin(x) for x in np.arange(0, sig_length, 0.1)])
-
-
 class NumpyImageTestCase2D(unittest.TestCase):
     im_shape = (128, 64)
     input_channels = 1
