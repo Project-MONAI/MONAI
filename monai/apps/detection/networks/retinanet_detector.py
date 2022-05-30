@@ -291,14 +291,14 @@ class RetinaNetDetector(nn.Module):
             representing predicted boxes, classification labels, and classification scores.
 
         """
-        # security check
+        # check if input arguments are valid
         self.check_inputs(input_images, targets)
 
-        # pad list of images to a single Tensor images
+        # pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
         images, image_sizes = self.preprocess_images(input_images)
 
-        # generate network outputs. only use inferer in evaluation mode.
+        # generate network outputs. Use inferer only in evaluation mode.
         head_outputs = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
 
         # post processing steps that both training and inference perform.
