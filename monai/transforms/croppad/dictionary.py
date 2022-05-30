@@ -117,6 +117,7 @@ class PadBased(MapTransform, InvertibleTransform):
     """
 
     backend = PadBase.backend
+    padder: PadBase
 
     def __init__(
         self, keys: KeysCollection, mode: PadModeSequence = NumpyPadMode.CONSTANT, allow_missing_keys: bool = False
@@ -137,7 +138,6 @@ class PadBased(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder: Optional[PadBase] = None
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         if self.padder is None:
@@ -148,9 +148,10 @@ class PadBased(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        for key in self.key_iterator(data):
-            data[key] = self.padder.inverse(data[key])
-        return data
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.padder.inverse(d[key])
+        return d
 
 
 class SpatialPadd(PadBased):
