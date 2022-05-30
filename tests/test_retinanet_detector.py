@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import random
 import unittest
 
 import torch
@@ -18,8 +17,7 @@ from parameterized import parameterized
 from monai.apps.detection.networks.retinanet_detector import retinanet_resnet50_fpn_detector
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode
-from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
-from monai.utils import ensure_tuple, optional_import
+from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
