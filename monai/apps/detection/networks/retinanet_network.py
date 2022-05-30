@@ -37,9 +37,13 @@ class RetinaNetClassificationHead(nn.Module):
         in_channels: number of channels of the input feature
         num_anchors: number of anchors to be predicted
         num_classes: number of classes to be predicted
+        spatial_dims: spatial dimension of the network, should be 2 or 3.
+        prior_probability: prior probability to initialize classification convolutional layers.
     """
 
-    def __init__(self, in_channels: int, num_anchors: int, num_classes: int, spatial_dims: int, prior_probability=0.01):
+    def __init__(
+        self, in_channels: int, num_anchors: int, num_classes: int, spatial_dims: int, prior_probability: float = 0.01
+    ):
         super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
@@ -318,13 +322,13 @@ def resnet_fpn_feature_extractor(
         backbone: a ResNet model, used as backbone.
         spatial_dims: number of spatial dimensions of the images. We support both 2D and 3D images.
         pretrained_backbone: whether the backbone has been pre-trained.
+        returned_layers: returned layers to extract feature maps. Each returned layer should be in the range [1,4].
+            len(returned_layers)+1 will be the number of extracted feature maps.
+            There is an extra maxpooling layer LastLevelMaxPool() appended.
         trainable_backbone_layers: number of trainable (not frozen) resnet layers starting from final block.
             Valid values are between 0 and 5, with 5 meaning all backbone layers are trainable.
             When pretrained_backbone is False, this value is set to be 5.
             When pretrained_backbone is True, if ``None`` is passed (the default) this value is set to 3.
-        returned_layers: returned layers to extract feature maps. Each returned layer should be in the range [1,4].
-            len(returned_layers)+1 will be the number of extracted feature maps.
-            There is an extra maxpooling layer LastLevelMaxPool() appended.
 
     Example:
 
