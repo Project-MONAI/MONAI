@@ -26,7 +26,6 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstD, FromMetaTensord, LoadImaged, SaveImageD
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils.enums import PostFix
 from tests.utils import assert_allclose
 
 KEYS = ["image", "label", "extra"]

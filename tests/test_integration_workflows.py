@@ -51,7 +51,6 @@ from monai.transforms import (
     SaveImage,
     SaveImaged,
     ScaleIntensityd,
-    ToMetaTensord,
     ToTensord,
 )
 from monai.utils import set_determinism
