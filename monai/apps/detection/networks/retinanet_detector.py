@@ -52,7 +52,6 @@ from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.transforms.croppad.array import SpatialPad
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep
-from monai.utils.misc import issequenceiterable
 
 
 class RetinaNetDetector(nn.Module):
@@ -115,13 +114,43 @@ class RetinaNetDetector(nn.Module):
 
             - It should be a dictionary with at least two keys:
              ``network.cls_key`` and ``network.box_reg_key``.
-            - ``head_outputs[network.cls_key]`` should be List[Tensor]. Each Tensor represents
+            - ``head_outputs[network.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
              classification logits map at one resolution level,
              sized (B, num_classes*num_anchors, H_i, W_i) or (B, num_classes*num_anchors, H_i, W_i, D_i).
-            - ``head_outputs[network.box_reg_key]`` should be List[Tensor]. Each Tensor represents
+            - ``head_outputs[network.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
              box regression map at one resolution level,
              sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
             - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
+
+    Example:
+        .. code-block:: python
+
+            # define a naive network
+            import torch
+            class naive_network(torch.nn.Module):
+                def __init__(self, spatial_dims: int, num_classes: int):
+                    super().__init__()
+                    self.spatial_dims = spatial_dims
+                    self.num_classes = num_classes
+                    self.size_divisible = 1
+                    self.cls_key = "cls"
+                    self.box_reg_key = "box_reg"
+                    self.num_anchors = 1
+                def forward(self, images: torch.Tensor):
+                    spatial_size = images.shape[-self.spatial_dims:]
+                    out_cls_shape = (images.shape[0],self.num_classes*self.num_anchors) + spatial_size
+                    out_box_reg_shape = (images.shape[0],2*self.spatial_dims*self.num_anchors) + spatial_size
+                    return {self.cls_key: [torch.randn(out_cls_shape)], self.box_reg_key: [torch.randn(out_box_reg_shape)]}
+
+            # define RetinaNetDetector
+            spatial_dims = 3
+            num_classes = 5
+            anchor_generator = monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape(
+                feature_map_scales=(1, ), base_anchor_shapes=((8,) * spatial_dims)
+            )
+            network = naive_network(spatial_dims, num_classes)
+            detector = RetinaNetDetector(network, anchor_generator)
+            )
     """
 
     def __init__(
@@ -302,7 +331,7 @@ class RetinaNetDetector(nn.Module):
         head_outputs = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
 
         # post processing steps that both training and inference perform.
-        head_outputs, anchors, num_anchor_locs_per_level = self.process_network_outputs_with_anchors(
+        head_outputs, anchors, num_anchor_locs_per_level = self.process_network_outputs_with_anchors(  # type: ignore
             images, head_outputs
         )
 
@@ -312,7 +341,9 @@ class RetinaNetDetector(nn.Module):
             return losses
 
         # if during inference, return detection results
-        detections = self.postprocess_detections(head_outputs, anchors, image_sizes, num_anchor_locs_per_level)
+        detections = self.postprocess_detections(
+            head_outputs, anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
+        )
         return detections
 
     def check_inputs(
@@ -435,10 +466,7 @@ class RetinaNetDetector(nn.Module):
 
         # if not use_inferer, directly forward the network
         if not use_inferer:
-            head_outputs: Dict[str, List[Tensor]] = self.network(images)
-            if not torch.jit.isinstance(head_outputs, Dict[str, List[Tensor]]):
-                raise ValueError("The output of self.network should be Dict[str, List[Tensor]].")
-            return head_outputs  # The output of self.network should be a Dict[str, List[Tensor]]
+            return self.ensure_network_outputs_values_list(self.network(images))
 
         # if use_inferer, we need to decompose the output dict into sequence,
         # then do infererence, finally reconstruct dict.
@@ -446,6 +474,43 @@ class RetinaNetDetector(nn.Module):
         head_outputs = {self.cls_key: list(head_outputs_sequence[: self.num_output_levels])}
         head_outputs[self.box_reg_key] = list(head_outputs_sequence[self.num_output_levels :])
         return head_outputs
+
+    def ensure_network_outputs_values_list(
+        self, head_outputs: Union[Dict[str, List[Tensor]], Dict[str, Tensor]]
+    ) -> Dict[str, List[Tensor]]:
+        """
+        We expect the output of self.network to be Dict[str, List[Tensor]].
+        If it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
+
+        Args:
+            head_outputs: the outputs of self.network.
+                - It is a dictionary with at least two keys:
+                 ``self.cls_key`` and ``self.box_reg_key``.
+                - ``head_outputs[self.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
+                 classification logits map at one resolution level,
+                 sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
+                 A = self.num_anchors_per_loc.
+                - ``head_outputs[self.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
+                 box regression map at one resolution level,
+                 sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
+                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
+
+        Return:
+            a Dict[str, List[Tensor]]
+        """
+        if torch.jit.isinstance(head_outputs, Dict[str, List[Tensor]]):
+            # if output of self.network should be a Dict[str, List[Tensor]], directly return it
+            self.num_output_levels = len(head_outputs[self.cls_key])
+            return head_outputs  # type: ignore
+
+        if isinstance(head_outputs[self.cls_key], Tensor) and isinstance(head_outputs[self.box_reg_key], Tensor):
+            # if output of self.network should be a Dict[str, Tensor], convert it to Dict[str, List[Tensor]]
+            self.num_output_levels = 1
+            head_outputs[self.cls_key] = [head_outputs[self.cls_key]]  # type: ignore
+            head_outputs[self.box_reg_key] = [head_outputs[self.box_reg_key]]  # type: ignore
+            return head_outputs  # type: ignore
+
+        raise ValueError("The output of self.network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
 
     def network_sequence_output(self, images: Tensor) -> List[Tensor]:
         """
@@ -457,16 +522,11 @@ class RetinaNetDetector(nn.Module):
         Return:
             network output list/tuple
         """
-        head_outputs = self.network(images)  # The output of self.network should be a Dict[str, List[Tensor]]
+        head_outputs = self.ensure_network_outputs_values_list(self.network(images))
 
-        if isinstance(head_outputs[self.cls_key], Tensor) and isinstance(head_outputs[self.box_reg_key], Tensor):
-            self.num_output_levels = 1
-            return [head_outputs[self.cls_key], head_outputs[self.box_reg_key]]
+        if len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key]):
+            return list(head_outputs[self.cls_key]) + list(head_outputs[self.box_reg_key])
 
-        if issequenceiterable(head_outputs[self.cls_key]):
-            if len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key]):
-                self.num_output_levels = len(head_outputs[self.cls_key])
-                return list(head_outputs[self.cls_key]) + list(head_outputs[self.box_reg_key])
         raise ValueError(f"Require len(head_outputs[{self.cls_key}]) == len(head_outputs[{self.box_reg_key}]).")
 
     def process_network_outputs_with_anchors(
@@ -478,7 +538,7 @@ class RetinaNetDetector(nn.Module):
 
         Args:
             images_shape: shape of network input images, (B, C_in, H, W) or (B, C_in, H, W, D)
-            head_outputs: the outputs of the network.
+            head_outputs: the outputs of self.network.
                 - It is a dictionary with at least two keys:
                  ``self.cls_key`` and ``self.box_reg_key``.
                 - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents

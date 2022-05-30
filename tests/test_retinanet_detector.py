@@ -15,7 +15,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.networks.retinanet_detector import retinanet_resnet50_fpn_detector
+from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, retinanet_resnet50_fpn_detector
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode
 from monai.utils import optional_import
@@ -92,11 +92,29 @@ TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_A]
 TEST_CASES_TS = [TEST_CASE_1]
 
 
+class naive_network(torch.nn.Module):
+    def __init__(self, spatial_dims, num_classes, **kwargs):
+        super().__init__()
+        self.spatial_dims = spatial_dims
+        self.num_classes = num_classes
+        self.num_anchors = 1
+        self.cls_key = "cls"
+        self.box_reg_key = "box_reg"
+        self.size_divisible = 1
+
+    def forward(self, images):
+        out_cls_shape = (images.shape[0], self.num_classes * self.num_anchors) + images.shape[-self.spatial_dims :]
+        out_box_reg_shape = (images.shape[0], 2 * self.spatial_dims * self.num_anchors) + images.shape[
+            -self.spatial_dims :
+        ]
+        return {self.cls_key: [torch.randn(out_cls_shape)], self.box_reg_key: [torch.randn(out_box_reg_shape)]}
+
+
 @SkipIfBeforePyTorchVersion((1, 9))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNetDetector(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_retina_detector_shape(self, input_param, input_shape):
+    def test_retina_detector_resnet_backbone_shape(self, input_param, input_shape):
         returned_layers = [1]
         anchor_generator = AnchorGeneratorWithAnchorShape(
             feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
@@ -104,6 +122,22 @@ class TestRetinaNetDetector(unittest.TestCase):
         detector = retinanet_resnet50_fpn_detector(
             **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
         ).to(device)
+
+        with eval_mode(detector):
+            input_data = torch.randn(input_shape).to(device)
+            result = detector.forward(input_data)
+            assert len(result) == len(result)
+
+            input_data = [torch.randn(input_shape[1:]).to(device) for _ in range(random.randint(1, 9))]
+            result = detector.forward(input_data)
+            assert len(result) == len(result)
+
+    @parameterized.expand(TEST_CASES)
+    def test_naive_retina_detector_shape(self, input_param, input_shape):
+        anchor_generator = AnchorGeneratorWithAnchorShape(
+            feature_map_scales=(1,), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
+        )
+        detector = RetinaNetDetector(network=naive_network(**input_param), anchor_generator=anchor_generator).to(device)
 
         with eval_mode(detector):
             input_data = torch.randn(input_shape).to(device)
