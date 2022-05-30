@@ -24,7 +24,7 @@ from ignite.metrics import Accuracy
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d, decollate_batch
+from monai.data import MetaTensor, create_test_image_3d, decollate_batch
 from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
@@ -51,6 +51,7 @@ from monai.transforms import (
     SaveImage,
     SaveImaged,
     ScaleIntensityd,
+    ToMetaTensord,
     ToTensord,
 )
 from monai.utils import set_determinism
@@ -253,9 +254,8 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(
-                keys="pred", meta_keys=PostFix.meta("image"), output_dir=root_dir, output_postfix="seg_transform"
-            ),
+            ToMetaTesnord(keys="pred", meta_keys="image"),
+            SaveImaged(keys="pred", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
     val_handlers = [
@@ -270,7 +270,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         if isinstance(meta_data, dict):
             meta_data = decollate_batch(meta_data)
         for m, o in zip(meta_data, from_engine("pred")(engine.state.output)):
-            saver(o, m)
+            saver(MetaTensor(o, meta=m))
 
     evaluator = SupervisedEvaluator(
         device=device,
