@@ -281,7 +281,10 @@ class ConfigComponent(ConfigItem, Instantiable):
         modname = self.resolve_module_name()
         args = self.resolve_args()
         args.update(kwargs)
-        return instantiate(modname, **args)
+        try:
+            return instantiate(modname, **args)
+        except BaseException as e:
+            raise RuntimeError(f"Failed to instantiate {self}.") from e
 
 
 class ConfigExpression(ConfigItem):

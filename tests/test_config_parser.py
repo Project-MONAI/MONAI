@@ -221,6 +221,12 @@ class TestConfigParser(unittest.TestCase):
         result = trans(np.ones(64))
         self.assertTupleEqual(result.shape, (1, 8, 8))
 
+    def test_error_instance(self):
+        config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
+        parser = ConfigParser(config=config)
+        with self.assertWarns(Warning), self.assertRaises(RuntimeError):
+            parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
+
 
 if __name__ == "__main__":
     unittest.main()
