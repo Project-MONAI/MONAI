@@ -140,6 +140,11 @@ Applications
 .. automodule:: monai.apps.detection.transforms.dictionary
     :members:
 
+`Anchor`
+~~~~~~~~
+.. automodule:: monai.apps.detection.utils.anchor_utils
+    :members:
+
 `Matcher`
 ~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.ATSS_matcher
