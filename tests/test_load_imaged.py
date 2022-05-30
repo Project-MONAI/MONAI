@@ -97,13 +97,8 @@ class TestConsistency(unittest.TestCase):
         self.assertTupleEqual(img_dict["img"].shape, ch_shape)
 
         with tempfile.TemporaryDirectory() as tempdir:
-            save_xform = Compose(
-                [
-                    FromMetaTensord(keys),
-                    SaveImageD(
-                        keys, meta_keys=PostFix.meta("img"), output_dir=tempdir, squeeze_end_dims=False, output_ext=ext
-                    ),
-                ]
+            save_xform = SaveImageD(
+                keys, meta_keys=PostFix.meta("img"), output_dir=tempdir, squeeze_end_dims=False, output_ext=ext
             )
             save_xform(img_dict)  # save to nifti
 
