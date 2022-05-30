@@ -78,7 +78,7 @@ class TestConfigItem(unittest.TestCase):
     def test_expression(self, id, test_input):
         configer = ConfigExpression(id=id, config=test_input, globals={"monai": monai, "torch": torch})
         var = 100
-        ret = configer.evaluate(globals={"var": var})
+        ret = configer.evaluate(globals={"var": var, "monai": monai})  # `{"monai": monai}` to verify the warning
         if isinstance(ret, Callable):
             self.assertTrue(isinstance(ret([torch.tensor(1), torch.tensor(2)]), torch.Tensor))
         else:
