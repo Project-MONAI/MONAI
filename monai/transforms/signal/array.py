@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import numpy as np
-
+from typing import Sequence, Optional, Union, Any
 from monai.transforms.transform import Transform
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
@@ -22,6 +22,7 @@ from monai.utils.enums import TransformBackends
 zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
 resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
 fft, has_resample_fft = optional_import("scipy.signal", name="resample")
+shift, has_shift = optional_import("scipy.ndimage.interpolation.shift", name="shift")
 
 
 __all__ = ["SignalResample"]
@@ -76,3 +77,44 @@ class SignalResample(Transform):
             signal = np.squeeze(signal)
 
         return signal
+
+
+class SignalRandShift(Transform):
+    """
+    Apply a random shift on a signal
+    """
+    backend = [TransformBackends.NUMPY]
+    
+    def __init__(
+        self, 
+        magnitude: Sequence[float]= [-1.0,1.0], 
+        mode: str='wrap',
+        filling: Optional[Union[np.ndarray,Any]] = np.NaN,
+        v: float = 1.0
+    ) -> None:
+        """
+        Args:
+            magnitude: magnitude of the shift
+            filling: parameter
+            mode: define how the extension of the input array is done
+            v: 
+        """    
+        self.magnitude = magnitude
+        self.filling = filling
+        self.mode = mode
+        self.v = v
+        
+    def __call__(self, signal: np.ndarray) -> np.ndarray:
+        if len(signal.shape) == 1:
+            signal = np.expand_dims(signal, axis=0)  
+        length = signal.shape[1]
+        factor = self.v * np.random.uniform(low=self.magnitude[0],
+                                    high=self.magnitude[1])
+        shift_idx = round(factor * length)
+        inputs = shift(input=inputs,
+                       mode=self.mode,
+                       shift=shift_idx, 
+                       cval=self.filling)
+        
+        return signal
+        
