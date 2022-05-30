@@ -85,4 +85,3 @@ evaluator:
 evaluating:
   - "$monai.utils.set_determinism(0)"
   - "$@evaluator.run()"
-
