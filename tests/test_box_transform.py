@@ -17,9 +17,11 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
+    BoxToMaskd,
     ClipBoxToImaged,
     ConvertBoxModed,
     FlipBoxd,
+    MaskToBoxd,
     RandFlipBoxd,
     RandZoomBoxd,
     ZoomBoxd,
@@ -27,8 +29,7 @@ from monai.apps.detection.transforms.dictionary import (
 from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
-TESTS = []
-
+TESTS_3D = []
 boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]
 labels = [1, 1, 0]
 scores = [[0.2, 0.8], [0.3, 0.7], [0.6, 0.4]]
@@ -36,7 +37,7 @@ image_size = [1, 4, 6, 4]
 image = np.zeros(image_size)
 
 for p in TEST_NDARRAYS_NO_META_TENSOR:
-    TESTS.append(
+    TESTS_3D.append(
         [
             {"box_keys": "boxes", "dst_mode": "xyzwhd"},
             {"boxes": p(boxes), "image": p(image), "labels": p(labels), "scores": p(scores)},
@@ -48,10 +49,66 @@ for p in TEST_NDARRAYS_NO_META_TENSOR:
         ]
     )
 
+TESTS_2D = []
+boxes = [[0, 1, 2, 2], [0, 0, 1, 1]]
+labels = [1, 0]
+image_size = [1, 2, 2]
+image = np.zeros(image_size)
+for p in TEST_NDARRAYS_NO_META_TENSOR:
+    TESTS_2D.append(
+        [{"boxes": p(boxes), "image": p(image), "labels": p(labels)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
+    )
+
 
 class TestBoxTransform(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_value(
+    @parameterized.expand(TESTS_2D)
+    def test_value_2d(self, data, expected_mask):
+        test_dtype = [torch.float32, torch.float16]
+        for dtype in test_dtype:
+            data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
+            transform_to_mask = BoxToMaskd(
+                box_keys="boxes",
+                box_mask_keys="box_mask",
+                box_ref_image_keys="image",
+                label_keys="labels",
+                min_fg_label=0,
+                ellipse_mask=False,
+            )
+            transform_to_box = MaskToBoxd(
+                box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
+            )
+            data_mask = transform_to_mask(data)
+            assert_allclose(data_mask["box_mask"], expected_mask, type_test=True, device_test=True, atol=1e-3)
+            data_back = transform_to_box(data_mask)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
+
+    def test_value_3d_mask(self):
+        test_dtype = [torch.float32, torch.float16]
+        image = np.zeros((1, 32, 33, 34))
+        boxes = np.array([[7, 8, 9, 10, 12, 13], [1, 3, 5, 2, 5, 9], [0, 0, 0, 1, 1, 1]])
+        data = {"image": image, "boxes": boxes, "labels": np.array((1, 0, 3))}
+        for dtype in test_dtype:
+            data = CastToTyped(keys=["image", "boxes"], dtype=dtype)(data)
+            transform_to_mask = BoxToMaskd(
+                box_keys="boxes",
+                box_mask_keys="box_mask",
+                box_ref_image_keys="image",
+                label_keys="labels",
+                min_fg_label=0,
+                ellipse_mask=False,
+            )
+            transform_to_box = MaskToBoxd(
+                box_keys="boxes", box_mask_keys="box_mask", label_keys="labels", min_fg_label=0
+            )
+            data_mask = transform_to_mask(data)
+            assert_allclose(data_mask["box_mask"].shape, (3, 32, 33, 34), type_test=True, device_test=True, atol=1e-3)
+            data_back = transform_to_box(data_mask)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
+
+    @parameterized.expand(TESTS_3D)
+    def test_value_3d(
         self,
         keys,
         data,
