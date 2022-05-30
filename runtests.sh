@@ -17,8 +17,9 @@ set -e
 # FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
 protobuf_major_version=$(pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
 if [ "$protobuf_major_version" -ge "4" ]
-    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 then
+    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+if
 
 # output formatting
 separator=""
