@@ -32,8 +32,9 @@ class RetinaNetDetector(nn.Module):
     An example of construction can found in the source code of
      :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
 
-    The input to the model is expected to be a list of tensors, each of shape [C, H, W] or  [C, H, W, D],
-    one for each image, and should be in 0-1 range. Different images can have different sizes.
+    The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
+                one for each image, and should be in 0-1 range. Different images can have different sizes.
+                Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
 
     The behavior of the model changes depending if it is in training or evaluation mode.
 
@@ -245,7 +246,9 @@ class RetinaNetDetector(nn.Module):
         Returns a dict of losses during training, or a list predicted dict of boxes and labels during inference.
 
         Args:
-            input_images: a list of images to be processed
+            input_images: The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
+                one for each image, and should be in 0-1 range. Different images can have different sizes.
+                Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
             targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
                 ground-truth boxes present in the image (optional).
 
@@ -318,7 +321,9 @@ class RetinaNetDetector(nn.Module):
         to create a (B, C, H, W) or (B, C, H, W, D) Tensor as network input.
 
         Args:
-            input_images: a list of images to be processed
+            input_images: The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
+                one for each image, and should be in 0-1 range. Different images can have different sizes.
+                Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
 
         Return:
             - images, a (B, C, H, W) or (B, C, H, W, D) Tensor as network input
