@@ -26,31 +26,31 @@ A12 = A[:, :2, 2:]
 A21 = A[:, 2:, :2]
 A22 = A[:, 2:, 2:]
 
-TEST_CASE_0 = [{"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0}, A, [A11, A12, A21, A22]]
-TEST_CASE_1 = [{"patch_size": (2, 2), "min_start_pos": 0, "fix_num_patches": 3}, A, [A11, A12, A21]]
+TEST_CASE_0 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0}, A, [A11, A12, A21, A22]]
+TEST_CASE_1 = [{"patch_size": (2, 2), "min_offset": 0, "num_patches": 3}, A, [A11, A12, A21]]
 TEST_CASE_2 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0, "fix_num_patches": 5},
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "num_patches": 5},
     A,
     [A11, A12, A21, A22, np.zeros((3, 2, 2))],
 ]
-TEST_CASE_3 = [{"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 0}, A, [A11, A12, A21, A22]]
+TEST_CASE_3 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0}, A, [A11, A12, A21, A22]]
 TEST_CASE_4 = [{"patch_size": (2, 2)}, A, [A11, A12, A21, A22]]
-TEST_CASE_5 = [{"patch_size": (2, 2), "min_start_pos": 2, "max_start_pos": 2}, A, [A22]]
-TEST_CASE_6 = [{"patch_size": (2, 2), "min_start_pos": (0, 2), "max_start_pos": (0, 2)}, A, [A12, A22]]
-TEST_CASE_7 = [{"patch_size": (2, 2), "min_start_pos": 1, "max_start_pos": 2}, A, [A22]]
+TEST_CASE_5 = [{"patch_size": (2, 2), "min_offset": 2, "max_offset": 2}, A, [A22]]
+TEST_CASE_6 = [{"patch_size": (2, 2), "min_offset": (0, 2), "max_offset": (0, 2)}, A, [A12, A22]]
+TEST_CASE_7 = [{"patch_size": (2, 2), "min_offset": 1, "max_offset": 2}, A, [A22]]
 TEST_CASE_8 = [
-    {"patch_size": (2, 2), "min_start_pos": 0, "max_start_pos": 1, "fix_num_patches": 1, "sort_fn": "max"},
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "max"},
     A,
     [A[:, 1:3, 1:3]],
 ]
 TEST_CASE_9 = [
     {
         "patch_size": (3, 3),
-        "min_start_pos": -3,
-        "max_start_pos": -1,
+        "min_offset": -3,
+        "max_offset": -1,
         "sort_fn": "min",
-        "fix_num_patches": 1,
-        "pad_opts": {"constant_values": 255},
+        "num_patches": 1,
+        "constant_values": 255,
     },
     A,
     [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],

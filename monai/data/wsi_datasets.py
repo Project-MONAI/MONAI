@@ -238,7 +238,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         """Define the location for each patch based on sliding-window approach"""
         patch_size = self._get_size(sample)
         level = self._get_level(sample)
-        start_pos = self._get_offset(sample)
+        offset = self._get_offset(sample)
 
         wsi_obj = self._get_wsi_object(sample)
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
@@ -246,7 +246,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
         locations = list(
             iter_patch_position(
-                image_size=wsi_size, patch_size=patch_size_, start_pos=start_pos, overlap=self.overlap, padded=False
+                image_size=wsi_size, patch_size=patch_size_, offset=offset, overlap=self.overlap, padded=False
             )
         )
         sample["size"] = patch_size

@@ -2588,12 +2588,11 @@ class GridSplit(Transform):
                 image,
                 shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-                writeable=False,
             )
             # Flatten the first two dimensions
             strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
             # Make a list of contiguous patches
-            patches = [np.copy(p) for p in strided_image]
+            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
@@ -2629,9 +2628,8 @@ class GridPatch(Transform):
 
     Args:
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
-        start_pos: starting position in the array, default is 0 for each dimension.
-            np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
-        fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        offset: offset of starting position in the array, default is 0 for each dimension.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
@@ -2639,11 +2637,8 @@ class GridPatch(Transform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        pad_mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
-        pad_opts: padding options, see `numpy.pad`
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
 
@@ -2652,19 +2647,19 @@ class GridPatch(Transform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        start_pos: Sequence[int] = (),
-        fix_num_patches: Optional[int] = None,
+        offset: Sequence[int] = (),
+        num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        pad_opts: Optional[Dict] = None,
+        **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
-        self.start_pos = ensure_tuple(start_pos)
+        self.offset = ensure_tuple(offset)
         self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
-        self.pad_opts = {} if pad_opts is None else pad_opts
+        self.pad_kwargs = pad_kwargs
         self.overlap = overlap
-        self.fix_num_patches = fix_num_patches
+        self.num_patches = num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
             if sort_fn == "random":
@@ -2672,7 +2667,7 @@ class GridPatch(Transform):
             if sort_fn == "min":
                 self.sort_fn = self.get_patch_sum
             if sort_fn == "max":
-                self.sort_fn = self._get_negative_patch_sum
+                self.sort_fn = self.get_negative_patch_sum
             else:
                 ValueError(f'sort_fn should be either "min", "max", or "random", "{sort_fn}" was given.')
         else:
@@ -2683,7 +2678,7 @@ class GridPatch(Transform):
         return x[0].sum()
 
     @staticmethod
-    def _get_negative_patch_sum(x):
+    def get_negative_patch_sum(x):
         return -x[0].sum()
 
     def __call__(self, array: NdarrayOrTensor):
@@ -2692,25 +2687,25 @@ class GridPatch(Transform):
         patch_iterator = iter_patch(
             array_np,
             patch_size=(None,) + self.patch_size,  # expand to have the channel dim
-            start_pos=(0,) + self.start_pos,  # expand to have the channel dim
+            start_pos=(0,) + self.offset,  # expand to have the channel dim
             overlap=self.overlap,
             copy_back=False,
             mode=self.pad_mode,
-            **self.pad_opts,
+            **self.pad_kwargs,
         )
         if self.sort_fn is not None:
             output = sorted(patch_iterator, key=self.sort_fn)
         else:
             output = list(patch_iterator)
-        if self.fix_num_patches:
-            output = output[: self.fix_num_patches]
-            if len(output) < self.fix_num_patches:
-                if self.pad_opts.get("constant_values"):
-                    patch = np.ones((array.shape[0], *self.patch_size)) * self.pad_opts["constant_values"]
+        if self.num_patches:
+            output = output[: self.num_patches]
+            if len(output) < self.num_patches:
+                if self.pad_kwargs.get("constant_values"):
+                    patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs["constant_values"])
                 else:
                     patch = np.zeros((array.shape[0], *self.patch_size))
-                location = np.zeros((3, len(self.patch_size)))
-                output += [(patch, location)] * (self.fix_num_patches - len(output))
+                slices = np.zeros((3, len(self.patch_size)))
+                output += [(patch, slices)] * (self.num_patches - len(output))
 
         output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
 
@@ -2720,15 +2715,15 @@ class GridPatch(Transform):
 class RandGridPatch(GridPatch, RandomizableTransform):
     """
     Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
-    and with random offset for the starting position of upper left corner of the image.
+    and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.
     It can sort the patches and return all or a subset of them.
 
     Args:
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
-        min_start_pos: the minimum range of starting position to be selected randomly. Defaults to 0.
-        max_start_pos: the maximum range of starting position to be selected randomly.
+        min_offset: the minimum range of offset to be selected randomly. Defaults to 0.
+        max_offset: the maximum range of offset to be selected randomly.
             Defaults to image size modulo patch size.
-        fix_num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
@@ -2736,12 +2731,8 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        pad_mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
-        pad_opts: padding options, see `numpy.pad`
-        seed: random seed to generate offsets
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
 
@@ -2750,37 +2741,38 @@ class RandGridPatch(GridPatch, RandomizableTransform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        min_start_pos: Optional[Union[Sequence[int], int]] = None,
-        max_start_pos: Optional[Union[Sequence[int], int]] = None,
-        fix_num_patches: Optional[int] = None,
+        min_offset: Optional[Union[Sequence[int], int]] = None,
+        max_offset: Optional[Union[Sequence[int], int]] = None,
+        num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        pad_opts: Optional[Dict] = None,
+        **pad_kwargs,
     ):
         super().__init__(
             patch_size=patch_size,
-            start_pos=(),
-            fix_num_patches=fix_num_patches,
+            offset=(),
+            num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
             pad_mode=pad_mode,
-            pad_opts=pad_opts,
+            **pad_kwargs,
         )
-        self.min_start_pos = min_start_pos
-        self.max_start_pos = max_start_pos
+        self.min_offset = min_offset
+        self.max_offset = max_offset
+
+    def randomize(self, array):
+        if self.min_offset is None:
+            min_offset = (0,) * len(self.patch_size)
+        else:
+            min_offset = ensure_tuple_rep(self.min_offset, len(self.patch_size))
+        if self.max_offset is None:
+            max_offset = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
+        else:
+            max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
+
+        self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
 
     def __call__(self, array: NdarrayOrTensor):
-        if self.min_start_pos is None:
-            min_start_pos = (0,) * len(self.patch_size)
-        else:
-            min_start_pos = ensure_tuple_rep(self.min_start_pos, len(self.patch_size))
-        if self.max_start_pos is None:
-            max_start_pos = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
-        else:
-            max_start_pos = ensure_tuple_rep(self.max_start_pos, len(self.patch_size))
-
-        self.start_pos = tuple(
-            self.R.randint(low=low, high=high + 1) for low, high in zip(min_start_pos, max_start_pos)
-        )
+        self.randomize(array)
         return super().__call__(array)
