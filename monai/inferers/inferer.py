@@ -11,7 +11,8 @@
 
 import warnings
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, Union
+from copy import deepcopy
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -173,8 +174,12 @@ class SlidingWindowInferer(Inferer):
             ) from e
 
     def __call__(
-        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
         """
 
         Args:
@@ -271,8 +276,12 @@ class SliceInferer(SlidingWindowInferer):
         super().__init__(*args, **kwargs)
 
     def __call__(
-        self, inputs: torch.Tensor, network: Callable[..., torch.Tensor], *args: Any, **kwargs: Any
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
         """
         Args:
             inputs: 3D input for inference
@@ -293,13 +302,29 @@ class SliceInferer(SlidingWindowInferer):
 
         return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
 
-    def network_wrapper(self, network: Callable[..., torch.Tensor], x: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+    def network_wrapper(
+        self,
+        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        x: torch.Tensor,
+        *args,
+        **kwargs,
+    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
         """
         Wrapper handles inference for 2D models over 3D volume inputs.
         """
         #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
         x = x.squeeze(dim=self.spatial_dim + 2)
         out = network(x, *args, **kwargs)
+
         #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
         # the default SlidingWindowInferer class
-        return out.unsqueeze(dim=self.spatial_dim + 2)
+        if isinstance(out, torch.Tensor):
+            return out.unsqueeze(dim=self.spatial_dim + 2)
+
+        if isinstance(out, Mapping):
+            out_unsqueeze = deepcopy(out)
+            for k in out.keys():
+                out_unsqueeze[k] = out_unsqueeze[k].unsqueeze(dim=self.spatial_dim + 2)
+            return out_unsqueeze
+
+        return tuple(out_i.unsqueeze(dim=self.spatial_dim + 2) for out_i in out)
