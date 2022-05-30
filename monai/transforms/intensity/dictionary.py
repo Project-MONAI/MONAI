@@ -1675,6 +1675,8 @@ class ForegroundMaskd(MapTransform):
             Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
         invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
             and vice-versa.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
         allow_missing_keys: do not raise exception if key is missing.
 
     """
