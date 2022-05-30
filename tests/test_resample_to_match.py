@@ -63,12 +63,11 @@ class TestResampleToMatch(unittest.TestCase):
         with self.assertRaises(ValueError):
             ResampleToMatch(mode=None)(img=data["im2"], img_dst=data["im1"])
         im_mod = ResampleToMatch()(data["im2"], data["im1"])
-        im_mod, meta = im_mod.as_tensor(), im_mod.meta
         saver = SaveImaged("im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer)
-        meta["filename_or_obj"] = get_rand_fname()
-        saver({"im3": im_mod, "im3_meta_dict": meta})
+        im_mod.meta["filename_or_obj"] = get_rand_fname()
+        saver({"im3": im_mod})
 
-        saved = nib.load(os.path.join(self.tmpdir, meta["filename_or_obj"]))
+        saved = nib.load(os.path.join(self.tmpdir, im_mod.meta["filename_or_obj"]))
         assert_allclose(data["im1"].shape[1:], saved.shape)
         assert_allclose(saved.header["dim"][:4], np.array([3, 384, 384, 19]))
 

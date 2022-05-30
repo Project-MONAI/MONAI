@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
+from monai.data.image_reader import ITKReader, MetaTensor, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import OptionalImportError
@@ -42,14 +42,13 @@ class TestLoadSaveNifti(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(
-                p(test_data),
-                {
-                    "filename_or_obj": f"{filepath}.png",
-                    "affine": np.eye(4),
-                    "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
-                },
-            )
+            meta_dict = {
+                "filename_or_obj": f"{filepath}.png",
+                "affine": np.eye(4),
+                "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+            }
+            test_data = MetaTensor(p(test_data), meta=meta_dict)
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
             loader = LoadImage(reader=reader, squeeze_non_spatial_dims=True)
@@ -97,7 +96,8 @@ class TestLoadSavePNG(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(p(test_data), {"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            test_data = MetaTensor(p(test_data), meta={"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
             loader = LoadImage(reader=reader)
@@ -151,7 +151,10 @@ class TestLoadSaveNrrd(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(p(test_data), {"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape})
+            test_data = MetaTensor(
+                p(test_data), meta={"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape}
+            )
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             loader = LoadImage(reader=reader)
             data = loader(saved_path)
