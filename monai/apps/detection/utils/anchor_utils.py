@@ -81,6 +81,8 @@ class AnchorGenerator(nn.Module):
             Cartesian ('xy') indexing swaps axis 0 and 1, which is the setting inside torchvision.
             matrix ('ij', default) indexing keeps the original axis not changed.
             See also indexing in https://pytorch.org/docs/stable/generated/torch.meshgrid.html
+            For 2D cases, this class `AnchorGenerator(sizes, aspect_ratios, indexing='xy')` is equivalent to
+            `torchvision.models.detection.anchor_utils.AnchorGenerator(sizes, aspect_ratios)` .
 
     Reference:.
         https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
@@ -294,6 +296,7 @@ class AnchorGenerator(nn.Module):
 
                 images = torch.zeros((3,1,128,128,128))
                 feature_maps = [torch.zeros((3,6,64,64,32)), torch.zeros((3,6,32,32,16))]
+                anchor_generator(images, feature_maps)
         """
         grid_sizes = [list(feature_map.shape[-self.spatial_dims :]) for feature_map in feature_maps]
         image_size = images.shape[-self.spatial_dims :]
@@ -307,15 +310,11 @@ class AnchorGenerator(nn.Module):
             for g in grid_sizes
         ]
 
-        # Code below come from torchvision.models.detection.anchor_utils.AnchorGenerator.forward()
         self.set_cell_anchors(dtype, device)
         anchors_over_all_feature_maps = self.grid_anchors(grid_sizes, strides)
 
-        anchors: List[List[torch.Tensor]] = []
-        for _ in range(batchsize):
-            anchors_in_image = list(anchors_over_all_feature_maps)
-            anchors.append(anchors_in_image)
-        return [torch.cat(anchors_per_image) for anchors_per_image in anchors]
+        anchors_per_image = torch.cat(list(anchors_over_all_feature_maps))
+        return [anchors_per_image] * batchsize
 
 
 class AnchorGeneratorWithAnchorShape(AnchorGenerator):
