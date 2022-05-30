@@ -18,7 +18,6 @@ from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 from numpy.lib.stride_tricks import as_strided
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -38,7 +37,7 @@ class SignalResample(Transform):
     """
     Resample signal to the target sampling rate.
     """
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
     def __init__(
         self, method: str = 'interpolation', 
         current_sample_rate: int = 500,
@@ -54,7 +53,7 @@ class SignalResample(Transform):
         self.current_sample_rate = current_sample_rate
         self.target_sample_rate = target_sample_rate
         
-    def __call__(self,signal: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self,signal: np.ndarray) -> np.ndarray:
         """
         Args:
             signal: input 1 dimension signal to be resampled
