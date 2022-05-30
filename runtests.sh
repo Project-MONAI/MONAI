@@ -19,7 +19,7 @@ protobuf_major_version=$(pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f
 if [ "$protobuf_major_version" -ge "4" ]
 then
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-if
+fi
 
 # output formatting
 separator=""
