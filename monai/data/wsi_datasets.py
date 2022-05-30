@@ -17,7 +17,7 @@ import numpy as np
 from monai.data import Dataset
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
-from monai.transforms import Randomizable, apply_transform
+from monai.transforms import ForegroundMask, Randomizable, apply_transform
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset"]
@@ -33,6 +33,9 @@ class PatchWSIDataset(Dataset):
         size: the size of patch to be extracted from the whole slide image.
         level: the level at which the patches to be extracted (default to 0).
         transform: transforms to be executed on input data.
+        include_label: whether to load and include labels in the output
+        center_location: whether the input location information is the position of the center of the patch
+        additional_meta_keys: the list of keys for items to be copied to the output matadata from the input data
         reader: the module to be used for loading whole slide imaging. If `reader` is
 
             - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
@@ -59,6 +62,9 @@ class PatchWSIDataset(Dataset):
         size: Optional[Union[int, Tuple[int, int]]] = None,
         level: Optional[int] = None,
         transform: Optional[Callable] = None,
+        include_label: bool = True,
+        center_location: bool = True,
+        additional_meta_keys: Optional[Sequence[str]] = None,
         reader="cuCIM",
         **kwargs,
     ):
@@ -78,16 +84,19 @@ class PatchWSIDataset(Dataset):
 
         # Setup the WSI reader
         self.wsi_reader: Union[WSIReader, BaseWSIReader]
-        self.backend = ""
         if isinstance(reader, str):
-            self.backend = reader.lower()
-            self.wsi_reader = WSIReader(backend=self.backend, level=level, **kwargs)
+            self.wsi_reader = WSIReader(backend=reader, level=level, **kwargs)
         elif inspect.isclass(reader) and issubclass(reader, BaseWSIReader):
             self.wsi_reader = reader(level=level, **kwargs)
         elif isinstance(reader, BaseWSIReader):
             self.wsi_reader = reader
         else:
             raise ValueError(f"Unsupported reader type: {reader}.")
+        self.backend = self.wsi_reader.backend
+
+        self.include_label = include_label
+        self.center_location = center_location
+        self.additional_meta_keys = additional_meta_keys or []
 
         # Initialized an empty whole slide image object dict
         self.wsi_object_dict: Dict = {}
@@ -102,8 +111,11 @@ class PatchWSIDataset(Dataset):
         return np.array(sample["label"], dtype=np.float32)
 
     def _get_location(self, sample: Dict):
-        size = self._get_size(sample)
-        return [sample["location"][i] - size[i] // 2 for i in range(len(size))]
+        if self.center_location:
+            size = self._get_size(sample)
+            return [sample["location"][i] - size[i] // 2 for i in range(len(size))]
+        else:
+            return sample["location"]
 
     def _get_level(self, sample: Dict):
         if self.level is None:
@@ -131,12 +143,16 @@ class PatchWSIDataset(Dataset):
 
         # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
+        output = {"image": image, "metadata": metadata}
 
-        # Get the label
-        label = self._get_label(sample)
+        # Include label in the output
+        if self.include_label:
+            output["label"] = self._get_label(sample)
 
-        # Apply transforms and output
-        output = {"image": image, "label": label, "metadata": metadata}
+        for key in self.additional_meta_keys:
+            metadata[key] = sample[key]
+
+        # Apply transforms and return it
         return apply_transform(self.transform, output) if self.transform else output
 
 
@@ -265,3 +281,100 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         # Create put all patch information together and apply transforms
         patch = {"image": image, "metadata": metadata}
         return apply_transform(self.transform, patch) if self.transform else patch
+
+
+class MaskedPatchWSIDataset(Randomizable, PatchWSIDataset):
+    """
+    This dataset extracts patches from whole slide images at the locations where foreground mask
+    at a given level is non-zero.
+
+    Args:
+        data: the list of input samples including image, location, and label (see the note below for more details).
+        size: the size of patch to be extracted from the whole slide image.
+        level: the level at which the patches to be extracted (default to 0).
+        mask_level: the resolution level at which the mask is created.
+        transform: transforms to be executed on input data.
+        include_label: whether to load and include labels in the output
+        center_location: whether the input location information is the position of the center of the patch
+        additional_meta_keys: the list of keys for items to be copied to the output matadata from the input data
+        reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
+
+            - a string, it defines the backend of `monai.data.WSIReader`.
+            - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
+            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+
+        seed: random seed to randomly generate offsets. Defaults to 0.
+        kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
+
+    Note:
+        The input data has the following form as an example:
+
+        .. code-block:: python
+
+            [
+                {"image": "path/to/image1.tiff"},
+                {"image": "path/to/image2.tiff", "size": [20, 20], "level": 2}
+            ]
+
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        level: Optional[int] = None,
+        mask_level: int = 7,
+        transform: Optional[Callable] = None,
+        include_label: bool = False,
+        center_location: bool = False,
+        additional_meta_keys: Sequence[str] = ("mask_location", "mask_size"),
+        reader="cuCIM",
+        **kwargs,
+    ):
+        super().__init__(
+            data=data,
+            size=size,
+            level=level,
+            transform=transform,
+            include_label=include_label,
+            center_location=center_location,
+            additional_meta_keys=additional_meta_keys,
+            reader=reader,
+            **kwargs,
+        )
+        self.mask_level = mask_level
+        # Create single sample for each patch (in a sliding window manner)
+        self.data = []
+        for sample in data:
+            patch_samples = self._evaluate_patch_coordinates(sample)
+            self.data.extend(patch_samples)
+
+    def _evaluate_patch_coordinates(self, sample):
+        """Define the location for each patch based on sliding-window approach"""
+        patch_size = self._get_size(sample)
+        level = self._get_level(sample)
+
+        # load the image at level=mask_level
+        wsi_obj = self._get_wsi_object(sample)
+        wsi, _ = self.wsi_reader.get_data(wsi_obj, level=self.mask_level)
+
+        # create the foreground tissue mask
+        mask = np.squeeze(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi))
+
+        # get all indices for non-zero pixels of the foreground mask
+        mask_locations = np.vstack(mask.nonzero()).T
+
+        # convert mask locations to image locations at level=0
+        mask_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, self.mask_level)
+        patch_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, level)
+        patch_size_0 = np.array([p * patch_ratio for p in patch_size])  # patch size at level 0
+        patch_locations = np.round((mask_locations + 0.5) * float(mask_ratio) - patch_size_0 // 2).astype(int)
+
+        sample["size"] = patch_size
+        sample["level"] = level
+        sample["num_patches"] = len(patch_locations)
+        sample["mask_size"] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
+        return [
+            {**sample, "location": np.array(loc), "mask_location": mask_loc}
+            for loc, mask_loc in zip(patch_locations, mask_locations)
+        ]
