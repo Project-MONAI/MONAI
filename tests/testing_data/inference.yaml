@@ -1,6 +1,6 @@
 ---
 dataset_dir: "/workspace/data/Task09_Spleen"
-test_collate: "$monai.data.list_data_collate"
+prediction_shape: "prediction shape:"
 device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
 print_test_name: "$print('yaml_test')"
 network_def:
@@ -46,7 +46,6 @@ dataloader:
   batch_size: 1
   shuffle: false
   num_workers: 4
-  collate_fn: "$lambda x: @test_collate(x)"
 inferer:
   _target_: SlidingWindowInferer
   roi_size:
@@ -68,6 +67,10 @@ postprocessing:
     keys: pred
     meta_keys: image_meta_dict
     output_dir: "@_meta_#output_dir"
+  - _target_: Lambdad
+    keys: pred
+    func: "$lambda x: print(@prediction_shape + str(x.shape))"
+    overwrite: false
 evaluator:
   _target_: SupervisedEvaluator
   _requires_:
@@ -82,3 +85,4 @@ evaluator:
 evaluating:
   - "$monai.utils.set_determinism(0)"
   - "$@evaluator.run()"
+
