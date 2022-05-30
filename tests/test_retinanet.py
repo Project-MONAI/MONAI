@@ -150,7 +150,7 @@ class TestRetinaNet(unittest.TestCase):
             trainable_backbone_layers=None,
             returned_layers=[1, 2],
         ).to(device)
-        # test_script_save(feature_extractor, data)
+        test_script_save(feature_extractor, data)
         net = RetinaNet(
             spatial_dims=input_param["spatial_dims"],
             num_classes=input_param["num_classes"],
