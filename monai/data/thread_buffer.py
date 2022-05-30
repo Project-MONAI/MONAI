@@ -88,8 +88,10 @@ class _ProcessThread(Thread):
         return id(self)
 
     def run(self):
-        super().run()
-        torch.utils.data._utils.worker._worker_info = None  # clean up global data used for processes
+        try:
+            super().run()
+        finally:
+            torch.utils.data._utils.worker._worker_info = None  # clean up global data used for processes
 
 
 class _ProcessQueue(Queue):
