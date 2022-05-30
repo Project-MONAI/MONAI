@@ -292,36 +292,7 @@ class RetinaNetDetector(nn.Module):
 
         """
         # security check
-        if isinstance(input_images, Tensor):
-            if len(input_images.shape) != self.spatial_dims + 2:
-                raise ValueError(
-                    "When input_images is a Tensor, its need to be (self.spatial_dims + 2)-D."
-                    f"In this case, it should be a {(self.spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
-                )
-        elif torch.jit.isinstance(input_images, List[Tensor]):
-            for img in input_images:
-                if len(img.shape) != self.spatial_dims + 1:
-                    raise ValueError(
-                        "When input_images is a List[Tensor[, each element should have be (self.spatial_dims + 1)-D."
-                        f"In this case, it should be a {(self.spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
-                    )
-        else:
-            raise ValueError("input_images needs to be a List[Tensor] or Tensor.")
-
-        if self.training:
-            self.check_training_inputs(input_images, targets)
-            if not hasattr(self, "proposal_matcher"):
-                raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*), "
-                    "self.set_atss_matcher(*), or or self.set_custom_matcher(*)."
-                )
-            if self.fg_bg_sampler is None and self.debug:
-                warnings.warn(
-                    "No balanced sampler is used. Negative samples are likely to "
-                    "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
-                    "and self.set_hard_negative_sampler(*), "
-                    "or set classification loss function as Focal loss with self.set_cls_loss(*)"
-                )
+        self.check_inputs(input_images, targets)
 
         # pad list of images to a single Tensor images
         # image_sizes stores the original spatial_size of each image before padding.
@@ -343,6 +314,50 @@ class RetinaNetDetector(nn.Module):
         # if during inference, return detection results
         detections = self.postprocess_detections(head_outputs, anchors, image_sizes, num_anchor_locs_per_level)
         return detections
+
+    def check_inputs(
+        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
+    ) -> None:
+        """
+        Security check for the inputs.
+        Will raise various of ValueError if not pass the check.
+
+        Args:
+            input_images: a list of images to be processed
+            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+        """
+        if isinstance(input_images, Tensor):
+            if len(input_images.shape) != self.spatial_dims + 2:
+                raise ValueError(
+                    "When input_images is a Tensor, its need to be (self.spatial_dims + 2)-D."
+                    f"In this case, it should be a {(self.spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
+                )
+        elif torch.jit.isinstance(input_images, List[Tensor]):
+            for img in input_images:
+                if len(img.shape) != self.spatial_dims + 1:
+                    raise ValueError(
+                        "When input_images is a List[Tensor[, each element should have be (self.spatial_dims + 1)-D."
+                        f"In this case, it should be a {(self.spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
+                    )
+        else:
+            raise ValueError("input_images needs to be a List[Tensor] or Tensor.")
+
+        if self.training:
+            self.check_training_targets(input_images, targets)
+            if not hasattr(self, "proposal_matcher"):
+                raise AttributeError(
+                    "Matcher is not set. Please refer to self.set_regular_matcher(*), "
+                    "self.set_atss_matcher(*), or or self.set_custom_matcher(*)."
+                )
+            if self.fg_bg_sampler is None and self.debug:
+                warnings.warn(
+                    "No balanced sampler is used. Negative samples are likely to "
+                    "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
+                    "and self.set_hard_negative_sampler(*), "
+                    "or set classification loss function as Focal loss with self.set_cls_loss(*)"
+                )
+        return
 
     def preprocess_images(self, input_images: Union[List[Tensor], Tensor]) -> Tuple[Tensor, List[List[int]]]:
         """
@@ -696,11 +711,11 @@ class RetinaNetDetector(nn.Module):
 
         return detections
 
-    def check_training_inputs(
+    def check_training_targets(
         self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
     ) -> None:
         """
-        Security check for the inputs during training.
+        Security check for the input targets during training.
         Will raise various of ValueError if not pass the check.
 
         Args:
