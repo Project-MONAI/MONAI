@@ -192,6 +192,12 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         """
         pos_idx = []
         neg_idx = []
+
+        if len(target_labels) != len(fg_probs):
+            raise ValueError(
+                "Require len(target_labels) == len(fg_probs). "
+                f"Got len(target_labels)={len(target_labels)}, len(fg_probs)={len(fg_probs)}."
+            )
         for labels_per_img, fg_probs_per_img in zip(target_labels, fg_probs):
             pos_idx_per_image_mask, neg_idx_per_image_mask = self.select_samples_per_img(
                 labels_per_img, fg_probs_per_img
