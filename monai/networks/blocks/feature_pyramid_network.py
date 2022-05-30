@@ -240,7 +240,7 @@ class FeaturePyramidNetwork(nn.Module):
         """
         # unpack OrderedDict into two lists for easier handling
         names = list(x.keys())
-        x_values: List = list(x.values())
+        x_values: List[Tensor] = list(x.values())
 
         last_inner = self.get_result_from_inner_blocks(x_values[-1], -1)
         results = []

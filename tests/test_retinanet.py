@@ -18,6 +18,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
+from tests.utils import test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -89,6 +90,11 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
 
+TEST_CASES_TS = []
+for case in [TEST_CASE_1]:
+    for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
+        TEST_CASES_TS.append([model, *case])
+
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNet(unittest.TestCase):
@@ -129,6 +135,29 @@ class TestRetinaNet(unittest.TestCase):
 
             self.assertEqual(tuple(cc.shape for cc in result[net.cls_key]), expected_cls_shape)
             self.assertEqual(tuple(cc.shape for cc in result[net.box_reg_key]), expected_box_shape)
+
+    @parameterized.expand(TEST_CASES_TS)
+    def test_script(self, model, input_param, input_shape):
+        # test whether support torchscript
+        data = torch.randn(input_shape).to(device)
+        backbone = model(**input_param).to(device)
+        test_script_save(backbone, data)
+        feature_extractor = resnet_fpn_feature_extractor(
+            backbone=backbone,
+            spatial_dims=input_param["spatial_dims"],
+            pretrained_backbone=input_param["pretrained"],
+            trainable_backbone_layers=None,
+            returned_layers=[1, 2],
+        ).to(device)
+        # test_script_save(feature_extractor, data)
+        net = RetinaNet(
+            spatial_dims=input_param["spatial_dims"],
+            num_classes=input_param["num_classes"],
+            num_anchors=num_anchors,
+            feature_extractor=feature_extractor,
+            size_divisible=32,
+        ).to(device)
+        test_script_save(net, data)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,6 @@ from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.layers.factories import Conv
 from monai.networks.nets import resnet
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
-from monai.utils.misc import issequenceiterable
 
 _validate_trainable_layers, _ = optional_import(
     "torchvision.models.detection.backbone_utils", name="_validate_trainable_layers"
@@ -256,8 +255,8 @@ class RetinaNet(nn.Module):
             self.feature_map_channels, self.num_anchors, spatial_dims=self.spatial_dims
         )
 
-        self.cls_key = "classification"
-        self.box_reg_key = "box_regression"
+        self.cls_key: str = "classification"
+        self.box_reg_key: str = "box_regression"
 
     def forward(self, images: Tensor) -> Dict[str, List[Tensor]]:
         """
@@ -276,22 +275,21 @@ class RetinaNet(nn.Module):
         """
         # compute features maps list from the input images.
         features = self.feature_extractor(images)
-        if isinstance(features, Dict):
-            feature_maps = list(features.values())
-        elif isinstance(features, Tensor):
+        if isinstance(features, Tensor):
             feature_maps = [features]
-        elif issequenceiterable(features):
-            feature_maps = list(features)
+        elif torch.jit.isinstance(features, Dict[str, Tensor]):
+            feature_maps = list(features.values())
         else:
-            raise ValueError("feature_extractor output format must be Tensor, Dict[Any, Tensor], or Sequence[Tensor].")
+            feature_maps = list(features)
+
+        if not isinstance(feature_maps[0], Tensor):
+            raise ValueError("feature_extractor output format must be Tensor, Dict[str, Tensor], or Sequence[Tensor].")
 
         # compute classification and box regression maps from the feature maps
         # expandable for mask prediction in the future
-        head_outputs = {}
-        if hasattr(self, "cls_key"):
-            head_outputs[self.cls_key] = self.classification_head(feature_maps)
-        if hasattr(self, "box_reg_key"):
-            head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
+
+        head_outputs: Dict[str, List[Tensor]] = {self.cls_key: self.classification_head(feature_maps)}
+        head_outputs[self.box_reg_key] = self.regression_head(feature_maps)
 
         return head_outputs
 
