@@ -111,17 +111,17 @@ class RetinaNetDetector(nn.Module):
 
         2. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
 
-        3. About its output ``head_output``:
+        3. About its output ``head_outputs``:
 
             - It should be a dictionary with at least two keys:
              ``network.cls_key`` and ``network.box_reg_key``.
-            - ``head_output[network.cls_key]`` should be List[Tensor]. Each Tensor represents
+            - ``head_outputs[network.cls_key]`` should be List[Tensor]. Each Tensor represents
              classification logits map at one resolution level,
              sized (B, num_classes*num_anchors, H_i, W_i) or (B, num_classes*num_anchors, H_i, W_i, D_i).
-            - ``head_output[network.box_reg_key]`` should be List[Tensor]. Each Tensor represents
+            - ``head_outputs[network.box_reg_key]`` should be List[Tensor]. Each Tensor represents
              box regression map at one resolution level,
              sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
-            - ``len(head_output[network.cls_key]) == len(head_output[network.box_reg_key])``.
+            - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
     """
 
     def __init__(
@@ -421,14 +421,14 @@ class RetinaNetDetector(nn.Module):
             The output of the network.
                 - It is a dictionary with at least two keys:
                  ``self.cls_key`` and ``self.box_reg_key``.
-                - ``head_output[self.cls_key]`` should be List[Tensor]. Each Tensor represents
+                - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
                  classification logits map at one resolution level,
                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
                  A = self.num_anchors_per_loc.
-                - ``head_output[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
+                - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
                  box regression map at one resolution level,
                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
-                - ``len(head_output[self.cls_key]) == len(head_output[self.box_reg_key])``.
+                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
         """
         if use_inferer is None:
             use_inferer = not self.training
@@ -481,14 +481,14 @@ class RetinaNetDetector(nn.Module):
             head_outputs: the outputs of the network.
                 - It is a dictionary with at least two keys:
                  ``self.cls_key`` and ``self.box_reg_key``.
-                - ``head_output[self.cls_key]`` should be List[Tensor]. Each Tensor represents
+                - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
                  classification logits map at one resolution level,
                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
                  A = self.num_anchors_per_loc.
-                - ``head_output[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
+                - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
                  box regression map at one resolution level,
                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
-                - ``len(head_output[self.cls_key]) == len(head_output[self.box_reg_key])``.
+                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
 
         Return:
             - head_outputs_reshape, reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
