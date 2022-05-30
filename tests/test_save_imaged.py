@@ -51,7 +51,6 @@ class TestSaveImaged(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             trans = SaveImaged(
                 keys=["img", "pred"],
-                meta_keys=PostFix.meta("img"),
                 output_dir=tempdir,
                 output_ext=output_ext,
                 resample=resample,
