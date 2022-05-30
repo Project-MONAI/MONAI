@@ -24,7 +24,6 @@ import torch.nn as nn
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import pytorch_after
 
 __all__ = [
     "one_hot",
