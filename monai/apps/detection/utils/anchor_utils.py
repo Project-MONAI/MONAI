@@ -76,15 +76,15 @@ class AnchorGenerator(nn.Module):
         aspect_ratios: the aspect ratios of anchors. ``len(aspect_ratios) = len(sizes)``.
             For 2D images, each element of ``aspect_ratios[i]`` is a Sequence of float.
             For 3D images, each element of ``aspect_ratios[i]`` is a Sequence of 2 value Sequence.
-        indexing: choose from {``'ij'``, ``'xy'``}, optional, 
-            Matrix (``'ij'``, default and recommended) or Cartesian (``'xy'``) indexing of output.            
-            
-            - Matrix (``'ij'``, default and recommended) indexing keeps the original axis not changed.           
+        indexing: choose from {``'ij'``, ``'xy'``}, optional,
+            Matrix (``'ij'``, default and recommended) or Cartesian (``'xy'``) indexing of output.
+
+            - Matrix (``'ij'``, default and recommended) indexing keeps the original axis not changed.
             - To use other monai detection components, please set ``indexing = 'ij'``.
             - Cartesian (``'xy'``) indexing swaps axis 0 and 1.
             - For 2D cases, monai ``AnchorGenerator(sizes, aspect_ratios, indexing='xy')`` and
               ``torchvision.models.detection.anchor_utils.AnchorGenerator(sizes, aspect_ratios)`` are equivalent.
-            
+
 
     Reference:.
         https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
