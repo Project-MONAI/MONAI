@@ -10,48 +10,45 @@
 # limitations under the License.
 
 import unittest
-
+from tests.croppers import CropTest
 import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCropd
-from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TEST_SHAPES = []
-for p in TEST_NDARRAYS:
-    TEST_SHAPES.append(
-        [{"keys": "img", "roi_size": [2, -1, -1]}, {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))}, (3, 2, 3, 3)]
-    )
+TEST_SHAPES = [
+    [
+        {"keys": "img", "roi_size": [2, -1, -1]},
+        (3, 3, 3, 3),
+        (3, 2, 3, 3),
+        (slice(None), slice(None, -1), slice(None), slice(None)),
+    ],
+    [
+        {"keys": "img", "roi_size": [2, 2, 2]},
+        (3, 3, 3, 3),
+        (3, 2, 2, 2),
+        (slice(None), slice(None, -1), slice(None, -1), slice(None, -1)),
+    ],
+]
 
-    TEST_SHAPES.append(
-        [{"keys": "img", "roi_size": [2, 2, 2]}, {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))}, (3, 2, 2, 2)]
-    )
-
-TEST_CASES = []
-for p in TEST_NDARRAYS:
-    TEST_CASES.append(
-        [
-            {"keys": "img", "roi_size": [2, 2]},
-            {
-                "img": p(
-                    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])
-                )
-            },
-            p(np.array([[[1, 2], [2, 3]]])),
-        ]
-    )
+TEST_CASES = [
+    [
+        {"keys": "img", "roi_size": [2, 2]},
+        np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+        np.array([[[1, 2], [2, 3]]]),
+    ]
+]
 
 
-class TestCenterSpatialCropd(unittest.TestCase):
+class TestCenterSpatialCropd(CropTest):
+    Cropper = CenterSpatialCropd
     @parameterized.expand(TEST_SHAPES)
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = CenterSpatialCropd(**input_param)(input_data)
-        self.assertTupleEqual(result["img"].shape, expected_shape)
+    def test_shape(self, input_param, input_shape, expected_shape, same_area):
+        self.crop_test(input_param, input_shape, expected_shape, same_area)
 
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_param, input_data, expected_value):
-        result = CenterSpatialCropd(**input_param)(input_data)
-        assert_allclose(result["img"], expected_value, type_test=False)
+        self.crop_test_value(input_param, input_data, expected_value)
 
 
 if __name__ == "__main__":

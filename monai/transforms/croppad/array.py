@@ -58,6 +58,7 @@ __all__ = [
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
+    "CropBase",
     "SpatialCrop",
     "CenterSpatialCrop",
     "CenterScaleCrop",
@@ -151,7 +152,8 @@ class PadBase(InvertibleTransform):
         roi_start = [i[0] for i in padded[1:]]
         roi_end = [i - j[1] for i, j in zip(data.shape[1:], padded[1:])]
         cropper = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
-        return cropper(data)  # type: ignore
+        with cropper.trace_transform(False):
+            return cropper(data)  # type: ignore
 
 
 class Pad(PadBase):
@@ -421,6 +423,22 @@ class CropBase(InvertibleTransform):
         raise NotImplementedError()
 
     @staticmethod
+    def calculate_slices_from_center_and_size(
+        roi_center: Union[Sequence[int], NdarrayOrTensor],
+        roi_size: Union[Sequence[int], NdarrayOrTensor],
+    ) -> List[slice]:
+        roi_slices = []
+        for c, s in zip(roi_center, roi_size):
+            # if size is unchanged, the slice is None
+            if s < 0:
+                roi_slices.append(slice(None))
+            else:
+                _start = max(c - s // 2, 0)
+                _end = c + s // 2
+                roi_slices.append(slice(_start, _end))
+        return roi_slices
+
+    @staticmethod
     def calculate_slices(
         roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
@@ -429,39 +447,44 @@ class CropBase(InvertibleTransform):
         roi_slices: Optional[Sequence[slice]] = None,
     ):
         """Calculate ROI slices from some combination of the ROI center, size, start, end and slices."""
-        roi_start_torch: torch.Tensor
+        has_center = roi_center is not None
+        has_size = roi_size is not None
+        has_start = roi_start is not None
+        has_end = roi_end is not None
+        has_slices = roi_slices is not None
+        # should have either (1) slices or (2) center and size or (3) start and end
+        if not (has_slices ^ (has_center and has_size) ^ (has_start and has_end)):
+            raise ValueError("Please specify either (1) slices or (2) center and size or (3) start and end.")
 
-        if roi_slices:
+        # from ROI slices
+        if has_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError("Only slice steps of 1/None are currently supported")
             return list(roi_slices)
 
-        if roi_center is not None and roi_size is not None:
-            roi_center, *_ = convert_data_type(
-                data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
-            )
-            roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
-            _zeros = torch.zeros_like(roi_center)
-            roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
-            roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
+        # from center and size
+        if has_center and has_size:
+            return CropBase.calculate_slices_from_center_and_size(roi_center, roi_size)
+
+        # from start and end
         else:
-            if roi_start is None or roi_end is None:
-                raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-            roi_start_torch, *_ = convert_data_type(
-                data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
-            )
-            roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
-            roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
-            roi_end_torch = maximum(roi_end_torch, roi_start_torch)
-        # convert to slices (accounting for 1d)
-        if roi_start_torch.numel() == 1:
-            return [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
-        else:
-            return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
+            roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
+
+        # # convert to slices (accounting for 1d)
+        # if roi_start_torch.numel() == 1:
+        #     return [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
+        # else:
+        #     return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
     def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
-        sd = min(len(slices), len(img.shape[1:]))  # spatial dims
-        slices = [slice(None)] + slices[:sd]
+        sd = len(img.shape[1:])  # spatial dims
+        # if too many spatial dimension, take only the first ones necessary
+        if len(slices) > sd:
+            slices = slices[:sd]
+        elif len(slices) < sd:
+            slices = slices + [slice(None)] * (sd - len(slices))
+        # Add in the channel (no cropping)
+        slices = [slice(None)] + slices
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         orig_size = img.shape[1:]
@@ -470,12 +493,13 @@ class CropBase(InvertibleTransform):
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - out.shape[1:] - cropped_from_start
             cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
-            self.push_transform(img, extra_info={"cropped": cropped})
+            self.push_transform(out, extra_info={"cropped": cropped})
         return out
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(img)
-        cropped = transform[TraceKeys.EXTRA_INFO]["padded"]
+        cropped = transform[TraceKeys.EXTRA_INFO]["cropped"]
+        # the amount we pad is equal to the amount we cropped in each direction
         inverse_transform = BorderPad(cropped)
         # Apply inverse transform
         with inverse_transform.trace_transform(False):
@@ -578,7 +602,8 @@ class CenterScaleCrop(CropBase):
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        slices = self.calculate_slices(roi_size=roi_size)
+        center = [i // 2 for i in img.shape[1:]]
+        slices = self.calculate_slices(roi_center=center, roi_size=roi_size)
         return self._forward(img, slices)
 
 

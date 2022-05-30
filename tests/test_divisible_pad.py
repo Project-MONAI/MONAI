@@ -17,62 +17,29 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import DivisiblePad
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
+from tests.padders import PadTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 
 # pad first dim to be divisible by 7, the second unchanged.
-TESTS.append([{"k": (7, -1), "mode": "constant"}, (3, 8, 7), (3, 14, 7)])
+TESTS.append([{"k": (7, -1)}, (3, 8, 7), (3, 14, 7)])
 # pad all dimensions to be divisible by 5
-TESTS.append([{"k": 5, "mode": "constant", "method": "end"}, (3, 10, 5, 17), (3, 10, 5, 20)])
+TESTS.append([{"k": 5, "method": "end"}, (3, 10, 5, 17), (3, 10, 5, 20)])
 
 
-class TestDivisiblePad(unittest.TestCase):
-    @staticmethod
-    def get_arr(shape):
-        return np.random.randint(100, size=shape).astype(float)
-
+class TestDivisiblePad(PadTest):
+    Padder = DivisiblePad
     @parameterized.expand(TESTS)
-    def test_pad_shape(self, input_param, input_shape, expected_shape):
-        base_comparison = None
-        input_data = self.get_arr(input_shape)
-        padder = DivisiblePad(**input_param)
-        # check result is the same regardless of input type
-        for p in TEST_NDARRAYS:
-            r1 = padder(p(input_data))
-            r2 = padder(p(input_data), mode=input_param["mode"])
-            # check
-            np.testing.assert_allclose(r1.shape, expected_shape)
-            np.testing.assert_allclose(r2.shape, expected_shape)
-            # check results are same regardless of input type
-            if base_comparison is None:
-                base_comparison = r1
-            torch.testing.assert_allclose(r1, base_comparison, atol=0, rtol=1e-5)
-            torch.testing.assert_allclose(r2, base_comparison, atol=0, rtol=1e-5)
-            # test inverse
-            for r in (r1, r2):
-                if isinstance(r, MetaTensor):
-                    r = padder.inverse(r)
-                    self.assertIsInstance(r, MetaTensor)
-                    assert_allclose(r, input_data, type_test=False)
-                    self.assertEqual(r.applied_operations, [])
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
     def test_pad_kwargs(self):
-        for p in TEST_NDARRAYS:
-            im = p(np.zeros((3, 8, 4)))
-            kwargs = {"value": 2} if isinstance(im, torch.Tensor) else {"constant_values": ((0, 0), (1, 1), (2, 2))}
-            padder = DivisiblePad(k=5, method="end", mode="constant", **kwargs)
-            result = padder(im)
-            if isinstance(result, torch.Tensor):
-                result = result.cpu()
-            expected_vals = [0, 2] if isinstance(im, torch.Tensor) else [0, 1, 2]
-            assert_allclose(np.unique(result), expected_vals, type_test=False)
-            # check inverse
-            if isinstance(result, MetaTensor):
-                inv = padder.inverse(result)
-                assert_allclose(im, inv, type_test=False)
-                self.assertEqual(inv.applied_operations, [])
-
+        kwargs = {"k": 5, "method": "end"}
+        unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
+        self.pad_test_kwargs(unchanged_slices, **kwargs)
 
 if __name__ == "__main__":
     unittest.main()

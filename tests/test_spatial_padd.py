@@ -11,46 +11,41 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SpatialPadd
-from tests.utils import assert_allclose
+from tests.padders import PadTest
 
-TEST_CASE_1 = [
-    {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric", "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 8, 8)),
+TESTS = [
+    [
+        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"},
+        (3, 8, 8, 4),
+        (3, 15, 8, 8),
+    ],
+    [
+        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"},
+        (3, 8, 8, 4),
+        (3, 15, 8, 8),
+    ],
+    [
+        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"},
+        (3, 8, 8, 4),
+        (3, 15, 8, 8),
+    ],
+    [
+        {"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"},
+        (3, 8, 4, 4),
+        (3, 15, 8, 4),
+    ],
 ]
 
-TEST_CASE_2 = [
-    {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end", "mode": "constant"},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 8, 8)),
-]
 
-TEST_CASE_3 = [
-    {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end", "mode": {"constant"}},
-    {"img": np.zeros((3, 8, 8, 4))},
-    np.zeros((3, 15, 8, 8)),
-]
-
-TEST_CASE_4 = [
-    {"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end", "mode": {"constant"}},
-    {"img": np.zeros((3, 8, 4, 4))},
-    np.zeros((3, 15, 8, 4)),
-]
-
-
-class TestSpatialPadd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_pad_shape(self, input_param, input_data, expected_val):
-        padder = SpatialPadd(**input_param)
-        result = padder(input_data)
-        assert_allclose(result["img"].shape, expected_val.shape)
-        # test inverse
-        inv_result = padder.inverse(result)
-        assert_allclose(inv_result["img"].shape, input_data["img"].shape)
+class TestSpatialPadd(PadTest):
+    Padder = SpatialPadd
+    @parameterized.expand(TESTS)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", {"constant"}]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
 
 if __name__ == "__main__":

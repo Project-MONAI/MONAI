@@ -32,6 +32,7 @@ from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
     CenterSpatialCrop,
+    CropBase,
     CropForeground,
     DivisiblePad,
     PadBase,
@@ -289,7 +290,27 @@ class DivisiblePadd(PadBased):
         self.padder = DivisiblePad(k=k, method=method, **kwargs)
 
 
-class SpatialCropd(MapTransform, InvertibleTransform):
+class CropBased(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of abstract class :py:class:`monai.transforms.CropBase`.
+    """
+    backend = CropBase.backend
+    cropper: CropBase
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.cropper(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.cropper.inverse(d[key])
+        return d
+
+
+class SpatialCropd(CropBased):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     General purpose cropper to produce sub-volume region of interest (ROI).
@@ -332,36 +353,7 @@ class SpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            self.push_transform(d, key)
-            d[key] = self.cropper(d[key])
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            # get required pad to start and end
-            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(self.cropper.slices, orig_size)])
-            pad_to_end = orig_size - current_size - pad_to_start
-            # interleave mins and maxes
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
-
-class CenterSpatialCropd(MapTransform, InvertibleTransform):
+class CenterSpatialCropd(CropBased):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
@@ -387,36 +379,6 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            orig_size = d[key].shape[1:]
-            d[key] = self.cropper(d[key])
-            self.push_transform(d, key, orig_size=orig_size)
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
-            # in each direction, if original size is even and current size is odd, += 1
-            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
-            pad_to_end = orig_size - current_size - pad_to_start
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
-
 class CenterScaleCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterScaleCrop`.
@@ -438,44 +400,6 @@ class CenterScaleCropd(MapTransform, InvertibleTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys=allow_missing_keys)
         self.roi_scale = roi_scale
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
-            return d
-
-        # use the spatial size of first image to scale, expect all images have the same spatial size
-        img_size = d[first_key].shape[1:]  # type: ignore
-        ndim = len(img_size)
-        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        cropper = CenterSpatialCrop(roi_size)
-        for key in self.key_iterator(d):
-            self.push_transform(d, key, orig_size=img_size)
-            d[key] = cropper(d[key])
-
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
-            # in each direction, if original size is even and current size is odd, += 1
-            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
-            pad_to_end = orig_size - current_size - pad_to_start
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
 
 
 class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
@@ -527,68 +451,6 @@ class RandSpatialCropd(Randomizable, MapTransform, InvertibleTransform):
         self._slices: Optional[Tuple[slice, ...]] = None
         self._size: Optional[Sequence[int]] = None
 
-    def randomize(self, img_size: Sequence[int]) -> None:
-        self._size = fall_back_tuple(self.roi_size, img_size)
-        if self.random_size:
-            max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
-            if any(i > j for i, j in zip(self._size, max_size)):
-                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
-            self._size = [self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size))]
-        if self.random_center:
-            valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
-            return d
-
-        self.randomize(d[first_key].shape[1:])  # type: ignore
-        if self._size is None:
-            raise RuntimeError("self._size not specified.")
-        for key in self.key_iterator(d):
-            if self.random_center:
-                self.push_transform(d, key, {"slices": [(i.start, i.stop) for i in self._slices[1:]]})  # type: ignore
-                d[key] = d[key][self._slices]
-            else:
-                self.push_transform(d, key)
-                cropper = CenterSpatialCrop(self._size)
-                d[key] = cropper(d[key])
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            random_center = self.random_center
-            pad_to_start = np.empty((len(orig_size)), dtype=np.int32)
-            pad_to_end = np.empty((len(orig_size)), dtype=np.int32)
-            if random_center:
-                for i, _slice in enumerate(transform[TraceKeys.EXTRA_INFO]["slices"]):
-                    pad_to_start[i] = _slice[0]
-                    pad_to_end[i] = orig_size[i] - _slice[1]
-            else:
-                current_size = d[key].shape[1:]
-                for i, (o_s, c_s) in enumerate(zip(orig_size, current_size)):
-                    pad_to_start[i] = pad_to_end[i] = (o_s - c_s) / 2
-                    if o_s % 2 == 0 and c_s % 2 == 1:
-                        pad_to_start[i] += 1
-                    elif o_s % 2 == 1 and c_s % 2 == 0:
-                        pad_to_end[i] += 1
-            # interleave mins and maxes
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
-
 
 class RandScaleCropd(RandSpatialCropd):
     """
@@ -636,20 +498,6 @@ class RandScaleCropd(RandSpatialCropd):
         )
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        first_key: Union[Hashable, List] = self.first_key(data)  # type: ignore
-        if first_key == []:
-            return data  # type: ignore
-
-        img_size = data[first_key].shape[1:]  # type: ignore
-        ndim = len(img_size)
-        self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        if self.max_roi_scale is not None:
-            self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
-        else:
-            self.max_roi_size = None
-        return super().__call__(data=data)
 
 
 @contextlib.contextmanager
