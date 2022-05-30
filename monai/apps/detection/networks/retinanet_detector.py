@@ -328,11 +328,11 @@ class RetinaNetDetector(nn.Module):
         images, image_sizes = self.preprocess_images(input_images)
 
         # generate network outputs. only use inferer in evaluation mode.
-        head_output = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
+        head_outputs = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
 
         # post processing steps that both training and inference perform.
         head_outputs, anchors, num_anchor_locs_per_level = self.process_network_outputs_with_anchors(
-            images, head_output
+            images, head_outputs
         )
 
         # if during training, return losses
