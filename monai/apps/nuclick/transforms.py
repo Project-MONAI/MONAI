@@ -12,7 +12,7 @@
 import math
 import random
 from enum import Enum
-from typing import Tuple, Union
+from typing import Any, Tuple, Union
 
 import numpy as np
 
@@ -85,10 +85,12 @@ class ExtractPatchd(MapTransform):
         centroid_key: str = NuclickKeys.CENTROID.value,
         patch_size: Union[Tuple[int, int], int] = 128,
         allow_missing_keys: bool = False,
+        **kwargs: Any,
     ):
         super().__init__(keys, allow_missing_keys)
         self.centroid_key = centroid_key
         self.patch_size = patch_size
+        self.kwargs = kwargs
 
     def __call__(self, data):
         d = dict(data)
@@ -100,7 +102,7 @@ class ExtractPatchd(MapTransform):
             img = d[key]
             x_start, x_end, y_start, y_end = self.bbox(self.patch_size, centroid, img.shape[-2:])
             cropped = img[:, x_start:x_end, y_start:y_end]
-            d[key] = SpatialPad(spatial_size=roi_size)(cropped)
+            d[key] = SpatialPad(spatial_size=roi_size, **self.kwargs)(cropped)
         return d
 
     def bbox(self, patch_size, centroid, size):
