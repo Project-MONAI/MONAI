@@ -2700,10 +2700,7 @@ class GridPatch(Transform):
         if self.num_patches:
             output = output[: self.num_patches]
             if len(output) < self.num_patches:
-                if self.pad_kwargs.get("constant_values"):
-                    patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs["constant_values"])
-                else:
-                    patch = np.zeros((array.shape[0], *self.patch_size))
+                patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0))
                 slices = np.zeros((3, len(self.patch_size)))
                 output += [(patch, slices)] * (self.num_patches - len(output))
 
