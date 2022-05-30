@@ -18,7 +18,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -97,6 +97,7 @@ for case in [TEST_CASE_1]:
 
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestRetinaNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_retina_shape(self, model, input_param, input_shape):
