@@ -43,7 +43,6 @@ from typing import List, Sequence, Union
 import torch
 from torch import Tensor, nn
 
-from monai.networks.utils import meshgrid_ij
 from monai.utils import ensure_tuple
 from monai.utils.misc import issequenceiterable
 from monai.utils.module import look_up_option
@@ -253,7 +252,7 @@ class AnchorGenerator(nn.Module):
             ]
 
             # to support torchscript, cannot directly use torch.meshgrid(shifts_centers).
-            shifts_centers = list(meshgrid_ij(*shifts_centers))  # indexing="ij"
+            shifts_centers = list(torch.meshgrid(shifts_centers[: self.spatial_dims], indexing="ij"))
 
             for axis in range(self.spatial_dims):
                 # each element of shifts_centers is sized (HW,) or (HWD,)
