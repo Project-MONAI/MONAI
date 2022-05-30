@@ -2168,7 +2168,8 @@ class ForegroundMask(Transform):
     Args:
         threshold: an int or a float number that defines the threshold that values less than that are foreground.
             It also can be a callable that receives each dimension of the image and calculate the threshold,
-            or a string the defines such callable from `skimage.filter.threshold_xxxx`.
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
             Moreover, a dictionary can be passed that defines such thresholds for each channel, like
             {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
         hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
@@ -2205,6 +2206,10 @@ class ForegroundMask(Transform):
                 self._set_threshold(hsv_threshold, "V")
 
         self.invert = invert
+        if self.thresholds.keys().isdisjoint(set("RGBHSV")):
+            raise ValueError(
+                f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided."
+            )
 
     def _set_threshold(self, threshold, mode):
         if callable(threshold):
@@ -2230,14 +2235,14 @@ class ForegroundMask(Transform):
             img_rgb = skimage.util.invert(img_rgb)
 
         foregrounds = []
-        if set("RGB") & set(self.thresholds.keys()):
+        if not self.thresholds.keys().isdisjoint(set("RGB")):
             rgb_foreground = np.zeros_like(img_rgb[:1])
             for img, mode in zip(img_rgb, "RGB"):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
                     rgb_foreground |= img <= threshold
             foregrounds.append(rgb_foreground)
-        if set("HSV") & set(self.thresholds.keys()):
+        if not self.thresholds.keys().isdisjoint(set("HSV")):
             img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
             hsv_foreground = np.zeros_like(img_rgb[:1])
             for img, mode in zip(img_hsv, "HSV"):
@@ -2246,8 +2251,5 @@ class ForegroundMask(Transform):
                     hsv_foreground |= img > threshold
             foregrounds.append(hsv_foreground)
 
-        if foregrounds:
-            mask = np.stack(foregrounds).all(axis=0)
-        else:
-            mask = np.zeros_like(img_rgb[:1])
+        mask = np.stack(foregrounds).all(axis=0)
         return convert_to_dst_type(src=mask, dst=image)[0]

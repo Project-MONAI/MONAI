@@ -39,10 +39,11 @@ TEST_CASE_7 = [{"threshold": {"R": "otsu", "G": "otsu", "B": "otsu"}}, IMAGE2, M
 TEST_CASE_8 = [{"threshold": {"R": 140, "G": "otsu", "B": "otsu"}}, IMAGE2, np.ones_like(MASK)]
 TEST_CASE_9 = [{"threshold": {"R": 140, "G": skimage.filters.threshold_otsu, "B": "otsu"}}, IMAGE2, np.ones_like(MASK)]
 TEST_CASE_10 = [{"threshold": skimage.filters.threshold_mean}, IMAGE1, MASK]
-TEST_CASE_11 = [{"threshold": None}, IMAGE1, np.zeros_like(MASK)]
-TEST_CASE_12 = [{"threshold": None, "hsv_threshold": "otsu"}, IMAGE1, np.ones_like(MASK)]
-TEST_CASE_13 = [{"threshold": None, "hsv_threshold": {"S": "otsu"}}, IMAGE1, MASK]
-TEST_CASE_14 = [{"threshold": 100, "invert": True}, IMAGE1, np.logical_not(MASK)]
+TEST_CASE_11 = [{"threshold": None, "hsv_threshold": "otsu"}, IMAGE1, np.ones_like(MASK)]
+TEST_CASE_12 = [{"threshold": None, "hsv_threshold": {"S": "otsu"}}, IMAGE1, MASK]
+TEST_CASE_13 = [{"threshold": 100, "invert": True}, IMAGE1, np.logical_not(MASK)]
+TEST_CASE_ERROR_1 = [{"threshold": None}, IMAGE1]
+TEST_CASE_ERROR_2 = [{"threshold": {"K": 1}}, IMAGE1]
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -59,6 +60,12 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, *TEST_CASE_10])
     TESTS.append([p, *TEST_CASE_11])
     TESTS.append([p, *TEST_CASE_12])
+    TESTS.append([p, *TEST_CASE_13])
+
+TESTS_ERROR = []
+for p in TEST_NDARRAYS:
+    TESTS_ERROR.append([p, *TEST_CASE_ERROR_1])
+    TESTS_ERROR.append([p, *TEST_CASE_ERROR_2])
 
 
 @unittest.skipUnless(has_skimage, "Requires sci-kit image")
@@ -68,6 +75,12 @@ class TestForegroundMask(unittest.TestCase):
         input_image = in_type(image)
         result = ForegroundMask(**arguments)(input_image)
         assert_allclose(result, mask, type_test=False)
+
+    @parameterized.expand(TESTS_ERROR)
+    def test_foreground_mask_error(self, in_type, arguments, image):
+        input_image = in_type(image)
+        with self.assertRaises(ValueError):
+            ForegroundMask(**arguments)(input_image)
 
 
 if __name__ == "__main__":

@@ -47,10 +47,11 @@ TEST_CASE_9 = [
     np.ones_like(MASK),
 ]
 TEST_CASE_10 = [{"keys": "image", "threshold": skimage.filters.threshold_mean}, {"image": IMAGE1}, MASK]
-TEST_CASE_11 = [{"keys": "image", "threshold": None}, {"image": IMAGE1}, np.zeros_like(MASK)]
-TEST_CASE_12 = [{"keys": "image", "threshold": None, "hsv_threshold": "otsu"}, {"image": IMAGE1}, np.ones_like(MASK)]
-TEST_CASE_13 = [{"keys": "image", "threshold": None, "hsv_threshold": {"S": "otsu"}}, {"image": IMAGE1}, MASK]
-TEST_CASE_14 = [{"keys": "image", "threshold": 100, "invert": True}, {"image": IMAGE1}, np.logical_not(MASK)]
+TEST_CASE_11 = [{"keys": "image", "threshold": None, "hsv_threshold": "otsu"}, {"image": IMAGE1}, np.ones_like(MASK)]
+TEST_CASE_12 = [{"keys": "image", "threshold": None, "hsv_threshold": {"S": "otsu"}}, {"image": IMAGE1}, MASK]
+TEST_CASE_13 = [{"keys": "image", "threshold": 100, "invert": True}, {"image": IMAGE1}, np.logical_not(MASK)]
+TEST_CASE_ERROR_1 = [{"keys": "image", "threshold": None}, {"image": IMAGE1}]
+TEST_CASE_ERROR_2 = [{"keys": "image", "threshold": {"K": 1}}, {"image": IMAGE1}]
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -68,7 +69,11 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, *TEST_CASE_11])
     TESTS.append([p, *TEST_CASE_12])
     TESTS.append([p, *TEST_CASE_13])
-    TESTS.append([p, *TEST_CASE_14])
+
+TESTS_ERROR = []
+for p in TEST_NDARRAYS:
+    TESTS_ERROR.append([p, *TEST_CASE_ERROR_1])
+    TESTS_ERROR.append([p, *TEST_CASE_ERROR_2])
 
 
 @unittest.skipUnless(has_skimage, "Requires sci-kit image")
@@ -78,6 +83,12 @@ class TestForegroundMaskd(unittest.TestCase):
         data_dict[arguments["keys"]] = in_type(data_dict[arguments["keys"]])
         result = ForegroundMaskd(**arguments)(data_dict)[arguments["keys"]]
         assert_allclose(result, mask, type_test=False)
+
+    @parameterized.expand(TESTS_ERROR)
+    def test_foreground_mask_error(self, in_type, arguments, data_dict):
+        data_dict[arguments["keys"]] = in_type(data_dict[arguments["keys"]])
+        with self.assertRaises(ValueError):
+            ForegroundMaskd(**arguments)(data_dict)[arguments["keys"]]
 
 
 if __name__ == "__main__":
