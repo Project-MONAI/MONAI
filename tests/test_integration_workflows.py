@@ -51,6 +51,7 @@ from monai.transforms import (
     SaveImage,
     SaveImaged,
     ScaleIntensityd,
+    ToMetaTensord,
     ToTensord,
 )
 from monai.utils import set_determinism
@@ -253,7 +254,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            ToMetaTesnord(keys="pred", meta_keys="image"),
+            ToMetaTensord(keys="pred", meta_keys="image"),
             SaveImaged(keys="pred", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
