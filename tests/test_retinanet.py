@@ -144,7 +144,6 @@ class TestRetinaNet(unittest.TestCase):
         except BaseException:
             idx = 0
         idx %= 3
-        print(idx)
         # test whether support torchscript
         data = torch.randn(input_shape)
         backbone = model(**input_param)
