@@ -744,6 +744,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
+
 `GridSplit`
 """""""""""
 .. autoclass:: GridSplit
@@ -1522,6 +1534,18 @@ Spatial (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoomd.png
     :alt: example of RandZoomd
 .. autoclass:: RandZoomd
+    :members:
+    :special-members: __call__
+
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__
 
