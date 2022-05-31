@@ -73,6 +73,7 @@ class PatchIter:
             array,
             patch_size=self.patch_size,  # type: ignore
             start_pos=self.start_pos,
+            overlap=0.0,
             copy_back=False,
             mode=self.mode,
             **self.pad_opts,

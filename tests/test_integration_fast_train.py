@@ -89,8 +89,8 @@ class IntegrationFastTrain(DistTestCase):
             [
                 LoadImaged(keys=["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
-                FromMetaTensord(["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
+                FromMetaTensord(["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
                 # pre-compute foreground and background indexes
@@ -136,8 +136,8 @@ class IntegrationFastTrain(DistTestCase):
             [
                 LoadImaged(keys=["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
-                FromMetaTensord(["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
+                FromMetaTensord(["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
                 EnsureTyped(keys=["image", "label"]),

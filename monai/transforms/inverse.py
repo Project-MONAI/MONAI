@@ -8,8 +8,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
-from typing import Hashable, Mapping, Optional, Tuple
+from contextlib import contextmanager
+from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
 
@@ -52,41 +54,207 @@ class TraceableTransform(Transform):
             return TraceKeys.KEY_SUFFIX
         return str(key) + TraceKeys.KEY_SUFFIX
 
-    def push_transform(
-        self, data: Mapping, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
-    ) -> None:
-        """Push to a stack of applied transforms for that key."""
+    def get_transform_info(
+        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+    ) -> dict:
+        """
+        Return a dictionary with the relevant information pertaining to an applied
+        transform.
 
-        if not self.tracing:
-            return
+        Args:
+            - data: input data. Can be dictionary or MetaTensor. We can use `shape` to
+                determine the original size of the object (unless that has been given
+                explicitly, see `orig_size`).
+            - key: if data is a dictionary, data[key] will be modified
+            - extra_info: if desired, any extra information pertaining to the applied
+                transform can be stored in this dictionary. These are often needed for
+                computing the inverse transformation.
+            - orig_size: sometimes during the inverse it is useful to know what the size
+                of the original image was, in which case it can be supplied here.
+
+        Returns:
+            Dictionary of data pertaining to the applied transformation.
+        """
         info = {TraceKeys.CLASS_NAME: self.__class__.__name__, TraceKeys.ID: id(self)}
         if orig_size is not None:
             info[TraceKeys.ORIG_SIZE] = orig_size
-        elif key in data and hasattr(data[key], "shape"):
+        elif isinstance(data, Mapping) and key in data and hasattr(data[key], "shape"):
             info[TraceKeys.ORIG_SIZE] = data[key].shape[1:]
+        elif hasattr(data, "shape"):
+            info[TraceKeys.ORIG_SIZE] = data.shape[1:]
         if extra_info is not None:
             info[TraceKeys.EXTRA_INFO] = extra_info
         # If class is randomizable transform, store whether the transform was actually performed (based on `prob`)
         if hasattr(self, "_do_transform"):  # RandomizableTransform
             info[TraceKeys.DO_TRANSFORM] = self._do_transform  # type: ignore
+        return info
 
-        if key in data and isinstance(data[key], MetaTensor):
-            data[key].push_applied_operation(info)
-        else:
-            # If this is the first, create list
-            if self.trace_key(key) not in data:
-                if not isinstance(data, dict):
-                    data = dict(data)
-                data[self.trace_key(key)] = []
-            data[self.trace_key(key)].append(info)
+    def push_transform(
+        self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
+    ) -> None:
+        """
+        Push to a stack of applied transforms.
 
-    def pop_transform(self, data: Mapping, key: Hashable = None):
-        """Remove the most recent applied transform."""
+        Data can be one of two things:
+            1. A `MetaTensor`
+            2. A dictionary of data containing arrays/tensors and auxilliary data. In
+                this case, a key must be supplied.
+
+        If `data` is of type `MetaTensor`, then the applied transform will be added to
+            its internal list.
+
+        If `data` is a dictionary, then one of two things can happen:
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to
+                its internal list.
+            2. Else, the applied transform will be appended to an adjacent list using
+                `trace_key`. If, for example, the key is `image`, then the transform
+                will be appended to `image_transforms`.
+
+        Hopefully it is clear that there are three total possibilities:
+            1. data is `MetaTensor`
+            2. data is dictionary, data[key] is `MetaTensor`
+            3. data is dictionary, data[key] is not `MetaTensor`.
+
+        Args:
+            - data: dictionary of data or `MetaTensor`
+            - key: if data is a dictionary, data[key] will be modified
+            - extra_info: if desired, any extra information pertaining to the applied
+                transform can be stored in this dictionary. These are often needed for
+                computing the inverse transformation.
+            - orig_size: sometimes during the inverse it is useful to know what the size
+                of the original image was, in which case it can be supplied here.
+
+        Returns:
+            None, but data has been updated to store the applied transformation.
+
+        Raises:
+            - RuntimeError: data is neither `MetaTensor` nor dictionary
+        """
         if not self.tracing:
             return
-        if key in data and isinstance(data[key], MetaTensor):
-            return data[key].pop_applied_operation()
-        return data.get(self.trace_key(key), []).pop()
+        info = self.get_transform_info(data, key, extra_info, orig_size)
+
+        if isinstance(data, MetaTensor):
+            data.push_applied_operation(info)
+        elif isinstance(data, Mapping):
+            if key in data and isinstance(data[key], MetaTensor):
+                data[key].push_applied_operation(info)
+            else:
+                # If this is the first, create list
+                if self.trace_key(key) not in data:
+                    if not isinstance(data, dict):
+                        data = dict(data)
+                    data[self.trace_key(key)] = []
+                data[self.trace_key(key)].append(info)
+        else:
+            raise RuntimeError("`data` should be either `MetaTensor` or dictionary.")
+
+    def check_transforms_match(self, transform: Mapping) -> None:
+        """Check transforms are of same instance."""
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        xform_id = transform.get(TraceKeys.ID, "")
+        if xform_id == id(self):
+            return
+        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
+        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
+            return
+        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
+
+    def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
+        """
+        Get most recent transform.
+
+        Data can be one of two things:
+            1. A `MetaTensor`
+            2. A dictionary of data containing arrays/tensors and auxilliary data. In
+                this case, a key must be supplied.
+
+        If `data` is of type `MetaTensor`, then the applied transform will be added to
+            its internal list.
+
+        If `data` is a dictionary, then one of two things can happen:
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to
+                its internal list.
+            2. Else, the applied transform will be appended to an adjacent list using
+                `trace_key`. If, for example, the key is `image`, then the transform
+                will be appended to `image_transforms`.
+
+        Hopefully it is clear that there are three total possibilities:
+            1. data is `MetaTensor`
+            2. data is dictionary, data[key] is `MetaTensor`
+            3. data is dictionary, data[key] is not `MetaTensor`.
+
+        Args:
+            - data: dictionary of data or `MetaTensor`
+            - key: if data is a dictionary, data[key] will be modified
+            - check: if true, check that `self` is the same type as the most
+                recently-applied transform.
+            - pop: if true, remove the transform as it is returned.
+
+        Returns:
+            Dictionary of most recently applied transform
+
+        Raises:
+            - RuntimeError: data is neither `MetaTensor` nor dictionary
+        """
+        if not self.tracing:
+            raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
+        if isinstance(data, MetaTensor):
+            all_transforms = data.applied_operations
+        elif isinstance(data, Mapping):
+            if key in data and isinstance(data[key], MetaTensor):
+                all_transforms = data[key].applied_operations
+            else:
+                all_transforms = data[self.trace_key(key)]
+        if check:
+            self.check_transforms_match(all_transforms[-1])
+        return all_transforms.pop() if pop else all_transforms[-1]
+
+    def pop_transform(self, data, key: Hashable = None, check: bool = True):
+        """
+        Return and pop the most recent transform.
+
+        Data can be one of two things:
+            1. A `MetaTensor`
+            2. A dictionary of data containing arrays/tensors and auxilliary data. In
+                this case, a key must be supplied.
+
+        If `data` is of type `MetaTensor`, then the applied transform will be added to
+            its internal list.
+
+        If `data` is a dictionary, then one of two things can happen:
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to
+                its internal list.
+            2. Else, the applied transform will be appended to an adjacent list using
+                `trace_key`. If, for example, the key is `image`, then the transform
+                will be appended to `image_transforms`.
+
+        Hopefully it is clear that there are three total possibilities:
+            1. data is `MetaTensor`
+            2. data is dictionary, data[key] is `MetaTensor`
+            3. data is dictionary, data[key] is not `MetaTensor`.
+
+        Args:
+            - data: dictionary of data or `MetaTensor`
+            - key: if data is a dictionary, data[key] will be modified
+            - check: if true, check that `self` is the same type as the most
+                recently-applied transform.
+
+        Returns:
+            Dictionary of most recently applied transform
+
+        Raises:
+            - RuntimeError: data is neither `MetaTensor` nor dictionary
+        """
+        return self.get_most_recent_transform(data, key, check, pop=True)
+
+    @contextmanager
+    def trace_transform(self, to_trace: bool):
+        """Temporarily set the tracing status of a transfrom with a context manager."""
+        prev = self.tracing
+        self.tracing = to_trace
+        yield
+        self.tracing = prev
 
 
 class InvertibleTransform(TraceableTransform):
@@ -126,29 +294,7 @@ class InvertibleTransform(TraceableTransform):
 
     """
 
-    def check_transforms_match(self, transform: Mapping) -> None:
-        """Check transforms are of same instance."""
-        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
-        xform_id = transform.get(TraceKeys.ID, "")
-        if xform_id == id(self):
-            return
-        # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
-        if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
-            return
-        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
-
-    def get_most_recent_transform(self, data: Mapping, key: Hashable = None):
-        """Get most recent transform."""
-        if not self.tracing:
-            raise RuntimeError("Transform Tracing must be enabled to get the most recent transform.")
-        if isinstance(data[key], MetaTensor):
-            transform = data[key].applied_operations[-1]
-        else:
-            transform = data[self.trace_key(key)][-1]
-        self.check_transforms_match(transform)
-        return transform
-
-    def inverse(self, data: dict) -> dict:
+    def inverse(self, data: Any) -> Any:
         """
         Inverse of ``__call__``.
 

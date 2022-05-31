@@ -16,10 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand3DElasticd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_NO_META_TENSOR:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [

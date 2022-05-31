@@ -195,6 +195,32 @@ class TestConfigParser(unittest.TestCase):
         parser.get_parsed_content("training", lazy=True, instantiate=True, eval_expr=True)
         np.testing.assert_allclose(parser.get_parsed_content("training#1", lazy=True), [0.7942, 1.5885], atol=1e-4)
 
+    def test_contains(self):
+        empty_parser = ConfigParser({})
+        empty_parser.parse()
+
+        parser = ConfigParser({"value": 1, "entry": "string content"})
+        parser.parse()
+
+        with self.subTest("Testing empty parser"):
+            self.assertFalse("something" in empty_parser)
+
+        with self.subTest("Testing with keys"):
+            self.assertTrue("value" in parser)
+            self.assertFalse("value1" in parser)
+            self.assertTrue("entry" in parser)
+            self.assertFalse("entr" in parser)
+
+    def test_lambda_reference(self):
+        configs = {
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=configs)
+        trans = parser.get_parsed_content(id="transform")
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
 
 if __name__ == "__main__":
     unittest.main()

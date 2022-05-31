@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import os
 import random
 import string
@@ -16,9 +17,11 @@ import tempfile
 import unittest
 import warnings
 from copy import deepcopy
+from multiprocessing.reduction import ForkingPickler
 from typing import Optional, Union
 
 import torch
+import torch.multiprocessing
 from parameterized import parameterized
 
 from monai.data import DataLoader, Dataset
@@ -30,11 +33,11 @@ from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
 
-DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
+DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
 TESTS = []
 for _device in TEST_DEVICES:
     for _dtype in DTYPES:
-        TESTS.append((*_device, *_dtype))
+        TESTS.append((*_device, *_dtype))  # type: ignore
 
 
 def rand_string(min_len=5, max_len=10):
@@ -264,7 +267,7 @@ class TestMetaTensor(unittest.TestCase):
         im_conv = conv(im)
         with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
-        self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
+        self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
 
     def test_out(self):
         """Test when `out` is given as an argument."""
@@ -487,6 +490,20 @@ class TestMetaTensor(unittest.TestCase):
         data = tr({key: im})
         m = MetaTensor(im, applied_operations=data[PostFix.transforms(key)])
         self.assertEqual(len(m.applied_operations), len(tr.transforms))
+
+    @parameterized.expand(TESTS)
+    def test_multiprocessing(self, device=None, dtype=None):
+        """multiprocessing sharing with 'device' and 'dtype'"""
+        buf = io.BytesIO()
+        t = MetaTensor([0.0, 0.0], device=device, dtype=dtype)
+        if t.is_cuda:
+            with self.assertRaises(NotImplementedError):
+                ForkingPickler(buf).dump(t)
+            return
+        ForkingPickler(buf).dump(t)
+        obj = ForkingPickler.loads(buf.getvalue())
+        self.assertIsInstance(obj, MetaTensor)
+        assert_allclose(obj.as_tensor(), t)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 {
     "dataset_dir": "/workspace/data/Task09_Spleen",
+    "prediction_shape": "prediction shape:",
     "import_glob": "$import glob",
     "device": "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')",
     "print_test_name": "$print('json_test')",
@@ -96,10 +97,20 @@
                 "argmax": true
             },
             {
+                "_target_": "ToMetaTensord",
+                "keys": "pred",
+                "meta_keys": "image"
+            },
+            {
                 "_target_": "SaveImaged",
                 "keys": "pred",
-                "meta_keys": "image_meta_dict",
                 "output_dir": "@_meta_#output_dir"
+            },
+            {
+                "_target_": "Lambdad",
+                "keys": "pred",
+                "func": "$lambda x: print(@prediction_shape + str(x.shape))",
+                "overwrite": false
             }
         ]
     },

@@ -20,11 +20,17 @@ from monai.data.box_utils import (
     CornerCornerModeTypeB,
     CornerCornerModeTypeC,
     CornerSizeMode,
+    box_area,
     box_centers,
+    box_giou,
+    box_iou,
+    box_pair_giou,
     boxes_center_distance,
     centers_in_boxes,
+    clip_boxes_to_image,
     convert_box_mode,
     convert_box_to_standard_mode,
+    non_max_suppression,
 )
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -138,6 +144,7 @@ class TestCreateBoxList(unittest.TestCase):
         boxes1 = convert_data_type(input_data["boxes"], dtype=np.float32)[0]
         mode1 = input_data["mode"]
         half_bool = input_data["half"]
+        spatial_size = input_data["spatial_size"]
 
         # test float16
         if half_bool:
@@ -155,6 +162,22 @@ class TestCreateBoxList(unittest.TestCase):
         expected_box_standard = convert_box_to_standard_mode(boxes=expected_box, mode=mode2)
         assert_allclose(result_standard, expected_box_standard, type_test=True, device_test=True, atol=0.0)
 
+        # test box_area, box_iou, box_giou, box_pair_giou
+        assert_allclose(box_area(result_standard), expected_area, type_test=True, device_test=True, atol=0.0)
+        iou_metrics = (box_iou, box_giou)  # type: ignore
+        for p in iou_metrics:
+            self_iou = p(boxes1=result_standard[1:2, :], boxes2=result_standard[1:1, :])
+            assert_allclose(self_iou, np.array([[]]), type_test=False)
+
+            self_iou = p(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
+            assert_allclose(self_iou, np.array([[1.0]]), type_test=False)
+
+        self_iou = box_pair_giou(boxes1=result_standard[1:1, :], boxes2=result_standard[1:1, :])
+        assert_allclose(self_iou, np.array([]), type_test=False)
+
+        self_iou = box_pair_giou(boxes1=result_standard[1:2, :], boxes2=result_standard[1:2, :])
+        assert_allclose(self_iou, np.array([1.0]), type_test=False)
+
         # test box_centers, centers_in_boxes, boxes_center_distance
         result_standard_center = box_centers(result_standard)
         expected_center = convert_box_mode(boxes=boxes1, src_mode=mode1, dst_mode="cccwhd")[:, :3]
@@ -171,6 +194,26 @@ class TestCreateBoxList(unittest.TestCase):
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
         center_dist, _, _ = boxes_center_distance(boxes1=result_standard[0:1, :], boxes2=result_standard[0:1, :])
         assert_allclose(center_dist, np.array([[0.0]]), type_test=False)
+
+        # test clip_boxes_to_image
+        clipped_boxes, keep = clip_boxes_to_image(expected_box_standard, spatial_size, remove_empty=True)
+        assert_allclose(
+            expected_box_standard[keep, :], expected_box_standard[1:, :], type_test=True, device_test=True, atol=0.0
+        )
+        assert_allclose(
+            id(clipped_boxes) != id(expected_box_standard), True, type_test=False, device_test=False, atol=0.0
+        )
+
+        # test non_max_suppression
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=1.0, box_overlap_metric=box_giou
+        )
+        assert_allclose(nms_box, [1, 2, 0], type_test=False)
+
+        nms_box = non_max_suppression(
+            boxes=result_standard, scores=boxes1[:, 1] / 2.0, nms_thresh=-1.0, box_overlap_metric=box_iou
+        )
+        assert_allclose(nms_box, [1], type_test=False)
 
 
 if __name__ == "__main__":

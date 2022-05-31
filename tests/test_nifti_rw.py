@@ -30,14 +30,14 @@ for p in TEST_NDARRAYS:
                 [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
             )
         )
-        TESTS.append(
-            [
-                TEST_IMAGE,
-                TEST_AFFINE,
-                dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
-                np.arange(24).reshape((2, 4, 3)),
-            ]
-        )
+        # TESTS.append(
+        #     [
+        #         TEST_IMAGE,
+        #         TEST_AFFINE,
+        #         dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
+        #         np.arange(24).reshape((2, 4, 3)),
+        #     ]
+        # )
         TESTS.append(
             [
                 TEST_IMAGE,
@@ -117,8 +117,8 @@ class TestNiftiLoadRead(unittest.TestCase):
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
         data = LoadImage(reader="NibabelReader", as_closest_canonical=False)(test_image)
         header = data.meta
-        data, original_affine, new_affine = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
-        data.affine = new_affine
+        data = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
+        original_affine = data.meta["original_affine"]
         data = Orientation("ILP")(data)
         new_affine = data.affine
         if os.path.exists(test_image):

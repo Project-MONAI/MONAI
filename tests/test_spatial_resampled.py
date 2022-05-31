@@ -9,104 +9,100 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.config import USE_COMPILED
-from monai.transforms import SpatialResampleD
-from tests.utils import TEST_NDARRAYS, TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
+from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import to_affine_nd
+from monai.transforms.spatial.dictionary import SpatialResampled
+from tests.utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
 
-for ind, dst in enumerate(
-    [
-        np.asarray([[1.0, 0.0, 0.0], [0.0, -1.0, 1.0], [0.0, 0.0, 1.0]]),  # flip the second
-        np.asarray([[-1.0, 0.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),  # flip the first
-    ]
-):
-    for p in TEST_NDARRAYS:
-        for p_src in TEST_NDARRAYS:
-            for align in (False, True):
+
+destinations_3d = [
+    torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+    torch.tensor([[-1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
+]
+expected_3d = [
+    torch.tensor([[[[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]], [[10.0, 11.0, 12.0], [7.0, 8.0, 9.0]]]]),
+    torch.tensor([[[[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]]),
+]
+
+for dst, expct in zip(destinations_3d, expected_3d):
+    for device in TEST_DEVICES:
+        for align in (True, False):
+            for dtype in (torch.float32, torch.float64):
+                interp = ("nearest", "bilinear", 0, 1) if align and USE_COMPILED else ("nearest", "bilinear")
+                for interp_mode in interp:
+                    for padding_mode in ("zeros", "border", "reflection"):
+                        TESTS.append(
+                            [
+                                np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
+                                *device,
+                                dst,
+                                {
+                                    "dst_keys": "dst_affine",
+                                    "dtype": dtype,
+                                    "align_corners": align,
+                                    "mode": interp_mode,
+                                    "padding_mode": padding_mode,
+                                },
+                                expct,
+                            ]
+                        )
+
+destinations_2d = [
+    torch.tensor([[1.0, 0.0, 0.0], [0.0, -1.0, 1.0], [0.0, 0.0, 1.0]]),  # flip the second
+    torch.tensor([[-1.0, 0.0, 1.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),  # flip the first
+]
+
+expected_2d = [torch.tensor([[[2.0, 1.0], [4.0, 3.0]]]), torch.tensor([[[3.0, 4.0], [1.0, 2.0]]])]
+
+for dst, expct in zip(destinations_2d, expected_2d):
+    for device in TEST_DEVICES:
+        for align in (False, True):
+            for dtype in (torch.float32, torch.float64):
                 for interp_mode in ("nearest", "bilinear"):
                     TESTS.append(
                         [
-                            {},  # default no params
                             np.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+                            *device,
+                            dst,
                             {
-                                "src": p_src(np.eye(3)),
-                                "dst": p(dst),
-                                "dtype": np.float32,
+                                "dst_keys": "dst_affine",
+                                "dtype": dtype,
                                 "align_corners": align,
                                 "mode": interp_mode,
                                 "padding_mode": "zeros",
                             },
-                            np.array([[[2.0, 1.0], [4.0, 3.0]]]) if ind == 0 else np.array([[[3.0, 4.0], [1.0, 2.0]]]),
-                        ]
-                    )
-
-for ind, dst in enumerate(
-    [
-        np.asarray([[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
-        np.asarray([[-1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
-    ]
-):
-    for p_src in TEST_NDARRAYS:
-        for align in (True, False):
-            if align and USE_COMPILED:
-                interp = ("nearest", "bilinear", 0, 1)
-            else:
-                interp = ("nearest", "bilinear")  # type: ignore
-            for interp_mode in interp:  # type: ignore
-                for padding_mode in ("zeros", "border", "reflection"):
-                    TESTS.append(
-                        [
-                            {},  # default no params
-                            np.arange(12).reshape((1, 2, 2, 3)) + 1.0,  # data
-                            {
-                                "src": p_src(np.eye(4)),
-                                "dst": p_src(dst),
-                                "dtype": np.float64,
-                                "align_corners": align,
-                                "mode": interp_mode,
-                                "padding_mode": padding_mode,
-                            },
-                            np.array([[[[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]], [[10.0, 11.0, 12.0], [7.0, 8.0, 9.0]]]])
-                            if ind == 0
-                            else np.array(
-                                [[[[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]]]
-                            ),
+                            expct,
                         ]
                     )
 
 
 class TestSpatialResample(unittest.TestCase):
-    @parameterized.expand(itertools.product(TEST_NDARRAYS_NO_META_TENSOR, TESTS))
-    def test_flips_inverse(self, p_type, args):
-        _, img, data_param, expected_output = args
-        _img = p_type(img)
-        _expected_output = p_type(expected_output)
-        input_dict = {"img": _img, "img_meta_dict": {"src": data_param.get("src"), "dst": data_param.get("dst")}}
-        xform = SpatialResampleD(
-            keys="img",
-            meta_src_keys="src",
-            meta_dst_keys="dst",
-            mode=data_param.get("mode"),
-            padding_mode=data_param.get("padding_mode"),
-            align_corners=data_param.get("align_corners"),
-        )
-        output_data = xform(input_dict)
-        assert_allclose(output_data["img"], _expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(
-            output_data["img_meta_dict"]["src"], data_param.get("dst"), type_test=False, rtol=1e-2, atol=1e-2
-        )
+    @parameterized.expand(TESTS)
+    def test_flips_inverse(self, img, device, dst_affine, kwargs, expected_output):
+        img = MetaTensor(img, affine=torch.eye(4)).to(device)
+        data = {"img": img, "dst_affine": dst_affine}
 
-        inverted = xform.inverse(output_data)
-        self.assertEqual(inverted["img_transforms"], [])  # no further invert after inverting
-        assert_allclose(inverted["img_meta_dict"]["src"], data_param.get("src"), type_test=False, rtol=1e-2, atol=1e-2)
-        assert_allclose(inverted["img"], _img, rtol=1e-2, atol=1e-2)
+        xform = SpatialResampled(keys="img", **kwargs)
+        output_data = xform(data)
+        out = output_data["img"]
+
+        assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
+        assert_allclose(out.affine, dst_affine, rtol=1e-2, atol=1e-2)
+
+        inverted = xform.inverse(output_data)["img"]
+        self.assertEqual(inverted.applied_operations, [])  # no further invert after inverting
+        expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
+        assert_allclose(inverted.affine, expected_affine, rtol=1e-2, atol=1e-2)
+        assert_allclose(inverted, img, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":

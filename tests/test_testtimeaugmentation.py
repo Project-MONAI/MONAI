@@ -32,6 +32,7 @@ from monai.transforms import (
     RandScaleIntensityd,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
+from monai.transforms.meta_utility.dictionary import FromMetaTensord, ToMetaTensord
 from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix
@@ -176,9 +177,17 @@ class TestTestTimeAugmentation(unittest.TestCase):
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 
-    @unittest.skipUnless(has_nib, "Requires nibabel")
+    # @unittest.skipUnless(has_nib, "Requires nibabel")
     def test_requires_meta_dict(self):
-        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
+        transforms = Compose(
+            [
+                AddChanneld("image"),
+                RandFlipd("image"),
+                ToMetaTensord("image"),
+                Spacingd("image", pixdim=1.1),
+                FromMetaTensord("image"),
+            ]
+        )
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

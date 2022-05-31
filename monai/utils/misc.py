@@ -26,7 +26,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor, PathLike
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.utils.module import version_leq
 
 __all__ = [
@@ -147,7 +147,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
 
 
 def fall_back_tuple(
-    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+    user_provided: Any, default: Union[Sequence, NdarrayTensor], func: Callable = lambda x: x and x > 0
 ) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
@@ -359,6 +359,7 @@ class ImageMetaKey:
 
     FILENAME_OR_OBJ = "filename_or_obj"
     PATCH_INDEX = "patch_index"
+    SPATIAL_SHAPE = "spatial_shape"
 
 
 def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:

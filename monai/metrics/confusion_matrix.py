@@ -30,7 +30,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     The `include_background` parameter can be set to ``False`` for an instance to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
-    background so excluding it in such cases helps convergence.
+    background.
 
     Args:
         include_background: whether to skip metric computation on the first channel of
