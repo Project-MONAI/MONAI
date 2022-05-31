@@ -144,7 +144,7 @@ class RetinaNetDetector(nn.Module):
                     out_box_reg_shape = (images.shape[0],2*self.spatial_dims*self.num_anchors) + out_spatial_size
                     return {self.cls_key: [torch.randn(out_cls_shape)], self.box_reg_key: [torch.randn(out_box_reg_shape)]}
 
-            # define RetinaNetDetector
+            # create a RetinaNetDetector detector
             spatial_dims = 3
             num_classes = 5
             anchor_generator = monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape(
