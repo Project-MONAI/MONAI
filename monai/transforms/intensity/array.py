@@ -2205,11 +2205,13 @@ class ForegroundMask(Transform):
                 self._set_threshold(hsv_threshold, "S")
                 self._set_threshold(hsv_threshold, "V")
 
-        self.invert = invert
+        self.thresholds = {k: v for k, v in self.thresholds.items() if v is not None}
         if self.thresholds.keys().isdisjoint(set("RGBHSV")):
             raise ValueError(
                 f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided."
             )
+
+        self.invert = invert
 
     def _set_threshold(self, threshold, mode):
         if callable(threshold):
@@ -2233,14 +2235,13 @@ class ForegroundMask(Transform):
         img_rgb, *_ = convert_data_type(image, np.ndarray)
         if self.invert:
             img_rgb = skimage.util.invert(img_rgb)
-
         foregrounds = []
         if not self.thresholds.keys().isdisjoint(set("RGB")):
             rgb_foreground = np.zeros_like(img_rgb[:1])
             for img, mode in zip(img_rgb, "RGB"):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
-                    rgb_foreground |= img <= threshold
+                    rgb_foreground = np.logical_or(rgb_foreground, img <= threshold)
             foregrounds.append(rgb_foreground)
         if not self.thresholds.keys().isdisjoint(set("HSV")):
             img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
@@ -2248,7 +2249,7 @@ class ForegroundMask(Transform):
             for img, mode in zip(img_hsv, "HSV"):
                 threshold = self._get_threshold(img, mode)
                 if threshold:
-                    hsv_foreground |= img > threshold
+                    hsv_foreground = np.logical_or(hsv_foreground, img > threshold)
             foregrounds.append(hsv_foreground)
 
         mask = np.stack(foregrounds).all(axis=0)
