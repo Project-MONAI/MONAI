@@ -332,6 +332,18 @@ class BoxModeName(Enum):
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 
+class ProbMapKeys(Enum):
+    """
+    The keys to be used for generating the probability maps from patches
+    """
+
+    LOCATION = "mask_location"
+    SIZE = "mask_size"
+    COUNT = "num_patches"
+    PATH = "path"
+    PRE_PATH = "image"
+
+
 class GridPatchSort(Enum):
     """
     The sorting method for the generated patches in `GridPatch`
