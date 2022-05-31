@@ -163,7 +163,7 @@ class ReferenceResolver:
         elif isinstance(item, ConfigExpression):
             run_eval = kwargs.get("eval_expr", True)
             self.resolved_content[id] = (
-                item.evaluate(locals={f"{self._vars}": self.resolved_content}) if run_eval else item
+                item.evaluate(globals={f"{self._vars}": self.resolved_content}) if run_eval else item
             )
         else:
             self.resolved_content[id] = new_config
@@ -227,7 +227,8 @@ class ReferenceResolver:
                 else:
                     raise KeyError(msg)
             if value_is_expr:
-                # replace with local code, will be used in the `evaluate` logic with `locals={"refs": ...}`
+                # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
+                # the `globals` argument of python `eval` in the `evaluate`
                 value = value.replace(item, f"{cls._vars}['{ref_id}']")
             elif value == item:
                 # the whole content is "@XXX", it will avoid the case that regular string contains "@"

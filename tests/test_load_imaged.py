@@ -26,7 +26,6 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstD, FromMetaTensord, LoadImaged, SaveImageD
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils.enums import PostFix
 from tests.utils import assert_allclose
 
 KEYS = ["image", "label", "extra"]
@@ -97,14 +96,7 @@ class TestConsistency(unittest.TestCase):
         self.assertTupleEqual(img_dict["img"].shape, ch_shape)
 
         with tempfile.TemporaryDirectory() as tempdir:
-            save_xform = Compose(
-                [
-                    FromMetaTensord(keys),
-                    SaveImageD(
-                        keys, meta_keys=PostFix.meta("img"), output_dir=tempdir, squeeze_end_dims=False, output_ext=ext
-                    ),
-                ]
-            )
+            save_xform = SaveImageD(keys, output_dir=tempdir, squeeze_end_dims=False, output_ext=ext)
             save_xform(img_dict)  # save to nifti
 
             new_xforms = Compose(

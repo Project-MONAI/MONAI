@@ -11,7 +11,7 @@
 3. [Validating the install](#validating-the-install)
 4. [MONAI version string](#monai-version-string)
 5. [From DockerHub](#from-dockerhub)
-6. [Installing the recommended dependencies](#Installing-the-recommended-dependencies)
+6. [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
 ---
 
@@ -50,7 +50,7 @@ python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 
 ## From conda-forge
 
-To install the [current milestone release](https://pypi.org/project/monai/):
+To install the [current milestone release](https://anaconda.org/conda-forge/monai):
 ```bash
 conda install -c conda-forge monai
 ```
