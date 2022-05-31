@@ -283,7 +283,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         args.update(kwargs)
         try:
             return instantiate(modname, **args)
-        except BaseException as e:
+        except Exception as e:
             raise RuntimeError(f"Failed to instantiate {self}.") from e
 
 

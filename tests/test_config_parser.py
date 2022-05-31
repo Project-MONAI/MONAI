@@ -224,7 +224,7 @@ class TestConfigParser(unittest.TestCase):
     def test_error_instance(self):
         config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
         parser = ConfigParser(config=config)
-        with self.assertWarns(Warning), self.assertRaises(RuntimeError):
+        with self.assertRaises(RuntimeError):
             parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
 
 
