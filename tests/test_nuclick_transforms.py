@@ -142,6 +142,12 @@ EXTRACT_TEST_CASE_3 = [{"keys": ["image", "label"], "patch_size": 1}, DATA_EXTRA
 EXTRACT_RESULT_TEST_CASE_1 = [{"keys": ["image", "label"], "patch_size": 3}, DATA_EXTRACT_1, EXTRACT_RESULT_TC1]
 EXTRACT_RESULT_TEST_CASE_2 = [{"keys": ["image", "label"], "patch_size": 4}, DATA_EXTRACT_2, EXTRACT_RESULT_TC2]
 
+EXTRACT_KW_TEST_CASE_1 = [
+    {"keys": ["image", "label"], "patch_size": 3, "mode": "constant"},
+    DATA_EXTRACT_1,
+    EXTRACT_RESULT_TC1,
+]
+
 SPLIT_TEST_CASE_1 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 1}, DATA_SPLIT_1, SPLIT_RESULT_TC1]
 SPLIT_TEST_CASE_2 = [{"keys": ["label"], "mask_value": "mask_value", "min_area": 3}, DATA_SPLIT_2, SPLIT_RESULT_TC2]
 
@@ -174,7 +180,7 @@ class TestExtractPatchd(unittest.TestCase):
         result = ExtractPatchd(**arguments)(input_data)
         np.testing.assert_equal(result["label"].shape, expected_shape)
 
-    @parameterized.expand([EXTRACT_RESULT_TEST_CASE_1, EXTRACT_RESULT_TEST_CASE_2])
+    @parameterized.expand([EXTRACT_RESULT_TEST_CASE_1, EXTRACT_RESULT_TEST_CASE_2, EXTRACT_KW_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = ExtractPatchd(**arguments)(input_data)
         np.testing.assert_equal(result["label"], expected_result)

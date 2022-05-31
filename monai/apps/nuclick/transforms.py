@@ -77,6 +77,7 @@ class ExtractPatchd(MapTransform):
         centroid_key: key where the centroid values are stored, defaults to ``"centroid"``
         patch_size: size of the extracted patch
         allow_missing_keys: don't raise exception if key is missing.
+        pad_kwargs: other arguments for the SpatialPad transform
     """
 
     def __init__(
