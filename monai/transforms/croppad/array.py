@@ -1157,7 +1157,7 @@ class ResizeWithPadOrCrop(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
         **kwargs,
     ):
