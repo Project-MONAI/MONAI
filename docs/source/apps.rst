@@ -126,6 +126,11 @@ Applications
 `Detection`
 -----------
 
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
+    :members:
+
 `RetinaNet`
 ~~~~~~~~~~~
 .. automodule:: monai.apps.detection.networks.retinanet_network
