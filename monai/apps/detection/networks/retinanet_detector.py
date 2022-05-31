@@ -149,8 +149,8 @@ class RetinaNetDetector(nn.Module):
             anchor_generator = monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape(
                 feature_map_scales=(1, ), base_anchor_shapes=((8,) * spatial_dims)
             )
-            network = naive_network(spatial_dims, num_classes)
-            detector = RetinaNetDetector(network, anchor_generator)
+            net = naive_network(spatial_dims, num_classes)
+            detector = RetinaNetDetector(net, anchor_generator)
 
             # only detector.network may contain trainable parameters.
             optimizer = torch.optim.SGD(
