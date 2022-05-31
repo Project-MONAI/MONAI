@@ -80,7 +80,8 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
+from .swin_unetr import SwinUNETR
+from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .unet import UNet, Unet
 from .unetr import UNETR

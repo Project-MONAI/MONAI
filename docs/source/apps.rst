@@ -122,3 +122,40 @@ Applications
     :members:
 .. autoclass:: TileOnGridd
     :members:
+
+`Detection`
+-----------
+
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
+    :members:
+
+`RetinaNet`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.retinanet_network
+    :members:
+
+`Transforms`
+~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.transforms.box_ops
+    :members:
+.. automodule:: monai.apps.detection.transforms.array
+    :members:
+.. automodule:: monai.apps.detection.transforms.dictionary
+    :members:
+
+`Anchor`
+~~~~~~~~
+.. automodule:: monai.apps.detection.utils.anchor_utils
+    :members:
+
+`Matcher`
+~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.ATSS_matcher
+    :members:
+
+`Box coder`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_coder
+    :members:
