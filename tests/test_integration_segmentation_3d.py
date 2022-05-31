@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d, decollate_batch, MetaTensor
+from monai.data import MetaTensor, create_test_image_3d, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
