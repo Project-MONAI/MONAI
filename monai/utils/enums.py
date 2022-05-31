@@ -37,6 +37,7 @@ __all__ = [
     "ForwardMode",
     "TransformBackends",
     "BoxModeName",
+    "GridPatchSort",
 ]
 
 
@@ -329,3 +330,13 @@ class BoxModeName(Enum):
     XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
     CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+
+
+class GridPatchSort(Enum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    RANDOM = "random"
+    MIN = "min"
+    MAX = "max"
