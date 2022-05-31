@@ -109,7 +109,7 @@ class NaiveNetwork(torch.nn.Module):
         return {self.cls_key: [torch.randn(out_cls_shape)], self.box_reg_key: [torch.randn(out_box_reg_shape)]}
 
 
-@SkipIfBeforePyTorchVersion((1, 9))
+@SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestRetinaNetDetector(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
