@@ -241,13 +241,13 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                     elif isinstance(offset_limits[0], tuple):
                         self.offset_limits = offset_limits
                     else:
-                        ValueError(
+                        raise ValueError(
                             "The offset limits should be either a tuple of integers or tuple of tuple of integers."
                         )
                 else:
-                    ValueError("The offset limits should be a tuple.")
+                    raise ValueError("The offset limits should be a tuple.")
             else:
-                ValueError(
+                raise ValueError(
                     f'Invalid string for offset "{offset}". It should be either "random" as a string,'
                     "an integer, or a tuple of integers defining the offset."
                 )
@@ -275,7 +275,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         """Calculate the location for each patch in a sliding-window manner"""
         patch_size = self._get_size(sample)
         level = self._get_level(sample)
-        start_pos = self._get_offset(sample)
+        offset = self._get_offset(sample)
 
         wsi_obj = self._get_wsi_object(sample)
         wsi_size = self.wsi_reader.get_size(wsi_obj, 0)
@@ -283,7 +283,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
         locations = list(
             iter_patch_position(
-                image_size=wsi_size, patch_size=patch_size_, start_pos=start_pos, overlap=self.overlap, padded=False
+                image_size=wsi_size, patch_size=patch_size_, start_pos=offset, overlap=self.overlap, padded=False
             )
         )
         n_patches = len(locations)
