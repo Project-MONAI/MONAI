@@ -52,7 +52,7 @@ class PatchWSIDataset(Dataset):
 
             [
                 {"image": "path/to/image1.tiff", "patch_location": [200, 500], "label": 0},
-                {"image": "path/to/image2.tiff", "patch_location": [100, 700], "patch_size": [20, 20], "level_size": 2, "label": 1}
+                {"image": "path/to/image2.tiff", "patch_location": [100, 700], "patch_size": [20, 20], "patch_level": 2, "label": 1}
             ]
 
     """
