@@ -695,7 +695,7 @@ class CropForeground(Transform):
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
-        **kwargs,
+        **pad_kwargs,
     ) -> None:
         """
         Args:
@@ -715,7 +715,7 @@ class CropForeground(Transform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
@@ -726,7 +726,7 @@ class CropForeground(Transform):
         self.return_coords = return_coords
         self.k_divisible = k_divisible
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.kwargs = kwargs
+        self.pad_kwargs = pad_kwargs
 
     def compute_bounding_box(self, img: NdarrayOrTensor):
         """
@@ -762,7 +762,7 @@ class CropForeground(Transform):
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.kwargs)(cropped)
+        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.pad_kwargs)(cropped)
 
     def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None):
         """
@@ -1147,7 +1147,7 @@ class ResizeWithPadOrCrop(Transform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
     """
@@ -1159,9 +1159,9 @@ class ResizeWithPadOrCrop(Transform):
         spatial_size: Union[Sequence[int], int],
         mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
-        **kwargs,
+        **pad_kwargs,
     ):
-        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **kwargs)
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
     def __call__(

@@ -839,7 +839,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
-        **kwargs,
+        **pad_kwargs,
     ) -> None:
         """
         Args:
@@ -865,7 +865,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
-            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
@@ -879,7 +879,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             margin=margin,
             allow_smaller=allow_smaller,
             k_divisible=k_divisible,
-            **kwargs,
+            **pad_kwargs,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
@@ -1424,7 +1424,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
     """
@@ -1438,11 +1438,11 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         mode: PadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: Union[Method, str] = Method.SYMMETRIC,
-        **kwargs,
+        **pad_kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **kwargs)
+        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
