@@ -2773,6 +2773,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
 
         self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
 
-    def __call__(self, array: NdarrayOrTensor):
-        self.randomize(array)
+    def __call__(self, array: NdarrayOrTensor, randomize: bool = True):
+        if randomize:
+            self.randomize(array)
         return super().__call__(array)
