@@ -7,7 +7,7 @@ itk>=5.2
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
 tensorboard
-scikit-image>=0.14.2
+scikit-image>=0.19.0
 tqdm>=4.47.0
 lmdb
 flake8>=3.8.1
