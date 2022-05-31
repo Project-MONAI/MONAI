@@ -18,9 +18,7 @@ from parameterized import parameterized
 from monai.transforms import RandCropByPosNegLabel
 from tests.utils import TEST_NDARRAYS
 
-TESTS = []
-TESTS.append(
-    [
+TESTS = [[
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [2, 2, -1],
@@ -32,10 +30,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 3),
-    ]
-)
-TESTS.append(
-    [
+    ], [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [2, 2, 2],
@@ -47,10 +42,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
-    [
+    ], [
         {
             "label": None,
             "spatial_size": [2, 2, 2],
@@ -66,10 +58,7 @@ TESTS.append(
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         },
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
-    [
+    ], [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [4, 4, 2],
@@ -81,10 +70,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 2),
-    ]
-)
-TESTS.append(
-    [
+    ], [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "spatial_size": [4, 4, 4],
@@ -96,8 +82,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 3),
-    ]
-)
+    ]]
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):

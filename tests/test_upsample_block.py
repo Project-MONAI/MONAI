@@ -75,9 +75,8 @@ for s in range(1, 5):
     for t in UpsampleMode:
         test_case = [
             {"dimensions": 3, "in_channels": 3, "out_channels": 5, "mode": t, "scale_factor": s, "align_corners": True},
-            (16, 3, 4, 5, 6),
+            (16, 3, 4, 5, 6),expected_shape
         ]
-        test_case.append(expected_shape)
         TEST_CASES_EQ.append(test_case)
 
 
