@@ -155,7 +155,7 @@ class RetinaNetDetector(nn.Module):
             # only detector.network may contain trainable parameters.
             optimizer = torch.optim.SGD(
                 detector.network.parameters(),
-                args.lr,
+                1e-3,
                 momentum=0.9,
                 weight_decay=3e-5,
                 nesterov=True,
