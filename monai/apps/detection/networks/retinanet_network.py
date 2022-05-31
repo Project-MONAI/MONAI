@@ -66,7 +66,7 @@ class RetinaNetClassificationHead(nn.Module):
         self.num_classes = num_classes
         self.num_anchors = num_anchors
 
-    def forward(self, x: Union[List[Tensor], Tensor]) -> List[Tensor]:
+    def forward(self, x: List[Tensor]) -> List[Tensor]:
         """
         It takes a list of feature maps as inputs, and outputs a list of classification maps.
         Each output classification map has same spatial size with the corresponding input feature map,
@@ -135,7 +135,7 @@ class RetinaNetRegressionHead(nn.Module):
                 torch.nn.init.normal_(layer.weight, std=0.01)  # type: ignore
                 torch.nn.init.zeros_(layer.bias)  # type: ignore
 
-    def forward(self, x: Union[List[Tensor], Tensor]) -> List[Tensor]:
+    def forward(self, x: List[Tensor]) -> List[Tensor]:
         """
         It takes a list of feature maps as inputs, and outputs a list of box regression maps.
         Each output box regression map has same spatial size with the corresponding input feature map,

@@ -139,26 +139,37 @@ class TestRetinaNet(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES_TS)
     def test_script(self, model, input_param, input_shape):
+        try:
+            idx = int(self.id().split("test_script_")[-1])
+        except BaseException:
+            idx = 0
+        idx %= 3
+        print(idx)
         # test whether support torchscript
-        data = torch.randn(input_shape).to(device)
-        backbone = model(**input_param).to(device)
-        test_script_save(backbone, data)
+        data = torch.randn(input_shape)
+        backbone = model(**input_param)
+        if idx == 0:
+            test_script_save(backbone, data)
+            return
         feature_extractor = resnet_fpn_feature_extractor(
             backbone=backbone,
             spatial_dims=input_param["spatial_dims"],
             pretrained_backbone=input_param["pretrained"],
             trainable_backbone_layers=None,
             returned_layers=[1, 2],
-        ).to(device)
-        test_script_save(feature_extractor, data)
+        )
+        if idx == 1:
+            test_script_save(feature_extractor, data)
+            return
         net = RetinaNet(
             spatial_dims=input_param["spatial_dims"],
             num_classes=input_param["num_classes"],
             num_anchors=num_anchors,
             feature_extractor=feature_extractor,
             size_divisible=32,
-        ).to(device)
-        test_script_save(net, data)
+        )
+        if idx == 2:
+            test_script_save(net, data)
 
 
 if __name__ == "__main__":
