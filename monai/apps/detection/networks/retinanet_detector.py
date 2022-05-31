@@ -133,14 +133,15 @@ class RetinaNetDetector(nn.Module):
                     super().__init__()
                     self.spatial_dims = spatial_dims
                     self.num_classes = num_classes
-                    self.size_divisible = 1
+                    self.size_divisible = 2
                     self.cls_key = "cls"
                     self.box_reg_key = "box_reg"
                     self.num_anchors = 1
                 def forward(self, images: torch.Tensor):
                     spatial_size = images.shape[-self.spatial_dims:]
-                    out_cls_shape = (images.shape[0],self.num_classes*self.num_anchors) + spatial_size
-                    out_box_reg_shape = (images.shape[0],2*self.spatial_dims*self.num_anchors) + spatial_size
+                    out_spatial_size = tuple(s//self.size_divisible for s in spatial_size)  # half size of input
+                    out_cls_shape = (images.shape[0],self.num_classes*self.num_anchors) + out_spatial_size
+                    out_box_reg_shape = (images.shape[0],2*self.spatial_dims*self.num_anchors) + out_spatial_size
                     return {self.cls_key: [torch.randn(out_cls_shape)], self.box_reg_key: [torch.randn(out_box_reg_shape)]}
 
             # define RetinaNetDetector
