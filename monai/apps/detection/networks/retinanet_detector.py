@@ -175,11 +175,14 @@ class RetinaNetDetector(nn.Module):
     ):
         super().__init__()
 
-        if not all(hasattr(network, attr) for attr in [
-            'spatial_dims', 'num_classes', 'cls_key', 'box_reg_key', 'num_anchors', 'size_divisible'
-        ]):
-            raise AttributeError("network should have attributes, including: "
-                "'spatial_dims', 'num_classes', 'cls_key', 'box_reg_key', 'num_anchors', 'size_divisible'.")
+        if not all(
+            hasattr(network, attr)
+            for attr in ["spatial_dims", "num_classes", "cls_key", "box_reg_key", "num_anchors", "size_divisible"]
+        ):
+            raise AttributeError(
+                "network should have attributes, including: "
+                "'spatial_dims', 'num_classes', 'cls_key', 'box_reg_key', 'num_anchors', 'size_divisible'."
+            )
 
         self.network = network
         self.spatial_dims = self.network.spatial_dims
