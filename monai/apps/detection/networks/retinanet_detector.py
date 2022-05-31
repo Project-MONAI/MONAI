@@ -150,7 +150,6 @@ class RetinaNetDetector(nn.Module):
             )
             network = naive_network(spatial_dims, num_classes)
             detector = RetinaNetDetector(network, anchor_generator)
-            )
     """
 
     def __init__(

@@ -92,7 +92,7 @@ TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_A]
 TEST_CASES_TS = [TEST_CASE_1]
 
 
-class naive_network(torch.nn.Module):
+class NaiveNetwork(torch.nn.Module):
     def __init__(self, spatial_dims, num_classes, **kwargs):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -137,7 +137,7 @@ class TestRetinaNetDetector(unittest.TestCase):
         anchor_generator = AnchorGeneratorWithAnchorShape(
             feature_map_scales=(1,), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
         )
-        detector = RetinaNetDetector(network=naive_network(**input_param), anchor_generator=anchor_generator).to(device)
+        detector = RetinaNetDetector(network=NaiveNetwork(**input_param), anchor_generator=anchor_generator).to(device)
 
         with eval_mode(detector):
             input_data = torch.randn(input_shape).to(device)
