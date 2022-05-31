@@ -595,7 +595,9 @@ class RetinaNetDetector(nn.Module):
             - head_outputs_reshape, reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
               sized (B, sum(HW(D)A), self.num_classes). ``head_output_reshape[self.box_reg_key]`` is a Tensor
               sized (B, sum(HW(D)A), 2*self.spatial_dims).
-            - generated anchors
+            - generated anchors, a list of Tensor. Each Tensor represents anchors for each image,
+              sized (sum(HWA), 2*spatial_dims) or (sum(HWDA), 2*spatial_dims).
+              A = self.num_anchors_per_loc.
             - number of anchor locations per output level, a list of HW or HWD for each level
         """
         anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
