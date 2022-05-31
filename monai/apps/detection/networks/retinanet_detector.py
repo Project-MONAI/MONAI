@@ -76,6 +76,7 @@ class RetinaNetDetector(nn.Module):
 
     The model returns a Dict[Tensor] during training, containing the classification and regression
     losses.
+    When save the model, only self.network contains trainable parameters and needs to be saved.
 
     During inference, the model requires only the input tensors, and returns the post-processed
     predictions as a List[Dict[Tensor]], one for each input image. The fields of the Dict are as
@@ -150,6 +151,17 @@ class RetinaNetDetector(nn.Module):
             )
             network = naive_network(spatial_dims, num_classes)
             detector = RetinaNetDetector(network, anchor_generator)
+
+            # only detector.network may contain trainable parameters.
+            optimizer = torch.optim.SGD(
+                detector.network.parameters(),
+                args.lr,
+                momentum=0.9,
+                weight_decay=3e-5,
+                nesterov=True,
+            )
+            torch.save(detector.network.state_dict(), 'model.pt')
+            detector.network.load_state_dict(torch.load('model.pt'))
     """
 
     def __init__(
