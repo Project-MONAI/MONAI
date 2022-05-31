@@ -16,16 +16,22 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import numpy as np
 from typing import Sequence, Optional, Union, Any
 from monai.transforms.transform import Transform
+from monai.transforms import RandomizableTransform
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
 
 zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
 resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
 fft, has_resample_fft = optional_import("scipy.signal", name="resample")
-shift, has_shift = optional_import("scipy.ndimage.interpolation.shift", name="shift")
+shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 
+assert has_zoom
+assert has_resample_poly
+assert has_resample_poly
+assert has_resample_fft
+assert has_shift
 
-__all__ = ["SignalResample"]
+__all__ = ["SignalResample","SignalRandShift"]
 
 
 class SignalResample(Transform):
@@ -78,46 +84,53 @@ class SignalResample(Transform):
 
         return signal
 
-
-class SignalRandShift(Transform):
+class SignalRandShift(RandomizableTransform):
     """
     Apply a random shift on a signal
     """
     backend = [TransformBackends.NUMPY]
-    
+        
     def __init__(
         self, 
-        magnitude: Sequence[float]= [-1.0,1.0], 
         mode: str='wrap',
         filling: Optional[Union[np.ndarray,Any]] = 0.0,
-        v: float = 1.0
+        v: float = 1.0, 
+        boundaries: Optional[Union[np.ndarray,Any]] = [-1.0,1,0],
+        *args, 
+        **kwargs
     ) -> None:
+        super(SignalRandShift,self).__init__()
         """
         Args:
-            magnitude: magnitude of the signal shift, taken randomly in the defined range. Defaults to ``[-1.0, 1.0]``
+            mode: define how the extension of the input array is done beyond its boundaries, see for more details for possible values
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
             filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details
             https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
-            mode: define how the extension of the input array is done beyond its boundaries, see for more details 
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
             v: scaling factor
+            boundaries: range of the signal shift, taken randomly in the defined range. Defaults to ``[-1.0, 1.0]``
         """    
-        self.magnitude = magnitude
+        
         self.filling = filling
         self.mode = mode
         self.v = v
+        self.boundaries = boundaries
+        
+    def randomize(self):
+        super().randomize(None)
+        self.magnitude = self.R.uniform(low=self.boundaries[0],high=self.boundaries[1])
         
     def __call__(self, signal: np.ndarray) -> np.ndarray:
         """
         Args:
             signal: input 1 dimension signal to be resampled
         """
+        self.randomize()
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)  
         length = signal.shape[1]
-        factor = self.v * np.random.uniform(low=self.magnitude[0],
-                                    high=self.magnitude[1])
+        factor = self.v * self.magnitude
         shift_idx = round(factor * length)
-        inputs = shift(input=inputs,
+        signal = shift(input=signal,
                        mode=self.mode,
                        shift=shift_idx, 
                        cval=self.filling)
