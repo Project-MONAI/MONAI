@@ -13,7 +13,6 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor

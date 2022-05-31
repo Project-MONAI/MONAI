@@ -11,9 +11,7 @@
 
 import unittest
 
-import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground

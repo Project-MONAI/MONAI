@@ -10,13 +10,12 @@
 # limitations under the License.
 
 import unittest
-from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import Compose, RandSpatialCropSamplesd, ToTensord
+from monai.transforms import RandSpatialCropSamplesd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = [
