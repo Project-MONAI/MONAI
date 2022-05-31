@@ -25,12 +25,13 @@ from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.data.utils import get_random_patch, get_valid_patch_size, to_affine_nd
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
+    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -106,6 +107,20 @@ class PadBase(InvertibleTransform):
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
+    def _forward_meta(self, out, img, to_pad):
+        if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
+            return out
+        meta_dict = dict(img.meta)
+        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
+        mat = create_translate(spatial_rank, to_shift)
+        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
+        out.meta = meta_dict
+        out.meta["affine"] = src_affine @ mat
+        out.meta["original_affine"] = src_affine
+        out.meta["spatial_shape"] = out.shape[1:]
+        return out
+
     def __call__(
         self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> torch.Tensor:
@@ -137,6 +152,7 @@ class PadBase(InvertibleTransform):
                 out = torch.as_tensor(self._np_pad(img_np, to_pad, mode, **self.kwargs))
                 if get_track_meta():
                     out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)  # type: ignore
+        out = self._forward_meta(out, img, to_pad)
         if isinstance(img, MetaTensor):
             self.push_transform(out, extra_info={"padded": to_pad})
         return out
