@@ -830,7 +830,7 @@ def retinanet_resnet50_fpn_detector(
         progress: If True, displays a progress bar of the download to stderr
 
     Return:
-        A RetinaNetDetector object with 3D resnet50 as backbone
+        A RetinaNetDetector object with resnet50 as backbone
     """
 
     backbone = resnet.resnet50(pretrained, progress, **kwargs)
