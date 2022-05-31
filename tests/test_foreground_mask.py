@@ -47,6 +47,8 @@ TEST_CASE_11 = [{"threshold": None, "hsv_threshold": "otsu"}, IMAGE1, np.ones_li
 TEST_CASE_12 = [{"threshold": None, "hsv_threshold": {"S": "otsu"}}, IMAGE1, MASK]
 TEST_CASE_13 = [{"threshold": 100, "invert": True}, IMAGE1, np.logical_not(MASK)]
 TEST_CASE_14 = [{}, IMAGE3D, MASK3D]
+TEST_CASE_15 = [{"hsv_threshold": {"S": 0.1}}, IMAGE3D, MASK3D]
+
 TEST_CASE_ERROR_1 = [{"threshold": None}, IMAGE1]
 TEST_CASE_ERROR_2 = [{"threshold": {"K": 1}}, IMAGE1]
 
@@ -67,6 +69,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, *TEST_CASE_12])
     TESTS.append([p, *TEST_CASE_13])
     TESTS.append([p, *TEST_CASE_14])
+    TESTS.append([p, *TEST_CASE_15])
 
 TESTS_ERROR = []
 for p in TEST_NDARRAYS:
