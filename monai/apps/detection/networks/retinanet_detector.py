@@ -160,8 +160,8 @@ class RetinaNetDetector(nn.Module):
                 weight_decay=3e-5,
                 nesterov=True,
             )
-            torch.save(detector.network.state_dict(), 'model.pt')
-            detector.network.load_state_dict(torch.load('model.pt'))
+            torch.save(detector.network.state_dict(), 'model.pt')  # save model
+            detector.network.load_state_dict(torch.load('model.pt'))  # load model
     """
 
     def __init__(
