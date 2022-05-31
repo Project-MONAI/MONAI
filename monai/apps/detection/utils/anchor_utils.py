@@ -234,7 +234,8 @@ class AnchorGenerator(nn.Module):
         """
         anchors = []
         cell_anchors = self.cell_anchors
-        assert cell_anchors is not None
+        if cell_anchors is None:
+            raise AssertionError
 
         if not (len(grid_sizes) == len(strides) == len(cell_anchors)):
             raise ValueError(
