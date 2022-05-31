@@ -23,17 +23,22 @@ from tests.utils import test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
-TEST_CASES = [[
+TEST_CASES = [
+    [
         {"spatial_dims": 3, "in_channels_list": [32, 64], "out_channels": 6},
         ((7, 32, 16, 32, 64), (7, 64, 8, 16, 32)),
         ((7, 6, 16, 32, 64), (7, 6, 8, 16, 32)),
-    ], [
+    ],
+    [
         {"spatial_dims": 2, "in_channels_list": [32, 64], "out_channels": 6},
         ((7, 32, 16, 32), (7, 64, 8, 16)),
         ((7, 6, 16, 32), (7, 6, 8, 16)),
-    ]]
+    ],
+]
 
-TEST_CASES2 = [[{"spatial_dims": 3, "returned_layers": [1]}, (7, 3, 32, 64, 32), ((7, 256, 16, 32, 16), (7, 256, 8, 16, 8))]]
+TEST_CASES2 = [
+    [{"spatial_dims": 3, "returned_layers": [1]}, (7, 3, 32, 64, 32), ((7, 256, 16, 32, 16), (7, 256, 8, 16, 8))]
+]
 
 
 class TestFPNBlock(unittest.TestCase):
