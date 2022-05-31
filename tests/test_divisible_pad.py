@@ -11,15 +11,11 @@
 
 import unittest
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import DivisiblePad
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.padders import PadTest
-from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 
@@ -31,6 +27,7 @@ TESTS.append([{"k": 5, "method": "end"}, (3, 10, 5, 17), (3, 10, 5, 20)])
 
 class TestDivisiblePad(PadTest):
     Padder = DivisiblePad
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT]
@@ -40,6 +37,7 @@ class TestDivisiblePad(PadTest):
         kwargs = {"k": 5, "method": "end"}
         unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

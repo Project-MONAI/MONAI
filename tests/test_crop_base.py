@@ -59,7 +59,6 @@ TESTS = [
 ]
 
 
-
 class TestCropBase(unittest.TestCase):
     @parameterized.expand(TEST_ERRORS)
     def test_error(self, input_param):
@@ -78,8 +77,6 @@ class TestCropBase(unittest.TestCase):
                             roi_params_mod[k] = param_type(roi_params[k])
         slices = CropBase.calculate_slices(**roi_params)
         self.assertEqual(slices, expected_slices)
-
-
 
 
 if __name__ == "__main__":

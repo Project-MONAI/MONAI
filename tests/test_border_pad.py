@@ -20,21 +20,14 @@ from tests.padders import PadTest
 TESTS = [
     [{"spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
     [{"spatial_border": [1, 2, 3]}, (3, 8, 8, 4), (3, 10, 12, 10)],
-    [
-        {"spatial_border": [1, 2, 3, 4, 5, 6]},
-        (3, 8, 8, 4),
-        (3, 11, 15, 15),
-    ],
-    [
-        {"spatial_border": [1, 2, 3, 4, 5, 6]},
-        (3, 8, 8, 4),
-        (3, 11, 15, 15),
-    ],
+    [{"spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
+    [{"spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
 ]
 
 
 class TestBorderPad(PadTest):
     Padder = BorderPad
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT]
@@ -42,8 +35,9 @@ class TestBorderPad(PadTest):
 
     def test_pad_kwargs(self):
         kwargs = {"spatial_border": 2, "mode": "constant"}
-        unchanged_slices = [slice(None), slice(2,-2), slice(2, -2)]
+        unchanged_slices = [slice(None), slice(2, -2), slice(2, -2)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

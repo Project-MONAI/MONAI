@@ -43,6 +43,7 @@ TEST_CASES = [
 
 class TestCenterSpatialCropd(CropTest):
     Cropper = CenterSpatialCropd
+
     @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape, same_area):
         self.crop_test(input_param, input_shape, expected_shape, same_area)

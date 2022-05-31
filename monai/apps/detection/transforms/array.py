@@ -32,7 +32,14 @@ from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-from .box_ops import apply_affine_to_boxes, flip_boxes, resize_boxes, zoom_boxes
+from .box_ops import (
+    apply_affine_to_boxes,
+    convert_box_to_mask,
+    convert_mask_to_box,
+    flip_boxes,
+    resize_boxes,
+    zoom_boxes,
+)
 
 __all__ = [
     "ConvertBoxToStandardMode",
@@ -42,6 +49,8 @@ __all__ = [
     "ResizeBox",
     "FlipBox",
     "ClipBoxToImage",
+    "BoxToMask",
+    "MaskToBox",
 ]
 
 
@@ -373,3 +382,73 @@ class ClipBoxToImage(Transform):
             labels_t = deepcopy(labels_t[keep_t, ...])
             labels_clip_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
         return boxes_clip, tuple(labels_clip_list)
+
+
+class BoxToMask(Transform):
+    """
+    Convert box to int16 mask image, which has the same size with the input image.
+
+    Args:
+        bg_label: background labels for the output mask image, make sure it is smaller than any foreground(fg) labels.
+        ellipse_mask: bool.
+
+            - If True, it assumes the object shape is close to ellipse or ellipsoid.
+            - If False, it assumes the object shape is close to rectangle or cube and well occupies the bounding box.
+            - If the users are going to apply random rotation as data augmentation, we suggest setting ellipse_mask=True
+              See also Kalra et al. "Towards Rotation Invariance in Object Detection", ICCV 2021.
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, bg_label: int = -1, ellipse_mask: bool = False) -> None:
+        self.bg_label = bg_label
+        self.ellipse_mask = ellipse_mask
+
+    def __call__(  # type: ignore
+        self, boxes: NdarrayOrTensor, labels: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
+    ) -> NdarrayOrTensor:
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+            labels: classification foreground(fg) labels corresponding to `boxes`, dtype should be int, sized (N,).
+            spatial_size: image spatial size.
+
+        Return:
+            - int16 array, sized (num_box, H, W). Each channel represents a box.
+                The foreground region in channel c has intensity of labels[c].
+                The background intensity is bg_label.
+        """
+        return convert_box_to_mask(boxes, labels, spatial_size, self.bg_label, self.ellipse_mask)
+
+
+class MaskToBox(Transform):
+    """
+    Convert int16 mask image to box, which has the same size with the input image.
+    Pairs with :py:class:`monai.apps.detection.transforms.array.BoxToMask`.
+    Please make sure the same ``min_fg_label`` is used when using the two transforms in pairs.
+
+    Args:
+        bg_label: background labels for the output mask image, make sure it is smaller than any foreground(fg) labels.
+        box_dtype: output dtype for boxes
+        label_dtype: output dtype for labels
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, bg_label: int = -1, box_dtype=torch.float32, label_dtype=torch.long) -> None:
+        self.bg_label = bg_label
+        self.box_dtype = box_dtype
+        self.label_dtype = label_dtype
+
+    def __call__(self, boxes_mask: NdarrayOrTensor) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+        """
+        Args:
+            boxes_mask: int16 array, sized (num_box, H, W). Each channel represents a box.
+                The foreground region in channel c has intensity of labels[c].
+                The background intensity is bg_label.
+
+        Return:
+            - bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``.
+            - classification foreground(fg) labels, dtype should be int, sized (N,).
+        """
+        return convert_mask_to_box(boxes_mask, self.bg_label, self.box_dtype, self.label_dtype)

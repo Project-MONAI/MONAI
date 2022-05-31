@@ -25,7 +25,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated_arg, ensure_tuple_rep
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, deprecated_arg
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -129,12 +129,6 @@ class SaveImaged(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
-        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-            For example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            The metadata is a dictionary contains values such as filename, original_shape.
-            This argument can be a sequence of string, map to the `keys`.
-            If `None`, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if `meta_keys` is `None`, use `key_{meta_key_postfix}` to retrieve the metadict.
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
@@ -189,6 +183,8 @@ class SaveImaged(MapTransform):
 
     """
 
+    @deprecated_arg(name="meta_keys", since="0.8", msg_suffix="Use MetaTensor input")
+    @deprecated_arg(name="meta_key_postfix", since="0.8", msg_suffix="Use MetaTensor input")
     def __init__(
         self,
         keys: KeysCollection,
@@ -212,8 +208,6 @@ class SaveImaged(MapTransform):
         writer: Union[image_writer.ImageWriter, str, None] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.saver = SaveImage(
             output_dir=output_dir,
             output_postfix=output_postfix,
@@ -237,11 +231,8 @@ class SaveImaged(MapTransform):
 
     def __call__(self, data):
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            if meta_key is None and meta_key_postfix is not None:
-                meta_key = f"{key}_{meta_key_postfix}"
-            meta_data = d[meta_key] if meta_key is not None else None
-            self.saver(img=d[key], meta_data=meta_data)
+        for key in self.key_iterator(d):
+            self.saver(img=d[key])
         return d
 
 

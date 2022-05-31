@@ -17,31 +17,16 @@ from monai.transforms import SpatialPadd
 from tests.padders import PadTest
 
 TESTS = [
-    [
-        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"},
-        (3, 8, 8, 4),
-        (3, 15, 8, 8),
-    ],
-    [
-        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"},
-        (3, 8, 8, 4),
-        (3, 15, 8, 8),
-    ],
-    [
-        {"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"},
-        (3, 8, 8, 4),
-        (3, 15, 8, 8),
-    ],
-    [
-        {"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"},
-        (3, 8, 4, 4),
-        (3, 15, 8, 4),
-    ],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"}, (3, 8, 8, 4), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 4), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 4), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"}, (3, 8, 4, 4), (3, 15, 8, 4)],
 ]
 
 
 class TestSpatialPadd(PadTest):
     Padder = SpatialPadd
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", {"constant"}]

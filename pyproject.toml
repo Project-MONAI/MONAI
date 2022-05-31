@@ -30,3 +30,7 @@ exclude = '''
   | monai/_version.py
 )
 '''
+
+[tool.pycln]
+all = true
+exclude = "monai/bundle/__main__.py"

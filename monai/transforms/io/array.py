@@ -20,7 +20,7 @@ import traceback
 import warnings
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -386,12 +386,13 @@ class SaveImage(Transform):
         if write_kwargs is not None:
             self.write_kwargs.update(write_kwargs)
 
-    def __call__(self, img: Union[torch.Tensor, np.ndarray], meta_data: Optional[Dict] = None):
+    def __call__(self, img: Union[torch.Tensor, np.ndarray]):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
             meta_data: key-value pairs of metadata corresponding to the data.
         """
+        meta_data = img.meta if isinstance(img, MetaTensor) else None
         subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
         filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)

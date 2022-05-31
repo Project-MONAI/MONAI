@@ -23,6 +23,7 @@ TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric"}, (3, 8, 8, 4)
 
 class TestSpatialPad(PadTest):
     Padder = SpatialPad
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         self.pad_test(input_param, input_shape, expected_shape)
@@ -31,6 +32,7 @@ class TestSpatialPad(PadTest):
         kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
         unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

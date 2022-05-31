@@ -19,11 +19,12 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
+from ignite.engine import Events
 from ignite.metrics import Accuracy
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d
+from monai.data import MetaTensor, create_test_image_3d, decollate_batch
 from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
@@ -47,8 +48,10 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImage,
     SaveImaged,
     ScaleIntensityd,
+    ToMetaTensord,
     ToTensord,
 )
 from monai.utils import set_determinism
@@ -251,15 +254,23 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(
-                keys="pred", meta_keys=PostFix.meta("image"), output_dir=root_dir, output_postfix="seg_transform"
-            ),
+            ToMetaTensord(keys="pred", meta_keys="image"),
+            SaveImaged(keys="pred", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
     val_handlers = [
         StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
     ]
+
+    saver = SaveImage(output_dir=root_dir, output_postfix="seg_handler")
+
+    def save_func(engine):
+        meta_data = from_engine(PostFix.meta("image"))(engine.state.batch)
+        if isinstance(meta_data, dict):
+            meta_data = decollate_batch(meta_data)
+        for m, o in zip(meta_data, from_engine("pred")(engine.state.output)):
+            saver(MetaTensor(o, meta=m))
 
     evaluator = SupervisedEvaluator(
         device=device,
@@ -274,6 +285,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         val_handlers=val_handlers,
         amp=bool(amp),
     )
+    evaluator.add_event_handler(Events.ITERATION_COMPLETED, save_func)
     evaluator.run()
 
     return evaluator.state.best_metric

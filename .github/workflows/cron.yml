@@ -205,7 +205,7 @@ jobs:
 
   cron-tutorial-notebooks:
     if: github.repository == 'Project-MONAI/MONAI'
-    needs: cron-gpu  # so that monai itself is verified first
+    # needs: cron-gpu  # so that monai itself is verified first
     container:
       image: nvcr.io/nvidia/pytorch:22.04-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"

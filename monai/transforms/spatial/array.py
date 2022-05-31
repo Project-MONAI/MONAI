@@ -786,26 +786,28 @@ class Resize(Transform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if self.size_mode == "all":
-            input_ndim = img_.ndim - 1  # spatial ndim
+            input_ndim = img.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img_.shape, output_ndim + 1, 1)
-                img_ = img_.reshape(input_shape)
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img_.shape[1:])
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
         else:  # for the "longest" mode
-            img_size = img_.shape[1:]
+            img_size = img.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
+        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
+            return img
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
             if anti_aliasing_sigma is None:

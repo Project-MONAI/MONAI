@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from itertools import chain
 from math import ceil
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -25,12 +25,13 @@ from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.data.utils import get_random_patch, get_valid_patch_size, to_affine_nd
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
+    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -39,7 +40,6 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import (
     Method,
     NumpyPadMode,
@@ -50,7 +50,7 @@ from monai.utils import (
     look_up_option,
 )
 from monai.utils.enums import TraceKeys, TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "PadBase",
@@ -107,6 +107,20 @@ class PadBase(InvertibleTransform):
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
+    def _forward_meta(self, out, img, to_pad):
+        if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
+            return out
+        meta_dict = dict(img.meta)
+        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
+        mat = create_translate(spatial_rank, to_shift)
+        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
+        out.meta = meta_dict
+        out.meta["affine"] = src_affine @ mat
+        out.meta["original_affine"] = src_affine
+        out.meta["spatial_shape"] = out.shape[1:]
+        return out
+
     def __call__(
         self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
     ) -> torch.Tensor:
@@ -138,6 +152,7 @@ class PadBase(InvertibleTransform):
                 out = torch.as_tensor(self._np_pad(img_np, to_pad, mode, **self.kwargs))
                 if get_track_meta():
                     out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)  # type: ignore
+        out = self._forward_meta(out, img, to_pad)
         if isinstance(img, MetaTensor):
             self.push_transform(out, extra_info={"padded": to_pad})
         return out
@@ -428,8 +443,7 @@ class CropBase(InvertibleTransform):
 
     @staticmethod
     def calculate_slices_from_center_and_size(
-        roi_center: Union[Sequence[int], NdarrayOrTensor],
-        roi_size: Union[Sequence[int], NdarrayOrTensor],
+        roi_center: Union[Sequence[int], NdarrayOrTensor], roi_size: Union[Sequence[int], NdarrayOrTensor]
     ) -> List[slice]:
         roi_slices = []
         for c, s in zip(roi_center, roi_size):
@@ -482,19 +496,33 @@ class CropBase(InvertibleTransform):
         # else:
         #     return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
+    def _forward_meta(self, out, img, slices):
+        if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
+            return out
+        meta_dict = dict(img.meta)
+        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]  # skipping the channel pad
+        mat = create_translate(spatial_rank, to_shift)
+        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
+        out.meta = meta_dict
+        out.meta["affine"] = src_affine @ mat
+        out.meta["original_affine"] = src_affine
+        out.meta["spatial_shape"] = out.shape[1:]
+        return out
+
     def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
         sd = len(img.shape[1:])  # spatial dims
         # if too many spatial dimension, take only the first ones necessary
-        if len(slices) > sd:
-            slices = slices[:sd]
-        elif len(slices) < sd:
-            slices = slices + [slice(None)] * (sd - len(slices))
+        slices = list(slices)
+        if len(slices) < sd:
+            slices += [slice(None)] * (sd - len(slices))
         # Add in the channel (no cropping)
-        slices = [slice(None)] + slices
+        slices = [slice(None)] + slices[:sd]
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         orig_size = img.shape[1:]
         out = img[tuple(slices)]
+        out = self._forward_meta(out, img, slices)
         if isinstance(out, MetaTensor):
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - out.shape[1:] - cropped_from_start
@@ -510,7 +538,6 @@ class CropBase(InvertibleTransform):
         # Apply inverse transform
         with inverse_transform.trace_transform(False):
             return inverse_transform(img)
-
 
 
 class SpatialCrop(CropBase):
@@ -548,7 +575,6 @@ class SpatialCrop(CropBase):
             roi_slices: list of slices for each of the spatial dimensions.
         """
         self.slices = self.calculate_slices(roi_center, roi_size, roi_start, roi_end, roi_slices)
-
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -982,7 +1008,8 @@ class RandWeightedCrop(Randomizable, CropBase):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:  # type: ignore
+    # type: ignore
+    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -1352,6 +1379,7 @@ class ResizeWithPadOrCrop(Transform):
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         out = self.padder.inverse(img)
         return self.cropper.inverse(out)
+
 
 class BoundingRect(Transform):
     """

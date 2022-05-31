@@ -16,13 +16,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from copy import deepcopy
-from typing import Dict, Hashable, Mapping
+from typing import Dict, Hashable, Mapping, Optional
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import PostFix, TransformBackends
+from monai.utils.misc import ensure_tuple_rep
 
 __all__ = [
     "FromMetaTensord",
@@ -78,13 +79,24 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
+    def __init__(self, keys: KeysCollection, meta_keys: Optional[KeysCollection] = None) -> None:
+        """
+        Args:
+            keys: keys to be converted to MetaTensor.
+            meta_keys: keys to fetch `PostFix.meta` and `PostFix.transforms` from.
+        """
+        super().__init__(keys=keys)
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        for key, meta_key in zip(self.keys, self.meta_keys):
             self.push_transform(d, key)
             im = d[key]
-            meta = d.pop(PostFix.meta(key), None)
-            transforms = d.pop(PostFix.transforms(key), None)
+            meta_dict_key = PostFix.meta(meta_key if meta_key is not None else key)  # type: ignore
+            meta = d.pop(meta_dict_key, None)
+            meta_transforms_key = PostFix.transforms(meta_key if meta_key is not None else key)  # type: ignore
+            transforms = d.pop(meta_transforms_key, None)
             im = MetaTensor(im, meta=meta, applied_operations=transforms)  # type: ignore
             d[key] = im
         return d
