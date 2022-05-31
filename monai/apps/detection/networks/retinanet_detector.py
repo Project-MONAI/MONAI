@@ -128,7 +128,7 @@ class RetinaNetDetector(nn.Module):
 
             # define a naive network
             import torch
-            class naive_network(torch.nn.Module):
+            class NaiveNet(torch.nn.Module):
                 def __init__(self, spatial_dims: int, num_classes: int):
                     super().__init__()
                     self.spatial_dims = spatial_dims
@@ -149,7 +149,7 @@ class RetinaNetDetector(nn.Module):
             anchor_generator = monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape(
                 feature_map_scales=(1, ), base_anchor_shapes=((8,) * spatial_dims)
             )
-            net = naive_network(spatial_dims, num_classes)
+            net = NaiveNet(spatial_dims, num_classes)
             detector = RetinaNetDetector(net, anchor_generator)
 
             # only detector.network may contain trainable parameters.
