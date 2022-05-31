@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
 from copy import deepcopy
 from typing import TypeVar, Union
-import unittest
 
 import numpy as np
+
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import CropBase
 from monai.transforms.croppad.dictionary import CropBased
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS, assert_allclose
-from monai.data.meta_tensor import MetaTensor
 
 
 class CropTest(unittest.TestCase):
@@ -43,11 +44,12 @@ class CropTest(unittest.TestCase):
                                 if k in input_param:
                                     input_param_mod[k] = param_type(input_param[k])
                         im = im_type(input_image)
-                        padder = self.Cropper(**input_param_mod)
-                        is_map = isinstance(padder, MapTransform)
+                        cropper = self.Cropper(**input_param_mod)
+                        is_map = isinstance(cropper, MapTransform)
                         input_data = {"img": im} if is_map else im
-                        result = padder(input_data)
+                        result = cropper(input_data)
                         out_im = result["img"] if is_map else result
+                        self.assertIsInstance(out_im, MetaTensor)
                         self.assertTupleEqual(out_im.shape, expected_shape)
                         if same_area is not None:
                             assert_allclose(out_im, im[same_area], type_test=False)
@@ -58,7 +60,7 @@ class CropTest(unittest.TestCase):
                             assert_allclose(out_im, base_comparison)
 
                         # test inverse
-                        inv = padder.inverse(result)
+                        inv = cropper.inverse(result)
                         inv_im = inv["img"] if is_map else inv
                         self.assertIsInstance(inv_im, MetaTensor)
                         if same_area is not None:

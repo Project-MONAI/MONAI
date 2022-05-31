@@ -12,7 +12,6 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterScaleCrop
@@ -20,12 +19,12 @@ from tests.croppers import CropTest
 
 TEST_SHAPES = [
     [{"roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
-#     [{"roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
-#     [
-#         {"roi_scale": 0.5},
-#         (3, 3, 3, 3),
-#         (3, 2, 2, 2),
-#     ]
+    [{"roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [
+        {"roi_scale": 0.5},
+        (3, 3, 3, 3),
+        (3, 2, 2, 2),
+    ]
 ]
 
 TEST_VALUES = [
@@ -39,7 +38,7 @@ TEST_VALUES = [
 
 class TestCenterSpatialCrop(CropTest):
     Cropper = CenterScaleCrop
-    # @parameterized.expand(TEST_SHAPES)
+    @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)
 
@@ -49,7 +48,4 @@ class TestCenterSpatialCrop(CropTest):
 
 
 if __name__ == "__main__":
-    # unittest.main()
-    a = TestCenterSpatialCrop()
-    for t in TEST_SHAPES:
-        a.test_shape(*t)
+    unittest.main()

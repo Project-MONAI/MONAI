@@ -16,7 +16,6 @@ from parameterized import parameterized
 from monai.transforms import SpatialPad
 from tests.padders import PadTest
 
-
 TESTS = []
 TESTS.append([{"spatial_size": [3, 4], "method": "end"}, (1, 2, 3), (1, 3, 4)])
 TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric"}, (3, 8, 8, 4), (3, 15, 8, 4)])

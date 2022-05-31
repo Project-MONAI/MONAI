@@ -423,6 +423,10 @@ class CropBase(InvertibleTransform):
         raise NotImplementedError()
 
     @staticmethod
+    def get_im_center(img: torch.Tensor):
+        return [i // 2 for i in img.shape[1:]]
+
+    @staticmethod
     def calculate_slices_from_center_and_size(
         roi_center: Union[Sequence[int], NdarrayOrTensor],
         roi_size: Union[Sequence[int], NdarrayOrTensor],
@@ -433,9 +437,10 @@ class CropBase(InvertibleTransform):
             if s < 0:
                 roi_slices.append(slice(None))
             else:
-                _start = max(c - s // 2, 0)
-                _end = c + s // 2
-                roi_slices.append(slice(_start, _end))
+                _start = c - s // 2
+                _end = _start + s
+                # start always +ve
+                roi_slices.append(slice(max(_start, 0), _end))
         return roi_slices
 
     @staticmethod
@@ -469,6 +474,7 @@ class CropBase(InvertibleTransform):
         # from start and end
         else:
             roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
+        return roi_slices
 
         # # convert to slices (accounting for 1d)
         # if roi_start_torch.numel() == 1:
@@ -578,8 +584,7 @@ class CenterSpatialCrop(CropBase):
         slicing doesn't apply to the channel dim.
         """
         roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
-        center = [i // 2 for i in img.shape[1:]]
-        slices = self.calculate_slices(roi_center=center, roi_size=roi_size)
+        slices = self.calculate_slices(roi_center=self.get_im_center(img), roi_size=roi_size)
         return self._forward(img, slices)
 
 
@@ -602,8 +607,7 @@ class CenterScaleCrop(CropBase):
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        center = [i // 2 for i in img.shape[1:]]
-        slices = self.calculate_slices(roi_center=center, roi_size=roi_size)
+        slices = self.calculate_slices(roi_center=self.get_im_center(img), roi_size=roi_size)
         return self._forward(img, slices)
 
 
@@ -656,19 +660,19 @@ class RandSpatialCrop(Randomizable, CropBase):
             self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = list(get_random_patch(img_size, valid_size, self.R))
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        self.randomize(img.shape[1:])
-        if self._size is None:
-            raise RuntimeError("self._size not specified.")
+        if randomize:
+            self.randomize(img.shape[1:])
         if self.random_center:
-            return self._forward(img, self._slices)
-        slices = self.calculate_slices(roi_size=self._size)
+            slices = self._slices
+        else:
+            slices = self.calculate_slices(roi_size=self._size, roi_center=self.get_im_center(img))
         return self._forward(img, slices)
 
 
@@ -704,19 +708,25 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        """
-        Apply the transform to `img`, assuming `img` is channel-first and
-        slicing doesn't apply to the channel dim.
-        """
-        img_size = img.shape[1:]
+    def get_max_roi_size(self, img_size):
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
             self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
         else:
             self.max_roi_size = None
-        return super().__call__(img=img)
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        self.get_max_roi_size(img_size)
+        super().randomize(img_size)
+
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+        """
+        self.get_max_roi_size(img.shape[1:])
+        return super().__call__(img=img, randomize=randomize)
 
 
 class RandSpatialCropSamples(RandSpatialCrop):
@@ -770,7 +780,40 @@ class RandSpatialCropSamples(RandSpatialCrop):
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
-        return [super().__call__(img) for _ in range(self.num_samples)]
+        # can't use list comprehension with super()
+        out = []
+        for i in range(self.num_samples):
+            im = super().__call__(img)
+            if isinstance(im, MetaTensor):
+                im.meta["patch_index"] = i
+            out.append(im)
+        return out
+
+    def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
+        # if given a single image, just do that inverse of that.
+        if not isinstance(data, Sequence):
+            inv = super().inverse(data)
+            # no longer a patch, so remove that from the metadata
+            if "patch_index" in inv.meta:
+                del inv.meta["patch_index"]
+            return inv
+
+        # if given a blank list, don't do anything.
+        if len(data) < 0:
+            return data
+
+        # if we have a list, inverse the first image
+        inv = super().inverse(data[0])
+        # loop over all other images and take the non-zero elements
+        for img in data[1:]:
+            inv_img = super().inverse(img)
+            mask = inv_img != 0
+            inv[mask] = inv_img[mask]
+        # no longer a patch, so remove that from the metadata
+        if "patch_index" in inv.meta:
+            del inv.meta["patch_index"]
+        return inv
+
 
 
 class CropForeground(CropBase):
@@ -846,9 +889,7 @@ class CropForeground(CropBase):
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.np_kwargs = np_kwargs
-        self.padder = PadBase()
+        self.padder = PadBase(mode=mode, **np_kwargs)
 
     def compute_bounding_box(self, img: torch.Tensor):
         """
@@ -880,13 +921,15 @@ class CropForeground(CropBase):
         Crop and pad based on the bounding box.
 
         """
+        # crop
         crop_slices = self.calculate_slices(roi_start=box_start, roi_end=box_end)
         cropped = self._forward(img, crop_slices)
+        # pad
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        all_pad_width = BorderPad.calculate_pad_width(img, pad)
-        return self.padder._forward(img, all_pad_width, mode)
+        all_pad_width = BorderPad.calculate_pad_width(cropped, pad)
+        return self.padder._forward(cropped, all_pad_width, mode)
 
     def __call__(self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
@@ -899,6 +942,13 @@ class CropForeground(CropBase):
         if self.return_coords:
             return cropped, box_start, box_end
         return cropped
+
+    def inverse(self, img: torch.Tensor) -> torch.Tensor:
+        # first inverse the padder
+        with self.padder.trace_transform(False):
+            inv = self.padder.inverse(img)
+        # and then inverse the cropper (self)
+        return super().inverse(inv)
 
 
 class RandWeightedCrop(Randomizable, CropBase):

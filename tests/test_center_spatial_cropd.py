@@ -10,11 +10,12 @@
 # limitations under the License.
 
 import unittest
-from tests.croppers import CropTest
+
 import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCropd
+from tests.croppers import CropTest
 
 TEST_SHAPES = [
     [

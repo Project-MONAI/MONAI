@@ -18,7 +18,6 @@ from monai.utils import NumpyPadMode
 from monai.utils.enums import PytorchPadMode
 from tests.padders import PadTest
 
-
 TESTS = [
     [
         {"keys": "img", "spatial_border": 2},

@@ -22,7 +22,6 @@ from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-
 MODES = []
 # Test modes
 NP_MODES: List = [
