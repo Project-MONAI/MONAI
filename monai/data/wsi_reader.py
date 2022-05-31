@@ -18,7 +18,7 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import AsChannelFirst
+from monai.transforms.utility.array import AsChannelFirst, AsChannelLast
 from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
@@ -56,9 +56,10 @@ class BaseWSIReader(ImageReader):
     supported_suffixes: List[str] = []
     backend = ""
 
-    def __init__(self, level: int, **kwargs):
+    def __init__(self, level: int, channel_last: bool = False, **kwargs):
         super().__init__()
         self.level = level
+        self.channel_last = channel_last
         self.kwargs = kwargs
         self.metadata: Dict[Any, Any] = {}
 
@@ -140,10 +141,10 @@ class BaseWSIReader(ImageReader):
             "backend": self.backend,
             "original_channel_dim": 0,
             "spatial_shape": np.asarray(patch.shape[1:]),
-            WSIPatchKeys.PATH: self.get_file_path(wsi),
-            WSIPatchKeys.LOCATION: np.asarray(location),
-            WSIPatchKeys.SIZE: np.asarray(size),
-            WSIPatchKeys.LEVEL: level,
+            WSIPatchKeys.PATH.value: self.get_file_path(wsi),
+            WSIPatchKeys.LOCATION.value: np.asarray(location),
+            WSIPatchKeys.SIZE.value: np.asarray(size),
+            WSIPatchKeys.LEVEL.value: level,
         }
         return metadata
 
@@ -173,7 +174,7 @@ class BaseWSIReader(ImageReader):
                 and second element is a dictionary of metadata
         """
         patch_list: List = []
-        metadata = {}
+        metadata_list: List = []
         # CuImage object is iterable, so ensure_tuple won't work on single object
         if not isinstance(wsi, List):
             wsi = [wsi]
@@ -195,7 +196,7 @@ class BaseWSIReader(ImageReader):
             # Verify size
             if size is None:
                 if location != (0, 0):
-                    raise ValueError("Patch size should be defined to exctract patches.")
+                    raise ValueError("Patch size should be defined to extract patches.")
                 size = self.get_size(each_wsi, level)
             else:
                 if size[0] <= 0 or size[1] <= 0:
@@ -220,31 +221,19 @@ class BaseWSIReader(ImageReader):
                 raise ValueError(
                     f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
                 )
-            # Create a list of patches
+
+            # Get patch-related metadata
+            metadata: dict = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
+            # Create a list of patches and metadata
             patch_list.append(patch)
-
-            # Set patch-related metadata
-            each_meta = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
-
-            if len(wsi) == 1:
-                metadata = each_meta
-            else:
-                if not metadata:
-                    metadata = {
-                        "backend": each_meta["backend"],
-                        "original_channel_dim": each_meta["original_channel_dim"],
-                        "spatial_shape": each_meta["spatial_shape"],
-                    }
-                    for key in WSIPatchKeys:
-                        metadata[key] = [each_meta[key]]
-                else:
-                    if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
-                        raise ValueError("original_channel_dim is not consistent across wsi objects.")
-                    if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
-                        raise ValueError("spatial_shape is not consistent across wsi objects.")
-                    for key in WSIPatchKeys:
-                        metadata[key].append(each_meta[key])
-
+            metadata_list.append(metadata)
+        if len(wsi) > 1:
+            if len({m["original_channel_dim"] for m in metadata_list}) > 1:
+                raise ValueError("original_channel_dim is not consistent across wsi objects.")
+            if len({tuple(m["spatial_shape"]) for m in metadata_list}) > 1:
+                raise ValueError("spatial_shape is not consistent across wsi objects.")
+            for key in WSIPatchKeys:
+                metadata[key] = [m[key] for m in metadata_list]
         return _stack_images(patch_list, metadata), metadata
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
@@ -267,12 +256,14 @@ class WSIReader(BaseWSIReader):
     Args:
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
+        channel_last: if True, the returned image will have color channel as the last dimension.
+            if False, the image will have color channel as the first dimension. Defaults to False,
         kwargs: additional arguments to be passed to the backend library
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, backend="cucim", level: int = 0, channel_last: bool = False, **kwargs):
+        super().__init__(level, channel_last, **kwargs)
         self.backend = backend.lower()
         self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader]
         if self.backend == "cucim":
@@ -360,6 +351,8 @@ class CuCIMWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        channel_last: if True, the returned image will have color channel as the last dimension.
+            if False, the image will have color channel as the first dimension. Defaults to False,
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
@@ -368,8 +361,8 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, level: int = 0, channel_last: bool = False, **kwargs):
+        super().__init__(level, channel_last, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -457,8 +450,11 @@ class CuCIMWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
 
-        # Make it channel first
-        patch = AsChannelFirst()(patch)  # type: ignore
+        # Make it channel first or last
+        if self.channel_last:
+            patch = AsChannelLast()(patch)  # type: ignore
+        else:
+            patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode in "RGB":
@@ -479,6 +475,8 @@ class OpenSlideWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        channel_last: if True, the returned image will have color channel as the last dimension.
+            if False, the image will have color channel as the first dimension. Defaults to False,
         kwargs: additional args for `openslide.OpenSlide` module.
 
     """
@@ -486,8 +484,8 @@ class OpenSlideWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
 
-    def __init__(self, level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, level: int = 0, channel_last: bool = False, **kwargs):
+        super().__init__(level, channel_last, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -577,7 +575,10 @@ class OpenSlideWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(pil_patch, dtype=dtype)
 
-        # Make it channel first
-        patch = AsChannelFirst()(patch)  # type: ignore
+        # Make it channel first or last
+        if self.channel_last:
+            patch = AsChannelLast()(patch)  # type: ignore
+        else:
+            patch = AsChannelFirst()(patch)  # type: ignore
 
         return patch

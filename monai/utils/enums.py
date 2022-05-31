@@ -333,7 +333,7 @@ class BoxModeName(Enum):
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 
-class ProbMapKeys:
+class ProbMapKeys(str, Enum):
     """
     The keys to be used for generating the probability maps from patches
     """
@@ -345,7 +345,7 @@ class ProbMapKeys:
     PRE_PATH = "image"
 
 
-class GridPatchSort:
+class GridPatchSort(str, Enum):
     """
     The sorting method for the generated patches in `GridPatch`
     """
@@ -355,7 +355,7 @@ class GridPatchSort:
     MAX = "max"
 
 
-class WSIPatchKeys:
+class WSIPatchKeys(str, Enum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """

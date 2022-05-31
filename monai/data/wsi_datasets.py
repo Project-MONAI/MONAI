@@ -294,12 +294,12 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         mask_locations = np.round((patch_locations + patch_size_0 // 2) / float(mask_ratio))
 
         # fill out samples with location and metadata
-        sample[WSIPatchKeys.SIZE] = patch_size
-        sample[WSIPatchKeys.LEVEL] = patch_level
-        sample[ProbMapKeys.COUNT] = len(patch_locations)
-        sample[ProbMapKeys.SIZE] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
+        sample[WSIPatchKeys.SIZE.value] = patch_size
+        sample[WSIPatchKeys.LEVEL.value] = patch_level
+        sample[ProbMapKeys.COUNT.value] = len(patch_locations)
+        sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
-            {**sample, WSIPatchKeys.LOCATION: np.array(loc), ProbMapKeys.LOCATION: mask_loc}
+            {**sample, WSIPatchKeys.LOCATION.value: np.array(loc), ProbMapKeys.LOCATION.value: mask_loc}
             for loc, mask_loc in zip(patch_locations, mask_locations)
         ]
 
@@ -393,11 +393,11 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         patch_locations = np.round((mask_locations + 0.5) * float(mask_ratio) - patch_size_0 // 2).astype(int)
 
         # fill out samples with location and metadata
-        sample[WSIPatchKeys.SIZE] = patch_size
-        sample[WSIPatchKeys.LEVEL] = patch_level
-        sample[ProbMapKeys.COUNT] = len(patch_locations)
-        sample[ProbMapKeys.SIZE] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
+        sample[WSIPatchKeys.SIZE.value] = patch_size
+        sample[WSIPatchKeys.LEVEL.value] = patch_level
+        sample[ProbMapKeys.COUNT.value] = len(patch_locations)
+        sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
-            {**sample, WSIPatchKeys.LOCATION: np.array(loc), ProbMapKeys.LOCATION: mask_loc}
+            {**sample, WSIPatchKeys.LOCATION.value: np.array(loc), ProbMapKeys.LOCATION.value: mask_loc}
             for loc, mask_loc in zip(patch_locations, mask_locations)
         ]
