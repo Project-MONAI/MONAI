@@ -246,7 +246,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         patch_size_ = tuple(p * downsample for p in patch_size)  # patch size at level 0
         locations = list(
             iter_patch_position(
-                image_size=wsi_size, patch_size=patch_size_, offset=offset, overlap=self.overlap, padded=False
+                image_size=wsi_size, patch_size=patch_size_, start_pos=offset, overlap=self.overlap, padded=False
             )
         )
         sample["size"] = patch_size
