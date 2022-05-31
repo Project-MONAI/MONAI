@@ -831,6 +831,26 @@ def retinanet_resnet50_fpn_detector(
 
     Return:
         A RetinaNetDetector object with resnet50 as backbone
+
+    Example:
+        .. code-block:: python
+
+            # define a naive network
+            resnet_param = {
+                "pretrained": False,
+                "spatial_dims": 3,
+                "n_input_channels": 2,
+                "num_classes": 3,
+                "conv1_t_size": 7,
+                "conv1_t_stride": (2, 2, 2)
+            }
+            returned_layers = [1]
+            anchor_generator = monai.apps.detection.utils.anchor_utils.AnchorGeneratorWithAnchorShape(
+                feature_map_scales=(1, 2), base_anchor_shapes=((8,) * resnet_param["spatial_dims"])
+            )
+            detector = retinanet_resnet50_fpn_detector(
+                **resnet_param, anchor_generator=anchor_generator, returned_layers=returned_layers
+            )
     """
 
     backbone = resnet.resnet50(pretrained, progress, **kwargs)
