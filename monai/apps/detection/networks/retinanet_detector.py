@@ -98,29 +98,29 @@ class RetinaNetDetector(nn.Module):
         Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
         but any network that meets the following rules is a valid input ``network``.
 
-        1. It should have attributes including spatial_dims, num_classes, cls_key, box_reg_key, num_anchors.
+        1. It should have attributes including spatial_dims, num_classes, cls_key, box_reg_key, num_anchors, size_divisible.
 
             - spatial_dims (int) is the spatial dimension of the network, we support both 2D and 3D.
             - num_classes (int) is the number of classes, excluding the background.
             - size_divisible (int or Sequene[int]) is the expection on the input image shape.
-             The network needs the input spatial_size to be divisible by size_divisible
+              The network needs the input spatial_size to be divisible by size_divisible
             - cls_key (str) is the key to represent classification in the output dict.
             - box_reg_key (str) is the key to represent box regression in the output dict.
             - num_anchors (int) is the number of anchor shapes at each location. it should equal to
-             ``self.anchor_generator.num_anchors_per_location()[0]``.
+              ``self.anchor_generator.num_anchors_per_location()[0]``.
 
         2. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
 
         3. About its output ``head_outputs``:
 
             - It should be a dictionary with at least two keys:
-             ``network.cls_key`` and ``network.box_reg_key``.
+              ``network.cls_key`` and ``network.box_reg_key``.
             - ``head_outputs[network.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-             classification logits map at one resolution level,
-             sized (B, num_classes*num_anchors, H_i, W_i) or (B, num_classes*num_anchors, H_i, W_i, D_i).
+              classification logits map at one resolution level,
+              sized (B, num_classes*num_anchors, H_i, W_i) or (B, num_classes*num_anchors, H_i, W_i, D_i).
             - ``head_outputs[network.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-             box regression map at one resolution level,
-             sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
+              box regression map at one resolution level,
+              sized (B, 2*spatial_dims*num_anchors, H_i, W_i)or (B, 2*spatial_dims*num_anchors, H_i, W_i, D_i).
             - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
 
     Example:
@@ -471,14 +471,14 @@ class RetinaNetDetector(nn.Module):
         Return:
             The output of the network.
                 - It is a dictionary with at least two keys:
-                 ``self.cls_key`` and ``self.box_reg_key``.
+                  ``self.cls_key`` and ``self.box_reg_key``.
                 - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
-                 classification logits map at one resolution level,
-                 sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                 A = self.num_anchors_per_loc.
+                  classification logits map at one resolution level,
+                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
+                  A = self.num_anchors_per_loc.
                 - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
-                 box regression map at one resolution level,
-                 sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
+                  box regression map at one resolution level,
+                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
                 - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
         """
         if use_inferer is None:
@@ -505,14 +505,14 @@ class RetinaNetDetector(nn.Module):
         Args:
             head_outputs: the outputs of self.network.
                 - It is a dictionary with at least two keys:
-                 ``self.cls_key`` and ``self.box_reg_key``.
+                  ``self.cls_key`` and ``self.box_reg_key``.
                 - ``head_outputs[self.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-                 classification logits map at one resolution level,
-                 sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                 A = self.num_anchors_per_loc.
+                  classification logits map at one resolution level,
+                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
+                  A = self.num_anchors_per_loc.
                 - ``head_outputs[self.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-                 box regression map at one resolution level,
-                 sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
+                  box regression map at one resolution level,
+                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
                 - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
 
         Return:
@@ -560,14 +560,14 @@ class RetinaNetDetector(nn.Module):
             images_shape: shape of network input images, (B, C_in, H, W) or (B, C_in, H, W, D)
             head_outputs: the outputs of self.network.
                 - It is a dictionary with at least two keys:
-                 ``self.cls_key`` and ``self.box_reg_key``.
+                  ``self.cls_key`` and ``self.box_reg_key``.
                 - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
-                 classification logits map at one resolution level,
-                 sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                 A = self.num_anchors_per_loc.
+                  classification logits map at one resolution level,
+                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
+                  A = self.num_anchors_per_loc.
                 - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
-                 box regression map at one resolution level,
-                 sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
+                  box regression map at one resolution level,
+                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
                 - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
 
         Return:
