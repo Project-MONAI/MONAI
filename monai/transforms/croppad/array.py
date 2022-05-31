@@ -490,19 +490,33 @@ class CropBase(InvertibleTransform):
         # else:
         #     return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
+    def _forward_meta(self, out, img, slices):
+        if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
+            return out
+        meta_dict = dict(img.meta)
+        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]  # skipping the channel pad
+        mat = create_translate(spatial_rank, to_shift)
+        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
+        out.meta = meta_dict
+        out.meta["affine"] = src_affine @ mat
+        out.meta["original_affine"] = src_affine
+        out.meta["spatial_shape"] = out.shape[1:]
+        return out
+
     def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
         sd = len(img.shape[1:])  # spatial dims
         # if too many spatial dimension, take only the first ones necessary
-        if len(slices) > sd:
-            slices = slices[:sd]
-        elif len(slices) < sd:
-            slices = slices + [slice(None)] * (sd - len(slices))
+        slices = list(slices)
+        if len(slices) < sd:
+            slices += [slice(None)] * (sd - len(slices))
         # Add in the channel (no cropping)
-        slices = [slice(None)] + slices
+        slices = [slice(None)] + slices[:sd]
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         orig_size = img.shape[1:]
         out = img[tuple(slices)]
+        out = self._forward_meta(out, img, slices)
         if isinstance(out, MetaTensor):
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - out.shape[1:] - cropped_from_start
