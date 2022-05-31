@@ -563,6 +563,12 @@ Signal
     :members:
     :special-members: __call__
 
+`SignalRandShift`
+"""""""""""""""""
+.. autoclass:: SignalRandShift
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 

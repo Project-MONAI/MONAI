@@ -289,7 +289,10 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
-from .signal.array import SignalResample
+from .signal.array import (
+    SignalResample,
+    SignalRandShift
+)
 from .smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,

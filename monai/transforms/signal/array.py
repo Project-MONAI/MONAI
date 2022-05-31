@@ -89,15 +89,17 @@ class SignalRandShift(Transform):
         self, 
         magnitude: Sequence[float]= [-1.0,1.0], 
         mode: str='wrap',
-        filling: Optional[Union[np.ndarray,Any]] = np.NaN,
+        filling: Optional[Union[np.ndarray,Any]] = 0.0,
         v: float = 1.0
     ) -> None:
         """
         Args:
-            magnitude: magnitude of the shift
-            filling: parameter
-            mode: define how the extension of the input array is done
-            v: 
+            magnitude: magnitude of the signal shift, taken randomly in the defined range. Defaults to ``[-1.0, 1.0]``
+            filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
+            mode: define how the extension of the input array is done beyond its boundaries, see for more details 
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
+            v: scaling factor
         """    
         self.magnitude = magnitude
         self.filling = filling
@@ -105,6 +107,10 @@ class SignalRandShift(Transform):
         self.v = v
         
     def __call__(self, signal: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            signal: input 1 dimension signal to be resampled
+        """
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)  
         length = signal.shape[1]
@@ -117,4 +123,3 @@ class SignalRandShift(Transform):
                        cval=self.filling)
         
         return signal
-        
