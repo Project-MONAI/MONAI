@@ -1668,7 +1668,8 @@ class ForegroundMaskd(MapTransform):
         keys: keys of the corresponding items to be transformed.
         threshold: an int or a float number that defines the threshold that values less than that are foreground.
             It also can be a callable that receives each dimension of the image and calculate the threshold,
-            or a string the defines such callable from `skimage.filter.threshold_xxxx`.
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
             Moreover, a dictionary can be passed that defines such thresholds for each channel, like
             {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
         hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").

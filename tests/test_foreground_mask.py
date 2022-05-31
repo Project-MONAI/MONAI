@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.intensity.array import ForegroundMask
-from monai.utils import optional_import, set_determinism
+from monai.utils import min_version, optional_import, set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-skimage, has_skimage = optional_import("skimage")
+skimage, has_skimage = optional_import("skimage", "0.19.0", min_version)
 set_determinism(1234)
 
 A = np.random.randint(64, 128, (3, 3, 2)).astype(np.uint8)
