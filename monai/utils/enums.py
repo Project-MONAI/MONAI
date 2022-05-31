@@ -37,6 +37,7 @@ __all__ = [
     "ForwardMode",
     "TransformBackends",
     "BoxModeName",
+    "GridPatchSort",
 ]
 
 
@@ -341,3 +342,13 @@ class ProbMapKeys(Enum):
     COUNT = "num_patches"
     PATH = "path"
     PRE_PATH = "image"
+
+
+class GridPatchSort(Enum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    RANDOM = "random"
+    MIN = "min"
+    MAX = "max"
