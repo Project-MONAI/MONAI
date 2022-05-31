@@ -22,13 +22,21 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, reorient_spatial_axes, to_affine_nd, zoom_affine
+from monai.data.utils import (
+    AFFINE_TOL,
+    compute_shape_offset,
+    iter_patch,
+    reorient_spatial_axes,
+    to_affine_nd,
+    zoom_affine,
+)
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
+    convert_pad_mode,
     create_control_grid,
     create_grid,
     create_rotate,
@@ -44,6 +52,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     PytorchPadMode,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -53,10 +62,10 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import GridPatchSort, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type
 
 nib, has_nib = optional_import("nibabel")
 
@@ -68,6 +77,8 @@ __all__ = [
     "Flip",
     "GridDistortion",
     "GridSplit",
+    "GridPatch",
+    "RandGridPatch",
     "Resize",
     "Rotate",
     "Zoom",
@@ -687,26 +698,28 @@ class Resize(Transform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if self.size_mode == "all":
-            input_ndim = img_.ndim - 1  # spatial ndim
+            input_ndim = img.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img_.shape, output_ndim + 1, 1)
-                img_ = img_.reshape(input_shape)
+                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                img = img.reshape(input_shape)
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img_.shape[1:])
+            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
         else:  # for the "longest" mode
-            img_size = img_.shape[1:]
+            img_size = img.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
+        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
+            return img
+        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
             if anti_aliasing_sigma is None:
@@ -2575,7 +2588,6 @@ class GridSplit(Transform):
                 image,
                 shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-                writeable=False,
             )
             # Flatten the first two dimensions
             strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
@@ -2607,3 +2619,161 @@ class GridSplit(Transform):
         )
 
         return size, steps
+
+
+class GridPatch(Transform):
+    """
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
+    It can sort the patches and return all or a subset of them.
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        offset: offset of starting position in the array, default is 0 for each dimension.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
+            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
+            and channels. Also "random" creates a random order of patches.
+            By default no sorting is being done and patches are returned in a row-major order.
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        offset: Sequence[int] = (),
+        num_patches: Optional[int] = None,
+        overlap: Union[Sequence[float], float] = 0.0,
+        sort_fn: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **pad_kwargs,
+    ):
+        self.patch_size = ensure_tuple(patch_size)
+        self.offset = ensure_tuple(offset)
+        self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
+        self.pad_kwargs = pad_kwargs
+        self.overlap = overlap
+        self.num_patches = num_patches
+        self.sort_fn: Optional[Callable]
+        if isinstance(sort_fn, str):
+            if sort_fn == GridPatchSort.RANDOM.value:
+                self.sort_fn = np.random.random
+            elif sort_fn == GridPatchSort.MIN.value:
+                self.sort_fn = self.get_patch_sum
+            elif sort_fn == GridPatchSort.MAX.value:
+                self.sort_fn = self.get_negative_patch_sum
+            else:
+                raise ValueError(
+                    f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                    [enum.value for enum in GridPatchSort],
+                )
+        else:
+            self.sort_fn = sort_fn
+
+    @staticmethod
+    def get_patch_sum(x):
+        return x[0].sum()
+
+    @staticmethod
+    def get_negative_patch_sum(x):
+        return -x[0].sum()
+
+    def __call__(self, array: NdarrayOrTensor):
+        # create the patch iterator which sweeps the image row-by-row
+        array_np, *_ = convert_data_type(array, np.ndarray)
+        patch_iterator = iter_patch(
+            array_np,
+            patch_size=(None,) + self.patch_size,  # expand to have the channel dim
+            start_pos=(0,) + self.offset,  # expand to have the channel dim
+            overlap=self.overlap,
+            copy_back=False,
+            mode=self.pad_mode,
+            **self.pad_kwargs,
+        )
+        if self.sort_fn is not None:
+            output = sorted(patch_iterator, key=self.sort_fn)
+        else:
+            output = list(patch_iterator)
+        if self.num_patches:
+            output = output[: self.num_patches]
+            if len(output) < self.num_patches:
+                patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0))
+                slices = np.zeros((3, len(self.patch_size)))
+                output += [(patch, slices)] * (self.num_patches - len(output))
+
+        output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
+
+        return output
+
+
+class RandGridPatch(GridPatch, RandomizableTransform):
+    """
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
+    and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.
+    It can sort the patches and return all or a subset of them.
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        min_offset: the minimum range of offset to be selected randomly. Defaults to 0.
+        max_offset: the maximum range of offset to be selected randomly.
+            Defaults to image size modulo patch size.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
+            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
+            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
+            and channels. Also "random" creates a random order of patches.
+            By default no sorting is being done and patches are returned in a row-major order.
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        min_offset: Optional[Union[Sequence[int], int]] = None,
+        max_offset: Optional[Union[Sequence[int], int]] = None,
+        num_patches: Optional[int] = None,
+        overlap: Union[Sequence[float], float] = 0.0,
+        sort_fn: Optional[Union[Callable, str]] = None,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **pad_kwargs,
+    ):
+        super().__init__(
+            patch_size=patch_size,
+            offset=(),
+            num_patches=num_patches,
+            overlap=overlap,
+            sort_fn=sort_fn,
+            pad_mode=pad_mode,
+            **pad_kwargs,
+        )
+        self.min_offset = min_offset
+        self.max_offset = max_offset
+
+    def randomize(self, array):
+        if self.min_offset is None:
+            min_offset = (0,) * len(self.patch_size)
+        else:
+            min_offset = ensure_tuple_rep(self.min_offset, len(self.patch_size))
+        if self.max_offset is None:
+            max_offset = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
+        else:
+            max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
+
+        self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
+
+    def __call__(self, array: NdarrayOrTensor, randomize: bool = True):
+        if randomize:
+            self.randomize(array)
+        return super().__call__(array)

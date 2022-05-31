@@ -22,6 +22,7 @@ from .enums import (
     CommonKeys,
     DiceCEReduction,
     ForwardMode,
+    GridPatchSort,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
@@ -96,4 +97,6 @@ from .type_conversion import (
     dtype_torch_to_numpy,
     get_dtype,
     get_equivalent_dtype,
+    get_numpy_dtype_from_string,
+    get_torch_dtype_from_string,
 )
