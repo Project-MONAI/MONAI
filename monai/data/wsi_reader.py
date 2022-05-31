@@ -18,7 +18,7 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import AsChannelFirst, AsChannelLast
+from monai.transforms.utility.array import AsChannelFirst
 from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
@@ -60,6 +60,7 @@ class BaseWSIReader(ImageReader):
         super().__init__()
         self.level = level
         self.channel_last = channel_last
+        self.channel_dim = -1 if self.channel_last else 0
         self.kwargs = kwargs
         self.metadata: Dict[Any, Any] = {}
 
@@ -139,8 +140,8 @@ class BaseWSIReader(ImageReader):
         """
         metadata: Dict = {
             "backend": self.backend,
-            "original_channel_dim": 0,
-            "spatial_shape": np.asarray(patch.shape[1:]),
+            "original_channel_dim": self.channel_dim,
+            "spatial_shape": np.asarray(patch.shape[:-1] if self.channel_last else patch.shape[1:]),
             WSIPatchKeys.PATH.value: self.get_file_path(wsi),
             WSIPatchKeys.LOCATION.value: np.asarray(location),
             WSIPatchKeys.SIZE.value: np.asarray(size),
@@ -211,15 +212,19 @@ class BaseWSIReader(ImageReader):
                     f"The image dimension should be 3 but has {patch.ndim}. "
                     "`WSIReader` is designed to work only with 2D images with color channel."
                 )
+            self.channel_dim = -1 if self.channel_last else 0
             # Check if there are four color channels for RGBA
-            if mode == "RGBA" and patch.shape[0] != 4:
-                raise ValueError(
-                    f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-                )
+            if mode == "RGBA":
+                if patch.shape[self.channel_dim] != 4:
+                    raise ValueError(
+                        f"The image is expected to have four color channels in '{mode}' mode but has "
+                        f"{patch.shape[self.channel_dim]}."
+                    )
             # Check if there are three color channels for RGB
-            elif mode in "RGB" and patch.shape[0] != 3:
+            elif mode in "RGB" and patch.shape[self.channel_dim] != 3:
                 raise ValueError(
-                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
+                    f"The image is expected to have three color channels in '{mode}' mode but has "
+                    f"{patch.shape[self.channel_dim]}. "
                 )
 
             # Get patch-related metadata
@@ -267,9 +272,9 @@ class WSIReader(BaseWSIReader):
         self.backend = backend.lower()
         self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader]
         if self.backend == "cucim":
-            self.reader = CuCIMWSIReader(level=level, **kwargs)
+            self.reader = CuCIMWSIReader(level=level, channel_last=channel_last, **kwargs)
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, **kwargs)
+            self.reader = OpenSlideWSIReader(level=level, channel_last=channel_last, **kwargs)
         else:
             raise ValueError(f"The supported backends are cucim and openslide, '{self.backend}' was given.")
         self.supported_suffixes = self.reader.supported_suffixes
@@ -451,16 +456,15 @@ class CuCIMWSIReader(BaseWSIReader):
         patch = np.asarray(patch, dtype=dtype)
 
         # Make it channel first or last
-        if self.channel_last:
-            patch = AsChannelLast()(patch)  # type: ignore
-        else:
+        if not self.channel_last:
             patch = AsChannelFirst()(patch)  # type: ignore
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode in "RGB":
-            if patch.shape[0] not in [3, 4]:
+            if patch.shape[self.channel_dim] not in [3, 4]:
                 raise ValueError(
-                    f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
+                    f"The image is expected to have three or four color channels in '{mode}' mode but has "
+                    f"{patch.shape[self.channel_dim]}. "
                 )
             patch = patch[:3]
 
@@ -576,9 +580,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         patch = np.asarray(pil_patch, dtype=dtype)
 
         # Make it channel first or last
-        if self.channel_last:
-            patch = AsChannelLast()(patch)  # type: ignore
-        else:
+        if not self.channel_last:
             patch = AsChannelFirst()(patch)  # type: ignore
 
         return patch
