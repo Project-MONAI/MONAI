@@ -22,9 +22,13 @@ skimage, has_skimage = optional_import("skimage", "0.19.0", min_version)
 set_determinism(1234)
 
 A = np.random.randint(64, 128, (3, 3, 2)).astype(np.uint8)
+A3D = np.random.randint(64, 128, (3, 3, 2, 2)).astype(np.uint8)
 B = np.ones_like(A[:1])
+B3D = np.ones_like(A3D[:1])
 MASK = np.pad(B, ((0, 0), (2, 2), (2, 2)), constant_values=0)
+MASK3D = np.pad(B3D, ((0, 0), (2, 2), (2, 2), (2, 2)), constant_values=0)
 IMAGE1 = np.pad(A, ((0, 0), (2, 2), (2, 2)), constant_values=255)
+IMAGE3D = np.pad(A3D, ((0, 0), (2, 2), (2, 2), (2, 2)), constant_values=255)
 IMAGE2 = np.copy(IMAGE1)
 IMAGE2[0] = 0
 IMAGE3 = np.pad(A, ((0, 0), (2, 2), (2, 2)), constant_values=0)
@@ -50,6 +54,7 @@ TEST_CASE_10 = [{"keys": "image", "threshold": skimage.filters.threshold_mean}, 
 TEST_CASE_11 = [{"keys": "image", "threshold": None, "hsv_threshold": "otsu"}, {"image": IMAGE1}, np.ones_like(MASK)]
 TEST_CASE_12 = [{"keys": "image", "threshold": None, "hsv_threshold": {"S": "otsu"}}, {"image": IMAGE1}, MASK]
 TEST_CASE_13 = [{"keys": "image", "threshold": 100, "invert": True}, {"image": IMAGE1}, np.logical_not(MASK)]
+TEST_CASE_14 = [{"keys": "image"}, {"image": IMAGE3D}, MASK3D]
 TEST_CASE_ERROR_1 = [{"keys": "image", "threshold": None}, {"image": IMAGE1}]
 TEST_CASE_ERROR_2 = [{"keys": "image", "threshold": {"K": 1}}, {"image": IMAGE1}]
 
@@ -69,6 +74,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, *TEST_CASE_11])
     TESTS.append([p, *TEST_CASE_12])
     TESTS.append([p, *TEST_CASE_13])
+    TESTS.append([p, *TEST_CASE_14])
 
 TESTS_ERROR = []
 for p in TEST_NDARRAYS:
