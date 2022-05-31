@@ -18,38 +18,18 @@ from monai.utils import NumpyPadMode
 from monai.utils.enums import PytorchPadMode
 from tests.padders import PadTest
 
-
 TESTS = [
-    [
-        {"keys": "img", "spatial_border": 2},
-        (3, 8, 8, 4),
-        (3, 12, 12, 8),
-    ],
-    [
-        {"keys": "img", "spatial_border": [1, 2, 3]},
-        (3, 8, 8, 4),
-        (3, 10, 12, 10),
-    ],
-    [
-        {"keys": "img", "spatial_border": [1, 2, 3, 4, 5, 6]},
-        (3, 8, 8, 4),
-        (3, 11, 15, 15),
-    ],
-    [
-        {"keys": "img", "spatial_border": 2},
-        (3, 8, 8, 4),
-        (3, 12, 12, 8),
-    ],
-    [
-        {"keys": "img", "spatial_border": 2},
-        (3, 8, 8, 4),
-        (3, 12, 12, 8),
-    ],
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
+    [{"keys": "img", "spatial_border": [1, 2, 3]}, (3, 8, 8, 4), (3, 10, 12, 10)],
+    [{"keys": "img", "spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
+    [{"keys": "img", "spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
 ]
 
 
 class TestBorderPadd(PadTest):
     Padder = BorderPadd
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]

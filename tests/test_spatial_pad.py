@@ -16,7 +16,6 @@ from parameterized import parameterized
 from monai.transforms import SpatialPad
 from tests.padders import PadTest
 
-
 TESTS = []
 TESTS.append([{"spatial_size": [3, 4], "method": "end"}, (1, 2, 3), (1, 3, 4)])
 TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric"}, (3, 8, 8, 4), (3, 15, 8, 4)])
@@ -24,6 +23,7 @@ TESTS.append([{"spatial_size": [15, 4, -1], "method": "symmetric"}, (3, 8, 8, 4)
 
 class TestSpatialPad(PadTest):
     Padder = SpatialPad
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         self.pad_test(input_param, input_shape, expected_shape)
@@ -32,6 +32,7 @@ class TestSpatialPad(PadTest):
         kwargs = {"spatial_size": [15, 8], "method": "end", "mode": "constant"}
         unchanged_slices = [slice(None), slice(None, 8), slice(None, 4)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()

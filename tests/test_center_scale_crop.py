@@ -18,12 +18,12 @@ from tests.croppers import CropTest
 
 TEST_SHAPES = [
     [{"roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
-#     [{"roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
-#     [
-#         {"roi_scale": 0.5},
-#         (3, 3, 3, 3),
-#         (3, 2, 2, 2),
-#     ]
+    #     [{"roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    #     [
+    #         {"roi_scale": 0.5},
+    #         (3, 3, 3, 3),
+    #         (3, 2, 2, 2),
+    #     ]
 ]
 
 TEST_VALUES = [
@@ -31,13 +31,14 @@ TEST_VALUES = [
         {"roi_scale": [0.4, 0.4]},
         np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
         np.array([[[1, 2], [2, 3]]]),
-    ],
+    ]
 ]
 
 
 class TestCenterSpatialCrop(CropTest):
     Cropper = CenterScaleCrop
     # @parameterized.expand(TEST_SHAPES)
+
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)
 

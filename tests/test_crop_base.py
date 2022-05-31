@@ -34,12 +34,8 @@ TESTS = [
     #     {"roi_start": (0, 0, 0), "roi_end": (10, -1, 2)},
     #     [slice(0, 10, None), slice(0, -1, None), slice(0, 2, None)],
     # ],
-    [
-        {"roi_center": (10, 6, 13), "roi_size": (3, 5, -1)},
-        [slice(0, 10, None), slice(0, -1, None), slice(0, 2, None)],
-    ],
+    [{"roi_center": (10, 6, 13), "roi_size": (3, 5, -1)}, [slice(0, 10, None), slice(0, -1, None), slice(0, 2, None)]]
 ]
-
 
 
 class TestCropBase(unittest.TestCase):
@@ -51,8 +47,6 @@ class TestCropBase(unittest.TestCase):
     def test_slice_calculation(self, roi_params, expected_slices):
         slices = CropBase.calculate_slices(**roi_params)
         self.assertEqual(slices, expected_slices)
-
-
 
 
 if __name__ == "__main__":

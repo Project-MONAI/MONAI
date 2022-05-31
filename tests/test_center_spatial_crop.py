@@ -28,11 +28,13 @@ TEST_VALUES = [
         {"roi_size": [2, 2]},
         np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
         np.array([[[1, 2], [2, 3]]]),
-    ],
+    ]
 ]
+
 
 class TestCenterSpatialCrop(CropTest):
     Cropper = CenterSpatialCrop
+
     @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)

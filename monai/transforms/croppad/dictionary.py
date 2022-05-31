@@ -293,6 +293,7 @@ class CropBased(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.CropBase`.
     """
+
     backend = CropBase.backend
     cropper: CropBase
 
@@ -352,6 +353,7 @@ class SpatialCropd(CropBased):
         super().__init__(keys, allow_missing_keys)
         self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
 
+
 class CenterSpatialCropd(CropBased):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
@@ -377,6 +379,7 @@ class CenterSpatialCropd(CropBased):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
+
 
 class CenterScaleCropd(MapTransform, InvertibleTransform):
     """

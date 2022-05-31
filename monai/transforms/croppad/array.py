@@ -423,8 +423,7 @@ class CropBase(InvertibleTransform):
 
     @staticmethod
     def calculate_slices_from_center_and_size(
-        roi_center: Union[Sequence[int], NdarrayOrTensor],
-        roi_size: Union[Sequence[int], NdarrayOrTensor],
+        roi_center: Union[Sequence[int], NdarrayOrTensor], roi_size: Union[Sequence[int], NdarrayOrTensor]
     ) -> List[slice]:
         roi_slices = []
         for c, s in zip(roi_center, roi_size):
@@ -505,7 +504,6 @@ class CropBase(InvertibleTransform):
             return inverse_transform(img)
 
 
-
 class SpatialCrop(CropBase):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
@@ -541,7 +539,6 @@ class SpatialCrop(CropBase):
             roi_slices: list of slices for each of the spatial dimensions.
         """
         self.slices = self.calculate_slices(roi_center, roi_size, roi_start, roi_end, roi_slices)
-
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
@@ -931,7 +928,8 @@ class RandWeightedCrop(Randomizable, CropBase):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:  # type: ignore
+    # type: ignore
+    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -1301,6 +1299,7 @@ class ResizeWithPadOrCrop(Transform):
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         out = self.padder.inverse(img)
         return self.cropper.inverse(out)
+
 
 class BoundingRect(Transform):
     """

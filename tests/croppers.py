@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import unittest
 from copy import deepcopy
 from typing import TypeVar, Union
-import unittest
 
 import numpy as np
+
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import CropBase
 from monai.transforms.croppad.dictionary import CropBased
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS, assert_allclose
-from monai.data.meta_tensor import MetaTensor
 
 
 class CropTest(unittest.TestCase):

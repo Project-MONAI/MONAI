@@ -24,7 +24,11 @@ TESTS = [
     [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
     [{"roi_start": [0, 0, 0, 0, 0], "roi_end": [8, 8, 8, 2, 2]}, (3, 3, 3, 3), (3, 3, 3, 3)],
     [{"roi_start": [1, 0, 0], "roi_end": [1, 8, 8]}, (3, 3, 3, 3), (3, 0, 3, 3)],
-    [{"roi_slices": [slice(s, e) for s, e in zip([None, None, None], [None, None, None])]}, (3, 11, 12, 15), (3, 11, 12, 15)],
+    [
+        {"roi_slices": [slice(s, e) for s, e in zip([None, None, None], [None, None, None])]},
+        (3, 11, 12, 15),
+        (3, 11, 12, 15),
+    ],
     [{"roi_slices": [slice(s, e) for s, e in zip([1, None, 0], [None, None, None])]}, (3, 7, 9, 11), (3, 6, 9, 11)],
     [{"roi_slices": [slice(s, e) for s, e in zip([0, None, None], [-1, None, None])]}, (3, 7, 9, 11), (3, 6, 9, 11)],
     [{"roi_slices": [slice(s, e) for s, e in zip([1, None, None], [None, None, None])]}, (3, 10, 8, 6), (3, 9, 8, 6)],
@@ -32,10 +36,7 @@ TESTS = [
     [{"roi_slices": [slice(s, e) for s, e in zip([None, None, None], [-2, -1, 2])]}, (3, 13, 8, 6), (3, 11, 7, 2)],
 ]
 
-TEST_ERRORS = [
-    [{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}],
-]
-
+TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]
 
 
 class TestSpatialCrop(CropTest):
@@ -49,8 +50,6 @@ class TestSpatialCrop(CropTest):
     def test_error(self, input_param):
         with self.assertRaises(ValueError):
             SpatialCrop(**input_param)
-
-
 
 
 if __name__ == "__main__":

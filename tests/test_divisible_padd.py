@@ -18,20 +18,14 @@ from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.padders import PadTest
 
 TESTS = [
-    [
-        {"keys": "img", "k": [4, 3, 2]},
-        (3, 8, 8, 4),
-        (3, 8, 9, 4),
-    ],
-    [
-        {"keys": "img", "k": 7, "method": "end"},
-        (3, 8, 7),
-        (3, 14, 7),
-    ],
+    [{"keys": "img", "k": [4, 3, 2]}, (3, 8, 8, 4), (3, 8, 9, 4)],
+    [{"keys": "img", "k": 7, "method": "end"}, (3, 8, 7), (3, 14, 7)],
 ]
+
 
 class TestDivisiblePadd(PadTest):
     Padder = DivisiblePadd
+
     @parameterized.expand(TESTS)
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]

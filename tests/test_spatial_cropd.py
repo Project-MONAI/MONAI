@@ -58,6 +58,7 @@ TESTS = [
 
 class TestSpatialCropd(CropTest):
     Cropper = SpatialCropd
+
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_shape, expected_shape, same_area):
         self.crop_test(input_param, input_shape, expected_shape, same_area)
