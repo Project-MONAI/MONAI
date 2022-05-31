@@ -53,6 +53,8 @@ def run_testsuit():
         "test_ensure_channel_firstd",
         "test_fill_holes",
         "test_fill_holesd",
+        "test_foreground_mask",
+        "test_foreground_maskd",
         "test_global_mutual_information_loss",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",

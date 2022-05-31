@@ -81,6 +81,7 @@ from .croppad.dictionary import (
 from .intensity.array import (
     AdjustContrast,
     DetectEnvelope,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
@@ -117,6 +118,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ForegroundMaskd,
+    ForegroundMaskD,
+    ForegroundMaskDict,
     GaussianSharpend,
     GaussianSharpenD,
     GaussianSharpenDict,
