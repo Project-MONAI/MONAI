@@ -329,3 +329,15 @@ class BoxModeName(Enum):
     XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
     CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+
+
+class ProbMapKeys(Enum):
+    """
+    The keys to be used for generating the probability maps from patches
+    """
+
+    LOCATION = "mask_location"
+    SIZE = "mask_size"
+    COUNT = "num_patches"
+    PATH = "path"
+    PRE_PATH = "image"

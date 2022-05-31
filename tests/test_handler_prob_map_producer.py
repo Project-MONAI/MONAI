@@ -21,6 +21,7 @@ from torch.utils.data import DataLoader
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
 from monai.handlers import ProbMapProducer, ValidationHandler
+from monai.utils.enums import ProbMapKeys
 
 TEST_CASE_0 = ["temp_image_inference_output_1", 2]
 TEST_CASE_1 = ["temp_image_inference_output_2", 9]
@@ -33,25 +34,25 @@ class TestDataset(Dataset):
             data=[
                 {
                     "image": name,
-                    "num_patches": size,
-                    "map_size": np.array([size, size]),
-                    "map_center": np.array([i, i]),
-                    "map_level": 0,
+                    ProbMapKeys.COUNT.value: size,
+                    ProbMapKeys.SIZE.value: np.array([size, size]),
+                    ProbMapKeys.LOCATION.value: np.array([i, i]),
                 }
                 for i in range(size)
             ]
         )
-        self.image_data = [{"image": name, "num_patches": size, "map_size": np.array([size, size])}]
+        self.image_data = [
+            {"image": name, ProbMapKeys.COUNT.value: size, ProbMapKeys.SIZE.value: np.array([size, size])}
+        ]
 
     def __getitem__(self, index):
         return {
             "image": np.zeros((3, 2, 2)),
-            "num_patches": self.data[index]["num_patches"],
+            ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],
             "metadata": {
                 "path": self.data[index]["image"],
-                "map_size": self.data[index]["map_size"],
-                "map_center": self.data[index]["map_center"],
-                "map_level": self.data[index]["map_level"],
+                ProbMapKeys.SIZE.value: self.data[index][ProbMapKeys.SIZE.value],
+                ProbMapKeys.LOCATION.value: self.data[index][ProbMapKeys.LOCATION.value],
             },
             "pred": index + 1,
         }
