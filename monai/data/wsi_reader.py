@@ -19,7 +19,7 @@ from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
 from monai.transforms.utility.array import AsChannelFirst
-from monai.utils import ensure_tuple, optional_import, require_pkg
+from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -140,10 +140,10 @@ class BaseWSIReader(ImageReader):
             "backend": self.backend,
             "original_channel_dim": 0,
             "spatial_shape": np.asarray(patch.shape[1:]),
-            "path": self.get_file_path(wsi),
-            "patch_location": np.asarray(location),
-            "patch_size": np.asarray(size),
-            "patch_level": level,
+            WSIPatchKeys.PATH: self.get_file_path(wsi),
+            WSIPatchKeys.LOCATION: np.asarray(location),
+            WSIPatchKeys.SIZE: np.asarray(size),
+            WSIPatchKeys.LEVEL: level,
         }
         return metadata
 
@@ -235,15 +235,15 @@ class BaseWSIReader(ImageReader):
                         "original_channel_dim": each_meta["original_channel_dim"],
                         "spatial_shape": each_meta["spatial_shape"],
                     }
-                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
-                        metadata[k] = [each_meta[k]]
+                    for key in WSIPatchKeys:
+                        metadata[key] = [each_meta[key]]
                 else:
                     if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
                         raise ValueError("original_channel_dim is not consistent across wsi objects.")
                     if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
                         raise ValueError("spatial_shape is not consistent across wsi objects.")
-                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
-                        metadata[k].append(each_meta[k])
+                    for key in WSIPatchKeys:
+                        metadata[key].append(each_meta[key])
 
         return _stack_images(patch_list, metadata), metadata
 

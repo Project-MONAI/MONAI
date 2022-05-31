@@ -13,10 +13,11 @@ import os
 import unittest
 from unittest import skipUnless
 
+from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import MaskedPatchWSIDataset
-from monai.utils import optional_import, set_determinism
+from monai.utils import WSIPatchKeys, optional_import, set_determinism
 from tests.utils import testing_data_config
 
 set_determinism(0)
@@ -35,7 +36,7 @@ base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
-    {"data": [{"image": FILE_PATH, "level": 8, "size": (2, 2)}], "mask_level": 8},
+    {"data": [{"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (2, 2)}], "mask_level": 8},
     {
         "num_patches": 4256,
         "wsi_size": [32914, 46000],
@@ -56,13 +57,13 @@ class MaskedPatchWSIDatasetTests:
             dataset = MaskedPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), expected["num_patches"])
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"]["patch"]["level"], expected["patch_level"])
-                self.assertTupleEqual(sample["metadata"]["patch"]["size"], expected["patch_size"])
-                self.assertTupleEqual(sample["image"].shape[1:], expected["patch_size"])
-                self.assertTrue(sample["metadata"]["patch"]["location"][0] >= 0)
-                self.assertTrue(sample["metadata"]["patch"]["location"][0] < expected["wsi_size"][0])
-                self.assertTrue(sample["metadata"]["patch"]["location"][1] >= 0)
-                self.assertTrue(sample["metadata"]["patch"]["location"][1] < expected["wsi_size"][1])
+                self.assertEqual(sample["metadata"][WSIPatchKeys.LEVEL], expected["patch_level"])
+                assert_array_equal(sample["metadata"][WSIPatchKeys.SIZE], expected["patch_size"])
+                assert_array_equal(sample["image"].shape[1:], expected["patch_size"])
+                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][0] >= 0)
+                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][0] < expected["wsi_size"][0])
+                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][1] >= 0)
+                self.assertTrue(sample["metadata"][WSIPatchKeys.LOCATION][1] < expected["wsi_size"][1])
                 if i > 10:
                     break
 

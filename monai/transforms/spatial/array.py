@@ -2662,11 +2662,11 @@ class GridPatch(Transform):
         self.num_patches = num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
-            if sort_fn == GridPatchSort.RANDOM.value:
+            if sort_fn == GridPatchSort.RANDOM:
                 self.sort_fn = np.random.random
-            elif sort_fn == GridPatchSort.MIN.value:
+            elif sort_fn == GridPatchSort.MIN:
                 self.sort_fn = self.get_patch_sum
-            elif sort_fn == GridPatchSort.MAX.value:
+            elif sort_fn == GridPatchSort.MAX:
                 self.sort_fn = self.get_negative_patch_sum
             else:
                 raise ValueError(

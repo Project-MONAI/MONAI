@@ -32,6 +32,7 @@ from .enums import (
     Method,
     MetricReduction,
     NumpyPadMode,
+    WSIPatchKeys,
     PostFix,
     ProbMapKeys,
     PytorchPadMode,

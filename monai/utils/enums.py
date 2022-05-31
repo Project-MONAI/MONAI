@@ -273,6 +273,7 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+    METADATA = "metadata"
 
 
 class PostFix:
@@ -332,7 +333,7 @@ class BoxModeName(Enum):
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 
-class ProbMapKeys(Enum):
+class ProbMapKeys:
     """
     The keys to be used for generating the probability maps from patches
     """
@@ -344,7 +345,7 @@ class ProbMapKeys(Enum):
     PRE_PATH = "image"
 
 
-class GridPatchSort(Enum):
+class GridPatchSort:
     """
     The sorting method for the generated patches in `GridPatch`
     """
@@ -352,3 +353,14 @@ class GridPatchSort(Enum):
     RANDOM = "random"
     MIN = "min"
     MAX = "max"
+
+
+class WSIPatchKeys:
+    """
+    The keys to be used for metadata of patches extracted from whole slide images
+    """
+
+    LOCATION = "patch_location"
+    LEVEL = "patch_level"
+    SIZE = "patch_size"
+    PATH = "path"
