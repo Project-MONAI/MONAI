@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import create_test_image_3d, decollate_batch
+from monai.data import create_test_image_3d, decollate_batch, MetaTensor
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
@@ -236,7 +236,7 @@ def run_inference_test(root_dir, device="cuda:0"):
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
             for img, meta in zip(val_outputs, val_meta):  # save a decollated batch of files
-                saver(img, meta)
+                saver(MetaTensor(img, meta=meta))
 
     return dice_metric.aggregate().item()
 
