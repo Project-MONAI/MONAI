@@ -12,7 +12,6 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCrop

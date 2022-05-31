@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 
 from itertools import chain
 from math import ceil
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -39,7 +39,6 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import (
     Method,
     NumpyPadMode,
@@ -50,7 +49,7 @@ from monai.utils import (
     look_up_option,
 )
 from monai.utils.enums import TraceKeys, TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type
 
 __all__ = [
     "PadBase",

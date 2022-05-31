@@ -19,7 +19,7 @@ import contextlib
 from copy import deepcopy
 from enum import Enum
 from itertools import chain
-from math import ceil, floor
+from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -27,7 +27,6 @@ import torch
 
 from monai.config import IndexSelection, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,

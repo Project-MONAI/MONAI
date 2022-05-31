@@ -11,15 +11,11 @@
 
 import unittest
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import DivisiblePad
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.padders import PadTest
-from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 
