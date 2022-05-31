@@ -32,7 +32,6 @@ from .enums import (
     Method,
     MetricReduction,
     NumpyPadMode,
-    WSIPatchKeys,
     PostFix,
     ProbMapKeys,
     PytorchPadMode,
@@ -41,6 +40,7 @@ from .enums import (
     TransformBackends,
     UpsampleMode,
     Weight,
+    WSIPatchKeys,
 )
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (

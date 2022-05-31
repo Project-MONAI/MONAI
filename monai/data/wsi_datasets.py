@@ -205,11 +205,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         transform: Optional[Callable] = None,
         include_label: bool = False,
         center_location: bool = False,
-        additional_meta_keys: Sequence[str] = (
-            ProbMapKeys.LOCATION,
-            ProbMapKeys.SIZE,
-            ProbMapKeys.COUNT,
-        ),
+        additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.SIZE, ProbMapKeys.COUNT),
         reader="cuCIM",
         seed: int = 0,
         **kwargs,
@@ -347,11 +343,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         transform: Optional[Callable] = None,
         include_label: bool = False,
         center_location: bool = False,
-        additional_meta_keys: Sequence[str] = (
-            ProbMapKeys.LOCATION,
-            ProbMapKeys.SIZE,
-            ProbMapKeys.COUNT,
-        ),
+        additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.SIZE, ProbMapKeys.COUNT),
         reader="cuCIM",
         **kwargs,
     ):
