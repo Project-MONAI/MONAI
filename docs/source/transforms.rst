@@ -449,6 +449,8 @@ Intensity
 
 `ForegroundMask`
 """"""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
 .. autoclass:: ForegroundMask
     :members:
     :special-members: __call__
@@ -1336,6 +1338,8 @@ Intensity (Dict)
 
 `ForegroundMaskd`
 """""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
 .. autoclass:: ForegroundMaskd
     :members:
     :special-members: __call__
