@@ -33,6 +33,7 @@ from .enums import (
     MetricReduction,
     NumpyPadMode,
     PostFix,
+    ProbMapKeys,
     PytorchPadMode,
     SkipMode,
     TraceKeys,
