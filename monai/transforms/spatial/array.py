@@ -575,7 +575,7 @@ class Orientation(Transform):
 class Flip(Transform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip`` in practice. See numpy.flip for additional details:
+    Uses ``np.flip`` in practice. See numpy.flip for additional details: 
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
 
     Args:

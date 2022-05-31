@@ -16,9 +16,9 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import numpy as np
 from typing import Sequence, Optional, Union, Any
 from monai.transforms.transform import Transform
-from monai.transforms import RandomizableTransform
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
+from monai.transforms.transform import  RandomizableTransform
 
 zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
 resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
@@ -99,16 +99,14 @@ class SignalRandShift(RandomizableTransform):
         *args, 
         **kwargs
     ) -> None:
-        super(SignalRandShift,self).__init__()
         """
         Args:
-            mode: define how the extension of the input array is done beyond its boundaries, see for more details for possible values
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
-            filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
+            mode: define how the extension of the input array is done beyond its boundaries, see for more details : https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
+            filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details : https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
             v: scaling factor
             boundaries: range of the signal shift, taken randomly in the defined range. Defaults to ``[-1.0, 1.0]``
         """    
+        super(SignalRandShift,self).__init__()
         
         self.filling = filling
         self.mode = mode
