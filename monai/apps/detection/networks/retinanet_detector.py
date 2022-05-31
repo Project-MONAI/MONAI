@@ -714,12 +714,12 @@ class RetinaNetDetector(nn.Module):
 
     def postprocess_detections(
         self,
-        head_outputs: Dict[str, Tensor],
+        head_outputs_reshape: Dict[str, Tensor],
         anchors: List[Tensor],
         image_sizes: List[List[int]],
         num_anchor_locs_per_level: Sequence[int],
         need_sigmoid: bool = True,
-    ) -> List:
+    ) -> List[Dict[str, Tensor]]:
         """
         Postprocessing to generate detection result from classification logits and box regression.
 
@@ -731,7 +731,9 @@ class RetinaNetDetector(nn.Module):
             4) Keep boxes with top self.detections_per_img scores for each image
 
         Args:
-            head_outputs: network outputs.
+            head_outputs_reshape: reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
+              sized (B, sum(HW(D)A), self.num_classes). ``head_output_reshape[self.box_reg_key]`` is a Tensor
+              sized (B, sum(HW(D)A), 2*self.spatial_dims)
             targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
                 ground-truth boxes present in the image.
             anchors: a list of Tensor. Each Tensor represents anchors for each image,
@@ -749,8 +751,8 @@ class RetinaNetDetector(nn.Module):
 
         # split outputs per level
         split_head_outputs: Dict[str, List[Tensor]] = {}
-        for k in head_outputs:
-            split_head_outputs[k] = list(head_outputs[k].split(num_anchors_per_level, dim=1))
+        for k in head_outputs_reshape:
+            split_head_outputs[k] = list(head_outputs_reshape[k].split(num_anchors_per_level, dim=1))
         split_anchors = [list(a.split(num_anchors_per_level)) for a in anchors]  # List[List[Tensor]]
 
         class_logits = split_head_outputs[self.cls_key]  # List[Tensor], each sized (HWA, self.num_classes)
@@ -830,16 +832,18 @@ class RetinaNetDetector(nn.Module):
 
     def compute_loss(
         self,
-        head_outputs: Dict[str, Tensor],
+        head_outputs_reshape: Dict[str, Tensor],
         targets: List[Dict[str, Tensor]],
         anchors: List[Tensor],
         num_anchor_locs_per_level: Sequence[int],
-    ) -> Dict:
+    ) -> Dict[str, Tensor]:
         """
         Compute losses.
 
         Args:
-            head_outputs: network outputs.
+            head_outputs_reshape: reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
+              sized (B, sum(HW(D)A), self.num_classes). ``head_output_reshape[self.box_reg_key]`` is a Tensor
+              sized (B, sum(HW(D)A), 2*self.spatial_dims)
             targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
                 ground-truth boxes present in the image.
             anchors: a list of Tensor. Each Tensor represents anchors for each image,
