@@ -32,10 +32,10 @@ from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, w
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
-from monai.utils.module import optional_import
+from monai.utils.module import min_version, optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
 
-skimage, _ = optional_import("skimage")
+skimage, _ = optional_import("skimage", "0.19.0", min_version)
 
 __all__ = [
     "RandGaussianNoise",
