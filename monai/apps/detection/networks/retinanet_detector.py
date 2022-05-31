@@ -42,6 +42,7 @@ import warnings
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
@@ -51,6 +52,7 @@ from monai.data import box_utils
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.transforms.croppad.array import SpatialPad
+from monai.transforms.utils import compute_divisible_spatial_size
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep
 
 
@@ -205,19 +207,35 @@ class RetinaNetDetector(nn.Module):
         self.debug = debug
 
         # default setting for both training and inference
+        # can be updated by self.set_box_coder_weights(*)
         self.box_coder = BoxCoder(weights=(1.0,) * 2 * self.spatial_dims)
 
-        # default keys in the ground truth targets and predicted boxes
+        # default keys in the ground truth targets and predicted boxes,
+        # can be updated by self.set_target_keys(*)
         self.target_box_key = "boxes"
         self.target_label_key = "labels"
         self.pred_score_key = self.target_label_key + "_scores"  # score key for the detected boxes
 
-        # default setting for inference
-        self.use_inferer = False
+        # default setting for inference,
+        # can be updated by self.set_inference_parameters(*),
         self.score_thresh = 0.5
         self.topk_candidates = 1000
         self.nms_thresh = 0.2
         self.detections_per_img = 300
+        # can be updated by self.set_sliding_window_inferer(*), self.set_custom_inferer(*), self.switch_to_inferer(*).
+        self.use_inferer = False
+
+    def set_box_coder_weights(self, weights: Tuple[float]):
+        """
+        Set the weights for box coder.
+
+        Args:
+            weights: a list/tuple with length of 2*self.spatial_dims
+
+        """
+        if len(weights) != 2 * self.spatial_dims:
+            raise ValueError(f"len(weights) should be {2 * self.spatial_dims}, got weights={weights}.")
+        self.box_coder = BoxCoder(weights=weights)
 
     def set_target_keys(self, box_key: str, label_key: str):
         """
@@ -412,28 +430,36 @@ class RetinaNetDetector(nn.Module):
 
     def preprocess_images(self, input_images: Union[List[Tensor], Tensor]) -> Tuple[Tensor, List[List[int]]]:
         """
-        Preprocess the list of input images, pad them
+        Preprocess the list of input images, pad them with constant value 0.0 at the end
         to create a (B, C, H, W) or (B, C, H, W, D) Tensor as network input.
+        Padded size (H, W) or (H, W, D) is divisible by self.size_divisible.
 
         Args:
             input_images: The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
-                one for each image, and should be in 0-1 range. Different images can have different sizes.
+                one for each image. Different images can have different sizes.
                 Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
 
         Return:
             - images, a (B, C, H, W) or (B, C, H, W, D) Tensor as network input
             - image_sizes, the original spatial size of each image
         """
-        if torch.jit.isinstance(input_images, List[Tensor]):
-            image_sizes = [img.shape[-self.spatial_dims :] for img in input_images]
-            in_channels = input_images[0].shape[0]
-            dtype = input_images[0].dtype
-            device = input_images[0].device
-        elif isinstance(input_images, Tensor):
-            image_sizes = [input_images.shape[-self.spatial_dims :] for _ in range(input_images.shape[0])]
-            in_channels = input_images.shape[1]
-            dtype = input_images.dtype
-            device = input_images.device
+
+        # input_images: Tensor
+        if isinstance(input_images, Tensor):
+            orig_size = list(input_images.shape[-self.spatial_dims :])
+            new_size = compute_divisible_spatial_size(spatial_shape=orig_size, k=self.size_divisible)
+            all_pad_width = [(0, max(sp_i - orig_size[i], 0)) for i, sp_i in enumerate(new_size)]
+            pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
+            if max(pt_pad_width) == 0:
+                # if there is no need to pad
+                return input_images, [orig_size] * input_images.shape[0]
+            return F.pad(input_images, pt_pad_width, mode="constant", value=0.0), [orig_size] * input_images.shape[0]
+
+        # input_images: List[Tensor])
+        image_sizes = [img.shape[-self.spatial_dims :] for img in input_images]
+        in_channels = input_images[0].shape[0]
+        dtype = input_images[0].dtype
+        device = input_images[0].device
 
         # compute max_spatial_size
         image_sizes_t = torch.tensor(image_sizes)
@@ -441,19 +467,14 @@ class RetinaNetDetector(nn.Module):
 
         if len(max_spatial_size_t) != self.spatial_dims or len(self.size_divisible) != self.spatial_dims:
             raise ValueError(" Require len(max_spatial_size_t) == self.spatial_dims ==len(self.size_divisible).")
-        max_spatial_size = [
-            int(
-                torch.ceil(max_spatial_size_t[axis] / float(self.size_divisible[axis])).item()
-                * self.size_divisible[axis]
-            )
-            for axis in range(self.spatial_dims)
-        ]
+
+        max_spatial_size = compute_divisible_spatial_size(spatial_shape=list(max_spatial_size_t), k=self.size_divisible)
 
         # allocate memory for the padded images
         images = torch.zeros([len(image_sizes), in_channels] + max_spatial_size, dtype=dtype, device=device)
 
         # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
-        padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode="edge")
+        padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode="constant", value=0.0)
         for idx, img in enumerate(input_images):
             images[idx, ...] = padder(img)  # type: ignore
 

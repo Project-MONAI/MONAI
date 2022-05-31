@@ -24,7 +24,6 @@ from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 _, has_torchvision = optional_import("torchvision")
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
 num_anchors = 7
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel
@@ -121,14 +120,14 @@ class TestRetinaNetDetector(unittest.TestCase):
         )
         detector = retinanet_resnet50_fpn_detector(
             **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
-        ).to(device)
+        )
 
         with eval_mode(detector):
-            input_data = torch.randn(input_shape).to(device)
+            input_data = torch.randn(input_shape)
             result = detector.forward(input_data)
             assert len(result) == len(result)
 
-            input_data = [torch.randn(input_shape[1:]).to(device) for _ in range(random.randint(1, 9))]
+            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
             result = detector.forward(input_data)
             assert len(result) == len(result)
 
@@ -137,14 +136,14 @@ class TestRetinaNetDetector(unittest.TestCase):
         anchor_generator = AnchorGeneratorWithAnchorShape(
             feature_map_scales=(1,), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
         )
-        detector = RetinaNetDetector(network=NaiveNetwork(**input_param), anchor_generator=anchor_generator).to(device)
+        detector = RetinaNetDetector(network=NaiveNetwork(**input_param), anchor_generator=anchor_generator)
 
         with eval_mode(detector):
-            input_data = torch.randn(input_shape).to(device)
+            input_data = torch.randn(input_shape)
             result = detector.forward(input_data)
             assert len(result) == len(result)
 
-            input_data = [torch.randn(input_shape[1:]).to(device) for _ in range(random.randint(1, 9))]
+            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
             result = detector.forward(input_data)
             assert len(result) == len(result)
 
@@ -157,9 +156,9 @@ class TestRetinaNetDetector(unittest.TestCase):
         )
         detector = retinanet_resnet50_fpn_detector(
             **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
-        ).to(device)
+        )
         with eval_mode(detector):
-            input_data = torch.randn(input_shape).to(device)
+            input_data = torch.randn(input_shape)
             test_script_save(detector.network, input_data)
 
 
