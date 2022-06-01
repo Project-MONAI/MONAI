@@ -11,7 +11,6 @@
 
 import warnings
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
