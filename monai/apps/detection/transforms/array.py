@@ -52,7 +52,7 @@ __all__ = [
     "ClipBoxToImage",
     "BoxToMask",
     "MaskToBox",
-    "SpatialCropPadBox",
+    "SpatialCropBox",
 ]
 
 
