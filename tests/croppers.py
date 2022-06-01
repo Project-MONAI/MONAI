@@ -14,7 +14,6 @@ from copy import deepcopy
 from typing import TypeVar, Union
 
 import numpy as np
-from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import CropBase
 from monai.transforms.croppad.dictionary import CropBased
