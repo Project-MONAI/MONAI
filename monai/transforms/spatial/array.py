@@ -164,9 +164,9 @@ class SpatialResample(InvertibleTransform):
             img = MetaTensor(img, affine=dst_affine)
         img = img.to(torch.float32)
 
-        # update spatial_shape
-        if isinstance(img, MetaTensor):
-            img.meta[Key.SPATIAL_SHAPE] = img.shape[1:]
+        # # update spatial_shape
+        # if isinstance(img, MetaTensor):
+        #     img.meta[Key.SPATIAL_SHAPE] = img.shape[1:]
 
         # append the transform
         if isinstance(img, MetaTensor) and self.tracing:
