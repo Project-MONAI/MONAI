@@ -363,11 +363,9 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
-        print(f"{self.image_data=}")
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
-        print(f"{self.data[:2]=}")
 
     def _evaluate_patch_locations(self, sample):
         """Calculate the location for each patch based on the mask at different resolution level"""
@@ -381,9 +379,6 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # create the foreground tissue mask and get all indices for non-zero pixels
         mask = np.squeeze(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi))
         mask_locations = np.vstack(mask.nonzero()).T
-        print(f"{wsi.shape=}")
-        print(f"{mask.shape=}")
-        print(f"{mask_locations.shape=}")
 
         # convert mask locations to image locations at level=0
         mask_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, self.mask_level)
