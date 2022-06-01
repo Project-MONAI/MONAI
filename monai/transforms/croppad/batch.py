@@ -22,7 +22,7 @@ import torch
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.utils.enums import Method, NumpyPadMode, TraceKeys
+from monai.utils.enums import Method, NumpyPadMode, PytorchPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
 
@@ -57,20 +57,20 @@ class PadListDataCollate(InvertibleTransform):
     Args:
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
     def __init__(
         self,
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **kwargs,
     ) -> None:
         self.method = method
         self.mode = mode
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
     def __call__(self, batch: Any):
         """
@@ -96,7 +96,7 @@ class PadListDataCollate(InvertibleTransform):
                 continue
 
             # Use `SpatialPad` to match sizes, Default params are central padding, padding with 0's
-            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
+            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.kwargs)
             for idx, batch_i in enumerate(batch):
                 orig_size = batch_i[key_or_idx].shape[1:]
                 padded = padder(batch_i[key_or_idx])
