@@ -1313,7 +1313,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         return img
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data, check=False)  # leveraging a new instance's inverse()
+        transform = self.pop_transform(data)
         if transform[TraceKeys.DO_TRANSFORM]:
             with self.trace_transform(False):
                 return Rotate(0).inverse(data)
@@ -1359,7 +1359,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         return data
 
 
-class RandAxisFlip(RandomizableTransform):
+class RandAxisFlip(RandomizableTransform, InvertibleTransform):
     """
     Randomly select a spatial axis and flip along it.
     See numpy.flip for additional details.
@@ -1382,19 +1382,27 @@ class RandAxisFlip(RandomizableTransform):
             return None
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
             randomize: whether to execute `randomize()` function first, default to True.
         """
         if randomize:
             self.randomize(data=img)
 
-        if not self._do_transform:
-            return img
+        if self._do_transform:
+            out = Flip(spatial_axis=self._axis)(img)
+        self.push_transform(out, extra_info={"axes": self._axis})
+        return out
 
-        return Flip(spatial_axis=self._axis)(img)
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        if transform[TraceKeys.DO_TRANSFORM]:
+            axes = transform[TraceKeys.EXTRA_INFO]["axes"]
+            with self.trace_transform(False):
+                return Flip(spatial_axis=axes).inverse(data)
+        return data
 
 
 class RandZoom(RandomizableTransform):

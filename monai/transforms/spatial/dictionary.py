@@ -1312,7 +1312,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.flipper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -1325,20 +1325,12 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
-            self.push_transform(d, key, extra_info={"axis": self.flipper._axis})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axis"])
-                # Inverse is same as forward
-                d[key] = flipper(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            d[key] = self.flipper.inverse(d[key])
         return d
 
 
