@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import contextlib
 from copy import deepcopy
 from itertools import chain
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
