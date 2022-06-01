@@ -13,11 +13,11 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
-from tests.croppers import CropTest
 from parameterized import parameterized
 
-from monai.transforms import RandCropByPosNegLabel
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms import RandCropByPosNegLabel
+from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = [
@@ -132,6 +132,7 @@ class TestRandCropByPosNegLabel(CropTest):
                     self.assertIsInstance(inv, MetaTensor)
                     self.assertEqual(inv.applied_operations, [])
                     self.assertEqual(inv.shape, input_data["img"].shape)
+
 
 if __name__ == "__main__":
     unittest.main()

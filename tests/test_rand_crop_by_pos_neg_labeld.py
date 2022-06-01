@@ -67,11 +67,7 @@ TESTS = [
             "image_key": None,
             "image_threshold": 0,
         },
-        {
-            "image": np.zeros([3, 3, 3, 3]) - 1,
-            "extra": np.zeros([3, 3, 3, 3]),
-            "label": np.ones([3, 3, 3, 3]),
-        },
+        {"image": np.zeros([3, 3, 3, 3]) - 1, "extra": np.zeros([3, 3, 3, 3]), "label": np.ones([3, 3, 3, 3])},
         (3, 2, 2, 2),
     ],
     [
@@ -86,11 +82,7 @@ TESTS = [
             "image_threshold": 0,
             "allow_smaller": True,
         },
-        {
-            "image": np.zeros([3, 3, 3, 3]) - 1,
-            "extra": np.zeros([3, 3, 3, 3]),
-            "label": np.ones([3, 3, 3, 3]),
-        },
+        {"image": np.zeros([3, 3, 3, 3]) - 1, "extra": np.zeros([3, 3, 3, 3]), "label": np.ones([3, 3, 3, 3])},
         (3, 3, 3, 2),
     ],
     [
@@ -105,11 +97,7 @@ TESTS = [
             "image_threshold": 0,
             "allow_smaller": True,
         },
-        {
-            "image": np.zeros([3, 3, 3, 3]) - 1,
-            "extra": np.zeros([3, 3, 3, 3]),
-            "label": np.ones([3, 3, 3, 3]),
-        },
+        {"image": np.zeros([3, 3, 3, 3]) - 1, "extra": np.zeros([3, 3, 3, 3]), "label": np.ones([3, 3, 3, 3])},
         (3, 3, 3, 3),
     ],
 ]

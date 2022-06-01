@@ -15,9 +15,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCrop
 from tests.utils import TEST_NDARRAYS
-from monai.data.meta_tensor import MetaTensor
 
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],

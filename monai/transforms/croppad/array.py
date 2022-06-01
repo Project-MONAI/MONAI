@@ -1181,7 +1181,7 @@ class RandCropByPosNegLabel(Randomizable, ListCropBase):
         return results
 
 
-class RandCropByLabelClasses(Randomizable, CropBase):
+class RandCropByLabelClasses(Randomizable, ListCropBase):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
@@ -1358,7 +1358,9 @@ class ResizeWithPadOrCrop(InvertibleTransform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None) -> torch.Tensor:
+    def __call__(
+        self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
+    ) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
