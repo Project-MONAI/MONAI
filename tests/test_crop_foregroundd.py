@@ -151,12 +151,15 @@ for p in TEST_NDARRAYS:
 class TestCropForegroundd(unittest.TestCase):
     @parameterized.expand(TEST_POSITION + TESTS)
     def test_value(self, argments, input_data, expected_data):
-        result = CropForegroundd(**argments)(input_data)
-        r, i = result["img"], input_data["img"]
-        self.assertEqual(type(r), type(i))
-        if isinstance(r, torch.Tensor):
-            self.assertEqual(r.device, i.device)
-        assert_allclose(r, expected_data)
+        cropper = CropForegroundd(**argments)
+        result = cropper(input_data)
+        assert_allclose(result["img"], expected_data, type_test=False)
+        if "label" in input_data and "img" in input_data:
+            self.assertTupleEqual(result["img"].shape, result["label"].shape)
+        inv = cropper.inverse(result)
+        self.assertTupleEqual(inv["img"].shape, input_data["img"].shape)
+        if "label" in input_data:
+            self.assertTupleEqual(inv["label"].shape, input_data["label"].shape)
 
     @parameterized.expand(TEST_POSITION)
     def test_foreground_position(self, argments, input_data, _):

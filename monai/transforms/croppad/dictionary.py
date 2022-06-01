@@ -581,7 +581,7 @@ class RandSpatialCropSamplesd(RandCropBased):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         random_state = deepcopy(self.cropper.R)
         ret = [{} for _ in range(self.cropper.num_samples)]
         for key in self.key_iterator(data):
@@ -600,7 +600,7 @@ class RandSpatialCropSamplesd(RandCropBased):
         return super().inverse(data)
 
 
-class CropForegroundd(MapTransform, InvertibleTransform):
+class CropForegroundd(CropBased):
     """
     Dictionary-based version :py:class:`monai.transforms.CropForeground`.
     Crop only the foreground object of the expected images.
@@ -672,43 +672,15 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key, extra_info={"box_start": box_start, "box_end": box_end})
             d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.asarray(transform[TraceKeys.ORIG_SIZE])
-            cur_size = np.asarray(d[key].shape[1:])
-            extra_info = transform[TraceKeys.EXTRA_INFO]
-            box_start = np.asarray(extra_info["box_start"])
-            box_end = np.asarray(extra_info["box_end"])
-            # first crop the padding part
-            roi_start = np.maximum(-box_start, 0)
-            roi_end = cur_size - np.maximum(box_end - orig_size, 0)
-
-            d[key] = SpatialCrop(roi_start=roi_start, roi_end=roi_end)(d[key])
-
-            # update bounding box to pad
-            pad_to_start = np.maximum(box_start, 0)
-            pad_to_end = orig_size - np.minimum(box_end, orig_size)
-            # interleave mins and maxes
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            # second pad back the original size
-            d[key] = BorderPad(pad)(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
 
 
 class RandWeightedCropd(Randomizable, MapTransform, InvertibleTransform):

@@ -957,7 +957,13 @@ class CropForeground(CropBase):
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         all_pad_width = BorderPad.calculate_pad_width(cropped, pad)
-        return self.padder._forward(cropped, all_pad_width, mode)
+        out = self.padder._forward(cropped, all_pad_width, mode)
+        # combine the traced cropping and padding into one transformation
+        # by taking the padded info and placing it in a key inside the crop info.
+        if isinstance(out, MetaTensor):
+            app_op = out.applied_operations.pop(-1)
+            out.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = app_op
+        return out
 
     def __call__(self, img: torch.Tensor, mode: Optional[Union[NumpyPadMode, str]] = None):
         """
@@ -972,9 +978,12 @@ class CropForeground(CropBase):
         return cropped
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
+        transform = self.get_most_recent_transform(img)
+        # we moved the padding info in the forward, so put it back for the inverse
+        pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
+        img.applied_operations.append(pad_info)
         # first inverse the padder
-        with self.padder.trace_transform(False):
-            inv = self.padder.inverse(img)
+        inv = self.padder.inverse(img)
         # and then inverse the cropper (self)
         return super().inverse(inv)
 
