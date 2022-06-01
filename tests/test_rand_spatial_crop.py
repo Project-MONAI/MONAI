@@ -19,20 +19,9 @@ from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_SHAPES = [
-    [
-        {"roi_size": [3, 3, -1], "random_center": True},
-        (3, 3, 3, 4),
-        (3, 3, 3, 4),
-    ],
-    [
-        {"roi_size": [3, 3, 3], "random_center": True},
-        (3, 3, 3, 3),
-        (3, 3, 3, 3)],
-    [
-        {"roi_size": [3, 3, 3], "random_center": False},
-        (3, 3, 3, 3),
-        (3, 3, 3, 3),
-    ],
+    [{"roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],
+    [{"roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
 ]
 
 TEST_VALUES = [
@@ -48,15 +37,13 @@ TEST_RANDOM_SHAPES = [
         (1, 4, 5, 6),
         (1, 4, 4, 3),
     ],
-    [
-        {"roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True},
-        (1, 4, 5, 6),
-        (1, 3, 4, 3),
-    ]
+    [{"roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True}, (1, 4, 5, 6), (1, 3, 4, 3)],
 ]
+
 
 class TestRandSpatialCrop(CropTest):
     Cropper = RandSpatialCrop
+
     @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)

@@ -10,12 +10,11 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 from typing import List
 
 import numpy as np
 import torch
-
-from copy import deepcopy
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
@@ -108,6 +107,7 @@ class TestSpatialPad(unittest.TestCase):
             meta = deepcopy({k: v for k, v in im.meta.items() if k != "affine"})
             app_ops = deepcopy(im.applied_operations)
             return affine, meta, app_ops
+
         def check(info1, info2, should_be_same):
             aff1, meta1, app_ops1 = info1
             aff2, meta2, app_ops2 = info2

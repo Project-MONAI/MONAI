@@ -10,14 +10,14 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
+from parameterized import parameterized
 
 from monai.transforms.croppad.dictionary import RandWeightedCropd
-from copy import deepcopy
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
-from parameterized import parameterized
 
 def get_data(ndim):
     im_gen = NumpyImageTestCase2D() if ndim == 2 else NumpyImageTestCase3D()
@@ -111,7 +111,7 @@ for p in TEST_NDARRAYS:
                 "default roi 3d",
                 dict(keys=("img", "seg"), w_key="w", spatial_size=(10, -1, -1), num_samples=3),
                 {"img": p(im), "seg": p(SEGN_3D), "w": q(weight)},
-                (1, 10,64,80),
+                (1, 10, 64, 80),
                 [[14, 32, 40], [41, 32, 40], [20, 32, 40]],
             ]
         )
@@ -136,12 +136,13 @@ for p in TEST_NDARRAYS:
         TESTS.append(
             [
                 "bad w roi 3d",
-                dict(keys=("img", "seg"), w_key="w", spatial_size=(48,64,80), num_samples=3),
+                dict(keys=("img", "seg"), w_key="w", spatial_size=(48, 64, 80), num_samples=3),
                 {"img": p(im), "seg": p(SEGN_3D), "w": q(weight)},
                 (1, 48, 64, 80),
                 [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
             ]
         )
+
 
 class TestRandWeightedCrop(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -164,7 +165,6 @@ class TestRandWeightedCrop(unittest.TestCase):
                 self.assertEqual(r[k].meta["patch_index"], i)
                 # check inverse shape
                 self.assertTupleEqual(inv[k].shape, input_data[k].shape)
-
 
 
 if __name__ == "__main__":

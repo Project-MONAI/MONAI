@@ -19,24 +19,20 @@ from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_SHAPES = [
-    [
-        {"keys": "img", "roi_scale": [1.0, 1.0, -1.0], "random_center": True},
-        (3, 3, 3, 4),
-        (3, 3, 3, 4),
-    ],
+    [{"keys": "img", "roi_scale": [1.0, 1.0, -1.0], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],
     [
         # test `allow_missing_keys` with key "label"
         {"keys": ["label", "img"], "roi_scale": [1.0, 1.0, 1.0], "random_center": False, "allow_missing_keys": True},
         (3, 3, 3, 3),
         (3, 3, 3, 3),
-    ]
+    ],
 ]
 
 TEST_VALUES = [
     [
         {"keys": "img", "roi_scale": [0.6, 0.6], "random_center": False},
         np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    ],
+    ]
 ]
 
 TEST_RANDOM_SHAPES = [
@@ -63,8 +59,10 @@ TEST_RANDOM_SHAPES = [
     ],
 ]
 
+
 class TestRandScaleCropd(CropTest):
     Cropper = RandScaleCropd
+
     @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)
@@ -88,7 +86,6 @@ class TestRandScaleCropd(CropTest):
                 input_data = {"img": im_type(np.random.randint(0, 2, input_shape))}
                 result = cropper(input_data)["img"]
                 self.assertTupleEqual(result.shape, expected_shape)
-
 
 
 if __name__ == "__main__":

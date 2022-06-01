@@ -19,23 +19,15 @@ from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_SHAPES = [
-    [
-        {"roi_scale": [1.0, 1.0, -1.0], "random_center": True},
-        (3, 3, 3, 4),
-        (3, 3, 3, 4),
-    ],
-    [
-        {"roi_scale": [1.0, 1.0, 1.0], "random_center": False},
-        (3, 3, 3, 3),
-        (3, 3, 3, 3),
-    ],
+    [{"roi_scale": [1.0, 1.0, -1.0], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],
+    [{"roi_scale": [1.0, 1.0, 1.0], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
 ]
 
 TEST_VALUES = [
     [
         {"roi_scale": [0.6, 0.6], "random_center": False},
         np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    ],
+    ]
 ]
 
 TEST_RANDOM_SHAPES = [
@@ -44,20 +36,14 @@ TEST_RANDOM_SHAPES = [
         (1, 4, 5, 6),
         (1, 3, 4, 3),
     ],
-    [
-        {"roi_scale": 0.6, "max_roi_scale": 0.8, "random_center": True, "random_size": True},
-        (1, 4, 5, 6),
-        (1, 3, 4, 4),
-    ],
-    [
-        {"roi_scale": 0.2, "max_roi_scale": 0.8, "random_center": True, "random_size": True},
-        (1, 4, 5, 6),
-        (1, 3, 2, 4),
-    ],
+    [{"roi_scale": 0.6, "max_roi_scale": 0.8, "random_center": True, "random_size": True}, (1, 4, 5, 6), (1, 3, 4, 4)],
+    [{"roi_scale": 0.2, "max_roi_scale": 0.8, "random_center": True, "random_size": True}, (1, 4, 5, 6), (1, 3, 2, 4)],
 ]
+
 
 class TestRandScaleCrop(CropTest):
     Cropper = RandScaleCrop
+
     @parameterized.expand(TEST_SHAPES)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)

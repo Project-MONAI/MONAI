@@ -71,32 +71,17 @@ TEST_CASE_2 = [
 ]
 
 TEST_INVERSE_LIST = [
-    [
-        (1, 2, 2),
-        {"roi_size": (1, 1), "num_samples": 4, "random_size": False},
-    ],
-    [
-        (1, 3, 2),
-        {"roi_size": (1, 1), "num_samples": 100, "random_size": False},
-    ],
-    [
-        (3, 10, 11, 12),
-
-        {"roi_size": (3,5,4), "num_samples": 7, "random_size": False},
-    ],
-    [
-        (3, 10, 11, 12),
-        {"roi_size": (10, 11,12), "num_samples": 3, "random_size": False},
-    ],
-    [
-        (3, 10, 11, 12),
-        {"roi_size": (3, 4, 5), "num_samples": 100, "random_size": False},
-    ],
+    [(1, 2, 2), {"roi_size": (1, 1), "num_samples": 4, "random_size": False}],
+    [(1, 3, 2), {"roi_size": (1, 1), "num_samples": 100, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (3, 5, 4), "num_samples": 7, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (10, 11, 12), "num_samples": 3, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (3, 4, 5), "num_samples": 100, "random_size": False}],
 ]
 
 
 class TestRandSpatialCropSamples(CropTest):
     Cropper = RandSpatialCropSamples
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_shape, expected_shape, expected_last_item):
         input_data = np.arange(192).reshape(*input_shape)
@@ -121,8 +106,6 @@ class TestRandSpatialCropSamples(CropTest):
     @parameterized.expand(TEST_INVERSE_LIST)
     def test_multi_inverse(self, input_shape, init_params):
         self.multi_inverse(input_shape, init_params)
-
-
 
 
 if __name__ == "__main__":

@@ -11,10 +11,11 @@
 
 import unittest
 from copy import deepcopy
+
 import numpy as np
 from parameterized import parameterized
-from monai.data.meta_tensor import MetaTensor
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import SpatialCrop
 
 TEST_ERRORS = [
@@ -35,10 +36,7 @@ TESTS = [
         {"roi_slices": [slice(-1, 3), slice(-3, 6), slice(None)]},
         [slice(-1, 3), slice(-3, 6), slice(None)],
     ],
-    [  # slices are just start and end
-        {"roi_start": (0,), "roi_end": (10,)},
-        [slice(0, 10, None)],
-    ],
+    [{"roi_start": (0,), "roi_end": (10,)}, [slice(0, 10, None)]],  # slices are just start and end
     [  # slices are just start and end
         {"roi_start": (0, 0, 0), "roi_end": (10, -1, 2)},
         [slice(0, 10, None), slice(0, -1, None), slice(0, 2, None)],

@@ -41,10 +41,10 @@ from monai.transforms.croppad.array import (
     RandScaleCrop,
     RandSpatialCrop,
     RandSpatialCropSamples,
+    RandWeightedCrop,
     ResizeWithPadOrCrop,
     SpatialCrop,
     SpatialPad,
-    RandWeightedCrop,
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
@@ -54,7 +54,6 @@ from monai.transforms.utils import (
     is_positive,
     map_binary_to_indices,
     map_classes_to_indices,
-    weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
@@ -314,8 +313,8 @@ class CropBased(MapTransform, InvertibleTransform):
             d[key] = self.cropper.inverse(d[key])
         return d
 
-class RandCropBased(CropBased, Randomizable):
 
+class RandCropBased(CropBased, Randomizable):
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandCropBased":
@@ -409,6 +408,7 @@ class CenterSpatialCropd(CropBased):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cropper = CenterSpatialCrop(roi_size)
+
 
 class CenterScaleCropd(CropBased):
     """
@@ -516,7 +516,6 @@ class RandScaleCropd(RandCropBased):
     ) -> None:
         super().__init__(keys=keys, allow_missing_keys=allow_missing_keys)
         self.cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size)
-
 
 
 @contextlib.contextmanager
@@ -706,6 +705,7 @@ class RandWeightedCropd(RandCropBased):
     """
 
     backend = SpatialCrop.backend
+
     @deprecated_arg(name="meta_keys", since="0.8")
     @deprecated_arg(name="meta_key_postfix", since="0.8")
     @deprecated_arg(name="center_coord_key", since="0.8", msg_suffix="coords stored in img.meta['crop_center']")
@@ -1150,52 +1150,19 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         method: Union[Method, str] = Method.SYMMETRIC,
         **np_kwargs,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)
+        self.crop_padder = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)  # type: ignore
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            orig_size = d[key].shape[1:]
-            d[key] = self.padcropper(d[key], mode=m)
-            self.push_transform(d, key, orig_size=orig_size, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-        return d
+    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, NdarrayOrTensor]:
+        for k, m in self.key_iterator(data, self.mode):
+            data[k] = self.crop_padder(data[k], m)
+        return data
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            # Unfortunately, we can't just use ResizeWithPadOrCrop with original size because of odd/even rounding.
-            # Instead, we first pad any smaller dimensions, and then we crop any larger dimensions.
-
-            # First, do pad
-            if np.any((orig_size - current_size) > 0):
-                pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
-                # in each direction, if original size is even and current size is odd, += 1
-                pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
-                pad_to_start[pad_to_start < 0] = 0
-                pad_to_end = orig_size - current_size - pad_to_start
-                pad_to_end[pad_to_end < 0] = 0
-                pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-                d[key] = BorderPad(pad)(d[key])
-
-            # Next crop
-            if np.any((orig_size - current_size) < 0):
-                if self.padcropper.padder.method == Method.SYMMETRIC:
-                    roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
-                else:
-                    roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
-
-                d[key] = SpatialCrop(roi_center, orig_size)(d[key])
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
+        for k in self.key_iterator(data):
+            data[k] = self.crop_padder.inverse(data[k])
+        return data
 
 
 class BoundingRectd(MapTransform):

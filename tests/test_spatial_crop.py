@@ -34,7 +34,7 @@ TESTS = [
     [{"roi_slices": [slice(s, e) for s, e in zip([1, None, None], [None, None, None])]}, (3, 10, 8, 6), (3, 9, 8, 6)],
     [{"roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]}, (3, 15, 17, 8), (3, 1, 2, 2)],
     [{"roi_slices": [slice(s, e) for s, e in zip([None, None, None], [-2, -1, 2])]}, (3, 13, 8, 6), (3, 11, 7, 2)],
-    [{"roi_start": [-1, 0], "roi_end": [5, 5]}, (1,5,5), (1,5,5)],
+    [{"roi_start": [-1, 0], "roi_end": [5, 5]}, (1, 5, 5), (1, 5, 5)],
 ]
 
 TEST_ERRORS = [[{"roi_slices": [slice(s, e, 2) for s, e in zip([-1, -2, 0], [None, None, 2])]}]]

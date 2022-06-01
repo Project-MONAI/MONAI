@@ -13,14 +13,14 @@ A collection of "vanilla" transforms for crop and pad operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import copy
 from itertools import chain
 from math import ceil
 from typing import Callable, List, Optional, Sequence, Tuple, Union
-import copy
+
 import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
-from monai.utils import ImageMetaKey
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -42,6 +42,7 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import (
+    ImageMetaKey,
     Method,
     NumpyPadMode,
     PytorchPadMode,
@@ -539,6 +540,7 @@ class ListCropBase(CropBase):
     computed either on a single image, or if a list of cropped images is given, they will
     be inversed individually and their results joined together.
     """
+
     def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
@@ -812,7 +814,6 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
         ValueError: When ``num_samples`` is nonpositive.
     """
 
-
     def __init__(
         self,
         roi_size: Union[Sequence[int], int],
@@ -825,7 +826,6 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
-
 
 
 class CropForeground(CropBase):
@@ -1324,7 +1324,7 @@ class RandCropByLabelClasses(Randomizable, CropBase):
         return results
 
 
-class ResizeWithPadOrCrop(Transform):
+class ResizeWithPadOrCrop(InvertibleTransform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
@@ -1368,11 +1368,27 @@ class ResizeWithPadOrCrop(Transform):
                 If None, defaults to the ``mode`` in construction.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
         """
-        return self.padder(self.cropper(img), mode=mode)
+        out = self.padder(self.cropper(img), mode=mode)
+        # Remove the individual info and combine
+        if isinstance(out, MetaTensor):
+            pad_info = out.applied_operations.pop(-1)
+            crop_info = out.applied_operations.pop(-1)
+            self.push_transform(out, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+        return out
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
-        out = self.padder.inverse(img)
-        return self.cropper.inverse(out)
+        transform = self.pop_transform(img)
+        if not isinstance(img, MetaTensor):
+            raise RuntimeError()
+        # we joined the cropping and padding, so put them back before calling the inverse
+        crop_info = transform[TraceKeys.EXTRA_INFO].pop("crop_info")
+        pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
+        img.applied_operations.append(crop_info)
+        img.applied_operations.append(pad_info)
+        # first inverse the padder
+        inv = self.padder.inverse(img)
+        # and then inverse the cropper (self)
+        return self.cropper.inverse(inv)
 
 
 class BoundingRect(Transform):

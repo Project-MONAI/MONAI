@@ -18,22 +18,10 @@ from monai.transforms import CenterScaleCropd
 from tests.croppers import CropTest
 
 TESTS = [
-    [
-        {"keys": "img", "roi_scale": [0.6, 0.3, -1]},
-        (3, 3, 3, 3),
-        (3, 2, 1, 3)
-    ],
-    [
-        {"keys": "img", "roi_scale": 0.6},
-        (3, 3, 3, 3),
-        (3, 2, 2, 2)],
-    [
-        {"keys": "img", "roi_scale": 0.5},
-        (3, 3, 3, 3),
-        (3, 2, 2, 2),
-    ],
+    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
+    [{"keys": "img", "roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"keys": "img", "roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2)],
 ]
-
 
 
 TEST_VALUES = [
@@ -43,9 +31,12 @@ TEST_VALUES = [
         np.array([[[1, 2], [2, 3]]]),
     ]
 ]
+
+
 class TestCenterScaleCropd(CropTest):
     Cropper = CenterScaleCropd
-    # @parameterized.expand(TESTS)
+
+    @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_shape, expected_shape):
         self.crop_test(input_param, input_shape, expected_shape)
 

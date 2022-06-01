@@ -39,10 +39,13 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
                 "constant_values" in input_param or input_param["mode"] == "reflect"
             ):
                 continue
-            paddcroper = ResizeWithPadOrCropd(**input_param)
+            padcropper = ResizeWithPadOrCropd(**input_param)
             input_data["img"] = p(input_data["img"])
-            result = paddcroper(input_data)
+            result = padcropper(input_data)
             np.testing.assert_allclose(result["img"].shape, expected_val)
+            inv = padcropper(result)
+            for k in input_data:
+                self.assertTupleEqual(inv[k].shape, input_data[k].shape)
 
 
 if __name__ == "__main__":
