@@ -36,7 +36,7 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
                 "When input_images is a Tensor, its need to be (spatial_dims + 2)-D."
                 f"In this case, it should be a {(spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
             )
-    elif torch.jit.isinstance(input_images, List[Tensor]):
+    elif isinstance(input_images, List):
         for img in input_images:
             if len(img.shape) != spatial_dims + 1:
                 raise ValueError(
