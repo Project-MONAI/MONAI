@@ -2637,8 +2637,9 @@ class GridPatch(Transform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        filter_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
@@ -2693,7 +2694,7 @@ class GridPatch(Transform):
             patch_iterator = sorted(patch_iterator, key=self.sort_fn)
 
         output = [
-            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices, dst=array)[0])
+            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices[..., 0], dst=array)[0])
             for patch, slices in patch_iterator
             if self.filter_fn(patch)
         ]
@@ -2705,8 +2706,8 @@ class GridPatch(Transform):
                     src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
                     dst=array,
                 )[0]
-                slices = convert_to_dst_type(src=np.zeros((3, len(self.patch_size))), dst=array)[0]
-                output += [(patch, slices)] * (self.num_patches - len(output))
+                start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
+                output += [(patch, start_location)] * (self.num_patches - len(output))
 
         return output
 
@@ -2730,7 +2731,9 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """

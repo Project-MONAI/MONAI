@@ -2220,7 +2220,9 @@ class GridPatchd(MapTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
@@ -2228,7 +2230,7 @@ class GridPatchd(MapTransform):
         a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
             replaced by the patches. It also add the following new keys:
 
-            "slices": slices from the image that defines the patch,
+            "patch_location": the starting location of the patch in the image,
             "patch_size": size of the extracted patch
             "num_patches": total number of patches in the image
             "offset": the amount of offset for the patches in the image (starting position of upper left patch)
@@ -2244,6 +2246,7 @@ class GridPatchd(MapTransform):
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
+        filter_fn: Optional[Callable] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -2255,6 +2258,7 @@ class GridPatchd(MapTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
+            filter_fn=filter_fn,
             pad_mode=pad_mode,
             **pad_kwargs,
         )
@@ -2272,7 +2276,7 @@ class GridPatchd(MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict["slices"] = patch[0][1]  # use the coordinate of the first item
+            new_dict["patch_location"] = patch[0][1][..., 0]  # use the starting coordinate of the first item
             new_dict["patch_size"] = self.patcher.patch_size
             new_dict["num_patches"] = num_patches
             new_dict["offset"] = self.patcher.offset
@@ -2300,7 +2304,9 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
+        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         allow_missing_keys: don't raise exception if key is missing.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
@@ -2308,7 +2314,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         a list of dictionaries, each of which contains the all the original key/value with the values for `keys`
             replaced by the patches. It also add the following new keys:
 
-            "slices": slices from the image that defines the patch,
+            "patch_location": the starting location of the patch in the image,
             "patch_size": size of the extracted patch
             "num_patches": total number of patches in the image
             "offset": the amount of offset for the patches in the image (starting position of the first patch)
@@ -2326,6 +2332,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
+        filter_fn: Optional[Callable] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -2338,6 +2345,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
+            filter_fn=filter_fn,
             pad_mode=pad_mode,
             **pad_kwargs,
         )
@@ -2368,7 +2376,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict["slices"] = patch[0][1]  # use the coordinate of the first item
+            new_dict["patch_location"] = patch[0][1]  # use the starting coordinate of the first item
             new_dict["patch_size"] = self.patcher.patch_size
             new_dict["num_patches"] = num_patches
             new_dict["offset"] = self.patcher.offset
