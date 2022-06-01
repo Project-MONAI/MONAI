@@ -14,7 +14,6 @@ from copy import deepcopy
 from tests.croppers import CropTest
 from tests.croppers import CropTest
 import numpy as np
-import torch
 from parameterized.parameterized import parameterized
 
 from monai.transforms.croppad.array import RandWeightedCrop
