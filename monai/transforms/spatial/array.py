@@ -234,7 +234,7 @@ class SpatialResample(Transform):
                     else torch.solve(dst_affine, src_affine).solution  # type: ignore
                 )
         except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError(f"src affine is not invertible: {src_affine}") from e
+            raise ValueError("src affine is not invertible.") from e
         xform = to_affine_nd(spatial_rank, xform)
         # no resampling if it's identity transform
         if allclose(xform, np.diag(np.ones(len(xform))), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
