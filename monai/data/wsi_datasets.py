@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import inspect
+import os
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -256,9 +257,8 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
-        self.counter = 0
-        for i, sample in enumerate(self.image_data):
-            patch_samples = self._evaluate_patch_locations(sample, i)
+        for sample in self.image_data:
+            patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
 
     def _get_offset(self, sample):
@@ -270,7 +270,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             return tuple(self.R.randint(low, high) for low, high in offset_limits)
         return self.offset
 
-    def _evaluate_patch_locations(self, sample, image_name):
+    def _evaluate_patch_locations(self, sample):
         """Calculate the location for each patch in a sliding-window manner"""
         patch_size = self._get_size(sample)
         patch_level = self._get_level(sample)
@@ -295,7 +295,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         # fill out samples with location and metadata
         sample[WSIPatchKeys.SIZE.value] = patch_size
         sample[WSIPatchKeys.LEVEL.value] = patch_level
-        sample[ProbMapKeys.NAME.value] = image_name
+        sample[ProbMapKeys.NAME.value] = os.path.basename(sample[CommonKeys.IMAGE])
         sample[ProbMapKeys.COUNT.value] = len(patch_locations)
         sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
@@ -367,12 +367,11 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
-        self.counter = 0
-        for i, sample in enumerate(self.image_data):
-            patch_samples = self._evaluate_patch_locations(sample, str(i))
+        for sample in self.image_data:
+            patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
 
-    def _evaluate_patch_locations(self, sample, image_name):
+    def _evaluate_patch_locations(self, sample):
         """Calculate the location for each patch based on the mask at different resolution level"""
         patch_size = self._get_size(sample)
         patch_level = self._get_level(sample)
@@ -394,7 +393,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # fill out samples with location and metadata
         sample[WSIPatchKeys.SIZE.value] = patch_size
         sample[WSIPatchKeys.LEVEL.value] = patch_level
-        sample[ProbMapKeys.NAME.value] = image_name
+        sample[ProbMapKeys.NAME.value] = os.path.basename(sample[CommonKeys.IMAGE])
         sample[ProbMapKeys.COUNT.value] = len(patch_locations)
         sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
