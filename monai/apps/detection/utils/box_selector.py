@@ -179,7 +179,8 @@ class BoxSelector:
         image_scores = []
         image_labels = []
 
-        compute_dtype = boxes_list[0].dtype
+        boxes_dtype = boxes_list[0].dtype
+        logits_dtype = logits_list[0].dtype
 
         for boxes_per_level, logits_per_level in zip(boxes_list, logits_list):
             # select topk boxes for each level
@@ -207,8 +208,8 @@ class BoxSelector:
             max_proposals=self.detections_per_img,
         )
 
-        selected_boxes = image_boxes_t[keep_t].to(compute_dtype)
-        selected_scores = image_scores_t[keep_t].to(compute_dtype)
+        selected_boxes = image_boxes_t[keep_t].to(boxes_dtype)
+        selected_scores = image_scores_t[keep_t].to(logits_dtype)
         selected_labels = image_labels_t[keep_t]
 
         return selected_boxes, selected_scores, selected_labels
