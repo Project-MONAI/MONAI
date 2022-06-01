@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 from enum import Enum
 from typing import Optional
 
@@ -352,6 +353,36 @@ class GridPatchSort(str, Enum):
     RANDOM = "random"
     MIN = "min"
     MAX = "max"
+
+    @staticmethod
+    def min_fn(x):
+        return x[0].sum()
+
+    @staticmethod
+    def max_fn(x):
+        return -x[0].sum()
+
+    @staticmethod
+    def get_sort_fn(sort_fn):
+        if sort_fn == GridPatchSort.RANDOM:
+            return random.random
+        elif sort_fn == GridPatchSort.MIN:
+            return GridPatchSort.min_fn
+        elif sort_fn == GridPatchSort.MAX:
+            return GridPatchSort.max_fn
+        else:
+            raise ValueError(
+                f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                [e.value for e in GridPatchSort],
+            )
+
+
+class GridPatchFilter(str, Enum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    IDENTITY = lambda x: 1
 
 
 class WSIPatchKeys(str, Enum):

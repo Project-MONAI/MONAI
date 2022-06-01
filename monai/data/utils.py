@@ -285,19 +285,28 @@ def iter_patch(
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
+    # set padded flag to false if pad mode is None
+    padded = True if mode else False
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+    if padded:
+        arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        # choose a start position in the padded image
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
 
-    # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        # choose a size to iterate over which is smaller than the actual padded image to prevent producing
+        # patches which are only in the padded regions
+        iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
+    else:
+        arrpad = arr
+        start_pos_padded = start_pos
+        iter_size = arr.shape
 
-    # choose a size to iterate over which is smaller than the actual padded image to prevent producing
-    # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
-
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap, padded=padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        if padded:
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        else:
+            coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required

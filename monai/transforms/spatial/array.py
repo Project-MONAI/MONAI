@@ -62,7 +62,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, TransformBackends
+from monai.utils.enums import GridPatchFilter, GridPatchSort, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type
@@ -2637,6 +2637,7 @@ class GridPatch(Transform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
+        filter_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
         pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
@@ -2647,42 +2648,35 @@ class GridPatch(Transform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        offset: Sequence[int] = (),
+        offset: Optional[Sequence[int]] = None,
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
+        filter_fn: Optional[Callable] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
-        self.offset = ensure_tuple(offset)
-        self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
+        if offset:
+            self.offset = ensure_tuple(offset)
+        else:
+            self.offset = (0,) * len(self.patch_size)
+        self.pad_mode: Optional[NumpyPadMode] = (
+            convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else pad_mode
+        )
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
-            if sort_fn == GridPatchSort.RANDOM:
-                self.sort_fn = np.random.random
-            elif sort_fn == GridPatchSort.MIN:
-                self.sort_fn = self.get_patch_sum
-            elif sort_fn == GridPatchSort.MAX:
-                self.sort_fn = self.get_negative_patch_sum
-            else:
-                raise ValueError(
-                    f'sort_fn should be one of the following values, "{sort_fn}" was given:',
-                    [enum.value for enum in GridPatchSort],
-                )
+            self.sort_fn = GridPatchSort.get_sort_fn(sort_fn)
         else:
             self.sort_fn = sort_fn
+        self.filter_fn = filter_fn or self.one_fn
 
     @staticmethod
-    def get_patch_sum(x):
-        return x[0].sum()
-
-    @staticmethod
-    def get_negative_patch_sum(x):
-        return -x[0].sum()
+    def one_fn(x):
+        return True
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
@@ -2696,18 +2690,25 @@ class GridPatch(Transform):
             mode=self.pad_mode,
             **self.pad_kwargs,
         )
+
         if self.sort_fn is not None:
-            output = sorted(patch_iterator, key=self.sort_fn)
-        else:
-            output = list(patch_iterator)
+            patch_iterator = sorted(patch_iterator, key=self.sort_fn)
+
+        output = [
+            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices, dst=array)[0])
+            for patch, slices in patch_iterator
+            if self.filter_fn(patch)
+        ]
+
         if self.num_patches:
             output = output[: self.num_patches]
             if len(output) < self.num_patches:
-                patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0))
-                slices = np.zeros((3, len(self.patch_size)))
+                patch = convert_to_dst_type(
+                    src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
+                    dst=array,
+                )[0]
+                slices = convert_to_dst_type(src=np.zeros((3, len(self.patch_size))), dst=array)[0]
                 output += [(patch, slices)] * (self.num_patches - len(output))
-
-        output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
 
         return output
 
@@ -2746,6 +2747,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
+        filter_fn: Optional[Callable] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -2755,6 +2757,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
+            filter_fn=filter_fn,
             pad_mode=pad_mode,
             **pad_kwargs,
         )

@@ -2240,7 +2240,7 @@ class GridPatchd(MapTransform):
         self,
         keys: KeysCollection,
         patch_size: Sequence[int],
-        offset: Sequence[int] = (),
+        offset: Optional[Sequence[int]] = None,
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
