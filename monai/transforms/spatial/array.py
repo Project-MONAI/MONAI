@@ -1274,7 +1274,7 @@ class RandRotate(RandomizableTransform):
         return (img, rotator.get_rotation_matrix()) if get_matrix else img
 
 
-class RandFlip(RandomizableTransform):
+class RandFlip(RandomizableTransform, InvertibleTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -1291,7 +1291,7 @@ class RandFlip(RandomizableTransform):
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -1303,7 +1303,17 @@ class RandFlip(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        return self.flipper(img)
+        out = self.flipper(img)
+        if isinstance(out, MetaTensor):
+            self.push_transform(out)
+        return out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        if transform[TraceKeys.DO_TRANSFORM]:
+            with self.trace_transform(False):
+                return self.flipper.inverse(data)
+        return data
 
 
 class RandAxisFlip(RandomizableTransform):

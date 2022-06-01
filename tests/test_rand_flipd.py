@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandFlipd
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -25,10 +26,15 @@ class TestRandFlipd(NumpyImageTestCase2D):
     def test_correct_results(self, _, spatial_axis):
         for p in TEST_NDARRAYS:
             flip = RandFlipd(keys="img", prob=1.0, spatial_axis=spatial_axis)
-            result = flip({"img": p(self.imt[0])})["img"]
+            im = p(self.imt[0])
+            result = flip({"img": im})["img"]
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(result, p(expected))
+            assert_allclose(result, p(expected), type_test=False)
+            if isinstance(im, MetaTensor):
+                im_inv = flip.inverse({"img": result})
+                assert_allclose(im_inv["img"], im)
+                assert_allclose(im_inv["img"].affine, im.affine)
 
 
 if __name__ == "__main__":
