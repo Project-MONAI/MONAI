@@ -62,7 +62,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchFilter, GridPatchSort, TransformBackends
+from monai.utils.enums import GridPatchSort, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type
