@@ -82,7 +82,8 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             xform.set_random_state(1234)
             result = xform(input_data_mod)
             for i, (item, expected) in enumerate(zip(result, expected_shape)):
-                for v in item.values():
+                for k in xform.keys:
+                    v = item[k]
                     self.assertIsInstance(v, MetaTensor)
                     self.assertTupleEqual(v.shape, expected)
                     self.assertEqual(v.meta["patch_index"], i)
@@ -97,7 +98,6 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             for k, v in inv.items():
                 self.assertIsInstance(v, MetaTensor)
                 self.assertTupleEqual(v.shape, input_data[k].shape)
-                self.assertTrue("patch_index" not in v.meta)
 
     def test_deep_copy(self):
         data = {"img": np.ones((1, 10, 11, 12))}

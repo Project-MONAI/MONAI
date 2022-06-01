@@ -95,7 +95,7 @@ class PadBase(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT, **kwargs) -> None:
+    def __init__(self, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT, **kwargs) -> None:
         self.mode = mode
         self.kwargs = kwargs
 
@@ -133,6 +133,7 @@ class PadBase(InvertibleTransform):
         to_pad: List[Tuple[int, int]],
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
     ) -> torch.Tensor:
+        out: torch.Tensor
         mode = mode or self.mode
         # convert to MetaTensor if required
         if not isinstance(img, MetaTensor) and get_track_meta():
@@ -144,7 +145,7 @@ class PadBase(InvertibleTransform):
             # try using Pytorch functionality.
             try:
                 mode = convert_pad_mode(dst=img, mode=mode).value
-                out: torch.Tensor = self._pt_pad(img, to_pad, mode, **self.kwargs)
+                out = self._pt_pad(img, to_pad, mode, **self.kwargs)
             # but if mode doesn't exist in pytorch, use numpy
             except (ValueError, TypeError) as err:
                 if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
@@ -439,6 +440,8 @@ class CropBase(InvertibleTransform):
     def calculate_slices_from_center_and_size(roi_center, roi_size) -> List[slice]:
         roi_slices = []
         for c, s in zip(roi_center, roi_size):
+            c = c.item() if isinstance(c, torch.Tensor) else c
+            s = s.item() if isinstance(s, torch.Tensor) else s
             # if size is unchanged, the slice is None
             if s < 0:
                 roi_slices.append(slice(None))
@@ -534,21 +537,27 @@ class CropBase(InvertibleTransform):
             return inverse_transform(img)
 
 
-class ListCropBase(CropBase):
+class ListCropBase(InvertibleTransform):
     """
     Base class for croppers that produce a list of cropped images. The inverse can be
     computed either on a single image, or if a list of cropped images is given, they will
     be inversed individually and their results joined together.
     """
 
-    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:  # type: ignore
+    def __init__(self, num_samples: int, cropper: Optional[CropBase] = None) -> None:
+        if num_samples < 1:
+            raise ValueError(f"num_samples must be positive, got {num_samples}.")
+        self.num_samples = num_samples
+        self.cropper = cropper if cropper is not None else CropBase()
+
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
         out = []
         for i in range(self.num_samples):
-            im = self.cropper(self, img)
+            im = self.cropper(img)
             if isinstance(im, MetaTensor):
                 im.meta[ImageMetaKey.PATCH_INDEX] = i
             out.append(im)
@@ -557,17 +566,17 @@ class ListCropBase(CropBase):
     def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
         # if given a single image, just do that inverse of that.
         if not isinstance(data, Sequence):
-            return super().inverse(data)
+            return self.cropper.inverse(data)
 
-        # if given a blank list, don't do anything.
+        # check list isn't empty.
         if len(data) < 0:
-            return data
+            raise RuntimeError()
 
         # if we have a list, inverse the first image
-        inv = super().inverse(data[0])
+        inv = self.cropper.inverse(data[0])
         # loop over all other images and take the non-zero elements
         for img in data[1:]:
-            inv_img = super().inverse(img)
+            inv_img = self.cropper.inverse(img)
             mask = inv_img != 0
             inv[mask] = inv_img[mask]
 
@@ -813,6 +822,7 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
     """
+    cropper: RandSpatialCrop
 
     def __init__(
         self,
@@ -822,10 +832,20 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
         random_center: bool = True,
         random_size: bool = True,
     ) -> None:
-        if num_samples < 1:
-            raise ValueError(f"num_samples must be positive, got {num_samples}.")
-        self.num_samples = num_samples
-        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
+        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
+        super().__init__(num_samples, cropper)
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandSpatialCropSamples":
+        super().set_random_state(seed, state)
+        self.cropper.set_random_state(seed, state)
+        return self
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        super().randomize(img_size)
+        self.cropper.randomize(img_size)
+
 
 
 class CropForeground(CropBase):
@@ -899,7 +919,7 @@ class CropForeground(CropBase):
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.padder = PadBase(mode=mode, **np_kwargs)
+        self.padder = PadBase(mode=mode, **pad_kwargs)
 
     def compute_bounding_box(self, img: torch.Tensor):
         """
@@ -939,6 +959,7 @@ class CropForeground(CropBase):
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
         all_pad_width = BorderPad.calculate_pad_width(cropped, pad)
+        out = self.padder._forward(cropped, all_pad_width, mode)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
         if isinstance(out, MetaTensor):
@@ -988,8 +1009,8 @@ class RandWeightedCrop(Randomizable, ListCropBase):
         num_samples: int = 1,
         weight_map: Optional[NdarrayOrTensor] = None,
     ):
+        super().__init__(num_samples)
         self.spatial_size = ensure_tuple(spatial_size)
-        self.num_samples = int(num_samples)
         self.weight_map = weight_map
         self.centers: List[np.ndarray] = []
 
@@ -1020,8 +1041,8 @@ class RandWeightedCrop(Randomizable, ListCropBase):
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[torch.Tensor] = []
         for i, center in enumerate(self.centers):
-            slices = self.calculate_slices(roi_center=center, roi_size=_spatial_size)
-            out = self._forward(img, slices)
+            slices = self.cropper.calculate_slices(roi_center=center, roi_size=_spatial_size)
+            out = self.cropper._forward(img, slices)
             if isinstance(out, MetaTensor):
                 out.meta[ImageMetaKey.PATCH_INDEX] = i  # type: ignore
                 out.meta["crop_center"] = center
@@ -1106,13 +1127,13 @@ class RandCropByPosNegLabel(Randomizable, ListCropBase):
         if pos + neg == 0:
             raise ValueError("Incompatible values: pos=0 and neg=0.")
         self.pos_ratio = pos / (pos + neg)
-        self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
         self.centers: Optional[List[List[int]]] = None
         self.fg_indices = fg_indices
         self.bg_indices = bg_indices
         self.allow_smaller = allow_smaller
+        super().__init__(num_samples)
 
     def randomize(
         self,
@@ -1175,8 +1196,8 @@ class RandCropByPosNegLabel(Randomizable, ListCropBase):
         if self.centers is not None:
             for center in self.centers:
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                slices = self.calculate_slices(roi_center=center, roi_size=roi_size)
-                results.append(self._forward(img, slices))
+                slices = self.cropper.calculate_slices(roi_center=center, roi_size=roi_size)
+                results.append(self.cropper._forward(img, slices))
 
         return results
 
@@ -1263,12 +1284,12 @@ class RandCropByLabelClasses(Randomizable, ListCropBase):
         self.ratios = ratios
         self.label = label
         self.num_classes = num_classes
-        self.num_samples = num_samples
         self.image = image
         self.image_threshold = image_threshold
         self.centers: Optional[List[List[int]]] = None
         self.indices = indices
         self.allow_smaller = allow_smaller
+        super().__init__(num_samples)
 
     def randomize(
         self,
@@ -1317,8 +1338,8 @@ class RandCropByLabelClasses(Randomizable, ListCropBase):
         if self.centers is not None:
             for center in self.centers:
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                slices = self.calculate_slices(roi_center=tuple(center), roi_size=roi_size)
-                results.append(self._forward(img, slices))
+                slices = self.cropper.calculate_slices(roi_center=tuple(center), roi_size=roi_size)
+                results.append(self.cropper._forward(img, slices))
 
         return results
 

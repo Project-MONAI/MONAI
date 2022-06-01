@@ -101,7 +101,6 @@ class TestRandSpatialCropSamples(CropTest):
                 self.assertIsInstance(inv, MetaTensor)
                 self.assertTupleEqual(inv.shape, input_shape)
                 self.assertEqual(inv.applied_operations, [])
-                self.assertTrue("patch_index" not in inv.meta)
 
     @parameterized.expand(TEST_INVERSE_LIST)
     def test_multi_inverse(self, input_shape, init_params):

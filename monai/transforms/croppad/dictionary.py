@@ -15,9 +15,7 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-import contextlib
 from copy import deepcopy
-from itertools import chain
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -55,9 +53,9 @@ from monai.transforms.utils import (
     map_classes_to_indices,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple_rep, fall_back_tuple
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import PostFix, TraceKeys
+from monai.utils.enums import PostFix
 
 __all__ = [
     "PadModeSequence",
@@ -553,6 +551,7 @@ class RandSpatialCropSamplesd(RandCropBased):
     """
 
     backend = RandSpatialCropd.backend
+    cropper: RandSpatialCropSamples  # type: ignore
 
     @deprecated_arg(name="meta_keys", since="0.8")
     @deprecated_arg(name="meta_key_postfix", since="0.8")
@@ -573,7 +572,7 @@ class RandSpatialCropSamplesd(RandCropBased):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:  # type: ignore
         # output starts as empty list of dictionaries
-        ret = [{} for _ in range(self.cropper.num_samples)]
+        ret: List[Dict[Hashable, torch.Tensor]] = [{} for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for key in set(data.keys()).difference(set(self.keys)):
             for r in ret:
@@ -582,7 +581,7 @@ class RandSpatialCropSamplesd(RandCropBased):
         # for each key we reset the random state to ensure crops are the same
         random_state = deepcopy(self.cropper.R)
         for key in self.key_iterator(data):
-            self.cropper.R = deepcopy(random_state)
+            self.set_random_state(state=deepcopy(random_state))
             for i, im in enumerate(self.cropper(data[key])):
                 ret[i][key] = im
         return ret
@@ -1079,14 +1078,14 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.crop_padder = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)
+        self.crop_padder = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         for k, m in self.key_iterator(data, self.mode):
             data[k] = self.crop_padder(data[k], m)
         return data
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         for k in self.key_iterator(data):
             data[k] = self.crop_padder.inverse(data[k])
         return data
