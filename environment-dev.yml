@@ -10,7 +10,7 @@ dependencies:
   - parameterized
   - setuptools>=50.3.0,!=60.0.0
   - ignite==0.4.8
-  - gdown>=3.6.4
+  - gdown>=4.4.0
   - scipy
   - nibabel
   - pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571

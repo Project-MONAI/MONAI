@@ -36,7 +36,7 @@ def sliding_window_inference(
     inputs: torch.Tensor,
     roi_size: Union[Sequence[int], int],
     sw_batch_size: int,
-    predictor: Callable[..., torch.Tensor],
+    predictor: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
     overlap: float = 0.25,
     mode: Union[BlendMode, str] = BlendMode.CONSTANT,
     sigma_scale: Union[Sequence[float], float] = 0.125,
@@ -48,7 +48,7 @@ def sliding_window_inference(
     roi_weight_map: Union[torch.Tensor, None] = None,
     *args: Any,
     **kwargs: Any,
-) -> Union[torch.Tensor, Tuple[torch.Tensor], Dict[Any, torch.Tensor]]:
+) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
     """
     Sliding window inference on `inputs` with `predictor`.
 
@@ -176,6 +176,7 @@ def sliding_window_inference(
         seg_prob_out = predictor(window_data, *args, **kwargs)  # batched patch segmentation
 
         # convert seg_prob_out to tuple seg_prob_tuple, this does not allocate new memory.
+        seg_prob_tuple: Tuple[torch.Tensor, ...]
         if isinstance(seg_prob_out, torch.Tensor):
             seg_prob_tuple = (seg_prob_out,)
         elif isinstance(seg_prob_out, Mapping):
@@ -270,7 +271,7 @@ def sliding_window_inference(
     if dict_key is not None:  # if output of predictor is a dict
         final_output = dict(zip(dict_key, output_image_list))
     else:
-        final_output = tuple(output_image_list)
+        final_output = tuple(output_image_list)  # type: ignore
     return final_output[0] if is_tensor_output else final_output  # type: ignore
 
 
