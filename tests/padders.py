@@ -72,8 +72,10 @@ class PadTest(unittest.TestCase):
                             with self.subTest(call_extra_args=call_extra_args):
                                 r_out = padder(input_data, **call_extra_args)
                                 r_im = r_out["img"] if is_map else r_out
-                                # check shape
+                                # check shape, type, etc.
                                 np.testing.assert_allclose(r_im.shape, expected_shape)
+                                self.assertIsInstance(r_im, MetaTensor)
+                                self.assertEqual(len(r_im.applied_operations), 1)
                                 # check results are same regardless of input type
                                 if base_comparison is None:
                                     base_comparison = r_im

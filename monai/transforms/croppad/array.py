@@ -133,27 +133,28 @@ class PadBase(InvertibleTransform):
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
     ) -> torch.Tensor:
         mode = mode or self.mode
-        if not np.asarray(to_pad).any():
-            # all zeros, skip padding
-            return img
         # convert to MetaTensor if required
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
-        # try using Pytorch functionality.
-        try:
-            mode = convert_pad_mode(dst=img, mode=mode).value
-            out: torch.Tensor = self._pt_pad(img, to_pad, mode, **self.kwargs)
-        # but if mode doesn't exist in pytorch, use numpy
-        except (ValueError, TypeError) as err:
-            if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
-                # extract metadata
-                img_np = img.detach().cpu().numpy()
-                mode = convert_pad_mode(dst=img_np, mode=mode or self.mode).value
-                out = torch.as_tensor(self._np_pad(img_np, to_pad, mode, **self.kwargs))
-                if get_track_meta():
-                    out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)  # type: ignore
-        out = self._forward_meta(out, img, to_pad)
-        if isinstance(img, MetaTensor):
+        if not np.asarray(to_pad).any():
+            # all zeros, skip padding
+            out = img
+        else:
+            # try using Pytorch functionality.
+            try:
+                mode = convert_pad_mode(dst=img, mode=mode).value
+                out: torch.Tensor = self._pt_pad(img, to_pad, mode, **self.kwargs)
+            # but if mode doesn't exist in pytorch, use numpy
+            except (ValueError, TypeError) as err:
+                if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
+                    # extract metadata
+                    img_np = img.detach().cpu().numpy()
+                    mode = convert_pad_mode(dst=img_np, mode=mode or self.mode).value
+                    out = torch.as_tensor(self._np_pad(img_np, to_pad, mode, **self.kwargs))
+                    if get_track_meta():
+                        out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)  # type: ignore
+            out = self._forward_meta(out, img, to_pad)
+        if isinstance(out, MetaTensor):
             self.push_transform(out, extra_info={"padded": to_pad})
         return out
 
@@ -434,7 +435,7 @@ class CropBase(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, _: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError()
 
     @staticmethod
@@ -442,9 +443,7 @@ class CropBase(InvertibleTransform):
         return [i // 2 for i in img.shape[1:]]
 
     @staticmethod
-    def calculate_slices_from_center_and_size(
-        roi_center: Union[Sequence[int], NdarrayOrTensor], roi_size: Union[Sequence[int], NdarrayOrTensor]
-    ) -> List[slice]:
+    def calculate_slices_from_center_and_size(roi_center, roi_size) -> List[slice]:
         roi_slices = []
         for c, s in zip(roi_center, roi_size):
             # if size is unchanged, the slice is None
@@ -477,9 +476,9 @@ class CropBase(InvertibleTransform):
 
         # from ROI slices
         if has_slices:
-            if not all(s.step is None or s.step == 1 for s in roi_slices):
+            if not all(s.step is None or s.step == 1 for s in roi_slices):  # type: ignore
                 raise ValueError("Only slice steps of 1/None are currently supported")
-            return list(roi_slices)
+            return list(roi_slices)  # type: ignore
 
         # from center and size
         if has_center and has_size:
@@ -487,6 +486,9 @@ class CropBase(InvertibleTransform):
 
         # from start and end
         else:
+            # start +ve, end <= start
+            roi_start = [max(r, 0) for r in roi_start]  # type: ignore
+            roi_end = [max(r, s) for r, s in zip(roi_start, roi_end)]  # type: ignore
             roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
         return roi_slices
 

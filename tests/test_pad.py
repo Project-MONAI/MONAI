@@ -14,6 +14,8 @@ from typing import List
 
 import numpy as np
 import torch
+
+from copy import deepcopy
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
@@ -99,6 +101,33 @@ class TestSpatialPad(unittest.TestCase):
                 inv = padder.inverse(result)
                 assert_allclose(im, inv, type_test=False)
                 self.assertEqual(inv.applied_operations, [])
+
+    def test_meta_update(self):
+        def get_info(im: MetaTensor):
+            affine = deepcopy(im.affine)
+            meta = deepcopy({k: v for k, v in im.meta.items() if k != "affine"})
+            app_ops = deepcopy(im.applied_operations)
+            return affine, meta, app_ops
+        def check(info1, info2, should_be_same):
+            aff1, meta1, app_ops1 = info1
+            aff2, meta2, app_ops2 = info2
+            # meta and app_ops always same
+            self.assertEqual(meta1, meta2)
+            self.assertEqual(app_ops1, app_ops2)
+            l2_diff_aff = ((aff1 - aff2) ** 2).sum() ** 0.5
+            if should_be_same:
+                self.assertLess(l2_diff_aff, 1e-2)
+            else:
+                self.assertGreater(l2_diff_aff, 1e-2)
+
+        im = MetaTensor(np.zeros((3, 8, 4, 6)), meta={"some": "info"}, applied_operations=["test"])
+        orig_info = get_info(im)
+
+        out = Pad([(0, 0), (3, 4), (5, 6), (0, -1)])(im)
+        # the input image should be unchanged, the output image should have its affine updated.
+        check(orig_info, get_info(im), True)
+        check(orig_info, get_info(out), False)
+
 
 
 if __name__ == "__main__":
