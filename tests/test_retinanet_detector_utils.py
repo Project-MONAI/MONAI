@@ -19,8 +19,6 @@ from monai.apps.detection.utils.detector_utils import preprocess_images
 from monai.utils import ensure_tuple
 from tests.utils import assert_allclose
 
-num_anchors = 7
-
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel
     {
         "pretrained": False,
@@ -76,8 +74,6 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
 
 TEST_CASES = []
 TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
-
-TEST_CASES_TS = [TEST_CASE_1]
 
 
 class TestRetinaNetDetectorUtils(unittest.TestCase):
