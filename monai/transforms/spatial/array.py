@@ -24,7 +24,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd, zoom_affine, iter_patch, reorient_spatial_axes
+from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd, zoom_affine, iter_patch
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
