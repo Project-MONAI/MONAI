@@ -40,7 +40,7 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
         for img in input_images:
             if len(img.shape) != spatial_dims + 1:
                 raise ValueError(
-                    "When input_images is a List[Tensor[, each element should have be (spatial_dims + 1)-D."
+                    "When input_images is a List[Tensor], each element should have be (spatial_dims + 1)-D."
                     f"In this case, it should be a {(spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
                 )
     else:
@@ -169,6 +169,7 @@ def preprocess_images(
 ) -> Tuple[Tensor, List[List[int]]]:
     """
     Preprocess the input images, including
+
     - check the validaity of the inputs
     - pad the inputs so that the output spatial sizes are divisible by `size_divisible`.
       It pads them at the end to create a (B, C, H, W) or (B, C, H, W, D) Tensor.

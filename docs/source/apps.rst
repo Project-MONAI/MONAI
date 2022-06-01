@@ -161,6 +161,6 @@ Applications
     :members:
 
 `Detector utils`
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.detector_utils
     :members:
