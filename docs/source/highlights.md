@@ -458,6 +458,13 @@ The [tutorial](https://github.com/Project-MONAI/tutorials/tree/master/self_super
 
 ![self-supervised](../images/ssl_overview.png)
 
+### 6. Swin UNETR model for the task of multi-organ segmentation
+For [Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images](https://arxiv.org/abs/2201.01266), MONAI introduces new network modules for multi-organ segmentation task using the BTCV challenge dataset. The architecture of Swin UNETR:
+
+![swin-unetr](../images/swin_unetr.png)
+
+The [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/swin_unetr_btcv_segmentation_3d.ipynb) shows a typical pipeline of multi-organ segmentation based on Swin UNETR model, DiceCE loss function, Mean Dice, etc. And we used weights from self-supervised pre-training of Swin UNETR encoder (3D Swin Tranformer) on a cohort of 5050 CT scans from publicly available datasets.
+
 ## Performance optimization and GPU acceleration
 Typically, model training is a time-consuming step during deep learning development, especially in medical imaging applications. Volumetric medical images are usually large (as multi-dimensional arrays) and the model training process can be complex. Even with powerful hardware (e.g. CPU/GPU with large RAM), it is not easy to fully leverage them to achieve high performance. MONAI provides [a fast training guide to achieve the best performance](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md).
 
