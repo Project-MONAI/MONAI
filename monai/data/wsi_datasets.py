@@ -395,7 +395,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         sample[WSIPatchKeys.LEVEL.value] = patch_level
         sample[ProbMapKeys.NAME.value] = os.path.basename(sample[CommonKeys.IMAGE])
         sample[ProbMapKeys.COUNT.value] = len(patch_locations)
-        sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
+        sample[ProbMapKeys.SIZE.value] = mask.shape
         return [
             {**sample, WSIPatchKeys.LOCATION.value: np.array(loc), ProbMapKeys.LOCATION.value: mask_loc}
             for loc, mask_loc in zip(patch_locations, mask_locations)
