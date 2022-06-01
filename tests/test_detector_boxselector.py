@@ -30,7 +30,7 @@ TEST_CASE.append(
             "nms_thresh": 0.1,
             "detections_per_img": 5,
         },
-        [torch.tensor([[1, 2, 3, 2, 3, 4], [5, 6, 7, 8, 9, 10]]).to(torch.float32)],
+        [torch.tensor([[1, 2, 3, 2, 3, 4], [5, 6, 7, 8, 9, 10]]).to(torch.float16)],
         [torch.tensor([[0.1, 0.6], [0.2, 0.2]])],
         (20, 20, 20),
         torch.tensor([[1, 2, 3, 2, 3, 4], [5, 6, 7, 8, 9, 10]]),

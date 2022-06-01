@@ -44,6 +44,7 @@ import torch
 from torch import Tensor
 
 from monai.data.box_utils import batched_nms, box_iou, clip_boxes_to_image
+from monai.transforms.utils_pytorch_numpy_unification import floor_divide
 
 
 class BoxSelector:
@@ -140,7 +141,7 @@ class BoxSelector:
 
         selected_labels = flatten_topk_idxs % num_classes
 
-        topk_idxs = torch.div(flatten_topk_idxs, num_classes, rounding_mode="floor")
+        topk_idxs = floor_divide(flatten_topk_idxs, num_classes)
         return topk_idxs, selected_scores, selected_labels
 
     def select_boxes_per_image(
