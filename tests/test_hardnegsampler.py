@@ -17,17 +17,16 @@ from parameterized import parameterized
 from monai.apps.detection.utils.hard_negative_sampler import HardNegativeSampler
 from tests.utils import assert_allclose
 
-TEST_CASE = []
-TEST_CASE.append([[], [], [], [torch.tensor([]), torch.tensor([])], [torch.tensor([]), torch.tensor([])]])
-TEST_CASE.append(
+TEST_CASE = [
+    [[], [], [], [torch.tensor([]), torch.tensor([])], [torch.tensor([]), torch.tensor([])]],
     [
         [0, 1],
         [1, 0, 2, 3],
         [0.1, 0.9, 0.4, 0.3, 0.3, 0.5],
         [torch.tensor([0, 1]), torch.tensor([1, 0, 1, 1])],
         [torch.tensor([1, 0]), torch.tensor([0, 1, 0, 0])],
-    ]
-)
+    ],
+]
 
 select_sample_size_per_image = 6
 positive_fraction = 0.5

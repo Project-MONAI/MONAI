@@ -20,23 +20,21 @@ from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script
 
 _, has_torchvision = optional_import("torchvision")
 
-TEST_CASES_2D = []
-TEST_CASES_2D.append(
+TEST_CASES_2D = [
     [
         {"sizes": ((10, 12, 14, 16), (20, 24, 28, 32)), "aspect_ratios": ((1.0, 0.5, 2.0), (1.0, 0.5, 2.0))},
         (5, 3, 128, 128),
         ((5, 7, 64, 32), (5, 7, 32, 16)),
     ]
-)
+]
 
-TEST_CASES_SHAPE_3D = []
-TEST_CASES_SHAPE_3D.append(
+TEST_CASES_SHAPE_3D = [
     [
         {"feature_map_scales": (1, 2), "base_anchor_shapes": ((4, 3, 6), (8, 2, 4))},
         (5, 3, 128, 128, 128),
         ((5, 7, 64, 32, 32), (5, 7, 32, 16, 16)),
     ]
-)
+]
 
 
 @SkipIfBeforePyTorchVersion((1, 11))
