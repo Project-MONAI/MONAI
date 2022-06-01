@@ -533,19 +533,29 @@ Sakinis, Tomas, et al. "Interactive segmentation of medical images through fully
 
 ![deepgrow scheme](../images/deepgrow.png)
 
-### 2. Lesion detection in digital pathology
+### 2. DeepEdit pipeline for interactive segmentation
+DeepEdit is a method that combines an automatic and a semi-automatic approach for 3D medical images into a single deep learning-based model. The [implementation](https://github.com/Project-MONAI/MONAI/tree/dev/monai/apps/deepedit) of the DeepEdit modules provides essential components for interactive segmentation. More details is available in the training and inference [tutorial](https://github.com/Project-MONAI/tutorials/tree/main/deepedit/ignite).
+
+The following figure shows the typical workflow of interactive segmentation:
+
+![deepedit workflow](../images/deepedit.png)
+
+### 3. Lesion detection in digital pathology
+[Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathol
+
+### 4. Lesion detection in digital pathology
 [Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and sampling with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
 
 ![digital pathology](../images/pathology.png)
 
-### 3. Learning-based image registration
+### 5. Learning-based image registration
 Starting from v0.5.0, MONAI provides experimental features for building learning-based 2D/3D registration workflows.  These include image similarity measures as loss functions, bending energy as model regularization, network architectures, warping modules. The components can be used to build the major unsupervised and weakly-supervised algorithms.
 
 The following figure shows the registration of CT images acquired at different time points for a single patient using MONAI:
 
 ![3d registration](../images/3d_paired.png)
 
-### 4. Reproducing the state-of-the-art Kaggle competition solutions
+### 6. Reproducing the state-of-the-art Kaggle competition solutions
 [A reimplementation](https://github.com/Project-MONAI/tutorials/tree/master/kaggle/RANZCR/4th_place_solution) of the 4th place solution of RANZCR CLiP - Catheter and Line Position Challenge in Kaggle: https://www.kaggle.com/c/ranzcr-clip-catheter-line-classification
 
 The original solution is produced by Team Watercooled, and the authors are Dieter (https://www.kaggle.com/christofhenkel) and Psi (https://www.kaggle.com/philippsinger).
