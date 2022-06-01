@@ -247,7 +247,7 @@ def iter_patch(
     start_pos: Sequence[int] = (),
     overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    mode: Optional[Union[NumpyPadMode, str]] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """

@@ -2661,9 +2661,7 @@ class GridPatch(Transform):
             self.offset = ensure_tuple(offset)
         else:
             self.offset = (0,) * len(self.patch_size)
-        self.pad_mode: Optional[NumpyPadMode] = (
-            convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else pad_mode
-        )
+        self.pad_mode: Optional[NumpyPadMode] = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches

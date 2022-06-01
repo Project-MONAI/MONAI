@@ -377,14 +377,6 @@ class GridPatchSort(str, Enum):
             )
 
 
-class GridPatchFilter(str, Enum):
-    """
-    The sorting method for the generated patches in `GridPatch`
-    """
-
-    IDENTITY = lambda x: 1
-
-
 class WSIPatchKeys(str, Enum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
