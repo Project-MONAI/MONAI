@@ -29,10 +29,8 @@ from monai.data.box_utils import (
 )
 from monai.transforms import SpatialCrop
 from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 from .box_ops import (
     apply_affine_to_boxes,
