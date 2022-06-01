@@ -448,7 +448,7 @@ MONAI workflows can easily set `amp=True/False` in `SupervisedTrainer` or `Super
 We also executed the same test program on NVIDIA A100 GPU with the same software environment, obtained faster results:
 ![amp a100 results](../images/amp_training_a100.png)
 More details is available at [AMP training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/automatic_mixed_precision.ipynb).
-We also tried to combine `AMP` with `CacheDataset`, `GPU cache`, `GPU transforms`, `ThreadDataLoader`, `DiceCE` loss function and `Novograd` optimizer to achieve the fast training in MONAI, able to obtain approximately `200x` speedup compared with a Pytorch native implementation when the training converges at a validation mean dice of `0.95`. Benchmark for reference:
+We also tried to combine `AMP` with `CacheDataset`, `GPU cache`, `GPU transforms`, `ThreadDataLoader`, `DiceCE` loss, tuning of network and optimizer, to achieve the fast training in MONAI, with a V100 GPU and the target validation mean dice = 0.94 of the forground channel only, it's more than `100x` speedup compared with the Pytorch regular implementation when achieving the same metric. And every epoch is 20x faster than regular training. Benchmark for reference:
 ![fast training results](../images/fast_training.png)
 More details is available at [Fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb).
 
