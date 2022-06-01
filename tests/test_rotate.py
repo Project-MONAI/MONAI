@@ -107,6 +107,7 @@ class TestRotate3D(NumpyImageTestCase3D):
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
         if isinstance(im, MetaTensor):
             im_inv = rotate_fn.inverse(rotated)
+            self.assertTrue(not im_inv.applied_operations)
             assert_allclose(im_inv.shape, im.shape)
             assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
 

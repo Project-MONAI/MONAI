@@ -114,6 +114,7 @@ class TestRandRotate3D(NumpyImageTestCase3D):
         torch.testing.assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
         if isinstance(im, MetaTensor):
             im_inv = rotate_fn.inverse(rotated)
+            self.assertTrue(not im_inv.applied_operations)
             assert_allclose(im_inv.shape, im.shape)
             assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
 

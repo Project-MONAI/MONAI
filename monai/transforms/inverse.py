@@ -250,7 +250,7 @@ class TraceableTransform(Transform):
 
     @contextmanager
     def trace_transform(self, to_trace: bool):
-        """Temporarily set the tracing status of a transfrom with a context manager."""
+        """Temporarily set the tracing status of a transform with a context manager."""
         prev = self.tracing
         self.tracing = to_trace
         yield

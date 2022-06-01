@@ -43,6 +43,7 @@ class TestFlip(NumpyImageTestCase2D):
                 im_inv = flip.inverse(result)
                 assert_allclose(im_inv, p(self.imt[0]))
                 assert_allclose(im_inv.affine, im.affine)
+                self.assertTrue(not im_inv.applied_operations)
 
 
 if __name__ == "__main__":

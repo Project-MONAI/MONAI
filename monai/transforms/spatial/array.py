@@ -723,8 +723,9 @@ class Flip(InvertibleTransform):
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         _ = self.pop_transform(data)
-        with self.trace_transform(False):
-            return Flip(spatial_axis=self.spatial_axis)(data)
+        flipper = Flip(spatial_axis=self.spatial_axis)
+        with flipper.trace_transform(False):
+            return flipper(data)
 
 
 class Resize(Transform):
@@ -1316,8 +1317,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if transform[TraceKeys.DO_TRANSFORM]:
-            with self.trace_transform(False):
-                return Rotate(0).inverse(data)
+            return Rotate(0).inverse(data)
         return data
 
 
@@ -1355,8 +1355,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if transform[TraceKeys.DO_TRANSFORM]:
-            with self.trace_transform(False):
-                return self.flipper.inverse(data)
+            return self.flipper.inverse(data)
         return data
 
 
@@ -1403,8 +1402,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
         transform = self.pop_transform(data)
         if transform[TraceKeys.DO_TRANSFORM]:
             axes = transform[TraceKeys.EXTRA_INFO]["axes"]
-            with self.trace_transform(False):
-                return Flip(spatial_axis=axes).inverse(data)
+            return Flip(spatial_axis=axes).inverse(data)
         return data
 
 

@@ -30,6 +30,7 @@ class TestRandAxisFlip(NumpyImageTestCase3D):
 
             if isinstance(im, MetaTensor):
                 im_inv = flip.inverse(result)
+                self.assertTrue(not im_inv["img"].applied_operations)
                 assert_allclose(im_inv["img"], im)
                 assert_allclose(im_inv["img"].affine, im.affine)
 

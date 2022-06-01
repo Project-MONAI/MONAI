@@ -33,6 +33,7 @@ class TestRandFlipd(NumpyImageTestCase2D):
             assert_allclose(result, p(expected), type_test=False)
             if isinstance(im, MetaTensor):
                 im_inv = flip.inverse({"img": result})
+                self.assertTrue(not im_inv["img"].applied_operations)
                 assert_allclose(im_inv["img"], im)
                 assert_allclose(im_inv["img"].affine, im.affine)
 
