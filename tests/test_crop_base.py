@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from termios import CRPRNT
 import unittest
 from copy import deepcopy
 import numpy as np
@@ -17,8 +16,6 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 
 from monai.transforms import SpatialCrop
-from monai.transforms.croppad.array import CropBase
-from tests.utils import TEST_NDARRAYS
 
 TEST_ERRORS = [
     [{k: None for k in ("roi_slices", "roi_center", "roi_size", "roi_start", "roi_end")}],

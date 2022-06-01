@@ -25,7 +25,7 @@ from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import get_random_patch, get_valid_patch_size, to_affine_nd
+from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
