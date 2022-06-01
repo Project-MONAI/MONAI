@@ -1271,7 +1271,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
     @deprecated_arg(name="get_matrix", since="0.9", msg_suffix="please use `img.meta` instead.")
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
@@ -1308,9 +1308,11 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
             )
-            img = rotator(img)
-        self.push_transform(img)
-        return img
+            out = rotator(img)
+        else:
+            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
+        self.push_transform(out)
+        return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -1346,8 +1348,8 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         if randomize:
             self.randomize(None)
 
-        if self._do_transform:
-            out = self.flipper(img)
+        out = self.flipper(img) if self._do_transform else img
+        out = MetaTensor(out) if not isinstance(out, MetaTensor) and get_track_meta() else out
         self.push_transform(out)
         return out
 
@@ -1393,6 +1395,8 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
 
         if self._do_transform:
             out = Flip(spatial_axis=self._axis)(img)
+        else:
+            out = img if not isinstance(img, MetaTensor) and get_track_meta() else img
         self.push_transform(out, extra_info={"axes": self._axis})
         return out
 
