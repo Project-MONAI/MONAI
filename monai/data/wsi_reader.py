@@ -226,7 +226,6 @@ class BaseWSIReader(ImageReader):
                     f"The image is expected to have three color channels in '{mode}' mode but has "
                     f"{patch.shape[self.channel_dim]}. "
                 )
-
             # Get patch-related metadata
             metadata: dict = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
             # Create a list of patches and metadata

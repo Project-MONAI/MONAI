@@ -178,6 +178,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
             - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
+        map_level: the resolution level at which the output map is created.
         seed: random seed to randomly generate offsets. Defaults to 0.
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
@@ -207,6 +208,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         center_location: bool = False,
         additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.SIZE, ProbMapKeys.COUNT),
         reader="cuCIM",
+        map_level: int = 0,
         seed: int = 0,
         **kwargs,
     ):
@@ -315,7 +317,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         transform: transforms to be executed on input data.
         include_label: whether to load and include labels in the output
         center_location: whether the input location information is the position of the center of the patch
-        additional_meta_keys: the list of keys for items to be copied to the output matadata from the input data
+        additional_meta_keys: the list of keys for items to be copied to the output metadata from the input data
         reader: the module to be used for loading whole slide imaging. Defaults to cuCIM. If `reader` is
 
             - a string, it defines the backend of `monai.data.WSIReader`.
