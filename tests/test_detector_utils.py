@@ -76,9 +76,9 @@ TEST_CASES = []
 TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
-class TestRetinaNetDetectorUtils(unittest.TestCase):
+class TestDetectorUtils(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_retina_detector_utils(self, input_param, input_shape, expected_shape):
+    def test_detector_utils(self, input_param, input_shape, expected_shape):
         size_divisible = 32 * ensure_tuple(input_param["conv1_t_stride"])[0]
         input_data = torch.randn(input_shape)
         result, _ = preprocess_images(input_data, input_param["spatial_dims"], size_divisible, mode="constant", value=1)
