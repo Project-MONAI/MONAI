@@ -322,9 +322,8 @@ class SliceInferer(SlidingWindowInferer):
             return out.unsqueeze(dim=self.spatial_dim + 2)
 
         if isinstance(out, Mapping):
-            out_unsqueeze = deepcopy(out)
             for k in out.keys():
-                out_unsqueeze[k] = out_unsqueeze[k].unsqueeze(dim=self.spatial_dim + 2)
-            return out_unsqueeze
+                out[k] = out[k].unsqueeze(dim=self.spatial_dim + 2)
+            return out
 
         return tuple(out_i.unsqueeze(dim=self.spatial_dim + 2) for out_i in out)
