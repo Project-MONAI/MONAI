@@ -221,7 +221,6 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             reader=reader,
             **kwargs,
         )
-        self.mask_level = mask_level
         self.overlap = overlap
         self.set_random_state(seed)
         # Set the offset config
@@ -251,6 +250,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         else:
             self.offset = ensure_tuple_rep(offset, 2)
 
+        self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
@@ -358,14 +358,18 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
             reader=reader,
             **kwargs,
         )
+
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
-        for sample in data:
-            patch_samples = self._evaluate_patch_coordinates(sample)
+        self.image_data = data
+        print(f"{self.image_data=}")
+        for sample in self.image_data:
+            patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
+        print(f"{self.data[:2]=}")
 
-    def _evaluate_patch_coordinates(self, sample):
+    def _evaluate_patch_locations(self, sample):
         """Calculate the location for each patch based on the mask at different resolution level"""
         patch_size = self._get_size(sample)
         patch_level = self._get_level(sample)
@@ -377,6 +381,9 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # create the foreground tissue mask and get all indices for non-zero pixels
         mask = np.squeeze(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi))
         mask_locations = np.vstack(mask.nonzero()).T
+        print(f"{wsi.shape=}")
+        print(f"{mask.shape=}")
+        print(f"{mask_locations.shape=}")
 
         # convert mask locations to image locations at level=0
         mask_ratio = self.wsi_reader.get_downsample_ratio(wsi_obj, self.mask_level)
