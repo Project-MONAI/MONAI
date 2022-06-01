@@ -17,9 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 import contextlib
 from copy import deepcopy
-from enum import Enum
 from itertools import chain
-from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
