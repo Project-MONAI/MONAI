@@ -1111,7 +1111,7 @@ def batched_nms(
         return convert_to_dst_type(src=np.array([]), dst=boxes, dtype=torch.long)[0]
 
     # convert numpy to tensor if needed
-    boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
+    boxes_t, *_ = convert_data_type(boxes, torch.Tensor, dtype=torch.float32)
     scores_t, *_ = convert_to_dst_type(scores, boxes_t)
     labels_t, *_ = convert_to_dst_type(labels, boxes_t, dtype=torch.long)
 
