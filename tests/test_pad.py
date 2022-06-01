@@ -111,11 +111,11 @@ class TestSpatialPad(unittest.TestCase):
         def check(info1, info2, should_be_same):
             aff1, meta1, app_ops1 = info1
             aff2, meta2, app_ops2 = info2
-            # meta and app_ops always same
-            self.assertEqual(meta1, meta2)
-            self.assertEqual(app_ops1, app_ops2)
             l2_diff_aff = ((aff1 - aff2) ** 2).sum() ** 0.5
             if should_be_same:
+                # meta and app_ops always same
+                self.assertEqual(meta1, meta2)
+                self.assertEqual(app_ops1, app_ops2)
                 self.assertLess(l2_diff_aff, 1e-2)
             else:
                 self.assertGreater(l2_diff_aff, 1e-2)
@@ -123,11 +123,13 @@ class TestSpatialPad(unittest.TestCase):
         im = MetaTensor(np.zeros((3, 8, 4, 6)), meta={"some": "info"}, applied_operations=["test"])
         orig_info = get_info(im)
 
-        out = Pad([(0, 0), (3, 4), (5, 6), (0, -1)])(im)
+        padder = Pad([(0, 0), (3, 4), (5, 6), (0, -1)])
+        out = padder(im)
         # the input image should be unchanged, the output image should have its affine updated.
         check(orig_info, get_info(im), True)
         check(orig_info, get_info(out), False)
-
+        inv = padder.inverse(out)
+        check(orig_info, get_info(inv), True)
 
 
 if __name__ == "__main__":

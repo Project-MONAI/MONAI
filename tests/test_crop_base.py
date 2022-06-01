@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from termios import CRPRNT
 import unittest
 from copy import deepcopy
-
+import numpy as np
 from parameterized import parameterized
+from monai.data.meta_tensor import MetaTensor
 
 from monai.transforms import SpatialCrop
 from monai.transforms.croppad.array import CropBase
@@ -45,7 +47,7 @@ TESTS = [
         [slice(0, 10, None), slice(0, -1, None), slice(0, 2, None)],
     ],
     [  # start/end = center -/+ half of roi size. when size is -ve, no cropping, so slice(None) returned.
-        {"roi_center": (10, ), "roi_size": (3, )},
+        {"roi_center": (10,), "roi_size": (3,)},
         [slice(9, 11, None)],
     ],
     [  # start/end = center -/+ half of roi size. when size is -ve, no cropping, so slice(None) returned.
@@ -65,18 +67,48 @@ class TestCropBase(unittest.TestCase):
         with self.assertRaises(ValueError):
             SpatialCrop(**input_param)
 
-    @parameterized.expand(TESTS)
-    def test_slice_calculation(self, roi_params, expected_slices):
-        # input parameters, such as roi_start can be numpy, torch, list etc.
-        for param_type in TEST_NDARRAYS + (None,):
-            with self.subTest(param_type=param_type):
-                roi_params_mod = deepcopy(roi_params)
-                if param_type is not None:
-                    for k in ("roi_start", "roi_end", "roi_center", "roi_size"):
-                        if k in roi_params:
-                            roi_params_mod[k] = param_type(roi_params[k])
-        slices = CropBase.calculate_slices(**roi_params)
-        self.assertEqual(slices, expected_slices)
+    # @parameterized.expand(TESTS)
+    # def test_slice_calculation(self, roi_params, expected_slices):
+    #     # input parameters, such as roi_start can be numpy, torch, list etc.
+    #     for param_type in TEST_NDARRAYS + (None,):
+    #         with self.subTest(param_type=param_type):
+    #             roi_params_mod = deepcopy(roi_params)
+    #             if param_type is not None:
+    #                 for k in ("roi_start", "roi_end", "roi_center", "roi_size"):
+    #                     if k in roi_params:
+    #                         roi_params_mod[k] = param_type(roi_params[k])
+    #     slices = CropBase.calculate_slices(**roi_params)
+    #     self.assertEqual(slices, expected_slices)
+
+    def test_meta_update(self):
+        def get_info(im: MetaTensor):
+            affine = deepcopy(im.affine)
+            meta = deepcopy({k: v for k, v in im.meta.items() if k != "affine"})
+            app_ops = deepcopy(im.applied_operations)
+            return affine, meta, app_ops
+
+        def check(info1, info2, should_be_same):
+            aff1, meta1, app_ops1 = info1
+            aff2, meta2, app_ops2 = info2
+            l2_diff_aff = ((aff1 - aff2) ** 2).sum() ** 0.5
+            if should_be_same:
+                # meta and app_ops always same
+                self.assertEqual(meta1, meta2)
+                self.assertEqual(app_ops1, app_ops2)
+                self.assertLess(l2_diff_aff, 1e-2)
+            else:
+                self.assertGreater(l2_diff_aff, 1e-2)
+
+        im = MetaTensor(np.zeros((3, 8, 4, 6)), meta={"some": "info"}, applied_operations=["test"])
+        orig_info = get_info(im)
+
+        cropper = SpatialCrop(roi_start=(3, 2, 1), roi_end=(6, 3, 2))
+        out = cropper(im)
+        # the input image should be unchanged, the output image should have its affine updated.
+        check(orig_info, get_info(im), True)
+        check(orig_info, get_info(out), False)
+        inv = cropper.inverse(out)
+        check(orig_info, get_info(inv), True)
 
 
 if __name__ == "__main__":

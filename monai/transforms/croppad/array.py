@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from itertools import chain
 from math import ceil
 from typing import Callable, List, Optional, Sequence, Tuple, Union
-
+import copy
 import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
@@ -110,15 +110,14 @@ class PadBase(InvertibleTransform):
     def _forward_meta(self, out, img, to_pad):
         if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
             return out
-        meta_dict = dict(img.meta)
-        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        meta_dict = copy.deepcopy(img.meta)
+        spatial_rank = max(len(img.affine) - 1, 1)
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
-        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
         out.meta = meta_dict
-        out.meta["affine"] = src_affine @ mat
-        out.meta["original_affine"] = src_affine
-        out.meta["spatial_shape"] = out.shape[1:]
+        out.meta["affine"] = img.affine @ mat
+        # out.meta["original_affine"] = img.affine
+        # out.meta["spatial_shape"] = out.shape[1:]
         return out
 
     def __call__(
@@ -501,15 +500,14 @@ class CropBase(InvertibleTransform):
     def _forward_meta(self, out, img, slices):
         if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
             return out
-        meta_dict = dict(img.meta)
-        spatial_rank = max(len(meta_dict.get("spatial_shape", [])), 1)
+        meta_dict = copy.deepcopy(img.meta)
+        spatial_rank = max(len(img.affine) - 1, 1)
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
-        src_affine = to_affine_nd(spatial_rank, meta_dict["affine"])
         out.meta = meta_dict
-        out.meta["affine"] = src_affine @ mat
-        out.meta["original_affine"] = src_affine
-        out.meta["spatial_shape"] = out.shape[1:]
+        out.meta["affine"] = img.affine @ mat
+        # out.meta["original_affine"] = img.affine
+        # out.meta["spatial_shape"] = out.shape[1:]
         return out
 
     def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
