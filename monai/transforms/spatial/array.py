@@ -61,12 +61,7 @@ from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import (
-    convert_data_type,
-    convert_to_dst_type,
-    get_equivalent_dtype,
-    get_torch_dtype_from_string,
-)
+from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
 
 nib, has_nib = optional_import("nibabel")
 
