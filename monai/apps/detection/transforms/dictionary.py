@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Union, Tuple
+from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -991,16 +991,6 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
-<<<<<<< HEAD
-=======
-        mode: available padding modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-                it also can be a sequence of string, each element corresponds to a key in ``keys``.
->>>>>>> bbe2d56f04b213739341abdc8d2a525c0c9f524c
         allow_missing_keys: don't raise exception if key is missing.
     """
 

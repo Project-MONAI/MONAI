@@ -324,7 +324,7 @@ def select_labels(
     labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor], keep: NdarrayOrTensor
 ) -> Union[Tuple, NdarrayOrTensor]:
     """
-    For element i in labels, select labels[i][keep]
+    For element in labels, select indice keep from it.
 
     Args:
         labels: Sequence of array. Each element represents classification labels or scores
