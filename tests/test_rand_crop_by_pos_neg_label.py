@@ -18,8 +18,7 @@ from parameterized import parameterized
 from monai.transforms import RandCropByPosNegLabel
 from tests.utils import TEST_NDARRAYS
 
-TESTS = []
-TESTS.append(
+TESTS = [
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -32,9 +31,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 3),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -47,9 +44,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": None,
@@ -66,9 +61,7 @@ TESTS.append(
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
         },
         (3, 2, 2, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -81,9 +74,7 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 2),
-    ]
-)
-TESTS.append(
+    ],
     [
         {
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
@@ -96,8 +87,8 @@ TESTS.append(
         },
         {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
         (3, 3, 3, 3),
-    ]
-)
+    ],
+]
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):

@@ -103,7 +103,6 @@ __all__ = [
     "RandCropByLabelClassesDict",
 ]
 
-NumpyPadModeSequence = Union[Sequence[Union[NumpyPadMode, str]], NumpyPadMode, str]
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 DEFAULT_POST_FIX = PostFix.meta()
 
@@ -287,8 +286,8 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/ghttps://pytorch.orgenerated/numpy.pad.html
-                /docs/stable/generated/torch.nn.functional.pad.html
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
@@ -836,11 +835,11 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         margin: Union[Sequence[int], int] = 0,
         allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
+        mode: PadModeSequence = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
-        **np_kwargs,
+        **pad_kwargs,
     ) -> None:
         """
         Args:
@@ -866,8 +865,8 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -880,7 +879,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
             margin=margin,
             allow_smaller=allow_smaller,
             k_divisible=k_divisible,
-            **np_kwargs,
+            **pad_kwargs,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
@@ -1415,16 +1414,18 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
             See also: monai.transforms.MapTransform
         spatial_size: the spatial size of output data after padding or crop.
             If has non-positive values, the corresponding size of input image will be used (no padding).
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             It also can be a sequence of string, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -1434,14 +1435,14 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        mode: NumpyPadModeSequence = NumpyPadMode.CONSTANT,
+        mode: PadModeSequence = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: Union[Method, str] = Method.SYMMETRIC,
-        **np_kwargs,
+        **pad_kwargs,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **np_kwargs)
+        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
