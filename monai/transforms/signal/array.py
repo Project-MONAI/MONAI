@@ -13,12 +13,13 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from typing import Any, Optional, Union
+
 import numpy as np
-from typing import Sequence, Optional, Union, Any
-from monai.transforms.transform import Transform
+
+from monai.transforms.transform import RandomizableTransform, Transform
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
-from monai.transforms.transform import  RandomizableTransform
 
 zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
 resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
@@ -31,7 +32,7 @@ assert has_resample_poly
 assert has_resample_fft
 assert has_shift
 
-__all__ = ["SignalResample","SignalRandShift"]
+__all__ = ["SignalResample", "SignalRandShift"]
 
 
 class SignalResample(Transform):
@@ -84,39 +85,43 @@ class SignalResample(Transform):
 
         return signal
 
+
 class SignalRandShift(RandomizableTransform):
     """
     Apply a random shift on a signal
     """
+
     backend = [TransformBackends.NUMPY]
-        
+
     def __init__(
-        self, 
-        mode: str='wrap',
-        filling: Optional[Union[np.ndarray,Any]] = 0.0,
-        v: float = 1.0, 
-        boundaries: Optional[Union[np.ndarray,Any]] = [-1.0,1,0],
-        *args, 
-        **kwargs
+        self,
+        mode: str = "wrap",
+        filling: Optional[Union[np.ndarray, Any]] = 0.0,
+        v: float = 1.0,
+        boundaries: Optional[Union[np.ndarray, Any]] = None,
+        *args,
+        **kwargs,
     ) -> None:
         """
         Args:
-            mode: define how the extension of the input array is done beyond its boundaries, see for more details : https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
-            filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details : https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
+            mode: define how the extension of the input array is done beyond its boundaries, see for more details :
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
+            filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details :
+            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
             v: scaling factor
-            boundaries: range of the signal shift, taken randomly in the defined range. Defaults to ``[-1.0, 1.0]``
-        """    
-        super(SignalRandShift,self).__init__()
-        
+            boundaries: list defining lower and upper boundaries for the signal shift, example : ``[-1.0, 1.0]``
+        """
+        super(SignalRandShift, self).__init__()
+
         self.filling = filling
         self.mode = mode
         self.v = v
         self.boundaries = boundaries
-        
+
     def randomize(self):
         super().randomize(None)
-        self.magnitude = self.R.uniform(low=self.boundaries[0],high=self.boundaries[1])
-        
+        self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
+
     def __call__(self, signal: np.ndarray) -> np.ndarray:
         """
         Args:
@@ -124,13 +129,13 @@ class SignalRandShift(RandomizableTransform):
         """
         self.randomize()
         if len(signal.shape) == 1:
-            signal = np.expand_dims(signal, axis=0)  
+            signal = np.expand_dims(signal, axis=0)
         length = signal.shape[1]
         factor = self.v * self.magnitude
         shift_idx = round(factor * length)
-        signal = shift(input=signal,
-                       mode=self.mode,
-                       shift=shift_idx, 
-                       cval=self.filling)
-        
+        signal = shift(input=signal, mode=self.mode, shift=shift_idx, cval=self.filling)
+
+        if len(signal.shape) > 1:
+            signal = np.squeeze(signal)
+
         return signal
