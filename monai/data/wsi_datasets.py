@@ -161,6 +161,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
             - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
+        map_level: the resolution level at which the output map is created.
         seed: random seed to randomly generate offsets. Defaults to 0.
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
