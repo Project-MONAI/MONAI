@@ -446,6 +446,15 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -734,6 +743,18 @@ Spatial
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoom.png
     :alt: example of Zoom
 .. autoclass:: Zoom
+    :members:
+    :special-members: __call__
+
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
     :members:
     :special-members: __call__
 
@@ -1327,6 +1348,13 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
@@ -1510,6 +1538,18 @@ Spatial (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoomd.png
     :alt: example of RandZoomd
 .. autoclass:: RandZoomd
+    :members:
+    :special-members: __call__
+
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__
 

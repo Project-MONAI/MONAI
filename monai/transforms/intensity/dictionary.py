@@ -23,6 +23,7 @@ from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
@@ -88,6 +89,7 @@ __all__ = [
     "RandCoarseDropoutd",
     "RandCoarseShuffled",
     "HistogramNormalized",
+    "ForegroundMaskd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -146,6 +148,8 @@ __all__ = [
     "HistogramNormalizeDict",
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
+    "ForegroundMaskD",
+    "ForegroundMaskDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1654,6 +1658,52 @@ class HistogramNormalized(MapTransform):
         return d
 
 
+class ForegroundMaskd(MapTransform):
+    """
+    Creates a binary mask that defines the foreground based on thresholds in RGB or HSV color space.
+    This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
+    low values (dark) while the background is white.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        threshold: an int or a float number that defines the threshold that values less than that are foreground.
+            It also can be a callable that receives each dimension of the image and calculate the threshold,
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
+            Moreover, a dictionary can be passed that defines such thresholds for each channel, like
+            {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
+        hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
+            Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        threshold: Union[Dict, Callable, str, float] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ForegroundMask(threshold=threshold, hsv_threshold=hsv_threshold, invert=invert)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1683,3 +1733,4 @@ RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
+ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
