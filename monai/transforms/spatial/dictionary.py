@@ -2170,7 +2170,7 @@ class GridSplitd(MapTransform):
         keys: keys of the corresponding items to be transformed.
         grid: a tuple define the shape of the grid upon which the image is split. Defaults to (2, 2)
         size: a tuple or an integer that defines the output patch sizes,
-            or a dictionary that define it seperately for each key, like {"image": 3, "mask", (2, 2)}.
+            or a dictionary that define it separately for each key, like {"image": 3, "mask", (2, 2)}.
             If it's an integer, the value will be repeated for each dimension.
             The default is None, where the patch size will be inferred from the grid shape.
         allow_missing_keys: don't raise exception if key is missing.
