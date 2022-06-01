@@ -228,7 +228,7 @@ class SpatialResample(Transform):
                 src_affine, *_ = convert_to_dst_type(src_affine, dst_affine)
                 xform = np.linalg.solve(src_affine, dst_affine)
             else:
-                # https://github.com/Project-MONAI/MONAI/issues/4432
+                # https://github.com/Project-MONAI/MONAI/issues/4432
                 _d = convert_data_type(dst_affine, torch.Tensor, device=torch.device("cpu"))[0]
                 _s = convert_to_dst_type(src_affine, _d)[0]
                 xform = (
