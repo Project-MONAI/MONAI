@@ -341,8 +341,7 @@ class ProbMapKeys(str, Enum):
     LOCATION = "mask_location"
     SIZE = "mask_size"
     COUNT = "num_patches"
-    PATH = "path"
-    PRE_PATH = "image"
+    NAME = "name"
 
 
 class GridPatchSort(str, Enum):

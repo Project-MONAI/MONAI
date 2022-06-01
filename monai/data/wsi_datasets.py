@@ -254,8 +254,9 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
-        for sample in self.image_data:
-            patch_samples = self._evaluate_patch_locations(sample)
+        self.counter = 0
+        for i, sample in enumerate(self.image_data):
+            patch_samples = self._evaluate_patch_locations(sample, i)
             self.data.extend(patch_samples)
 
     def _get_offset(self, sample):
@@ -267,7 +268,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             return tuple(self.R.randint(low, high) for low, high in offset_limits)
         return self.offset
 
-    def _evaluate_patch_locations(self, sample):
+    def _evaluate_patch_locations(self, sample, image_name):
         """Calculate the location for each patch in a sliding-window manner"""
         patch_size = self._get_size(sample)
         patch_level = self._get_level(sample)
@@ -292,6 +293,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         # fill out samples with location and metadata
         sample[WSIPatchKeys.SIZE.value] = patch_size
         sample[WSIPatchKeys.LEVEL.value] = patch_level
+        sample[ProbMapKeys.NAME.value] = image_name
         sample[ProbMapKeys.COUNT.value] = len(patch_locations)
         sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
@@ -343,7 +345,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         transform: Optional[Callable] = None,
         include_label: bool = False,
         center_location: bool = False,
-        additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.SIZE, ProbMapKeys.COUNT),
+        additional_meta_keys: Sequence[str] = (ProbMapKeys.LOCATION, ProbMapKeys.NAME),
         reader="cuCIM",
         **kwargs,
     ):
@@ -363,11 +365,12 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # Create single sample for each patch (in a sliding window manner)
         self.data = []
         self.image_data = data
-        for sample in self.image_data:
-            patch_samples = self._evaluate_patch_locations(sample)
+        self.counter = 0
+        for i, sample in enumerate(self.image_data):
+            patch_samples = self._evaluate_patch_locations(sample, str(i))
             self.data.extend(patch_samples)
 
-    def _evaluate_patch_locations(self, sample):
+    def _evaluate_patch_locations(self, sample, image_name):
         """Calculate the location for each patch based on the mask at different resolution level"""
         patch_size = self._get_size(sample)
         patch_level = self._get_level(sample)
@@ -389,6 +392,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         # fill out samples with location and metadata
         sample[WSIPatchKeys.SIZE.value] = patch_size
         sample[WSIPatchKeys.LEVEL.value] = patch_level
+        sample[ProbMapKeys.NAME.value] = image_name
         sample[ProbMapKeys.COUNT.value] = len(patch_locations)
         sample[ProbMapKeys.SIZE.value] = np.array(self.wsi_reader.get_size(wsi_obj, self.mask_level))
         return [
