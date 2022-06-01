@@ -605,7 +605,7 @@ class CropForegroundd(CropBased):
     channels. And it can also add margin to every dim of the bounding box of foreground object.
     """
 
-    backend = CropForeground.backend
+    cropper: CropForeground
 
     def __init__(
         self,
@@ -693,7 +693,7 @@ class RandWeightedCropd(RandCropBased):
         :py:class:`monai.transforms.RandWeightedCrop`
     """
 
-    backend = SpatialCrop.backend
+    cropper: RandWeightedCrop
 
     @deprecated_arg(name="meta_keys", since="0.8")
     @deprecated_arg(name="meta_key_postfix", since="0.8")

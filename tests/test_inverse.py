@@ -99,7 +99,7 @@ for name in ("1D even", "1D odd"):
             partial(RandSpatialCropd, roi_size=12 + val),
             partial(ResizeWithPadOrCropd, spatial_size=21 - val),
         ):
-            TESTS.append((t.func.__name__ + name, name, 0, False, t(KEYS)))  # type: ignore
+            TESTS.append((t.func.__name__ + name, name, 0, True, t(KEYS)))  # type: ignore
 
 # non-sensical tests: crop bigger or pad smaller or -ve values
 for t in (
@@ -112,60 +112,60 @@ for t in (
     partial(SpatialCropd, roi_center=10, roi_size=100),
     partial(SpatialCropd, roi_start=3, roi_end=100),
 ):
-    TESTS.append((t.func.__name__ + "bad 1D even", "1D even", 0, False, t(KEYS)))  # type: ignore
+    TESTS.append((t.func.__name__ + "bad 1D even", "1D even", 0, True, t(KEYS)))  # type: ignore
 
 TESTS.append(
     (
         "SpatialPadd (x2) 2d",
         "2D",
         0,
-        False,
+        True,
         SpatialPadd(KEYS, spatial_size=[111, 113], method="end"),
         SpatialPadd(KEYS, spatial_size=[118, 117]),
     )
 )
 
-TESTS.append(("SpatialPadd 3d", "3D", 0, False, SpatialPadd(KEYS, spatial_size=[112, 113, 116])))
+TESTS.append(("SpatialPadd 3d", "3D", 0, True, SpatialPadd(KEYS, spatial_size=[112, 113, 116])))
 
-TESTS.append(("SpatialCropd 2d", "2D", 0, False, SpatialCropd(KEYS, [49, 51], [90, 89])))
+TESTS.append(("SpatialCropd 2d", "2D", 0, True, SpatialCropd(KEYS, [49, 51], [90, 89])))
 
 TESTS.append(
     (
         "SpatialCropd 3d",
         "3D",
         0,
-        False,
+        True,
         SpatialCropd(KEYS, roi_slices=[slice(s, e) for s, e in zip([None, None, -99], [None, -2, None])]),
     )
 )
 
-TESTS.append(("SpatialCropd 2d", "2D", 0, False, SpatialCropd(KEYS, [49, 51], [390, 89])))
+TESTS.append(("SpatialCropd 2d", "2D", 0, True, SpatialCropd(KEYS, [49, 51], [390, 89])))
 
-TESTS.append(("SpatialCropd 3d", "3D", 0, False, SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93])))
+TESTS.append(("SpatialCropd 3d", "3D", 0, True, SpatialCropd(KEYS, [49, 51, 44], [90, 89, 93])))
 
-TESTS.append(("RandSpatialCropd 2d", "2D", 0, False, RandSpatialCropd(KEYS, [96, 93], None, True, False)))
+TESTS.append(("RandSpatialCropd 2d", "2D", 0, True, RandSpatialCropd(KEYS, [96, 93], None, True, False)))
 
-TESTS.append(("RandSpatialCropd 3d", "3D", 0, False, RandSpatialCropd(KEYS, [96, 93, 92], None, False, False)))
+TESTS.append(("RandSpatialCropd 3d", "3D", 0, True, RandSpatialCropd(KEYS, [96, 93, 92], None, False, False)))
 
-TESTS.append(("BorderPadd 2d", "2D", 0, False, BorderPadd(KEYS, [3, 7, 2, 5])))
+TESTS.append(("BorderPadd 2d", "2D", 0, True, BorderPadd(KEYS, [3, 7, 2, 5])))
 
-TESTS.append(("BorderPadd 2d", "2D", 0, False, BorderPadd(KEYS, [3, 7])))
+TESTS.append(("BorderPadd 2d", "2D", 0, True, BorderPadd(KEYS, [3, 7])))
 
-TESTS.append(("BorderPadd 3d", "3D", 0, False, BorderPadd(KEYS, [4])))
+TESTS.append(("BorderPadd 3d", "3D", 0, True, BorderPadd(KEYS, [4])))
 
-TESTS.append(("DivisiblePadd 2d", "2D", 0, False, DivisiblePadd(KEYS, k=4)))
+TESTS.append(("DivisiblePadd 2d", "2D", 0, True, DivisiblePadd(KEYS, k=4)))
 
-TESTS.append(("DivisiblePadd 3d", "3D", 0, False, DivisiblePadd(KEYS, k=[4, 8, 11])))
+TESTS.append(("DivisiblePadd 3d", "3D", 0, True, DivisiblePadd(KEYS, k=[4, 8, 11])))
 
-TESTS.append(("CenterSpatialCropd 2d", "2D", 0, False, CenterSpatialCropd(KEYS, roi_size=95)))
+TESTS.append(("CenterSpatialCropd 2d", "2D", 0, True, CenterSpatialCropd(KEYS, roi_size=95)))
 
-TESTS.append(("CenterSpatialCropd 3d", "3D", 0, False, CenterSpatialCropd(KEYS, roi_size=[95, 97, 98])))
+TESTS.append(("CenterSpatialCropd 3d", "3D", 0, True, CenterSpatialCropd(KEYS, roi_size=[95, 97, 98])))
 
-TESTS.append(("CropForegroundd 2d", "2D", 0, False, CropForegroundd(KEYS, source_key="label", margin=2)))
+TESTS.append(("CropForegroundd 2d", "2D", 0, True, CropForegroundd(KEYS, source_key="label", margin=2)))
 
-TESTS.append(("CropForegroundd 3d", "3D", 0, False, CropForegroundd(KEYS, source_key="label", k_divisible=[5, 101, 2])))
+TESTS.append(("CropForegroundd 3d", "3D", 0, True, CropForegroundd(KEYS, source_key="label", k_divisible=[5, 101, 2])))
 
-TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, False, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
+TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, True, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
 TESTS.append(("Flipd 3d", "3D", 0, False, Flipd(KEYS, [1, 2])))
 
@@ -293,18 +293,18 @@ TESTS.append(
         "RandCropByLabelClassesd 2d",
         "2D",
         1e-7,
-        False,
+        True,
         RandCropByLabelClassesd(KEYS, "label", (99, 96), ratios=[1, 2, 3, 4, 5], num_classes=5, num_samples=10),
     )
 )
 
 TESTS.append(
-    ("RandCropByPosNegLabeld 2d", "2D", 1e-7, False, RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10))
+    ("RandCropByPosNegLabeld 2d", "2D", 1e-7, True, RandCropByPosNegLabeld(KEYS, "label", (99, 96), num_samples=10))
 )
 
-TESTS.append(("RandSpatialCropSamplesd 2d", "2D", 1e-7, False, RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10)))
+TESTS.append(("RandSpatialCropSamplesd 2d", "2D", 1e-7, True, RandSpatialCropSamplesd(KEYS, (90, 91), num_samples=10)))
 
-TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, False, RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10)))
+TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, True, RandWeightedCropd(KEYS, "label", (90, 91), num_samples=10)))
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], t[3], Compose(Compose(t[4:]))) for t in TESTS]
 
@@ -481,7 +481,7 @@ class TestInverse(unittest.TestCase):
         model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
 
         data = first(loader)
-        self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
+        self.assertEqual(len(data["label"].applied_operations), num_invertible_transforms)
         self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
 
         labels = data["label"].to(device)

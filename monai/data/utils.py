@@ -406,11 +406,13 @@ def list_data_collate(batch: Sequence):
                 ret[key] = default_collate(data_for_batch)
                 if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
                     ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
+                    ret[key].applied_operations = list_data_collate([i.applied_operations for i in data_for_batch])
                     ret[key].is_batch = True
         else:
             ret = default_collate(data)
             if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
                 ret.meta = list_data_collate([i.meta for i in data])
+                ret.applied_operations = list_data_collate([i.applied_operations for i in data])
                 ret.is_batch = True
         return ret
     except RuntimeError as re:
@@ -538,8 +540,10 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             b, _, _ = _non_zipping_check(batch.meta, detach, pad, fill_value)
             if b == batch_size:
                 metas = decollate_batch(batch.meta)
+                app_ops = decollate_batch(batch.applied_operations)
                 for i in range(len(out_list)):
                     out_list[i].meta = metas[i]  # type: ignore
+                    out_list[i].applied_operations = app_ops[i]  # type: ignore
                     out_list[i].is_batch = False  # type: ignore
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]

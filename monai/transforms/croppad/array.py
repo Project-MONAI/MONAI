@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import copy
 from itertools import chain
 from math import ceil
-from typing import Callable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, Union, Iterable
 
 import numpy as np
 import torch
@@ -95,7 +95,9 @@ class PadBase(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT, **kwargs) -> None:
+    def __init__(
+        self, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT, **kwargs
+    ) -> None:
         self.mode = mode
         self.kwargs = kwargs
 
@@ -250,7 +252,7 @@ class SpatialPad(PadBase):
         self,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
@@ -439,6 +441,8 @@ class CropBase(InvertibleTransform):
     @staticmethod
     def calculate_slices_from_center_and_size(roi_center, roi_size) -> List[slice]:
         roi_slices = []
+        roi_center = [roi_center] if not isinstance(roi_center, Iterable) else roi_center
+        roi_size = [roi_size] if not isinstance(roi_size, Iterable) else roi_size
         for c, s in zip(roi_center, roi_size):
             c = c.item() if isinstance(c, torch.Tensor) else c
             s = s.item() if isinstance(s, torch.Tensor) else s
@@ -450,6 +454,16 @@ class CropBase(InvertibleTransform):
                 _end = _start + s
                 # start always +ve
                 roi_slices.append(slice(max(_start, 0), _end))
+        return roi_slices
+
+    @staticmethod
+    def calculate_slices_from_start_and_end(roi_start, roi_end) -> List[slice]:
+        # start +ve, end <= start
+        roi_start = [roi_start] if not isinstance(roi_start, Iterable) else roi_start
+        roi_end = [roi_end] if not isinstance(roi_end, Iterable) else roi_end
+        roi_start = [max(r, 0) for r in roi_start]  # type: ignore
+        roi_end = [max(r, s) for r, s in zip(roi_start, roi_end)]  # type: ignore
+        roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
         return roi_slices
 
     @staticmethod
@@ -481,18 +495,7 @@ class CropBase(InvertibleTransform):
             return CropBase.calculate_slices_from_center_and_size(roi_center, roi_size)
 
         # from start and end
-        else:
-            # start +ve, end <= start
-            roi_start = [max(r, 0) for r in roi_start]  # type: ignore
-            roi_end = [max(r, s) for r, s in zip(roi_start, roi_end)]  # type: ignore
-            roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
-        return roi_slices
-
-        # # convert to slices (accounting for 1d)
-        # if roi_start_torch.numel() == 1:
-        #     return [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
-        # else:
-        #     return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
+        return CropBase.calculate_slices_from_start_and_end(roi_start, roi_end)
 
     def _forward_meta(self, out, img, slices):
         if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
@@ -581,7 +584,7 @@ class ListCropBase(InvertibleTransform):
             inv[mask] = inv_img[mask]
 
         # no longer a patch, so remove that from the metadata
-        if ImageMetaKey.PATCH_INDEX in inv.meta:
+        if isinstance(inv, MetaTensor) and ImageMetaKey.PATCH_INDEX in inv.meta:
             del inv.meta[ImageMetaKey.PATCH_INDEX]
         return inv
 
@@ -822,6 +825,7 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
     """
+
     cropper: RandSpatialCrop
 
     def __init__(
@@ -845,7 +849,6 @@ class RandSpatialCropSamples(Randomizable, ListCropBase):
     def randomize(self, img_size: Sequence[int]) -> None:
         super().randomize(img_size)
         self.cropper.randomize(img_size)
-
 
 
 class CropForeground(CropBase):
@@ -981,6 +984,8 @@ class CropForeground(CropBase):
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         transform = self.get_most_recent_transform(img)
+        if not isinstance(img, MetaTensor):
+            raise RuntimeError()
         # we moved the padding info in the forward, so put it back for the inverse
         pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
         img.applied_operations.append(pad_info)
