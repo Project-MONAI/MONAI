@@ -42,17 +42,15 @@ import warnings
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
+from monai.apps.detection.utils.detector_utils import preprocess_images
 from monai.data import box_utils
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
-from monai.transforms.croppad.array import SpatialPad
-from monai.transforms.utils import compute_divisible_spatial_size
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep
 
 
@@ -359,11 +357,24 @@ class RetinaNetDetector(nn.Module):
 
         """
         # check if input arguments are valid
-        self.check_inputs(input_images, targets)
+        if self.training:
+            self.check_training_targets(input_images, targets)
+            if not hasattr(self, "proposal_matcher"):
+                raise AttributeError(
+                    "Matcher is not set. Please refer to self.set_regular_matcher(*), "
+                    "self.set_atss_matcher(*), or or self.set_custom_matcher(*)."
+                )
+            if self.fg_bg_sampler is None and self.debug:
+                warnings.warn(
+                    "No balanced sampler is used. Negative samples are likely to "
+                    "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
+                    "and self.set_hard_negative_sampler(*), "
+                    "or set classification loss function as Focal loss with self.set_cls_loss(*)"
+                )
 
         # pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
-        images, image_sizes = self.preprocess_images(input_images)
+        images, image_sizes = preprocess_images(input_images, self.spatial_dims, self.size_divisible)
 
         # generate network outputs. Use inferer only in evaluation mode.
         head_outputs = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
@@ -383,102 +394,6 @@ class RetinaNetDetector(nn.Module):
             head_outputs, anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
         return detections
-
-    def check_inputs(
-        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
-    ) -> None:
-        """
-        Security check for the inputs.
-        Will raise various of ValueError if not pass the check.
-
-        Args:
-            input_images: a list of images to be processed
-            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
-                ground-truth boxes present in the image.
-        """
-        if isinstance(input_images, Tensor):
-            if len(input_images.shape) != self.spatial_dims + 2:
-                raise ValueError(
-                    "When input_images is a Tensor, its need to be (self.spatial_dims + 2)-D."
-                    f"In this case, it should be a {(self.spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
-                )
-        elif torch.jit.isinstance(input_images, List[Tensor]):
-            for img in input_images:
-                if len(img.shape) != self.spatial_dims + 1:
-                    raise ValueError(
-                        "When input_images is a List[Tensor[, each element should have be (self.spatial_dims + 1)-D."
-                        f"In this case, it should be a {(self.spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
-                    )
-        else:
-            raise ValueError("input_images needs to be a List[Tensor] or Tensor.")
-
-        if self.training:
-            self.check_training_targets(input_images, targets)
-            if not hasattr(self, "proposal_matcher"):
-                raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*), "
-                    "self.set_atss_matcher(*), or or self.set_custom_matcher(*)."
-                )
-            if self.fg_bg_sampler is None and self.debug:
-                warnings.warn(
-                    "No balanced sampler is used. Negative samples are likely to "
-                    "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
-                    "and self.set_hard_negative_sampler(*), "
-                    "or set classification loss function as Focal loss with self.set_cls_loss(*)"
-                )
-        return
-
-    def preprocess_images(self, input_images: Union[List[Tensor], Tensor]) -> Tuple[Tensor, List[List[int]]]:
-        """
-        Preprocess the list of input images, pad them with constant value 0.0 at the end
-        to create a (B, C, H, W) or (B, C, H, W, D) Tensor as network input.
-        Padded size (H, W) or (H, W, D) is divisible by self.size_divisible.
-
-        Args:
-            input_images: The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
-                one for each image. Different images can have different sizes.
-                Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
-
-        Return:
-            - images, a (B, C, H, W) or (B, C, H, W, D) Tensor as network input
-            - image_sizes, the original spatial size of each image
-        """
-
-        # input_images: Tensor
-        if isinstance(input_images, Tensor):
-            orig_size = list(input_images.shape[-self.spatial_dims :])
-            new_size = compute_divisible_spatial_size(spatial_shape=orig_size, k=self.size_divisible)
-            all_pad_width = [(0, max(sp_i - orig_size[i], 0)) for i, sp_i in enumerate(new_size)]
-            pt_pad_width = [val for sublist in all_pad_width for val in sublist[::-1]][::-1]
-            if max(pt_pad_width) == 0:
-                # if there is no need to pad
-                return input_images, [orig_size] * input_images.shape[0]
-            return F.pad(input_images, pt_pad_width, mode="constant", value=0.0), [orig_size] * input_images.shape[0]
-
-        # input_images: List[Tensor])
-        image_sizes = [img.shape[-self.spatial_dims :] for img in input_images]
-        in_channels = input_images[0].shape[0]
-        dtype = input_images[0].dtype
-        device = input_images[0].device
-
-        # compute max_spatial_size
-        image_sizes_t = torch.tensor(image_sizes)
-        max_spatial_size_t, _ = torch.max(image_sizes_t, dim=0)
-
-        if len(max_spatial_size_t) != self.spatial_dims or len(self.size_divisible) != self.spatial_dims:
-            raise ValueError(" Require len(max_spatial_size_t) == self.spatial_dims ==len(self.size_divisible).")
-
-        max_spatial_size = compute_divisible_spatial_size(spatial_shape=list(max_spatial_size_t), k=self.size_divisible)
-
-        # allocate memory for the padded images
-        images = torch.zeros([len(image_sizes), in_channels] + max_spatial_size, dtype=dtype, device=device)
-
-        # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
-        padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode="constant", value=0.0)
-        for idx, img in enumerate(input_images):
-            images[idx, ...] = padder(img)  # type: ignore
-
-        return images, [list(ss) for ss in image_sizes]
 
     def forward_network(self, images: Tensor, use_inferer: Union[bool, None] = None) -> Dict[str, List[Tensor]]:
         """
