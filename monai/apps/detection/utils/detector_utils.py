@@ -27,7 +27,7 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
     """
     if isinstance(input_images, Tensor):
@@ -60,7 +60,8 @@ def check_training_targets(
     Will raise various of ValueError if not pass the check.
 
     Args:
-        input_images: a list of images to be processed
+        input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         targets: a list of dict. Each dict with two keys: target_box_key and target_label_key,
             ground-truth boxes present in the image.
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
@@ -103,7 +104,7 @@ def pad_images(
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
         size_divisible: int or Sequene[int], is the expection on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
@@ -174,7 +175,7 @@ def preprocess_images(
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
         size_divisible: int or Sequene[int], is the expection on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
