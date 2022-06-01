@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Flip
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -37,7 +38,11 @@ class TestFlip(NumpyImageTestCase2D):
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
             result = flip(im)
-            assert_allclose(result, p(expected))
+            assert_allclose(result, p(expected), type_test=False)
+            if isinstance(im, MetaTensor):
+                im_inv = flip.inverse(result)
+                assert_allclose(im_inv, p(self.imt[0]))
+                assert_allclose(im_inv.affine, im.affine)
 
 
 if __name__ == "__main__":

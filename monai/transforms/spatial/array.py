@@ -671,10 +671,10 @@ class Orientation(InvertibleTransform):
         return data
 
 
-class Flip(Transform):
+class Flip(InvertibleTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip`` in practice. See numpy.flip for additional details:
+    Uses ``np.flip``/``torch.flip``. See numpy.flip for additional details:
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
 
     Args:
@@ -691,14 +691,40 @@ class Flip(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def forward_meta(self, img_meta, shape, axes):
+        # shape and axes include the channel dim
+        m = dict(img_meta)
+        affine = m.get("affine")
+        if affine is None:
+            return m
+        mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
+        for axis in axes:
+            sp = axis - 1
+            mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
+        m["affine"] = affine @ mat
+        return m
+
+    def forward_image(self, img, axes) -> torch.Tensor:
+        return torch.flip(img, axes)
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
         """
-        if isinstance(img, np.ndarray):
-            return np.ascontiguousarray(np.flip(img, map_spatial_axes(img.ndim, self.spatial_axis)))
-        return torch.flip(img, map_spatial_axes(img.ndim, self.spatial_axis))
+        if not isinstance(img, MetaTensor) and get_track_meta():
+            img = MetaTensor(img)
+        axes = map_spatial_axes(img.ndim, self.spatial_axis)
+        out = self.forward_image(img, axes)
+        if isinstance(out, MetaTensor):
+            out.meta = self.forward_meta(out.meta, out.shape, axes)
+            self.push_transform(out)
+        return out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        _ = self.pop_transform(data)
+        with self.trace_transform(False):
+            return Flip(spatial_axis=self.spatial_axis)(data)
 
 
 class Resize(Transform):

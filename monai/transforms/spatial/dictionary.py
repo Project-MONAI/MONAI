@@ -1223,22 +1223,16 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
-            # Inverse is same as forward
-            d[key] = self.flipper(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.flipper.inverse(d[key])
         return d
 
 
