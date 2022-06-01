@@ -136,12 +136,13 @@ class TestSpatialResample(unittest.TestCase):
         ill_affine = np.asarray(
             [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]]
         )
-        with self.assertRaises(ValueError):
-            SpatialResample()(img=img, src_affine=np.eye(4), dst_affine=ill_affine)
-        with self.assertRaises(ValueError):
-            SpatialResample()(img=img, src_affine=ill_affine, dst_affine=np.eye(3))
-        with self.assertRaises(ValueError):
-            SpatialResample(mode=None)(img=img, src_affine=np.eye(4), dst_affine=0.1 * np.eye(4))
+        for p in TEST_NDARRAYS:
+            with self.assertRaises(ValueError):
+                SpatialResample()(img=img, src_affine=p(np.eye(4)), dst_affine=p(ill_affine))
+            with self.assertRaises(ValueError):
+                SpatialResample()(img=img, src_affine=p(ill_affine), dst_affine=p(np.eye(3)))
+            with self.assertRaises(ValueError):
+                SpatialResample(mode=None)(img=img, src_affine=p(np.eye(4)), dst_affine=p(0.1 * np.eye(4)))
 
 
 if __name__ == "__main__":

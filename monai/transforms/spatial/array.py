@@ -224,14 +224,17 @@ class SpatialResample(Transform):
                 return output_data, dst_affine
 
         try:
-            src_affine, *_ = convert_to_dst_type(src_affine, dst_affine)
-            if isinstance(src_affine, np.ndarray):
+            if isinstance(dst_affine, np.ndarray):
+                src_affine, *_ = convert_to_dst_type(src_affine, dst_affine)
                 xform = np.linalg.solve(src_affine, dst_affine)
             else:
+                # https://github.com/Project-MONAI/MONAI/issues/4432
+                _d = convert_data_type(dst_affine, torch.Tensor, device=torch.device("cpu"))[0]
+                _s = convert_to_dst_type(src_affine, _d)[0]
                 xform = (
-                    torch.linalg.solve(src_affine, dst_affine)
+                    torch.linalg.solve(_s, _d)
                     if pytorch_after(1, 8, 0)
-                    else torch.solve(dst_affine, src_affine).solution  # type: ignore
+                    else torch.solve(_d, _s).solution  # type: ignore
                 )
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError(f"src affine is not invertible: {src_affine}") from e
