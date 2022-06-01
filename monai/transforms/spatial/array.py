@@ -31,7 +31,7 @@ from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -1197,7 +1197,7 @@ class RandRotate90(RandomizableTransform):
         return Rotate90(self._rand_k, self.spatial_axes)(img)
 
 
-class RandRotate(RandomizableTransform):
+class RandRotate(RandomizableTransform, InvertibleTransform):
     """
     Randomly rotate the input arrays.
 
@@ -1268,6 +1268,7 @@ class RandRotate(RandomizableTransform):
         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
+    @deprecated_arg(name="get_matrix", since="0.9", msg_suffix="please use `img.meta` instead.")
     def __call__(
         self,
         img: NdarrayOrTensor,
@@ -1298,19 +1299,25 @@ class RandRotate(RandomizableTransform):
         if randomize:
             self.randomize()
 
-        if not self._do_transform:
-            return img
+        if self._do_transform:
+            rotator = Rotate(
+                angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
+                keep_size=self.keep_size,
+                mode=look_up_option(mode or self.mode, GridSampleMode),
+                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                align_corners=self.align_corners if align_corners is None else align_corners,
+                dtype=dtype or self.dtype or img.dtype,
+            )
+            img = rotator(img)
+        self.push_transform(img)
+        return img
 
-        rotator = Rotate(
-            angle=self.x if img.ndim == 3 else (self.x, self.y, self.z),
-            keep_size=self.keep_size,
-            mode=look_up_option(mode or self.mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
-            align_corners=self.align_corners if align_corners is None else align_corners,
-            dtype=dtype or self.dtype or img.dtype,
-        )
-        img = rotator(img)
-        return (img, rotator.get_rotation_matrix()) if get_matrix else img
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data, check=False)  # leveraging a new instance's inverse()
+        if transform[TraceKeys.DO_TRANSFORM]:
+            with self.trace_transform(False):
+                return Rotate(0).inverse(data)
+        return data
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform):
@@ -1339,12 +1346,9 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         if randomize:
             self.randomize(None)
 
-        if not self._do_transform:
-            return img
-
-        out = self.flipper(img)
-        if isinstance(out, MetaTensor):
-            self.push_transform(out)
+        if self._do_transform:
+            out = self.flipper(img)
+        self.push_transform(out)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

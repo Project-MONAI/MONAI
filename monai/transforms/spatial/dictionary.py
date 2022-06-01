@@ -24,7 +24,6 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.networks.layers import AffineTransform
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
@@ -66,7 +65,6 @@ from monai.utils import (
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.module import optional_import
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 nib, _ = optional_import("nibabel")
 
@@ -1486,59 +1484,20 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             if self._do_transform:
-                d[key], rot_mat = self.rand_rotate(
+                d[key] = self.rand_rotate(
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
                     randomize=False,
-                    get_matrix=True,
                 )
-            else:
-                rot_mat = np.eye(d[key].ndim)
-            self.push_transform(
-                d,
-                key,
-                orig_size=d[key].shape[1:],
-                extra_info={
-                    "rot_mat": rot_mat,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-                inv_rot_mat = np.linalg.inv(fwd_rot_mat)
-
-                xform = AffineTransform(
-                    normalized=False,
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                    reverse_indexing=True,
-                )
-                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
-                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-                output: torch.Tensor
-                out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
-                out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
-                d[key] = out
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+        for key in self.key_iterator(d):
+            d[key] = self.rand_rotate.inverse(d[key])
         return d
 
 

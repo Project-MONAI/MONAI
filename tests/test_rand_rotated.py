@@ -17,9 +17,10 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import RandRotated
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 TEST_CASES_2D: List[Tuple] = []
 for p in TEST_NDARRAYS:
@@ -118,6 +119,7 @@ class TestRandRotated2D(NumpyImageTestCase2D):
             align_corners=align_corners,
             dtype=np.float64,
         )
+        im = im_type(self.imt[0])
         rotate_fn.set_random_state(243)
         rotated = rotate_fn({"img": im_type(self.imt[0]), "seg": im_type(self.segn[0])})
 
@@ -132,6 +134,10 @@ class TestRandRotated2D(NumpyImageTestCase2D):
         expected = scipy.ndimage.rotate(
             self.imt[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=_order, mode=_mode, prefilter=False
         )
+        if isinstance(im, MetaTensor):
+            im_inv = rotate_fn.inverse(rotated)
+            assert_allclose(im_inv["img"].shape, im.shape)
+            assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
         for k, v in rotated.items():
             rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         expected = np.stack(expected).astype(np.float32)
