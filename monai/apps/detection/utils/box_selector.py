@@ -142,7 +142,7 @@ class BoxSelector:
         selected_labels = flatten_topk_idxs % num_classes
 
         topk_idxs = floor_divide(flatten_topk_idxs, num_classes)
-        return topk_idxs, selected_scores, selected_labels
+        return topk_idxs, selected_scores, selected_labels  # type: ignore
 
     def select_boxes_per_image(
         self, boxes_list: List[Tensor], logits_list: List[Tensor], spatial_size: Union[List[int], Tuple[int]]
