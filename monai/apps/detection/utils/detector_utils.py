@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Sequence, Tuple, Union
+from typing import Dict, List, Sequence, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -45,6 +45,46 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
                 )
     else:
         raise ValueError("input_images needs to be a List[Tensor] or Tensor.")
+    return
+
+
+def check_training_targets(
+    input_images: Union[List[Tensor], Tensor],
+    targets: Union[List[Dict[str, Tensor]], None],
+    spatial_dims: int,
+    target_label_key: str,
+    target_box_key: str,
+) -> None:
+    """
+    Security check for the input targets during training.
+    Will raise various of ValueError if not pass the check.
+
+    Args:
+        input_images: a list of images to be processed
+        targets: a list of dict. Each dict with two keys: target_box_key and target_label_key,
+            ground-truth boxes present in the image.
+        spatial_dims: number of spatial dimensions of the images, 2D or 3D.
+    """
+    if targets is None:
+        raise ValueError("Please provide ground truth targets during training.")
+
+    if len(input_images) != len(targets):
+        raise ValueError("len(input_images) should equal to len(targets).")
+
+    for target in targets:
+        if (target_label_key not in target.keys()) or (target_box_key not in target.keys()):
+            raise ValueError(
+                f"{target_label_key} and {target_box_key} are expected keys in targets. Got {target.keys()}."
+            )
+
+        boxes = target[target_box_key]
+        if isinstance(boxes, torch.Tensor):
+            if len(boxes.shape) != 2 or boxes.shape[-1] != 2 * spatial_dims:
+                raise ValueError(
+                    f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}."
+                )
+        else:
+            raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
     return
 
 

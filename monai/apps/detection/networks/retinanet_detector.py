@@ -47,7 +47,7 @@ from torch import Tensor, nn
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
-from monai.apps.detection.utils.detector_utils import preprocess_images
+from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images
 from monai.data import box_utils
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
@@ -358,7 +358,7 @@ class RetinaNetDetector(nn.Module):
         """
         # check if input arguments are valid
         if self.training:
-            self.check_training_targets(input_images, targets)
+            check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
             if not hasattr(self, "proposal_matcher"):
                 raise AttributeError(
                     "Matcher is not set. Please refer to self.set_regular_matcher(*), "
@@ -730,20 +730,6 @@ class RetinaNetDetector(nn.Module):
             )
 
         return detections
-
-    def check_training_targets(
-        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
-    ) -> None:
-        """
-        Security check for the input targets during training.
-        Will raise various of ValueError if not pass the check.
-
-        Args:
-            input_images: a list of images to be processed
-            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
-                ground-truth boxes present in the image.
-        """
-        pass
 
     def compute_loss(
         self,
