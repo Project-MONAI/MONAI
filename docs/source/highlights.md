@@ -24,6 +24,7 @@ The rest of this page provides more details for each module.
 * [Visualization](#visualization)
 * [Result writing](#result-writing)
 * [Workflows](#workflows)
+* [Bundle](#bundle)
 * [Research](#research)
 * [Performance optimization and GPU acceleration](#performance-optimization-and-gpu-acceleration)
 * [Applications](#applications)
@@ -395,6 +396,33 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 
 ### 6. Easy to integrate into popular workflows
 Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined with other software packages. For example, MONAI can be easily integrated into popular frameworks such as PyTorch-Lightning and Catalyst: [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb) and [Lightning + TorchIO](https://github.com/Project-MONAI/tutorials/blob/master/modules/TorchIO_MONAI_PyTorch_Lightning.ipynb) tutorials show the PyTorch Lightning programs with MONAI modules, and [Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb) shows the Catalyst program with MONAI modules.
+
+## Bundle
+The objective of a MONAI bundle is to define a packaged model which includes the critical information necessary to allow users and programs to understand how the model is used and for what purpose. A bundle includes the stored weights of a single network as a pickled state dictionary plus optionally a Torchscript object and/or an ONNX object. Additional JSON files are included to store metadata about the model, information for constructing training, inference, and post-processing transform sequences, plain-text description, legal information, and other data the model creator wishes to include. More details is at [bundle specification](https://docs.monai.io/en/latest/mb_specification.html).
+
+The key benefits of bundle to define the model package and support building python-based workflows via structured configurations:
+- Self-contained model package with all the necessary information.
+- Structured config that easy to override or reconstruct the workflow.
+- Config provides good readability and usability by separating parameter settings from the python code.
+- Config describes flexible workflow and components, allows for different low-level python implementations
+- Learning paradigms at a higher level such as federated learning and AutoML can be decoupled from the component details.
+
+A typical bundle example can include:
+```
+  ModelName
+  ┣━ configs
+  ┃  ┗━ metadata.json
+  ┣━ models
+  ┃  ┣━ model.pt
+  ┃  ┣━ *model.ts
+  ┃  ┗━ *model.onnx
+  ┗━ docs
+     ┣━ *README.md
+     ┗━ *license.txt
+```
+Details about the bundle config definition and syntax & examples are at [config syntax](https://docs.monai.io/en/latest/config_syntax.html). And a step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/master/modules/bundles/get_started.ipynb) tutorial notebook can help users quickly set up a bundle.
+
+And [bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/modules/bundle) provides more real-world examples and advanced features of bundle, including a bundle example for 3D segmentation of the spleen from CT image, use cases of bringing customized python components, parsing the config files in your own python program, etc.
 
 ## Research
 There are several research prototypes in MONAI corresponding to the recently published papers that address advanced research problems.
