@@ -524,12 +524,10 @@ class RetinaNetDetector(nn.Module):
         # reshaped results will have sized (B, sum(HWA)_across_levels, C/A)
         # A = self.num_anchors_per_loc
         head_outputs_reshape = {}
-        head_outputs_reshape[self.cls_key] = self.reshape_maps(
-            head_outputs[self.cls_key]
-        )  # (B, sum(HWA), self.num_classes)
-        head_outputs_reshape[self.box_reg_key] = self.reshape_maps(
-            head_outputs[self.box_reg_key]
-        )  # (B, sum(HWA), 2*self.spatial_dims)
+        for key in [self.cls_key, self.box_reg_key]
+        head_outputs_reshape[key] = self.reshape_maps(
+            head_outputs[key]
+        )  # (B, sum(HWA), self.num_classes) or (B, sum(HWA), 2* self.spatial_dims)
 
         return head_outputs_reshape, anchors, num_anchor_locs_per_level
 

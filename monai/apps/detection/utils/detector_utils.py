@@ -22,13 +22,12 @@ from monai.utils import PytorchPadMode, ensure_tuple_rep
 
 def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: int) -> None:
     """
-    Security check for the inputs.
-    Will raise various of ValueError if not pass the check.
+    Validate the input dimensionality (raise a `ValueError` if invalid).
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
-        spatial_dims: number of spatial dimensions of the images, 2D or 3D.
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+        spatial_dims: number of spatial dimensions of the images, 2 or 3.
     """
     if isinstance(input_images, Tensor):
         if len(input_images.shape) != spatial_dims + 2:
@@ -36,11 +35,11 @@ def check_input_images(input_images: Union[List[Tensor], Tensor], spatial_dims: 
                 "When input_images is a Tensor, its need to be (spatial_dims + 2)-D."
                 f"In this case, it should be a {(spatial_dims + 2)}-D Tensor, got Tensor shape {input_images.shape}."
             )
-    elif torch.jit.isinstance(input_images, List[Tensor]):
+    elif isinstance(input_images, List):
         for img in input_images:
             if len(img.shape) != spatial_dims + 1:
                 raise ValueError(
-                    "When input_images is a List[Tensor[, each element should have be (spatial_dims + 1)-D."
+                    "When input_images is a List[Tensor], each element should have be (spatial_dims + 1)-D."
                     f"In this case, it should be a {(spatial_dims + 1)}-D Tensor, got Tensor shape {img.shape}."
                 )
     else:
@@ -56,20 +55,22 @@ def check_training_targets(
     target_box_key: str,
 ) -> None:
     """
-    Security check for the input targets during training.
-    Will raise various of ValueError if not pass the check.
+    Validate the input images/targets during training (raise a `ValueError` if invalid).
 
     Args:
-        input_images: a list of images to be processed
+        input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         targets: a list of dict. Each dict with two keys: target_box_key and target_label_key,
             ground-truth boxes present in the image.
-        spatial_dims: number of spatial dimensions of the images, 2D or 3D.
+        spatial_dims: number of spatial dimensions of the images, 2 or 3.
+        target_label_key: the expected key of target labels.
+        target_box_key: the expected key of target boxes.
     """
     if targets is None:
         raise ValueError("Please provide ground truth targets during training.")
 
     if len(input_images) != len(targets):
-        raise ValueError("len(input_images) should equal to len(targets).")
+        raise ValueError(f"len(input_images) should equal to len(targets), got {len(input_images)}, {len(targets)}.")
 
     for target in targets:
         if (target_label_key not in target.keys()) or (target_box_key not in target.keys()):
@@ -78,13 +79,12 @@ def check_training_targets(
             )
 
         boxes = target[target_box_key]
-        if isinstance(boxes, torch.Tensor):
-            if len(boxes.shape) != 2 or boxes.shape[-1] != 2 * spatial_dims:
-                raise ValueError(
-                    f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}."
-                )
-        else:
+        if not isinstance(boxes, torch.Tensor):
             raise ValueError(f"Expected target boxes to be of type Tensor, got {type(boxes)}.")
+        if len(boxes.shape) != 2 or boxes.shape[-1] != 2 * spatial_dims:
+            raise ValueError(
+                f"Expected target boxes to be a tensor " f"of shape [N, {2* spatial_dims}], got {boxes.shape}."
+            )
     return
 
 
@@ -103,18 +103,14 @@ def pad_images(
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
-        size_divisible: int or Sequene[int], is the expection on the input image shape.
+        size_divisible: int or Sequence[int], is the expected pattern on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for `torch.pad` function.
 
     Return:
         - images, a (B, C, H, W) or (B, C, H, W, D) Tensor
@@ -169,7 +165,8 @@ def preprocess_images(
 ) -> Tuple[Tensor, List[List[int]]]:
     """
     Preprocess the input images, including
-    - check the validaity of the inputs
+
+    - validate of the inputs
     - pad the inputs so that the output spatial sizes are divisible by `size_divisible`.
       It pads them at the end to create a (B, C, H, W) or (B, C, H, W, D) Tensor.
       Padded size (H, W) or (H, W, D) is divisible by size_divisible.
@@ -177,18 +174,14 @@ def preprocess_images(
 
     Args:
         input_images: It can be 1) a tensor sized (B, C, H, W) or  (B, C, H, W, D),
-            or 2)a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
-        spatial_dims: number of spatial dimensions of the images, 2D or 3D.
-        size_divisible: int or Sequene[int], is the expection on the input image shape.
+            or 2) a list of image tensors, each image i may have different size (C, H_i, W_i) or  (C, H_i, W_i, D_i).
+        spatial_dims: number of spatial dimensions of the images, 2 or 3.
+        size_divisible: int or Sequence[int], is the expected pattern on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for `torch.pad` function.
 
     Return:
         - images, a (B, C, H, W) or (B, C, H, W, D) Tensor
