@@ -59,10 +59,8 @@ from torch import Tensor
 from monai.data.box_utils import (
     COMPUTE_DTYPE,
     CenterSizeMode,
-    CornerCornerModeTypeB,
     StandardMode,
     convert_box_mode,
-    convert_box_to_standard_mode,
     is_valid_box_values,
 )
 from monai.utils.module import look_up_option
