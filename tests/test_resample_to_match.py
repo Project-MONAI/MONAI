@@ -63,7 +63,9 @@ class TestResampleToMatch(unittest.TestCase):
         with self.assertRaises(ValueError):
             ResampleToMatch(mode=None)(img=data["im2"], img_dst=data["im1"])
         im_mod = ResampleToMatch()(data["im2"], data["im1"])
-        saver = SaveImaged("im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer)
+        saver = SaveImaged(
+            "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False
+        )
         im_mod.meta["filename_or_obj"] = get_rand_fname()
         saver({"im3": im_mod})
 
