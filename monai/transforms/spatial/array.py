@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for spatial operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 import warnings
+from copy import deepcopy
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -857,7 +858,7 @@ class Resize(Transform):
         return out
 
 
-class Rotate(Transform, ThreadUnsafe):
+class Rotate(InvertibleTransform):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
@@ -896,16 +897,15 @@ class Rotate(Transform, ThreadUnsafe):
         self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
-        self._rotation_matrix: Optional[NdarrayOrTensor] = None
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
         dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -927,8 +927,9 @@ class Rotate(Transform, ThreadUnsafe):
             ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
-        _dtype = dtype or self.dtype or img.dtype
-
+        if not isinstance(img, MetaTensor) and get_track_meta():
+            img = MetaTensor(img)
+        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
 
         im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
@@ -950,26 +951,64 @@ class Rotate(Transform, ThreadUnsafe):
         transform = shift @ transform @ shift_1
 
         transform_t, *_ = convert_to_dst_type(transform, img_t)
-
+        _mode = look_up_option(mode or self.mode, GridSampleMode).value
+        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode).value
+        _align_corners = self.align_corners if align_corners is None else align_corners
         xform = AffineTransform(
             normalized=False,
-            mode=look_up_option(mode or self.mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
-            align_corners=self.align_corners if align_corners is None else align_corners,
+            mode=_mode,
+            padding_mode=_padding_mode,
+            align_corners=_align_corners,
             reverse_indexing=True,
         )
         output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
-        self._rotation_matrix = transform
-        out: NdarrayOrTensor
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
+        if isinstance(out, MetaTensor):
+            out.meta = self.forward_meta(img.meta, transform_t, out.shape)
+            self.push_transform(
+                out,
+                orig_size=img_t.shape[1:],
+                extra_info={
+                    "rot_mat": transform,
+                    "mode": _mode,
+                    "padding_mode": _padding_mode,
+                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                    "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+                },
+            )
         return out
 
-    def get_rotation_matrix(self) -> Optional[NdarrayOrTensor]:
-        """
-        Get the most recently applied rotation matrix
-        This is not thread-safe.
-        """
-        return self._rotation_matrix
+    def forward_meta(self, img_meta, rotate_mat, output_shape):
+        meta_dict = deepcopy(img_meta)
+        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+        mat = to_affine_nd(len(affine) - 1, rotate_mat)
+        mat = convert_to_dst_type(mat, affine)[0]
+        meta_dict["affine"] = affine @ mat
+        return meta_dict
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        # Create inverse transform
+        fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
+        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+        padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
+        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
+        inv_rot_mat = np.linalg.inv(fwd_rot_mat)
+
+        xform = AffineTransform(
+            normalized=False,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=False if align_corners == TraceKeys.NONE else align_corners,
+            reverse_indexing=True,
+        )
+        img_t = convert_data_type(data, torch.Tensor, dtype=dtype)[0]
+        transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
+        out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).float().squeeze(0)
+        out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
+        out.meta = self.forward_meta(data.meta, transform_t, out.shape)
+        return out
 
 
 class Zoom(Transform):

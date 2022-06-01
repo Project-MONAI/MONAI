@@ -1393,56 +1393,20 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            orig_size = d[key].shape[1:]
             d[key] = self.rotator(
                 d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
-            rot_mat = self.rotator.get_rotation_matrix()
-            self.push_transform(
-                d,
-                key,
-                orig_size=orig_size,
-                extra_info={
-                    "rot_mat": rot_mat,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            inv_rot_mat = np.linalg.inv(fwd_rot_mat)
-
-            xform = AffineTransform(
-                normalized=False,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                reverse_indexing=True,
-            )
-            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
-            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-
-            out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
-            out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
-            d[key] = out
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+        for key in self.key_iterator(d):
+            d[key] = self.rotator.inverse(d[key])
         return d
 
 

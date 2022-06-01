@@ -17,8 +17,9 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import Rotate
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 TEST_CASES_2D: List[Tuple] = []
 for p in TEST_NDARRAYS:
@@ -101,8 +102,13 @@ class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, im_type, angle, mode, padding_mode, align_corners):
         rotate_fn = Rotate(angle, True, align_corners=align_corners, dtype=np.float64)
-        rotated = rotate_fn(im_type(self.imt[0]), mode=mode, padding_mode=padding_mode)
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        if isinstance(im, MetaTensor):
+            im_inv = rotate_fn.inverse(rotated)
+            assert_allclose(im_inv.shape, im.shape)
+            assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
 
     def test_ill_case(self):
         for p in TEST_NDARRAYS:
