@@ -24,7 +24,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd, zoom_affine, iter_patch, reorient_spatial_axes
+from monai.data.utils import AFFINE_TOL, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
@@ -58,15 +58,10 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TraceKeys, GridPatchSort, TransformBackends
+from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import (
-    convert_data_type,
-    convert_to_dst_type,
-    get_equivalent_dtype,
-    get_torch_dtype_from_string,
-)
+from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
 
 nib, has_nib = optional_import("nibabel")
 
