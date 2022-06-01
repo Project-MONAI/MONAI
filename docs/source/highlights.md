@@ -548,7 +548,7 @@ The following figure is example outputs of NuClick (annotator click inside the n
 ![nuclick output](../images/nuclick.png)
 
 ### 4. Lesion detection in digital pathology
-[Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and sampling with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
+[Implementation](https://github.com/Project-MONAI/MONAI/tree/master/monai/apps/pathology) of the pathology detection components, which includes efficient whole slide imaging IO and several patch sampling methods with NVIDIA cuCIM library and SmartCache mechanism, FROC measurements for lesion and probabilistic post-processing for lesion detection.
 
 ![digital pathology](../images/pathology.png)
 
