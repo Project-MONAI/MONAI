@@ -147,7 +147,12 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 
 
 def download_url(
-    url: str, filepath: PathLike = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True, **gdown_kwargs
+    url: str,
+    filepath: PathLike = "",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    progress: bool = True,
+    **gdown_kwargs,
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
