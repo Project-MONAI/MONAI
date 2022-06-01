@@ -450,7 +450,7 @@ class CropBase(InvertibleTransform):
             if s < 0:
                 roi_slices.append(slice(None))
             else:
-                _start = c - s // 2
+                _start = int(c - s // 2)
                 _end = _start + s
                 # start always +ve
                 roi_slices.append(slice(max(_start, 0), _end))
@@ -540,6 +540,31 @@ class CropBase(InvertibleTransform):
         # Apply inverse transform
         with inverse_transform.trace_transform(False):
             return inverse_transform(img)
+
+
+class ListCropBase(CropBase):
+    """
+    Base class for croppers that produce a list of cropped images. The inverse can be
+    computed either on a single image, or if a list of cropped images is given, they will
+    be inversed individually and their results joined together.
+    """
+    def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
+        # if given a single image, just do that inverse of that.
+        if not isinstance(data, Sequence):
+            return super().inverse(data)
+
+        # if given a blank list, don't do anything.
+        if len(data) < 0:
+            return data
+
+        # if we have a list, inverse the first image
+        inv = super().inverse(data[0])
+        # loop over all other images and take the non-zero elements
+        for img in data[1:]:
+            inv_img = super().inverse(img)
+            mask = inv_img != 0
+            inv[mask] = inv_img[mask]
+        return inv
 
 
 class SpatialCrop(CropBase):
@@ -757,7 +782,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(RandSpatialCrop):
+class RandSpatialCropSamples(RandSpatialCrop, ListCropBase):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -801,7 +826,7 @@ class RandSpatialCropSamples(RandSpatialCrop):
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        super().__init__(roi_size, max_roi_size, random_center, random_size)
+        RandSpatialCrop.__init__(self, roi_size, max_roi_size, random_center, random_size)
 
     def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:  # type: ignore
         """
@@ -811,32 +836,14 @@ class RandSpatialCropSamples(RandSpatialCrop):
         # can't use list comprehension with super()
         out = []
         for i in range(self.num_samples):
-            im = super().__call__(img)
+            im = RandSpatialCrop.__call__(self, img)
             if isinstance(im, MetaTensor):
                 im.meta["patch_index"] = i
             out.append(im)
         return out
 
     def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
-        # if given a single image, just do that inverse of that.
-        if not isinstance(data, Sequence):
-            inv = super().inverse(data)
-            # no longer a patch, so remove that from the metadata
-            if "patch_index" in inv.meta:
-                del inv.meta["patch_index"]
-            return inv
-
-        # if given a blank list, don't do anything.
-        if len(data) < 0:
-            return data
-
-        # if we have a list, inverse the first image
-        inv = super().inverse(data[0])
-        # loop over all other images and take the non-zero elements
-        for img in data[1:]:
-            inv_img = super().inverse(img)
-            mask = inv_img != 0
-            inv[mask] = inv_img[mask]
+        inv = ListCropBase.inverse(self, data)
         # no longer a patch, so remove that from the metadata
         if "patch_index" in inv.meta:
             del inv.meta["patch_index"]
@@ -988,7 +995,7 @@ class CropForeground(CropBase):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, CropBase):
+class RandWeightedCrop(RandSpatialCrop, ListCropBase):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -1031,8 +1038,7 @@ class RandWeightedCrop(Randomizable, CropBase):
         Returns:
             A list of image patches
         """
-        if weight_map is None:
-            weight_map = self.weight_map
+        weight_map = self.weight_map if weight_map is None else weight_map
         if weight_map is None:
             raise ValueError("weight map must be provided for weighted patch sampling.")
         if img.shape[1:] != weight_map.shape[1:]:

@@ -73,28 +73,24 @@ TEST_CASE_2 = [
 TEST_INVERSE_LIST = [
     [
         (1, 2, 2),
-        (1, 1),
-        4,
+        {"roi_size": (1, 1), "num_samples": 4, "random_size": False},
     ],
     [
         (1, 3, 2),
-        (1, 1),
-        100,
+        {"roi_size": (1, 1), "num_samples": 100, "random_size": False},
     ],
     [
         (3, 10, 11, 12),
-        (3, 5, 4),
-        7,
+
+        {"roi_size": (3,5,4), "num_samples": 7, "random_size": False},
     ],
     [
         (3, 10, 11, 12),
-        (10, 11, 12),
-        3,
+        {"roi_size": (10, 11,12), "num_samples": 3, "random_size": False},
     ],
     [
         (3, 10, 11, 12),
-        (3, 4, 5),
-        100,
+        {"roi_size": (3, 4, 5), "num_samples": 100, "random_size": False},
     ],
 ]
 
@@ -123,32 +119,9 @@ class TestRandSpatialCropSamples(CropTest):
                 self.assertTrue("patch_index" not in inv.meta)
 
     @parameterized.expand(TEST_INVERSE_LIST)
-    def test_multi_inverse(self, input_shape, roi_size, n_samples):
-        input_data = np.arange(np.prod(input_shape)).reshape(*input_shape) + 1
-        xform = RandSpatialCropSamples(roi_size=roi_size, num_samples=n_samples, random_size=False)
-        xform.set_random_state(1234)
-        out = xform(input_data)
-        self.assertEqual(len(out), n_samples)
-        inv = xform.inverse(out)
-        self.assertIsInstance(inv, MetaTensor)
-        self.assertEqual(inv.applied_operations, [])
-        self.assertTrue("patch_index" not in inv.meta)
-        self.assertTupleEqual(inv.shape, input_shape)
-        inv_np = inv.numpy()
+    def test_multi_inverse(self, input_shape, init_params):
+        self.multi_inverse(input_shape, init_params)
 
-        # get list of all numbers that exist inside the crops
-        uniques = set()
-        for o in out:
-            uniques.update(set(o.flatten().tolist()))
-
-        # make sure that
-        for i in uniques:
-            a = np.where(input_data == i)
-            b = np.where(inv_np == i)
-            self.assertTupleEqual(a, b)
-        # there should be as many zeros as elements missing from uniques
-        missing = input_data.size - len(uniques)
-        self.assertEqual((inv_np == 0).sum(), missing)
 
 
 

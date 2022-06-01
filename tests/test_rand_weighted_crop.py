@@ -10,7 +10,9 @@
 # limitations under the License.
 
 import unittest
-
+from copy import deepcopy
+from tests.croppers import CropTest
+from tests.croppers import CropTest
 import numpy as np
 import torch
 from parameterized.parameterized import parameterized
@@ -18,6 +20,8 @@ from parameterized.parameterized import parameterized
 from monai.transforms.croppad.array import RandWeightedCrop
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
+from tests.croppers import CropTest
+from monai.data.meta_tensor import MetaTensor
 
 def get_data(ndim):
     im_gen = NumpyImageTestCase2D() if ndim == 2 else NumpyImageTestCase3D()
@@ -147,8 +151,19 @@ for p in TEST_NDARRAYS:
             ]
         )
 
+TEST_MULTI_INVERSE_LIST = [
+    [
+        (1, 2, 2),
+        {"spatial_size": (1, 1), "num_samples": 4, "weight_map": np.ones((1, 2, 2))},
+    ],
+    [
+        (3, 10, 11, 12),
+        {"spatial_size": (3, 4, 5), "num_samples": 100, "weight_map": np.ones((3, 10, 11, 12))},
+    ],
+]
 
-class TestRandWeightedCrop(unittest.TestCase):
+class TestRandWeightedCrop(CropTest):
+    Cropper = RandWeightedCrop
     @parameterized.expand(TESTS)
     def test_rand_weighted_crop(self, _, input_params, img, weight, expected_shape, expected_vals):
         crop = RandWeightedCrop(**input_params)
@@ -161,10 +176,19 @@ class TestRandWeightedCrop(unittest.TestCase):
         # if desired ROI is larger than image, check image is unchanged
         if all(s >= i for i, s in zip(img.shape[1:], input_params["spatial_size"])):
             for res in result:
-                self.assertEqual(type(img), type(res))
-                if isinstance(img, torch.Tensor):
-                    self.assertEqual(res.device, img.device)
-                assert_allclose(res, img)
+                self.assertIsInstance(res, MetaTensor)
+                assert_allclose(res, img, type_test=False)
+                self.assertEqual(len(res.applied_operations), 1)
+                # individual inverse
+                inv = crop.inverse(deepcopy(res))
+                self.assertIsInstance(inv, MetaTensor)
+                self.assertEqual(inv.applied_operations, [])
+                self.assertTupleEqual(inv.shape, img.shape)
+
+
+    @parameterized.expand(TEST_MULTI_INVERSE_LIST)
+    def test_multi_inverse(self, input_shape, init_params):
+        self.multi_inverse(input_shape, init_params)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ from copy import deepcopy
 from typing import TypeVar, Union
 
 import numpy as np
-
+from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import CropBase
 from monai.transforms.croppad.dictionary import CropBased
@@ -78,3 +78,31 @@ class CropTest(unittest.TestCase):
                 out_im = result["img"] if is_map else result
                 self.assertIsInstance(out_im, MetaTensor)
                 assert_allclose(out_im, expected_array, type_test=False)
+
+    def multi_inverse(self, input_shape, init_params):
+        input_data = np.arange(np.prod(input_shape)).reshape(*input_shape) + 1
+        xform = self.Cropper(**init_params)
+        xform.set_random_state(1234)
+        out = xform(input_data)
+        if "num_samples" in init_params:
+            self.assertEqual(len(out), init_params["num_samples"])
+        inv = xform.inverse(out)
+        self.assertIsInstance(inv, MetaTensor)
+        self.assertEqual(inv.applied_operations, [])
+        self.assertTrue("patch_index" not in inv.meta)
+        self.assertTupleEqual(inv.shape, input_shape)
+        inv_np = inv.numpy()
+
+        # get list of all numbers that exist inside the crops
+        uniques = set()
+        for o in out:
+            uniques.update(set(o.flatten().tolist()))
+
+        # make sure that
+        for i in uniques:
+            a = np.where(input_data == i)
+            b = np.where(inv_np == i)
+            self.assertTupleEqual(a, b)
+        # there should be as many zeros as elements missing from uniques
+        missing = input_data.size - len(uniques)
+        self.assertEqual((inv_np == 0).sum(), missing)
