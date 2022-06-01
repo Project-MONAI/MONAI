@@ -14,9 +14,10 @@ from typing import Tuple, Union
 import numpy as np
 import torch
 
+from monai.data import MetaTensor
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.utils import generate_spatial_bounding_box
-from monai.utils import MetricReduction, look_up_option, optional_import
+from monai.utils import MetricReduction, look_up_option, optional_import, convert_data_type
 
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
@@ -159,9 +160,8 @@ def get_mask_edges(
         seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred, seg_gt = np.squeeze(cropper(seg_pred), axis=channel_dim), np.squeeze(
-            cropper(seg_gt), axis=channel_dim
-        )
+        seg_pred = convert_data_type(np.squeeze(cropper(seg_pred), axis=channel_dim), np.ndarray)[0]
+        seg_gt = convert_data_type(np.squeeze(cropper(seg_gt), axis=channel_dim), np.ndarray)[0]
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
