@@ -69,6 +69,13 @@ Metrics
 .. autoclass:: SurfaceDistanceMetric
     :members:
 
+`Surface dice`
+--------------
+.. autofunction:: compute_surface_dice
+
+.. autoclass:: SurfaceDiceMetric
+    :members:
+
 `Mean squared error`
 --------------------
 .. autoclass:: MSEMetric

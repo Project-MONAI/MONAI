@@ -84,7 +84,9 @@ TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
 TEST_CASE_RGB_1 = [np.ones((3, 100, 100), dtype=np.uint8)]  # CHW
 
-TEST_CASE_ERROR_GRAY = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
+TEST_CASE_ERROR_0C = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
+TEST_CASE_ERROR_1C = [np.ones((16, 16, 1), dtype=np.uint8)]  # one color channel
+TEST_CASE_ERROR_2C = [np.ones((16, 16, 2), dtype=np.uint8)]  # two color channels
 TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
 
 
@@ -102,20 +104,6 @@ def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
 
     img_rgb = array.transpose(1, 2, 0)
     imwrite(filename, img_rgb, shape=img_rgb.shape, tile=(16, 16))
-
-    return filename
-
-
-def save_gray_tiff(array: np.ndarray, filename: str):
-    """
-    Save numpy array into a TIFF file
-
-    Args:
-        array: numpy ndarray with any shape
-        filename: the filename to be used for the tiff file.
-    """
-    img_gray = array
-    imwrite(filename, img_gray, shape=img_gray.shape, photometric="rgb")
 
     return filename
 
@@ -187,13 +175,15 @@ class WSIReaderTests:
             self.assertIsNone(assert_array_equal(image["RGB"], img_expected))
             self.assertIsNone(assert_array_equal(image["RGBA"], img_expected))
 
-        @parameterized.expand([TEST_CASE_ERROR_GRAY, TEST_CASE_ERROR_3D])
+        @parameterized.expand([TEST_CASE_ERROR_0C, TEST_CASE_ERROR_1C, TEST_CASE_ERROR_2C, TEST_CASE_ERROR_3D])
         @skipUnless(has_tiff, "Requires tifffile.")
         def test_read_malformats(self, img_expected):
+            if self.backend == "cucim" and (len(img_expected.shape) < 3 or img_expected.shape[2] == 1):
+                # Until cuCIM addresses https://github.com/rapidsai/cucim/issues/230
+                return
             reader = WSIReader(self.backend)
-            file_path = save_gray_tiff(
-                img_expected, os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
-            )
+            file_path = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
+            imwrite(file_path, img_expected, shape=img_expected.shape)
             with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError if has_osl else ValueError)):
                 with reader.read(file_path) as img_obj:
                     reader.get_data(img_obj)

@@ -37,7 +37,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
@@ -91,9 +91,14 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
+
+        Args:
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         """
         data = self.get_buffer()
@@ -101,7 +106,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, self.reduction)
+        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
 

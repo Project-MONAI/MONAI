@@ -37,6 +37,7 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
+    deprecated,
     deprecated_arg,
     ensure_tuple,
     look_up_option,
@@ -62,6 +63,7 @@ __all__ = [
     "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
+    "SplitDim",
     "SplitChannel",
     "CastToType",
     "ToTensor",
@@ -281,33 +283,57 @@ class RemoveRepeatedChannel(Transform):
         return img[:: self.repeats, :]
 
 
-class SplitChannel(Transform):
+class SplitDim(Transform):
+    """
+    Given an image of size X along a certain dimension, return a list of length X containing
+    images. Useful for converting 3D images into a stack of 2D images, splitting multichannel inputs into
+    single channels, for example.
+
+    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
+
+    Args:
+        dim: dimension on which to split
+        keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
+            dimension will be squeezed.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, dim: int = -1, keepdim: bool = True) -> None:
+        self.dim = dim
+        self.keepdim = keepdim
+
+    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+        """
+        Apply the transform to `img`.
+        """
+        n_out = img.shape[self.dim]
+        if n_out <= 1:
+            raise RuntimeError("Input image is singleton along dimension to be split.")
+        if isinstance(img, torch.Tensor):
+            outputs = list(torch.split(img, 1, self.dim))
+        else:
+            outputs = np.split(img, n_out, self.dim)
+        if not self.keepdim:
+            outputs = [o.squeeze(self.dim) for o in outputs]
+        return outputs
+
+
+@deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
+class SplitChannel(SplitDim):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
     It can help applying different following transforms to different channels.
+
+    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
 
     Args:
         channel_dim: which dimension of input image is the channel, default to 0.
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
     def __init__(self, channel_dim: int = 0) -> None:
-        self.channel_dim = channel_dim
-
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
-        num_classes = img.shape[self.channel_dim]
-        if num_classes <= 1:
-            raise RuntimeError("input image does not contain multiple channels.")
-
-        outputs = []
-        slices = [slice(None)] * len(img.shape)
-        for i in range(num_classes):
-            slices[self.channel_dim] = slice(i, i + 1)
-            outputs.append(img[tuple(slices)])
-
-        return outputs
+        super().__init__(channel_dim)
 
 
 class CastToType(Transform):
@@ -1079,7 +1105,7 @@ class MapLabelValue:
 
 class IntensityStats(Transform):
     """
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1089,7 +1115,7 @@ class IntensityStats(Transform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
@@ -1111,7 +1137,7 @@ class IntensityStats(Transform):
 
         Args:
             img: input image to compute intensity stats.
-            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            meta_data: metadata dictionary to store the statistics data, if None, will create an empty dictionary.
             mask: if not None, mask the image to extract only the interested area to compute statistics.
                 mask must have the same shape as input `img`.
 
