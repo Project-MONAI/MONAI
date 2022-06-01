@@ -329,12 +329,17 @@ def select_labels(
     Args:
         labels: Sequence of array. Each element represents classification labels or scores
             corresponding to ``boxes``, sized (N,).
-        keep: the indices to keep
+        keep: the indices to keep, same length with each element in labels.
 
     Return:
         selected labels, does not share memory with original labels.
     """
-    labels_tuple = ensure_tuple(labels)
+    if isinstance(labels, torch.Tensor) or isinstance(labels, np.ndarray):
+        # will fail if simply use ensure_tuple(labels) for all cases.
+        labels_tuple = (labels,)
+    else:
+        labels_tuple = ensure_tuple(labels)  # type: ignore
+
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
     for i in range(len(labels_tuple)):
@@ -342,7 +347,7 @@ def select_labels(
         labels_t = deepcopy(labels_t[keep_t, ...])
         labels_select_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
 
-    if not issequenceiterable(labels):
+    if isinstance(labels, torch.Tensor) or isinstance(labels, np.ndarray):
         return labels_select_list[0]  # type: ignore
 
     return tuple(labels_select_list)
