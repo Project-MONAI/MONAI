@@ -20,6 +20,7 @@ import copy
 import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
+from monai.utils import ImageMetaKey
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -190,8 +191,6 @@ class Pad(PadBase):
             note that `np.pad` treats channel dimension as the first dimension.
     """
 
-    backend = PadBase.backend
-
     def __init__(
         self,
         to_pad: List[Tuple[int, int]],
@@ -244,8 +243,6 @@ class SpatialPad(PadBase):
             note that `np.pad` treats channel dimension as the first dimension.
 
     """
-
-    backend = PadBase.backend
 
     def __init__(
         self,
@@ -314,8 +311,6 @@ class BorderPad(PadBase):
 
     """
 
-    backend = PadBase.backend
-
     def __init__(
         self,
         spatial_border: Union[Sequence[int], int],
@@ -375,8 +370,6 @@ class DivisiblePad(PadBase):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
-
-    backend = SpatialPad.backend
 
     def __init__(
         self,
@@ -546,6 +539,19 @@ class ListCropBase(CropBase):
     computed either on a single image, or if a list of cropped images is given, they will
     be inversed individually and their results joined together.
     """
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:  # type: ignore
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        cropping doesn't change the channel dim.
+        """
+        out = []
+        for i in range(self.num_samples):
+            im = self.cropper(self, img)
+            if isinstance(im, MetaTensor):
+                im.meta[ImageMetaKey.PATCH_INDEX] = i
+            out.append(im)
+        return out
+
     def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
         # if given a single image, just do that inverse of that.
         if not isinstance(data, Sequence):
@@ -562,6 +568,10 @@ class ListCropBase(CropBase):
             inv_img = super().inverse(img)
             mask = inv_img != 0
             inv[mask] = inv_img[mask]
+
+        # no longer a patch, so remove that from the metadata
+        if ImageMetaKey.PATCH_INDEX in inv.meta:
+            del inv.meta[ImageMetaKey.PATCH_INDEX]
         return inv
 
 
@@ -578,8 +588,6 @@ class SpatialCrop(CropBase):
         - a spatial center and size
         - the start and end coordinates of the ROI
     """
-
-    backend = CropBase.backend
 
     def __init__(
         self,
@@ -624,8 +632,6 @@ class CenterSpatialCrop(CropBase):
             the spatial size of output data will be [32, 40, 40].
     """
 
-    backend = CropBase.backend
-
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
@@ -648,8 +654,6 @@ class CenterScaleCrop(CropBase):
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
 
     """
-
-    backend = CropBase.backend
 
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         self.roi_scale = roi_scale
@@ -685,8 +689,6 @@ class RandSpatialCrop(Randomizable, CropBase):
         random_size: crop with random size or specific size ROI.
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
-
-    backend = CenterSpatialCrop.backend
 
     def __init__(
         self,
@@ -780,7 +782,7 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(RandSpatialCrop, ListCropBase):
+class RandSpatialCropSamples(Randomizable, ListCropBase):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
@@ -808,10 +810,8 @@ class RandSpatialCropSamples(RandSpatialCrop, ListCropBase):
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
-
     """
 
-    backend = RandSpatialCrop.backend
 
     def __init__(
         self,
@@ -824,28 +824,7 @@ class RandSpatialCropSamples(RandSpatialCrop, ListCropBase):
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        RandSpatialCrop.__init__(self, roi_size, max_roi_size, random_center, random_size)
-
-    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:  # type: ignore
-        """
-        Apply the transform to `img`, assuming `img` is channel-first and
-        cropping doesn't change the channel dim.
-        """
-        # can't use list comprehension with super()
-        out = []
-        for i in range(self.num_samples):
-            im = RandSpatialCrop.__call__(self, img)
-            if isinstance(im, MetaTensor):
-                im.meta["patch_index"] = i
-            out.append(im)
-        return out
-
-    def inverse(self, data: Union[torch.Tensor, List[torch.Tensor]]) -> torch.Tensor:
-        inv = ListCropBase.inverse(self, data)
-        # no longer a patch, so remove that from the metadata
-        if "patch_index" in inv.meta:
-            del inv.meta["patch_index"]
-        return inv
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
 
 
 
@@ -880,8 +859,6 @@ class CropForeground(CropBase):
           [2, 1]]]
 
     """
-
-    backend = CropBase.backend
 
     def __init__(
         self,
@@ -993,7 +970,7 @@ class CropForeground(CropBase):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(RandSpatialCrop, ListCropBase):
+class RandWeightedCrop(Randomizable, ListCropBase):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -1005,8 +982,6 @@ class RandWeightedCrop(RandSpatialCrop, ListCropBase):
             Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
     """
-
-    backend = CropBase.backend
 
     def __init__(
         self,
@@ -1045,9 +1020,13 @@ class RandWeightedCrop(RandSpatialCrop, ListCropBase):
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[torch.Tensor] = []
-        for center in self.centers:
+        for i, center in enumerate(self.centers):
             slices = self.calculate_slices(roi_center=center, roi_size=_spatial_size)
-            results.append(self._forward(img, slices))
+            out = self._forward(img, slices)
+            if isinstance(out, MetaTensor):
+                out.meta[ImageMetaKey.PATCH_INDEX] = i  # type: ignore
+                out.meta["crop_center"] = center
+            results.append(out)
         return results
 
 
