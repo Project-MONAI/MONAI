@@ -128,10 +128,10 @@ class WSIReaderTests:
                 img, meta = reader.get_data(img_obj)
             self.assertTupleEqual(img.shape, expected_shape)
             self.assertEqual(meta["backend"], self.backend)
-            self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
-            self.assertEqual(meta["patch"]["level"], level)
-            self.assertTupleEqual(meta["patch"]["size"], expected_shape[1:])
-            self.assertTupleEqual(meta["patch"]["location"], (0, 0))
+            self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
+            self.assertEqual(meta["patch_level"], level)
+            assert_array_equal(meta["patch_size"], expected_shape[1:])
+            assert_array_equal(meta["patch_location"], (0, 0))
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
         def test_read_region(self, file_path, patch_info, expected_img):
@@ -150,10 +150,10 @@ class WSIReaderTests:
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
                     self.assertEqual(meta["backend"], self.backend)
-                    self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
-                    self.assertEqual(meta["patch"]["level"], patch_info["level"])
-                    self.assertTupleEqual(meta["patch"]["size"], expected_img.shape[1:])
-                    self.assertTupleEqual(meta["patch"]["location"], patch_info["location"])
+                    self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
+                    self.assertEqual(meta["patch_level"], patch_info["level"])
+                    assert_array_equal(meta["patch_size"], expected_img.shape[1:])
+                    assert_array_equal(meta["patch_location"], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_3])
         def test_read_region_multi_wsi(self, file_path_list, patch_info, expected_img):
@@ -172,10 +172,10 @@ class WSIReaderTests:
                 self.assertTupleEqual(img.shape, expected_img.shape)
                 self.assertIsNone(assert_array_equal(img, expected_img))
                 self.assertEqual(meta["backend"], self.backend)
-                self.assertEqual(meta["wsi"][0]["path"], str(os.path.abspath(file_path_list[0])))
-                self.assertEqual(meta["patch"][0]["level"], patch_info["level"])
-                self.assertTupleEqual(meta["patch"][0]["size"], expected_img.shape[1:])
-                self.assertTupleEqual(meta["patch"][0]["location"], patch_info["location"])
+                self.assertEqual(meta["path"][0], str(os.path.abspath(file_path_list[0])))
+                self.assertEqual(meta["patch_level"][0], patch_info["level"])
+                assert_array_equal(meta["patch_size"][0], expected_img.shape[1:])
+                assert_array_equal(meta["patch_location"][0], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -224,6 +224,22 @@ class WSIReaderTests:
             for s in data[PostFix.meta("image")]["spatial_shape"]:
                 torch.testing.assert_allclose(s, expected_spatial_shape)
             self.assertTupleEqual(data["image"].shape, expected_shape)
+
+        @parameterized.expand([TEST_CASE_TRANSFORM_0])
+        def test_with_dataloader_batch(self, file_path, level, expected_spatial_shape, expected_shape):
+            train_transform = Compose(
+                [
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=["image"]),
+                ]
+            )
+            dataset = Dataset([{"image": file_path}, {"image": file_path}], transform=train_transform)
+            batch_size = 2
+            data_loader = DataLoader(dataset, batch_size=batch_size)
+            data: dict = first(data_loader)
+            for s in data[PostFix.meta("image")]["spatial_shape"]:
+                torch.testing.assert_allclose(s, expected_spatial_shape)
+            self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))
 
 
 @skipUnless(has_cucim, "Requires cucim")
