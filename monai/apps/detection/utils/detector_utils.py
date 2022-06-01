@@ -107,14 +107,10 @@ def pad_images(
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
         size_divisible: int or Sequene[int], is the expection on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for `torch.pad` function.
 
     Return:
         - images, a (B, C, H, W) or (B, C, H, W, D) Tensor
@@ -182,14 +178,10 @@ def preprocess_images(
         spatial_dims: number of spatial dimensions of the images, 2D or 3D.
         size_divisible: int or Sequene[int], is the expection on the input image shape.
             If an int, the same `size_divisible` will be applied to all the input spatial dimensions.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for `torch.pad` function.
 
     Return:
         - images, a (B, C, H, W) or (B, C, H, W, D) Tensor
