@@ -56,13 +56,7 @@ from typing import Sequence, Tuple, Union
 import torch
 from torch import Tensor
 
-from monai.data.box_utils import (
-    COMPUTE_DTYPE,
-    CenterSizeMode,
-    StandardMode,
-    convert_box_mode,
-    is_valid_box_values,
-)
+from monai.data.box_utils import COMPUTE_DTYPE, CenterSizeMode, StandardMode, convert_box_mode, is_valid_box_values
 from monai.utils.module import look_up_option
 
 

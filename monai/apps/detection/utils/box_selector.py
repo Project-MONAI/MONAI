@@ -48,13 +48,13 @@ from monai.data.box_utils import batched_nms, box_iou, clip_boxes_to_image
 
 class BoxSelector:
     """
-    Box selector which selects the predicted box regression and deode them into final predicted boxes.
+    Box selector which selects the predicted boxes.
     The box selection is performed with the following steps:
 
-        1) Discard boxes with scores less than self.score_thresh
-        2) Keep boxes with top self.topk_candidates_per_level scores for each level
-        4) Perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
-        4) Keep boxes with top self.detections_per_img scores.
+    #. For each level, discard boxes with scores less than self.score_thresh.
+    #. For each level, keep boxes with top self.topk_candidates_per_level scores.
+    #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+    #. For the whole image, keep boxes with top self.detections_per_img scores.
 
     Args:
         apply_sigmoid: whether to apply sigmoid to get scores from classification logits
@@ -64,6 +64,7 @@ class BoxSelector:
         detections_per_img: max number of boxes to keep for each image
 
     Example:
+
         .. code-block:: python
 
             input_param = {
@@ -76,9 +77,9 @@ class BoxSelector:
             box_selector = BoxSelector(**input_param)
             boxes = [torch.randn([3,6]), torch.randn([7,6])]
             logits = [torch.randn([3,3]), torch.randn([7,3])]
-            image_shape = (8,8,8)
+            spatial_size = (8,8,8)
             selected_boxes, selected_scores, selected_labels = box_selector.select_boxes_per_image(
-                boxes, logits, image_shape
+                boxes, logits, spatial_size
             )
     """
 
@@ -101,12 +102,13 @@ class BoxSelector:
 
     def select_top_score_idx_per_level(self, logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
-        Select boxes with highest scores.
+        Select indice with highest scores.
 
-        The box selection is performed with the following steps:
+        The indice selection is performed with the following steps:
 
-            1) Discard boxes with scores less than self.score_thresh
-            2) Keep boxes with top self.topk_candidates_per_level scores
+        #. If self.apply_sigmoid, get scores by applying sigmoid to logits. Otherwise, use logits as scores.
+        #. Discard indice with scores less than self.score_thresh
+        #. Keep indice with top self.topk_candidates_per_level scores
 
         Args:
             logits: predicted classification logits, Tensor sized (N, num_classes)
@@ -142,24 +144,24 @@ class BoxSelector:
         return topk_idxs, selected_scores, selected_labels
 
     def select_boxes_per_image(
-        self, boxes_list: List[Tensor], logits_list: List[Tensor], image_shape: Union[List[int], Tuple[int]]
+        self, boxes_list: List[Tensor], logits_list: List[Tensor], spatial_size: Union[List[int], Tuple[int]]
     ) -> Tuple[Tensor, Tensor, Tensor]:
         """
-        Postprocessing to generate detection result from classification logits and box regression.
+        Postprocessing to generate detection result from classification logits and boxes.
 
         The box selection is performed with the following steps:
 
-            1) Discard boxes with scores less than self.score_thresh
-            2) Keep boxes with top self.topk_candidates_per_level scores for each level
-            3) Perform non-maximum suppression on remaining boxes for each image, with overapping threshold nms_thresh.
-            4) Keep boxes with top self.detections_per_img scores for each image
+        #. For each level, discard boxes with scores less than self.score_thresh.
+        #. For each level, keep boxes with top self.topk_candidates_per_level scores.
+        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+        #. For the whole image, keep boxes with top self.detections_per_img scores.
 
         Args:
             boxes_list: list of predicted boxes from a single image,
                 each element i is a Tensor sized (N_i, 2*spatial_dims)
             logits_list: list of predicted classification logits from a single image,
                 each element i is a Tensor sized (N_i, num_classes)
-            image_shape: spatial size of the image
+            spatial_size: spatial size of the image
 
         Return:
             - selected boxes, Tensor sized (P, 2*spatial_dims)
@@ -186,7 +188,7 @@ class BoxSelector:
             boxes_per_level = boxes_per_level[topk_idxs]
 
             keep: Tensor
-            boxes_per_level, keep = clip_boxes_to_image(boxes_per_level, image_shape, remove_empty=True)  # type: ignore
+            boxes_per_level, keep = clip_boxes_to_image(boxes_per_level, spatial_size, remove_empty=True)  # type: ignore
             image_boxes.append(boxes_per_level)
             image_scores.append(scores_per_level[keep])
             image_labels.append(labels_per_level[keep])
