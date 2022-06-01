@@ -22,6 +22,7 @@ from monai.apps.detection.transforms.dictionary import (
     ConvertBoxModed,
     FlipBoxd,
     MaskToBoxd,
+    RandCropBoxByPosNegLabeld,
     RandFlipBoxd,
     RandZoomBoxd,
     ZoomBoxd,
@@ -230,6 +231,30 @@ class TestBoxTransform(unittest.TestCase):
             )  # corner case when label_keys is empty
             clip_result = transform_clip(data)
             assert_allclose(clip_result["boxes"], expected_clip_result, type_test=True, device_test=True, atol=1e-3)
+
+            # test RandCropBoxByPosNegLabeld
+            transform_crop = RandCropBoxByPosNegLabeld(
+                image_keys="image", box_keys="boxes", label_keys=["labels", "scores"], spatial_size=2, num_samples=3
+            )
+            crop_result = transform_crop(data)
+            assert len(crop_result) == 3
+            for ll in range(3):
+                assert_allclose(
+                    crop_result[ll]["boxes"].shape[0],
+                    crop_result[ll]["labels"].shape[0],
+                    type_test=True,
+                    device_test=True,
+                    atol=1e-3,
+                )
+                assert_allclose(
+                    crop_result[ll]["boxes"].shape[0],
+                    crop_result[ll]["scores"].shape[0],
+                    type_test=True,
+                    device_test=True,
+                    atol=1e-3,
+                )
+
+
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ from monai.data.box_utils import COMPUTE_DTYPE, TO_REMOVE, get_spatial_dims
 from monai.transforms import Resize
 from monai.transforms.utils import create_scale
 from monai.utils import look_up_option, optional_import
-from monai.utils.misc import ensure_tuple, ensure_tuple_rep
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, issequenceiterable
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 scipy, _ = optional_import("scipy")
@@ -318,3 +318,31 @@ def convert_mask_to_box(
     boxes, *_ = convert_to_dst_type(src=boxes_np, dst=boxes_mask, dtype=box_dtype)
     labels, *_ = convert_to_dst_type(src=labels_np, dst=boxes_mask, dtype=label_dtype)
     return boxes, labels
+
+
+def select_labels(
+    labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor], keep: NdarrayOrTensor
+) -> Union[Tuple, NdarrayOrTensor]:
+    """
+    For element i in labels, select labels[i][keep]
+
+    Args:
+        labels: Sequence of array. Each element represents classification labels or scores
+            corresponding to ``boxes``, sized (N,).
+        keep: the indices to keep
+
+    Return:
+        selected labels, does not share memory with original labels.
+    """
+    labels_tuple = ensure_tuple(labels)
+    labels_select_list = []
+    keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
+    for i in range(len(labels_tuple)):
+        labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
+        labels_t = deepcopy(labels_t[keep_t, ...])
+        labels_select_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
+
+    if not issequenceiterable(labels):
+        return labels_select_list[0]  # type: ignore
+
+    return tuple(labels_select_list)
