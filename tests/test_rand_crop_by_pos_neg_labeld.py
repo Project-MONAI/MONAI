@@ -35,7 +35,6 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            PostFix.meta("image"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 2, 2),
     ],
@@ -54,7 +53,6 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            PostFix.meta("label"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -73,7 +71,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -93,7 +90,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 2),
     ],
@@ -113,7 +109,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 3),
     ],
@@ -137,16 +132,21 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             cropper = RandCropByPosNegLabeld(**input_param_mod)
             cropper.set_random_state(0)
             result = cropper(input_data_mod)
-            self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
 
             self.assertIsInstance(result, list)
+            self.assertEqual(len(result), input_param["num_samples"])
+            self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
 
-            _len = len(tuple(input_data.keys()))
-            self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
-            for k in ("image", "extra", "label"):
-                self.assertTupleEqual(result[0][k].shape, expected_shape)
-                for i, item in enumerate(result):
-                    self.assertEqual(item[PostFix.meta(k)]["patch_index"], i)
+            with self.assertRaises(NotImplementedError):
+                _ = cropper.inverse(result)
+
+            for i, r in enumerate(result):
+                inv = cropper.inverse(deepcopy(r))
+
+                for k in ("image", "extra", "label"):
+                    self.assertTupleEqual(r[k].shape, expected_shape)
+                    self.assertEqual(r[k].meta["patch_index"], i)
+                    self.assertEqual(inv[k].shape, input_data[k].shape)
 
     def test_correct_center(self):
         cropper = RandCropByPosNegLabeld(keys="label", label_key="label", spatial_size=[3, 3])

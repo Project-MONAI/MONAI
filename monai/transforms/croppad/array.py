@@ -424,7 +424,7 @@ class DivisiblePad(PadBase):
 
 
 class CropBase(InvertibleTransform):
-    """Abstract base class for cropping."""
+    """Base class for cropping."""
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
@@ -501,7 +501,7 @@ class CropBase(InvertibleTransform):
         out.meta = meta_dict
         out.meta["affine"] = img.affine @ mat
         # out.meta["original_affine"] = img.affine
-        # out.meta["spatial_shape"] = out.shape[1:]
+        # out.meta["spatial_shape"] = out.shape[1:]f
         return out
 
     def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
@@ -1029,7 +1029,7 @@ class RandWeightedCrop(Randomizable, ListCropBase):
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, CropBase):
+class RandCropByPosNegLabel(Randomizable, ListCropBase):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
