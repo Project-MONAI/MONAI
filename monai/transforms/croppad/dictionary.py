@@ -58,53 +58,58 @@ from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix
 
 __all__ = [
-    "PadModeSequence",
-    "PadBased",
-    "SpatialPadd",
-    "BorderPadd",
-    "DivisiblePadd",
-    "SpatialCropd",
-    "CenterSpatialCropd",
-    "CenterScaleCropd",
-    "RandScaleCropd",
-    "RandSpatialCropd",
-    "RandSpatialCropSamplesd",
-    "CropForegroundd",
-    "RandWeightedCropd",
-    "RandCropByPosNegLabeld",
-    "ResizeWithPadOrCropd",
-    "BoundingRectd",
-    "RandCropByLabelClassesd",
-    "SpatialPadD",
-    "SpatialPadDict",
     "BorderPadD",
     "BorderPadDict",
-    "DivisiblePadD",
-    "DivisiblePadDict",
-    "SpatialCropD",
-    "SpatialCropDict",
-    "CenterSpatialCropD",
-    "CenterSpatialCropDict",
+    "BorderPadd",
+    "BoundingRectD",
+    "BoundingRectDict",
+    "BoundingRectd",
     "CenterScaleCropD",
     "CenterScaleCropDict",
+    "CenterScaleCropd",
+    "CenterSpatialCropD",
+    "CenterSpatialCropDict",
+    "CenterSpatialCropd",
+    "CropBaseD",
+    "CropBaseDict",
+    "CropBased",
+    "CropForegroundD",
+    "CropForegroundDict",
+    "CropForegroundd",
+    "DivisiblePadD",
+    "DivisiblePadDict",
+    "DivisiblePadd",
+    "PadBaseD",
+    "PadBaseDict",
+    "PadBased",
+    "PadModeSequence",
+    "RandCropByLabelClassesD",
+    "RandCropByLabelClassesDict",
+    "RandCropByLabelClassesd",
+    "RandCropByPosNegLabelD",
+    "RandCropByPosNegLabelDict",
+    "RandCropByPosNegLabeld",
     "RandScaleCropD",
     "RandScaleCropDict",
+    "RandScaleCropd",
     "RandSpatialCropD",
     "RandSpatialCropDict",
     "RandSpatialCropSamplesD",
     "RandSpatialCropSamplesDict",
-    "CropForegroundD",
-    "CropForegroundDict",
+    "RandSpatialCropSamplesd",
+    "RandSpatialCropd",
     "RandWeightedCropD",
     "RandWeightedCropDict",
-    "RandCropByPosNegLabelD",
-    "RandCropByPosNegLabelDict",
+    "RandWeightedCropd",
     "ResizeWithPadOrCropD",
     "ResizeWithPadOrCropDict",
-    "BoundingRectD",
-    "BoundingRectDict",
-    "RandCropByLabelClassesD",
-    "RandCropByLabelClassesDict",
+    "ResizeWithPadOrCropd",
+    "SpatialCropD",
+    "SpatialCropDict",
+    "SpatialCropd",
+    "SpatialPadD",
+    "SpatialPadDict",
+    "SpatialPadd",
 ]
 
 PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
@@ -752,6 +757,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
     and the cropped results of several images may not have exactly the same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center
     to ensure the valid crop ROI.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -1131,6 +1137,7 @@ class BoundingRectd(MapTransform):
         return d
 
 
+CropBaseD = CropBaseDict = CropBased
 PadBaseD = PadBaseDict = PadBased
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd

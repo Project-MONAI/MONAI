@@ -154,8 +154,8 @@ class Matcher(ABC):
         Returns:
             - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
-                anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
+              anchors (if background `BELOW_LOW_THRESHOLD` is used
+              and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
         """
         raise NotImplementedError
 
