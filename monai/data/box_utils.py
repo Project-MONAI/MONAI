@@ -1092,6 +1092,8 @@ def batched_nms(
     Performs non-maximum suppression in a batched fashion.
     Each labels value correspond to a category, and NMS will not be applied between elements of different categories.
 
+    Adapted from https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/nms.py
+
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
         scores: prediction scores of the boxes, sized (N,). This function keeps boxes with higher scores.
