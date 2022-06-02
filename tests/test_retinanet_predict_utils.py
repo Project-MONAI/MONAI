@@ -14,10 +14,8 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.networks.retinanet_predictor import DictPredictor
+from monai.apps.detection.utils.predict_utils import ensure_dict_value_to_list_, predict_with_inferer
 from monai.inferers import SlidingWindowInferer
-from monai.networks import eval_mode, train_mode
-from tests.utils import test_script_save
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel
     {
@@ -99,6 +97,24 @@ class NaiveNetwork(torch.nn.Module):
         out_box_reg_shape = (images.shape[0], 2 * self.spatial_dims * self.num_anchors) + images.shape[
             -self.spatial_dims :
         ]
+        return {self.cls_key: torch.randn(out_cls_shape), self.box_reg_key: [torch.randn(out_box_reg_shape)]}
+
+
+class NaiveNetwork2(torch.nn.Module):
+    def __init__(self, spatial_dims, num_classes, **kwargs):
+        super().__init__()
+        self.spatial_dims = spatial_dims
+        self.num_classes = num_classes
+        self.num_anchors = 1
+        self.cls_key = "cls"
+        self.box_reg_key = "box_reg"
+        self.size_divisible = 1
+
+    def forward(self, images):
+        out_cls_shape = (images.shape[0], self.num_classes * self.num_anchors) + images.shape[-self.spatial_dims :]
+        out_box_reg_shape = (images.shape[0], 2 * self.spatial_dims * self.num_anchors) + images.shape[
+            -self.spatial_dims :
+        ]
         return {self.cls_key: [torch.randn(out_cls_shape)] * 2, self.box_reg_key: [torch.randn(out_box_reg_shape)] * 2}
 
 
@@ -106,27 +122,27 @@ class TestPredictor(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_naive_predictor(self, input_param, input_shape):
         net = NaiveNetwork(**input_param)
-        inferer = SlidingWindowInferer(roi_size=128, overlap=0.25, cache_roi_weight_map=True)
-        predictor = DictPredictor(net, network_output_keys=["cls", "box_reg"], inferer=inferer)
+        net2 = NaiveNetwork2(**input_param)
+        inferer = SlidingWindowInferer(roi_size=16, overlap=0.25, cache_roi_weight_map=True)
+        network_output_keys = ["cls", "box_reg"]
 
-        with eval_mode(predictor):
-            input_data = torch.randn(input_shape)
-            result = predictor(input_data)
-            assert len(result["cls"]) == 2
+        input_data = torch.randn(input_shape)
 
-            result = predictor.forward_with_inferer(input_data)
-            assert len(result["cls"]) == 2
+        result = predict_with_inferer(input_data, net, network_output_keys, inferer=inferer)
+        assert len(result["cls"]) == 1
 
-    @parameterized.expand(TEST_CASES_TS)
-    def test_script(self, input_param, input_shape):
-        # test whether support torchscript
-        net = NaiveNetwork(**input_param)
-        inferer = SlidingWindowInferer(roi_size=128, overlap=0.25, cache_roi_weight_map=True)
-        predictor = DictPredictor(net, network_output_keys=["cls", "box_reg"], inferer=inferer)
+        result = net(input_data)
+        assert len(result["cls"]) == input_data.shape[0]
+        ensure_dict_value_to_list_(result)
+        assert len(result["cls"]) == 1
 
-        with train_mode(predictor):
-            input_data = torch.randn(input_shape)
-            test_script_save(predictor, input_data)
+        result = predict_with_inferer(input_data, net2, network_output_keys, inferer=inferer)
+        assert len(result["cls"]) == 2
+
+        result = net2(input_data)
+        assert len(result["cls"]) == 2
+        ensure_dict_value_to_list_(result)
+        assert len(result["cls"]) == 2
 
 
 if __name__ == "__main__":
