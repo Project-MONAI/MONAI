@@ -212,8 +212,9 @@ class RetinaNetDetector(nn.Module):
         self.pred_score_key = self.target_label_key + "_scores"  # score key for the detected boxes
 
         # default setting for inference,
-        # can be updated by self.set_sliding_window_inferer(*)
+        # can be updated by self.set_sliding_window_inferer(*) and self.switch_to_sliding_window_inferer(*)
         self.inferer=None
+        self.use_inferer = False
         # can be updated by self.set_box_selector_parameters(*),
         self.box_selector = BoxSelector(
             box_overlap_metric=self.box_overlap_metric,
