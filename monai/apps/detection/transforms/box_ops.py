@@ -334,11 +334,7 @@ def select_labels(
     Return:
         selected labels, does not share memory with original labels.
     """
-    if isinstance(labels, torch.Tensor) or isinstance(labels, np.ndarray):
-        # will fail if simply use ensure_tuple(labels) for all cases.
-        labels_tuple = (labels,)
-    else:
-        labels_tuple = ensure_tuple(labels)  # type: ignore
+    labels_tuple = ensure_tuple(labels, True)  # type: ignore
 
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
@@ -347,7 +343,7 @@ def select_labels(
         labels_t = labels_t[keep_t, ...]
         labels_select_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
 
-    if isinstance(labels, torch.Tensor) or isinstance(labels, np.ndarray):
+    if isinstance(labels, (torch.Tensor, np.ndarray)):
         return labels_select_list[0]  # type: ignore
 
     return tuple(labels_select_list)
