@@ -17,6 +17,42 @@ from torch import Tensor, nn
 from monai.inferers import SlidingWindowInferer
 
 
+def _ensure_network_outputs_values_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
+    """
+    We expect the output of self.network ``head_outputs`` to be Dict[str, List[Tensor]].
+    Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
+
+    Args:
+        head_outputs: the outputs of self.network. Dict[str, List[Tensor]] or Dict[str, Tensor]
+
+    Return:
+        a Dict[str, List[Tensor]]
+    """
+    num_output_levels_list: List[int] = [1] * len(
+        head_outputs.keys()
+    )  # num_output_levels for each value in head_outputs
+    head_outputs_standard: Dict[str, List[Tensor]] = {}
+    for i, k in enumerate(head_outputs.keys()):
+        value_k = head_outputs[k]  # Tensor or List[Tensor]
+        # convert value_k to List[Tensor]
+        if isinstance(value_k, Tensor):
+            num_output_levels_list[i] = 1
+            head_outputs_standard[k] = [value_k]  # type: ignore
+        elif isinstance(value_k[0], Tensor):
+            num_output_levels_list[i] = len(value_k)
+            head_outputs_standard[k] = list(value_k)
+        else:
+            raise ValueError("The output of network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
+
+    num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
+    if len(num_output_levels) != 1:
+        raise ValueError(
+            f"The values in the output of network should have the same length, Got {num_output_levels_list}."
+        )
+
+    return head_outputs_standard  # type: ignore
+
+
 class DictPredictor(nn.Module):
     """
     Predictor that works for network with Dict output. Compared with directly output self.network(images),
@@ -108,42 +144,8 @@ class DictPredictor(nn.Module):
         Return:
             The output of the network, Dict[str, List[Tensor]]
         """
-        head_outputs: Dict[str, List[Tensor]] = self._ensure_network_outputs_values_list(self.network(images))
+        head_outputs: Dict[str, List[Tensor]] = _ensure_network_outputs_values_list(self.network(images))
         return head_outputs
-
-    def _ensure_network_outputs_values_list(self, head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
-        """
-        We expect the output of self.network ``head_outputs`` to be Dict[str, List[Tensor]].
-        Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
-
-        Args:
-            head_outputs: the outputs of self.network. Dict[str, List[Tensor]] or Dict[str, Tensor]
-
-        Return:
-            a Dict[str, List[Tensor]]
-        """
-        num_output_levels_list: List[int] = [1] * len(self.keys)  # num_output_levels for each value in head_outputs
-        head_outputs_standard: Dict[str, List[Tensor]] = {}
-        for i, k in enumerate(self.keys):
-            value_k = head_outputs[k]  # Tensor or List[Tensor]
-            # convert value_k to List[Tensor]
-            if isinstance(value_k, Tensor):
-                num_output_levels_list[i] = 1
-                head_outputs_standard[k] = [value_k]  # type: ignore
-            elif isinstance(value_k[0], Tensor):
-                num_output_levels_list[i] = len(value_k)
-                head_outputs_standard[k] = list(value_k)
-            else:
-                raise ValueError("The output of self.network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
-
-        num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
-        if len(num_output_levels) != 1:
-            raise ValueError(
-                f"The values in the output of self.network should have the same length, Got {num_output_levels_list}."
-            )
-
-        self.num_output_levels = int(num_output_levels[0])
-        return head_outputs_standard  # type: ignore
 
     def _network_sequence_output(self, images: Tensor) -> List[Tensor]:
         """
@@ -155,7 +157,8 @@ class DictPredictor(nn.Module):
         Return:
             network output list
         """
-        head_outputs = self._ensure_network_outputs_values_list(self.network(images))
+        head_outputs = _ensure_network_outputs_values_list(self.network(images))
+        self.num_output_levels = len(head_outputs[self.keys[0]])
         head_outputs_sequence = []
         for k in self.keys:
             head_outputs_sequence += list(head_outputs[k])
