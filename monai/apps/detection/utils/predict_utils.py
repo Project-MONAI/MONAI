@@ -40,8 +40,6 @@ def ensure_dict_value_to_list_(head_outputs: Dict[str, List[Tensor]], keys: Opti
         else:
             raise ValueError("The output of network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
 
-    return
-
 
 def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]], keys: Optional[List[str]] = None) -> None:
     """
@@ -56,15 +54,10 @@ def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]], keys: O
     if keys is None:
         keys = list(head_outputs.keys())
 
-    num_output_levels_list: List[int] = []
-    for k in keys:
-        num_output_levels_list.append(len(head_outputs[k]))
-
+    num_output_levels_list: List[int] = [len(head_outputs[k]) for k in keys]
     num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
     if len(num_output_levels) != 1:
         raise ValueError(f"The values in the input dict should have the same length, Got {num_output_levels_list}.")
-
-    return
 
 
 def _network_sequence_output(images: Tensor, network, keys: Optional[List[str]] = None) -> List[Tensor]:
@@ -85,7 +78,7 @@ def _network_sequence_output(images: Tensor, network, keys: Optional[List[str]] 
         keys = list(head_outputs.keys())
     check_dict_values_same_length(head_outputs, keys)
     head_outputs_sequence = []
-    for _, k in enumerate(keys):
+    for k in keys:
         head_outputs_sequence += list(head_outputs[k])
     return head_outputs_sequence
 

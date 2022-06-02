@@ -129,20 +129,20 @@ class TestPredictor(unittest.TestCase):
         input_data = torch.randn(input_shape)
 
         result = predict_with_inferer(input_data, net, network_output_keys, inferer=inferer)
-        assert len(result["cls"]) == 1
+        self.assertTrue(len(result["cls"]) == 1)
 
         result = net(input_data)
-        assert len(result["cls"]) == input_data.shape[0]
+        self.assertTrue(len(result["cls"]) == input_data.shape[0])
         ensure_dict_value_to_list_(result)
-        assert len(result["cls"]) == 1
+        self.assertTrue(len(result["cls"]) == 1)
 
         result = predict_with_inferer(input_data, net2, network_output_keys, inferer=inferer)
-        assert len(result["cls"]) == 2
+        self.assertTrue(len(result["cls"]) == 2)
 
         result = net2(input_data)
-        assert len(result["cls"]) == 2
+        self.assertTrue(len(result["cls"]) == 2)
         ensure_dict_value_to_list_(result)
-        assert len(result["cls"]) == 2
+        self.assertTrue(len(result["cls"]) == 2)
 
 
 if __name__ == "__main__":
