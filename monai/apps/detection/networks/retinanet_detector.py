@@ -345,27 +345,27 @@ class RetinaNetDetector(nn.Module):
             representing predicted boxes, classification labels, and classification scores.
 
         """
-        # 1. check if input arguments are valid
+        # 1. Check if input arguments are valid
         if self.training:
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
             if not hasattr(self, "proposal_matcher"):
                 raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*), "
-                    "self.set_atss_matcher(*), or or self.set_custom_matcher(*)."
+                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or "
+                    "self.set_atss_matcher(*)."
                 )
             if self.fg_bg_sampler is None and self.debug:
                 warnings.warn(
                     "No balanced sampler is used. Negative samples are likely to "
                     "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
-                    "and self.set_hard_negative_sampler(*), "
+                    "or self.set_hard_negative_sampler(*), "
                     "or set classification loss function as Focal loss with self.set_cls_loss(*)"
                 )
 
-        # 2. pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
+        # 2. Pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
         images, image_sizes = preprocess_images(input_images, self.spatial_dims, self.size_divisible)
 
-        # 3. generate network outputs. Use inferer only in evaluation mode.
+        # 3. Generate network outputs. Use inferer only in evaluation mode.
         if self.training or (not use_inferer):
             head_outputs = self.network(images)
             ensure_dict_value_to_list_(head_outputs)  # ensure head_outputs is Dict[str, List[Tensor]]
@@ -384,17 +384,19 @@ class RetinaNetDetector(nn.Module):
         num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
 
         # 5. Reshape and concatenate head_outputs values from List[Tensor] to Tensor
+        # head_outputs, originally being Dict[str, List[Tensor]], will be reshaped to Dict[str, Tensor]
         for key in [self.cls_key, self.box_reg_key]:
-            # reshape to Tensor sized(B, sum(HWA), self.num_classes) or (B, sum(HWA), 2* self.spatial_dims)
+            # reshape to Tensor sized(B, sum(HWA), self.num_classes) for self.cls_key
+            # or (B, sum(HWA), 2* self.spatial_dims) for self.box_reg_key
             # A = self.num_anchors_per_loc
             head_outputs[key] = self.reshape_maps(head_outputs[key])
 
-        # 6(1). if during training, return losses
+        # 6(1). If during training, return losses
         if self.training:
             losses = self.compute_loss(head_outputs, targets, self.anchors, num_anchor_locs_per_level)  # type: ignore
             return losses
 
-        # 6(2). if during inference, return detection results
+        # 6(2). If during inference, return detection results
         detections = self.postprocess_detections(
             head_outputs, self.anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
@@ -422,11 +424,11 @@ class RetinaNetDetector(nn.Module):
         This function is used in both training and inference.
 
         Args:
-            result_maps: a list of Tensor, each Tensor is a (B, C, H, W) or (B, C, H, W, D) map.
-                C = num_channel*self.num_anchors_per_loc
+            result_maps: a list of Tensor, each Tensor is a (B, num_channel*A, H, W) or (B, num_channel*A, H, W, D) map.
+                A = self.num_anchors_per_loc
 
         Return:
-            reshaped and concatenated result, sized (B, sum(HWA), num_channel) or (B, sum(HWDA), num_channel)
+            reshaped and concatenated result, sized (B, sum(HWA), num_channel) or (B, sum(HWDA), num_channel)            
         """
         all_reshaped_result_map = []
 
