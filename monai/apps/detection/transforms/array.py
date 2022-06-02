@@ -13,7 +13,6 @@ A collection of "vanilla" transforms for box operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from copy import deepcopy
 from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -26,11 +25,12 @@ from monai.data.box_utils import (
     convert_box_mode,
     convert_box_to_standard_mode,
     get_spatial_dims,
+    spatial_crop_boxes,
 )
+from monai.transforms import SpatialCrop
 from monai.transforms.transform import Transform
 from monai.utils import ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 from .box_ops import (
     apply_affine_to_boxes,
@@ -38,6 +38,7 @@ from .box_ops import (
     convert_mask_to_box,
     flip_boxes,
     resize_boxes,
+    select_labels,
     zoom_boxes,
 )
 
@@ -51,6 +52,7 @@ __all__ = [
     "ClipBoxToImage",
     "BoxToMask",
     "MaskToBox",
+    "SpatialCropBox",
 ]
 
 
@@ -343,7 +345,7 @@ class ClipBoxToImage(Transform):
         boxes: NdarrayOrTensor,
         labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor],
         spatial_size: Union[Sequence[int], int],
-    ) -> Tuple[NdarrayOrTensor, Tuple]:
+    ) -> Tuple[NdarrayOrTensor, Union[Tuple, NdarrayOrTensor]]:
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -370,18 +372,7 @@ class ClipBoxToImage(Transform):
         spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)  # match the spatial image dim
 
         boxes_clip, keep = clip_boxes_to_image(boxes, spatial_size, self.remove_empty)
-
-        labels_tuple = ensure_tuple(labels)
-        labels_clip_list = []
-
-        keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
-        for i in range(len(labels_tuple)):
-            labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
-            if boxes.shape[0] != labels_t.shape[0]:
-                raise ValueError("boxes.shape[0] should be equal to the number of labels or scores.")
-            labels_t = deepcopy(labels_t[keep_t, ...])
-            labels_clip_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
-        return boxes_clip, tuple(labels_clip_list)
+        return boxes_clip, select_labels(labels, keep)
 
 
 class BoxToMask(Transform):
@@ -452,3 +443,74 @@ class MaskToBox(Transform):
             - classification foreground(fg) labels, dtype should be int, sized (N,).
         """
         return convert_mask_to_box(boxes_mask, self.bg_label, self.box_dtype, self.label_dtype)
+
+
+class SpatialCropBox(SpatialCrop):
+    """
+    General purpose box cropper when the corresponding image is cropped by SpatialCrop(*) with the same ROI.
+    The difference is that we do not support negative indexing for roi_slices.
+
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
+    It can support to crop ND spatial boxes.
+
+    The cropped region can be parameterised in various ways:
+        - a list of slices for each spatial dimension (do not allow for use of negative indexing)
+        - a spatial center and size
+        - the start and end coordinates of the ROI
+
+    Args:
+        roi_center: voxel coordinates for center of the crop ROI.
+        roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+            will not crop that dimension of the image.
+        roi_start: voxel coordinates for start of the crop ROI.
+        roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
+            use the end coordinate of image.
+        roi_slices: list of slices for each of the spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_slices: Optional[Sequence[slice]] = None,
+    ) -> None:
+        super().__init__(roi_center, roi_size, roi_start, roi_end, roi_slices)
+        for s in self.slices:
+            if s.start < 0 or s.stop < 0 or (s.step is not None and s.step < 0):
+                raise ValueError("Currently negative indexing is not supported for SpatialCropBox.")
+
+    def __call__(  # type: ignore
+        self, boxes: NdarrayOrTensor, labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]
+    ) -> Tuple[NdarrayOrTensor, Union[Tuple, NdarrayOrTensor]]:
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+            labels: Sequence of array. Each element represents classification labels or scores
+
+        Returns:
+            - cropped boxes, does not share memory with original boxes
+            - cropped labels, does not share memory with original labels
+
+        Example:
+            .. code-block:: python
+
+                box_cropper = SpatialCropPadBox(roi_start=[0, 1, 4], roi_end=[21, 15, 8])
+                boxes = torch.ones(2, 6)
+                class_labels = torch.Tensor([0, 1])
+                pred_scores = torch.Tensor([[0.4,0.3,0.3], [0.5,0.1,0.4]])
+                labels = (class_labels, pred_scores)
+                boxes_crop, labels_crop_tuple = box_cropper(boxes, labels)
+        """
+        spatial_dims = min(len(self.slices), get_spatial_dims(boxes=boxes))  # spatial dims
+        boxes_crop, keep = spatial_crop_boxes(
+            boxes,
+            [self.slices[axis].start for axis in range(spatial_dims)],
+            [self.slices[axis].stop for axis in range(spatial_dims)],
+        )
+        return boxes_crop, select_labels(labels, keep)
