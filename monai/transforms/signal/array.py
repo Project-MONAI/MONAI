@@ -13,7 +13,7 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Any, Optional, Union
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -95,10 +95,10 @@ class SignalRandShift(RandomizableTransform):
 
     def __init__(
         self,
-        mode: str = "wrap",
-        filling: Optional[Union[np.ndarray, Any]] = 0.0,
-        v: float = 1.0,
-        boundaries: Optional[Union[np.ndarray, Any]] = None,
+        mode: Optional[str] = "wrap",
+        filling: Optional[float] = 0.0,
+        v: Optional[float] = 1.0,
+        boundaries: Tuple[float, float] = [-1.0, 1.0],
         *args,
         **kwargs,
     ) -> None:
