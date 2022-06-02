@@ -23,19 +23,21 @@ TESTS = [
     [["test1", "test2"], ("test1", "test2")],
     [123, (123,)],
     [(1, 2, 3), (1, 2, 3)],
-    [np.array([1, 2]), (np.array([1, 2]),)],
-    [torch.tensor([1, 2]), (torch.tensor([1, 2]),)],
+    [np.array([1, 2]), (np.array([1, 2]),), True],
+    [np.array([1, 2]), (1, 2), False],
+    [torch.tensor([1, 2]), (torch.tensor([1, 2]),), True],
     [np.array([]), (np.array([]),)],
     [torch.tensor([]), (torch.tensor([]),)],
-    [np.array(123), (np.array(123),)],
+    [np.array(123), (np.array(123),), True],
     [torch.tensor(123), (torch.tensor(123),)],
 ]
 
 
 class TestEnsureTuple(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, input, expected_value):
-        result = ensure_tuple(input)
+    def test_value(self, input, expected_value, wrap_array=False):
+        result = ensure_tuple(input, wrap_array)
+
         self.assertTrue(isinstance(result, tuple))
         if isinstance(input, (np.ndarray, torch.Tensor)):
             for i, j in zip(result, expected_value):

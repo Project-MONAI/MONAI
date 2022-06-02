@@ -93,11 +93,17 @@ def issequenceiterable(obj: Any) -> bool:
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
-def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
+def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
+
+    Args:
+        vals: input data to convert to a tuple.
+        wrap_array: if `True`, treat the whole input array as one item of the tuple.
+            if `False`, automatically convert the input array with `tuple(vals)`, default to `False`.
+
     """
-    if not issequenceiterable(vals) or isinstance(vals, (torch.Tensor, np.ndarray)):
+    if not issequenceiterable(vals) or wrap_array:
         return (vals,)
 
     return tuple(vals)
