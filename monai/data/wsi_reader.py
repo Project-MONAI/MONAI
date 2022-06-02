@@ -18,7 +18,6 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import AsChannelFirst
 from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
