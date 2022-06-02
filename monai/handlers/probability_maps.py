@@ -11,12 +11,13 @@
 
 import logging
 import os
+import threading
 from typing import TYPE_CHECKING, Dict, Optional
 
 import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
-from monai.utils import deprecated, min_version, optional_import
+from monai.utils import ProbMapKeys, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -25,19 +26,16 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
 
-@deprecated(
-    since="0.8",
-    msg_suffix="use `monai.handler.ProbMapProducer` (with `monai.data.wsi_dataset.SlidingPatchWSIDataset`) instead.",
-)
 class ProbMapProducer:
     """
-    Event handler triggered on completing every iteration to save the probability map
+    Event handler triggered on completing every iteration to calculate and save the probability map
     """
 
     def __init__(
         self,
         output_dir: str = "./",
         output_postfix: str = "",
+        prob_key: str = "pred",
         dtype: DtypeLike = np.float64,
         name: Optional[str] = None,
     ) -> None:
@@ -45,6 +43,7 @@ class ProbMapProducer:
         Args:
             output_dir: output directory to save probability maps.
             output_postfix: a string appended to all output file names.
+            prob_key: the key associated to the probability output of the model
             dtype: the data type in which the probability map is stored. Default np.float64.
             name: identifier of logging.logger to use, defaulting to `engine.logger`.
 
@@ -53,12 +52,13 @@ class ProbMapProducer:
         self._name = name
         self.output_dir = output_dir
         self.output_postfix = output_postfix
+        self.prob_key = prob_key
         self.dtype = dtype
         self.prob_map: Dict[str, np.ndarray] = {}
-        self.level: Dict[str, int] = {}
         self.counter: Dict[str, int] = {}
         self.num_done_images: int = 0
         self.num_images: int = 0
+        self.lock = threading.Lock()
 
     def attach(self, engine: Engine) -> None:
         """
@@ -66,14 +66,14 @@ class ProbMapProducer:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
 
-        data_loader = engine.data_loader  # type: ignore
-        self.num_images = len(data_loader.dataset.data)
+        image_data = engine.data_loader.dataset.image_data  # type: ignore
+        self.num_images = len(image_data)
 
-        for sample in data_loader.dataset.data:
-            name = sample["name"]
-            self.prob_map[name] = np.zeros(sample["mask_shape"], dtype=self.dtype)
-            self.counter[name] = len(sample["mask_locations"])
-            self.level[name] = sample["level"]
+        # Initialized probability maps for all the images
+        for sample in image_data:
+            name = sample[ProbMapKeys.PRE_PATH.value]
+            self.counter[name] = sample[ProbMapKeys.COUNT.value]
+            self.prob_map[name] = np.zeros(sample[ProbMapKeys.SIZE.value], dtype=self.dtype)
 
         if self._name is None:
             self.logger = engine.logger
@@ -91,14 +91,15 @@ class ProbMapProducer:
         """
         if not isinstance(engine.state.batch, dict) or not isinstance(engine.state.output, dict):
             raise ValueError("engine.state.batch and engine.state.output must be dictionaries.")
-        names = engine.state.batch["name"]
-        locs = engine.state.batch["mask_location"]
-        pred = engine.state.output["pred"]
-        for i, name in enumerate(names):
-            self.prob_map[name][locs[0][i], locs[1][i]] = pred[i]
-            self.counter[name] -= 1
-            if self.counter[name] == 0:
-                self.save_prob_map(name)
+        names = engine.state.batch["metadata"][ProbMapKeys.PATH.value]
+        locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION.value]
+        probs = engine.state.output[self.prob_key]
+        for name, loc, prob in zip(names, locs, probs):
+            self.prob_map[name][loc] = prob
+            with self.lock:
+                self.counter[name] -= 1
+                if self.counter[name] == 0:
+                    self.save_prob_map(name)
 
     def save_prob_map(self, name: str) -> None:
         """
@@ -115,7 +116,6 @@ class ProbMapProducer:
         self.logger.info(f"Inference of '{name}' is done [{self.num_done_images}/{self.num_images}]!")
         del self.prob_map[name]
         del self.counter[name]
-        del self.level[name]
 
     def finalize(self, engine: Engine):
         self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")
