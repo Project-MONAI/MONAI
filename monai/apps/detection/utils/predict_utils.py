@@ -101,7 +101,7 @@ def predict_with_inferer(
         images: input of the network, Tensor sized (B, C, H, W) or  (B, C, H, W, D)
         network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
             and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
-        keys: the keys in the output dict.
+        keys: the keys in the output dict, should be network output keys or a subset of them.
         inferer: a SlidingWindowInferer to handle large inputs.
 
     Return:
