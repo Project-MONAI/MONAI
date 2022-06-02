@@ -53,6 +53,80 @@ def convert_dict_value_to_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[st
     return head_outputs_standard  # type: ignore
 
 
+def _network_sequence_output(images: Tensor, network, keys: List[str]) -> List[Tensor]:
+    """
+    Decompose the output of network (a dict) into a list.
+
+    Args:
+        images: input of the network
+
+    Return:
+        network output list
+    """
+    head_outputs = convert_dict_value_to_list(network(images))
+    head_outputs_sequence = []
+    for k in keys:
+        head_outputs_sequence += list(head_outputs[k])
+    return head_outputs_sequence
+
+
+def predict_with_inferer(images: Tensor, network, keys: List[str], inferer: Optional[SlidingWindowInferer] = None):
+    """
+    Predictor that works for network with Dict output. Compared with directly output network(images),
+    this predictor enables a sliding window inferer that can be used to handle large inputs.
+
+    The input to the predictor is expected to be a Tensor sized (B, C, H, W) or  (B, C, H, W, D).
+    The output of the predictor is a dictionary Dict[str, List[Tensor]]
+
+    Args:
+        images: input of the network, Tensor sized (B, C, H, W) or  (B, C, H, W, D)
+        network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
+            and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
+        keys: the keys in network output.
+        inferer: a SlidingWindowInferer to handle large inputs.
+
+    Notes:
+        Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
+        but any network that meets the following rules is a valid input ``network``.
+
+        #. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
+        #. Its output should be Dict[str, List[Tensor]] or Dict[str, Tensor].
+
+    Example:
+        .. code-block:: python
+
+            # define a naive network
+            import torch
+            import monai
+            class NaiveNet(torch.nn.Module):
+                def __init__(self, ):
+                    super().__init__()
+
+                def forward(self, images: torch.Tensor):
+                    return {"cls": [torch.randn(images.shape)], "box_reg": [torch.randn(images.shape)]}
+
+            # create a predictor
+            network = NaiveNet()
+            inferer = monai.inferers.SlidingWindowInferer(
+                roi_size = (128, 128, 128),
+                overlap = 0.25,
+                cache_roi_weight_map = True,
+            )
+            network_output_keys=["cls", "box_reg"]
+            images = torch.randn((2, 3, 512, 512, 512))  # a large input
+            head_outputs = predict_with_inferer(images, network, network_output_keys, inferer)
+
+    """
+    if inferer is None:
+        raise ValueError("Please set inferer as a monai.inferers.inferer.SlidingWindowInferer(*)")
+    head_outputs_sequence = inferer(images, _network_sequence_output, network, keys=keys)
+    num_output_levels: int = len(head_outputs_sequence) // len(keys)
+    head_outputs = {}
+    for i, k in enumerate(keys):
+        head_outputs[k] = list(head_outputs_sequence[num_output_levels * i : num_output_levels * (i + 1)])
+    return head_outputs
+
+
 class DictPredictor(nn.Module):
     """
     Predictor that works for network with Dict output. Compared with directly output self.network(images),
@@ -124,13 +198,7 @@ class DictPredictor(nn.Module):
         """
         # if use_inferer, we need to decompose the output dict into sequence,
         # then do infererence, finally reconstruct dict.
-        if self.inferer is None:
-            raise ValueError("Please set self.inferer as a monai.inferers.inferer.SlidingWindowInferer(*)")
-        head_outputs_sequence = self.inferer(images, self._network_sequence_output)
-        head_outputs = {}
-        for i, k in enumerate(self.keys):
-            head_outputs[k] = list(head_outputs_sequence[self.num_output_levels * i : self.num_output_levels * (i + 1)])
-        return head_outputs
+        return predict_with_inferer(images, self.network, self.keys, self.inferer)
 
     def forward(self, images: Tensor) -> Dict[str, List[Tensor]]:
         """
@@ -144,22 +212,4 @@ class DictPredictor(nn.Module):
         Return:
             The output of the network, Dict[str, List[Tensor]]
         """
-        head_outputs: Dict[str, List[Tensor]] = convert_dict_value_to_list(self.network(images))
-        return head_outputs
-
-    def _network_sequence_output(self, images: Tensor) -> List[Tensor]:
-        """
-        Decompose the output of network (a dict) into a list.
-
-        Args:
-            images: input of the network
-
-        Return:
-            network output list
-        """
-        head_outputs = convert_dict_value_to_list(self.network(images))
-        self.num_output_levels = len(head_outputs[self.keys[0]])
-        head_outputs_sequence = []
-        for k in self.keys:
-            head_outputs_sequence += list(head_outputs[k])
-        return head_outputs_sequence
+        return convert_dict_value_to_list(self.network(images))
