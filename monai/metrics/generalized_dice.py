@@ -126,7 +126,7 @@ def compute_generalized_dice(
         torch.Tensor: per batch and per class Generalized Dice Score, i.e., with the shape [batch_size, num_classes].
 
     Raises:
-        ValueError: if `y_pred` or `y` are not PyTorch tensors, if `y_pred` and `y` have less than three dimensions, 
+        ValueError: if `y_pred` or `y` are not PyTorch tensors, if `y_pred` and `y` have less than three dimensions,
             or `y_pred` and `y` don't have the same shape.
     """
     # Ensure tensors are binarized
