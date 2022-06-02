@@ -64,6 +64,7 @@
 The functions in this script are adapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/matcher.py
 which is adapted from torchvision.
+
 These are the changes compared with nndetection:
 1) comments and docstrings;
 2) reformat;
@@ -89,6 +90,7 @@ INF = float("inf")
 class Matcher(ABC):
     """
     Base class of Matcher, which matches boxes and anchors to each other
+
     Args:
         similarity_fn: function for similarity computation between
             boxes and anchors
@@ -105,16 +107,19 @@ class Matcher(ABC):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute matches for a single image
+
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
             anchors: anchors to match Mx4 or Mx6, also assumed to be ``StandardMode``.
             num_anchors_per_level: number of anchors per feature pyramid level
             num_anchors_per_loc: number of anchors per position
+
         Returns:
             - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
                 anchors (if background `BELOW_LOW_THRESHOLD` is used
                 and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
+
         Note:
             ``StandardMode`` = :class:`~monai.data.box_utils.CornerCornerModeTypeA`,
             also represented as "xyxy" ([xmin, ymin, xmax, ymax]) for 2D
@@ -139,11 +144,13 @@ class Matcher(ABC):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute matches
+
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
             anchors: anchors to match Mx4 or Mx6, also assumed to be ``StandardMode``.
             num_anchors_per_level: number of anchors per feature pyramid level
             num_anchors_per_loc: number of anchors per position
+
         Returns:
             - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
@@ -165,6 +172,7 @@ class ATSSMatcher(Matcher):
         Compute matching based on ATSS https://arxiv.org/abs/1912.02424
         `Bridging the Gap Between Anchor-based and Anchor-free Detection
         via Adaptive Training Sample Selection`
+
         Args:
             num_candidates: number of positions to select candidates from.
                 Smaller value will result in a higher matcher threshold and less matched candidates.
@@ -191,16 +199,19 @@ class ATSSMatcher(Matcher):
         Compute matches according to ATTS for a single image
         Adapted from
         (https://github.com/sfzhang15/ATSS/blob/79dfb28bd1/atss_core/modeling/rpn/atss/loss.py#L180-L184)
+
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
             anchors: anchors to match Mx4 or Mx6, also assumed to be ``StandardMode``.
             num_anchors_per_level: number of anchors per feature pyramid level
             num_anchors_per_loc: number of anchors per position
+
         Returns:
             - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
               anchors (if background `BELOW_LOW_THRESHOLD` is used
               and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
+
         Note:
             ``StandardMode`` = :class:`~monai.data.box_utils.CornerCornerModeTypeA`,
             also represented as "xyxy" ([xmin, ymin, xmax, ymax]) for 2D
