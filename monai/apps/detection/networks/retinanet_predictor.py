@@ -29,7 +29,7 @@ def convert_dict_value_to_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[st
         a Dict[str, List[Tensor]]
     """
     head_outputs_standard: Dict[str, List[Tensor]] = {}
-    for i, k in enumerate(head_outputs.keys()):
+    for k in head_outputs.keys():
         value_k = head_outputs[k]  # Tensor or List[Tensor]
         # convert value_k to List[Tensor]
         if isinstance(value_k, Tensor):
@@ -50,11 +50,9 @@ def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]]) -> None
     Args:
         head_outputs: a Dict[str, List[Tensor]] or Dict[str, Tensor]
     """
-    num_output_levels_list: List[int] = [1] * len(
-        head_outputs.keys()
-    )  # num_output_levels for each value in head_outputs
-    for i, k in enumerate(head_outputs.keys()):
-        num_output_levels_list[i] = len(head_outputs[k])
+    num_output_levels_list: List[int] = []
+    for k in head_outputs.keys():
+        num_output_levels_list.append(len(head_outputs[k]))
 
     num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
     if len(num_output_levels) != 1:
