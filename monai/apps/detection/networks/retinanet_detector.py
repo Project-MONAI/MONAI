@@ -389,10 +389,10 @@ class RetinaNetDetector(nn.Module):
         images, image_sizes = preprocess_images(input_images, self.spatial_dims, self.size_divisible)
 
         # 3. generate network outputs. Use inferer only in evaluation mode.
-        if self.training:
+        if self.training or (not self.use_inferer):
             head_outputs = self.predictor(images)
         else:
-            head_outputs = self.predictor.inference(images, use_inferer=self.use_inferer)
+            head_outputs = self.predictor.forward_with_inferer(images)
 
         # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
         anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
