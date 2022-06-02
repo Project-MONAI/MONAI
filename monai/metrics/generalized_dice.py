@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 from typing import Union
 
 import torch
@@ -131,17 +130,13 @@ def compute_generalized_dice(
     """
     # Ensure tensors are binarized
     try:
-        msg = is_binary_tensor(y_pred)
-        if msg is not None:
-            warnings.warn("y_pred" + msg)
+        is_binary_tensor(y_pred, "y_pred")
     except ValueError as e:
         raise ValueError("y_pred" + str(e)) from e
     try:
-        msg = is_binary_tensor(y)
-        if msg is not None:
-            warnings.warn("y" + msg)
+        is_binary_tensor(y, "y")
     except ValueError as e:
-        raise ValueError("y_pred" + str(e)) from e
+        raise ValueError("y" + str(e)) from e
 
     # Ensure tensors have at least 3 dimensions and have the same shape
     dims = y_pred.dim()

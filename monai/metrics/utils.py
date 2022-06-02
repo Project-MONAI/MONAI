@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -205,11 +206,12 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
     return np.asarray(dis[seg_pred])
 
 
-def is_binary_tensor(input: torch.Tensor) -> Union[str, None]:
+def is_binary_tensor(input: torch.Tensor, name: str):
     """Determines whether the input tensor is torch binary tensor or not.
 
     Args:
         input (torch.Tensor): tensor to validate.
+        name (str): name of the tensor being checked.
 
     Raises:
         ValueError: if `input` is not a PyTorch Tensor.
@@ -218,7 +220,6 @@ def is_binary_tensor(input: torch.Tensor) -> Union[str, None]:
         Union[str, None]: warning message, if the tensor is not binary. Othwerwise, None.
     """
     if not isinstance(input, torch.Tensor):
-        raise ValueError(" must be of type PyTorch Tensor.")
+        raise ValueError(f"{name} must be of type PyTorch Tensor.")
     if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
-        return " should be a binarized tensor."
-    return None
+        warnings.warn(f"{name} should be a binarized tensor.")
