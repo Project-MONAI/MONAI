@@ -51,7 +51,7 @@ class DictPredictor(nn.Module):
                 def forward(self, images: torch.Tensor):
                     return {"cls": [torch.randn(images.shape)], "box_reg": [torch.randn(images.shape)]}
 
-            # create a RetinaNetDetector detector
+            # create a predictor
             net = NaiveNet()
             inferer = monai.inferers.SlidingWindowInferer(
                 roi_size = (128, 128, 128),
@@ -60,7 +60,7 @@ class DictPredictor(nn.Module):
             )
             predictor = RetinaNetPredictor(net, network_output_keys=["cls", "box_reg"], inferer=inferer)
             images = torch.randn((2, 3, 512, 512, 512))  # a large input
-            head_outputs = predictor.inference(images, use_inferer=True)
+            head_outputs = predictor.forward_with_inferer(images)
 
     """
 
@@ -147,13 +147,13 @@ class DictPredictor(nn.Module):
 
     def _network_sequence_output(self, images: Tensor) -> List[Tensor]:
         """
-        Decompose the output of network (a dict) into a sequence.
+        Decompose the output of network (a dict) into a list.
 
         Args:
             images: input of the network
 
         Return:
-            network output list/tuple
+            network output list
         """
         head_outputs = self._ensure_network_outputs_values_list(self.network(images))
         head_outputs_sequence = []
