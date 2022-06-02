@@ -330,6 +330,10 @@ class RetinaNetDetector(nn.Module):
                 Or it can also be a Tensor sized (B, C, H, W) or  (B, C, H, W, D). In this case, all images have same size.
             targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
                 ground-truth boxes present in the image (optional).
+            use_inferer: whether to use self.inferer, a sliding window inferer, to do the inference.
+                If False, will simply forward the network.
+                If True, will use self.inferer, and requires
+                ``self.set_sliding_window_inferer(*args)`` to have been called before.
 
         Return:
             If training mode, will return a dict with at least two keys,
