@@ -1011,7 +1011,6 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_smaller: bool = False,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
     ) -> None:
         self.image_keys = ensure_tuple(image_keys)
@@ -1058,9 +1057,9 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         # As along as the cropped patch contains a box, it is considered as a foreground patch.
         # Positions within extended_boxes are crop centers for foreground patches
         spatial_dims = len(image_size)
-        boxes_np, *_ = convert_data_type(deepcopy(boxes), np.ndarray)
+        boxes_np, *_ = convert_data_type(boxes, np.ndarray)
 
-        extended_boxes = deepcopy(boxes_np).astype(int)
+        extended_boxes = np.zeros_like(boxes_np, dtype=int)
         boxes_start = np.ceil(boxes_np[:, :spatial_dims]).astype(int)
         boxes_stop = np.floor(boxes_np[:, spatial_dims:]).astype(int)
         for axis in range(spatial_dims):
