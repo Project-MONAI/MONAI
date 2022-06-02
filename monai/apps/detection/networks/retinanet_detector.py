@@ -45,8 +45,10 @@ import torch
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
+from monai.apps.detection.networks.retinanet_predictor import DictPredictor
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
+from monai.apps.detection.utils.box_selector import BoxSelector
 from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images
 from monai.data import box_utils
 from monai.inferers import SlidingWindowInferer
@@ -215,11 +217,19 @@ class RetinaNetDetector(nn.Module):
         self.pred_score_key = self.target_label_key + "_scores"  # score key for the detected boxes
 
         # default setting for inference,
-        # can be updated by self.set_inference_parameters(*),
-        self.score_thresh = 0.5
-        self.topk_candidates = 1000
-        self.nms_thresh = 0.2
-        self.detections_per_img = 300
+        # can be updated by set_sliding_window_inferer(*)
+        self.predictor = DictPredictor(
+            network=self.network, network_output_keys=[self.cls_key, self.box_reg_key], inferer=None
+        )
+        # can be updated by self.set_box_selector_parameters(*),
+        self.box_selector = BoxSelector(
+            box_overlap_metric=self.box_overlap_metric,
+            score_thresh=0.05,
+            topk_candidates_per_level=1000,
+            nms_thresh=0.5,
+            detections_per_img=300,
+            apply_sigmoid=True,
+        )
         # can be updated by self.set_sliding_window_inferer(*), self.set_custom_inferer(*), self.switch_to_inferer(*).
         self.use_inferer = False
 
@@ -261,9 +271,9 @@ class RetinaNetDetector(nn.Module):
         cache_roi_weight_map: bool = False,
     ):
         """
-        Define sliding window inferer and set it as the inferer.
+        Define sliding window inferer.
         """
-        self.inferer = SlidingWindowInferer(
+        inferer = SlidingWindowInferer(
             roi_size,
             sw_batch_size,
             overlap,
@@ -276,15 +286,10 @@ class RetinaNetDetector(nn.Module):
             progress,
             cache_roi_weight_map,
         )
-        self.use_inferer = True
+        self.predictor = DictPredictor(
+            network=self.network, network_output_keys=[self.cls_key, self.box_reg_key], inferer=inferer
+        )
         return
-
-    def set_custom_inferer(self, inferer):
-        """
-        Set custom inferer.
-        """
-        self.inferer = inferer
-        self.use_inferer = True
 
     def switch_to_inferer(self, use_inferer: bool = False):
         """
@@ -301,18 +306,25 @@ class RetinaNetDetector(nn.Module):
                 ``self.set_sliding_window_inferer(*args)`` or ``self.set_custom_inferer(*args)`` to have been called before.
         """
         if use_inferer:
-            if hasattr(self, "inferer"):
-                self.use_inferer = True
-            else:
+            if self.predictor.inferer is None:
                 raise ValueError(
                     "`self.inferer` is not defined."
                     "Please refer to function self.set_sliding_window_inferer(*) or self.set_custom_inferer(*)."
                 )
+            else:
+                self.use_inferer = True
         else:
             self.use_inferer = False
         return
 
-    def set_inference_parameters(self, score_thresh=0.05, topk_candidates=1000, nms_thresh=0.5, detections_per_img=300):
+    def set_box_selector_parameters(
+        self,
+        score_thresh: float = 0.05,
+        topk_candidates_per_level: int = 1000,
+        nms_thresh: float = 0.5,
+        detections_per_img: int = 300,
+        apply_sigmoid: bool = True,
+    ):
         """
         Using for inference. Set the parameters that are used for box selection during inference.
         The box selection is performed with the following steps:
@@ -328,10 +340,15 @@ class RetinaNetDetector(nn.Module):
             nms_thresh: box overlapping threshold for NMS
             detections_per_img: max number of boxes to keep for each image
         """
-        self.score_thresh = score_thresh
-        self.topk_candidates = topk_candidates
-        self.nms_thresh = nms_thresh
-        self.detections_per_img = detections_per_img
+
+        self.box_selector = BoxSelector(
+            box_overlap_metric=self.box_overlap_metric,
+            apply_sigmoid=apply_sigmoid,
+            score_thresh=score_thresh,
+            topk_candidates_per_level=topk_candidates_per_level,
+            nms_thresh=nms_thresh,
+            detections_per_img=detections_per_img,
+        )
 
     def forward(
         self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
@@ -356,7 +373,7 @@ class RetinaNetDetector(nn.Module):
             representing predicted boxes, classification labels, and classification scores.
 
         """
-        # check if input arguments are valid
+        # 1. check if input arguments are valid
         if self.training:
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
             if not hasattr(self, "proposal_matcher"):
@@ -372,164 +389,37 @@ class RetinaNetDetector(nn.Module):
                     "or set classification loss function as Focal loss with self.set_cls_loss(*)"
                 )
 
-        # pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
+        # 2. pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
         images, image_sizes = preprocess_images(input_images, self.spatial_dims, self.size_divisible)
 
-        # generate network outputs. Use inferer only in evaluation mode.
-        head_outputs = self.forward_network(images, use_inferer=((not self.training) and self.use_inferer))
+        # 3. generate network outputs. Use inferer only in evaluation mode.
+        if self.training:
+            head_outputs = self.predictor(images)
+        else:
+            head_outputs = self.predictor.inference(images, use_inferer=self.use_inferer)
 
-        # post processing steps that both training and inference perform.
-        head_outputs, anchors, num_anchor_locs_per_level = self.process_network_outputs_with_anchors(  # type: ignore
-            images, head_outputs
-        )
+        # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
+        anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
+        # num_anchor_locs_per_level: list of HW or HWD for each level
+        num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
 
-        # if during training, return losses
+        # 5. Reshape and concatenate head_outputs values from List[Tensor] to Tensor
+        for key in [self.cls_key, self.box_reg_key]:
+            # reshape to Tensor sized(B, sum(HWA), self.num_classes) or (B, sum(HWA), 2* self.spatial_dims)
+            # A = self.num_anchors_per_loc
+            head_outputs[key] = self.reshape_maps(head_outputs[key])
+
+        # 6(1). if during training, return losses
         if self.training:
             losses = self.compute_loss(head_outputs, targets, anchors, num_anchor_locs_per_level)  # type: ignore
             return losses
 
-        # if during inference, return detection results
+        # 6(2). if during inference, return detection results
         detections = self.postprocess_detections(
             head_outputs, anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
         return detections
-
-    def forward_network(self, images: Tensor, use_inferer: Union[bool, None] = None) -> Dict[str, List[Tensor]]:
-        """
-        Compute the output of network.
-
-        Args:
-            images: input of the network
-            use_inferer: whether to use self.inferer. If not given, will assume False during training,
-                and True during inference.
-
-        Return:
-            The output of the network.
-                - It is a dictionary with at least two keys:
-                  ``self.cls_key`` and ``self.box_reg_key``.
-                - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
-                  classification logits map at one resolution level,
-                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                  A = self.num_anchors_per_loc.
-                - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
-                  box regression map at one resolution level,
-                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
-                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
-        """
-        if use_inferer is None:
-            use_inferer = not self.training
-
-        # if not use_inferer, directly forward the network
-        if not use_inferer:
-            return self.ensure_network_outputs_values_list(self.network(images))
-
-        # if use_inferer, we need to decompose the output dict into sequence,
-        # then do infererence, finally reconstruct dict.
-        head_outputs_sequence = self.inferer(images, self.network_sequence_output)
-        head_outputs = {self.cls_key: list(head_outputs_sequence[: self.num_output_levels])}
-        head_outputs[self.box_reg_key] = list(head_outputs_sequence[self.num_output_levels :])
-        return head_outputs
-
-    def ensure_network_outputs_values_list(
-        self, head_outputs: Union[Dict[str, List[Tensor]], Dict[str, Tensor]]
-    ) -> Dict[str, List[Tensor]]:
-        """
-        We expect the output of self.network to be Dict[str, List[Tensor]].
-        If it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
-
-        Args:
-            head_outputs: the outputs of self.network.
-                - It is a dictionary with at least two keys:
-                  ``self.cls_key`` and ``self.box_reg_key``.
-                - ``head_outputs[self.cls_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-                  classification logits map at one resolution level,
-                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                  A = self.num_anchors_per_loc.
-                - ``head_outputs[self.box_reg_key]`` should be List[Tensor] or Tensor. Each Tensor represents
-                  box regression map at one resolution level,
-                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
-                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
-
-        Return:
-            a Dict[str, List[Tensor]]
-        """
-        if torch.jit.isinstance(head_outputs, Dict[str, List[Tensor]]):
-            # if output of self.network should be a Dict[str, List[Tensor]], directly return it
-            self.num_output_levels = len(head_outputs[self.cls_key])
-            return head_outputs  # type: ignore
-
-        if isinstance(head_outputs[self.cls_key], Tensor) and isinstance(head_outputs[self.box_reg_key], Tensor):
-            # if output of self.network should be a Dict[str, Tensor], convert it to Dict[str, List[Tensor]]
-            self.num_output_levels = 1
-            head_outputs[self.cls_key] = [head_outputs[self.cls_key]]  # type: ignore
-            head_outputs[self.box_reg_key] = [head_outputs[self.box_reg_key]]  # type: ignore
-            return head_outputs  # type: ignore
-
-        raise ValueError("The output of self.network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
-
-    def network_sequence_output(self, images: Tensor) -> List[Tensor]:
-        """
-        Decompose the output of network (a dcit) into a sequence.
-
-        Args:
-            images: input of the network
-
-        Return:
-            network output list/tuple
-        """
-        head_outputs = self.ensure_network_outputs_values_list(self.network(images))
-
-        if len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key]):
-            return list(head_outputs[self.cls_key]) + list(head_outputs[self.box_reg_key])
-
-        raise ValueError(f"Require len(head_outputs[{self.cls_key}]) == len(head_outputs[{self.box_reg_key}]).")
-
-    def process_network_outputs_with_anchors(
-        self, images: Tensor, head_outputs: Dict[str, List[Tensor]]
-    ) -> Tuple[Dict[str, Tensor], List[Tensor], List[int]]:
-        """
-        Process network output for further processing, including generate anchors and reshape the head_outputs.
-        This function is used in both training and inference.
-
-        Args:
-            images_shape: shape of network input images, (B, C_in, H, W) or (B, C_in, H, W, D)
-            head_outputs: the outputs of self.network.
-                - It is a dictionary with at least two keys:
-                  ``self.cls_key`` and ``self.box_reg_key``.
-                - ``head_outputs[self.cls_key]`` should be List[Tensor]. Each Tensor represents
-                  classification logits map at one resolution level,
-                  sized (B, num_classes*A, H_i, W_i) or (B, num_classes*A, H_i, W_i, D_i),
-                  A = self.num_anchors_per_loc.
-                - ``head_outputs[self.box_reg_key]`` should be List[Tensor]. Each Tensor represents
-                  box regression map at one resolution level,
-                  sized (B, 2*spatial_dims*A, H_i, W_i)or (B, 2*spatial_dims*A, H_i, W_i, D_i).
-                - ``len(head_outputs[self.cls_key]) == len(head_outputs[self.box_reg_key])``.
-
-        Return:
-            - head_outputs_reshape, reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
-              sized (B, sum(HW(D)A), self.num_classes). ``head_output_reshape[self.box_reg_key]`` is a Tensor
-              sized (B, sum(HW(D)A), 2*self.spatial_dims).
-            - generated anchors, a list of Tensor. Each Tensor represents anchors for each image,
-              sized (sum(HWA), 2*spatial_dims) or (sum(HWDA), 2*spatial_dims).
-              A = self.num_anchors_per_loc.
-            - number of anchor locations per output level, a list of HW or HWD for each level
-        """
-        anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
-
-        # x: result map tensor sized (B, C, H, W) or (B, C, H, W, D), different H, W, D for each level.
-        # num_anchor_locs_per_level: list of HW or HWD for each level
-        num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
-
-        # reshaped results will have sized (B, sum(HWA)_across_levels, C/A)
-        # A = self.num_anchors_per_loc
-        head_outputs_reshape = {}
-        for key in [self.cls_key, self.box_reg_key]
-        head_outputs_reshape[key] = self.reshape_maps(
-            head_outputs[key]
-        )  # (B, sum(HWA), self.num_classes) or (B, sum(HWA), 2* self.spatial_dims)
-
-        return head_outputs_reshape, anchors, num_anchor_locs_per_level
 
     def reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
         """
@@ -572,58 +462,6 @@ class RetinaNetDetector(nn.Module):
             all_reshaped_result_map.append(reshaped_result_map)
 
         return torch.cat(all_reshaped_result_map, dim=1)
-
-    def select_top_boxes_per_level(
-        self,
-        box_regression_per_level: Tensor,
-        logits_per_level: Tensor,
-        anchors_per_level: Tensor,
-        image_shape: Sequence,
-        need_sigmoid: bool = True,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        """
-        Select boxes with highest scores for one level at one image.
-
-        Args:
-            box_regression_per_level: Tensor sized (HWA, 2*spatial_dims) or (HWDA, 2*spatial_dims)
-            logits_per_level: Tensor sized (HWA, self.num_classes) or (HWDA, self.num_classes)
-            anchors_per_level: Tensor sized (HWA, 2*spatial_dims) or (HWDA, 2*spatial_dims)
-            image_shape: spatial_size of this image
-
-        Return:
-            selected boxes, classification scores, labels
-        """
-        num_classes = logits_per_level.shape[-1]
-        # apply sigmoid to classification logits if asked
-        if need_sigmoid:
-            scores_per_level = torch.sigmoid(logits_per_level.to(torch.float32)).flatten()
-        else:
-            scores_per_level = logits_per_level.flatten()
-
-        # remove low scoring boxes
-        keep_idxs = scores_per_level > self.score_thresh
-        scores_per_level = scores_per_level[keep_idxs]
-        topk_idxs = torch.where(keep_idxs)[0]
-
-        # keep only topk scoring predictions
-        num_topk = min(self.topk_candidates, topk_idxs.size(0))
-        scores_per_level, idxs = scores_per_level.to(torch.float32).topk(
-            num_topk
-        )  # half precision not implemented for cpu float16
-        topk_idxs = topk_idxs[idxs]
-
-        # decode box
-        anchor_idxs = torch.div(topk_idxs, num_classes, rounding_mode="floor")
-        labels_per_level = topk_idxs % num_classes
-
-        boxes_per_level = self.box_coder.decode_single(
-            box_regression_per_level[anchor_idxs].to(torch.float32), anchors_per_level[anchor_idxs]
-        )  # half precision not implemented for cpu float16
-        boxes_per_level, keep = box_utils.clip_boxes_to_image(  # type: ignore
-            boxes_per_level, image_shape, remove_empty=True
-        )
-
-        return boxes_per_level, scores_per_level[keep], labels_per_level[keep]  # type: ignore
 
     def postprocess_detections(
         self,
@@ -668,8 +506,8 @@ class RetinaNetDetector(nn.Module):
             split_head_outputs[k] = list(head_outputs_reshape[k].split(num_anchors_per_level, dim=1))
         split_anchors = [list(a.split(num_anchors_per_level)) for a in anchors]  # List[List[Tensor]]
 
-        class_logits = split_head_outputs[self.cls_key]  # List[Tensor], each sized (HWA, self.num_classes)
-        box_regression = split_head_outputs[self.box_reg_key]  # List[Tensor], each sized (HWA, 2*spatial_dims)
+        class_logits = split_head_outputs[self.cls_key]  # List[Tensor], each sized (B, HWA, self.num_classes)
+        box_regression = split_head_outputs[self.box_reg_key]  # List[Tensor], each sized (B, HWA, 2*spatial_dims)
         compute_dtype = class_logits[0].dtype
 
         num_images = len(image_sizes)  # B
@@ -677,53 +515,25 @@ class RetinaNetDetector(nn.Module):
         detections: List[Dict[str, Tensor]] = []
 
         for index in range(num_images):
-            box_regression_per_image = [br[index] for br in box_regression]
-            logits_per_image = [cl[index] for cl in class_logits]
-            anchors_per_image, image_shape = split_anchors[index], image_sizes[index]
+            box_regression_per_image = [
+                br[index] for br in box_regression
+            ]  # List[Tensor], each sized (HWA, 2*spatial_dims)
+            logits_per_image = [cl[index] for cl in class_logits]  # List[Tensor], each sized (HWA, 2*spatial_dims)
+            anchors_per_image, img_spatial_size = split_anchors[index], image_sizes[index]
+            boxes_per_image = [
+                self.box_coder.decode_single(b.to(torch.float32), a).to(compute_dtype)
+                for b, a in zip(box_regression_per_image, anchors_per_image)
+            ]  # List[Tensor], each sized (HWA, 2*spatial_dims)
 
-            image_boxes = []
-            image_scores = []
-            image_labels = []
-
-            for box_regression_per_level, logits_per_level, anchors_per_level in zip(
-                box_regression_per_image, logits_per_image, anchors_per_image
-            ):
-                boxes_per_level, scores_per_level, labels_per_level = self.select_top_boxes_per_level(
-                    box_regression_per_level,
-                    logits_per_level,
-                    anchors_per_level,
-                    image_shape,
-                    need_sigmoid=need_sigmoid,
-                )
-
-                image_boxes.append(boxes_per_level)
-                image_scores.append(scores_per_level)
-                image_labels.append(labels_per_level)
-
-            image_boxes_t = torch.cat(image_boxes, dim=0)
-            image_scores_t = torch.cat(image_scores, dim=0)
-            image_labels_t = torch.cat(image_labels, dim=0)
-
-            # non-maximum suppression on detected boxes from all levels
-            keep = []
-            for c in range(self.num_classes):
-                # NMS for boxes with label c
-                image_labels_c_idx = (image_labels_t == c).nonzero(as_tuple=False).flatten()
-                keep_c = box_utils.non_max_suppression(
-                    image_boxes_t[image_labels_c_idx, :],
-                    image_scores_t[image_labels_c_idx],
-                    self.nms_thresh,
-                    box_overlap_metric=self.box_overlap_metric,
-                )
-                keep_c = image_labels_c_idx[keep_c[: self.detections_per_img]]  # type: ignore
-                keep.append(keep_c)
-            keep_t = torch.cat(keep, dim=0)
+            selected_boxes, selected_scores, selected_labels = self.box_selector.select_boxes_per_image(
+                boxes_per_image, logits_per_image, img_spatial_size
+            )
 
             detections.append(
                 {
-                    self.target_box_key: image_boxes_t[keep_t].to(compute_dtype),
-                    self.pred_score_key: image_scores_t[keep_t].to(compute_dtype),
-                    self.target_label_key: image_labels_t[keep_t],
+                    self.target_box_key: selected_boxes,  # Tensor, sized (N, 2*spatial_dims)
+                    self.pred_score_key: selected_scores,  # Tensor, sized (N, )
+                    self.target_label_key: selected_labels,  # Tensor, sized (N, )
                 }
             )
 
