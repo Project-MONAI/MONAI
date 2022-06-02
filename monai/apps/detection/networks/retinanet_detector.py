@@ -191,14 +191,16 @@ class RetinaNetDetector(nn.Module):
 
         # check if anchor_generator matches with network
         self.anchor_generator = anchor_generator
-        self.cache_anchors = None
-        self.cache_image_shape = None
+
         self.num_anchors_per_loc = self.anchor_generator.num_anchors_per_location()[0]
         if self.num_anchors_per_loc != self.network.num_anchors:
             raise ValueError(
                 f"Number of feature map channels ({self.network.num_anchors}) "
                 f"should match with number of anchors at each location ({self.num_anchors_per_loc})."
             )
+        # if new coming input images has same shape with self.previous_image_shape, there is no need to generate new anchors.
+        self.anchors: Union[List[Tensor], None] = None
+        self.previous_image_shape: Union[Any, None] = None
 
         self.box_overlap_metric = box_overlap_metric
         self.debug = debug
@@ -214,9 +216,8 @@ class RetinaNetDetector(nn.Module):
         self.pred_score_key = self.target_label_key + "_scores"  # score key for the detected boxes
 
         # default setting for inference,
-        # can be updated by self.set_sliding_window_inferer(*) and self.switch_to_sliding_window_inferer(*)
-        self.inferer = None
-        self.use_inferer = False
+        # can be updated by self.set_sliding_window_inferer(*)
+        self.inferer: Union[SlidingWindowInferer, None] = None
         # can be updated by self.set_box_selector_parameters(*),
         self.box_selector = BoxSelector(
             box_overlap_metric=self.box_overlap_metric,
@@ -265,9 +266,9 @@ class RetinaNetDetector(nn.Module):
         cache_roi_weight_map: bool = False,
     ):
         """
-        Define sliding window inferer.
+        Define sliding window inferer and store it to self.inferer.
         """
-        inferer = SlidingWindowInferer(
+        self.inferer = SlidingWindowInferer(
             roi_size,
             sw_batch_size,
             overlap,
@@ -280,31 +281,6 @@ class RetinaNetDetector(nn.Module):
             progress,
             cache_roi_weight_map,
         )
-        self.inferer = inferer
-
-    def switch_to_sliding_window_inferer(self, use_inferer: bool = False):
-        """
-        Choose whether to use inferer.
-
-        In most cases, we do not use inferer as it is more efficient to directly forward the network.
-        But when images are large and cannot fit in the GPU, we need to use inferer such as sliding window inferer.
-
-
-        Args:
-            use_inferer: whether to use self.inferer.
-                If False, will simply forward the network.
-                If True, will use self.inferer, and requires
-                ``self.set_sliding_window_inferer(*args)`` or ``self.set_custom_inferer(*args)`` to have been called before.
-        """
-        if use_inferer:
-            if self.inferer is None:
-                raise ValueError(
-                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
-                )
-            else:
-                self.use_inferer = True
-        else:
-            self.use_inferer = False
 
     def set_box_selector_parameters(
         self,
@@ -340,7 +316,10 @@ class RetinaNetDetector(nn.Module):
         )
 
     def forward(
-        self, input_images: Union[List[Tensor], Tensor], targets: Union[List[Dict[str, Tensor]], None] = None
+        self,
+        input_images: Union[List[Tensor], Tensor],
+        targets: Union[List[Dict[str, Tensor]], None] = None,
+        use_inferer: bool = False,
     ) -> Union[Dict[str, Tensor], List[Dict[str, Tensor]]]:
         """
         Returns a dict of losses during training, or a list predicted dict of boxes and labels during inference.
@@ -383,29 +362,21 @@ class RetinaNetDetector(nn.Module):
         images, image_sizes = preprocess_images(input_images, self.spatial_dims, self.size_divisible)
 
         # 3. generate network outputs. Use inferer only in evaluation mode.
-        if self.training or (not self.use_inferer):
+        if self.training or (not use_inferer):
             head_outputs = self.network(images)
-            ensure_dict_value_to_list_(head_outputs)
+            ensure_dict_value_to_list_(head_outputs)  # ensure head_outputs is Dict[str, List[Tensor]]
         else:
+            if self.inferer is None:
+                raise ValueError(
+                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
+                )
             head_outputs = predict_with_inferer(
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
             )
 
-        # 4. Generate anchors
-        if (
-            (self.cache_anchors is not None)
-            and (self.cache_image_shape is not None)
-            and self.cache_image_shape == images.shape
-        ):
-            # if the imgae shape has not changed, we can use cached anchors
-            anchors = self.cache_anchors
-        else:
-            # if there is no cached anchors or the cached image shape does not agree with the new images,
-            # we generate new anchors and cache it
-            anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
-            self.cache_anchors = anchors
-            self.cache_image_shape = images.shape
-        # num_anchor_locs_per_level: list of HW or HWD for each level
+        # 4. Generate anchors and store it in self.anchors: List[Tensor]
+        self.generate_anchors(images, head_outputs)
+        # num_anchor_locs_per_level: List[int], list of HW or HWD for each level
         num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
 
         # 5. Reshape and concatenate head_outputs values from List[Tensor] to Tensor
@@ -416,14 +387,30 @@ class RetinaNetDetector(nn.Module):
 
         # 6(1). if during training, return losses
         if self.training:
-            losses = self.compute_loss(head_outputs, targets, anchors, num_anchor_locs_per_level)  # type: ignore
+            losses = self.compute_loss(head_outputs, targets, self.anchors, num_anchor_locs_per_level)  # type: ignore
             return losses
 
         # 6(2). if during inference, return detection results
         detections = self.postprocess_detections(
-            head_outputs, anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
+            head_outputs, self.anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
         return detections
+
+    def generate_anchors(self, images: Tensor, head_outputs: Dict[str, List[Tensor]]):
+        """
+        Generate anchors and store it in self.anchors: List[Tensor].
+        We generate anchors only when there is no stored anchors,
+        or the new coming images has different shape with self.previous_image_shape
+
+        Args:
+            images: input images, a (B, C, H, W) or (B, C, H, W, D) Tensor.
+            head_outputs: head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
+              sized (B, sum(HW(D)A), self.num_classes). ``head_output_reshape[self.box_reg_key]`` is a Tensor
+              sized (B, sum(HW(D)A), 2*self.spatial_dims)
+        """
+        if (self.anchors is None) or (self.previous_image_shape != images.shape):
+            self.anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # List[Tensor], len = batchsize
+            self.previous_image_shape = images.shape
 
     def reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
         """
