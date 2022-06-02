@@ -17,7 +17,7 @@ jobs:
       matrix:
         pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install the dependencies
       run: |
         which python
@@ -68,7 +68,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install APT dependencies
       run: |
         apt-get update
@@ -112,7 +112,7 @@ jobs:
       options: "--gpus all"
     runs-on: [self-hosted, linux, x64, common]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Install the dependencies
@@ -208,7 +208,7 @@ jobs:
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install MONAI
       id: monai-install
       run: |
