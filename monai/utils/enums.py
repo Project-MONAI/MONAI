@@ -385,4 +385,5 @@ class WSIPatchKeys(str, Enum):
     LOCATION = "patch_location"
     LEVEL = "patch_level"
     SIZE = "patch_size"
+    COUNT = "num_patches"
     PATH = "path"

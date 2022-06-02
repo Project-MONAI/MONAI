@@ -62,6 +62,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     PytorchPadMode,
+    WSIPatchKeys,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -2276,9 +2277,9 @@ class GridPatchd(MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict["patch_location"] = patch[0][1][..., 0]  # use the starting coordinate of the first item
-            new_dict["patch_size"] = self.patcher.patch_size
-            new_dict["num_patches"] = num_patches
+            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
+            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
+            new_dict[WSIPatchKeys.COUNT] = num_patches
             new_dict["offset"] = self.patcher.offset
             output.append(new_dict)
         return output
@@ -2376,9 +2377,9 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict["patch_location"] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict["patch_size"] = self.patcher.patch_size
-            new_dict["num_patches"] = num_patches
+            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
+            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
+            new_dict[WSIPatchKeys.COUNT] = num_patches
             new_dict["offset"] = self.patcher.offset
             output.append(new_dict)
         return output

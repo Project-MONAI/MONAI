@@ -56,11 +56,10 @@ class BaseWSIReader(ImageReader):
     supported_suffixes: List[str] = []
     backend = ""
 
-    def __init__(self, level: int, channel_last: bool = False, **kwargs):
+    def __init__(self, level: int, channel_dim: int = 0, **kwargs):
         super().__init__()
         self.level = level
-        self.channel_last = channel_last
-        self.channel_dim = -1 if self.channel_last else 0
+        self.channel_dim = channel_dim
         self.kwargs = kwargs
         self.metadata: Dict[Any, Any] = {}
 
@@ -138,10 +137,14 @@ class BaseWSIReader(ImageReader):
             level: the level number. Defaults to 0
 
         """
+        if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
+            ValueError(f"The desired channel_dim ({channel_dim}) is out of bound for image shape: {patch.shape}")
+        channel_dim = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
         metadata: Dict = {
             "backend": self.backend,
-            "original_channel_dim": self.channel_dim,
-            "spatial_shape": np.asarray(patch.shape[:-1] if self.channel_last else patch.shape[1:]),
+            "original_channel_dim": channel_dim,
+            "spatial_shape": np.array(patch.shape[:channel_dim] + patch.shape[channel_dim + 1 :]),
+            "num_patches": 1,
             WSIPatchKeys.PATH.value: self.get_file_path(wsi),
             WSIPatchKeys.LOCATION.value: np.asarray(location),
             WSIPatchKeys.SIZE.value: np.asarray(size),
@@ -212,7 +215,6 @@ class BaseWSIReader(ImageReader):
                     f"The image dimension should be 3 but has {patch.ndim}. "
                     "`WSIReader` is designed to work only with 2D images with color channel."
                 )
-            self.channel_dim = -1 if self.channel_last else 0
             # Check if there are four color channels for RGBA
             if mode == "RGBA":
                 if patch.shape[self.channel_dim] != 4:
@@ -260,20 +262,19 @@ class WSIReader(BaseWSIReader):
     Args:
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
-        channel_last: if True, the returned image will have color channel as the last dimension.
-            if False, the image will have color channel as the first dimension. Defaults to False,
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional arguments to be passed to the backend library
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, channel_last: bool = False, **kwargs):
-        super().__init__(level, channel_last, **kwargs)
+    def __init__(self, backend="cucim", level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
         self.backend = backend.lower()
         self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader]
         if self.backend == "cucim":
-            self.reader = CuCIMWSIReader(level=level, channel_last=channel_last, **kwargs)
+            self.reader = CuCIMWSIReader(level=level, channel_dim=channel_dim, **kwargs)
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, channel_last=channel_last, **kwargs)
+            self.reader = OpenSlideWSIReader(level=level, channel_dim=channel_dim, **kwargs)
         else:
             raise ValueError(f"The supported backends are cucim and openslide, '{self.backend}' was given.")
         self.supported_suffixes = self.reader.supported_suffixes
@@ -355,8 +356,7 @@ class CuCIMWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
-        channel_last: if True, the returned image will have color channel as the last dimension.
-            if False, the image will have color channel as the first dimension. Defaults to False,
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
@@ -365,8 +365,8 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, channel_last: bool = False, **kwargs):
-        super().__init__(level, channel_last, **kwargs)
+    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -454,9 +454,8 @@ class CuCIMWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
 
-        # Make it channel first or last
-        if not self.channel_last:
-            patch = AsChannelFirst()(patch)  # type: ignore
+        # Make the channel to desired dimensions
+        patch = np.moveaxis(patch, -1, self.channel_dim)
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode in "RGB":
@@ -478,8 +477,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
-        channel_last: if True, the returned image will have color channel as the last dimension.
-            if False, the image will have color channel as the first dimension. Defaults to False,
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional args for `openslide.OpenSlide` module.
 
     """
@@ -487,8 +485,8 @@ class OpenSlideWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
 
-    def __init__(self, level: int = 0, channel_last: bool = False, **kwargs):
-        super().__init__(level, channel_last, **kwargs)
+    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -578,8 +576,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(pil_patch, dtype=dtype)
 
-        # Make it channel first or last
-        if not self.channel_last:
-            patch = AsChannelFirst()(patch)  # type: ignore
+        # Make the channel to desired dimensions
+        patch = np.moveaxis(patch, -1, self.channel_dim)
 
         return patch

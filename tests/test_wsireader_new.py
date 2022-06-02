@@ -23,7 +23,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
-from tests.utils import download_url_or_skip_test, testing_data_config
+from tests.utils import download_url_or_skip_test, testing_data_config, assert_allclose
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -60,14 +60,14 @@ TEST_CASE_2 = [
 
 TEST_CASE_3 = [
     FILE_PATH,
-    {"channel_last": True},
+    {"channel_dim": -1},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]]), 0, -1),
 ]
 
 TEST_CASE_4 = [
     FILE_PATH,
-    {"channel_last": True},
+    {"channel_dim": 2},
     {"location": (0, 0), "size": (2, 1), "level": 2},
     np.moveaxis(np.array([[[239], [239]], [[239], [239]], [[239], [239]]]), 0, -1),
 ]
@@ -238,7 +238,7 @@ class WSIReaderTests:
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
             for s in data[PostFix.meta("image")]["spatial_shape"]:
-                torch.testing.assert_allclose(s, expected_spatial_shape)
+                assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
 
         @parameterized.expand([TEST_CASE_TRANSFORM_0])
@@ -254,7 +254,7 @@ class WSIReaderTests:
             data_loader = DataLoader(dataset, batch_size=batch_size)
             data: dict = first(data_loader)
             for s in data[PostFix.meta("image")]["spatial_shape"]:
-                torch.testing.assert_allclose(s, expected_spatial_shape)
+                assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))
 
 
