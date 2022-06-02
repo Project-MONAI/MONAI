@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections.abc
 import inspect
 import itertools
 import os
@@ -19,6 +18,7 @@ import tempfile
 import types
 import warnings
 from ast import literal_eval
+from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
@@ -90,14 +90,14 @@ def issequenceiterable(obj: Any) -> bool:
     """
     if isinstance(obj, torch.Tensor):
         return int(obj.dim()) > 0  # a 0-d tensor is not iterable
-    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, (str, bytes))
+    return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
 def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
     """
-    if not issequenceiterable(vals):
+    if not issequenceiterable(vals) or isinstance(vals, (torch.Tensor, np.ndarray)):
         return (vals,)
 
     return tuple(vals)
