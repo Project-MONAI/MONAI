@@ -212,7 +212,7 @@ class RetinaNetDetector(nn.Module):
         self.pred_score_key = self.target_label_key + "_scores"  # score key for the detected boxes
 
         # default setting for inference,
-        # can be updated by set_sliding_window_inferer(*)
+        # can be updated by self.set_sliding_window_inferer(*)
         self.predictor = DictPredictor(
             network=self.network, network_output_keys=[self.cls_key, self.box_reg_key], inferer=None
         )
