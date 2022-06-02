@@ -514,6 +514,9 @@ class RetinaNetDetector(nn.Module):
         return detections
 
     def _check_detector_training_components(self):
+        """
+        Check if self.proposal_matcher and self.fg_bg_sampler have been set for training.
+        """
         if not hasattr(self, "proposal_matcher"):
             raise AttributeError(
                 "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
