@@ -88,8 +88,13 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if isinstance(obj, torch.Tensor):
-        return int(obj.dim()) > 0  # a 0-d tensor is not iterable
+    try:
+        if hasattr(obj, "ndim") and obj.ndim == 0:
+            return False
+        if isinstance(obj, torch.Tensor):
+            return int(obj.dim()) > 0  # a 0-d tensor is not iterable
+    except Exception:
+        return False
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
@@ -99,14 +104,13 @@ def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
 
     Args:
         vals: input data to convert to a tuple.
-        wrap_array: if `True`, treat the whole input array as one item of the tuple.
-            if `False`, automatically convert the input array with `tuple(vals)`, default to `False`.
+        wrap_array: if `True`, treat the input numerical array (ndarray/tensor) as one item of the tuple.
+            if `False`, try to convert the array with `tuple(vals)`, default to `False`.
 
     """
-    if not issequenceiterable(vals) or wrap_array:
+    if wrap_array and isinstance(vals, (np.ndarray, torch.Tensor)):
         return (vals,)
-
-    return tuple(vals)
+    return tuple(vals) if issequenceiterable(vals) else (vals,)
 
 
 def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
