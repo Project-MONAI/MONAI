@@ -17,7 +17,7 @@ from torch import Tensor, nn
 from monai.inferers import SlidingWindowInferer
 
 
-def convert_dict_values_to_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
+def convert_dict_value_to_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
     """
     We expect the output of self.network ``head_outputs`` to be Dict[str, List[Tensor]].
     Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
@@ -144,7 +144,7 @@ class DictPredictor(nn.Module):
         Return:
             The output of the network, Dict[str, List[Tensor]]
         """
-        head_outputs: Dict[str, List[Tensor]] = convert_dict_values_to_list(self.network(images))
+        head_outputs: Dict[str, List[Tensor]] = convert_dict_value_to_list(self.network(images))
         return head_outputs
 
     def _network_sequence_output(self, images: Tensor) -> List[Tensor]:
@@ -157,7 +157,7 @@ class DictPredictor(nn.Module):
         Return:
             network output list
         """
-        head_outputs = convert_dict_values_to_list(self.network(images))
+        head_outputs = convert_dict_value_to_list(self.network(images))
         self.num_output_levels = len(head_outputs[self.keys[0]])
         head_outputs_sequence = []
         for k in self.keys:
