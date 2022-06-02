@@ -30,7 +30,7 @@ jobs:
         minimum-size: 8
         maximum-size: 16
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true

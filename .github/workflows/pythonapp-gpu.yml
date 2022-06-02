@@ -60,7 +60,7 @@ jobs:
       options: --gpus all
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: apt install
       run: |
         # workaround for https://github.com/Project-MONAI/MONAI/issues/4200
