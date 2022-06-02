@@ -130,7 +130,7 @@ class DictPredictor(nn.Module):
             if isinstance(value_k, Tensor):
                 num_output_levels_list[i] = 1
                 head_outputs_standard[k] = [value_k]  # type: ignore
-            elif torch.jit.isinstance(value_k, List[Tensor]):
+            elif isinstance(value_k[0], Tensor):
                 num_output_levels_list[i] = len(value_k)
                 head_outputs_standard[k] = value_k
             else:
