@@ -67,7 +67,7 @@ class RetinaNetDetector(nn.Module):
     """
     Retinanet detector, expandable to other one stage anchor based box detectors in the future.
     An example of construction can found in the source code of
-     :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
+    :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
 
     The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
     one for each image, and should be in 0-1 range. Different images can have different sizes.
@@ -78,32 +78,34 @@ class RetinaNetDetector(nn.Module):
     During training, the model expects both the input tensors, as well as a targets (list of dictionary),
     containing:
 
-        - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
-            ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
-            with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
-        - labels: the class label for each ground-truth box
+    - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
+      ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
+      with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
+    - labels: the class label for each ground-truth box
 
-    The model returns a Dict[Tensor] during training, containing the classification and regression
+    The model returns a Dict[str, Tensor] during training, containing the classification and regression
     losses.
-    When save the model, only self.network contains trainable parameters and needs to be saved.
+    When saving the model, only self.network contains trainable parameters and needs to be saved.
 
     During inference, the model requires only the input tensors, and returns the post-processed
     predictions as a List[Dict[Tensor]], one for each input image. The fields of the Dict are as
     follows:
-        - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
-            ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
-            with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
-        - labels (Int64Tensor[N]): the predicted labels for each image
-        - labels_scores (Tensor[N]): the scores for each prediction
+
+    - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the predicted boxes in ``StandardMode``, i.e.,
+      ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
+      with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
+    - labels (Int64Tensor[N]): the predicted labels for each image
+    - labels_scores (Tensor[N]): the scores for each prediction
 
     Args:
         network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
-            and outputs a dictionary Dict[str, List[Tensor]].
+            and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
         anchor_generator: anchor generator.
         box_overlap_metric: func that compute overlap between two sets of boxes, default is Intersection over Union (IoU).
         debug: whether to print out internal parameters, used for debugging and parameter tuning.
 
     Notes:
+
         Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
         but any network that meets the following rules is a valid input ``network``.
 
@@ -133,6 +135,7 @@ class RetinaNetDetector(nn.Module):
             - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
 
     Example:
+
         .. code-block:: python
 
             # define a naive network
@@ -467,7 +470,7 @@ class RetinaNetDetector(nn.Module):
         # 1. Check if input arguments are valid
         if self.training:
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
-            self.check_detector_training_components()
+            self._check_detector_training_components()
 
         # 2. Pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
@@ -497,7 +500,7 @@ class RetinaNetDetector(nn.Module):
             # reshape to Tensor sized(B, sum(HWA), self.num_classes) for self.cls_key
             # or (B, sum(HWA), 2* self.spatial_dims) for self.box_reg_key
             # A = self.num_anchors_per_loc
-            head_outputs[key] = self.reshape_maps(head_outputs[key])
+            head_outputs[key] = self._reshape_maps(head_outputs[key])
 
         # 6(1). If during training, return losses
         if self.training:
@@ -510,7 +513,7 @@ class RetinaNetDetector(nn.Module):
         )
         return detections
 
-    def check_detector_training_components(self):
+    def _check_detector_training_components(self):
         if not hasattr(self, "proposal_matcher"):
             raise AttributeError(
                 "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
@@ -539,7 +542,7 @@ class RetinaNetDetector(nn.Module):
             self.anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # List[Tensor], len = batchsize
             self.previous_image_shape = images.shape
 
-    def reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
+    def _reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
         """
         Concat network output map list to a single Tensor.
         This function is used in both training and inference.
@@ -973,6 +976,7 @@ def retinanet_resnet50_fpn_detector(
     Returns a RetinaNet detector using a ResNet-50 as backbone, which can be pretrained
     from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`
     _.
+
     Args:
         num_classes: number of output classes of the model (excluding the background).
         anchor_generator: AnchorGenerator,
@@ -986,6 +990,7 @@ def retinanet_resnet50_fpn_detector(
         A RetinaNetDetector object with resnet50 as backbone
 
     Example:
+
         .. code-block:: python
 
             # define a naive network
