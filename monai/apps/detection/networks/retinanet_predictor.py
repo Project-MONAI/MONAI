@@ -70,13 +70,12 @@ def _network_sequence_output(images: Tensor, network, keys: List[str]) -> List[T
     return head_outputs_sequence
 
 
-def predict_with_inferer(images: Tensor, network, keys: List[str], inferer: Optional[SlidingWindowInferer] = None):
+def predict_with_inferer(
+    images: Tensor, network, keys: List[str], inferer: Optional[SlidingWindowInferer] = None
+) -> List[Tensor]:
     """
-    Predictor that works for network with Dict output. Compared with directly output network(images),
-    this predictor enables a sliding window inferer that can be used to handle large inputs.
-
-    The input to the predictor is expected to be a Tensor sized (B, C, H, W) or  (B, C, H, W, D).
-    The output of the predictor is a dictionary Dict[str, List[Tensor]]
+    Predict network dict output with an inferer. Compared with directly output network(images),
+    it enables a sliding window inferer that can be used to handle large inputs.
 
     Args:
         images: input of the network, Tensor sized (B, C, H, W) or  (B, C, H, W, D)
@@ -84,13 +83,6 @@ def predict_with_inferer(images: Tensor, network, keys: List[str], inferer: Opti
             and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
         keys: the keys in network output.
         inferer: a SlidingWindowInferer to handle large inputs.
-
-    Notes:
-        Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
-        but any network that meets the following rules is a valid input ``network``.
-
-        #. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
-        #. Its output should be Dict[str, List[Tensor]] or Dict[str, Tensor].
 
     Example:
         .. code-block:: python
@@ -133,20 +125,13 @@ class DictPredictor(nn.Module):
     this predictor enables a sliding window inferer that can be used to handle large inputs.
 
     The input to the predictor is expected to be a Tensor sized (B, C, H, W) or  (B, C, H, W, D).
-    The output of the predictor is a dictionary Dict[str, List[Tensor]]
+    The output of the predictor is a Dict[str, List[Tensor]]
 
     Args:
         network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
             and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
         network_output_keys: the keys in the output of the network.
         inferer: a SlidingWindowInferer to handle large inputs.
-
-    Notes:
-        Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
-        but any network that meets the following rules is a valid input ``network``.
-
-        #. Its input should be an image Tensor sized (B, C, H, W) or (B, C, H, W, D).
-        #. Its output should be Dict[str, List[Tensor]] or Dict[str, Tensor].
 
     Example:
         .. code-block:: python
