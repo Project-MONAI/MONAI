@@ -132,7 +132,7 @@ class DictPredictor(nn.Module):
                 head_outputs_standard[k] = [value_k]  # type: ignore
             elif isinstance(value_k[0], Tensor):
                 num_output_levels_list[i] = len(value_k)
-                head_outputs_standard[k] = value_k
+                head_outputs_standard[k] = list(value_k)
             else:
                 raise ValueError("The output of self.network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
 
