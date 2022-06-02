@@ -164,3 +164,8 @@ Applications
 ~~~~~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.detector_utils
     :members:
+
+`Predictor`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.retinanet_predictor
+    :members:
