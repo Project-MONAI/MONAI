@@ -19,7 +19,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         # full history so that we can git describe
         with:
           ref: dev
@@ -50,7 +50,7 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         ref: dev
     - name: Download version

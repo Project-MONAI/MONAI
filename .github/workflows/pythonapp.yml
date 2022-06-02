@@ -22,7 +22,7 @@ jobs:
   flake8-py3:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -63,7 +63,7 @@ jobs:
         minimum-size: 8
         maximum-size: 16
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -113,7 +113,7 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
@@ -196,7 +196,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:

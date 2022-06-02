@@ -27,7 +27,7 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -77,7 +77,7 @@ jobs:
         python-version: [3.7, 3.8, 3.9]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -122,7 +122,7 @@ jobs:
         pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
