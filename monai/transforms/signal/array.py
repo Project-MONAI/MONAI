@@ -111,7 +111,7 @@ class SignalRandShift(RandomizableTransform):
             v: scaling factor
             boundaries: list defining lower and upper boundaries for the signal shift, example : ``[-1.0, 1.0]``
         """
-        super(SignalRandShift, self).__init__()
+        super().__init__()
 
         self.filling = filling
         self.mode = mode
