@@ -168,11 +168,7 @@ class RetinaNetDetector(nn.Module):
     """
 
     def __init__(
-        self,
-        network,
-        anchor_generator: AnchorGenerator,
-        box_overlap_metric: Callable = box_iou,
-        debug: bool = False,
+        self, network, anchor_generator: AnchorGenerator, box_overlap_metric: Callable = box_iou, debug: bool = False
     ):
         super().__init__()
 
