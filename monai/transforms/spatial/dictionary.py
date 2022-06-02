@@ -2220,7 +2220,7 @@ class GridPatchd(MapTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         allow_missing_keys: don't raise exception if key is missing.
@@ -2246,7 +2246,7 @@ class GridPatchd(MapTransform):
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        filter_fn: Optional[Callable] = None,
+        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -2258,7 +2258,7 @@ class GridPatchd(MapTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
-            filter_fn=filter_fn,
+            threshold=threshold,
             pad_mode=pad_mode,
             **pad_kwargs,
         )
@@ -2304,7 +2304,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         allow_missing_keys: don't raise exception if key is missing.
@@ -2332,7 +2332,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        filter_fn: Optional[Callable] = None,
+        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
@@ -2345,7 +2345,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
-            filter_fn=filter_fn,
+            threshold=threshold,
             pad_mode=pad_mode,
             **pad_kwargs,
         )

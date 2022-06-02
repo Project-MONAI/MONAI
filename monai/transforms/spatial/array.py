@@ -2637,7 +2637,7 @@ class GridPatch(Transform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
@@ -2653,7 +2653,7 @@ class GridPatch(Transform):
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        filter_fn: Optional[Callable] = None,
+        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -2671,11 +2671,20 @@ class GridPatch(Transform):
             self.sort_fn = GridPatchSort.get_sort_fn(sort_fn)
         else:
             self.sort_fn = sort_fn
-        self.filter_fn = filter_fn or self.one_fn
+
+        self.threshold = threshold
+        if threshold:
+            self.filter_fn = self.threshold_fn
+        else:
+            self.filter_fn = self.one_fn
 
     @staticmethod
-    def one_fn(x):
+    def one_fn(patch):
         return True
+
+    @staticmethod
+    def threshold_fn(patch):
+        return patch.sum() < self.threshold
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
@@ -2731,7 +2740,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        filter_fn: a callable that receives each patch and returns a boolean to keep the patch (True) or not (False).
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
@@ -2748,7 +2757,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        filter_fn: Optional[Callable] = None,
+        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -2758,7 +2767,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
-            filter_fn=filter_fn,
+            threshold=threshold,
             pad_mode=pad_mode,
             **pad_kwargs,
         )
