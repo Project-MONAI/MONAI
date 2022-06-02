@@ -191,6 +191,8 @@ class RetinaNetDetector(nn.Module):
 
         # check if anchor_generator matches with network
         self.anchor_generator = anchor_generator
+        self.cache_anchors = None
+        self.cache_image_shape = None
         self.num_anchors_per_loc = self.anchor_generator.num_anchors_per_location()[0]
         if self.num_anchors_per_loc != self.network.num_anchors:
             raise ValueError(
@@ -224,8 +226,6 @@ class RetinaNetDetector(nn.Module):
             detections_per_img=300,
             apply_sigmoid=True,
         )
-        # can be updated by self.set_sliding_window_inferer(*), self.set_custom_inferer(*), self.switch_to_sliding_window_inferer(*).
-        self.use_inferer = False
 
     def set_box_coder_weights(self, weights: Tuple[float]):
         """
@@ -392,7 +392,12 @@ class RetinaNetDetector(nn.Module):
             head_outputs = predict_with_inferer(images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer)
 
         # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
-        anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
+        if (self.cache_anchors is not None) and (self.cache_image_shape is not None) and self.cache_image_shape == images.shape:
+            anchors = self.cache_anchors
+        else:
+            anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
+            self.cache_anchors = anchors
+            self.cache_image_shape = images.shape
         # num_anchor_locs_per_level: list of HW or HWD for each level
         num_anchor_locs_per_level = [x.shape[2:].numel() for x in head_outputs[self.cls_key]]
 
