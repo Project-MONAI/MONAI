@@ -16,12 +16,14 @@ from .dice import (
     DiceCELoss,
     DiceFocalLoss,
     DiceLoss,
+    GeneralizedDiceFocalLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
     dice_ce,
     dice_focal,
     generalized_dice,
+    generalized_dice_focal,
     generalized_wasserstein_dice,
 )
 from .focal_loss import FocalLoss

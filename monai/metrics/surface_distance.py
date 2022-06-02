@@ -15,7 +15,13 @@ from typing import Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    is_binary_tensor,
+)
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -73,14 +79,19 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            warnings.warn("y should be a binarized tensor.")
-        dims = y_pred.ndimension()
-        if dims < 3:
+        try:
+            msg = is_binary_tensor(y_pred)
+            if msg is not None:
+                warnings.warn("y_pred" + msg)
+        except ValueError as e:
+            raise ValueError("y_pred" + str(e)) from e
+        try:
+            msg = is_binary_tensor(y)
+            if msg is not None:
+                warnings.warn("y" + msg)
+        except ValueError as e:
+            raise ValueError("y_pred" + str(e)) from e
+        if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
