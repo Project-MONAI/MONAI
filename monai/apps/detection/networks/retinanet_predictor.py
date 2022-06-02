@@ -19,38 +19,48 @@ from monai.inferers import SlidingWindowInferer
 
 def convert_dict_value_to_list(head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
     """
-    We expect the output of self.network ``head_outputs`` to be Dict[str, List[Tensor]].
+    We expect ``head_outputs`` to be Dict[str, List[Tensor]].
     Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
 
     Args:
-        head_outputs: the outputs of self.network. Dict[str, List[Tensor]] or Dict[str, Tensor]
+        head_outputs: a Dict[str, List[Tensor]] or Dict[str, Tensor]
 
     Return:
         a Dict[str, List[Tensor]]
     """
-    num_output_levels_list: List[int] = [1] * len(
-        head_outputs.keys()
-    )  # num_output_levels for each value in head_outputs
     head_outputs_standard: Dict[str, List[Tensor]] = {}
     for i, k in enumerate(head_outputs.keys()):
         value_k = head_outputs[k]  # Tensor or List[Tensor]
         # convert value_k to List[Tensor]
         if isinstance(value_k, Tensor):
-            num_output_levels_list[i] = 1
             head_outputs_standard[k] = [value_k]  # type: ignore
         elif isinstance(value_k[0], Tensor):
-            num_output_levels_list[i] = len(value_k)
             head_outputs_standard[k] = list(value_k)
         else:
             raise ValueError("The output of network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
 
+    return head_outputs_standard  # type: ignore
+
+
+def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]]) -> None:
+    """
+    We expect the values in ``head_outputs``: Dict[str, List[Tensor]] to have the same length.
+    Will raise ValueError if not.
+
+    Args:
+        head_outputs: a Dict[str, List[Tensor]] or Dict[str, Tensor]
+    """
+    num_output_levels_list: List[int] = [1] * len(
+        head_outputs.keys()
+    )  # num_output_levels for each value in head_outputs
+    for i, k in enumerate(head_outputs.keys()):
+        num_output_levels_list[i] = len(head_outputs[k])
+
     num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
     if len(num_output_levels) != 1:
-        raise ValueError(
-            f"The values in the output of network should have the same length, Got {num_output_levels_list}."
-        )
+        raise ValueError(f"The values in the input dict should have the same length, Got {num_output_levels_list}.")
 
-    return head_outputs_standard  # type: ignore
+    return
 
 
 def _network_sequence_output(images: Tensor, network, keys: List[str]) -> List[Tensor]:
@@ -64,6 +74,7 @@ def _network_sequence_output(images: Tensor, network, keys: List[str]) -> List[T
         network output list
     """
     head_outputs = convert_dict_value_to_list(network(images))
+    check_dict_values_same_length(head_outputs)
     head_outputs_sequence = []
     for k in keys:
         head_outputs_sequence += list(head_outputs[k])
@@ -197,4 +208,6 @@ class DictPredictor(nn.Module):
         Return:
             The output of the network, Dict[str, List[Tensor]]
         """
-        return convert_dict_value_to_list(self.network(images))
+        head_outputs = convert_dict_value_to_list(self.network(images))
+        check_dict_values_same_length(head_outputs)
+        return head_outputs
