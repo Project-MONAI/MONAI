@@ -159,3 +159,13 @@ Applications
 ~~~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.box_coder
     :members:
+
+`Detector utils`
+~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.detector_utils
+    :members:
+
+`Detector box selector`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_selector
+    :members:
