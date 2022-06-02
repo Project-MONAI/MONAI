@@ -198,7 +198,8 @@ class RetinaNetDetector(nn.Module):
                 f"Number of feature map channels ({self.network.num_anchors}) "
                 f"should match with number of anchors at each location ({self.num_anchors_per_loc})."
             )
-        # if new coming input images has same shape with self.previous_image_shape, there is no need to generate new anchors.
+        # if new coming input images has same shape with
+        # self.previous_image_shape, there is no need to generate new anchors.
         self.anchors: Union[List[Tensor], None] = None
         self.previous_image_shape: Union[Any, None] = None
 
@@ -350,8 +351,7 @@ class RetinaNetDetector(nn.Module):
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
             if not hasattr(self, "proposal_matcher"):
                 raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or "
-                    "self.set_atss_matcher(*)."
+                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or " "self.set_atss_matcher(*)."
                 )
             if self.fg_bg_sampler is None and self.debug:
                 warnings.warn(
