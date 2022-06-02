@@ -428,7 +428,7 @@ class RetinaNetDetector(nn.Module):
                 A = self.num_anchors_per_loc
 
         Return:
-            reshaped and concatenated result, sized (B, sum(HWA), num_channel) or (B, sum(HWDA), num_channel)            
+            reshaped and concatenated result, sized (B, sum(HWA), num_channel) or (B, sum(HWDA), num_channel)
         """
         all_reshaped_result_map = []
 
