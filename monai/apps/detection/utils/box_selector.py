@@ -190,7 +190,9 @@ class BoxSelector:
             boxes_per_level = boxes_per_level[topk_idxs]
 
             keep: Tensor
-            boxes_per_level, keep = clip_boxes_to_image(boxes_per_level, spatial_size, remove_empty=True)  # type: ignore
+            boxes_per_level, keep = clip_boxes_to_image(
+                boxes_per_level, spatial_size, remove_empty=True
+            )  # type: ignore
             image_boxes.append(boxes_per_level)
             image_scores.append(scores_per_level[keep])
             image_labels.append(labels_per_level[keep])
