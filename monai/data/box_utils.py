@@ -983,6 +983,8 @@ def spatial_crop_boxes(
         for axis in range(1, spatial_dims):
             keep_t = keep_t & (boxes_t[:, axis + spatial_dims] >= boxes_t[:, axis] + 1 - TO_REMOVE)
         boxes_t = boxes_t[keep_t]
+    else:
+        keep_t = torch.full_like(boxes_t[:, 0], fill_value=True, dtype=torch.bool)
 
     # convert tensor back to numpy if needed
     boxes_keep, *_ = convert_to_dst_type(src=boxes_t, dst=boxes)

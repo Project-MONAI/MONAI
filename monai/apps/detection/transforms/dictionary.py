@@ -14,10 +14,9 @@ defined in :py:class:`monai.apps.detection.transforms.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
-
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Union
+from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -30,15 +29,19 @@ from monai.apps.detection.transforms.array import (
     ConvertBoxToStandardMode,
     FlipBox,
     MaskToBox,
+    SpatialCropBox,
     ZoomBox,
 )
+from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import COMPUTE_DTYPE, BoxMode
+from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import Flip, RandFlip, RandZoom, SpatialPad, Zoom
+from monai.transforms import Flip, RandFlip, RandZoom, SpatialCrop, SpatialPad, Zoom
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
+from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
@@ -74,6 +77,9 @@ __all__ = [
     "MaskToBoxd",
     "MaskToBoxD",
     "MaskToBoxDict",
+    "RandCropBoxByPosNegLabeld",
+    "RandCropBoxByPosNegLabelD",
+    "RandCropBoxByPosNegLabelDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -935,6 +941,226 @@ class MaskToBoxd(MapTransform):
         return d
 
 
+class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
+    """
+    Crop random fixed sized regions that contains foreground boxes.
+    Suppose all the expected fields specified by `image_keys` have same shape,
+    and add `patch_index` to the corresponding meta data.
+    And will return a list of dictionaries for all the cropped images.
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected size,
+    and the cropped results of several images may not have exactly the same shape.
+
+    Args:
+        image_keys: Keys to pick image data for transformation. They need to have the same spatial size.
+        box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        num_samples: number of samples (crop regions) to take in each list.
+        whole_box: Bool, default True, whether we prefer to contain at least one whole box in the cropped foreground patch.
+            Even if True, it is still possible to get partial box if there are multiple boxes in the image.
+        thresh_image_key: if thresh_image_key is not None, use ``label == 0 & thresh_image > image_threshold`` to select
+            the negative sample(background) center. so the crop center will only exist on valid image area.
+        image_threshold: if enabled thresh_image_key, use ``thresh_image > image_threshold`` to determine
+            the valid image content area.
+        fg_indices_key: if provided pre-computed foreground indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        bg_indices_key: if provided pre-computed background indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            used to add `patch_index` to the meta dict.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: str,
+        label_keys: KeysCollection,
+        spatial_size: Union[Sequence[int], int],
+        pos: float = 1.0,
+        neg: float = 1.0,
+        num_samples: int = 1,
+        whole_box: bool = True,
+        thresh_image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        fg_indices_key: Optional[str] = None,
+        bg_indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        allow_smaller: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        if len(self.image_keys) < 1:
+            raise ValueError("At least one image_keys should be provided.")
+
+        MapTransform.__init__(self, self.image_keys, allow_missing_keys)
+
+        box_keys_tuple = ensure_tuple(box_keys)
+        if len(box_keys_tuple) != 1:
+            raise ValueError(
+                "Please provide a single key for box_keys.\
+                All label_keys are attached to this box_keys."
+            )
+        self.box_keys = box_keys_tuple[0]
+        self.label_keys = ensure_tuple(label_keys)
+
+        self.spatial_size_: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
+
+        if pos < 0 or neg < 0:
+            raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
+        if pos + neg == 0:
+            raise ValueError("Incompatible values: pos=0 and neg=0.")
+        self.pos_ratio = pos / (pos + neg)
+        if num_samples < 1:
+            raise ValueError(f"num_samples needs to be positive int, got num_samples={num_samples}.")
+        self.num_samples = num_samples
+        self.whole_box = whole_box
+
+        self.thresh_image_key = thresh_image_key
+        self.image_threshold = image_threshold
+        self.fg_indices_key = fg_indices_key
+        self.bg_indices_key = bg_indices_key
+
+        self.meta_keys = ensure_tuple_rep(None, len(self.image_keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.image_keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.image_keys))
+        self.centers: Optional[List[List[int]]] = None
+        self.allow_smaller = allow_smaller
+
+    def generate_fg_center_boxes_np(self, boxes: NdarrayOrTensor, image_size: Sequence[int]) -> np.ndarray:
+        # We don't require crop center to be whthin the boxes.
+        # As along as the cropped patch contains a box, it is considered as a foreground patch.
+        # Positions within extended_boxes are crop centers for foreground patches
+        spatial_dims = len(image_size)
+        boxes_np, *_ = convert_data_type(boxes, np.ndarray)
+
+        extended_boxes = np.zeros_like(boxes_np, dtype=int)
+        boxes_start = np.ceil(boxes_np[:, :spatial_dims]).astype(int)
+        boxes_stop = np.floor(boxes_np[:, spatial_dims:]).astype(int)
+        for axis in range(spatial_dims):
+            if not self.whole_box:
+                extended_boxes[:, axis] = boxes_start[:, axis] - self.spatial_size[axis] // 2 + 1
+                extended_boxes[:, axis + spatial_dims] = boxes_stop[:, axis] + self.spatial_size[axis] // 2 - 1
+            else:
+                # extended box start
+                extended_boxes[:, axis] = boxes_stop[:, axis] - self.spatial_size[axis] // 2 - 1
+                extended_boxes[:, axis] = np.minimum(extended_boxes[:, axis], boxes_start[:, axis])
+                # extended box stop
+                extended_boxes[:, axis + spatial_dims] = extended_boxes[:, axis] + self.spatial_size[axis] // 2
+                extended_boxes[:, axis + spatial_dims] = np.maximum(
+                    extended_boxes[:, axis + spatial_dims], boxes_stop[:, axis]
+                )
+        extended_boxes, _ = clip_boxes_to_image(extended_boxes, image_size, remove_empty=True)  # type: ignore
+        return extended_boxes
+
+    def randomize(  # type: ignore
+        self,
+        boxes: NdarrayOrTensor,
+        image_size: Sequence[int],
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+        thresh_image: Optional[NdarrayOrTensor] = None,
+    ) -> None:
+        if fg_indices is None or bg_indices is None:
+            # We don't require crop center to be whthin the boxes.
+            # As along as the cropped patch contains a box, it is considered as a foreground patch.
+            # Positions within extended_boxes are crop centers for foreground patches
+            extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
+            mask_img = convert_box_to_mask(
+                extended_boxes_np, np.ones(extended_boxes_np.shape[0]), image_size, bg_label=0, ellipse_mask=False
+            )
+            mask_img = np.amax(mask_img, axis=0, keepdims=True)[0:1, ...]
+            fg_indices_, bg_indices_ = map_binary_to_indices(mask_img, thresh_image, self.image_threshold)
+        else:
+            fg_indices_ = fg_indices
+            bg_indices_ = bg_indices
+
+        self.centers = generate_pos_neg_label_crop_centers(
+            self.spatial_size,
+            self.num_samples,
+            self.pos_ratio,
+            image_size,
+            fg_indices_,
+            bg_indices_,
+            self.R,
+            self.allow_smaller,
+        )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        spatial_dims = len(d[self.image_keys[0]].shape) - 1
+        image_size = d[self.image_keys[0]].shape[1:]
+        self.spatial_size = ensure_tuple_rep(self.spatial_size_, spatial_dims)
+
+        # randomly sample crop centers
+        boxes = d[self.box_keys]
+        labels = [d[label_key] for label_key in self.label_keys]  # could be multiple arrays
+        fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
+        bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        thresh_image = d[self.thresh_image_key] if self.thresh_image_key else None
+        self.randomize(boxes, image_size, fg_indices, bg_indices, thresh_image)
+
+        if self.centers is None:
+            raise ValueError("no available ROI centers to crop.")
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
+
+        # crop images and boxes for each center.
+        for i, center in enumerate(self.centers):
+            results[i] = deepcopy(d)
+            # compute crop start and end, always crop, no padding
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            crop_start = [max(s.start, 0) for s in cropper.slices]
+            crop_end = [min(s.stop, image_size_a) for s, image_size_a in zip(cropper.slices, image_size)]
+            crop_slices = [slice(int(s), int(e)) for s, e in zip(crop_start, crop_end)]
+
+            # crop images
+            cropper = SpatialCrop(roi_slices=crop_slices)
+            for image_key in self.image_keys:
+                results[i][image_key] = cropper(d[image_key])
+
+            # crop boxes and labels
+            boxcropper = SpatialCropBox(roi_slices=crop_slices)
+            results[i][self.box_keys], cropped_labels = boxcropper(boxes, labels)
+            for label_key, cropped_labels_i in zip(self.label_keys, cropped_labels):
+                results[i][label_key] = cropped_labels_i
+
+            # add `patch_index` to the meta data
+            for key, meta_key, meta_key_postfix in zip(self.image_keys, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
+
+        return results
+
+
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
@@ -945,3 +1171,4 @@ RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
 ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
 BoxToMaskD = BoxToMaskDict = BoxToMaskd
 MaskToBoxD = MaskToBoxDict = MaskToBoxd
+RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
