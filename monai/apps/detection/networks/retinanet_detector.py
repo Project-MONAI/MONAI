@@ -351,7 +351,7 @@ class RetinaNetDetector(nn.Module):
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
             if not hasattr(self, "proposal_matcher"):
                 raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or " "self.set_atss_matcher(*)."
+                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
                 )
             if self.fg_bg_sampler is None and self.debug:
                 warnings.warn(
