@@ -50,7 +50,7 @@ from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.apps.detection.utils.box_selector import BoxSelector
 from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images
-from monai.data import box_utils
+from monai.data.box_utils import box_iou
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
 from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep
@@ -171,9 +171,8 @@ class RetinaNetDetector(nn.Module):
         self,
         network,
         anchor_generator: AnchorGenerator,
-        box_overlap_metric: Callable = box_utils.box_iou,
+        box_overlap_metric: Callable = box_iou,
         debug: bool = False,
-        **kwargs,
     ):
         super().__init__()
 
