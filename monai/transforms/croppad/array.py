@@ -695,7 +695,7 @@ class CropForeground(Transform):
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
         mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
+        **pad_kwargs,
     ) -> None:
         """
         Args:
@@ -715,8 +715,8 @@ class CropForeground(Transform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-            np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-                more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         self.select_fn = select_fn
@@ -726,7 +726,7 @@ class CropForeground(Transform):
         self.return_coords = return_coords
         self.k_divisible = k_divisible
         self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.np_kwargs = np_kwargs
+        self.pad_kwargs = pad_kwargs
 
     def compute_bounding_box(self, img: NdarrayOrTensor):
         """
@@ -762,9 +762,9 @@ class CropForeground(Transform):
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.np_kwargs)(cropped)
+        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.pad_kwargs)(cropped)
 
-    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None):
+    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
@@ -851,6 +851,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -903,7 +905,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         allow_smaller: bool = False,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
             raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
@@ -925,7 +927,6 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
                 fg_indices_ = self.fg_indices
@@ -979,7 +980,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
+                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
                 results.append(cropper(img))
 
         return results
@@ -1021,6 +1023,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
     If a dimension of the expected spatial size is bigger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
+    And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
+    valid crop ROI.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -1061,7 +1065,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         indices: Optional[List[NdarrayOrTensor]] = None,
         allow_smaller: bool = False,
     ) -> None:
-        self.spatial_size = ensure_tuple(spatial_size)
+        self.spatial_size = spatial_size
         self.ratios = ratios
         self.label = label
         self.num_classes = num_classes
@@ -1078,7 +1082,6 @@ class RandCropByLabelClasses(Randomizable, Transform):
         indices: Optional[List[NdarrayOrTensor]] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.spatial_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
             if self.indices is not None:
@@ -1119,7 +1122,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for center in self.centers:
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+                roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
                 results.append(cropper(img))
 
         return results
@@ -1135,14 +1139,16 @@ class ResizeWithPadOrCrop(Transform):
     Args:
         spatial_size: the spatial size of output data after padding or crop.
             If has non-positive values, the corresponding size of input image will be used (no padding).
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function for padding. Defaults to ``"constant"``.
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -1151,23 +1157,26 @@ class ResizeWithPadOrCrop(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
-        **np_kwargs,
+        **pad_kwargs,
     ):
-        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **np_kwargs)
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, str]] = None) -> NdarrayOrTensor:
+    def __call__(
+        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
                 padding or cropping doesn't apply to the channel dim.
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function for padding.
-                If None, defaults to the ``mode`` in construction.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         """
         return self.padder(self.cropper(img), mode=mode)
 

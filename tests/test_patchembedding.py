@@ -13,10 +13,11 @@ import unittest
 from unittest import skipUnless
 
 import torch
+import torch.nn as nn
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
+from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
@@ -47,6 +48,26 @@ for dropout_rate in (0.5,):
                                 if nd == 2:
                                     test_case[0]["spatial_dims"] = 2  # type: ignore
                                 TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
+
+TEST_CASE_PATCHEMBED = []
+for patch_size in [2]:
+    for in_chans in [1, 4]:
+        for img_size in [96]:
+            for embed_dim in [6, 12]:
+                for norm_layer in [nn.LayerNorm]:
+                    for nd in [2, 3]:
+                        test_case = [
+                            {
+                                "patch_size": (patch_size,) * nd,
+                                "in_chans": in_chans,
+                                "embed_dim": embed_dim,
+                                "norm_layer": norm_layer,
+                                "spatial_dims": nd,
+                            },
+                            (2, in_chans, *([img_size] * nd)),
+                            (2, embed_dim, *([img_size // patch_size] * nd)),
+                        ]
+                        TEST_CASE_PATCHEMBED.append(test_case)
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
@@ -113,6 +134,20 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 pos_embed="perc",
                 dropout_rate=0.3,
             )
+
+
+class TestPatchEmbed(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_PATCHEMBED)
+    @skipUnless(has_einops, "Requires einops")
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = PatchEmbed(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            PatchEmbed(patch_size=(2, 2, 2), in_chans=1, embed_dim=24, norm_layer=nn.LayerNorm, spatial_dims=5)
 
 
 if __name__ == "__main__":
