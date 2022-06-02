@@ -28,7 +28,7 @@ class DictPredictor(nn.Module):
     Args:
         network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
             and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
-        network_output_keys: the keys in the output of the the network.
+        network_output_keys: the keys in the output of the network.
         inferer: a SlidingWindowInferer to handle large inputs.
 
     Notes:
@@ -118,7 +118,7 @@ class DictPredictor(nn.Module):
 
     def _ensure_network_outputs_values_list(self, head_outputs: Dict[str, List[Tensor]]) -> Dict[str, List[Tensor]]:
         """
-        We expect the output of self.network to be Dict[str, List[Tensor]].
+        We expect the output of self.network ``head_outputs`` to be Dict[str, List[Tensor]].
         Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
 
         Args:
