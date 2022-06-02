@@ -111,10 +111,10 @@ class TestPredictor(unittest.TestCase):
 
         with eval_mode(predictor):
             input_data = torch.randn(input_shape)
-            result = predictor.inference(input_data, use_inferer=False)
+            result = predictor(input_data)
             assert len(result["cls"]) == 2
 
-            result = predictor.inference(input_data, use_inferer=True)
+            result = predictor.forward_with_inferer(input_data)
             assert len(result["cls"]) == 2
 
     @parameterized.expand(TEST_CASES_TS)

@@ -71,9 +71,9 @@ class DictPredictor(nn.Module):
         self.inferer = inferer
         self.num_output_levels: int = 1
 
-    def inference(self, images: Tensor, use_inferer: bool = False) -> Dict[str, List[Tensor]]:
+    def forward_with_inferer(self, images: Tensor) -> Dict[str, List[Tensor]]:
         """
-        Compute the inference output of network. It can use self.inferer,
+        Compute the output of network using self.inferer,
         a :class:`~monai.inferers.inferer.SlidingWindowInferer`,
         to handle large input data.
 
@@ -82,15 +82,10 @@ class DictPredictor(nn.Module):
 
         Args:
             images: input of the network, Tensor sized (B, C, H, W) or  (B, C, H, W, D)
-            use_inferer: whether to use self.inferer.
 
         Return:
             The output of the network, Dict[str, List[Tensor]]
         """
-        # if not use_inferer, directly forward the network
-        if not use_inferer:
-            return self._ensure_network_outputs_values_list(self.network(images))
-
         # if use_inferer, we need to decompose the output dict into sequence,
         # then do infererence, finally reconstruct dict.
         if self.inferer is None:
@@ -103,7 +98,7 @@ class DictPredictor(nn.Module):
 
     def forward(self, images: Tensor) -> Dict[str, List[Tensor]]:
         """
-        Compute the training output of network.
+        Compute the output of network without using any inferer.
         We expect the output of self.network to be Dict[str, List[Tensor]].
         Yet if it is Dict[str, Tensor], it will be converted to Dict[str, List[Tensor]].
 
