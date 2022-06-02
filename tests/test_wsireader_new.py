@@ -14,7 +14,6 @@ import unittest
 from unittest import skipUnless
 
 import numpy as np
-import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
@@ -23,7 +22,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
-from tests.utils import download_url_or_skip_test, testing_data_config, assert_allclose
+from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")

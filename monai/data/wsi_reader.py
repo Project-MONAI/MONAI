@@ -18,7 +18,6 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import AsChannelFirst
 from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
@@ -138,8 +137,8 @@ class BaseWSIReader(ImageReader):
 
         """
         if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
-            ValueError(f"The desired channel_dim ({channel_dim}) is out of bound for image shape: {patch.shape}")
-        channel_dim = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
+            ValueError(f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}")
+        channel_dim: int = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
         metadata: Dict = {
             "backend": self.backend,
             "original_channel_dim": channel_dim,
