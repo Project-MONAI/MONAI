@@ -45,11 +45,11 @@ import torch
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
-from monai.apps.detection.utils.predict_utils import ensure_dict_value_to_list_, predict_with_inferer
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.apps.detection.utils.box_selector import BoxSelector
 from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images
+from monai.apps.detection.utils.predict_utils import ensure_dict_value_to_list_, predict_with_inferer
 from monai.data.box_utils import box_iou
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
@@ -215,7 +215,7 @@ class RetinaNetDetector(nn.Module):
 
         # default setting for inference,
         # can be updated by self.set_sliding_window_inferer(*) and self.switch_to_sliding_window_inferer(*)
-        self.inferer=None
+        self.inferer = None
         self.use_inferer = False
         # can be updated by self.set_box_selector_parameters(*),
         self.box_selector = BoxSelector(
@@ -299,14 +299,12 @@ class RetinaNetDetector(nn.Module):
         if use_inferer:
             if self.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined."
-                    "Please refer to function self.set_sliding_window_inferer(*)."
+                    "`self.inferer` is not defined." "Please refer to function self.set_sliding_window_inferer(*)."
                 )
             else:
                 self.use_inferer = True
         else:
             self.use_inferer = False
-
 
     def set_box_selector_parameters(
         self,
@@ -389,10 +387,16 @@ class RetinaNetDetector(nn.Module):
             head_outputs = self.network(images)
             ensure_dict_value_to_list_(head_outputs)
         else:
-            head_outputs = predict_with_inferer(images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer)
+            head_outputs = predict_with_inferer(
+                images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
+            )
 
         # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
-        if (self.cache_anchors is not None) and (self.cache_image_shape is not None) and self.cache_image_shape == images.shape:
+        if (
+            (self.cache_anchors is not None)
+            and (self.cache_image_shape is not None)
+            and self.cache_image_shape == images.shape
+        ):
             anchors = self.cache_anchors
         else:
             anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
