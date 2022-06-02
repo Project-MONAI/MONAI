@@ -559,7 +559,14 @@ The following figure shows the registration of CT images acquired at different t
 
 ![3d registration](../images/3d_paired.png)
 
-### 6. Reproducing the state-of-the-art Kaggle competition solutions
+### 6. 2D and 3D detection workflow
+The [implementation](https://github.com/Project-MONAI/MONAI/tree/dev/monai/apps/detection) contains 2D and 3D bounding box detection components of `RetinaNet`, which includes：bounding box operations, hard negative sampler, [ATSS matcher](https://openaccess.thecvf.com/content_CVPR_2020/papers/Zhang_Bridging_the_Gap_Between_Anchor-Based_and_Anchor-Free_Detection_via_Adaptive_CVPR_2020_paper.pdf), [RetinaNet detector](https://openaccess.thecvf.com/content_ICCV_2017/papers/Lin_Focal_Loss_for_ICCV_2017_paper.pdf).
+
+The following figure shows the detection training and inference workfows:
+
+![detection workflow](../images/detection.png)
+
+### 7. Reproducing the state-of-the-art Kaggle competition solutions
 [A reimplementation](https://github.com/Project-MONAI/tutorials/tree/master/kaggle/RANZCR/4th_place_solution) of the 4th place solution of RANZCR CLiP - Catheter and Line Position Challenge in Kaggle: https://www.kaggle.com/c/ranzcr-clip-catheter-line-classification
 
 The original solution is produced by Team Watercooled, and the authors are Dieter (https://www.kaggle.com/christofhenkel) and Psi (https://www.kaggle.com/philippsinger).
