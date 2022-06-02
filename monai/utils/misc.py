@@ -90,9 +90,7 @@ def issequenceiterable(obj: Any) -> bool:
     """
     try:
         if hasattr(obj, "ndim") and obj.ndim == 0:
-            return False
-        if isinstance(obj, torch.Tensor):
-            return int(obj.dim()) > 0  # a 0-d tensor is not iterable
+            return False  # a 0-d tensor is not iterable
     except Exception:
         return False
     return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
