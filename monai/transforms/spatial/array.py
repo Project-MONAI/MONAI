@@ -2682,8 +2682,7 @@ class GridPatch(Transform):
     def one_fn(patch):
         return True
 
-    @staticmethod
-    def threshold_fn(patch):
+    def threshold_fn(self, patch):
         return patch.sum() < self.threshold
 
     def __call__(self, array: NdarrayOrTensor):
