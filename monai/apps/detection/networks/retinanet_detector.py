@@ -391,14 +391,17 @@ class RetinaNetDetector(nn.Module):
                 images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer
             )
 
-        # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
+        # 4. Generate anchors
         if (
             (self.cache_anchors is not None)
             and (self.cache_image_shape is not None)
             and self.cache_image_shape == images.shape
         ):
+            # if the imgae shape has not changed, we can use cached anchors
             anchors = self.cache_anchors
         else:
+            # if there is no cached anchors or the cached image shape does not agree with the new images,
+            # we generate new anchors and cache it
             anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize
             self.cache_anchors = anchors
             self.cache_image_shape = images.shape
