@@ -88,10 +88,10 @@ class BoxSelector:
         self,
         box_overlap_metric: Callable = box_iou,
         apply_sigmoid: bool = True,
-        score_thresh=0.05,
-        topk_candidates_per_level=1000,
-        nms_thresh=0.5,
-        detections_per_img=300,
+        score_thresh: float = 0.05,
+        topk_candidates_per_level: int = 1000,
+        nms_thresh: float = 0.5,
+        detections_per_img: int = 300,
     ):
         self.box_overlap_metric = box_overlap_metric
 
