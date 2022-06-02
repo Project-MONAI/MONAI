@@ -189,7 +189,7 @@ class ATSSMatcher(Matcher):
         self.center_in_gt = center_in_gt
         self.debug = debug
         logging.info(
-            f"Running ATSS Matching with num_candidates={self.num_candidates} and center_in_gt {self.center_in_gt}."
+            f"Running ATSS Matching with num_candidates={self.num_candidates} " f"and center_in_gt {self.center_in_gt}."
         )
 
     def compute_matches(
