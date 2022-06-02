@@ -303,7 +303,7 @@ class RetinaNetDetector(nn.Module):
         if use_inferer:
             if self.predictor.inferer is None:
                 raise ValueError(
-                    "`self.inferer` is not defined."
+                    "`self.predictor.inferer` is not defined."
                     "Please refer to function self.set_sliding_window_inferer(*) or self.set_custom_inferer(*)."
                 )
             else:
@@ -324,14 +324,14 @@ class RetinaNetDetector(nn.Module):
         Using for inference. Set the parameters that are used for box selection during inference.
         The box selection is performed with the following steps:
 
-            1) Discard boxes with scores less than self.score_thresh
-            2) Keep boxes with top self.topk_candidates scores for each level
-            3) Perform non-maximum suppression (NMS) on remaining boxes for each image, with overapping threshold nms_thresh.
-            4) Keep boxes with top self.detections_per_img scores for each image
+        #. For each level, discard boxes with scores less than self.score_thresh.
+        #. For each level, keep boxes with top self.topk_candidates_per_level scores.
+        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+        #. For the whole image, keep boxes with top self.detections_per_img scores.
 
         Args:
             score_thresh: no box with scores less than score_thresh will be kept
-            topk_candidates: max number of boxes to keep for each level
+            topk_candidates_per_level: max number of boxes to keep for each level
             nms_thresh: box overlapping threshold for NMS
             detections_per_img: max number of boxes to keep for each image
         """
@@ -468,13 +468,7 @@ class RetinaNetDetector(nn.Module):
     ) -> List[Dict[str, Tensor]]:
         """
         Postprocessing to generate detection result from classification logits and box regression.
-
-        The box selection is performed with the following steps:
-
-            1) Discard boxes with scores less than self.score_thresh
-            2) Keep boxes with top self.topk_candidates scores for each level
-            3) Perform non-maximum suppression on remaining boxes for each image, with overapping threshold nms_thresh.
-            4) Keep boxes with top self.detections_per_img scores for each image
+        Use self.box_selector to select the final outut boxes for each image.
 
         Args:
             head_outputs_reshape: reshaped head_outputs. ``head_output_reshape[self.cls_key]`` is a Tensor
@@ -513,8 +507,9 @@ class RetinaNetDetector(nn.Module):
             box_regression_per_image = [
                 br[index] for br in box_regression
             ]  # List[Tensor], each sized (HWA, 2*spatial_dims)
-            logits_per_image = [cl[index] for cl in class_logits]  # List[Tensor], each sized (HWA, 2*spatial_dims)
+            logits_per_image = [cl[index] for cl in class_logits]  # List[Tensor], each sized (HWA, self.num_classes)
             anchors_per_image, img_spatial_size = split_anchors[index], image_sizes[index]
+            # decode box regression into boxes
             boxes_per_image = [
                 self.box_coder.decode_single(b.to(torch.float32), a).to(compute_dtype)
                 for b, a in zip(box_regression_per_image, anchors_per_image)
