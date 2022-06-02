@@ -76,19 +76,19 @@ class HardNegativeSamplerBase(ABC):
             binary mask of negative samples to choose, sized (A,),
                 where A is the the number of samples in one image
         """
-        if negative.shape[0] > fg_probs.shape[0]:
+        if negative.numel() > fg_probs.numel():
             raise ValueError("The number of negative samples should not be larger than the number of all samples.")
 
         # sample pool size is ``num_neg * self.pool_size``
         pool = int(num_neg * self.pool_size)
-        pool = min(negative.shape[0], pool)  # protect against not enough negatives
+        pool = min(negative.numel(), pool)  # protect against not enough negatives
 
         # create a sample pool of highest scoring negative samples
         _, negative_idx_pool = fg_probs[negative].to(torch.float32).topk(pool, dim=0, sorted=True)
         hard_negative = negative[negative_idx_pool]
 
         # select negatives from pool
-        perm2 = torch.randperm(hard_negative.shape[0], device=hard_negative.device)[:num_neg]
+        perm2 = torch.randperm(hard_negative.numel(), device=hard_negative.device)[:num_neg]
         selected_neg_idx = hard_negative[perm2]
 
         # output a binary mask with same size of fg_probs that indicates selected negative samples.
@@ -103,11 +103,10 @@ class HardNegativeSampler(HardNegativeSamplerBase):
     During training, it select negative samples with high prediction scores.
 
     The training workflow is described as the follows:
-
-    #. forward network and get prediction scores (classification prob/logits) for all the samples;
-    #. use hard negative sampler to choose negative samples with high prediction scores and some positive samples;
-    #. compute classification loss for the selected samples;
-    #. do back propagation.
+    1) forward network and get prediction scores (classification prob/logits) for all the samples;
+    2) use hard negative sampler to choose negative samples with high prediction scores and some positive samples;
+    3) compute classification loss for the selected samples;
+    4) do back propagation.
 
     Args:
         batch_size_per_image: number of training samples to be randomly selected per image
@@ -215,7 +214,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         Args:
             labels_per_img: labels, sized (A,).
                 Positive samples have positive labels, negative samples have label 0.
-            fg_probs_per_img: maximum foreground probability, sized (A, )
+            fg_probs_per_img: maximum foreground probability, sized (A,)
 
         Returns:
             - binary mask for positive samples, sized (A,)
@@ -234,10 +233,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         """
         # for each image, find positive sample incides and negative sample indices
         if labels_per_img.numel() != fg_probs_per_img.numel():
-            raise ValueError(
-                f"labels_per_img and fg_probs_per_img should have same number of elements. "
-                f"labels_per_img.shape={labels_per_img.shape}, fg_probs_per_img.shape={fg_probs_per_img.shape}"
-            )
+            raise ValueError("labels_per_img and fg_probs_per_img should have same number of elements.")
 
         positive = torch.where(labels_per_img >= 1)[0]
         negative = torch.where(labels_per_img == 0)[0]
@@ -301,7 +297,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
         if positive.numel() > labels.numel():
             raise ValueError("The number of positive samples should not be larger than the number of all samples.")
 
-        perm1 = torch.randperm(positive.shape[0], device=positive.device)[:num_pos]
+        perm1 = torch.randperm(positive.numel(), device=positive.device)[:num_pos]
         pos_idx_per_image = positive[perm1]
 
         # output a binary mask with same size of labels that indicates selected positive samples.
