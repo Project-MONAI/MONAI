@@ -22,7 +22,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
