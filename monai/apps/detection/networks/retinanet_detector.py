@@ -45,7 +45,7 @@ import torch
 from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
-from monai.apps.detection.networks.retinanet_predictor import DictPredictor
+from monai.apps.detection.utils.predict_utils import ensure_dict_value_to_list_, predict_with_inferer
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.apps.detection.utils.box_selector import BoxSelector
@@ -213,9 +213,7 @@ class RetinaNetDetector(nn.Module):
 
         # default setting for inference,
         # can be updated by self.set_sliding_window_inferer(*)
-        self.predictor = DictPredictor(
-            network=self.network, network_output_keys=[self.cls_key, self.box_reg_key], inferer=None
-        )
+        self.inferer=None
         # can be updated by self.set_box_selector_parameters(*),
         self.box_selector = BoxSelector(
             box_overlap_metric=self.box_overlap_metric,
@@ -225,7 +223,7 @@ class RetinaNetDetector(nn.Module):
             detections_per_img=300,
             apply_sigmoid=True,
         )
-        # can be updated by self.set_sliding_window_inferer(*), self.set_custom_inferer(*), self.switch_to_inferer(*).
+        # can be updated by self.set_sliding_window_inferer(*), self.set_custom_inferer(*), self.switch_to_sliding_window_inferer(*).
         self.use_inferer = False
 
     def set_box_coder_weights(self, weights: Tuple[float]):
@@ -281,12 +279,9 @@ class RetinaNetDetector(nn.Module):
             progress,
             cache_roi_weight_map,
         )
-        self.predictor = DictPredictor(
-            network=self.network, network_output_keys=[self.cls_key, self.box_reg_key], inferer=inferer
-        )
-        return
+        self.inferer = inferer
 
-    def switch_to_inferer(self, use_inferer: bool = False):
+    def switch_to_sliding_window_inferer(self, use_inferer: bool = False):
         """
         Choose whether to use inferer.
 
@@ -301,16 +296,16 @@ class RetinaNetDetector(nn.Module):
                 ``self.set_sliding_window_inferer(*args)`` or ``self.set_custom_inferer(*args)`` to have been called before.
         """
         if use_inferer:
-            if self.predictor.inferer is None:
+            if self.inferer is None:
                 raise ValueError(
-                    "`self.predictor.inferer` is not defined."
-                    "Please refer to function self.set_sliding_window_inferer(*) or self.set_custom_inferer(*)."
+                    "`self.inferer` is not defined."
+                    "Please refer to function self.set_sliding_window_inferer(*)."
                 )
             else:
                 self.use_inferer = True
         else:
             self.use_inferer = False
-        return
+
 
     def set_box_selector_parameters(
         self,
@@ -390,9 +385,10 @@ class RetinaNetDetector(nn.Module):
 
         # 3. generate network outputs. Use inferer only in evaluation mode.
         if self.training or (not self.use_inferer):
-            head_outputs = self.predictor(images)
+            head_outputs = self.network(images)
+            ensure_dict_value_to_list_(head_outputs)
         else:
-            head_outputs = self.predictor.forward_with_inferer(images)
+            head_outputs = predict_with_inferer(images, self.network, keys=[self.cls_key, self.box_reg_key], inferer=self.inferer)
 
         # 4. Generate anchors. TO DO: cache anchors in the next version, as it usually remains the same during training.
         anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # list, len(anchors) = batchsize

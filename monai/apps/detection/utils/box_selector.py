@@ -54,7 +54,7 @@ class BoxSelector:
 
     #. For each level, discard boxes with scores less than self.score_thresh.
     #. For each level, keep boxes with top self.topk_candidates_per_level scores.
-    #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+    #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overlapping threshold nms_thresh.
     #. For the whole image, keep boxes with top self.detections_per_img scores.
 
     Args:
@@ -88,10 +88,10 @@ class BoxSelector:
         self,
         box_overlap_metric: Callable = box_iou,
         apply_sigmoid: bool = True,
-        score_thresh=0.05,
-        topk_candidates_per_level=1000,
-        nms_thresh=0.5,
-        detections_per_img=300,
+        score_thresh: float = 0.05,
+        topk_candidates_per_level: int = 1000,
+        nms_thresh: float = 0.5,
+        detections_per_img: int = 300,
     ):
         self.box_overlap_metric = box_overlap_metric
 
@@ -103,13 +103,13 @@ class BoxSelector:
 
     def select_top_score_idx_per_level(self, logits: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         """
-        Select indice with highest scores.
+        Select indices with highest scores.
 
         The indice selection is performed with the following steps:
 
         #. If self.apply_sigmoid, get scores by applying sigmoid to logits. Otherwise, use logits as scores.
-        #. Discard indice with scores less than self.score_thresh
-        #. Keep indice with top self.topk_candidates_per_level scores
+        #. Discard indices with scores less than self.score_thresh
+        #. Keep indices with top self.topk_candidates_per_level scores
 
         Args:
             logits: predicted classification logits, Tensor sized (N, num_classes)
@@ -154,7 +154,7 @@ class BoxSelector:
 
         #. For each level, discard boxes with scores less than self.score_thresh.
         #. For each level, keep boxes with top self.topk_candidates_per_level scores.
-        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overapping threshold nms_thresh.
+        #. For the whole image, perform non-maximum suppression (NMS) on boxes, with overlapping threshold nms_thresh.
         #. For the whole image, keep boxes with top self.detections_per_img scores.
 
         Args:
@@ -190,7 +190,9 @@ class BoxSelector:
             boxes_per_level = boxes_per_level[topk_idxs]
 
             keep: Tensor
-            boxes_per_level, keep = clip_boxes_to_image(boxes_per_level, spatial_size, remove_empty=True)  # type: ignore
+            boxes_per_level, keep = clip_boxes_to_image(  # type: ignore
+                boxes_per_level, spatial_size, remove_empty=True
+            )
             image_boxes.append(boxes_per_level)
             image_scores.append(scores_per_level[keep])
             image_labels.append(labels_per_level[keep])
