@@ -59,7 +59,7 @@
 
 """
 This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/evaluator/detection/coco.py
-The changes include 1) code reformatting, 2) docstrings, 3) remove second output of self.compute(), which is alwasy None.
+The changes include 1) code reformatting, 2) docstrings, 3) remove second output of self.compute(), which is always None.
 """
 
 import logging as logger
