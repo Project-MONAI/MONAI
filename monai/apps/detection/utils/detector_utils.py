@@ -97,7 +97,7 @@ def pad_images(
 ) -> Tuple[Tensor, List[List[int]]]:
     """
     Pad the input images, so that the output spatial sizes are divisible by `size_divisible`.
-    It pad them at the end to create a (B, C, H, W) or (B, C, H, W, D) Tensor.
+    It pads them at the end to create a (B, C, H, W) or (B, C, H, W, D) Tensor.
     Padded size (H, W) or (H, W, D) is divisible by size_divisible.
     Default padding uses constant padding with value 0.0
 

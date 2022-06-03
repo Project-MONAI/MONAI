@@ -100,7 +100,7 @@ class HardNegativeSamplerBase(ABC):
 class HardNegativeSampler(HardNegativeSamplerBase):
     """
     HardNegativeSampler is used to suppress false positive rate in classification tasks.
-    During training, it select negative samples with high prediction scores.
+    During training, it selects negative samples with high prediction scores.
 
     The training workflow is described as the follows:
     1) forward network and get prediction scores (classification prob/logits) for all the samples;
@@ -109,7 +109,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
     4) do back propagation.
 
     Args:
-        select_sample_size_per_image: number of training samples to be randomly selected per image
+        batch_size_per_image: number of training samples to be randomly selected per image
         positive_fraction: percentage of positive elements in the selected samples
         min_neg: minimum number of negative samples to select if possible.
         pool_size: when we need ``num_neg`` hard negative samples, they will be randomly selected from
@@ -119,11 +119,11 @@ class HardNegativeSampler(HardNegativeSamplerBase):
     """
 
     def __init__(
-        self, select_sample_size_per_image: int, positive_fraction: float, min_neg: int = 1, pool_size: float = 10
+        self, batch_size_per_image: int, positive_fraction: float, min_neg: int = 1, pool_size: float = 10
     ) -> None:
         super().__init__(pool_size=pool_size)
         self.min_neg = min_neg
-        self.select_sample_size_per_image = select_sample_size_per_image
+        self.batch_size_per_image = batch_size_per_image
         self.positive_fraction = positive_fraction
         logging.info("Sampling hard negatives on a per batch basis")
 
@@ -148,7 +148,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
             .. code-block:: python
 
                 sampler = HardNegativeSampler(
-                    select_sample_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
+                    batch_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
                 )
                 # two images with different number of samples
                 target_labels = [ torch.tensor([0,1]), torch.tensor([1,0,2,1])]
@@ -183,7 +183,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
             .. code-block:: python
 
                 sampler = HardNegativeSampler(
-                    select_sample_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
+                    batch_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
                 )
                 # two images with different number of samples
                 target_labels = [ torch.tensor([0,1]), torch.tensor([1,0,2,1])]
@@ -224,14 +224,14 @@ class HardNegativeSampler(HardNegativeSamplerBase):
             .. code-block:: python
 
                 sampler = HardNegativeSampler(
-                    select_sample_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
+                    batch_size_per_image=6, positive_fraction=0.5, min_neg=1, pool_size=2
                 )
                 # two images with different number of samples
                 target_labels = torch.tensor([1,0,2,1])
                 fg_probs = torch.rand(4)
                 pos_idx, neg_idx = sampler.select_samples_per_img(target_labels, fg_probs)
         """
-        # for each image, find positive sample incides and negative sample indices
+        # for each image, find positive sample indices and negative sample indices
         if labels_per_img.numel() != fg_probs_per_img.numel():
             raise ValueError("labels_per_img and fg_probs_per_img should have same number of elements.")
 
@@ -254,17 +254,17 @@ class HardNegativeSampler(HardNegativeSamplerBase):
             positive: indices of positive samples
 
         Returns:
-            number of postive sample
+            number of positive sample
         """
         # positive sample sampling
-        num_pos = int(self.select_sample_size_per_image * self.positive_fraction)
+        num_pos = int(self.batch_size_per_image * self.positive_fraction)
         # protect against not enough positive examples
         num_pos = min(positive.numel(), num_pos)
         return num_pos
 
     def get_num_neg(self, negative: torch.Tensor, num_pos: int) -> int:
         """
-        Sample enough negatives to fill up ``self.select_sample_size_per_image``
+        Sample enough negatives to fill up ``self.batch_size_per_image``
 
         Args:
             negative: indices of positive samples
@@ -292,7 +292,7 @@ class HardNegativeSampler(HardNegativeSamplerBase):
 
         Returns:
             binary mask of positive samples to choose, sized (A,),
-                where A is the the number of samples in one image
+                where A is the number of samples in one image
         """
         if positive.numel() > labels.numel():
             raise ValueError("The number of positive samples should not be larger than the number of all samples.")
