@@ -42,7 +42,6 @@ from monai.transforms import Flip, RandFlip, RandZoom, SpatialCrop, SpatialPad, 
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
-from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
