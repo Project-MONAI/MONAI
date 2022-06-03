@@ -71,9 +71,9 @@ class ProbMapProducer:
 
         # Initialized probability maps for all the images
         for sample in image_data:
-            name = sample[ProbMapKeys.PRE_PATH.value]
-            self.counter[name] = sample[ProbMapKeys.COUNT.value]
-            self.prob_map[name] = np.zeros(sample[ProbMapKeys.SIZE.value], dtype=self.dtype)
+            name = sample[ProbMapKeys.NAME]
+            self.counter[name] = sample[ProbMapKeys.COUNT]
+            self.prob_map[name] = np.zeros(sample[ProbMapKeys.SIZE], dtype=self.dtype)
 
         if self._name is None:
             self.logger = engine.logger
@@ -91,8 +91,8 @@ class ProbMapProducer:
         """
         if not isinstance(engine.state.batch, dict) or not isinstance(engine.state.output, dict):
             raise ValueError("engine.state.batch and engine.state.output must be dictionaries.")
-        names = engine.state.batch["metadata"][ProbMapKeys.PATH.value]
-        locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION.value]
+        names = engine.state.batch["metadata"][ProbMapKeys.NAME]
+        locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION]
         probs = engine.state.output[self.prob_key]
         for name, loc, prob in zip(names, locs, probs):
             self.prob_map[name][loc] = prob

@@ -312,6 +312,11 @@ PatchWSIDataset
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
 
+MaskedPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.MaskedPatchWSIDataset
+    :members:
+
 SlidingPatchWSIDataset
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.SlidingPatchWSIDataset

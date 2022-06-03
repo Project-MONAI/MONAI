@@ -211,7 +211,7 @@ class TileOnGrid(Randomizable, Transform):
                 constant_values=self.background_val,
             )
 
-        # extact tiles
+        # extract tiles
         x_step, y_step = self.step, self.step
         h_tile, w_tile = self.tile_size, self.tile_size
         c_image, h_image, w_image = img_np.shape

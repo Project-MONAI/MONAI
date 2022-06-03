@@ -18,8 +18,7 @@ import numpy as np
 from monai.config import DtypeLike, PathLike
 from monai.data.image_reader import ImageReader, _stack_images
 from monai.data.utils import is_supported_format
-from monai.transforms.utility.array import AsChannelFirst
-from monai.utils import ensure_tuple, optional_import, require_pkg
+from monai.utils import WSIPatchKeys, ensure_tuple, optional_import, require_pkg
 
 CuImage, _ = optional_import("cucim", name="CuImage")
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -56,9 +55,10 @@ class BaseWSIReader(ImageReader):
     supported_suffixes: List[str] = []
     backend = ""
 
-    def __init__(self, level: int, **kwargs):
+    def __init__(self, level: int, channel_dim: int = 0, **kwargs):
         super().__init__()
         self.level = level
+        self.channel_dim = channel_dim
         self.kwargs = kwargs
         self.metadata: Dict[Any, Any] = {}
 
@@ -136,14 +136,18 @@ class BaseWSIReader(ImageReader):
             level: the level number. Defaults to 0
 
         """
+        if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
+            ValueError(f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}")
+        channel_dim: int = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
         metadata: Dict = {
             "backend": self.backend,
-            "original_channel_dim": 0,
-            "spatial_shape": np.asarray(patch.shape[1:]),
-            "path": self.get_file_path(wsi),
-            "patch_location": np.asarray(location),
-            "patch_size": np.asarray(size),
-            "patch_level": level,
+            "original_channel_dim": channel_dim,
+            "spatial_shape": np.array(patch.shape[:channel_dim] + patch.shape[channel_dim + 1 :]),
+            "num_patches": 1,
+            WSIPatchKeys.PATH.value: self.get_file_path(wsi),
+            WSIPatchKeys.LOCATION.value: np.asarray(location),
+            WSIPatchKeys.SIZE.value: np.asarray(size),
+            WSIPatchKeys.LEVEL.value: level,
         }
         return metadata
 
@@ -173,7 +177,7 @@ class BaseWSIReader(ImageReader):
                 and second element is a dictionary of metadata
         """
         patch_list: List = []
-        metadata = {}
+        metadata_list: List = []
         # CuImage object is iterable, so ensure_tuple won't work on single object
         if not isinstance(wsi, List):
             wsi = [wsi]
@@ -195,7 +199,7 @@ class BaseWSIReader(ImageReader):
             # Verify size
             if size is None:
                 if location != (0, 0):
-                    raise ValueError("Patch size should be defined to exctract patches.")
+                    raise ValueError("Patch size should be defined to extract patches.")
                 size = self.get_size(each_wsi, level)
             else:
                 if size[0] <= 0 or size[1] <= 0:
@@ -211,40 +215,30 @@ class BaseWSIReader(ImageReader):
                     "`WSIReader` is designed to work only with 2D images with color channel."
                 )
             # Check if there are four color channels for RGBA
-            if mode == "RGBA" and patch.shape[0] != 4:
-                raise ValueError(
-                    f"The image is expected to have four color channels in '{mode}' mode but has {patch.shape[0]}."
-                )
+            if mode == "RGBA":
+                if patch.shape[self.channel_dim] != 4:
+                    raise ValueError(
+                        f"The image is expected to have four color channels in '{mode}' mode but has "
+                        f"{patch.shape[self.channel_dim]}."
+                    )
             # Check if there are three color channels for RGB
-            elif mode in "RGB" and patch.shape[0] != 3:
+            elif mode in "RGB" and patch.shape[self.channel_dim] != 3:
                 raise ValueError(
-                    f"The image is expected to have three color channels in '{mode}' mode but has {patch.shape[0]}. "
+                    f"The image is expected to have three color channels in '{mode}' mode but has "
+                    f"{patch.shape[self.channel_dim]}. "
                 )
-            # Create a list of patches
+            # Get patch-related metadata
+            metadata: dict = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
+            # Create a list of patches and metadata
             patch_list.append(patch)
-
-            # Set patch-related metadata
-            each_meta = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
-
-            if len(wsi) == 1:
-                metadata = each_meta
-            else:
-                if not metadata:
-                    metadata = {
-                        "backend": each_meta["backend"],
-                        "original_channel_dim": each_meta["original_channel_dim"],
-                        "spatial_shape": each_meta["spatial_shape"],
-                    }
-                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
-                        metadata[k] = [each_meta[k]]
-                else:
-                    if metadata["original_channel_dim"] != each_meta["original_channel_dim"]:
-                        raise ValueError("original_channel_dim is not consistent across wsi objects.")
-                    if any(metadata["spatial_shape"] != each_meta["spatial_shape"]):
-                        raise ValueError("spatial_shape is not consistent across wsi objects.")
-                    for k in ["path", "patch_size", "patch_level", "patch_location"]:
-                        metadata[k].append(each_meta[k])
-
+            metadata_list.append(metadata)
+        if len(wsi) > 1:
+            if len({m["original_channel_dim"] for m in metadata_list}) > 1:
+                raise ValueError("original_channel_dim is not consistent across wsi objects.")
+            if len({tuple(m["spatial_shape"]) for m in metadata_list}) > 1:
+                raise ValueError("spatial_shape is not consistent across wsi objects.")
+            for key in WSIPatchKeys:
+                metadata[key] = [m[key] for m in metadata_list]
         return _stack_images(patch_list, metadata), metadata
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
@@ -267,18 +261,19 @@ class WSIReader(BaseWSIReader):
     Args:
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional arguments to be passed to the backend library
 
     """
 
-    def __init__(self, backend="cucim", level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, backend="cucim", level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
         self.backend = backend.lower()
         self.reader: Union[CuCIMWSIReader, OpenSlideWSIReader]
         if self.backend == "cucim":
-            self.reader = CuCIMWSIReader(level=level, **kwargs)
+            self.reader = CuCIMWSIReader(level=level, channel_dim=channel_dim, **kwargs)
         elif self.backend == "openslide":
-            self.reader = OpenSlideWSIReader(level=level, **kwargs)
+            self.reader = OpenSlideWSIReader(level=level, channel_dim=channel_dim, **kwargs)
         else:
             raise ValueError(f"The supported backends are cucim and openslide, '{self.backend}' was given.")
         self.supported_suffixes = self.reader.supported_suffixes
@@ -360,6 +355,7 @@ class CuCIMWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
@@ -368,8 +364,8 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -457,14 +453,15 @@ class CuCIMWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
 
-        # Make it channel first
-        patch = AsChannelFirst()(patch)  # type: ignore
+        # Make the channel to desired dimensions
+        patch = np.moveaxis(patch, -1, self.channel_dim)
 
         # Check if the color channel is 3 (RGB) or 4 (RGBA)
         if mode in "RGB":
-            if patch.shape[0] not in [3, 4]:
+            if patch.shape[self.channel_dim] not in [3, 4]:
                 raise ValueError(
-                    f"The image is expected to have three or four color channels in '{mode}' mode but has {patch.shape[0]}. "
+                    f"The image is expected to have three or four color channels in '{mode}' mode but has "
+                    f"{patch.shape[self.channel_dim]}. "
                 )
             patch = patch[:3]
 
@@ -479,6 +476,7 @@ class OpenSlideWSIReader(BaseWSIReader):
     Args:
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
+        channel_dim: the desired dimension for color channel. Default to 0 (channel first).
         kwargs: additional args for `openslide.OpenSlide` module.
 
     """
@@ -486,8 +484,8 @@ class OpenSlideWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
 
-    def __init__(self, level: int = 0, **kwargs):
-        super().__init__(level, **kwargs)
+    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+        super().__init__(level, channel_dim, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -577,7 +575,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         # Convert to numpy
         patch = np.asarray(pil_patch, dtype=dtype)
 
-        # Make it channel first
-        patch = AsChannelFirst()(patch)  # type: ignore
+        # Make the channel to desired dimensions
+        patch = np.moveaxis(patch, -1, self.channel_dim)
 
         return patch

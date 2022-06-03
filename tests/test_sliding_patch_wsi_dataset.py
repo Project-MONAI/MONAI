@@ -14,10 +14,11 @@ import unittest
 from unittest import skipUnless
 
 import numpy as np
+from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
 from monai.data import SlidingPatchWSIDataset
-from monai.utils import optional_import, set_determinism
+from monai.utils import WSIPatchKeys, optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
@@ -41,7 +42,7 @@ ARRAY_SMALL_0 = np.random.randint(low=0, high=255, size=(3, 4, 4), dtype=np.uint
 ARRAY_SMALL_1 = np.random.randint(low=0, high=255, size=(3, 5, 5), dtype=np.uint8)
 
 TEST_CASE_SMALL_0 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}], "size": (2, 2)},
+    {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0}], "patch_size": (2, 2)},
     [
         {"image": ARRAY_SMALL_0[:, :2, :2]},
         {"image": ARRAY_SMALL_0[:, :2, 2:]},
@@ -51,7 +52,7 @@ TEST_CASE_SMALL_0 = [
 ]
 
 TEST_CASE_SMALL_1 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}]},
+    {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}]},
     [
         {"image": ARRAY_SMALL_0[:, :2, :2]},
         {"image": ARRAY_SMALL_0[:, :2, 2:]},
@@ -61,7 +62,7 @@ TEST_CASE_SMALL_1 = [
 ]
 
 TEST_CASE_SMALL_2 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}], "size": (2, 2), "overlap": 0.5},
+    {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0}], "patch_size": (2, 2), "overlap": 0.5},
     [
         {"image": ARRAY_SMALL_0[:, 0:2, 0:2]},
         {"image": ARRAY_SMALL_0[:, 0:2, 1:3]},
@@ -76,7 +77,7 @@ TEST_CASE_SMALL_2 = [
 ]
 
 TEST_CASE_SMALL_3 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}], "size": (3, 3), "overlap": 2.0 / 3.0},
+    {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0}], "patch_size": (3, 3), "overlap": 2.0 / 3.0},
     [
         {"image": ARRAY_SMALL_0[:, :3, :3]},
         {"image": ARRAY_SMALL_0[:, :3, 1:]},
@@ -86,7 +87,13 @@ TEST_CASE_SMALL_3 = [
 ]
 
 TEST_CASE_SMALL_4 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0}, {"image": FILE_PATH_SMALL_1, "level": 0}], "size": (2, 2)},
+    {
+        "data": [
+            {"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0},
+            {"image": FILE_PATH_SMALL_1, WSIPatchKeys.LEVEL: 0},
+        ],
+        "patch_size": (2, 2),
+    },
     [
         {"image": ARRAY_SMALL_0[:, 0:2, 0:2]},
         {"image": ARRAY_SMALL_0[:, 0:2, 2:4]},
@@ -102,8 +109,8 @@ TEST_CASE_SMALL_4 = [
 TEST_CASE_SMALL_5 = [
     {
         "data": [
-            {"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)},
-            {"image": FILE_PATH_SMALL_1, "level": 0, "size": (3, 3)},
+            {"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)},
+            {"image": FILE_PATH_SMALL_1, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (3, 3)},
         ]
     },
     [
@@ -118,11 +125,11 @@ TEST_CASE_SMALL_5 = [
 TEST_CASE_SMALL_6 = [
     {
         "data": [
-            {"image": FILE_PATH_SMALL_0, "level": 1, "size": (1, 1)},
-            {"image": FILE_PATH_SMALL_1, "level": 2, "size": (4, 4)},
+            {"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 1, WSIPatchKeys.SIZE: (1, 1)},
+            {"image": FILE_PATH_SMALL_1, WSIPatchKeys.LEVEL: 2, WSIPatchKeys.SIZE: (4, 4)},
         ],
-        "size": (2, 2),
-        "level": 0,
+        "patch_size": (2, 2),
+        "patch_level": 0,
     },
     [
         {"image": ARRAY_SMALL_0[:, 0:2, 0:2]},
@@ -138,18 +145,22 @@ TEST_CASE_SMALL_6 = [
 
 
 TEST_CASE_SMALL_7 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}], "offset": (1, 0)},
+    {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}], "offset": (1, 0)},
     [{"image": ARRAY_SMALL_0[:, 1:3, :2]}, {"image": ARRAY_SMALL_0[:, 1:3, 2:]}],
 ]
 
 TEST_CASE_SMALL_8 = [
-    {"data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}], "offset": "random", "offset_limits": (0, 2)},
+    {
+        "data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}],
+        "offset": "random",
+        "offset_limits": (0, 2),
+    },
     [{"image": ARRAY_SMALL_0[:, 1:3, :2]}, {"image": ARRAY_SMALL_0[:, 1:3, 2:]}],
 ]
 
 TEST_CASE_SMALL_9 = [
     {
-        "data": [{"image": FILE_PATH_SMALL_0, "level": 0, "size": (2, 2)}],
+        "data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}],
         "offset": "random",
         "offset_limits": ((0, 3), (0, 2)),
     },
@@ -157,37 +168,37 @@ TEST_CASE_SMALL_9 = [
 ]
 
 TEST_CASE_LARGE_0 = [
-    {"data": [{"image": FILE_PATH, "level": 8, "size": (64, 50)}]},
+    {"data": [{"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (64, 50)}]},
     [
-        {"step_loc": (0, 0), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (0, 1), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (0, 2), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 0), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 1), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 2), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 0), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 1), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 2), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 0), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 1), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 2), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
     ],
 ]
 
 TEST_CASE_LARGE_1 = [
     {
         "data": [
-            {"image": FILE_PATH, "level": 8, "size": (64, 50)},
-            {"image": FILE_PATH, "level": 7, "size": (125, 110)},
+            {"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (64, 50)},
+            {"image": FILE_PATH, WSIPatchKeys.LEVEL: 7, WSIPatchKeys.SIZE: (125, 110)},
         ]
     },
     [
-        {"step_loc": (0, 0), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (0, 1), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (0, 2), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 0), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 1), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (1, 2), "size": (64, 50), "level": 8, "ratio": 257.06195068359375},
-        {"step_loc": (0, 0), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
-        {"step_loc": (0, 1), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
-        {"step_loc": (0, 2), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
-        {"step_loc": (1, 0), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
-        {"step_loc": (1, 1), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
-        {"step_loc": (1, 2), "size": (125, 110), "level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (0, 0), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 1), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 2), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 0), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 1), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (1, 2), "patch_size": (64, 50), "patch_level": 8, "ratio": 257.06195068359375},
+        {"step_loc": (0, 0), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (0, 1), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (0, 2), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (1, 0), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (1, 1), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
+        {"step_loc": (1, 2), "patch_size": (125, 110), "patch_level": 7, "ratio": 128.10186767578125},
     ],
 ]
 
@@ -233,11 +244,11 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"]["patch_level"], expected[i]["level"])
-                self.assertTupleEqual(tuple(sample["metadata"]["patch_size"]), expected[i]["size"])
-                steps = [round(expected[i]["ratio"] * s) for s in expected[i]["size"]]
+                self.assertEqual(sample["metadata"][WSIPatchKeys.LEVEL], expected[i]["patch_level"])
+                assert_array_equal(sample["metadata"][WSIPatchKeys.SIZE], expected[i]["patch_size"])
+                steps = [round(expected[i]["ratio"] * s) for s in expected[i]["patch_size"]]
                 expected_location = tuple(expected[i]["step_loc"][j] * steps[j] for j in range(len(steps)))
-                self.assertTupleEqual(tuple(sample["metadata"]["patch_location"]), expected_location)
+                assert_array_equal(sample["metadata"][WSIPatchKeys.LOCATION], expected_location)
 
 
 @skipUnless(has_cucim, "Requires cucim")
