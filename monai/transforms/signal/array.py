@@ -98,7 +98,7 @@ class SignalRandShift(RandomizableTransform):
         mode: Optional[str] = "wrap",
         filling: Optional[float] = 0.0,
         v: Optional[float] = 1.0,
-        boundaries: Tuple[float, float] = None,
+        boundaries: Tuple[float, float] = Tuple[None, None],
         *args,
         **kwargs,
     ) -> None:

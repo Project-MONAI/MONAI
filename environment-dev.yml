@@ -62,3 +62,4 @@ dependencies:
     - imagecodecs; platform_system == "Linux"
     - tifffile; platform_system == "Linux"
     - matplotlib!=3.5.0
+    - scipy
