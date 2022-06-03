@@ -59,7 +59,7 @@
 
 """
 This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/evaluator/detection/matching.py
-The changes include 1) code reformatting, 2) docstrings, 
+The changes include 1) code reformatting, 2) docstrings,
 3) allow input args gt_ignore to be optional. (If so, no GT boxes will be ignored.)
 """
 
