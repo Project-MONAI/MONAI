@@ -26,6 +26,7 @@ from .mlflow_handler import MLFlowHandler
 from .nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from .parameter_scheduler import ParamSchedulerHandler
 from .postprocessing import PostProcessing
+from .probability_maps import ProbMapProducer
 from .regression_metrics import MeanAbsoluteError, MeanSquaredError, PeakSignalToNoiseRatio, RootMeanSquaredError
 from .roc_auc import ROCAUC
 from .smartcache_handler import SmartCacheHandler

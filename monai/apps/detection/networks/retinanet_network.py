@@ -9,6 +9,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# =========================================================================
+# Adapted from https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
+# which has the following license...
+# https://github.com/pytorch/vision/blob/main/LICENSE
+
+# BSD 3-Clause License
+
+# Copyright (c) Soumith Chintala 2016,
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+
+# * Neither the name of the copyright holder nor the names of its
+#   contributors may be used to endorse or promote products derived from
+#   this software without specific prior written permission.
+
+"""
+Part of this script is adapted from
+https://github.com/pytorch/vision/blob/main/torchvision/models/detection/retinanet.py
+"""
+
 import math
 from typing import Callable, Dict, List, Sequence, Union
 
@@ -182,7 +211,7 @@ class RetinaNet(nn.Module):
         num_anchors: number of anchors at each location.
         feature_extractor: a network that outputs feature maps from the input images,
             each feature map corresponds to a different resolution.
-            Its output can have format of Tensor, Dict[Any, Tensor], or Sequence[Tensor].
+            Its output can have a format of Tensor, Dict[Any, Tensor], or Sequence[Tensor].
             It can be the output of ``resnet_fpn_feature_extractor(*args, **kwargs)``.
         size_divisible: the spatial size of the network input should be divisible by size_divisible,
             decided by the feature_extractor.
@@ -213,7 +242,7 @@ class RetinaNet(nn.Module):
                 trainable_backbone_layers = None,
                 returned_layers = returned_layers,
             )
-            # This feature_extractor requires input imgage spatial size
+            # This feature_extractor requires input image spatial size
             # to be divisible by (32, 32, 16).
             size_divisible = tuple(2*s*2**max(returned_layers) for s in conv1_t_stride)
             model = RetinaNet(

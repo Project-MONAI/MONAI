@@ -27,7 +27,7 @@ from urllib.request import urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
-gdown, has_gdown = optional_import("gdown", "3.6")
+gdown, has_gdown = optional_import("gdown", "4.4")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -147,7 +147,12 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 
 
 def download_url(
-    url: str, filepath: PathLike = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
+    url: str,
+    filepath: PathLike = "",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    progress: bool = True,
+    **gdown_kwargs,
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
@@ -160,6 +165,10 @@ def download_url(
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
         progress: whether to display a progress bar.
+        gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
+            these args will only be used if download from google drive.
+            details of the args of it:
+            https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` existing file fails.
@@ -189,7 +198,7 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-                gdown.download(url, f"{tmp_name}", quiet=not progress)
+                gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
             else:
                 _download_with_progress(url, tmp_name, progress=progress)
             if not tmp_name.exists():

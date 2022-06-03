@@ -14,7 +14,6 @@ import unittest
 from unittest import skipUnless
 
 import numpy as np
-import torch
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
@@ -23,7 +22,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix
-from tests.utils import download_url_or_skip_test, testing_data_config
+from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
@@ -46,17 +45,33 @@ TEST_CASE_TRANSFORM_0 = [FILE_PATH, 4, (HEIGHT // 16, WIDTH // 16), (1, 3, HEIGH
 
 TEST_CASE_1 = [
     FILE_PATH,
+    {},
     {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
     np.array([[[246], [246]], [[246], [246]], [[246], [246]]]),
 ]
 
 TEST_CASE_2 = [
     FILE_PATH,
+    {},
     {"location": (0, 0), "size": (2, 1), "level": 2},
     np.array([[[239], [239]], [[239], [239]], [[239], [239]]]),
 ]
 
 TEST_CASE_3 = [
+    FILE_PATH,
+    {"channel_dim": -1},
+    {"location": (HEIGHT // 2, WIDTH // 2), "size": (2, 1), "level": 0},
+    np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]]), 0, -1),
+]
+
+TEST_CASE_4 = [
+    FILE_PATH,
+    {"channel_dim": 2},
+    {"location": (0, 0), "size": (2, 1), "level": 2},
+    np.moveaxis(np.array([[[239], [239]], [[239], [239]], [[239], [239]]]), 0, -1),
+]
+
+TEST_CASE_MULTI_WSI = [
     [FILE_PATH, FILE_PATH],
     {"location": (0, 0), "size": (2, 1), "level": 2},
     np.concatenate(
@@ -67,6 +82,7 @@ TEST_CASE_3 = [
         axis=0,
     ),
 ]
+
 
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
@@ -128,16 +144,15 @@ class WSIReaderTests:
                 img, meta = reader.get_data(img_obj)
             self.assertTupleEqual(img.shape, expected_shape)
             self.assertEqual(meta["backend"], self.backend)
-            self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
-            self.assertEqual(meta["patch"]["level"], level)
-            self.assertTupleEqual(meta["patch"]["size"], expected_shape[1:])
-            self.assertTupleEqual(meta["patch"]["location"], (0, 0))
+            self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
+            self.assertEqual(meta["patch_level"], level)
+            assert_array_equal(meta["patch_size"], expected_shape[1:])
+            assert_array_equal(meta["patch_location"], (0, 0))
 
-        @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-        def test_read_region(self, file_path, patch_info, expected_img):
-            kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
+        @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
+        def test_read_region(self, file_path, kwargs, patch_info, expected_img):
             reader = WSIReader(self.backend, **kwargs)
-            with reader.read(file_path, **kwargs) as img_obj:
+            with reader.read(file_path) as img_obj:
                 if self.backend == "tifffile":
                     with self.assertRaises(ValueError):
                         reader.get_data(img_obj, **patch_info)[0]
@@ -150,12 +165,12 @@ class WSIReaderTests:
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
                     self.assertEqual(meta["backend"], self.backend)
-                    self.assertEqual(meta["wsi"]["path"], str(os.path.abspath(file_path)))
-                    self.assertEqual(meta["patch"]["level"], patch_info["level"])
-                    self.assertTupleEqual(meta["patch"]["size"], expected_img.shape[1:])
-                    self.assertTupleEqual(meta["patch"]["location"], patch_info["location"])
+                    self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
+                    self.assertEqual(meta["patch_level"], patch_info["level"])
+                    assert_array_equal(meta["patch_size"], patch_info["size"])
+                    assert_array_equal(meta["patch_location"], patch_info["location"])
 
-        @parameterized.expand([TEST_CASE_3])
+        @parameterized.expand([TEST_CASE_MULTI_WSI])
         def test_read_region_multi_wsi(self, file_path_list, patch_info, expected_img):
             kwargs = {"name": None, "offset": None} if self.backend == "tifffile" else {}
             reader = WSIReader(self.backend, **kwargs)
@@ -172,10 +187,10 @@ class WSIReaderTests:
                 self.assertTupleEqual(img.shape, expected_img.shape)
                 self.assertIsNone(assert_array_equal(img, expected_img))
                 self.assertEqual(meta["backend"], self.backend)
-                self.assertEqual(meta["wsi"][0]["path"], str(os.path.abspath(file_path_list[0])))
-                self.assertEqual(meta["patch"][0]["level"], patch_info["level"])
-                self.assertTupleEqual(meta["patch"][0]["size"], expected_img.shape[1:])
-                self.assertTupleEqual(meta["patch"][0]["location"], patch_info["location"])
+                self.assertEqual(meta["path"][0], str(os.path.abspath(file_path_list[0])))
+                self.assertEqual(meta["patch_level"][0], patch_info["level"])
+                assert_array_equal(meta["patch_size"][0], expected_img.shape[1:])
+                assert_array_equal(meta["patch_location"][0], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -222,8 +237,24 @@ class WSIReaderTests:
             data_loader = DataLoader(dataset)
             data: dict = first(data_loader)
             for s in data[PostFix.meta("image")]["spatial_shape"]:
-                torch.testing.assert_allclose(s, expected_spatial_shape)
+                assert_allclose(s, expected_spatial_shape, type_test=False)
             self.assertTupleEqual(data["image"].shape, expected_shape)
+
+        @parameterized.expand([TEST_CASE_TRANSFORM_0])
+        def test_with_dataloader_batch(self, file_path, level, expected_spatial_shape, expected_shape):
+            train_transform = Compose(
+                [
+                    LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    ToTensord(keys=["image"]),
+                ]
+            )
+            dataset = Dataset([{"image": file_path}, {"image": file_path}], transform=train_transform)
+            batch_size = 2
+            data_loader = DataLoader(dataset, batch_size=batch_size)
+            data: dict = first(data_loader)
+            for s in data[PostFix.meta("image")]["spatial_shape"]:
+                assert_allclose(s, expected_spatial_shape, type_test=False)
+            self.assertTupleEqual(data["image"].shape, (batch_size, *expected_shape[1:]))
 
 
 @skipUnless(has_cucim, "Requires cucim")
