@@ -297,14 +297,19 @@ def convert_mask_to_box(
     boxes_list = []
     labels_list = []
     for b in range(boxes_mask_np.shape[0]):
-        fg_indices = np.nonzero(boxes_mask_np[b, ...] - bg_label)
-        if fg_indices[0].shape[0] == 0:
+        boxes_b_list = []
+        for axis in range(spatial_dims):
+            reduce_axis = tuple((axis + i) % spatial_dims for i in range(1, spatial_dims))
+            boxes_mask_np_axis = np.amax(boxes_mask_np[b, ...] - bg_label, axis=reduce_axis)
+            fg_indices = np.nonzero(boxes_mask_np_axis)[0]
+            if len(fg_indices) == 0:
+                continue
+            boxes_b_list.append(min(fg_indices))
+            boxes_b_list.append(max(fg_indices) + 1 - TO_REMOVE)
+        if len(boxes_b_list) != 2 * spatial_dims:
             continue
-        boxes_b = []
-        for fd_i in fg_indices:
-            boxes_b.append(min(fd_i))  # top left corner
-        for fd_i in fg_indices:
-            boxes_b.append(max(fd_i) + 1 - TO_REMOVE)  # bottom right corner
+        boxes_b = boxes_b_list[::2] + boxes_b_list[1::2]
+
         if spatial_dims == 2:
             labels_list.append(boxes_mask_np[b, boxes_b[0], boxes_b[1]])
         if spatial_dims == 3:

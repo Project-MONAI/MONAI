@@ -14,6 +14,7 @@ defined in :py:class:`monai.apps.detection.transforms.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
+import random
 from copy import deepcopy
 from enum import Enum
 from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Type, Union
@@ -41,6 +42,7 @@ from monai.transforms import Flip, RandFlip, RandZoom, SpatialCrop, SpatialPad, 
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
+from monai.transforms.utils_pytorch_numpy_unification import any_np_pt, nonzero, ravel
 from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
@@ -1159,6 +1161,193 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
                 results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
 
         return results
+
+
+class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
+    """
+    Fast crop random fixed sized regions that contains foreground boxes, referred as positive samples.
+    Compared with `RandCropBoxByPosNegLabeld`, this transform is much faster,
+    sometimes can be 100x faster for 3D images.
+    However, it has two drawbacks.
+
+    - When sampling positive samples, it is a biased sampling which gives
+      smaller boxes a higher weight than uniform sampling.
+    - When sampling negative samples, the results may contain false negative.
+      The possibility of geting false negative samples equals to the ratio between foreground volume and whole volume.
+
+    Thus, this transform is only recommended when time cost is a concern and the foreground boxes are tiny.
+    Otherwise, please use `RandCropBoxByPosNegLabeld` instead.
+
+    `thresh_image_key` and `image_thresh` are not supported here. Because when they are provided,
+    this transform is not faster than `RandCropBoxByPosNegLabeld`.
+
+    Suppose all the expected fields specified by `image_keys` have same shape,
+    and add `patch_index` to the corresponding meta data.
+    And will return a list of dictionaries for all the cropped images.
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected size,
+    and the cropped results of several images may not have exactly the same shape.
+
+    Args:
+        image_keys: Keys to pick image data for transformation. They need to have the same spatial size.
+        box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        num_samples: number of samples (crop regions) to take in each list.
+        whole_box: Bool, default True, whether we prefer to contain at least one whole box in the cropped foreground patch.
+            Even if True, it is still possible to get partial box if there are multiple boxes in the image.
+        fg_indices_key: if provided pre-computed foreground indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        bg_indices_key: if provided pre-computed background indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            used to add `patch_index` to the meta dict.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: str,
+        label_keys: KeysCollection,
+        spatial_size: Union[Sequence[int], int],
+        pos: float = 1.0,
+        neg: float = 1.0,
+        num_samples: int = 1,
+        whole_box: bool = True,
+        fg_indices_key: Optional[str] = None,
+        bg_indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        allow_smaller: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(
+            image_keys,
+            box_keys,
+            label_keys,
+            spatial_size,
+            pos,
+            neg,
+            num_samples,
+            whole_box,
+            None,
+            0.0,
+            fg_indices_key,
+            bg_indices_key,
+            meta_keys,
+            meta_key_postfix,
+            allow_smaller,
+            allow_missing_keys,
+        )
+
+    def randomize(  # type: ignore
+        self,
+        boxes: NdarrayOrTensor,
+        image_size: Sequence[int],
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+        thresh_image: Optional[NdarrayOrTensor] = None,
+    ) -> None:
+        num_fg_sample = int(round(self.num_samples * self.pos_ratio))
+        fg_centers = self.randomize_fg(boxes, image_size, num_fg_sample, fg_indices)
+        # bg_centers may contain false negative samples
+        bg_centers = self.randomize_bg(image_size, self.num_samples - len(fg_centers), bg_indices)
+        self.centers = fg_centers + bg_centers
+
+    def randomize_fg(  # type: ignore
+        self,
+        boxes: NdarrayOrTensor,
+        image_size: Sequence[int],
+        num_fg_sample: int,
+        fg_indices: Optional[NdarrayOrTensor] = None,
+    ) -> List[List[int]]:
+
+        if fg_indices is not None:
+            fg_indices_ = fg_indices
+            bg_indices_ = np.ones(1, dtype=int) * (-1)
+            return generate_pos_neg_label_crop_centers(
+                self.spatial_size, num_fg_sample, 1.0, image_size, fg_indices_, bg_indices_, self.R, self.allow_smaller
+            )
+
+        # We don't require crop center to be whthin the boxes.
+        # As along as the cropped patch contains a box, it is considered as a foreground patch.
+        # Positions within extended_boxes are crop centers for foreground patches
+        if len(boxes) == 0:
+            return []
+        extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
+        sampled_i = np.random.randint(0, extended_boxes_np.shape[0], (num_fg_sample,))
+
+        sample_box = extended_boxes_np[sampled_i, :]
+        fg_centers = []
+        for i in range(num_fg_sample):
+            fg_centers += self.randomize_within_rect(sample_box[i, :], 1)
+        return fg_centers
+
+    def randomize_within_rect(self, sample_box: np.ndarray, num_samples: int) -> List[List[int]]:  # type: ignore
+        """
+        Get random samples within a rect region as patch centers.
+
+        The speed acceleration of this transform, compare with `RandCropBoxByPosNegLabeld`,
+        comes from the mechanism of selecting patch centers within a rect region.
+
+        `RandCropBoxByPosNegLabeld` samples patch centers from all the pixels/voxels within the rect region.
+        The sampling pool size is the rect region's volume, H*W(*D), which can be a large number for 3D images.
+        In contrast, this `FastRandCropBoxByPosNegLabelTinyBoxd`
+        randomly samlpes x-axis, y-axis, (and z-axis) coordinates
+        independently, so the sampling pool size is H, W, (or D) seperately.
+
+        Args:
+            sample_box: the rect region where it draws random samples. (4,) or (6,) array.
+            num_samples: number of samples
+
+        Return:
+            sampled patch centers, list of 1x2 list, or list of 1x3 list.
+        """
+        rand_centers = []
+        spatial_dims = len(sample_box) // 2
+        for _ in range(num_samples):
+            center = []
+            for axis in range(spatial_dims):
+                center.append(random.randint(sample_box[axis], sample_box[axis + spatial_dims] + 1))
+            rand_centers.append(center)
+
+        return rand_centers
+
+    def randomize_bg(  # type: ignore
+        self, image_size: Sequence[int], num_bg_sample: int, bg_indices: Optional[NdarrayOrTensor] = None
+    ) -> List[List[int]]:
+        if bg_indices is not None:
+            fg_indices_ = np.ones(1, dtype=int) * (-1)
+            return generate_pos_neg_label_crop_centers(
+                self.spatial_size, num_bg_sample, 0.0, image_size, fg_indices_, bg_indices, self.R, self.allow_smaller
+            )
+
+        spatial_dims = len(image_size)
+        sample_box = np.array([0] * spatial_dims + list(image_size))
+        return self.randomize_within_rect(sample_box, num_bg_sample)
 
 
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
