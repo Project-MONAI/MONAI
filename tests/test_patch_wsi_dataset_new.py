@@ -35,41 +35,41 @@ base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
 
 TEST_CASE_0 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1], "patch_level": 0}], "patch_size": (1, 1)},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1], "level": 0}], "size": (1, 1)},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L1 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": (1, 1), "patch_level": 1},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "level": 1},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L2 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": (1, 1), "patch_level": 1},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": (1, 1), "level": 1},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 TEST_CASE_1 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "patch_size": 1, "label": [1]}]},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "size": 1, "label": [1]}]},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_2 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": 1, "patch_level": 0},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}], "size": 1, "level": 0},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_3 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [[[0, 1], [1, 0]]]}], "patch_size": 1},
+    {"data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}], "size": 1},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
 ]
 
 TEST_CASE_4 = [
     {
         "data": [
-            {"image": FILE_PATH, "patch_location": [0, 0], "label": [[[0, 1], [1, 0]]]},
-            {"image": FILE_PATH, "patch_location": [0, 0], "label": [[[1, 0], [0, 0]]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]},
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[1, 0], [0, 0]]]},
         ],
-        "patch_size": 1,
+        "size": 1,
     },
     [
         {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
@@ -80,20 +80,8 @@ TEST_CASE_4 = [
 TEST_CASE_5 = [
     {
         "data": [
-            {
-                "image": FILE_PATH,
-                "patch_location": [0, 0],
-                "label": [[[0, 1], [1, 0]]],
-                "patch_size": 1,
-                "patch_level": 1,
-            },
-            {
-                "image": FILE_PATH,
-                "patch_location": [100, 100],
-                "label": [[[1, 0], [0, 0]]],
-                "patch_size": 1,
-                "patch_level": 1,
-            },
+            {"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]], "size": 1, "level": 1},
+            {"image": FILE_PATH, "location": [100, 100], "label": [[[1, 0], [0, 0]]], "size": 1, "level": 1},
         ]
     },
     [
@@ -141,9 +129,9 @@ class PatchWSIDatasetTests:
         @parameterized.expand([TEST_CASE_0, TEST_CASE_0_L1, TEST_CASE_0_L2, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
         def test_read_patches_object(self, input_parameters, expected):
             if self.backend == "openslide":
-                reader = OpenSlideWSIReader(level=input_parameters.get("patch_level", 0))
+                reader = OpenSlideWSIReader(level=input_parameters.get("level", 0))
             elif self.backend == "cucim":
-                reader = CuCIMWSIReader(level=input_parameters.get("patch_level", 0))
+                reader = CuCIMWSIReader(level=input_parameters.get("level", 0))
             else:
                 raise ValueError("Unsupported backend: {self.backend}")
             dataset = PatchWSIDataset(reader=reader, **input_parameters)

@@ -2637,9 +2637,7 @@ class GridPatch(Transform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
-            Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
@@ -2649,38 +2647,42 @@ class GridPatch(Transform):
     def __init__(
         self,
         patch_size: Sequence[int],
-        offset: Optional[Sequence[int]] = None,
+        offset: Sequence[int] = (),
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
-        self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
-        self.pad_mode: Optional[NumpyPadMode] = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
+        self.offset = ensure_tuple(offset)
+        self.pad_mode: NumpyPadMode = convert_pad_mode(dst=np.zeros(1), mode=pad_mode)
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
         self.sort_fn: Optional[Callable]
         if isinstance(sort_fn, str):
-            self.sort_fn = GridPatchSort.get_sort_fn(sort_fn)
+            if sort_fn == GridPatchSort.RANDOM.value:
+                self.sort_fn = np.random.random
+            elif sort_fn == GridPatchSort.MIN.value:
+                self.sort_fn = self.get_patch_sum
+            elif sort_fn == GridPatchSort.MAX.value:
+                self.sort_fn = self.get_negative_patch_sum
+            else:
+                raise ValueError(
+                    f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                    [enum.value for enum in GridPatchSort],
+                )
         else:
             self.sort_fn = sort_fn
 
-        self.threshold = threshold
-        if threshold:
-            self.filter_fn = self.threshold_fn
-        else:
-            self.filter_fn = self.one_fn
+    @staticmethod
+    def get_patch_sum(x):
+        return x[0].sum()
 
     @staticmethod
-    def one_fn(patch):
-        return True
-
-    def threshold_fn(self, patch):
-        return patch.sum() < self.threshold
+    def get_negative_patch_sum(x):
+        return -x[0].sum()
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
@@ -2694,25 +2696,18 @@ class GridPatch(Transform):
             mode=self.pad_mode,
             **self.pad_kwargs,
         )
-
         if self.sort_fn is not None:
-            patch_iterator = sorted(patch_iterator, key=self.sort_fn)
-
-        output = [
-            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices[..., 0], dst=array)[0])
-            for patch, slices in patch_iterator
-            if self.filter_fn(patch)
-        ]
-
+            output = sorted(patch_iterator, key=self.sort_fn)
+        else:
+            output = list(patch_iterator)
         if self.num_patches:
             output = output[: self.num_patches]
             if len(output) < self.num_patches:
-                patch = convert_to_dst_type(
-                    src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
-                    dst=array,
-                )[0]
-                start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
-                output += [(patch, start_location)] * (self.num_patches - len(output))
+                patch = np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0))
+                slices = np.zeros((3, len(self.patch_size)))
+                output += [(patch, slices)] * (self.num_patches - len(output))
+
+        output = [convert_to_dst_type(src=patch, dst=array)[0] for patch in output]
 
         return output
 
@@ -2736,9 +2731,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
             and channels. Also "random" creates a random order of patches.
             By default no sorting is being done and patches are returned in a row-major order.
-        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
-            Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_mode: refer to  NumpyPadMode and PytorchPadMode. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
@@ -2753,7 +2746,6 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[Union[Callable, str]] = None,
-        threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
     ):
@@ -2763,7 +2755,6 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
-            threshold=threshold,
             pad_mode=pad_mode,
             **pad_kwargs,
         )

@@ -44,7 +44,7 @@ TEST_CASE_12 = [
     {"image": A},
     [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
 ]
-TEST_CASE_13 = [{"patch_size": (2, 2), "threshold": 50.0}, {"image": A}, [A11]]
+
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -61,7 +61,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_10])
     TEST_SINGLE.append([p, *TEST_CASE_11])
     TEST_SINGLE.append([p, *TEST_CASE_12])
-    TEST_SINGLE.append([p, *TEST_CASE_13])
 
 
 class TestGridPatchd(unittest.TestCase):

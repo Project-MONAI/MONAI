@@ -55,7 +55,6 @@ TEST_CASE_9 = [
     A,
     [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],
 ]
-TEST_CASE_10 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "threshold": 50.0}, A, [A11]]
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -69,7 +68,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_7])
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
-    TEST_SINGLE.append([p, *TEST_CASE_10])
 
 
 class TestRandGridPatch(unittest.TestCase):
