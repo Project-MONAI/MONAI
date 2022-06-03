@@ -82,6 +82,9 @@ __all__ = [
     "RandCropBoxByPosNegLabeld",
     "RandCropBoxByPosNegLabelD",
     "RandCropBoxByPosNegLabelDict",
+    "FastRandCropBoxByPosNegLabelTinyBoxd",
+    "FastRandCropBoxByPosNegLabelTinyBoxD",
+    "FastRandCropBoxByPosNegLabelTinyBoxDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1361,3 +1364,4 @@ ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
 BoxToMaskD = BoxToMaskDict = BoxToMaskd
 MaskToBoxD = MaskToBoxDict = MaskToBoxd
 RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
+FastRandCropBoxByPosNegLabelTinyBoxD = FastRandCropBoxByPosNegLabelTinyBoxDict = FastRandCropBoxByPosNegLabelTinyBoxd
