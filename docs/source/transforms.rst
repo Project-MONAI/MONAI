@@ -572,6 +572,18 @@ Signal
     :members:
     :special-members: __call__
 
+`SignalRandDrop`
+"""""""""""""""""
+.. autoclass:: SignalRandDrop
+    :members:
+    :special-members: __call__
+
+`SignalRandScale`
+"""""""""""""""""
+.. autoclass:: SignalRandScale
+    :members:
+    :special-members: __call__
+
 `SignalRandShift`
 """""""""""""""""
 .. autoclass:: SignalRandShift
