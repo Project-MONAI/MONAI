@@ -1169,13 +1169,13 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
     """
     Fast crop random fixed sized regions that contains foreground boxes, referred as positive samples.
     Compared with `RandCropBoxByPosNegLabeld`, this transform is much faster,
-    sometimes can be 100x faster for 3D images.
-    However, it has two drawbacks.
+    sometimes can be 100x faster for 3D images. However, this transform has two drawbacks.
 
     - When sampling positive samples, it is a biased sampling which gives
-      smaller boxes a higher weight than uniform sampling.
-    - When sampling negative samples, the results may contain false negative.
-      The possibility of geting false negative samples equals to the ratio between foreground volume and whole volume.
+      positive samples for small boxes a higher weight than uniform sampling.
+    - When sampling negative samples, the results may contain positive samples.
+      The possibility of getting extra positive samples equals to the ratio between foreground volume and whole volume,
+      which is neglectable when foreground boxes are tiny.
 
     Thus, this transform is only recommended when time cost is a concern and the foreground boxes are tiny.
     Otherwise, please use `RandCropBoxByPosNegLabeld` instead.
@@ -1317,8 +1317,9 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
 
         `RandCropBoxByPosNegLabeld` samples patch centers from all the pixels/voxels within the rect region.
         The sampling pool size is the rect region's volume, H*W(*D), which can be a large number for 3D images.
+
         In contrast, this `FastRandCropBoxByPosNegLabelTinyBoxd`
-        randomly samlpes x-axis, y-axis, (and z-axis) coordinates
+        randomly samples x-axis, y-axis, (and z-axis) coordinates
         independently, so the sampling pool size is H, W, (or D) seperately.
 
         Args:
