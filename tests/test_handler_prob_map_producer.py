@@ -42,7 +42,11 @@ class TestDataset(Dataset):
             ]
         )
         self.image_data = [
-            {"image": name, ProbMapKeys.COUNT.value: size, ProbMapKeys.SIZE.value: np.array([size, size])}
+            {
+                ProbMapKeys.NAME.value: name,
+                ProbMapKeys.COUNT.value: size,
+                ProbMapKeys.SIZE.value: np.array([size, size]),
+            }
         ]
 
     def __getitem__(self, index):
@@ -50,7 +54,7 @@ class TestDataset(Dataset):
             "image": np.zeros((3, 2, 2)),
             ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],
             "metadata": {
-                "path": self.data[index]["image"],
+                ProbMapKeys.NAME.value: self.data[index]["image"],
                 ProbMapKeys.SIZE.value: self.data[index][ProbMapKeys.SIZE.value],
                 ProbMapKeys.LOCATION.value: self.data[index][ProbMapKeys.LOCATION.value],
             },

@@ -2210,7 +2210,6 @@ class ForegroundMask(Transform):
             raise ValueError(
                 f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided."
             )
-
         self.invert = invert
 
     def _set_threshold(self, threshold, mode):
