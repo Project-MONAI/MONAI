@@ -39,6 +39,13 @@ Metrics
 .. autoclass:: DiceMetric
     :members:
 
+`Generalized Dice Score`
+------------------------
+.. autofunction:: compute_generalized_dice
+
+.. autoclass:: GeneralizedDiceScore
+    :members:
+
 `Area under the ROC curve`
 --------------------------
 .. autofunction:: compute_roc_auc
