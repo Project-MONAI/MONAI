@@ -496,6 +496,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`SwinUNETR`
+~~~~~~~~~~~
+.. autoclass:: SwinUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
