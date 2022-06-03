@@ -26,12 +26,6 @@ resample_poly, has_resample_poly = optional_import("scipy.signal", name="resampl
 fft, has_resample_fft = optional_import("scipy.signal", name="resample")
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 
-assert has_zoom
-assert has_resample_poly
-assert has_resample_poly
-assert has_resample_fft
-assert has_shift
-
 __all__ = ["SignalResample", "SignalRandShift"]
 
 
