@@ -59,7 +59,7 @@
 
 """
 This script is almost same with https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/evaluator/detection/coco.py
-The changes include 1) code reformatting, 2) docstrings, 3) remove second output of self.compute(), which is always None.
+The changes include 1) code reformatting, 2) docstrings.
 """
 
 import logging as logger
@@ -159,7 +159,7 @@ class COCOMetric(DetectionMetric):
         """
         return list(self.iou_thresholds)
 
-    def compute(self, results_list: List[Dict[int, Dict[str, np.ndarray]]]) -> Dict[str, float]:
+    def compute(self, results_list: List[Dict[int, Dict[str, np.ndarray]]]) -> Tuple[Dict[str, float], None]:
         """
         Compute COCO metrics
 
@@ -197,7 +197,7 @@ class COCOMetric(DetectionMetric):
         if self.verbose:
             toc = time.time()
             logger.info(f"COCO metrics computed in t={(toc - tic):0.2f}s.")
-        return results
+        return results, None
 
     def _compute_ap(self, dataset_statistics: Dict[str, Union[np.ndarray, List]]) -> Dict[str, float]:
         """
@@ -246,7 +246,7 @@ class COCOMetric(DetectionMetric):
                     results[key] = self._select_ap(dataset_statistics, iou_idx=[idx], cls_idx=cls_idx, max_det_idx=-1)
         return results
 
-    def _compute_ar(self, dataset_statistics: dict) -> dict:
+    def _compute_ar(self, dataset_statistics: Dict[str, Union[np.ndarray, List]]) -> Dict[str, float]:
         """
         Compute AR metrics
 

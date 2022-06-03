@@ -63,7 +63,7 @@ The changes include 1) code reformatting, 2) docstrings,
 3) allow input args gt_ignore to be optional. (If so, no GT boxes will be ignored.)
 """
 
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
@@ -78,7 +78,7 @@ def matching_batch(
     pred_scores: Sequence[np.ndarray],
     gt_boxes: Sequence[np.ndarray],
     gt_classes: Sequence[np.ndarray],
-    gt_ignore: Optional[Sequence[Sequence[bool]]] = None,
+    gt_ignore: Union[Sequence[Sequence[bool]], Sequence[np.ndarray], None] = None,
     max_detections: int = 100,
 ) -> List[Dict[int, Dict[str, np.ndarray]]]:
     """
