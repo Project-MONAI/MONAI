@@ -27,7 +27,7 @@ fft, has_resample_fft = optional_import("scipy.signal", name="resample")
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 
 __all__ = ["SignalResample",
-           "SignalRandDrop", 
+           "SignalRandDrop",
            "SignalRandScale",
            "SignalRandShift"]
 
@@ -166,11 +166,11 @@ class SignalRandScale(RandomizableTransform):
             raise ValueError("Incompatible values: boundaries needs to be a list of float.")
         self.v = v
         self.boundaries = boundaries
-        
+
     def _randomize(self):
         super().randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
-        
+
     def __call__(self, signal: np.ndarray)-> np.ndarray:
         """
         Args:
@@ -184,9 +184,9 @@ class SignalRandDrop(RandomizableTransform):
     """
     Randomly drop a portion of a signal
     """
-    
+
     backend = [TransformBackends.NUMPY]
-     
+
     def __init__(
         self,
         v: Optional[float] = 1.0,
@@ -204,14 +204,14 @@ class SignalRandDrop(RandomizableTransform):
             raise ValueError("Incompatible values: boundaries needs to be a list of float.")
         if (boundaries is None) or (None in boundaries) or (any(x<0 for x in boundaries)):
             raise ValueError("Incompatible values: boundaries needs to be a list of positive float.")
-    
+
         self.v = v
         self.boundaries = boundaries
-        
+
     def _randomize(self):
         super().randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
-        
+
     def _paste_slices(self,tup):
         pos, w, max_w = tup
         max_w = max_w.shape[len(max_w.shape) -1]
@@ -225,13 +225,13 @@ class SignalRandDrop(RandomizableTransform):
     def _paste(self,wall, block, loc):
         loc_zip = zip(loc, block.shape, wall)
         wall_slices, block_slices = zip(*map(self._paste_slices, loc_zip))
-        
+
         wall[:,wall_slices[0]] = block[block_slices[0]]
 
         if wall.shape[0]==1:
             wall = wall.squeeze()
         return wall
-    
+
     def __call__(self, signal: np.ndarray)-> np.ndarray:
         """
         Args:
@@ -243,11 +243,10 @@ class SignalRandDrop(RandomizableTransform):
         else:
             signal = signal[np.newaxis,:]
             length = signal.shape[1]
-            
+
         factor = self.v * self.magnitude
         mask = np.zeros(round(factor * length))
         loc = np.random.choice(range(length))
         signal = self._paste(signal,mask,(loc,))
-        
+
         return signal
-            
