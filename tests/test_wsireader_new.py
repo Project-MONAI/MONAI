@@ -231,6 +231,7 @@ class WSIReaderTests:
                 [
                     LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
                     FromMetaTensord(keys=["image"]),
+                    ToTensord(keys=["image"]),
                 ]
             )
             dataset = Dataset([{"image": file_path}], transform=train_transform)
@@ -245,6 +246,7 @@ class WSIReaderTests:
             train_transform = Compose(
                 [
                     LoadImaged(keys=["image"], reader=WSIReader, backend=self.backend, level=level),
+                    FromMetaTensord(keys=["image"]),
                     ToTensord(keys=["image"]),
                 ]
             )
