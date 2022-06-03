@@ -328,8 +328,8 @@ class FlipBox(Transform):
 
 class ClipBoxToImage(Transform):
     """
-    Clip the bounding boxes and the associated labels/scores to makes sure they are within the image.
-    There might be multiple arryas of labels/scores associated with one array of boxes.
+    Clip the bounding boxes and the associated labels/scores to make sure they are within the image.
+    There might be multiple arrays of labels/scores associated with one array of boxes.
 
     Args:
         remove_empty: whether to remove the boxes and corresponding labels that are actually empty

@@ -211,7 +211,7 @@ class RetinaNet(nn.Module):
         num_anchors: number of anchors at each location.
         feature_extractor: a network that outputs feature maps from the input images,
             each feature map corresponds to a different resolution.
-            Its output can have format of Tensor, Dict[Any, Tensor], or Sequence[Tensor].
+            Its output can have a format of Tensor, Dict[Any, Tensor], or Sequence[Tensor].
             It can be the output of ``resnet_fpn_feature_extractor(*args, **kwargs)``.
         size_divisible: the spatial size of the network input should be divisible by size_divisible,
             decided by the feature_extractor.
@@ -242,7 +242,7 @@ class RetinaNet(nn.Module):
                 trainable_backbone_layers = None,
                 returned_layers = returned_layers,
             )
-            # This feature_extractor requires input imgage spatial size
+            # This feature_extractor requires input image spatial size
             # to be divisible by (32, 32, 16).
             size_divisible = tuple(2*s*2**max(returned_layers) for s in conv1_t_stride)
             model = RetinaNet(
