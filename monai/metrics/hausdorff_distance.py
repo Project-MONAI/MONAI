@@ -86,14 +86,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        try:
-            is_binary_tensor(y_pred, "y_pred")
-        except ValueError as e:
-            raise ValueError("y_pred" + str(e)) from e
-        try:
-            is_binary_tensor(y, "y")
-        except ValueError as e:
-            raise ValueError("y" + str(e)) from e
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
 
         dims = y_pred.ndimension()
         if dims < 3:

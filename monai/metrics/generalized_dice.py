@@ -129,14 +129,8 @@ def compute_generalized_dice(
             or `y_pred` and `y` don't have the same shape.
     """
     # Ensure tensors are binarized
-    try:
-        is_binary_tensor(y_pred, "y_pred")
-    except ValueError as e:
-        raise ValueError("y_pred" + str(e)) from e
-    try:
-        is_binary_tensor(y, "y")
-    except ValueError as e:
-        raise ValueError("y" + str(e)) from e
+    is_binary_tensor(y_pred, "y_pred")
+    is_binary_tensor(y, "y")
 
     # Ensure tensors have at least 3 dimensions and have the same shape
     dims = y_pred.dim()

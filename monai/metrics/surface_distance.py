@@ -79,14 +79,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        try:
-            is_binary_tensor(y_pred, "y_pred")
-        except ValueError as e:
-            raise ValueError("y_pred" + str(e)) from e
-        try:
-            is_binary_tensor(y, "y")
-        except ValueError as e:
-            raise ValueError("y" + str(e)) from e
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
