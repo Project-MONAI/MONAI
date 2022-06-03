@@ -12,9 +12,7 @@
 import random
 import unittest
 
-import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.apps.detection.metrics.coco import COCOMetric
 from monai.apps.detection.metrics.matching import matching_batch
