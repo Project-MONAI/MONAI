@@ -269,10 +269,10 @@ class SpatialResample(InvertibleTransform):
             )
 
         try:
+            _s = convert_data_type(src_affine_, torch.Tensor, device=torch.device("cpu"))[0]
+            _d = convert_data_type(dst_affine, torch.Tensor, device=torch.device("cpu"))[0]
             xform = (
-                torch.linalg.solve(src_affine_, dst_affine)
-                if pytorch_after(1, 8, 0)
-                else torch.solve(dst_affine, src_affine_).solution  # type: ignore
+                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
             )
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError("src affine is not invertible.") from e
