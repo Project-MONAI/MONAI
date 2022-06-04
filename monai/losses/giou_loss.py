@@ -22,7 +22,9 @@ class BoxGIoULoss(_Loss):
 
     """
     Compute the generalized intersection over union (GIoU) loss of a pair of boxes.
-    The two inputs should have the same shape.
+    The two inputs should have the same shape. giou_loss = 1.0 - giou
+
+    The range of GIoU is (-1.0, 1.0]. Thus the range of GIoU loss is [0.0, 2.0).
 
     Args:
         reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -44,21 +46,20 @@ class BoxGIoULoss(_Loss):
         Raises:
             ValueError: When the two inputs have different shape.
         """
-        if input.shape != target.shape:
-            raise ValueError(
-                f"input and target should have same shape. Got input.shape={input.shape}, "
-                f"target.shape={target.shape}"
-            )
+        if target.shape != input.shape:
+            raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         box_dtype = input.dtype
         giou: torch.Tensor = box_pair_giou(target.to(dtype=COMPUTE_DTYPE), input.to(dtype=COMPUTE_DTYPE))  # type: ignore
         loss: torch.Tensor = 1.0 - giou
-        if self.reduction == "mean":
+        if self.reduction == LossReduction.MEAN.value:
             loss = loss.mean()
-        elif self.reduction == "sum":
+        elif self.reduction == LossReduction.SUM.value:
             loss = loss.sum()
-        elif self.reduction == "none":
+        elif self.reduction == LossReduction.NONE.value:
             pass
+        else:
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
         return loss.to(box_dtype)
 
 

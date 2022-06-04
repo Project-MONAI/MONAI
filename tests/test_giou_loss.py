@@ -18,8 +18,6 @@ from parameterized import parameterized
 from monai.losses import BoxGIoULoss
 
 TEST_CASES = [
-    [{"input": torch.zeros((0, 4)), "target": torch.zeros((0, 4))}, 1.0],  # shape: (0, 4), (0, 4)
-    [{"input": torch.zeros((0, 6)), "target": torch.zeros((0, 6))}, 1.0],  # shape: (0, 6), (0, 6)
     [  # shape: (1, 4), (1, 4)
         {"input": torch.tensor([[1.0, 1.0, 2.0, 2.0]]), "target": torch.tensor([[1.0, 1.0, 2.0, 2.0]])},
         0.0,
