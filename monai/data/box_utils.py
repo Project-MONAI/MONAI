@@ -983,6 +983,8 @@ def spatial_crop_boxes(
         for axis in range(1, spatial_dims):
             keep_t = keep_t & (boxes_t[:, axis + spatial_dims] >= boxes_t[:, axis] + 1 - TO_REMOVE)
         boxes_t = boxes_t[keep_t]
+    else:
+        keep_t = torch.full_like(boxes_t[:, 0], fill_value=True, dtype=torch.bool)
 
     # convert tensor back to numpy if needed
     boxes_keep, *_ = convert_to_dst_type(src=boxes_t, dst=boxes)
@@ -1023,8 +1025,7 @@ def non_max_suppression(
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
         scores: prediction scores of the boxes, sized (N,). This function keeps boxes with higher scores.
-        nms_thresh: threshold of NMS. For boxes with overlap more than nms_thresh,
-            we only keep the one with the highest score.
+        nms_thresh: threshold of NMS. Discards all overlapping boxes with box_overlap > nms_thresh.
         max_proposals: maximum number of boxes it keeps.
             If ``max_proposals`` = -1, there is no limit on the number of boxes that are kept.
         box_overlap_metric: the metric to compute overlap between boxes.
@@ -1046,7 +1047,7 @@ def non_max_suppression(
             f"boxes and scores should have same length, got boxes shape {boxes.shape}, scores shape {scores.shape}"
         )
 
-    # convert tensor to numpy if needed
+    # convert numpy to tensor if needed
     boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
     scores_t, *_ = convert_to_dst_type(scores, boxes_t)
 
@@ -1077,5 +1078,53 @@ def non_max_suppression(
     # return only the bounding boxes that were picked using the integer data type
     pick_idx = sort_idxs[pick]
 
-    # convert numpy back to tensor if needed
+    # convert tensor back to numpy if needed
     return convert_to_dst_type(src=pick_idx, dst=boxes, dtype=pick_idx.dtype)[0]
+
+
+def batched_nms(
+    boxes: NdarrayOrTensor,
+    scores: NdarrayOrTensor,
+    labels: NdarrayOrTensor,
+    nms_thresh: float,
+    max_proposals: int = -1,
+    box_overlap_metric: Callable = box_iou,
+) -> NdarrayOrTensor:
+    """
+    Performs non-maximum suppression in a batched fashion.
+    Each labels value correspond to a category, and NMS will not be applied between elements of different categories.
+
+    Adapted from https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/nms.py
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        scores: prediction scores of the boxes, sized (N,). This function keeps boxes with higher scores.
+        labels: indices of the categories for each one of the boxes. sized(N,), value range is (0, num_classes)
+        nms_thresh: threshold of NMS. Discards all overlapping boxes with box_overlap > nms_thresh.
+        max_proposals: maximum number of boxes it keeps.
+            If ``max_proposals`` = -1, there is no limit on the number of boxes that are kept.
+        box_overlap_metric: the metric to compute overlap between boxes.
+
+    Returns:
+        Indexes of ``boxes`` that are kept after NMS.
+    """
+    # returns empty array if boxes is empty
+    if boxes.shape[0] == 0:
+        return convert_to_dst_type(src=np.array([]), dst=boxes, dtype=torch.long)[0]
+
+    # convert numpy to tensor if needed
+    boxes_t, *_ = convert_data_type(boxes, torch.Tensor, dtype=torch.float32)
+    scores_t, *_ = convert_to_dst_type(scores, boxes_t)
+    labels_t, *_ = convert_to_dst_type(labels, boxes_t, dtype=torch.long)
+
+    # strategy: in order to perform NMS independently per class.
+    # we add an offset to all the boxes. The offset is dependent
+    # only on the class idx, and is large enough so that boxes
+    # from different classes do not overlap
+    max_coordinate = boxes_t.max()
+    offsets = labels_t.to(boxes_t) * (max_coordinate + 1)
+    boxes_for_nms = boxes + offsets[:, None]
+    keep = non_max_suppression(boxes_for_nms, scores_t, nms_thresh, max_proposals, box_overlap_metric)
+
+    # convert tensor back to numpy if needed
+    return convert_to_dst_type(src=keep, dst=boxes, dtype=keep.dtype)[0]

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -22,7 +23,7 @@ binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_ero
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
-__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance"]
+__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance", "is_binary_tensor"]
 
 
 def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
@@ -202,3 +203,22 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
 
     return np.asarray(dis[seg_pred])
+
+
+def is_binary_tensor(input: torch.Tensor, name: str):
+    """Determines whether the input tensor is torch binary tensor or not.
+
+    Args:
+        input (torch.Tensor): tensor to validate.
+        name (str): name of the tensor being checked.
+
+    Raises:
+        ValueError: if `input` is not a PyTorch Tensor.
+
+    Returns:
+        Union[str, None]: warning message, if the tensor is not binary. Othwerwise, None.
+    """
+    if not isinstance(input, torch.Tensor):
+        raise ValueError(f"{name} must be of type PyTorch Tensor.")
+    if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
+        warnings.warn(f"{name} should be a binarized tensor.")

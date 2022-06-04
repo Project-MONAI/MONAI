@@ -21,6 +21,7 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils.enums import PostFix
+from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -263,6 +264,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     def as_dict(self, key: str) -> dict:
         """
         Get the object as a dictionary for backwards compatibility.
+        This method makes a copy of the objects.
 
         Args:
             key: Base key to store main data. The key for the metadata will be
@@ -273,7 +275,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 the metadata.
         """
         return {
-            key: self.as_tensor(),
+            key: self.as_tensor().clone().detach(),
             PostFix.meta(key): deepcopy(self.meta),
             PostFix.transforms(key): deepcopy(self.applied_operations),
         }
@@ -313,7 +315,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             By default, a `MetaTensor` is returned.
             However, if `get_track_meta()` is `False`, a `torch.Tensor` is returned.
         """
-        img = torch.as_tensor(im)
+        img = convert_to_tensor(im)  # potentially ascontiguousarray
 
         # if not tracking metadata, return `torch.Tensor`
         if not get_track_meta() or meta is None:
@@ -321,7 +323,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         # ensure affine is of type `torch.Tensor`
         if "affine" in meta:
-            meta["affine"] = torch.as_tensor(meta["affine"])
+            meta["affine"] = convert_to_tensor(meta["affine"])
 
         # remove any superfluous metadata.
         remove_extra_metadata(meta)
