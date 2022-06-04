@@ -1168,8 +1168,8 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
     """
     Fast crop random fixed sized regions that contains foreground boxes, referred as positive samples.
-    Compared with `RandCropBoxByPosNegLabeld`, this transform is much faster,
-    sometimes can be 100x faster for 3D images. However, this transform has two drawbacks.
+    Compared with `RandCropBoxByPosNegLabeld`, this transform is usually faster,
+    sometimes can save 50% of the time cost for 3D images. However, this transform has two drawbacks.
 
     - When sampling positive samples, it is a biased sampling which gives
       positive samples for small boxes a higher weight than uniform sampling.
