@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, retinanet_resnet50_fpn_detector
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
-from monai.networks import eval_mode
+from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
@@ -131,6 +131,23 @@ class TestRetinaNetDetector(unittest.TestCase):
             result = detector.forward(input_data)
             assert len(result) == len(result)
 
+        detector.set_atss_matcher()
+        detector.set_hard_negative_sampler(10, 0.5)
+        gt_box_start = torch.randint(2, (3, input_param["spatial_dims"])).to(torch.float16)
+        gt_box_end = gt_box_start + torch.randint(1, 10, (3, input_param["spatial_dims"]))
+        one_target = {
+            "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
+            "labels": torch.randint(input_param["num_classes"], (3,)),
+        }
+        with train_mode(detector):
+            input_data = torch.randn(input_shape)
+            targets = [one_target] * len(input_data)
+            result = detector.forward(input_data, targets)
+
+            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
+            targets = [one_target] * len(input_data)
+            result = detector.forward(input_data, targets)
+
     @parameterized.expand(TEST_CASES)
     def test_naive_retina_detector_shape(self, input_param, input_shape):
         anchor_generator = AnchorGeneratorWithAnchorShape(
@@ -146,6 +163,23 @@ class TestRetinaNetDetector(unittest.TestCase):
             input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
             result = detector.forward(input_data)
             assert len(result) == len(result)
+
+        detector.set_atss_matcher()
+        detector.set_hard_negative_sampler(10, 0.5)
+        gt_box_start = torch.randint(2, (3, input_param["spatial_dims"])).to(torch.float16)
+        gt_box_end = gt_box_start + torch.randint(1, 10, (3, input_param["spatial_dims"]))
+        one_target = {
+            "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
+            "labels": torch.randint(input_param["num_classes"], (3,)),
+        }
+        with train_mode(detector):
+            input_data = torch.randn(input_shape)
+            targets = [one_target] * len(input_data)
+            result = detector.forward(input_data, targets)
+
+            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
+            targets = [one_target] * len(input_data)
+            result = detector.forward(input_data, targets)
 
     @parameterized.expand(TEST_CASES_TS)
     def test_script(self, input_param, input_shape):
