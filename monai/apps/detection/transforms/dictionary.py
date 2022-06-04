@@ -1274,12 +1274,12 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
         thresh_image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         num_fg_sample = int(round(self.num_samples * self.pos_ratio))
-        fg_centers = self.randomize_fg(boxes, image_size, num_fg_sample, fg_indices)
+        fg_centers = self._randomize_fg(boxes, image_size, num_fg_sample, fg_indices)
         # bg_centers may contain false negative samples
-        bg_centers = self.randomize_bg(image_size, self.num_samples - len(fg_centers), bg_indices)
+        bg_centers = self._randomize_bg(image_size, self.num_samples - len(fg_centers), bg_indices)
         self.centers = fg_centers + bg_centers
 
-    def randomize_fg(  # type: ignore
+    def _randomize_fg(  # type: ignore
         self,
         boxes: NdarrayOrTensor,
         image_size: Sequence[int],
@@ -1305,10 +1305,10 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
         sample_box = extended_boxes_np[sampled_i, :]
         fg_centers = []
         for i in range(num_fg_sample):
-            fg_centers += self.randomize_within_rect(sample_box[i, :], 1)
+            fg_centers += self._randomize_within_rect(sample_box[i, :], 1)
         return fg_centers
 
-    def randomize_within_rect(self, sample_box: np.ndarray, num_samples: int) -> List[List[int]]:  # type: ignore
+    def _randomize_within_rect(self, sample_box: np.ndarray, num_samples: int) -> List[List[int]]:  # type: ignore
         """
         Get random samples within a rect region as patch centers.
 
@@ -1328,6 +1328,7 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
 
         Return:
             sampled patch centers, list of 1x2 list, or list of 1x3 list.
+
         """
         rand_centers = []
         spatial_dims = len(sample_box) // 2
@@ -1339,7 +1340,7 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
 
         return rand_centers
 
-    def randomize_bg(  # type: ignore
+    def _randomize_bg(  # type: ignore
         self, image_size: Sequence[int], num_bg_sample: int, bg_indices: Optional[NdarrayOrTensor] = None
     ) -> List[List[int]]:
         if bg_indices is not None:
@@ -1350,7 +1351,7 @@ class FastRandCropBoxByPosNegLabelTinyBoxd(RandCropBoxByPosNegLabeld):
 
         spatial_dims = len(image_size)
         sample_box = np.array([0] * spatial_dims + list(image_size))
-        return self.randomize_within_rect(sample_box, num_bg_sample)
+        return self._randomize_within_rect(sample_box, num_bg_sample)
 
 
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
