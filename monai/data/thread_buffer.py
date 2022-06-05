@@ -82,15 +82,15 @@ class ThreadBuffer:
 
 def buffer_iterator(src, buffer_size: int = 1, timeout: float = 0.01, repeats:int = 1):
     """
-    Create a ThreadBuffer object using the `src`, `buffer_size`, and `timeout` parameters given for the constructor 
+    Create a ThreadBuffer object using the `src`, `buffer_size`, and `timeout` parameters given for the constructor
     aguments of the same names, and yield each generated object `repeats` number of times successively.
-    
+
     Args:
         src: Source data iterable
         buffer_size: Number of items to buffer from the source
         timeout: Time to wait for an item from the buffer, or to wait while the buffer is full when adding items
         repeats: Number of repeat generations to perform which is asynchronous from the generation of the next value
-        
+
     Returns:
         Generator yield (repeated) values from `src` asynchronously
     """
@@ -99,7 +99,7 @@ def buffer_iterator(src, buffer_size: int = 1, timeout: float = 0.01, repeats:in
     for batch in buffer:
         for _ in range(repeats):
             yield batch
-            
+
 
 class _ProcessThread(Thread):
     """Shim class to make a thread look like a process to the DataLoader class."""
