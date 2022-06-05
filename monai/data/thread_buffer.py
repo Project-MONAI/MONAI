@@ -80,6 +80,27 @@ class ThreadBuffer:
             self.stop()  # ensure thread completion
 
 
+def buffer_iterator(src, buffer_size: int = 1, timeout: float = 0.01, repeats:int = 1):
+    """
+    Create a ThreadBuffer object using the `src`, `buffer_size`, and `timeout` parameters given for the constructor 
+    aguments of the same names, and yield each generated object `repeats` number of times successively.
+    
+    Args:
+        src: Source data iterable
+        buffer_size: Number of items to buffer from the source
+        timeout: Time to wait for an item from the buffer, or to wait while the buffer is full when adding items
+        repeats: Number of repeat generations to perform which is asynchronous from the generation of the next value
+        
+    Returns:
+        Generator yield (repeated) values from `src` asynchronously
+    """
+    buffer = ThreadBuffer(src=src, buffer_size=buffer_size, timeout=timeout)
+
+    for batch in buffer:
+        for _ in range(repeats):
+            yield batch
+            
+
 class _ProcessThread(Thread):
     """Shim class to make a thread look like a process to the DataLoader class."""
 
@@ -123,7 +144,8 @@ class ThreadDataLoader(DataLoader):
     value the generated batch is yielded that many times while underlying dataset asynchronously generates the next.
     Typically not all relevant information is learned from a batch in a single iteration so training multiple times
     on the same batch will still produce good training with minimal short-term overfitting while allowing a slow batch
-    generation process more time to produce a result.
+    generation process more time to produce a result. This duplication is done by simply yielding the same object many
+    times and not by regenerating the data.
 
     Another typical usage is to accelerate light-weight preprocessing (usually cached all the deterministic transforms
     and no IO operations), because it leverages the separate thread to execute preprocessing to avoid unnecessary IPC
@@ -172,8 +194,4 @@ class ThreadDataLoader(DataLoader):
         self.repeats = repeats
 
     def __iter__(self):
-        buffer = ThreadBuffer(src=super().__iter__(), buffer_size=self.buffer_size, timeout=self.buffer_timeout)
-
-        for batch in buffer:
-            for _ in range(self.repeats):
-                yield batch
+        yield from buffer_iterator(super().__iter__(), self.buffer_size, self.buffer_timeout, self.repeats)
