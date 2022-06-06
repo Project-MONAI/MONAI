@@ -403,7 +403,7 @@ def list_data_collate(batch: Sequence):
 
     """
     elem = batch[0]
-    data = [i for k in batch for i in k] if isinstance(elem, list) and elem else batch
+    data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
         if isinstance(elem, Mapping):

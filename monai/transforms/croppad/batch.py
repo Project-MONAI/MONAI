@@ -94,6 +94,7 @@ class PadListDataCollate(InvertibleTransform):
             # If all same size, skip
             if np.all(np.array(max_shapes).min(axis=0) == max_shape):
                 continue
+
             # Use `SpatialPad` to match sizes, Default params are central padding, padding with 0's
             padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.kwargs)
             for idx, batch_i in enumerate(batch):
