@@ -402,7 +402,7 @@ def list_data_collate(batch: Sequence):
 
     """
     elem = batch[0]
-    data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    data = [i for k in batch for i in k] if isinstance(elem, list) and elem else batch
     key = None
     try:
         if isinstance(elem, Mapping):
@@ -543,15 +543,12 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
         if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            batch_size = len(out_list)
-            b, _, _ = _non_zipping_check(batch.meta, detach, pad, fill_value)
-            if b == batch_size:
-                metas = decollate_batch(batch.meta)
-                app_ops = decollate_batch(batch.applied_operations)
-                for i in range(len(out_list)):
-                    out_list[i].meta = metas[i]  # type: ignore
-                    out_list[i].applied_operations = app_ops[i]  # type: ignore
-                    out_list[i].is_batch = False  # type: ignore
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                t.meta = m
+                t.is_batch = False
+            for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
+                t.applied_operations = m
+                t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)

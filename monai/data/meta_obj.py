@@ -73,6 +73,7 @@ class MetaObj:
 
     def __init__(self):
         self._meta: dict = self.get_default_meta()
+        self._applied_operations: list = self.get_default_applied_operations()
         self._is_batch: bool = False
 
     @staticmethod
