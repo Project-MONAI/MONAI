@@ -406,7 +406,7 @@ def rot90_boxes(
         raise ValueError("Axes must be different.")
 
     if axes[0] >= spatial_dims or axes[0] < -spatial_dims or axes[1] >= spatial_dims or axes[1] < -spatial_dims:
-        raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, spatial_dims))
+        raise ValueError(f"Axes={axes} out of range for array of ndim={spatial_dims}.")
 
     k %= 4
 
