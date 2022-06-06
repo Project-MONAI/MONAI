@@ -68,10 +68,8 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 
-from .abstract import DetectionMetric
 
-
-class COCOMetric(DetectionMetric):
+class COCOMetric:
     def __init__(
         self,
         classes: Sequence[str],
@@ -149,6 +147,32 @@ class COCOMetric(DetectionMetric):
 
         self.recall_thresholds = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.max_detections = max_detection
+
+    def __call__(self, *args, **kwargs) -> Tuple[Dict[str, float], Union[Dict[str, np.ndarray], None]]:
+        """
+        Compute metric. See :func:`compute` for more information.
+
+        Args:
+            *args: positional arguments passed to :func:`compute`
+            **kwargs: keyword arguments passed to :func:`compute`
+
+        Returns:
+            Dict[str, float]: dictionary with scalar values for evaluation
+            Dict[str, np.ndarray]: dictionary with arrays, e.g. for visualization of graphs
+        """
+        return self.compute(*args, **kwargs)
+
+    def check_number_of_iou(self, *args) -> None:
+        """
+        Check if shape of input in first dimension is consistent with expected IoU values
+        (assumes IoU dimension is the first dimension)
+
+        Args:
+            args: array like inputs with shape function
+        """
+        num_ious = len(self.get_iou_thresholds())
+        for arg in args:
+            assert arg.shape[0] == num_ious
 
     def get_iou_thresholds(self) -> Sequence[float]:
         """
