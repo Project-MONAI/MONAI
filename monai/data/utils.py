@@ -542,13 +542,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
-        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
+        if isinstance(batch, MetaObj):
             for t, m in zip(out_list, decollate_batch(batch.meta)):
-                t.meta = m
-                t.is_batch = False
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
             for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
-                t.applied_operations = m
-                t.is_batch = False
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)

@@ -511,14 +511,16 @@ class CropBase(InvertibleTransform):
         # out.meta["spatial_shape"] = out.shape[1:]f
         return out
 
-    def _forward(self, img: torch.Tensor, slices: List[slice]) -> torch.Tensor:
+    def _forward(self, img: torch.Tensor, slices: Optional[Tuple[slice, ...]]) -> torch.Tensor:
+        if slices is None:
+            return img
         sd = len(img.shape[1:])  # spatial dims
         # if too many spatial dimension, take only the first ones necessary
-        slices = list(slices)
-        if len(slices) < sd:
-            slices += [slice(None)] * (sd - len(slices))
+        _slices = list(slices)
+        if len(_slices) < sd:
+            _slices += [slice(None)] * (sd - len(_slices))
         # Add in the channel (no cropping)
-        slices = [slice(None)] + slices[:sd]
+        slices = ensure_tuple([slice(None)] + _slices[:sd])
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         orig_size = img.shape[1:]
@@ -728,7 +730,7 @@ class RandSpatialCrop(Randomizable, CropBase):
             self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = list(get_random_patch(img_size, valid_size, self.R))
+            self._slices = ensure_tuple(get_random_patch(img_size, valid_size, self.R))
 
     def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
@@ -1340,7 +1342,7 @@ class RandCropByLabelClasses(Randomizable, ListCropBase):
             image = self.image
 
         self.randomize(label, indices, image)
-        results: List[NdarrayOrTensor] = []
+        results: List[torch.Tensor] = []
         if self.centers is not None:
             for center in self.centers:
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])

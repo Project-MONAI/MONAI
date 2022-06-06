@@ -320,11 +320,13 @@ class RandCropBased(CropBased, Randomizable):
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandCropBased":
         super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        if isinstance(self.cropper, Randomizable):
+            self.cropper.set_random_state(seed, state)
         return self
 
     def randomize(self, img_size: Sequence[int]) -> None:
-        self.cropper.randomize(img_size)
+        if isinstance(self.cropper, Randomizable):
+            self.cropper.randomize(img_size)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)

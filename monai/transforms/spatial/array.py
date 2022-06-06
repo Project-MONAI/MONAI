@@ -1045,7 +1045,7 @@ class Zoom(Transform):
                     slice_vec[idx] = slice(half, half + od)
 
             padder = Pad(pad_vec, padding_mode or self.padding_mode)
-            zoomed = padder(zoomed)
+            zoomed = padder(zoomed)  # type: ignore
             zoomed = zoomed[tuple(slice_vec)]
 
         out, *_ = convert_to_dst_type(zoomed, dst=img)
