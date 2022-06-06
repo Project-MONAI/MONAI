@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCropd
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, pytorch_after
 
 TEST_CASES = [
     [{"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 8, 8)],
@@ -26,8 +26,16 @@ TEST_CASES = [
         (3, 15, 4, 8),
     ],
     [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
-    [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
-    [{"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 8, 8, 4)],
+    [
+        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 4),
+    ],
+    [
+        {"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 8, 8, 4),
+    ],
 ]
 
 

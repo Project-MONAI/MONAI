@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCrop
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, pytorch_after
 
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],
@@ -27,8 +27,16 @@ TEST_CASES = [
         (3, 15, 4, 8),
     ],
     [{"spatial_size": [15, 4, -1], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 4, 4)],
-    [{"spatial_size": [15, 4, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 15, 4, 4)],
-    [{"spatial_size": [-1, -1, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 8, 8, 4)],
+    [
+        {"spatial_size": [15, 4, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        (3, 8, 8, 4),
+        (3, 15, 4, 4),
+    ],
+    [
+        {"spatial_size": [-1, -1, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        (3, 8, 8, 4),
+        (3, 8, 8, 4),
+    ],
 ]
 
 
