@@ -292,7 +292,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
@@ -421,7 +421,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         prob: Probability of zooming.
         min_zoom: Min zoom factor. Can be float or sequence same size as image.
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
@@ -584,7 +584,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -648,7 +648,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
@@ -728,7 +728,7 @@ class ClipBoxToImaged(MapTransform):
 
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Multiple keys are allowed.
         box_ref_image_keys: The single key that represents the reference image
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
@@ -798,8 +798,8 @@ class BoxToMaskd(MapTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         min_fg_label: min foreground box label.
         ellipse_mask: bool.
 
@@ -886,7 +886,7 @@ class MaskToBoxd(MapTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
         min_fg_label: min foreground box label.
         box_dtype: output dtype for box_keys
         label_dtype: output dtype for label_keys
@@ -961,7 +961,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
     Args:
         image_keys: Keys to pick image data for transformation. They need to have the same spatial size.
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Multiple keys are allowed.
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
@@ -1170,19 +1170,17 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
 class RotateBox90d(MapTransform, InvertibleTransform):
     """
-    Dictionary-based version :py:class:`monai.transforms.RotateBox90`.
     Input boxes and images are rotated by 90 degrees
-    in the plane specified by `spatial_axes`for k times
+    in the plane specified by ``spatial_axes`` for ``k`` times
 
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         k: number of times to rotate by 90 degrees.
         spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-            Default: (0, 1), this is the first two axis in spatial dimensions.
+            Default (0, 1), this is the first two axis in spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
-
     """
 
     backend = RotateBox90.backend
@@ -1228,7 +1226,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
             transform = self.get_most_recent_transform(d, key)
             key_type = transform[TraceKeys.EXTRA_INFO]["type"]
             num_times_to_rotate = 4 - self.img_rotator.k
-            # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
+
             if key_type == "image_key":
                 inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
                 d[key] = inverse_transform(d[key])
@@ -1248,7 +1246,7 @@ class RandRotateBox90d(RandRotate90d):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         prob: probability of rotating.
             (Default 0.1, with 10% probability it returns a rotated array.)
         max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
