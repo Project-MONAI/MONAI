@@ -522,18 +522,17 @@ class RotateBox90(Rotate90):
     """
     Rotate a boxes by 90 degrees in the plane specified by `axes`.
     See box_ops.rot90_boxes for additional details
+
+    Args:
+        k: number of times to rotate by 90 degrees.
+        spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default: (0, 1), this is the first two axis in spatial dimensions.
+            If axis is negative it counts from the last to the first axis.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
-        """
-        Args:
-            k: number of times to rotate by 90 degrees.
-            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-                Default: (0, 1), this is the first two axis in spatial dimensions.
-                If axis is negative it counts from the last to the first axis.
-        """
         super().__init__(k, spatial_axes)
 
     def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]) -> NdarrayOrTensor:  # type: ignore

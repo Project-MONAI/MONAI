@@ -1171,8 +1171,18 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 class RotateBox90d(MapTransform, InvertibleTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RotateBox90`.
-    With probability `prob`, input boxes and images are rotated by 90 degrees
-    in the plane specified by `spatial_axes`.
+    Input boxes and images are rotated by 90 degrees
+    in the plane specified by `spatial_axes`for k times
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        k: number of times to rotate by 90 degrees.
+        spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default: (0, 1), this is the first two axis in spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
     """
 
     backend = RotateBox90.backend
@@ -1186,19 +1196,6 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         spatial_axes: Tuple[int, int] = (0, 1),
         allow_missing_keys: bool = False,
     ) -> None:
-        """
-        Args:
-            image_keys: Keys to pick image data for transformation.
-            box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-            box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
-            prob: probability of rotating.
-                (Default 0.1, with 10% probability it returns a rotated array.)
-            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
-                (Default 3)
-            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-                Default: (0, 1), this is the first two axis in spatial dimensions.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
         super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
@@ -1208,9 +1205,6 @@ class RotateBox90d(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         d = dict(data)
-
-        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
-        # to be compatible with the random status of some previous integration tests
         for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             spatial_size = list(d[box_ref_image_key].shape[1:])
             d[key] = self.box_rotator(d[key], spatial_size)
@@ -1248,9 +1242,20 @@ class RotateBox90d(MapTransform, InvertibleTransform):
 
 class RandRotateBox90d(RandRotate90d):
     """
-    Dictionary-based version :py:class:`monai.transforms.RotateBox90`.
     With probability `prob`, input boxes and images are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        prob: probability of rotating.
+            (Default 0.1, with 10% probability it returns a rotated array.)
+        max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+            (Default 3)
+        spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default: (0, 1), this is the first two axis in spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = RotateBox90.backend
@@ -1265,19 +1270,6 @@ class RandRotateBox90d(RandRotate90d):
         spatial_axes: Tuple[int, int] = (0, 1),
         allow_missing_keys: bool = False,
     ) -> None:
-        """
-        Args:
-            image_keys: Keys to pick image data for transformation.
-            box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-            box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
-            prob: probability of rotating.
-                (Default 0.1, with 10% probability it returns a rotated array.)
-            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
-                (Default 3)
-            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
-                Default: (0, 1), this is the first two axis in spatial dimensions.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)

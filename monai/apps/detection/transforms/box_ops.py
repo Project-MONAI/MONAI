@@ -359,7 +359,7 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrT
         axis2: Second axis.
 
     Returns:
-        boxes with toaxes interchanged.
+        boxes with two axes interchanged.
 
     """
     spatial_dims: int = get_spatial_dims(boxes=boxes)
@@ -377,23 +377,22 @@ def rot90_boxes(
     """
     Rotate boxes by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.
-    Parameters
 
     Args:
         boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
         spatial_size: image spatial size.
         k : number of times the array is rotated by 90 degrees.
         axes: (2,) array_like
-            The array is rotated in the plane defined by the axes.Axes must be different.
+            The array is rotated in the plane defined by the axes. Axes must be different.
 
     Returns:
         A rotated view of `boxes`.
 
     Notes:
-        ``rot90(boxes, spatial_size, k=1, axes=(1,0))``  is the reverse of
-        ``rot90(boxes, spatial_size, k=1, axes=(0,1))``
-        ``rot90(boxes, spatial_size, k=1, axes=(1,0))`` is equivalent to
-        ``rot90(boxes, spatial_size, k=-1, axes=(0,1))``
+        ``rot90_boxes(boxes, spatial_size, k=1, axes=(1,0))``  is the reverse of
+        ``rot90_boxes(boxes, spatial_size, k=1, axes=(0,1))``
+        ``rot90_boxes(boxes, spatial_size, k=1, axes=(1,0))`` is equivalent to
+        ``rot90_boxes(boxes, spatial_size, k=-1, axes=(0,1))``
     """
     spatial_dims: int = get_spatial_dims(boxes=boxes)
     spatial_size_ = list(ensure_tuple_rep(spatial_size, spatial_dims))
