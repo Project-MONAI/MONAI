@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import random
-import sys
 import unittest
 from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
@@ -20,13 +19,10 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
-from monai.data.utils import decollate_batch
-from monai.networks.nets import UNet
+from monai.data import create_test_image_2d, create_test_image_3d
 from monai.transforms import (
     AddChanneld,
     Affined,
-    BatchInverseTransform,
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,
@@ -51,7 +47,6 @@ from monai.transforms import (
     RandSpatialCropd,
     RandSpatialCropSamplesd,
     RandWeightedCropd,
-    RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
@@ -60,14 +55,10 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
-    TraceableTransform,
     Transposed,
-    Zoomd,
-    allow_missing_keys_mode,
-    convert_inverse_interp_mode,
 )
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils import first, get_seed, optional_import, set_determinism
+from monai.utils import get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
