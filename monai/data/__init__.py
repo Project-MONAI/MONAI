@@ -111,8 +111,8 @@ with contextlib.suppress(BaseException):
     from multiprocessing.reduction import ForkingPickler
 
     def _rebuild_meta(cls, storage, metadata):
-        storage_offset, size, stride, meta_obj = metadata
-        t = cls([], meta=meta_obj, dtype=storage.dtype, device=storage.device)
+        storage_offset, size, stride, meta_obj, applied_operations = metadata
+        t = cls([], meta=meta_obj, applied_operations=applied_operations, dtype=storage.dtype, device=storage.device)
         t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
         return t
 
@@ -120,7 +120,13 @@ with contextlib.suppress(BaseException):
         storage = meta_tensor.storage()
         if storage.is_cuda:
             raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
-        metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.meta)
+        metadata = (
+            meta_tensor.storage_offset(),
+            meta_tensor.size(),
+            meta_tensor.stride(),
+            meta_tensor.meta,
+            meta_tensor.applied_operations,
+        )
         return _rebuild_meta, (type(meta_tensor), storage, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)

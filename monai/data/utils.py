@@ -36,6 +36,7 @@ from monai.utils import (
     Method,
     NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -412,12 +413,16 @@ def list_data_collate(batch: Sequence):
                 data_for_batch = [d[key] for d in data]
                 ret[key] = default_collate(data_for_batch)
                 if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
+                    meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].meta = default_collate(meta_list)
+                    ops_list = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].applied_operations = default_collate(ops_list)
                     ret[key].is_batch = True
         else:
             ret = default_collate(data)
             if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = list_data_collate([i.meta for i in data])
+                ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
+                ret.applied_operations = default_collate([i.applied_operations or TraceKeys.NONE for i in data])
                 ret.is_batch = True
         return ret
     except RuntimeError as re:
@@ -540,14 +545,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
-        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            batch_size = len(out_list)
-            b, _, _ = _non_zipping_check(batch.meta, detach, pad, fill_value)
-            if b == batch_size:
-                metas = decollate_batch(batch.meta)
-                for i in range(len(out_list)):
-                    out_list[i].meta = metas[i]  # type: ignore
-                    out_list[i].is_batch = False  # type: ignore
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)

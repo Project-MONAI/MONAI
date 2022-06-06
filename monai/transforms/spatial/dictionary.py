@@ -1686,7 +1686,7 @@ class Zoomd(MapTransform, InvertibleTransform):
                 align_corners=None if align_corners == TraceKeys.NONE else align_corners,
             )
             # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
+            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 
@@ -1810,7 +1810,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])
+                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
             # Remove the applied transform
             self.pop_transform(d, key)
 

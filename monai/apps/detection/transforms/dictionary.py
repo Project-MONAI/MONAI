@@ -392,7 +392,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
             # zoom boxes
             if key_type == "box_key":
@@ -555,7 +556,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                         align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                     )
                     # Size might be out by 1 voxel so pad
-                    d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                    orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
                 # zoom boxes
                 if key_type == "box_key":
@@ -1143,7 +1145,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             # crop images
             cropper = SpatialCrop(roi_slices=crop_slices)
             for image_key in self.image_keys:
-                results[i][image_key] = cropper(d[image_key])
+                results[i][image_key] = cropper(d[image_key])  # type: ignore
 
             # crop boxes and labels
             boxcropper = SpatialCropBox(roi_slices=crop_slices)

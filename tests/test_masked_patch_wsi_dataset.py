@@ -49,7 +49,7 @@ TEST_CASE_0 = [
 
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
-def setUpModule():  # noqa: N802
+def setUpModule():
     hash_type = testing_data_config("images", FILE_KEY, "hash_type")
     hash_val = testing_data_config("images", FILE_KEY, "hash_val")
     download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
