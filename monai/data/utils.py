@@ -36,6 +36,7 @@ from monai.utils import (
     Method,
     NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -46,7 +47,6 @@ from monai.utils import (
     issequenceiterable,
     look_up_option,
     optional_import,
-    TraceKeys,
 )
 
 pd, _ = optional_import("pandas")

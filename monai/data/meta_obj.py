@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, Callable, Sequence
+
 from monai.utils.enums import TraceKeys
 
 _TRACK_META = True
