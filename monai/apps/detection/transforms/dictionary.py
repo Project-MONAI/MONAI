@@ -29,6 +29,7 @@ from monai.apps.detection.transforms.array import (
     ConvertBoxToStandardMode,
     FlipBox,
     MaskToBox,
+    RotateBox90,
     SpatialCropBox,
     ZoomBox,
 )
@@ -37,7 +38,7 @@ from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import Flip, RandFlip, RandZoom, SpatialCrop, SpatialPad, Zoom
+from monai.transforms import Flip, RandFlip, RandRotate90d, RandZoom, Rotate90, SpatialCrop, SpatialPad, Zoom
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
@@ -80,6 +81,12 @@ __all__ = [
     "RandCropBoxByPosNegLabeld",
     "RandCropBoxByPosNegLabelD",
     "RandCropBoxByPosNegLabelDict",
+    "RotateBox90d",
+    "RotateBox90D",
+    "RotateBox90Dict",
+    "RandRotateBox90d",
+    "RandRotateBox90D",
+    "RandRotateBox90Dict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1161,6 +1168,172 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         return results
 
 
+class RotateBox90d(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RotateBox90`.
+    With probability `prob`, input boxes and images are rotated by 90 degrees
+    in the plane specified by `spatial_axes`.
+    """
+
+    backend = RotateBox90.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        k: int = 1,
+        spatial_axes: Tuple[int, int] = (0, 1),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            image_keys: Keys to pick image data for transformation.
+            box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+            box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+            prob: probability of rotating.
+                (Default 0.1, with 10% probability it returns a rotated array.)
+            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+                (Default 3)
+            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+                Default: (0, 1), this is the first two axis in spatial dimensions.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+        self.img_rotator = Rotate90(k, spatial_axes)
+        self.box_rotator = RotateBox90(k, spatial_axes)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
+        # to be compatible with the random status of some previous integration tests
+        for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            spatial_size = list(d[box_ref_image_key].shape[1:])
+            d[key] = self.box_rotator(d[key], spatial_size)
+            if self.img_rotator.k % 2 == 1:
+                # if k = 1 or 3, spatial_size will be transposed
+                spatial_size[self.img_rotator.spatial_axes[0]], spatial_size[self.img_rotator.spatial_axes[1]] = (
+                    spatial_size[self.img_rotator.spatial_axes[1]],
+                    spatial_size[self.img_rotator.spatial_axes[0]],
+                )
+            self.push_transform(d, key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
+
+        for key in self.image_keys:
+            d[key] = self.img_rotator(d[key])
+            self.push_transform(d, key, extra_info={"type": "image_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            num_times_to_rotate = 4 - self.img_rotator.k
+            # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
+            if key_type == "image_key":
+                inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
+                d[key] = inverse_transform(d[key])
+            if key_type == "box_key":
+                spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                inverse_transform = RotateBox90(num_times_to_rotate, self.box_rotator.spatial_axes)
+                d[key] = inverse_transform(d[key], spatial_size)
+            self.pop_transform(d, key)
+        return d
+
+
+class RandRotateBox90d(RandRotate90d):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RotateBox90`.
+    With probability `prob`, input boxes and images are rotated by 90 degrees
+    in the plane specified by `spatial_axes`.
+    """
+
+    backend = RotateBox90.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        prob: float = 0.1,
+        max_k: int = 3,
+        spatial_axes: Tuple[int, int] = (0, 1),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            image_keys: Keys to pick image data for transformation.
+            box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+            box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+            prob: probability of rotating.
+                (Default 0.1, with 10% probability it returns a rotated array.)
+            max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+                (Default 3)
+            spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+                Default: (0, 1), this is the first two axis in spatial dimensions.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        self.randomize()
+        d = dict(data)
+
+        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
+        # to be compatible with the random status of some previous integration tests
+        box_rotator = RotateBox90(self._rand_k, self.spatial_axes)
+        img_rotator = Rotate90(self._rand_k, self.spatial_axes)
+
+        for key in self.image_keys:
+            if self._do_transform:
+                d[key] = img_rotator(d[key])
+            self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
+
+        for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            if self._do_transform:
+                spatial_size = list(d[box_ref_image_key].shape[1:])
+                d[key] = box_rotator(d[key], spatial_size)
+                if self._rand_k % 2 == 1:
+                    # if k = 1 or 3, spatial_size will be transposed
+                    spatial_size[self.spatial_axes[0]], spatial_size[self.spatial_axes[1]] = (
+                        spatial_size[self.spatial_axes[1]],
+                        spatial_size[self.spatial_axes[0]],
+                    )
+            self.push_transform(
+                d, key, extra_info={"rand_k": self._rand_k, "spatial_size": spatial_size, "type": "box_key"}
+            )
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[TraceKeys.DO_TRANSFORM]:
+                num_times_rotated = transform[TraceKeys.EXTRA_INFO]["rand_k"]
+                num_times_to_rotate = 4 - num_times_rotated
+                # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
+                if key_type == "image_key":
+                    inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                    d[key] = inverse_transform(d[key])
+                if key_type == "box_key":
+                    spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                    inverse_transform = RotateBox90(num_times_to_rotate, self.spatial_axes)
+                    d[key] = inverse_transform(d[key], spatial_size)
+                self.pop_transform(d, key)
+        return d
+
+
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
@@ -1172,3 +1345,5 @@ ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
 BoxToMaskD = BoxToMaskDict = BoxToMaskd
 MaskToBoxD = MaskToBoxDict = MaskToBoxd
 RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
+RotateBox90D = RotateBox90Dict = RotateBox90d
+RandRotateBox90D = RandRotateBox90Dict = RandRotateBox90d

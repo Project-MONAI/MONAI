@@ -347,3 +347,80 @@ def select_labels(
         return labels_select_list[0]  # type: ignore
 
     return tuple(labels_select_list)
+
+
+def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrTensor:
+    """
+    Interchange two axes of boxes.
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        axis1: First axis.
+        axis2: Second axis.
+
+    Returns:
+        boxes with toaxes interchanged.
+
+    """
+    spatial_dims: int = get_spatial_dims(boxes=boxes)
+    boxes_swap: NdarrayOrTensor = deepcopy(boxes)
+    boxes_swap[:, [axis1, axis2]] = boxes_swap[:, [axis2, axis1]]  # type: ignore
+    boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[  # type: ignore
+        :, [spatial_dims + axis2, spatial_dims + axis1]
+    ]
+    return boxes_swap
+
+
+def rot90_boxes(
+    boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int], k: int = 1, axes: Tuple[int, int] = (0, 1)
+) -> NdarrayOrTensor:
+    """
+    Rotate boxes by 90 degrees in the plane specified by axes.
+    Rotation direction is from the first towards the second axis.
+    Parameters
+
+    Args:
+        boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+        spatial_size: image spatial size.
+        k : number of times the array is rotated by 90 degrees.
+        axes: (2,) array_like
+            The array is rotated in the plane defined by the axes.Axes must be different.
+
+    Returns:
+        A rotated view of `boxes`.
+
+    Notes:
+        ``rot90(boxes, spatial_size, k=1, axes=(1,0))``  is the reverse of
+        ``rot90(boxes, spatial_size, k=1, axes=(0,1))``
+        ``rot90(boxes, spatial_size, k=1, axes=(1,0))`` is equivalent to
+        ``rot90(boxes, spatial_size, k=-1, axes=(0,1))``
+    """
+    spatial_dims: int = get_spatial_dims(boxes=boxes)
+    spatial_size_ = list(ensure_tuple_rep(spatial_size, spatial_dims))
+
+    axes = ensure_tuple(axes)  # type: ignore
+
+    if len(axes) != 2:
+        raise ValueError("len(axes) must be 2.")
+
+    if axes[0] == axes[1] or abs(axes[0] - axes[1]) == spatial_dims:
+        raise ValueError("Axes must be different.")
+
+    if axes[0] >= spatial_dims or axes[0] < -spatial_dims or axes[1] >= spatial_dims or axes[1] < -spatial_dims:
+        raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, spatial_dims))
+
+    k %= 4
+
+    if k == 0:
+        return boxes
+    if k == 2:
+        return flip_boxes(flip_boxes(boxes, spatial_size_, axes[0]), spatial_size_, axes[1])
+
+    if k == 1:
+        boxes_ = flip_boxes(boxes, spatial_size_, axes[1])
+        return swapaxes_boxes(boxes_, axes[0], axes[1])
+    else:
+        # k == 3
+        boxes_ = swapaxes_boxes(boxes, axes[0], axes[1])
+        spatial_size_[axes[0]], spatial_size_[axes[1]] = spatial_size_[axes[1]], spatial_size_[axes[0]]
+        return flip_boxes(boxes_, spatial_size_, axes[1])
