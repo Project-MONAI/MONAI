@@ -46,6 +46,7 @@ from monai.utils import (
     issequenceiterable,
     look_up_option,
     optional_import,
+    TraceKeys,
 )
 
 pd, _ = optional_import("pandas")
@@ -412,14 +413,16 @@ def list_data_collate(batch: Sequence):
                 data_for_batch = [d[key] for d in data]
                 ret[key] = default_collate(data_for_batch)
                 if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
-                    ret[key].applied_operations = list_data_collate([i.applied_operations for i in data_for_batch])
+                    meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].meta = default_collate(meta_list)
+                    ops_list = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].applied_operations = default_collate(ops_list)
                     ret[key].is_batch = True
         else:
             ret = default_collate(data)
             if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = list_data_collate([i.meta for i in data])
-                ret.applied_operations = list_data_collate([i.applied_operations for i in data])
+                ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
+                ret.applied_operations = default_collate([i.applied_operations or TraceKeys.NONE for i in data])
                 ret.is_batch = True
         return ret
     except RuntimeError as re:
