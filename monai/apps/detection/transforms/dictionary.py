@@ -1277,6 +1277,9 @@ class RandRotateBox90d(RandRotate90d):
         self.randomize()
         d = dict(data)
 
+        if self._rand_k % 4 == 0:
+            return d
+
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
         # to be compatible with the random status of some previous integration tests
         box_rotator = RotateBox90(self._rand_k, self.spatial_axes)
@@ -1304,6 +1307,8 @@ class RandRotateBox90d(RandRotate90d):
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
+        if self._rand_k % 4 == 0:
+            return d
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
