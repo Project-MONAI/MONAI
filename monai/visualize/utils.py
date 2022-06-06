@@ -52,7 +52,7 @@ def matshow3d(
             Higher dimensional arrays will be reshaped into (-1, H, W, [C]), `C` depends on `channel_dim` arg.
             A list of channel-first (C, H[, W, D]) arrays can also be passed in,
             in which case they will be displayed as a padded and stacked volume.
-        fig: matplotlib figure to use. If None, a new figure will be created.
+        fig: matplotlib figure or Axes to use. If None, a new figure will be created.
         title: title of the figure.
         figsize: size of the figure.
         frames_per_row: number of frames to display in each row. If None, sqrt(firstdim) will be used.
@@ -136,17 +136,20 @@ def matshow3d(
         im = np.moveaxis(im, 0, -1)
 
     # figure related configurations
-    if fig is None:
-        fig = plt.figure(tight_layout=True)
-    if not fig.axes:
-        fig.add_subplot(111)
-    ax = fig.axes[0]
+    if isinstance(fig, plt.Axes):
+        ax = fig
+    else:
+        if fig is None:
+            fig = plt.figure(tight_layout=True)
+        if not fig.axes:
+            fig.add_subplot(111)
+        ax = fig.axes[0]
     ax.matshow(im, vmin=vmin, vmax=vmax, interpolation=interpolation, **kwargs)
     ax.axis("off")
 
     if title is not None:
         ax.set_title(title)
-    if figsize is not None:
+    if figsize is not None and hasattr(fig, "set_size_inches"):
         fig.set_size_inches(figsize)
     if show:
         plt.show()
