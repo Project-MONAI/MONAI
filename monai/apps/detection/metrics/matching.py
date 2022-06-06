@@ -63,7 +63,7 @@ The changes include 1) code reformatting, 2) docstrings,
 3) allow input args gt_ignore to be optional. (If so, no GT boxes will be ignored.)
 """
 
-from typing import Callable, Dict, List, Optional, Sequence, Union
+from typing import Callable, Dict, List, Sequence, Union
 
 import numpy as np
 

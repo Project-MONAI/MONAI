@@ -46,21 +46,28 @@ from torch import Tensor, nn
 
 from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fpn_feature_extractor
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator
+from monai.apps.detection.utils.ATSS_matcher import ATSSMatcher
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.apps.detection.utils.box_selector import BoxSelector
 from monai.apps.detection.utils.detector_utils import check_training_targets, preprocess_images
+from monai.apps.detection.utils.hard_negative_sampler import HardNegativeSampler
 from monai.apps.detection.utils.predict_utils import ensure_dict_value_to_list_, predict_with_inferer
 from monai.data.box_utils import box_iou
 from monai.inferers import SlidingWindowInferer
 from monai.networks.nets import resnet
-from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep
+from monai.utils import BlendMode, PytorchPadMode, ensure_tuple_rep, optional_import
+
+BalancedPositiveNegativeSampler, _ = optional_import(
+    "torchvision.models.detection._utils", name="BalancedPositiveNegativeSampler"
+)
+Matcher, _ = optional_import("torchvision.models.detection._utils", name="Matcher")
 
 
 class RetinaNetDetector(nn.Module):
     """
     Retinanet detector, expandable to other one stage anchor based box detectors in the future.
     An example of construction can found in the source code of
-     :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
+    :func:`~monai.apps.detection.networks.retinanet_detector.retinanet_resnet50_fpn_detector` .
 
     The input to the model is expected to be a list of tensors, each of shape (C, H, W) or  (C, H, W, D),
     one for each image, and should be in 0-1 range. Different images can have different sizes.
@@ -71,32 +78,34 @@ class RetinaNetDetector(nn.Module):
     During training, the model expects both the input tensors, as well as a targets (list of dictionary),
     containing:
 
-        - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
-            ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
-            with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
-        - labels: the class label for each ground-truth box
+    - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
+      ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
+      with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
+    - labels: the class label for each ground-truth box
 
-    The model returns a Dict[Tensor] during training, containing the classification and regression
+    The model returns a Dict[str, Tensor] during training, containing the classification and regression
     losses.
-    When save the model, only self.network contains trainable parameters and needs to be saved.
+    When saving the model, only self.network contains trainable parameters and needs to be saved.
 
     During inference, the model requires only the input tensors, and returns the post-processed
     predictions as a List[Dict[Tensor]], one for each input image. The fields of the Dict are as
     follows:
-        - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the ground-truth boxes in ``StandardMode``, i.e.,
-            ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
-            with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
-        - labels (Int64Tensor[N]): the predicted labels for each image
-        - labels_scores (Tensor[N]): the scores for each prediction
+
+    - boxes (``FloatTensor[N, 4]`` or ``FloatTensor[N, 6]``): the predicted boxes in ``StandardMode``, i.e.,
+      ``[xmin, ymin, xmax, ymax]`` or ``[xmin, ymin, zmin, xmax, ymax, zmax]`` format,
+      with ``0 <= xmin < xmax <= H``, ``0 <= ymin < ymax <= W``, ``0 <= zmin < zmax <= D``.
+    - labels (Int64Tensor[N]): the predicted labels for each image
+    - labels_scores (Tensor[N]): the scores for each prediction
 
     Args:
         network: a network that takes an image Tensor sized (B, C, H, W) or (B, C, H, W, D) as input
-            and outputs a dictionary Dict[str, List[Tensor]].
+            and outputs a dictionary Dict[str, List[Tensor]] or Dict[str, Tensor].
         anchor_generator: anchor generator.
         box_overlap_metric: func that compute overlap between two sets of boxes, default is Intersection over Union (IoU).
         debug: whether to print out internal parameters, used for debugging and parameter tuning.
 
     Notes:
+
         Input argument ``network`` can be a monai.apps.detection.networks.retinanet_network.RetinaNet(*) object,
         but any network that meets the following rules is a valid input ``network``.
 
@@ -105,7 +114,7 @@ class RetinaNetDetector(nn.Module):
             - spatial_dims (int) is the spatial dimension of the network, we support both 2D and 3D.
             - num_classes (int) is the number of classes, excluding the background.
             - size_divisible (int or Sequene[int]) is the expection on the input image shape.
-              The network needs the input spatial_size to be divisible by size_divisible
+              The network needs the input spatial_size to be divisible by size_divisible, length should be 2 or 3.
             - cls_key (str) is the key to represent classification in the output dict.
             - box_reg_key (str) is the key to represent box regression in the output dict.
             - num_anchors (int) is the number of anchor shapes at each location. it should equal to
@@ -126,6 +135,7 @@ class RetinaNetDetector(nn.Module):
             - ``len(head_outputs[network.cls_key]) == len(head_outputs[network.box_reg_key])``.
 
     Example:
+
         .. code-block:: python
 
             # define a naive network
@@ -206,6 +216,13 @@ class RetinaNetDetector(nn.Module):
         self.box_overlap_metric = box_overlap_metric
         self.debug = debug
 
+        # default setting for training
+        self.fg_bg_sampler: Union[Any, None] = None
+        self.set_cls_loss(torch.nn.BCEWithLogitsLoss(reduction="mean"))  # classification loss
+        self.set_box_regression_loss(
+            torch.nn.SmoothL1Loss(beta=1.0 / 9, reduction="mean"), encode_gt=True, decode_pred=False
+        )  # box regression loss
+
         # default setting for both training and inference
         # can be updated by self.set_box_coder_weights(*)
         self.box_coder = BoxCoder(weights=(1.0,) * 2 * self.spatial_dims)
@@ -251,6 +268,110 @@ class RetinaNetDetector(nn.Module):
         self.target_box_key = box_key
         self.target_label_key = label_key
         self.pred_score_key = label_key + "_scores"
+
+    def set_cls_loss(self, cls_loss: nn.Module) -> None:
+        """
+        Using for training. Set loss for classification that takes logits as inputs, make sure sigmoid/softmax is built in.
+
+        Args:
+            cls_loss: loss module for classification
+
+        Example:
+            .. code-block:: python
+
+                detector.set_cls_loss(torch.nn.BCEWithLogitsLoss(reduction="mean"))
+                detector.set_cls_loss(FocalLoss(reduction="mean", gamma=2.0))
+        """
+        self.cls_loss_func = cls_loss
+
+    def set_box_regression_loss(self, box_loss: nn.Module, encode_gt: bool, decode_pred: bool) -> None:
+        """
+        Using for training. Set loss for box regression.
+
+        Args:
+            box_loss: loss module for box regression
+            encode_gt: if True, will encode ground truth boxes to target box regression
+                before computing the losses. Should be True for L1 loss and False for GIoU loss.
+            decode_pred: if True, will decode predicted box regression into predicted boxes
+                before computing losses. Should be False for L1 loss and True for GIoU loss.
+
+        Example:
+            .. code-block:: python
+
+                detector.set_box_regression_loss(
+                    torch.nn.SmoothL1Loss(beta=1.0 / 9, reduction="mean"),
+                    encode_gt = True, decode_pred = False
+                )
+        """
+        self.box_loss_func = box_loss
+        self.encode_gt = encode_gt
+        self.decode_pred = decode_pred
+
+    def set_regular_matcher(self, fg_iou_thresh: float, bg_iou_thresh: float, allow_low_quality_matches=True) -> None:
+        """
+        Using for training. Set torchvision matcher that matches anchors with ground truth boxes.
+
+        Args:
+            fg_iou_thresh: foreground IoU threshold for Matcher, considered as matched if IoU > fg_iou_thresh
+            bg_iou_thresh: background IoU threshold for Matcher, considered as not matched if IoU < bg_iou_thresh
+        """
+        if fg_iou_thresh < bg_iou_thresh:
+            raise ValueError(
+                "Require fg_iou_thresh >= bg_iou_thresh. "
+                f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
+            )
+        self.proposal_matcher = Matcher(fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=True)
+
+    def set_atss_matcher(self, num_candidates: int = 4, center_in_gt: bool = False) -> None:
+        """
+        Using for training. Set ATSS matcher that matches anchors with ground truth boxes
+
+        Args:
+            num_candidates: number of positions to select candidates from.
+                Smaller value will result in a higher matcher threshold and less matched candidates.
+            center_in_gt: If False (default), matched anchor center points do not need
+                to lie withing the ground truth box. Recommend False for small objects.
+                If True, will result in a strict matcher and less matched candidates.
+        """
+        self.proposal_matcher = ATSSMatcher(num_candidates, self.box_overlap_metric, center_in_gt, debug=self.debug)
+
+    def set_hard_negative_sampler(
+        self, batch_size_per_image: int, positive_fraction: float, min_neg: int = 1, pool_size: float = 10
+    ):
+        """
+        Using for training. Set hard negative sampler that samples part of the anchors for training.
+
+        HardNegativeSampler is used to suppress false positive rate in classification tasks.
+        During training, it select negative samples with high prediction scores.
+
+        Args:
+            batch_size_per_image: number of elements to be selected per image
+            positive_fraction: percentage of positive elements in the selected samples
+            min_neg: minimum number of negative samples to select if possible.
+            pool_size: when we need ``num_neg`` hard negative samples, they will be randomly selected from
+                ``num_neg * pool_size`` negative samples with the highest prediction scores.
+                Larger ``pool_size`` gives more randomness, yet selects negative samples that are less 'hard',
+                i.e., negative samples with lower prediction scores.
+        """
+        self.fg_bg_sampler = HardNegativeSampler(
+            batch_size_per_image=batch_size_per_image,
+            positive_fraction=positive_fraction,
+            min_neg=min_neg,
+            pool_size=pool_size,
+        )
+
+    def set_balanced_sampler(self, batch_size_per_image: int, positive_fraction: float):
+        """
+        Using for training. Set torchvision balanced sampler that samples part of the anchors for training.
+
+        Args:
+            batch_size_per_image: number of elements to be selected per image
+            positive_fraction: percentage of positive elements per batch
+
+        """
+        self.fg_bg_sampler = BalancedPositiveNegativeSampler(
+            batch_size_per_image=batch_size_per_image, positive_fraction=positive_fraction
+        )
 
     def set_sliding_window_inferer(
         self,
@@ -349,17 +470,7 @@ class RetinaNetDetector(nn.Module):
         # 1. Check if input arguments are valid
         if self.training:
             check_training_targets(input_images, targets, self.spatial_dims, self.target_label_key, self.target_box_key)
-            if not hasattr(self, "proposal_matcher"):
-                raise AttributeError(
-                    "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
-                )
-            if self.fg_bg_sampler is None and self.debug:
-                warnings.warn(
-                    "No balanced sampler is used. Negative samples are likely to "
-                    "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
-                    "or self.set_hard_negative_sampler(*), "
-                    "or set classification loss function as Focal loss with self.set_cls_loss(*)"
-                )
+            self._check_detector_training_components()
 
         # 2. Pad list of images to a single Tensor `images` with spatial size divisible by self.size_divisible.
         # image_sizes stores the original spatial_size of each image before padding.
@@ -389,7 +500,7 @@ class RetinaNetDetector(nn.Module):
             # reshape to Tensor sized(B, sum(HWA), self.num_classes) for self.cls_key
             # or (B, sum(HWA), 2* self.spatial_dims) for self.box_reg_key
             # A = self.num_anchors_per_loc
-            head_outputs[key] = self.reshape_maps(head_outputs[key])
+            head_outputs[key] = self._reshape_maps(head_outputs[key])
 
         # 6(1). If during training, return losses
         if self.training:
@@ -401,6 +512,22 @@ class RetinaNetDetector(nn.Module):
             head_outputs, self.anchors, image_sizes, num_anchor_locs_per_level  # type: ignore
         )
         return detections
+
+    def _check_detector_training_components(self):
+        """
+        Check if self.proposal_matcher and self.fg_bg_sampler have been set for training.
+        """
+        if not hasattr(self, "proposal_matcher"):
+            raise AttributeError(
+                "Matcher is not set. Please refer to self.set_regular_matcher(*) or self.set_atss_matcher(*)."
+            )
+        if self.fg_bg_sampler is None and self.debug:
+            warnings.warn(
+                "No balanced sampler is used. Negative samples are likely to "
+                "be much more than positive samples. Please set balanced samplers with self.set_balanced_sampler(*) "
+                "or self.set_hard_negative_sampler(*), "
+                "or set classification loss function as Focal loss with self.set_cls_loss(*)"
+            )
 
     def generate_anchors(self, images: Tensor, head_outputs: Dict[str, List[Tensor]]):
         """
@@ -418,7 +545,7 @@ class RetinaNetDetector(nn.Module):
             self.anchors = self.anchor_generator(images, head_outputs[self.cls_key])  # List[Tensor], len = batchsize
             self.previous_image_shape = images.shape
 
-    def reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
+    def _reshape_maps(self, result_maps: List[Tensor]) -> Tensor:
         """
         Concat network output map list to a single Tensor.
         This function is used in both training and inference.
@@ -554,7 +681,290 @@ class RetinaNetDetector(nn.Module):
         Return:
             a dict of several kinds of losses.
         """
-        return {}
+        matched_idxs = self.compute_anchor_matched_idxs(anchors, targets, num_anchor_locs_per_level)
+        losses_cls = self.compute_cls_loss(head_outputs_reshape[self.cls_key], targets, matched_idxs)
+        losses_box_regression = self.compute_box_loss(
+            head_outputs_reshape[self.box_reg_key], targets, anchors, matched_idxs
+        )
+        return {self.cls_key: losses_cls, self.box_reg_key: losses_box_regression}
+
+    def compute_anchor_matched_idxs(
+        self, anchors: List[Tensor], targets: List[Dict[str, Tensor]], num_anchor_locs_per_level: Sequence[int]
+    ) -> List[Tensor]:
+        """
+        Compute the matched indices between anchors and ground truth (gt) boxes in targets.
+        output[k][i] represents the matched gt index for anchor[i] in image k.
+        Suppose there are M gt boxes for image k. The range of it output[k][i] value is [-2, -1, 0, ..., M-1].
+        [0, M - 1] indicates this anchor is matched with a gt box,
+        while a negative value indicating that it is not matched.
+
+        Args:
+            anchors: a list of Tensor. Each Tensor represents anchors for each image,
+                sized (sum(HWA), 2*spatial_dims) or (sum(HWDA), 2*spatial_dims).
+                A = self.num_anchors_per_loc.
+            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+            num_anchor_locs_per_level: each element represents HW or HWD at this level.
+
+
+        Return:
+            a list of matched index `matched_idxs_per_image` (Tensor[int64]), Tensor sized (sum(HWA),) or (sum(HWDA),).
+            Suppose there are M gt boxes. `matched_idxs_per_image[i]` is a matched gt index in [0, M - 1]
+            or a negative value indicating that anchor i could not be matched.
+            BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
+        """
+        matched_idxs = []
+        for anchors_per_image, targets_per_image in zip(anchors, targets):
+            # anchors_per_image: Tensor, targets_per_image: Dice[str, Tensor]
+            if targets_per_image[self.target_box_key].numel() == 0:
+                # if no GT boxes
+                matched_idxs.append(
+                    torch.full((anchors_per_image.size(0),), -1, dtype=torch.int64, device=anchors_per_image.device)
+                )
+                continue
+
+            # matched_idxs_per_image (Tensor[int64]): Tensor sized (sum(HWA),) or (sum(HWDA),)
+            # Suppose there are M gt boxes. matched_idxs_per_image[i] is a matched gt index in [0, M - 1]
+            # or a negative value indicating that anchor i could not be matched.
+            # BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
+            if isinstance(self.proposal_matcher, Matcher):
+                # if torcvision matcher
+                match_quality_matrix = self.box_overlap_metric(
+                    targets_per_image[self.target_box_key].to(anchors_per_image.device), anchors_per_image
+                )
+                matched_idxs_per_image = self.proposal_matcher(match_quality_matrix)
+            elif isinstance(self.proposal_matcher, ATSSMatcher):
+                # if monai ATSS matcher
+                match_quality_matrix, matched_idxs_per_image = self.proposal_matcher(
+                    targets_per_image[self.target_box_key].to(anchors_per_image.device),
+                    anchors_per_image,
+                    num_anchor_locs_per_level,
+                    self.num_anchors_per_loc,
+                )
+            else:
+                raise NotImplementedError(
+                    "Currently support torchvision Matcher and monai ATSS matcher. Other types of matcher not supported. "
+                    "Please override self.compute_anchor_matched_idxs(*) for your own matcher."
+                )
+
+            if self.debug:
+                print(f"Max box overlap between anchors and gt boxes: {torch.max(match_quality_matrix,dim=1)[0]}.")
+
+            if torch.max(matched_idxs_per_image) < 0:
+                warnings.warn(
+                    f"No anchor is matched with GT boxes. Please adjust matcher setting, anchor setting,"
+                    " or the network setting to change zoom scale between network output and input images."
+                    f"GT boxes are {targets_per_image[self.target_box_key]}."
+                )
+
+            matched_idxs.append(matched_idxs_per_image)
+        return matched_idxs
+
+    def compute_cls_loss(
+        self, cls_logits: Tensor, targets: List[Dict[str, Tensor]], matched_idxs: List[Tensor]
+    ) -> Tensor:
+        """
+        Compute classification losses.
+
+        Args:
+            cls_logits: classification logits, sized (B, sum(HW(D)A), self.num_classes)
+            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+            matched_idxs: a list of matched index. each element is sized (sum(HWA),) or  (sum(HWDA),)
+
+        Return:
+            classification losses.
+        """
+        total_cls_logits_list = []
+        total_gt_classes_target_list = []
+        for targets_per_image, cls_logits_per_image, matched_idxs_per_image in zip(targets, cls_logits, matched_idxs):
+            # for each image, get training samples
+            sampled_cls_logits_per_image, sampled_gt_classes_target = self.get_cls_train_sample_per_image(
+                cls_logits_per_image, targets_per_image, matched_idxs_per_image
+            )
+            total_cls_logits_list.append(sampled_cls_logits_per_image)
+            total_gt_classes_target_list.append(sampled_gt_classes_target)
+
+        total_cls_logits = torch.cat(total_cls_logits_list, dim=0)
+        total_gt_classes_target = torch.cat(total_gt_classes_target_list, dim=0)
+        losses: Tensor = self.cls_loss_func(total_cls_logits, total_gt_classes_target).to(total_cls_logits.dtype)
+        return losses
+
+    def compute_box_loss(
+        self,
+        box_regression: Tensor,
+        targets: List[Dict[str, Tensor]],
+        anchors: List[Tensor],
+        matched_idxs: List[Tensor],
+    ) -> Tensor:
+        """
+        Compute box regression losses.
+
+        Args:
+            box_regression: box regression results, sized (B, sum(HWA), 2*self.spatial_dims)
+            targets: a list of dict. Each dict with two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+            anchors: a list of Tensor. Each Tensor represents anchors for each image,
+                sized (sum(HWA), 2*spatial_dims) or (sum(HWDA), 2*spatial_dims).
+                A = self.num_anchors_per_loc.
+            matched_idxs: a list of matched index. each element is sized (sum(HWA),) or  (sum(HWDA),)
+
+        Return:
+            box regression losses.
+        """
+        total_box_regression_list = []
+        total_target_regression_list = []
+
+        for targets_per_image, box_regression_per_image, anchors_per_image, matched_idxs_per_image in zip(
+            targets, box_regression, anchors, matched_idxs
+        ):
+            # for each image, get training samples
+            decode_box_regression_per_image, matched_gt_boxes_per_image = self.get_box_train_sample_per_image(
+                box_regression_per_image, targets_per_image, anchors_per_image, matched_idxs_per_image
+            )
+            total_box_regression_list.append(decode_box_regression_per_image)
+            total_target_regression_list.append(matched_gt_boxes_per_image)
+
+        total_box_regression = torch.cat(total_box_regression_list, dim=0)
+        total_target_regression = torch.cat(total_target_regression_list, dim=0)
+
+        if total_box_regression.shape[0] == 0:
+            # if there is no training sample.
+            losses = torch.tensor(0.0)
+            return losses
+
+        losses = self.box_loss_func(total_box_regression, total_target_regression).to(total_box_regression.dtype)
+
+        return losses
+
+    def get_cls_train_sample_per_image(
+        self, cls_logits_per_image: Tensor, targets_per_image: Dict[str, Tensor], matched_idxs_per_image: Tensor
+    ) -> Tuple[Tensor, Tensor]:
+        """
+        Get samples from one image for classification losses computation.
+
+        Args:
+            cls_logits_per_image: classification logits for one image, (sum(HWA), self.num_classes)
+            targets_per_image: a dict with at least two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+            matched_idxs_per_image: matched index, Tensor sized (sum(HWA),) or (sum(HWDA),)
+                Suppose there are M gt boxes. matched_idxs_per_image[i] is a matched gt index in [0, M - 1]
+                or a negative value indicating that anchor i could not be matched.
+                BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
+
+        Return:
+            paired predicted and GT samples from one image for classification losses computation
+        """
+
+        if torch.isnan(cls_logits_per_image).any() or torch.isinf(cls_logits_per_image).any():
+            raise ValueError("NaN or Inf in predicted classification logits.")
+
+        foreground_idxs_per_image = matched_idxs_per_image >= 0
+
+        num_foreground = foreground_idxs_per_image.sum()
+        num_gt_box = targets_per_image[self.target_box_key].shape[0]
+
+        if self.debug:
+            print(f"Number of positive (matched) anchors: {num_foreground}; Number of GT box: {num_gt_box}.")
+            if num_gt_box > 0 and num_foreground < 2 * num_gt_box:
+                print(
+                    f"Only {num_foreground} anchors are matched with {num_gt_box} GT boxes. "
+                    "Please consider adjusting matcher setting, anchor setting,"
+                    " or the network setting to change zoom scale between network output and input images."
+                )
+
+        # create the target classification with one-hot encoding
+        gt_classes_target = torch.zeros_like(cls_logits_per_image)  # (sum(HW(D)A), self.num_classes)
+        gt_classes_target[
+            foreground_idxs_per_image,  # fg anchor idx in
+            targets_per_image[self.target_label_key][
+                matched_idxs_per_image[foreground_idxs_per_image]
+            ],  # fg class label
+        ] = 1.0
+
+        if self.fg_bg_sampler is None:
+            # if no balanced sampling
+            valid_idxs_per_image = matched_idxs_per_image != self.proposal_matcher.BETWEEN_THRESHOLDS
+        else:
+            # The input of fg_bg_sampler: list of tensors containing -1, 0 or positive values.
+            # Each tensor corresponds to a specific image.
+            # -1 values are ignored, 0 are considered as negatives and > 0 as positives.
+
+            # matched_idxs_per_image (Tensor[int64]): an N tensor where N[i] is a matched gt in
+            # [0, M - 1] or a negative value indicating that prediction i could not
+            # be matched. BELOW_LOW_THRESHOLD = -1, BETWEEN_THRESHOLDS = -2
+            if isinstance(self.fg_bg_sampler, HardNegativeSampler):
+                max_cls_logits_per_image = torch.max(cls_logits_per_image.to(torch.float32), dim=1)[0]
+                sampled_pos_inds_list, sampled_neg_inds_list = self.fg_bg_sampler(
+                    [matched_idxs_per_image + 1], max_cls_logits_per_image
+                )
+            elif isinstance(self.fg_bg_sampler, BalancedPositiveNegativeSampler):
+                sampled_pos_inds_list, sampled_neg_inds_list = self.fg_bg_sampler([matched_idxs_per_image + 1])
+            else:
+                raise NotImplementedError(
+                    "Currently support torchvision BalancedPositiveNegativeSampler and monai HardNegativeSampler matcher. "
+                    "Other types of sampler not supported. "
+                    "Please override self.get_cls_train_sample_per_image(*) for your own sampler."
+                )
+
+            sampled_pos_inds = torch.where(torch.cat(sampled_pos_inds_list, dim=0))[0]
+            sampled_neg_inds = torch.where(torch.cat(sampled_neg_inds_list, dim=0))[0]
+            valid_idxs_per_image = torch.cat([sampled_pos_inds, sampled_neg_inds], dim=0)
+
+        return cls_logits_per_image[valid_idxs_per_image, :], gt_classes_target[valid_idxs_per_image, :]
+
+    def get_box_train_sample_per_image(
+        self,
+        box_regression_per_image: Tensor,
+        targets_per_image: Dict[str, Tensor],
+        anchors_per_image: Tensor,
+        matched_idxs_per_image: Tensor,
+    ) -> Tuple[Tensor, Tensor]:
+        """
+        Get samples from one image for box regression losses computation.
+
+        Args:
+            box_regression_per_image: box regression result for one image, (sum(HWA), 2*self.spatial_dims)
+            targets_per_image: a dict with at least two keys: self.target_box_key and self.target_label_key,
+                ground-truth boxes present in the image.
+            anchors_per_image: anchors of one image,
+                sized (sum(HWA), 2*spatial_dims) or (sum(HWDA), 2*spatial_dims).
+                A = self.num_anchors_per_loc.
+            matched_idxs_per_image: matched index, sized (sum(HWA),) or  (sum(HWDA),)
+
+        Return:
+            paired predicted and GT samples from one image for box regression losses computation
+        """
+
+        if torch.isnan(box_regression_per_image).any() or torch.isinf(box_regression_per_image).any():
+            raise ValueError("NaN or Inf in predicted box regression.")
+
+        foreground_idxs_per_image = torch.where(matched_idxs_per_image >= 0)[0]
+        num_gt_box = targets_per_image[self.target_box_key].shape[0]
+
+        # if no GT box, return empty arrays
+        if num_gt_box == 0:
+            return box_regression_per_image[0:0, :], box_regression_per_image[0:0, :]
+
+        # select only the foreground boxes
+        # matched GT boxes for foreground anchors
+        matched_gt_boxes_per_image = targets_per_image[self.target_box_key][
+            matched_idxs_per_image[foreground_idxs_per_image]
+        ].to(box_regression_per_image.device)
+        # predicted box regression for foreground anchors
+        box_regression_per_image = box_regression_per_image[foreground_idxs_per_image, :]
+        # foreground anchors
+        anchors_per_image = anchors_per_image[foreground_idxs_per_image, :]
+
+        # encode GT boxes or decode predicted box regression before computing losses
+        matched_gt_boxes_per_image_ = matched_gt_boxes_per_image
+        box_regression_per_image_ = box_regression_per_image
+        if self.encode_gt:
+            matched_gt_boxes_per_image_ = self.box_coder.encode_single(matched_gt_boxes_per_image_, anchors_per_image)
+        if self.decode_pred:
+            box_regression_per_image_ = self.box_coder.decode_single(box_regression_per_image_, anchors_per_image)
+
+        return box_regression_per_image_, matched_gt_boxes_per_image_
 
 
 def retinanet_resnet50_fpn_detector(
@@ -569,6 +979,7 @@ def retinanet_resnet50_fpn_detector(
     Returns a RetinaNet detector using a ResNet-50 as backbone, which can be pretrained
     from `Med3D: Transfer Learning for 3D Medical Image Analysis <https://arxiv.org/pdf/1904.00625.pdf>`
     _.
+
     Args:
         num_classes: number of output classes of the model (excluding the background).
         anchor_generator: AnchorGenerator,
@@ -582,6 +993,7 @@ def retinanet_resnet50_fpn_detector(
         A RetinaNetDetector object with resnet50 as backbone
 
     Example:
+
         .. code-block:: python
 
             # define a naive network
