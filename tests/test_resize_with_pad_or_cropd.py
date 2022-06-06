@@ -43,7 +43,7 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             input_data["img"] = p(input_data["img"])
             result = padcropper(input_data)
             np.testing.assert_allclose(result["img"].shape, expected_val)
-            inv = padcropper(result)
+            inv = padcropper.inverse(result)
             for k in input_data:
                 self.assertTupleEqual(inv[k].shape, input_data[k].shape)
 
