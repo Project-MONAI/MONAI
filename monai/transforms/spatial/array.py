@@ -1375,6 +1375,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
     def __init__(self, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
         self._axis: Optional[int] = None
+        self.flipper = Flip(spatial_axis=self._axis)
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
@@ -1392,7 +1393,8 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
             self.randomize(data=img)
 
         if self._do_transform:
-            out = Flip(spatial_axis=self._axis)(img)
+            self.flipper.spatial_axis = self._axis
+            out = self.flipper(img)
         else:
             out = img if not isinstance(img, MetaTensor) and get_track_meta() else img
         self.push_transform(out, extra_info={"axes": self._axis})
@@ -1402,7 +1404,8 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
         transform = self.pop_transform(data)
         if transform[TraceKeys.DO_TRANSFORM]:
             axes = transform[TraceKeys.EXTRA_INFO]["axes"]
-            return Flip(spatial_axis=axes).inverse(data)
+            self.flipper.spatial_axis = axes
+            return self.flipper.inverse(data)
         return data
 
 
