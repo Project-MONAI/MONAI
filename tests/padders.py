@@ -10,14 +10,12 @@
 # limitations under the License.
 
 import unittest
-from typing import List, TypeVar, Union
+from typing import List
 
 import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.croppad.array import PadBase
-from monai.transforms.croppad.dictionary import PadBased
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -47,8 +45,6 @@ MODES += [PytorchPadMode(i) for i in PT_MODES]
 
 
 class PadTest(unittest.TestCase):
-    Padder: TypeVar("Padder", bound=Union[PadBase, PadBased])
-
     @staticmethod
     def get_arr(shape):
         return np.random.randint(100, size=shape).astype(float)

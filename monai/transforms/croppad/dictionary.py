@@ -338,7 +338,8 @@ class RandCropBased(CropBased, Randomizable):
         self.randomize(d[first_key].shape[1:])  # type: ignore
 
         for key in self.key_iterator(d):
-            d[key] = self.cropper(d[key], randomize=False)
+            # FIXME: the cropper might not have `randomize` key
+            d[key] = self.cropper(d[key], randomize=False)  # type: ignore
         return d
 
 
@@ -586,8 +587,8 @@ class RandSpatialCropSamplesd(RandCropBased):
                 r[key] = deepcopy(data[key])
 
         # for each key we reset the random state to ensure crops are the same
-        random_state = deepcopy(self.cropper.R)
-        for key in self.key_iterator(data):
+        random_state = self.cropper.R
+        for key in self.key_iterator(dict(data)):
             self.set_random_state(state=deepcopy(random_state))
             for i, im in enumerate(self.cropper(data[key])):
                 ret[i][key] = im
@@ -700,8 +701,6 @@ class RandWeightedCropd(RandCropBased):
         :py:class:`monai.transforms.RandWeightedCrop`
     """
 
-    cropper: RandWeightedCrop
-
     @deprecated_arg(name="meta_keys", since="0.8")
     @deprecated_arg(name="meta_key_postfix", since="0.8")
     @deprecated_arg(name="center_coord_key", since="0.8", msg_suffix="coords stored in img.meta['crop_center']")
@@ -718,23 +717,23 @@ class RandWeightedCropd(RandCropBased):
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.w_key = w_key
-        self.cropper = RandWeightedCrop(spatial_size, num_samples)
+        self.cropper: RandWeightedCrop = RandWeightedCrop(spatial_size, num_samples)  # type: ignore
 
-    def randomize(self, weight_map: NdarrayOrTensor) -> None:
+    def randomize(self, weight_map) -> None:  # type: ignore
         self.cropper.randomize(weight_map)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:  # type: ignore
         # output starts as empty list of dictionaries
-        ret = [{} for _ in range(self.cropper.num_samples)]
+        ret: List = [{} for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for key in set(data.keys()).difference(set(self.keys)):
             for r in ret:
                 r[key] = deepcopy(data[key])
 
         # for each key we reset the random state to ensure crops are the same
-        random_state = deepcopy(self.cropper.R)
+        random_state = self.cropper.R
         for key in self.key_iterator(data):
-            self.cropper.R = deepcopy(random_state)
+            self.cropper.set_random_state(state=deepcopy(random_state))
             for i, im in enumerate(self.cropper(data[key], weight_map=data[self.w_key])):
                 ret[i][key] = im
 
@@ -889,9 +888,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         if isinstance(data, list):
             raise NotImplementedError()
-        for k in self.key_iterator(data):
-            data[k] = self.cropper.inverse(data[k])
-        return data
+        d = dict(data)
+        for k in self.key_iterator(d):
+            d[k] = self.cropper.inverse(d[k])
+        return d
 
 
 class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
@@ -1044,9 +1044,10 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         if isinstance(data, list):
             raise NotImplementedError()
-        for k in self.key_iterator(data):
-            data[k] = self.cropper.inverse(data[k])
-        return data
+        d = dict(data)
+        for k in self.key_iterator(d):
+            d[k] = self.cropper.inverse(d[k])
+        return d
 
 
 class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
@@ -1089,14 +1090,16 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self.crop_padder = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        for k, m in self.key_iterator(data, self.mode):
-            data[k] = self.crop_padder(data[k], m)
-        return data
+        d = dict(data)
+        for k, m in self.key_iterator(d, self.mode):
+            d[k] = self.crop_padder(d[k], m)
+        return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        for k in self.key_iterator(data):
-            data[k] = self.crop_padder.inverse(data[k])
-        return data
+        d = dict(data)
+        for k in self.key_iterator(d):
+            d[k] = self.crop_padder.inverse(d[k])
+        return d
 
 
 class BoundingRectd(MapTransform):

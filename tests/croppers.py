@@ -11,20 +11,15 @@
 
 import unittest
 from copy import deepcopy
-from typing import TypeVar, Union
 
 import numpy as np
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.croppad.array import CropBase
-from monai.transforms.croppad.dictionary import CropBased
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 class CropTest(unittest.TestCase):
-    Cropper: TypeVar("Cropper", bound=Union[CropBase, CropBased])
-
     @staticmethod
     def get_arr(shape):
         return np.random.randint(100, size=shape).astype(float)

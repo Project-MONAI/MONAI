@@ -103,12 +103,7 @@ def do_metric_reduction(f: torch.Tensor, reduction: Union[MetricReduction, str] 
     return f, not_nans
 
 
-def get_mask_edges(
-    seg_pred: Union[np.ndarray, torch.Tensor],
-    seg_gt: Union[np.ndarray, torch.Tensor],
-    label_idx: int = 1,
-    crop: bool = True,
-) -> Tuple[np.ndarray, np.ndarray]:
+def get_mask_edges(seg_pred, seg_gt, label_idx: int = 1, crop: bool = True) -> Tuple[np.ndarray, np.ndarray]:
     """
     Do binary erosion and use XOR for input to get the edges. This
     function is helpful to further calculate metrics such as Average Surface
