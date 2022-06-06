@@ -52,7 +52,7 @@ from monai.utils import (
     look_up_option,
 )
 from monai.utils.enums import TraceKeys, TransformBackends
-from monai.utils.type_conversion import convert_data_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
     "BorderPad",
@@ -120,7 +120,7 @@ class PadBase(InvertibleTransform):
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
         out.meta = meta_dict
-        out.meta["affine"] = img.affine @ mat
+        out.meta["affine"] = img.affine @ convert_to_dst_type(mat, img.affine)[0]
         # out.meta["original_affine"] = img.affine
         # out.meta["spatial_shape"] = out.shape[1:]
         return out
@@ -506,7 +506,7 @@ class CropBase(InvertibleTransform):
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
         out.meta = meta_dict
-        out.meta["affine"] = img.affine @ mat
+        out.meta["affine"] = img.affine @ convert_to_dst_type(mat, img.affine)[0]
         # out.meta["original_affine"] = img.affine
         # out.meta["spatial_shape"] = out.shape[1:]f
         return out
