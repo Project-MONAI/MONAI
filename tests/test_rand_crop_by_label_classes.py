@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
@@ -137,9 +138,17 @@ class TestRandCropByLabelClasses(unittest.TestCase):
         self.assertTupleEqual(result[0].shape, expected_shape)
         # test set indices at runtime
         input_data["indices"] = input_param["indices"]
-        result = RandCropByLabelClasses(**input_param)(**input_data)
+        cropper = RandCropByLabelClasses(**input_param)
+        result = cropper(**input_data)
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0].shape, expected_shape)
+        # invert the whole list
+        inv = cropper.inverse(deepcopy(result))
+        self.assertTupleEqual(inv.shape, input_data["img"].shape)
+        # invert one-by-one
+        for r in result:
+            inv = cropper.inverse(r)
+            self.assertTupleEqual(inv.shape, input_data["img"].shape)
 
 
 if __name__ == "__main__":

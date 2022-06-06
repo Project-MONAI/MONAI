@@ -56,15 +56,7 @@ from typing import Sequence, Tuple, Union
 import torch
 from torch import Tensor
 
-from monai.data.box_utils import (
-    COMPUTE_DTYPE,
-    CenterSizeMode,
-    CornerCornerModeTypeB,
-    StandardMode,
-    convert_box_mode,
-    convert_box_to_standard_mode,
-    is_valid_box_values,
-)
+from monai.data.box_utils import COMPUTE_DTYPE, CenterSizeMode, StandardMode, convert_box_mode, is_valid_box_values
 from monai.utils.module import look_up_option
 
 
@@ -207,27 +199,27 @@ class BoxCoder:
         From a set of original boxes and encoded relative box offsets,
 
         Args:
-            rel_codes: encoded boxes, Nx4 or Nx6 torch tensor.
+            rel_codes: encoded boxes, Nx(4*num_box_reg) or Nx(6*num_box_reg) torch tensor.
             reference_boxes: reference boxes, Nx4 or Nx6 torch tensor. The box mode is assumed to be ``StandardMode``
 
         Return:
-            decoded boxes, Nx4 or Nx6 torch tensor. The box mode will to be ``StandardMode``
+            decoded boxes, Nx(4*num_box_reg) or Nx(6*num_box_reg) torch tensor. The box mode will to be ``StandardMode``
         """
         reference_boxes = reference_boxes.to(rel_codes.dtype)
+        offset = reference_boxes.shape[-1]
 
         pred_boxes = []
         boxes_cccwhd = convert_box_mode(reference_boxes, src_mode=StandardMode, dst_mode=CenterSizeMode)
         for axis in range(self.spatial_dims):
             whd_axis = boxes_cccwhd[:, axis + self.spatial_dims]
             ctr_xyz_axis = boxes_cccwhd[:, axis]
-            dxyz_axis = rel_codes[:, axis] / self.weights[axis]
-            dwhd_axis = rel_codes[:, self.spatial_dims + axis] / self.weights[axis + self.spatial_dims]
-
+            dxyz_axis = rel_codes[:, axis::offset] / self.weights[axis]
+            dwhd_axis = rel_codes[:, self.spatial_dims + axis :: offset] / self.weights[axis + self.spatial_dims]
             # Prevent sending too large values into torch.exp()
             dwhd_axis = torch.clamp(dwhd_axis.to(COMPUTE_DTYPE), max=self.boxes_xform_clip)
 
-            pred_ctr_xyx_axis = dxyz_axis * whd_axis + ctr_xyz_axis
-            pred_whd_axis = torch.exp(dwhd_axis) * whd_axis
+            pred_ctr_xyx_axis = dxyz_axis * whd_axis[:, None] + ctr_xyz_axis[:, None]
+            pred_whd_axis = torch.exp(dwhd_axis) * whd_axis[:, None]
             pred_whd_axis = pred_whd_axis.to(dxyz_axis.dtype)
 
             # When convert float32 to float16, Inf or Nan may occur
@@ -242,5 +234,6 @@ class BoxCoder:
             pred_boxes.append(pred_ctr_xyx_axis - c_to_c_whd_axis)
             pred_boxes.append(pred_ctr_xyx_axis + c_to_c_whd_axis)
 
-        pred_boxes_xxyyzz = torch.stack(pred_boxes, dim=1)
-        return convert_box_to_standard_mode(pred_boxes_xxyyzz, mode=CornerCornerModeTypeB)  # type: ignore
+        pred_boxes = pred_boxes[::2] + pred_boxes[1::2]
+        pred_boxes_final = torch.stack(pred_boxes, dim=2).flatten(1)
+        return pred_boxes_final

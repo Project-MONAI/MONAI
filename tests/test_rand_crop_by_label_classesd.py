@@ -10,10 +10,12 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
 from tests.utils import TEST_NDARRAYS
 
@@ -37,7 +39,6 @@ for p in TEST_NDARRAYS:
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "label": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
             },
-            list,
             (3, 2, 2, 3),
         ]
     )
@@ -60,7 +61,6 @@ for p in TEST_NDARRAYS:
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
-            list,
             (3, 2, 2, 2),
         ]
     )
@@ -84,7 +84,6 @@ for p in TEST_NDARRAYS:
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
-            list,
             (3, 3, 3, 2),
         ]
     )
@@ -108,7 +107,6 @@ for p in TEST_NDARRAYS:
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
             },
-            list,
             (3, 3, 3, 3),
         ]
     )
@@ -116,16 +114,30 @@ for p in TEST_NDARRAYS:
 
 class TestRandCropByLabelClassesd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
+    def test_type_shape(self, input_param, input_data, expected_shape):
         result = RandCropByLabelClassesd(**input_param)(input_data)
-        self.assertIsInstance(result, expected_type)
-        self.assertTupleEqual(result[0]["img"].shape, expected_shape)
+        self.assertIsInstance(result, list)
         # test with pre-computed indices
         input_data = ClassesToIndicesd(keys="label", num_classes=input_param["num_classes"])(input_data)
         input_param["indices_key"] = "label_cls_indices"
-        result = RandCropByLabelClassesd(**input_param)(input_data)
-        self.assertIsInstance(result, expected_type)
-        self.assertTupleEqual(result[0]["img"].shape, expected_shape)
+        cropper = RandCropByLabelClassesd(**input_param)
+        result = cropper(input_data)
+        self.assertIsInstance(result, list)
+        for r in result:
+            for k in cropper.keys:
+                im = r[k]
+                self.assertIsInstance(im, MetaTensor)
+                self.assertEqual(len(im.applied_operations), 1)
+                self.assertTupleEqual(im.shape, expected_shape)
+            # individual inverse
+            inv = cropper.inverse(deepcopy(r))
+            for k in cropper.keys:
+                im = inv[k]
+                self.assertIsInstance(im, MetaTensor)
+                self.assertEqual(im.applied_operations, [])
+                self.assertTupleEqual(im.shape, input_data[k].shape)
+        with self.assertRaises(NotImplementedError):
+            _ = cropper.inverse(result)
 
 
 if __name__ == "__main__":

@@ -75,6 +75,11 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`PadBase`
+"""""""""
+.. autoclass:: PadBase
+    :special-members: __call__
+
 `Pad`
 """""
 .. autoclass:: Pad
@@ -102,6 +107,18 @@ Crop and Pad
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePad.png
     :alt: example of DivisiblePad
 .. autoclass:: DivisiblePad
+    :members:
+    :special-members: __call__
+
+`CropBase`
+""""""""""
+.. autoclass:: CropBase
+    :members:
+    :special-members: __call__
+
+`ListCropBase`
+""""""""""""""
+.. autoclass:: ListCropBase
     :members:
     :special-members: __call__
 
@@ -995,6 +1012,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`PadBased`
+""""""""""
+.. autoclass:: PadBased
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
@@ -1016,6 +1039,12 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`CropBased`
+"""""""""""
+.. autoclass:: CropBased
     :members:
     :special-members: __call__
 

@@ -10,16 +10,19 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandSpatialCropSamples
+from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},
-    np.arange(192).reshape(3, 4, 4, 4),
+    (3, 4, 4, 4),
     [(3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3)],
     np.array(
         [
@@ -44,7 +47,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     {"roi_size": [3, 3, 3], "num_samples": 8, "random_center": False, "random_size": True},
-    np.arange(192).reshape(3, 4, 4, 4),
+    (3, 4, 4, 4),
     [(3, 4, 4, 3), (3, 4, 3, 3), (3, 3, 4, 4), (3, 4, 4, 4), (3, 3, 3, 4), (3, 3, 3, 3), (3, 3, 3, 3), (3, 3, 3, 3)],
     np.array(
         [
@@ -67,10 +70,22 @@ TEST_CASE_2 = [
     ),
 ]
 
+TEST_INVERSE_LIST = [
+    [(1, 2, 2), {"roi_size": (1, 1), "num_samples": 4, "random_size": False}],
+    [(1, 3, 2), {"roi_size": (1, 1), "num_samples": 100, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (3, 5, 4), "num_samples": 7, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (10, 11, 12), "num_samples": 3, "random_size": False}],
+    [(3, 10, 11, 12), {"roi_size": (3, 4, 5), "num_samples": 100, "random_size": False}],
+]
 
-class TestRandSpatialCropSamples(unittest.TestCase):
+
+class TestRandSpatialCropSamples(CropTest):
+    Cropper = RandSpatialCropSamples
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_param, input_data, expected_shape, expected_last_item):
+    def test_shape(self, input_param, input_shape, expected_shape, expected_last_item):
+        input_data = np.arange(192).reshape(*input_shape)
+
         for p in TEST_NDARRAYS:
             xform = RandSpatialCropSamples(**input_param)
             xform.set_random_state(1234)
@@ -80,6 +95,16 @@ class TestRandSpatialCropSamples(unittest.TestCase):
             for item, expected in zip(result, expected_shape):
                 self.assertTupleEqual(item.shape, expected)
             assert_allclose(result[-1], expected_last_item, type_test=False)
+
+            for item in result:
+                inv = xform.inverse(deepcopy(item))
+                self.assertIsInstance(inv, MetaTensor)
+                self.assertTupleEqual(inv.shape, input_shape)
+                self.assertEqual(inv.applied_operations, [])
+
+    @parameterized.expand(TEST_INVERSE_LIST)
+    def test_multi_inverse(self, input_shape, init_params):
+        self.multi_inverse(input_shape, init_params)
 
 
 if __name__ == "__main__":

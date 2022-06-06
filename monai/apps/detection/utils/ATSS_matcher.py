@@ -154,8 +154,8 @@ class Matcher(ABC):
         Returns:
             - matrix which contains the similarity from each boxes to each anchor [N, M]
             - vector which contains the matched box index for all
-                anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
+              anchors (if background `BELOW_LOW_THRESHOLD` is used
+              and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
         """
         raise NotImplementedError
 
@@ -189,7 +189,7 @@ class ATSSMatcher(Matcher):
         self.center_in_gt = center_in_gt
         self.debug = debug
         logging.info(
-            f"Running ATSS Matching with num_candidates={self.num_candidates} " f"and center_in_gt {self.center_in_gt}."
+            f"Running ATSS Matching with num_candidates={self.num_candidates} and center_in_gt {self.center_in_gt}."
         )
 
     def compute_matches(
@@ -207,10 +207,10 @@ class ATSSMatcher(Matcher):
             num_anchors_per_loc: number of anchors per position
 
         Returns:
-            Tensor: matrix which contains the similarity from each boxes to each anchor [N, M]
-            Tensor: vector which contains the matched box index for all
-                anchors (if background `BELOW_LOW_THRESHOLD` is used
-                and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
+            - matrix which contains the similarity from each boxes to each anchor [N, M]
+            - vector which contains the matched box index for all
+              anchors (if background `BELOW_LOW_THRESHOLD` is used
+              and if it should be ignored `BETWEEN_THRESHOLDS` is used) [M]
 
         Note:
             ``StandardMode`` = :class:`~monai.data.box_utils.CornerCornerModeTypeA`,
