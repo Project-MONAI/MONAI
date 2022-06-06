@@ -1288,7 +1288,7 @@ class RandRotateBox90d(RandRotate90d):
         for key in self.image_keys:
             if self._do_transform:
                 d[key] = img_rotator(d[key])
-            self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
+                self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
 
         for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             if self._do_transform:
@@ -1300,9 +1300,9 @@ class RandRotateBox90d(RandRotate90d):
                         spatial_size[self.spatial_axes[1]],
                         spatial_size[self.spatial_axes[0]],
                     )
-            self.push_transform(
-                d, key, extra_info={"rand_k": self._rand_k, "spatial_size": spatial_size, "type": "box_key"}
-            )
+                self.push_transform(
+                    d, key, extra_info={"rand_k": self._rand_k, "spatial_size": spatial_size, "type": "box_key"}
+                )
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
