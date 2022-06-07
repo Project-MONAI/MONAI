@@ -38,7 +38,6 @@ __all__ = [
     "ForwardMode",
     "TransformBackends",
     "BoxModeName",
-    "GridPatchSort",
 ]
 
 
