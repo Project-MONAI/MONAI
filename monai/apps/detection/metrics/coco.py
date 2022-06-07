@@ -142,8 +142,14 @@ class COCOMetric:
         self.iou_list_idx = np.nonzero(iou_list_np[:, np.newaxis] == self.iou_thresholds[np.newaxis])[1]
         self.iou_range_idx = np.nonzero(_iou_range[:, np.newaxis] == self.iou_thresholds[np.newaxis])[1]
 
-        assert (self.iou_thresholds[self.iou_list_idx] == iou_list_np).all()
-        assert (self.iou_thresholds[self.iou_range_idx] == _iou_range).all()
+        if (
+            self.iou_thresholds[self.iou_list_idx] != iou_list_np
+            or self.iou_thresholds[self.iou_range_idx] != _iou_range
+        ):
+            raise ValueError(
+                "Require self.iou_thresholds[self.iou_list_idx] == iou_list_np and "
+                "self.iou_thresholds[self.iou_range_idx] == _iou_range."
+            )
 
         self.recall_thresholds = np.linspace(0.0, 1.00, int(np.round((1.00 - 0.0) / 0.01)) + 1, endpoint=True)
         self.max_detections = max_detection
@@ -172,7 +178,11 @@ class COCOMetric:
         """
         num_ious = len(self.get_iou_thresholds())
         for arg in args:
-            assert arg.shape[0] == num_ious
+            if arg.shape[0] != num_ious:
+                raise ValueError(
+                    f"Require arg.shape[0] == len(self.get_iou_thresholds()). Got arg.shape[0]={arg.shape[0]}, "
+                    f"self.get_iou_thresholds()={self.get_iou_thresholds()}."
+                )
 
     def get_iou_thresholds(self) -> Sequence[float]:
         """
@@ -531,7 +541,8 @@ def _compute_stats_single_threshold(
         for save_idx, array_index in enumerate(inds):
             precision[save_idx] = pr[array_index]
             th_scores[save_idx] = dt_scores_sorted[array_index]
-    except Exception:
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
         pass
 
     return recall, np.array(precision), np.array(th_scores)
