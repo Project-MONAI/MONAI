@@ -422,11 +422,22 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
+    key = None
     try:
-        return collate_meta_tensor(data)
+        if isinstance(elem, Mapping):
+            ret = {}
+            for k in elem:
+                key = k
+                data_for_batch = [d[key] for d in data]
+                ret[key] = collate_meta_tensor(data_for_batch)
+        else:
+            ret = collate_meta_tensor(data)
+        return ret
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
@@ -437,6 +448,8 @@ def list_data_collate(batch: Sequence):
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
+            if key is not None:
+                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
