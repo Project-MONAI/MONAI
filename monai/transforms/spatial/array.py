@@ -2640,7 +2640,7 @@ class GridPatch(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -2672,15 +2672,8 @@ class GridPatch(Transform):
         if self.num_patches and self.threshold:
             raise ValueError("Either `num_patches` or `threshold` should be set!")
 
-    @staticmethod
-    def one_fn(patch):
-        return True
-
-    def threshold_fn(self, patch):
-        return patch.sum() < self.threshold
-
     def __call__(self, image: NdarrayOrTensor):
-        # Create the patches that sweeps the image row-by-row
+        # Create patches that sweeps the image row-by-row
         patched_image, locations = self.create_patches(image)
         # Filter patches
         if self.num_patches:
@@ -2705,9 +2698,16 @@ class GridPatch(Transform):
 
         return patched_image, locations
 
-    def create_patches(self, input_image):
-        image, *_ = convert_data_type(input_image, np.ndarray)
-        spatial_size = np.array(image.shape[1:]) - self.offset
+    def create_patches(self, image: NdarrayOrTensor):
+        """
+        Split the image into grid and create patches that covers all the image
+
+        Args:
+            image: a numpy.ndarray or torch.Tensor representing an image
+
+        """
+        image_np, *_ = convert_data_type(image, np.ndarray)
+        spatial_size = np.array(image_np.shape[1:]) - self.offset
         grid = spatial_size // self.patch_size
         required_size = grid * self.patch_size
         # Pad the image if asked for and is needed
@@ -2715,16 +2715,16 @@ class GridPatch(Transform):
             grid += 1
             required_size = grid * self.patch_size
             padding = [(0, 0)] + [(0, i) for i in (required_size - spatial_size)]
-            image = np.pad(image, padding, self.pad_mode, **self.pad_kwargs)
+            image_np = np.pad(image_np, padding, self.pad_mode, **self.pad_kwargs)
         # Remove unused part of the image
         slices = (slice(None, None),) + tuple(slice(o, s + o) for o, s in zip(self.offset, required_size))
-        image = image[slices]
+        image_np = image_np[slices]
         # Generate patches
         x_step, y_step = self.patch_size
-        c_stride, x_stride, y_stride = image.strides
-        n_channels = image.shape[0]
+        c_stride, x_stride, y_stride = image_np.strides
+        n_channels = image_np.shape[0]
         patched_image = as_strided(
-            image,
+            image_np,
             shape=(*grid, n_channels, self.patch_size[0], self.patch_size[1]),
             strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             writeable=False,
@@ -2749,34 +2749,50 @@ class GridPatch(Transform):
             locations = None
         return patched_image, locations
 
-    def filter_threshold(self, img_np, locations):
+    def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Filter the patches and their locations according to a threshold
+
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+
+        """
         if self.threshold is not None:
-            n_dims = len(img_np.shape)
+            n_dims = len(image_np.shape)
             if self.filter_high_values:
-                idx = np.argwhere(img_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+                idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
             else:
-                idx = np.argwhere(img_np.sum(axis=tuple(range(1, n_dims))) >= self.threshold).reshape(-1)
-            img_np = img_np[idx]
+                idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) >= self.threshold).reshape(-1)
+            image_np = image_np[idx]
             if self.return_location:
                 locations = locations[idx]
-        return img_np, locations
+        return image_np, locations
 
-    def filter_count(self, img_np, locations):
+    def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
+
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+
+        """
         if self.filter_high_values is None:
-            img_np = img_np[: self.num_patches]
+            image_np = image_np[: self.num_patches]
             if self.return_location:
                 locations = locations[: self.num_patches]
         elif self.num_patches is not None:
-            n_dims = len(img_np.shape)
-            idx = np.argsort(img_np.sum(axis=tuple(range(1, n_dims))))
+            n_dims = len(image_np.shape)
+            idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
             if self.filter_high_values:
                 idx = idx[: self.num_patches]
             else:
                 idx = idx[-self.num_patches :]
-            img_np = img_np[idx]
+            image_np = image_np[idx]
             if self.return_location:
                 locations = locations[idx]
-        return img_np, locations
+        return image_np, locations
 
 
 class RandGridPatch(GridPatch, RandomizableTransform):
@@ -2801,7 +2817,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
