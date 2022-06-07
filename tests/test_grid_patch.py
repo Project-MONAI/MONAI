@@ -31,20 +31,16 @@ TEST_CASE_4 = [{"patch_size": (2, 2), "offset": (0, 0)}, A, [A11, A12, A21, A22]
 TEST_CASE_5 = [{"patch_size": (2, 2), "offset": (2, 2)}, A, [A22]]
 TEST_CASE_6 = [{"patch_size": (2, 2), "offset": (0, 2)}, A, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "offset": (2, 0)}, A, [A21, A22]]
-TEST_CASE_8 = [{"patch_size": (2, 2), "num_patches": 3, "sort_fn": "max"}, A, [A22, A21, A12]]
-TEST_CASE_9 = [{"patch_size": (2, 2), "num_patches": 4, "sort_fn": "min"}, A, [A11, A12, A21, A22]]
-TEST_CASE_10 = [{"patch_size": (2, 2), "overlap": 0.5, "num_patches": 3}, A, [A11, A[:, :2, 1:3], A12]]
-TEST_CASE_11 = [
-    {"patch_size": (3, 3), "num_patches": 2, "constant_values": 255},
+TEST_CASE_8 = [{"patch_size": (2, 2), "num_patches": 3, "filter_high_values": False}, A, [A12, A21, A22]]
+TEST_CASE_9 = [{"patch_size": (2, 2), "num_patches": 4, "filter_high_values": True}, A, [A11, A12, A21, A22]]
+TEST_CASE_10 = [{"patch_size": (3, 3), "offset": (1, 1)}, A, [A[:, 1:4, 1:4]]]
+TEST_CASE_11 = [{"patch_size": (3, 3), "offset": (1, 2)}, A, []]
+TEST_CASE_12 = [
+    {"patch_size": (3, 3), "num_patches": 2, "pad_mode": "constant", "constant_values": 255},
     A,
     [A[:, :3, :3], np.pad(A[:, :3, 3:], ((0, 0), (0, 0), (0, 2)), mode="constant", constant_values=255)],
 ]
-TEST_CASE_12 = [
-    {"patch_size": (3, 3), "offset": (-2, -2), "num_patches": 2},
-    A,
-    [np.zeros((3, 3, 3)), np.pad(A[:, :1, 1:4], ((0, 0), (2, 0), (0, 0)), mode="constant")],
-]
-TEST_CASE_13 = [{"patch_size": (2, 2), "threshold": 50.0}, A, [A11]]
+TEST_CASE_13 = [{"patch_size": (2, 2), "filter_high_values": True, "threshold": 50.0}, A, [A11]]
 
 
 TEST_SINGLE = []
@@ -70,10 +66,13 @@ class TestGridPatch(unittest.TestCase):
     def test_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = GridPatch(**input_parameters)
-        output = list(splitter(input_image))
+        output, locations = splitter(input_image)
+        if splitter.return_location:
+            self.assertEqual(len(output), len(locations))
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
-            assert_allclose(output_patch[0], expected_patch, type_test=False)
+            self.assertEqual(type(output_patch), type(input_image))
+            assert_allclose(output_patch, expected_patch, type_test=False)
 
 
 if __name__ == "__main__":

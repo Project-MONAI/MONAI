@@ -39,23 +39,15 @@ TEST_CASE_5 = [{"patch_size": (2, 2), "min_offset": 2, "max_offset": 2}, A, [A22
 TEST_CASE_6 = [{"patch_size": (2, 2), "min_offset": (0, 2), "max_offset": (0, 2)}, A, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "min_offset": 1, "max_offset": 2}, A, [A22]]
 TEST_CASE_8 = [
-    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "max"},
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "filter_high_values": False},
     A,
     [A[:, 1:3, 1:3]],
 ]
 TEST_CASE_9 = [
-    {
-        "patch_size": (3, 3),
-        "min_offset": -3,
-        "max_offset": -1,
-        "sort_fn": "min",
-        "num_patches": 1,
-        "constant_values": 255,
-    },
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "filter_high_values": True, "threshold": 50.0},
     A,
-    [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],
+    [A11],
 ]
-TEST_CASE_10 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "threshold": 50.0}, A, [A11]]
 
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
@@ -69,7 +61,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_7])
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
-    TEST_SINGLE.append([p, *TEST_CASE_10])
 
 
 class TestRandGridPatch(unittest.TestCase):
@@ -78,10 +69,11 @@ class TestRandGridPatch(unittest.TestCase):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
         splitter.set_random_state(1234)
-        output = list(splitter(input_image))
+        output, _ = splitter(input_image)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
-            assert_allclose(output_patch[0], expected_patch, type_test=False)
+            self.assertEqual(type(output_patch), type(input_image))
+            assert_allclose(output_patch, expected_patch, type_test=False)
 
 
 if __name__ == "__main__":

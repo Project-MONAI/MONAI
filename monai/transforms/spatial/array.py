@@ -25,7 +25,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.utils import (
     AFFINE_TOL,
     compute_shape_offset,
-    iter_patch,
+    iter_patch_position,
     reorient_spatial_axes,
     to_affine_nd,
     zoom_affine,
@@ -62,7 +62,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, TransformBackends
+from monai.utils.enums import TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type
@@ -2584,15 +2584,15 @@ class GridSplit(Transform):
             x_step, y_step = steps
             c_stride, x_stride, y_stride = image.strides
             n_channels = image.shape[0]
-            strided_image = as_strided(
+            patched_image = as_strided(
                 image,
                 shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             )
             # Flatten the first two dimensions
-            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+            patched_image = patched_image.reshape(-1, *patched_image.shape[2:])
             # Make a list of contiguous patches
-            patches = [np.ascontiguousarray(p) for p in strided_image]
+            patches = [np.ascontiguousarray(p) for p in patched_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
 
@@ -2630,16 +2630,12 @@ class GridPatch(Transform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: offset of starting position in the array, default is 0 for each dimension.
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        filter_high_values: if `True` the patches with highest values will be filtered, and if `False` the patches with
+            highest values will be filtered. Defaults to None, where filtering just depends on the order and not the values.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        return_location: if True it return the starting location of patches as well
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to None.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
@@ -2651,29 +2647,30 @@ class GridPatch(Transform):
         patch_size: Sequence[int],
         offset: Optional[Sequence[int]] = None,
         num_patches: Optional[int] = None,
-        overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
         threshold: Optional[float] = None,
-        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        filter_high_values: Optional[bool] = None,
+        return_location: bool = True,
+        pad_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         **pad_kwargs,
     ):
-        self.patch_size = ensure_tuple(patch_size)
-        self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
-        self.pad_mode: Optional[NumpyPadMode] = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
-        self.pad_kwargs = pad_kwargs
-        self.overlap = overlap
-        self.num_patches = num_patches
-        self.sort_fn: Optional[Callable]
-        if isinstance(sort_fn, str):
-            self.sort_fn = GridPatchSort.get_sort_fn(sort_fn)
-        else:
-            self.sort_fn = sort_fn
+        self.patch_size = np.array(ensure_tuple(patch_size), dtype=int)
+        self.offset = (
+            np.array(ensure_tuple(offset), dtype=int) if offset else np.zeros((len(self.patch_size),), dtype=int)
+        )
+        self.pad_mode: Optional[NumpyPadMode] = (
+            look_up_option(convert_pad_mode(dst=np.zeros(1), mode=pad_mode), NumpyPadMode).value if pad_mode else None
+        )
 
+        self.pad_kwargs = pad_kwargs
+        self.num_patches = num_patches
+        self.return_location = return_location
+        self.filter_high_values = filter_high_values
         self.threshold = threshold
-        if threshold:
-            self.filter_fn = self.threshold_fn
-        else:
-            self.filter_fn = self.one_fn
+        if self.filter_high_values and not (self.num_patches or self.threshold):
+            raise ValueError("`filter_high_values` is set without setting either `num_patches` or `threshold`!")
+
+        if self.num_patches and self.threshold:
+            raise ValueError("Either `num_patches` or `threshold` should be set!")
 
     @staticmethod
     def one_fn(patch):
@@ -2682,39 +2679,104 @@ class GridPatch(Transform):
     def threshold_fn(self, patch):
         return patch.sum() < self.threshold
 
-    def __call__(self, array: NdarrayOrTensor):
-        # create the patch iterator which sweeps the image row-by-row
-        array_np, *_ = convert_data_type(array, np.ndarray)
-        patch_iterator = iter_patch(
-            array_np,
-            patch_size=(None,) + self.patch_size,  # expand to have the channel dim
-            start_pos=(0,) + self.offset,  # expand to have the channel dim
-            overlap=self.overlap,
-            copy_back=False,
-            mode=self.pad_mode,
-            **self.pad_kwargs,
-        )
-
-        if self.sort_fn is not None:
-            patch_iterator = sorted(patch_iterator, key=self.sort_fn)
-
-        output = [
-            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices[..., 0], dst=array)[0])
-            for patch, slices in patch_iterator
-            if self.filter_fn(patch)
-        ]
-
+    def __call__(self, image: NdarrayOrTensor):
+        # Create the patches that sweeps the image row-by-row
+        patched_image, locations = self.create_patches(image)
+        # Filter patches
         if self.num_patches:
-            output = output[: self.num_patches]
-            if len(output) < self.num_patches:
-                patch = convert_to_dst_type(
-                    src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
-                    dst=array,
-                )[0]
-                start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
-                output += [(patch, start_location)] * (self.num_patches - len(output))
+            patched_image, locations = self.filter_count(patched_image, locations)
+        elif self.threshold:
+            patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        return output
+        # Create constant value patches if needed.
+        if self.num_patches:
+            if len(patched_image) < self.num_patches:
+                n_extras = self.num_patches - len(patched_image)
+                padding = [(0, n_extras)] + [(0, 0)] * len(image.shape)
+                patched_image = np.pad(patched_image, padding, mode="constant", **self.pad_kwargs)
+                if self.return_location:
+                    padding = [(0, n_extras), (0, 0)]
+                    locations = np.pad(locations, padding, mode="constant", constant_values=-1)
+
+        # Convert to original data type
+        patched_image, *_ = convert_to_dst_type(src=patched_image, dst=image)
+        if self.return_location:
+            locations, *_ = convert_to_dst_type(src=locations, dst=image)
+
+        return patched_image, locations
+
+    def create_patches(self, input_image):
+        image, *_ = convert_data_type(input_image, np.ndarray)
+        spatial_size = np.array(image.shape[1:]) - self.offset
+        grid = spatial_size // self.patch_size
+        required_size = grid * self.patch_size
+        # Pad the image if asked for and is needed
+        if self.pad_mode and np.any(spatial_size != required_size):
+            grid += 1
+            required_size = grid * self.patch_size
+            padding = [(0, 0)] + [(0, i) for i in (required_size - spatial_size)]
+            image = np.pad(image, padding, self.pad_mode, **self.pad_kwargs)
+        # Remove unused part of the image
+        slices = (slice(None, None),) + tuple(slice(o, s + o) for o, s in zip(self.offset, required_size))
+        image = image[slices]
+        # Generate patches
+        x_step, y_step = self.patch_size
+        c_stride, x_stride, y_stride = image.strides
+        n_channels = image.shape[0]
+        patched_image = as_strided(
+            image,
+            shape=(*grid, n_channels, self.patch_size[0], self.patch_size[1]),
+            strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+            writeable=False,
+        )
+        # Flatten the first two dimensions
+        patched_image = patched_image.reshape(-1, *patched_image.shape[2:])
+
+        # Calculate the locations (if asked for)
+        if self.return_location:
+            locations = np.array(
+                list(
+                    iter_patch_position(
+                        image_size=required_size + self.offset,
+                        patch_size=self.patch_size,
+                        start_pos=self.offset,
+                        overlap=0.0,
+                        padded=False,
+                    )
+                )
+            )
+        else:
+            locations = None
+        return patched_image, locations
+
+    def filter_threshold(self, img_np, locations):
+        if self.threshold is not None:
+            n_dims = len(img_np.shape)
+            if self.filter_high_values:
+                idx = np.argwhere(img_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+            else:
+                idx = np.argwhere(img_np.sum(axis=tuple(range(1, n_dims))) >= self.threshold).reshape(-1)
+            img_np = img_np[idx]
+            if self.return_location:
+                locations = locations[idx]
+        return img_np, locations
+
+    def filter_count(self, img_np, locations):
+        if self.filter_high_values is None:
+            img_np = img_np[: self.num_patches]
+            if self.return_location:
+                locations = locations[: self.num_patches]
+        elif self.num_patches is not None:
+            n_dims = len(img_np.shape)
+            idx = np.argsort(img_np.sum(axis=tuple(range(1, n_dims))))
+            if self.filter_high_values:
+                idx = idx[: self.num_patches]
+            else:
+                idx = idx[-self.num_patches :]
+            img_np = img_np[idx]
+            if self.return_location:
+                locations = locations[idx]
+        return img_np, locations
 
 
 class RandGridPatch(GridPatch, RandomizableTransform):
@@ -2729,16 +2791,12 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         max_offset: the maximum range of offset to be selected randomly.
             Defaults to image size modulo patch size.
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        filter_high_values: if `True` the patches with highest values will be filtered, and if `False` the patches with
+            highest values will be filtered. Defaults to None, where filtering just depends on the order and not the values.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
-        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        return_location: if True it return the starting location of patches as well.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to None.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
     """
@@ -2751,19 +2809,19 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         min_offset: Optional[Union[Sequence[int], int]] = None,
         max_offset: Optional[Union[Sequence[int], int]] = None,
         num_patches: Optional[int] = None,
-        overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
         threshold: Optional[float] = None,
-        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        filter_high_values: Optional[bool] = None,
+        return_location: bool = True,
+        pad_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         **pad_kwargs,
     ):
         super().__init__(
             patch_size=patch_size,
             offset=(),
             num_patches=num_patches,
-            overlap=overlap,
-            sort_fn=sort_fn,
             threshold=threshold,
+            filter_high_values=filter_high_values,
+            return_location=return_location,
             pad_mode=pad_mode,
             **pad_kwargs,
         )

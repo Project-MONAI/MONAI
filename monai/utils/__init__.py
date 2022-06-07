@@ -22,7 +22,6 @@ from .enums import (
     CommonKeys,
     DiceCEReduction,
     ForwardMode,
-    GridPatchSort,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,

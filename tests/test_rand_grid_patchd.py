@@ -39,24 +39,15 @@ TEST_CASE_5 = [{"patch_size": (2, 2), "min_offset": 2, "max_offset": 2}, {"image
 TEST_CASE_6 = [{"patch_size": (2, 2), "min_offset": (0, 2), "max_offset": (0, 2)}, {"image": A}, [A12, A22]]
 TEST_CASE_7 = [{"patch_size": (2, 2), "min_offset": 1, "max_offset": 2}, {"image": A}, [A22]]
 TEST_CASE_8 = [
-    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "max"},
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "filter_high_values": False},
     {"image": A},
     [A[:, 1:3, 1:3]],
 ]
 TEST_CASE_9 = [
-    {
-        "patch_size": (3, 3),
-        "min_offset": -3,
-        "max_offset": -1,
-        "sort_fn": "min",
-        "num_patches": 1,
-        "constant_values": 255,
-    },
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "filter_high_values": True, "threshold": 50.0},
     {"image": A},
-    [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],
+    [A11],
 ]
-TEST_CASE_10 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "threshold": 50.0}, {"image": A}, [A11]]
-
 TEST_SINGLE = []
 for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_0])
@@ -69,7 +60,6 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_7])
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
-    TEST_SINGLE.append([p, *TEST_CASE_10])
 
 
 class TestRandGridPatchd(unittest.TestCase):
@@ -83,7 +73,7 @@ class TestRandGridPatchd(unittest.TestCase):
                 input_dict[k] = in_type(v)
         splitter = RandGridPatchd(keys=image_key, **input_parameters)
         splitter.set_random_state(1234)
-        output = list(splitter(input_dict))
+        output = splitter(input_dict)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
             assert_allclose(output_patch[image_key], expected_patch, type_test=False)

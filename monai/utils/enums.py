@@ -345,38 +345,6 @@ class ProbMapKeys(str, Enum):
     NAME = "name"
 
 
-class GridPatchSort(str, Enum):
-    """
-    The sorting method for the generated patches in `GridPatch`
-    """
-
-    RANDOM = "random"
-    MIN = "min"
-    MAX = "max"
-
-    @staticmethod
-    def min_fn(x):
-        return x[0].sum()
-
-    @staticmethod
-    def max_fn(x):
-        return -x[0].sum()
-
-    @staticmethod
-    def get_sort_fn(sort_fn):
-        if sort_fn == GridPatchSort.RANDOM:
-            return random.random
-        elif sort_fn == GridPatchSort.MIN:
-            return GridPatchSort.min_fn
-        elif sort_fn == GridPatchSort.MAX:
-            return GridPatchSort.max_fn
-        else:
-            raise ValueError(
-                f'sort_fn should be one of the following values, "{sort_fn}" was given:',
-                [e.value for e in GridPatchSort],
-            )
-
-
 class WSIPatchKeys(str, Enum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
