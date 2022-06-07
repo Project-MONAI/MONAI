@@ -541,7 +541,7 @@ def _compute_stats_single_threshold(
         for save_idx, array_index in enumerate(inds):
             precision[save_idx] = pr[array_index]
             th_scores[save_idx] = dt_scores_sorted[array_index]
-    except BaseException as err:
+    except BaseException:
         pass
 
     return recall, np.array(precision), np.array(th_scores)
