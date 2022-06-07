@@ -728,7 +728,7 @@ class Flip(InvertibleTransform):
             return flipper(data)
 
 
-class Resize(Transform):
+class Resize(InvertibleTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
@@ -780,12 +780,12 @@ class Resize(Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
         anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -813,8 +813,8 @@ class Resize(Transform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
+        input_ndim = img.ndim - 1  # spatial ndim
         if self.size_mode == "all":
-            input_ndim = img.ndim - 1  # spatial ndim
             output_ndim = len(ensure_tuple(self.spatial_size))
             if output_ndim > input_ndim:
                 input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
@@ -834,7 +834,10 @@ class Resize(Transform):
 
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
             return img
+
+        original_sp_size = img.shape[1:]
         img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
+
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
             if anti_aliasing_sigma is None:
@@ -848,14 +851,56 @@ class Resize(Transform):
             anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
             img_ = anti_aliasing_filter(img_)
 
+        if not isinstance(img, MetaTensor) and get_track_meta():
+            img = MetaTensor(img)
+        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
+        _align_corners = self.align_corners if align_corners is None else align_corners
+
         resized = torch.nn.functional.interpolate(
-            input=img_.unsqueeze(0),
-            size=spatial_size_,
-            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
-            align_corners=self.align_corners if align_corners is None else align_corners,
+            input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
+        if isinstance(out, MetaTensor):
+            out.meta = self.forward_meta(img.meta, original_sp_size, spatial_size_)  # type: ignore
+            self.push_transform(
+                out,
+                orig_size=original_sp_size,
+                extra_info={
+                    "mode": _mode,
+                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                    "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
+                },
+            )
         return out
+
+    def forward_meta(self, img_meta, spatial_size, new_spatial_size):
+        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+        meta = deepcopy(img_meta)
+        r = len(affine) - 1
+        s = np.array([float(o) / max(n, 0) for o, n in zip(spatial_size, new_spatial_size)])
+        scale = create_scale(r, s)
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2
+        meta["affine"] = affine @ convert_to_dst_type(scale, affine)[0]
+        return meta
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        transform = self.pop_transform(data)
+        return self.inverse_transform(data, transform)
+
+    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
+        orig_size = transform[TraceKeys.ORIG_SIZE]
+        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        xform = Resize(
+            spatial_size=orig_size, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
+        )
+        with xform.trace_transform(False):
+            data = xform(data)
+        for _ in range(transform[TraceKeys.EXTRA_INFO]["new_dim"]):
+            data = data.squeeze(-1)  # remove the additional dims
+        return data
 
 
 class Rotate(InvertibleTransform):

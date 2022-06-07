@@ -15,6 +15,7 @@ import numpy as np
 import skimage.transform
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import Resized
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -57,8 +58,14 @@ class TestResized(NumpyImageTestCase2D):
 
         expected = np.stack(expected).astype(np.float32)
         for p in TEST_NDARRAYS:
-            out = resize({"img": p(self.imt[0])})["img"]
-            assert_allclose(out, expected, type_test=False, atol=0.9)
+            im = p(self.imt[0])
+            out = resize({"img": im})
+            if isinstance(im, MetaTensor):
+                im_inv = resize.inverse(out)
+                self.assertTrue(not im_inv["img"].applied_operations)
+                assert_allclose(im_inv["img"].shape, im.shape)
+                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
+            assert_allclose(out["img"], expected, type_test=False, atol=0.9)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_longest_shape(self, input_param, expected_shape):

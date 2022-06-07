@@ -614,35 +614,13 @@ class Resized(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            # Create inverse transform
-            inverse_transform = Resize(
-                spatial_size=orig_size,
-                mode=mode,
-                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-            )
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.resizer.inverse(d[key])
         return d
 
 

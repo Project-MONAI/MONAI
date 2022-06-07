@@ -177,13 +177,13 @@ TESTS.append(("RandRotate90d 3d", "3D", 0, False, RandRotate90d(KEYS, prob=1, sp
 
 TESTS.append(("Spacingd 3d", "3D", 3e-2, True, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
-TESTS.append(("Resized 2d", "2D", 2e-1, False, Resized(KEYS, [50, 47])))
+TESTS.append(("Resized 2d", "2D", 2e-1, True, Resized(KEYS, [50, 47])))
 
-TESTS.append(("Resized 3d", "3D", 5e-2, False, Resized(KEYS, [201, 150, 78])))
+TESTS.append(("Resized 3d", "3D", 5e-2, True, Resized(KEYS, [201, 150, 78])))
 
-TESTS.append(("Resized longest 2d", "2D", 2e-1, False, Resized(KEYS, 47, "longest", "area")))
+TESTS.append(("Resized longest 2d", "2D", 2e-1, True, Resized(KEYS, 47, "longest", "area")))
 
-TESTS.append(("Resized longest 3d", "3D", 5e-2, False, Resized(KEYS, 201, "longest", "trilinear", True)))
+TESTS.append(("Resized longest 3d", "3D", 5e-2, True, Resized(KEYS, 201, "longest", "trilinear", True)))
 
 TESTS.append(
     ("Lambdad 2d", "2D", 5e-2, False, Lambdad(KEYS, func=lambda x: x + 5, inv_func=lambda x: x - 5, overwrite=True))
