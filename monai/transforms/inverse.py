@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from contextlib import contextmanager
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
@@ -126,9 +127,6 @@ class TraceableTransform(Transform):
 
         Returns:
             None, but data has been updated to store the applied transformation.
-
-        Raises:
-            - RuntimeError: data is neither `MetaTensor` nor dictionary
         """
         if not self.tracing:
             return
@@ -147,7 +145,7 @@ class TraceableTransform(Transform):
                     data[self.trace_key(key)] = []
                 data[self.trace_key(key)].append(info)
         else:
-            raise RuntimeError("`data` should be either `MetaTensor` or dictionary.")
+            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, {info} not tracked.")
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
