@@ -204,7 +204,7 @@ TEST_CASE_LARGE_1 = [
 
 
 @skipUnless(has_cucim or has_tiff, "Requires cucim, openslide, or tifffile!")
-def setUpModule():  # noqa: N802
+def setUpModule():
     for info in [(ARRAY_SMALL_0, FILE_PATH_SMALL_0), (ARRAY_SMALL_1, FILE_PATH_SMALL_1)]:
         array = info[0].transpose([1, 2, 0])
         imwrite(info[1], array, shape=array.shape, photometric="rgb")
