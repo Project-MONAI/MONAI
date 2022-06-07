@@ -34,6 +34,7 @@ from monai.transforms import (
     RandAxisFlipd,
     RandFlipd,
     RandRotated,
+    RandZoomd,
     ResizeWithPadOrCropd,
     Rotated,
 )
@@ -56,7 +57,7 @@ TESTS_3D = [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1, 2]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
         # Compose([RandRotate90d(keys=KEYS, spatial_axes=(1, 2)), ToTensord(keys=KEYS)]),
-        # RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
+        RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         Rotated(keys=KEYS, angle=np.pi, dtype=np.float64),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
         # RandAffined(
@@ -73,7 +74,7 @@ TESTS_2D = [
         RandFlipd(keys=KEYS, prob=0.5, spatial_axis=[1]),
         RandAxisFlipd(keys=KEYS, prob=0.5),
         # Compose([RandRotate90d(keys=KEYS, prob=0.5, spatial_axes=(0, 1)), ToTensord(keys=KEYS)]),
-        # RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
+        RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         Rotated(keys=KEYS, angle=np.pi / 2, dtype=np.float64),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
         # RandAffined(

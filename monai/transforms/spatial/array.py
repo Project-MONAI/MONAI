@@ -28,7 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
-from monai.transforms.croppad.array import CenterSpatialCrop, Pad
+from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
@@ -41,6 +41,7 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
     map_spatial_axes,
+    scale_affine,
 )
 from monai.transforms.utils_pytorch_numpy_unification import allclose, moveaxis
 from monai.utils import (
@@ -860,27 +861,24 @@ class Resize(InvertibleTransform):
             input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        if isinstance(out, MetaTensor):
-            out.meta = self.forward_meta(img.meta, original_sp_size, spatial_size_)  # type: ignore
-            self.push_transform(
-                out,
-                orig_size=original_sp_size,
-                extra_info={
-                    "mode": _mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
-                },
-            )
+        if not isinstance(out, MetaTensor):
+            return out
+        out.meta = self.forward_meta(img.meta, original_sp_size, spatial_size_)  # type: ignore
+        self.push_transform(
+            out,
+            orig_size=original_sp_size,
+            extra_info={
+                "mode": _mode,
+                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
+            },
+        )
         return out
 
     def forward_meta(self, img_meta, spatial_size, new_spatial_size):
         affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
         meta = deepcopy(img_meta)
-        r = len(affine) - 1
-        s = np.array([float(o) / max(n, 0) for o, n in zip(spatial_size, new_spatial_size)])
-        scale = create_scale(r, s)
-        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2
-        meta["affine"] = affine @ convert_to_dst_type(scale, affine)[0]
+        meta["affine"] = scale_affine(affine, spatial_size, new_spatial_size)
         return meta
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1008,19 +1006,20 @@ class Rotate(InvertibleTransform):
         )
         output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
-        if isinstance(out, MetaTensor):
-            out.meta = self.forward_meta(img.meta, transform_t)  # type: ignore
-            self.push_transform(
-                out,
-                orig_size=img_t.shape[1:],
-                extra_info={
-                    "rot_mat": transform,
-                    "mode": _mode,
-                    "padding_mode": _padding_mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-                },
-            )
+        if not isinstance(out, MetaTensor):
+            return out
+        out.meta = self.forward_meta(img.meta, transform_t)  # type: ignore
+        self.push_transform(
+            out,
+            orig_size=img_t.shape[1:],
+            extra_info={
+                "rot_mat": transform,
+                "mode": _mode,
+                "padding_mode": _padding_mode,
+                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+            },
+        )
         return out
 
     def forward_meta(self, img_meta, rotate_mat):
@@ -1061,7 +1060,7 @@ class Rotate(InvertibleTransform):
         return out
 
 
-class Zoom(Transform):
+class Zoom(InvertibleTransform):
     """
     Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
     For details, please see https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html.
@@ -1112,11 +1111,11 @@ class Zoom(Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -1136,35 +1135,70 @@ class Zoom(Transform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
+        if not isinstance(img, MetaTensor) and get_track_meta():
+            img = MetaTensor(img)
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
+        _align_corners = self.align_corners if align_corners is None else align_corners
+        _padding_mode = padding_mode or self.padding_mode
+
         zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(  # type: ignore
             recompute_scale_factor=True,
             input=img_t.unsqueeze(0),
             scale_factor=list(_zoom),
-            mode=look_up_option(self.mode if mode is None else mode, InterpolateMode).value,
-            align_corners=self.align_corners if align_corners is None else align_corners,
+            mode=_mode,
+            align_corners=_align_corners,
         )
         zoomed = zoomed.squeeze(0)
-
-        if self.keep_size and not np.allclose(img_t.shape, zoomed.shape):
-
-            pad_vec = [(0, 0)] * len(img_t.shape)
-            slice_vec = [slice(None)] * len(img_t.shape)
-            for idx, (od, zd) in enumerate(zip(img_t.shape, zoomed.shape)):
-                diff = od - zd
-                half = abs(diff) // 2
-                if diff > 0:  # need padding
-                    pad_vec[idx] = (half, diff - half)
-                elif diff < 0:  # need slicing
-                    slice_vec[idx] = slice(half, half + od)
-
-            padder = Pad(pad_vec, padding_mode or self.padding_mode)
-            zoomed = padder(zoomed)  # type: ignore
-            zoomed = zoomed[tuple(slice_vec)]
+        orig_size, z_size = img_t.shape, zoomed.shape
 
         out, *_ = convert_to_dst_type(zoomed, dst=img)
+        out.meta = self.forward_meta(img.meta, orig_size[1:], z_size[1:])  # type: ignore
+        do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
+        if do_pad_crop:
+            _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
+            out = _pad_crop(out)  # type: ignore
+        self.push_transform(
+            out,
+            orig_size=orig_size[1:],
+            extra_info={
+                "mode": _mode,
+                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                "do_padcrop": do_pad_crop,
+            },
+        )
+        return out
+
+    def forward_meta(self, img_meta, spatial_size, new_spatial_size):
+        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+        meta = deepcopy(img_meta)
+        meta["affine"] = scale_affine(affine, spatial_size, new_spatial_size)
+        return meta
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        transform = self.pop_transform(data)
+        return self.inverse_transform(data, transform)
+
+    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
+        if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
+            orig_size = transform[TraceKeys.ORIG_SIZE]
+            pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
+            xform = self.pop_transform(data, check=False)  # remove the padding cropping
+            with pad_or_crop.trace_transform(False):
+                data = pad_or_crop.inverse_transform(data, xform)
+        # Create inverse transform
+        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
+        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
+        inverse_transform = Resize(spatial_size=transform[TraceKeys.ORIG_SIZE])
+        # Apply inverse
+        with inverse_transform.trace_transform(False):
+            out = inverse_transform(
+                data, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
+            )
         return out
 
 
@@ -1457,7 +1491,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
         return self.flipper.inverse(data)
 
 
-class RandZoom(RandomizableTransform):
+class RandZoom(RandomizableTransform, InvertibleTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
 
@@ -1532,12 +1566,12 @@ class RandZoom(RandomizableTransform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
         randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    ) -> torch.tensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -1562,16 +1596,25 @@ class RandZoom(RandomizableTransform):
             self.randomize(img=img)
 
         if not self._do_transform:
-            return img
+            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
+        else:
+            out = Zoom(
+                self._zoom,
+                keep_size=self.keep_size,
+                mode=look_up_option(mode or self.mode, InterpolateMode),
+                padding_mode=padding_mode or self.padding_mode,
+                align_corners=self.align_corners if align_corners is None else align_corners,
+                **self.kwargs,
+            )(img)
+        self.push_transform(out)
+        return out
 
-        return Zoom(
-            self._zoom,
-            keep_size=self.keep_size,
-            mode=look_up_option(mode or self.mode, InterpolateMode),
-            padding_mode=padding_mode or self.padding_mode,
-            align_corners=self.align_corners if align_corners is None else align_corners,
-            **self.kwargs,
-        )(img)
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        if not transform[TraceKeys.DO_TRANSFORM]:
+            return data
+        xform = self.pop_transform(data, check=False)
+        return Zoom(self._zoom).inverse_transform(data, xform)
 
 
 class AffineGrid(Transform):

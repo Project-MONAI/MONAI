@@ -25,7 +25,7 @@ import torch
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
@@ -1544,40 +1544,13 @@ class Zoomd(MapTransform, InvertibleTransform):
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            zoom = np.array(self.zoomer.zoom)
-            inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            # Apply inverse
-            d[key] = inverse_transform(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-            )
-            # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.zoomer.inverse(d[key])
         return d
 
 
@@ -1666,42 +1639,14 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "zoom": self.rand_zoom._zoom,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
+            self.push_transform(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                # Apply inverse
-                d[key] = inverse_transform(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-                )
-                # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.rand_zoom.inverse(d[key])
         return d
 
 

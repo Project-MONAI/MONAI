@@ -105,6 +105,7 @@ __all__ = [
     "convert_pad_mode",
     "convert_to_contiguous",
     "get_unique_labels",
+    "scale_affine",
 ]
 
 
@@ -1571,6 +1572,31 @@ def convert_to_contiguous(data, **kwargs):
     if isinstance(data, Sequence):
         return [convert_to_contiguous(i, **kwargs) for i in data]
     return data
+
+
+def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+    """
+    Scale the affine matrix according to the new spatial size.
+
+    Args:
+        affine: affine matrix to scale.
+        spatial_size: original spatial size.
+        new_spatial_size: new spatial size.
+        centered: whether the scaling is with respect to
+            the image center (True, default) or corner (False).
+
+    Returns:
+        Scaled affine matrix.
+
+    """
+    if spatial_size == new_spatial_size:
+        return affine
+    r = len(affine) - 1
+    s = np.array([float(o) / max(n, 0) for o, n in zip(spatial_size, new_spatial_size)])
+    scale = create_scale(r, s)
+    if centered:
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2
+    return affine @ convert_to_dst_type(scale, affine)[0]
 
 
 if __name__ == "__main__":

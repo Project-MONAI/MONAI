@@ -113,6 +113,7 @@ class PadBase(InvertibleTransform):
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def _forward_meta(self, out, img, to_pad):
+
         if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
             return out
         meta_dict = copy.deepcopy(img.meta)
@@ -1411,6 +1412,9 @@ class ResizeWithPadOrCrop(InvertibleTransform):
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(img)
+        return self.inverse_transform(img, transform)
+
+    def inverse_transform(self, img: torch.Tensor, transform) -> torch.Tensor:
         if not isinstance(img, MetaTensor):
             raise RuntimeError()
         # we joined the cropping and padding, so put them back before calling the inverse

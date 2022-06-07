@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
+from monai.data import MetaTensor
 from monai.transforms import RandZoomd
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -37,14 +38,20 @@ class TestRandZoomd(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             random_zoom.set_random_state(1234)
 
-            zoomed = random_zoom({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            if isinstance(im, MetaTensor):
+                im_inv = random_zoom.inverse(zoomed)
+                self.assertTrue(not im_inv["img"].applied_operations)
+                assert_allclose(im_inv["img"].shape, im.shape)
+                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
             expected = [
                 zoom_scipy(channel, zoom=random_zoom.rand_zoom._zoom, mode="nearest", order=0, prefilter=False)
                 for channel in self.imt[0]
             ]
 
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed[key], p(expected), atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         key = "img"
@@ -52,7 +59,13 @@ class TestRandZoomd(NumpyImageTestCase2D):
             keys=key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True, padding_mode="constant", constant_values=2
         )
         for p in TEST_NDARRAYS:
-            zoomed = random_zoom({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            if isinstance(im, MetaTensor):
+                im_inv = random_zoom.inverse(zoomed)
+                self.assertTrue(not im_inv["img"].applied_operations)
+                assert_allclose(im_inv["img"].shape, im.shape)
+                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
             np.testing.assert_array_equal(zoomed[key].shape, self.imt.shape[1:])
 
     @parameterized.expand(

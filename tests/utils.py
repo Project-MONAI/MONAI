@@ -713,7 +713,10 @@ if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
 
-_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": torch.eye(4) * 2})
+DEFAULT_TEST_AFFINE = torch.tensor(
+    [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+)
+_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
 TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
 TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore

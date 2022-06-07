@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import random
+import sys
 import unittest
 from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
@@ -19,10 +20,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d, decollate_batch
+from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
     Affined,
+    BatchInverseTransform,
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,
@@ -47,6 +50,7 @@ from monai.transforms import (
     RandSpatialCropd,
     RandSpatialCropSamplesd,
     RandWeightedCropd,
+    RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
@@ -55,10 +59,14 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    TraceableTransform,
     Transposed,
+    Zoomd,
+    allow_missing_keys_mode,
+    convert_inverse_interp_mode,
 )
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils import get_seed, optional_import, set_determinism
+from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -199,13 +207,13 @@ TESTS.append(
     )
 )
 
-# TESTS.append(("Zoomd 1d", "1D odd", 0, False, Zoomd(KEYS, zoom=2, keep_size=False)))
+TESTS.append(("Zoomd 1d", "1D odd", 0, False, Zoomd(KEYS, zoom=2, keep_size=False)))
 
-# TESTS.append(("Zoomd 2d", "2D", 2e-1, False, Zoomd(KEYS, zoom=0.9)))
+TESTS.append(("Zoomd 2d", "2D", 2e-1, False, Zoomd(KEYS, zoom=0.9)))
 
-# TESTS.append(("Zoomd 3d", "3D", 3e-2, False, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
+TESTS.append(("Zoomd 3d", "3D", 3e-2, False, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
 
-# TESTS.append(("RandZoom 3d", "3D", 9e-2, False, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+TESTS.append(("RandZoom 3d", "3D", 9e-2, False, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
 TESTS.append(("RandRotated, prob 0", "2D", 0, True, RandRotated(KEYS, prob=0, dtype=np.float64)))
 
@@ -411,35 +419,35 @@ class TestInverse(unittest.TestCase):
                         print("unmod", unmodified[0])
                     raise
 
-    @parameterized.expand(TESTS)
-    def test_inverse(self, _, data_name, acceptable_diff, is_meta, *transforms):
-        name = _
-
-        data = self.all_data[data_name]
-        if is_meta:
-            data = ToMetaTensord(KEYS)(data)
-
-        forwards = [data.copy()]
-
-        # Apply forwards
-        for t in transforms:
-            if isinstance(t, Randomizable):
-                t.set_random_state(seed=get_seed())
-            forwards.append(t(forwards[-1]))
-
-        # Apply inverses
-        fwd_bck = forwards[-1].copy()
-        for i, t in enumerate(reversed(transforms)):
-            if isinstance(t, InvertibleTransform):
-                if isinstance(fwd_bck, list):
-                    for j, _fwd_bck in enumerate(fwd_bck):
-                        fwd_bck = t.inverse(_fwd_bck)
-                        self.check_inverse(
-                            name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1][j], acceptable_diff
-                        )
-                else:
-                    fwd_bck = t.inverse(fwd_bck)
-                    self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
+    # @parameterized.expand(TESTS)
+    # def test_inverse(self, _, data_name, acceptable_diff, is_meta, *transforms):
+    #     name = _
+    #
+    #     data = self.all_data[data_name]
+    #     if is_meta:
+    #         data = ToMetaTensord(KEYS)(data)
+    #
+    #     forwards = [data.copy()]
+    #
+    #     # Apply forwards
+    #     for t in transforms:
+    #         if isinstance(t, Randomizable):
+    #             t.set_random_state(seed=get_seed())
+    #         forwards.append(t(forwards[-1]))
+    #
+    #     # Apply inverses
+    #     fwd_bck = forwards[-1].copy()
+    #     for i, t in enumerate(reversed(transforms)):
+    #         if isinstance(t, InvertibleTransform):
+    #             if isinstance(fwd_bck, list):
+    #                 for j, _fwd_bck in enumerate(fwd_bck):
+    #                     fwd_bck = t.inverse(_fwd_bck)
+    #                     self.check_inverse(
+    #                         name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1][j], acceptable_diff
+    #                     )
+    #             else:
+    #                 fwd_bck = t.inverse(fwd_bck)
+    #                 self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
@@ -453,52 +461,50 @@ class TestInverse(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             t2.inverse(data)
 
-    # @parameterized.expand(N_SAMPLES_TESTS)
-    # def test_inverse_inferred_seg(self, extra_transform):
+    @parameterized.expand(N_SAMPLES_TESTS)
+    def test_inverse_inferred_seg(self, extra_transform):
 
-    #     test_data = []
-    #     for _ in range(20):
-    #         image, label = create_test_image_2d(100, 101)
-    #         test_data.append({"image": image, "label": label.astype(np.float32)})
+        test_data = []
+        for _ in range(20):
+            image, label = create_test_image_2d(100, 101)
+            test_data.append({"image": image, "label": label.astype(np.float32)})
 
-    #     batch_size = 10
-    #     # num workers = 0 for mac
-    #     num_workers = 2 if sys.platform == "linux" else 0
-    #     transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
-    #     num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
+        batch_size = 10
+        # num workers = 0 for mac
+        num_workers = 2 if sys.platform == "linux" else 0
+        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
+        num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
-    #     dataset = CacheDataset(test_data, transform=transforms, progress=False)
-    #     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        dataset = CacheDataset(test_data, transform=transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    #     device = "cuda" if torch.cuda.is_available() else "cpu"
-    #     model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
 
-    #     data = first(loader)
-    #     self.assertEqual(len(data["label"].applied_operations), num_invertible_transforms)
-    #     self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
+        data = first(loader)
+        self.assertEqual(len(data["label"].applied_operations), num_invertible_transforms)
+        self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
 
-    #     labels = data["label"].to(device)
-    #     segs = model(labels).detach().cpu()
-    #     label_transform_key = TraceableTransform.trace_key("label")
-    #     segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
-
-    #     segs_dict_decollated = decollate_batch(segs_dict)
-    #     # inverse of individual segmentation
-    #     seg_dict = first(segs_dict_decollated)
-    #     # test to convert interpolation mode for 1 data of model output batch
-    #     convert_inverse_interp_mode(seg_dict, mode="nearest", align_corners=None)
-
-    #     with allow_missing_keys_mode(transforms):
-    #         inv_seg = transforms.inverse(seg_dict)["label"]
-    #     self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
-    #     self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
-    #     self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
-
-    #     # Inverse of batch
-    #     batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
-    #     with allow_missing_keys_mode(transforms):
-    #         inv_batch = batch_inverter(segs_dict)
-    #     self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
+        labels = data["label"].to(device)
+        segs = model(labels).detach().cpu()
+        import pdb; pdb.set_trace()
+        # segs_dict_decollated = decollate_batch(segs)
+        # # inverse of individual segmentation
+        # seg_dict = first(segs_dict_decollated)
+        # # test to convert interpolation mode for 1 data of model output batch
+        # convert_inverse_interp_mode(seg_dict.applied_operations, mode="nearest", align_corners=None)
+        #
+        # with allow_missing_keys_mode(transforms):
+        #     inv_seg = transforms.inverse(seg_dict)["label"]
+        # self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
+        # self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
+        # self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+        #
+        # # Inverse of batch
+        # batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
+        # with allow_missing_keys_mode(transforms):
+        #     inv_batch = batch_inverter(segs_dict)
+        # self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
+from monai.data import MetaTensor
 from monai.transforms import Zoomd
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
@@ -29,7 +30,13 @@ class TestZoomd(NumpyImageTestCase2D):
         key = "img"
         zoom_fn = Zoomd(key, zoom=zoom, mode=mode, keep_size=keep_size)
         for p in TEST_NDARRAYS:
-            zoomed = zoom_fn({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = zoom_fn({key: im})
+            if isinstance(im, MetaTensor):
+                im_inv = zoom_fn.inverse(zoomed)
+                self.assertTrue(not im_inv["img"].applied_operations)
+                assert_allclose(im_inv["img"].shape, im.shape)
+                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
             _order = 0
             if mode.endswith("linear"):
                 _order = 1
@@ -38,7 +45,7 @@ class TestZoomd(NumpyImageTestCase2D):
             ]
 
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed[key], p(expected), atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         key = "img"
