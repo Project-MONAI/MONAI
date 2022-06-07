@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
 from collections import OrderedDict
 from typing import Callable, Sequence, Type, Union, List
 
 import torch
 import torch.nn as nn
-from torch.hub import load_state_dict_from_url
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.networks.blocks import UpSample
@@ -231,7 +229,7 @@ class _ResidualBlock(nn.Module):
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        
+
         s = x.shape
         sc = self.shortcut(x)
 
@@ -336,10 +334,10 @@ class _DecoderBranch(nn.ModuleList):
 
 class HoverNet(nn.Module):
     """
-     Graham S, Vu QD, Raza SEA, Azam A, Tsang YW, Kwak JT, Rajpoot N. 
-     Hover-Net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images. 
-     Med Image Anal. 2019 Dec;58:101563. 
-     doi: 10.1016/j.media.2019.101563. 
+     Graham S, Vu QD, Raza SEA, Azam A, Tsang YW, Kwak JT, Rajpoot N.
+     Hover-Net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images.
+     Med Image Anal. 2019 Dec;58:101563.
+     doi: 10.1016/j.media.2019.101563.
      Epub 2019 Sep 18. PMID: 31561183.
 
     Args:
@@ -462,6 +460,6 @@ class HoverNet(nn.Module):
             return {"type_prediction": x_tp, "nucleus_prediction": x_np, "horizonal_vertical": x_hv}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
-   
+
 
 hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
