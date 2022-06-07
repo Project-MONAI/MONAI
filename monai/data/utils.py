@@ -392,6 +392,24 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -404,31 +422,11 @@ def list_data_collate(batch: Sequence):
     """
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
-    key = None
     try:
-        if isinstance(elem, Mapping):
-            ret = {}
-            for k in elem:
-                key = k
-                data_for_batch = [d[key] for d in data]
-                ret[key] = default_collate(data_for_batch)
-                if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
-                    ret[key].meta = default_collate(meta_list)
-                    ret[key].applied_operations = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
-                    ret[key].is_batch = True
-        else:
-            ret = default_collate(data)
-            if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
-                ret.applied_operations = [i.applied_operations or TraceKeys.NONE for i in data]
-                ret.is_batch = True
-        return ret
+        return collate_meta_tensor(data)
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
-            if key is not None:
-                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
@@ -439,8 +437,6 @@ def list_data_collate(batch: Sequence):
     except TypeError as re:
         re_str = str(re)
         if "numpy" in re_str and "Tensor" in re_str:
-            if key is not None:
-                re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "

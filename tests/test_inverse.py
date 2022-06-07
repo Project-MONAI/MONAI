@@ -20,11 +20,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
+from monai.data import CacheDataset, DataLoader, MetaTensor, create_test_image_2d, create_test_image_3d, decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
     Affined,
+    BatchInverseTransform,
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,
@@ -43,6 +44,7 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandFlipd,
     RandLambdad,
+    Randomizable,
     RandRotate90d,
     RandRotated,
     RandSpatialCropd,
@@ -57,10 +59,13 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    ToMetaTensord,
     Transposed,
     Zoomd,
+    allow_missing_keys_mode,
+    convert_inverse_interp_mode,
 )
-from monai.utils import first, optional_import, set_determinism
+from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -467,37 +472,35 @@ class TestInverse(unittest.TestCase):
         # num workers = 0 for mac
         num_workers = 2 if sys.platform == "linux" else 0
         transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
-        num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
+        model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(1,)).to(device)
 
         data = first(loader)
-        self.assertEqual(len(data["label"].applied_operations), num_invertible_transforms)
         self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
 
         labels = data["label"].to(device)
+        self.assertTrue(isinstance(labels, MetaTensor))
         segs = model(labels).detach().cpu()
-        # segs_dict_decollated = decollate_batch(segs)
-        # # inverse of individual segmentation
-        # seg_dict = first(segs_dict_decollated)
-        # # test to convert interpolation mode for 1 data of model output batch
-        # convert_inverse_interp_mode(seg_dict.applied_operations, mode="nearest", align_corners=None)
-        #
-        # with allow_missing_keys_mode(transforms):
-        #     inv_seg = transforms.inverse(seg_dict)["label"]
-        # self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
-        # self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
-        # self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
-        #
-        # # Inverse of batch
-        # batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
-        # with allow_missing_keys_mode(transforms):
-        #     inv_batch = batch_inverter(segs_dict)
-        # self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
+        segs_decollated = decollate_batch(segs)
+        self.assertTrue(isinstance(segs_decollated[0], MetaTensor))
+        # inverse of individual segmentation
+        seg_metatensor = first(segs_decollated)
+        # test to convert interpolation mode for 1 data of model output batch
+        convert_inverse_interp_mode(seg_metatensor.applied_operations, mode="nearest", align_corners=None)
+
+        with allow_missing_keys_mode(transforms):
+            inv_seg = transforms.inverse({"label": seg_metatensor})["label"]
+        self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
+
+        # Inverse of batch
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
+        with allow_missing_keys_mode(transforms):
+            inv_batch = batch_inverter(first(loader))
+        self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
 if __name__ == "__main__":
