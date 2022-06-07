@@ -127,7 +127,7 @@ class TestHausdorffDistance(unittest.TestCase):
                 batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
                 batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
                 hd_metric(batch_seg_1, batch_seg_2)
-                result = hd_metric.aggregate()
+                result = hd_metric.aggregate(reduction="mean")
                 expected_value_curr = expected_value[ct]
                 np.testing.assert_allclose(expected_value_curr, result, rtol=1e-7)
                 ct += 1

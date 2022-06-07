@@ -183,6 +183,19 @@ class ConfigParser:
         """
         self[id] = config
 
+    def __contains__(self, id: Union[str, int]) -> bool:
+        """
+        Returns True if `id` is stored in this configuration.
+
+        Args:
+            id: id to specify the expected position. See also :py:meth:`__getitem__`.
+        """
+        try:
+            _ = self[id]
+            return True
+        except KeyError:
+            return False
+
     def parse(self, reset: bool = True):
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
@@ -211,7 +224,7 @@ class ConfigParser:
                 Use digits indexing from "0" for list or other strings for dict.
                 For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``lazy`` (whether to retain the current config cache, default to `False`),
+                Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
                 ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
                 ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
 
@@ -219,8 +232,8 @@ class ConfigParser:
         if not self.ref_resolver.is_resolved():
             # not parsed the config source yet, parse it
             self.parse(reset=True)
-        elif not kwargs.get("lazy", False):
-            self.parse(reset=not kwargs.get("lazy", False))
+        elif not kwargs.get("lazy", True):
+            self.parse(reset=not kwargs.get("lazy", True))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
     def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
@@ -230,7 +243,7 @@ class ConfigParser:
 
         Args:
             f: filepath of the metadata file, the content must be a dictionary,
-                if providing a list of files, wil merge the content of them.
+                if providing a list of files, will merge the content of them.
                 if providing a dictionary directly, use it as metadata.
             kwargs: other arguments for ``json.load`` or ``yaml.safe_load``, depends on the file format.
 
@@ -338,9 +351,12 @@ class ConfigParser:
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod
-    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> dict:
+    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> Dict:
         """
         Load config files into a single config dict.
+        The latter config file in the list will override or add the former config file.
+        ``"#"`` in the config keys are interpreted as special characters to go one level
+        further into the nested structures.
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
@@ -348,10 +364,11 @@ class ConfigParser:
         """
         if isinstance(files, dict):  # already a config dict
             return files
-        content = {}
+        parser = ConfigParser(config={})
         for i in ensure_tuple(files):
-            content.update(cls.load_config_file(i, **kwargs))
-        return content
+            for k, v in (cls.load_config_file(i, **kwargs)).items():
+                parser[k] = v
+        return parser.get()  # type: ignore
 
     @classmethod
     def export_config_file(cls, config: Dict, filepath: PathLike, fmt="json", **kwargs):
