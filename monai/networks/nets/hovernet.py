@@ -16,10 +16,9 @@ from typing import Callable, Sequence, Type, Union, List
 import torch
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
-from monai.networks.layers.factories import Conv, Dropout, Pool
+from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.networks.blocks import UpSample
-from monai.utils.module import look_up_option
 from monai.utils import InterpolateMode, UpsampleMode
 
 
@@ -40,7 +39,7 @@ class _DenseLayerDecoder(nn.Module):
         dropout_prob: float,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
-
+        kernel_size: int = 3
     ) -> None:
         """
         Args:
@@ -51,7 +50,7 @@ class _DenseLayerDecoder(nn.Module):
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-
+            kernel_size: 3 or 5 depending on the 'mode' [fast or original]
         """
         super().__init__()
 
@@ -67,14 +66,14 @@ class _DenseLayerDecoder(nn.Module):
 
         self.layers.add_module("conv1/norm", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("conv1/relu2", get_act_layer(name=act))
-        self.layers.add_module("conv2", conv_type(num_features, out_channels, kernel_size=3, padding=1, groups=4, bias=False))
+        self.layers.add_module("conv2", conv_type(num_features, out_channels, kernel_size=kernel_size, padding=1, groups=4, bias=False))
 
         if dropout_prob > 0:
             self.layers.add_module("dropout", dropout_type(dropout_prob))
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        s = x.shape
+
         new_features = self.layers(x)
         x = torch.cat([x, new_features], 1)
         x = x[:,:,1:-1,1:-1]
@@ -91,30 +90,29 @@ class _DecoderBlock(nn.Sequential):
         dropout_prob: float,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
+        kernel_size: int = 3,
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             layers: number of layers in the block.
             num_features: number of internal features used.
             in_channels: number of the input channel.
             out_channels: number of the output channel.
-            growth_rate: how many filters to add each layer (k in paper).
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-
+            kernel_size: 3 or 5 depending on the 'mode' [fast or original]
         """
         super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, 2]
 
-        self.add_module("conva", conv_type(in_channels, in_channels // 4, kernel_size=3, bias=False))
+        self.add_module("conva", conv_type(in_channels, in_channels // 4, kernel_size=kernel_size, bias=False))
 
         _in_channels = in_channels // 4
         for i in range(layers):
             layer = _DenseLayerDecoder(num_features, _in_channels,
-                                       out_channels, dropout_prob, act=act, norm=norm)
+                                       out_channels, dropout_prob, act=act, norm=norm,kernel_size=kernel_size)
             _in_channels += out_channels
             self.add_module("denselayerdecoder%d" % (i + 1), layer)
 
@@ -188,9 +186,6 @@ class _Transition(nn.Sequential):
         """
         super().__init__()
 
-        conv_type: Callable = Conv[Conv.CONV, 2]
-        pool_type: Callable = Pool[Pool.AVG, 2]
-
         self.add_module("norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.add_module("relu", get_act_layer(name=act))
 
@@ -207,16 +202,13 @@ class _ResidualBlock(nn.Module):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             layers: number of layers in the block.
             num_features: number of internal features used.
             in_channels: number of the input channel.
             out_channels: number of the output channel.
-            growth_rate: how many filters to add each layer (k in paper).
             dropout_prob: dropout rate after each dense layer.
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
-
         """
         super().__init__()
 
@@ -239,13 +231,12 @@ class _ResidualBlock(nn.Module):
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        
         s = x.shape
         sc = self.shortcut(x)
 
         if s[-1] != sc.shape[-1]:
             sc = sc[:,:,:-1,:-1]
-
-        i=1
 
         for layer in self.layers:
             x = layer.forward(x)
@@ -255,7 +246,6 @@ class _ResidualBlock(nn.Module):
 
             x = x + sc
             sc = x
-            i+=1
 
         x = self.bna_block(x)
 
@@ -267,9 +257,18 @@ class _DecoderBranch(nn.ModuleList):
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         dropout_prob: float = 0.0,
-        out_channels: int = 2
+        out_channels: int = 2,
+        kernel_size: int = 3,
     ) -> None:
-
+        """
+        Args:
+        decode_config: number of layers in each block.
+        act: activation type and arguments. Defaults to relu.
+        norm: feature normalization type and arguments. Defaults to batch norm.
+        dropout_prob: dropout rate after each dense layer.
+        out_channels: number of classes to predict for exach pixel
+        kernel_size: 3 or 5 depending on the 'mode' [fast or original]
+        """
         super().__init__()
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, 2]
 
@@ -287,7 +286,8 @@ class _DecoderBranch(nn.ModuleList):
                 out_channels=_out_channels,
                 dropout_prob=dropout_prob,
                 act=act,
-                norm=norm
+                norm=norm,
+                kernel_size=kernel_size,
             )
             self.decoder_blocks.add_module(f"decoderblock{i + 1}", block)
             _in_channels = 512
@@ -296,7 +296,7 @@ class _DecoderBranch(nn.ModuleList):
         self.output_features = nn.Sequential()
         i = len(decode_config)
         block = nn.Sequential(
-            OrderedDict([ ("conva", conv_type(256, 64, kernel_size=3, stride=1, bias=False, padding=1)) ])
+            OrderedDict([ ("conva", conv_type(256, 64, kernel_size=kernel_size, stride=1, bias=False, padding=1)) ])
         )
 
         self.output_features.add_module(f"decoderblock{i + 1}", block)
@@ -336,47 +336,47 @@ class _DecoderBranch(nn.ModuleList):
 
 class HoverNet(nn.Module):
     """
-    Densenet based on: `Densely Connected Convolutional Networks <https://arxiv.org/pdf/1608.06993.pdf>`_.
-    Adapted from PyTorch Hub 2D version: https://pytorch.org/vision/stable/models.html#id16.
-    This network is non-determistic When `spatial_dims` is 3 and CUDA is enabled. Please check the link below
-    for more details:
-    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
+     Graham S, Vu QD, Raza SEA, Azam A, Tsang YW, Kwak JT, Rajpoot N. 
+     Hover-Net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images. 
+     Med Image Anal. 2019 Dec;58:101563. 
+     doi: 10.1016/j.media.2019.101563. 
+     Epub 2019 Sep 18. PMID: 31561183.
+
     Args:
-        spatial_dims: number of spatial dimensions of the input image.
         in_channels: number of the input channel.
-        out_channels: number of the output classes.
+        out_classes: number of the nuclei classes.
         init_features: number of filters in the first convolution layer.
-        growth_rate: how many filters to add each layer (k in paper).
-        block_config: how many layers in each pooling block.
+        block_config: how many layers in each residual block.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
         dropout_prob: dropout rate after each dense layer.
+        mode: 'original' or 'fast' - larger or smaller kernel size for decoder
     """
-
     def __init__(
         self,
-        spatial_dims: int,
         in_channels: int = 3,
-        num_types: int = None,
+        out_classes: int = None,
         init_features: int = 64,
-        growth_rate: int = 2,
         block_config: Sequence[int] = (3, 4, 6, 3),
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
-        dropout_prob: float = 0.0,
+        dropout_prob: float = 0.2,
+        mode: str = "fast",
     ) -> None:
 
         super().__init__()
 
-        self.num_types = num_types
+        self.kernel_size = 3 if mode == "fast" else 5
+        self.out_classes = out_classes
 
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type: nn.Conv2d = Conv[Conv.CONV, 2]
 
+        print("In_Channels =", in_channels)
         self.input_features = nn.Sequential(
             OrderedDict(
                 [
                     ("conv0", conv_type(in_channels, init_features, kernel_size=7, stride=1, padding=3, bias=False)),
-                    ("norm0", get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=init_features)),
+                    ("norm0", get_norm_layer(name=norm, spatial_dims=2, channels=init_features)),
                     ("relu0", get_act_layer(name=act)),
                 ]
             )
@@ -396,13 +396,13 @@ class HoverNet(nn.Module):
                 out_channels=_out_channels,
                 dropout_prob=dropout_prob,
                 act=act,
-                norm=norm
+                norm=norm,
             )
             self.res_blocks.add_module(f"residualblock{i + 1}", block)
 
             _in_channels = _out_channels
-            _out_channels *= growth_rate
-            _num_features *= growth_rate
+            _out_channels *= 2
+            _num_features *= 2
 
         # bottleneck convolution
         self.bottleneck = nn.Sequential()
@@ -412,11 +412,11 @@ class HoverNet(nn.Module):
                                            interp_mode=InterpolateMode.BILINEAR, bias=False)
 
         # decode branches
-        self.nucleus_prediction = _DecoderBranch()
-        self.horizontal_vertical = _DecoderBranch()
+        self.nucleus_prediction = _DecoderBranch(kernel_size=self.kernel_size)
+        self.horizontal_vertical = _DecoderBranch(kernel_size=self.kernel_size)
 
-        if num_types:
-            self.type_prediction = _DecoderBranch(out_channels = num_types)
+        if out_classes:
+            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=self.kernel_size)
         else:
             self.type_prediction = None
 
@@ -441,9 +441,9 @@ class HoverNet(nn.Module):
 
             if i==0:
                 short_cuts.append(x[:,:,46:-46,46:-46])
-            elif i == 1:
+            elif i==1:
                 short_cuts.append(x[:,:,18:-18,18:-18])
-            elif i ==2:
+            elif i==2:
                 short_cuts.append(x)
 
         x = self.bottleneck(x)
@@ -455,11 +455,13 @@ class HoverNet(nn.Module):
         x_hv = torch.tensor(x)
         x_hv = self.horizontal_vertical(x_hv, short_cuts)
 
+
         if self.type_prediction:
             x_tp = torch.tensor(x)
             x_tp = self.type_prediction(x_tp, short_cuts)
             return {"type_prediction": x_tp, "nucleus_prediction": x_np, "horizonal_vertical": x_hv}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
+   
 
 hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
