@@ -24,7 +24,9 @@ from monai.apps.detection.transforms.dictionary import (
     MaskToBoxd,
     RandCropBoxByPosNegLabeld,
     RandFlipBoxd,
+    RandRotateBox90d,
     RandZoomBoxd,
+    RotateBox90d,
     ZoomBoxd,
 )
 from monai.transforms import CastToTyped, Invertd
@@ -47,6 +49,7 @@ for p in TEST_NDARRAYS:
             p([[1, -6, -1, 1, -6, -1], [1, -3, -1, 2, 3, 3.5], [1, -3, 0.5, 2, 3, 5]]),
             p([[4, 6, 4, 4, 6, 4], [2, 3, 1, 4, 5, 4], [2, 3, 0, 4, 5, 3]]),
             p([[0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]),
+            p([[6, 0, 0, 6, 0, 0], [3, 0, 0, 5, 2, 3], [3, 0, 1, 5, 2, 4]]),
         ]
     )
 
@@ -118,6 +121,7 @@ class TestBoxTransform(unittest.TestCase):
         expected_zoom_keepsize_result,
         expected_flip_result,
         expected_clip_result,
+        expected_rotate_result,
     ):
         test_dtype = [torch.float32]
         for dtype in test_dtype:
@@ -253,6 +257,30 @@ class TestBoxTransform(unittest.TestCase):
                     device_test=True,
                     atol=1e-3,
                 )
+
+            # test RotateBox90d
+            transform_rotate = RotateBox90d(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", k=1, spatial_axes=[0, 1]
+            )
+            rotate_result = transform_rotate(data)
+            assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=True, device_test=True, atol=1e-3)
+            invert_transform_rotate = Invertd(
+                keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_rotate(rotate_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+            transform_rotate = RandRotateBox90d(
+                image_keys="image", box_keys="boxes", box_ref_image_keys="image", prob=1.0, max_k=3, spatial_axes=[0, 1]
+            )
+            rotate_result = transform_rotate(data)
+            invert_transform_rotate = Invertd(
+                keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
+            )
+            data_back = invert_transform_rotate(rotate_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
 
 if __name__ == "__main__":
