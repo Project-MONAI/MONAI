@@ -143,8 +143,8 @@ class COCOMetric:
         self.iou_range_idx = np.nonzero(_iou_range[:, np.newaxis] == self.iou_thresholds[np.newaxis])[1]
 
         if (
-            self.iou_thresholds[self.iou_list_idx] != iou_list_np
-            or self.iou_thresholds[self.iou_range_idx] != _iou_range
+            not (self.iou_thresholds[self.iou_list_idx] == iou_list_np).all()
+            or not (self.iou_thresholds[self.iou_range_idx] == _iou_range).all()
         ):
             raise ValueError(
                 "Require self.iou_thresholds[self.iou_list_idx] == iou_list_np and "
@@ -542,7 +542,6 @@ def _compute_stats_single_threshold(
             precision[save_idx] = pr[array_index]
             th_scores[save_idx] = dt_scores_sorted[array_index]
     except BaseException as err:
-        print(f"Unexpected {err=}, {type(err)=}")
         pass
 
     return recall, np.array(precision), np.array(th_scores)
