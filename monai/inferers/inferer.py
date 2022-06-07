@@ -255,8 +255,13 @@ class SaliencyInferer(Inferer):
 
 class SliceInferer(SlidingWindowInferer):
     """
-    SliceInferer extends SlidingWindowInferer to provide slice-by-slice (2D) inference
-    when provided a 3D volume.
+    SliceInferer extends SlidingWindowInferer to provide slice-by-slice (2D) inference when provided a 3D volume.
+    A typical use case could be a 2D model (like 2D segmentation UNet) operates on the slices from a 3D volume,
+    and the output is a 3D volume with 2D slices aggregated. Example::
+
+        # sliding over the `spatial_dim`
+        inferer = SliceInferer(roi_size=(64, 256), sw_batch_size=1, spatial_dim=1)
+        output = inferer(input_volume, net)
 
     Args:
         spatial_dim: Spatial dimension over which the slice-by-slice inference runs on the 3D volume.
