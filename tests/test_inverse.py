@@ -20,12 +20,11 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d, decollate_batch
+from monai.data import CacheDataset, DataLoader, create_test_image_2d, create_test_image_3d
 from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
     Affined,
-    BatchInverseTransform,
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,
@@ -44,7 +43,6 @@ from monai.transforms import (
     RandCropByPosNegLabeld,
     RandFlipd,
     RandLambdad,
-    Randomizable,
     RandRotate90d,
     RandRotated,
     RandSpatialCropd,
@@ -59,14 +57,10 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
-    TraceableTransform,
     Transposed,
     Zoomd,
-    allow_missing_keys_mode,
-    convert_inverse_interp_mode,
 )
-from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils import first, get_seed, optional_import, set_determinism
+from monai.utils import first, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -419,35 +413,35 @@ class TestInverse(unittest.TestCase):
                         print("unmod", unmodified[0])
                     raise
 
-    # @parameterized.expand(TESTS)
-    # def test_inverse(self, _, data_name, acceptable_diff, is_meta, *transforms):
-    #     name = _
-    #
-    #     data = self.all_data[data_name]
-    #     if is_meta:
-    #         data = ToMetaTensord(KEYS)(data)
-    #
-    #     forwards = [data.copy()]
-    #
-    #     # Apply forwards
-    #     for t in transforms:
-    #         if isinstance(t, Randomizable):
-    #             t.set_random_state(seed=get_seed())
-    #         forwards.append(t(forwards[-1]))
-    #
-    #     # Apply inverses
-    #     fwd_bck = forwards[-1].copy()
-    #     for i, t in enumerate(reversed(transforms)):
-    #         if isinstance(t, InvertibleTransform):
-    #             if isinstance(fwd_bck, list):
-    #                 for j, _fwd_bck in enumerate(fwd_bck):
-    #                     fwd_bck = t.inverse(_fwd_bck)
-    #                     self.check_inverse(
-    #                         name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1][j], acceptable_diff
-    #                     )
-    #             else:
-    #                 fwd_bck = t.inverse(fwd_bck)
-    #                 self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
+    @parameterized.expand(TESTS)
+    def test_inverse(self, _, data_name, acceptable_diff, is_meta, *transforms):
+        name = _
+
+        data = self.all_data[data_name]
+        if is_meta:
+            data = ToMetaTensord(KEYS)(data)
+
+        forwards = [data.copy()]
+
+        # Apply forwards
+        for t in transforms:
+            if isinstance(t, Randomizable):
+                t.set_random_state(seed=get_seed())
+            forwards.append(t(forwards[-1]))
+
+        # Apply inverses
+        fwd_bck = forwards[-1].copy()
+        for i, t in enumerate(reversed(transforms)):
+            if isinstance(t, InvertibleTransform):
+                if isinstance(fwd_bck, list):
+                    for j, _fwd_bck in enumerate(fwd_bck):
+                        fwd_bck = t.inverse(_fwd_bck)
+                        self.check_inverse(
+                            name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1][j], acceptable_diff
+                        )
+                else:
+                    fwd_bck = t.inverse(fwd_bck)
+                    self.check_inverse(name, data.keys(), forwards[-i - 2], fwd_bck, forwards[-1], acceptable_diff)
 
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
@@ -487,7 +481,6 @@ class TestInverse(unittest.TestCase):
 
         labels = data["label"].to(device)
         segs = model(labels).detach().cpu()
-        import pdb; pdb.set_trace()
         # segs_dict_decollated = decollate_batch(segs)
         # # inverse of individual segmentation
         # seg_dict = first(segs_dict_decollated)
