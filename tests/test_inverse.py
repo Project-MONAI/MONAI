@@ -158,10 +158,12 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, True, CropForegroundd(KEYS, source_
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, True, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
+TESTS.append(("Flipd 3d", "3D", 0, True, Flipd(KEYS, [1, 2])))
 TESTS.append(("Flipd 3d", "3D", 0, False, Flipd(KEYS, [1, 2])))
 
-TESTS.append(("RandFlipd 3d", "3D", 0, False, RandFlipd(KEYS, 1, [1, 2])))
+TESTS.append(("RandFlipd 3d", "3D", 0, True, RandFlipd(KEYS, 1, [1, 2])))
 
+TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
 TESTS.append(("RandAxisFlipd 3d", "3D", 0, False, RandAxisFlipd(KEYS, 1)))
 
 for acc in [True, False]:
