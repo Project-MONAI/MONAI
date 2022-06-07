@@ -415,14 +415,13 @@ def list_data_collate(batch: Sequence):
                 if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
                     meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
                     ret[key].meta = default_collate(meta_list)
-                    ops_list = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
-                    ret[key].applied_operations = default_collate(ops_list)
+                    ret[key].applied_operations = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
                     ret[key].is_batch = True
         else:
             ret = default_collate(data)
             if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
                 ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
-                ret.applied_operations = default_collate([i.applied_operations or TraceKeys.NONE for i in data])
+                ret.applied_operations = [i.applied_operations or TraceKeys.NONE for i in data]
                 ret.is_batch = True
         return ret
     except RuntimeError as re:
@@ -550,7 +549,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
                 if isinstance(t, MetaObj):
                     t.meta = m
                     t.is_batch = False
-            for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
+            for t, m in zip(out_list, batch.applied_operations):
                 if isinstance(t, MetaObj):
                     t.applied_operations = m
                     t.is_batch = False

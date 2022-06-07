@@ -39,7 +39,6 @@ from monai.transforms.spatial.array import (
     Rand3DElastic,
     RandAffine,
     RandAxisFlip,
-    RandFlip,
     RandGridDistortion,
     RandGridPatch,
     RandRotate,
@@ -1258,7 +1257,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = RandFlip.backend
+    backend = Flip.backend
 
     def __init__(
         self,
@@ -1269,13 +1268,12 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
+        self.flipper = Flip(spatial_axis=spatial_axis)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandFlipd":
         super().set_random_state(seed, state)
-        self.flipper.set_random_state(seed, state)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -1284,13 +1282,19 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False)
+                d[key] = self.flipper(d[key])
+            self.push_transform(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            d[key] = self.flipper.inverse(d[key])
+            xform = self.pop_transform(d[key])
+            if not xform[TraceKeys.DO_TRANSFORM]:
+                continue
+            self.pop_transform(d[key], check=False)  # drop the Flip
+            with self.flipper.trace_transform(False):
+                d[key] = self.flipper(d[key])
         return d
 
 
@@ -1335,12 +1339,14 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
+            self.push_transform(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            d[key] = self.flipper.inverse(d[key])
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.flipper.inverse(d[key])
         return d
 
 
@@ -1476,7 +1482,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_rotate.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
@@ -1494,12 +1500,14 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     dtype=dtype,
                     randomize=False,
                 )
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            d[key] = self.rand_rotate.inverse(d[key])
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.rand_rotate.inverse(d[key])
         return d
 
 

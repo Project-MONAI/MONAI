@@ -508,7 +508,7 @@ class CropBase(InvertibleTransform):
         out.meta = meta_dict
         out.meta["affine"] = img.affine @ convert_to_dst_type(mat, img.affine)[0]
         # out.meta["original_affine"] = img.affine
-        # out.meta["spatial_shape"] = out.shape[1:]f
+        # out.meta["spatial_shape"] = out.shape[1:]
         return out
 
     def _forward(self, img: torch.Tensor, slices: Optional[Tuple[slice, ...]]) -> torch.Tensor:

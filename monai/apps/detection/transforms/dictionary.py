@@ -606,7 +606,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         d = dict(data)
 
         for key in self.image_keys:
-            d[key] = self.flipper(d[key])
+            d[key] = self.flipper(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -624,7 +624,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
 
             # flip image, copied from monai.transforms.spatial.dictionary.Flipd
             if key_type == "image_key":
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key])  # type: ignore
 
             # flip boxes
             if key_type == "box_key":
@@ -682,7 +682,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False)
+                d[key] = self.flipper(d[key], randomize=False)  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -702,7 +702,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
             if transform[TraceKeys.DO_TRANSFORM]:
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
-                    d[key] = self.flipper(d[key], randomize=False)
+                    d[key] = self.flipper(d[key], randomize=False)  # type: ignore
 
                 # flip boxes
                 if key_type == "box_key":

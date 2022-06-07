@@ -718,11 +718,11 @@ class Flip(InvertibleTransform):
         out = self.forward_image(img, axes)
         if isinstance(out, MetaTensor):
             out.meta = self.forward_meta(out.meta, out.shape, axes)
-            self.push_transform(out)
+        self.push_transform(out)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        _ = self.pop_transform(data)
+        self.pop_transform(data)
         flipper = Flip(spatial_axis=self.spatial_axis)
         with flipper.trace_transform(False):
             return flipper(data)
@@ -935,7 +935,7 @@ class Rotate(InvertibleTransform):
         im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
-            raise ValueError(f"Unsupported img dimension: {input_ndim}, available options are [2, 3].")
+            raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
         _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
         transform = create_rotate(input_ndim, _angle)
         shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
@@ -964,7 +964,7 @@ class Rotate(InvertibleTransform):
         output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
         if isinstance(out, MetaTensor):
-            out.meta = self.forward_meta(img.meta, transform_t, out.shape)
+            out.meta = self.forward_meta(img.meta, transform_t)  # type: ignore
             self.push_transform(
                 out,
                 orig_size=img_t.shape[1:],
@@ -978,17 +978,20 @@ class Rotate(InvertibleTransform):
             )
         return out
 
-    def forward_meta(self, img_meta, rotate_mat, output_shape):
+    def forward_meta(self, img_meta, rotate_mat):
         meta_dict = deepcopy(img_meta)
         affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
         mat = to_affine_nd(len(affine) - 1, rotate_mat)
-        mat = convert_to_dst_type(mat, affine)[0]
-        meta_dict["affine"] = affine @ mat
+        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine)[0]
         return meta_dict
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
         transform = self.pop_transform(data)
-        # Create inverse transform
+        return self.inverse_transform(data, transform)
+
+    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
         fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
@@ -1005,9 +1008,11 @@ class Rotate(InvertibleTransform):
         )
         img_t = convert_data_type(data, torch.Tensor, dtype=dtype)[0]
         transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-        out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).float().squeeze(0)
+        sp_size = transform[TraceKeys.ORIG_SIZE]
+        out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
-        out.meta = self.forward_meta(data.meta, transform_t, out.shape)
+        if isinstance(data, MetaTensor):
+            out.meta = self.forward_meta(data.meta, transform_t)  # type: ignore
         return out
 
 
@@ -1294,7 +1299,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
             randomize: whether to execute `randomize()` function first, default to True.
-            get_matrix: whether to return the rotated image and rotate matrix together, default to False.
         """
         if randomize:
             self.randomize()
@@ -1316,9 +1320,10 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
-        if transform[TraceKeys.DO_TRANSFORM]:
-            return Rotate(0).inverse(data)
-        return data
+        if not transform[TraceKeys.DO_TRANSFORM]:
+            return data
+        rotate_xform = self.pop_transform(data, check=False)
+        return Rotate(0).inverse_transform(data, rotate_xform)
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform):
@@ -1346,7 +1351,6 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         """
         if randomize:
             self.randomize(None)
-
         out = self.flipper(img) if self._do_transform else img
         out = MetaTensor(out) if not isinstance(out, MetaTensor) and get_track_meta() else out
         self.push_transform(out)
@@ -1354,9 +1358,9 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
-        if transform[TraceKeys.DO_TRANSFORM]:
-            return self.flipper.inverse(data)
-        return data
+        if not transform[TraceKeys.DO_TRANSFORM]:
+            return data
+        return self.flipper.inverse(data)
 
 
 class RandAxisFlip(RandomizableTransform, InvertibleTransform):
@@ -1402,11 +1406,10 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
-        if transform[TraceKeys.DO_TRANSFORM]:
-            axes = transform[TraceKeys.EXTRA_INFO]["axes"]
-            self.flipper.spatial_axis = axes
-            return self.flipper.inverse(data)
-        return data
+        if not transform[TraceKeys.DO_TRANSFORM]:
+            return data
+        self.flipper.spatial_axis = transform[TraceKeys.EXTRA_INFO]["axes"]
+        return self.flipper.inverse(data)
 
 
 class RandZoom(RandomizableTransform):

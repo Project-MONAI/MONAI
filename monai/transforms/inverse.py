@@ -151,14 +151,16 @@ class TraceableTransform(Transform):
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
-        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         xform_id = transform.get(TraceKeys.ID, "")
         if xform_id == id(self):
             return
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
-        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
+        raise RuntimeError(
+            f"Error getting the most recently applied invertible transform {xform_name} {xform_id} != {id(self)}."
+        )
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
