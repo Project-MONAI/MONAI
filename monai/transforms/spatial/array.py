@@ -1159,7 +1159,7 @@ class Zoom(InvertibleTransform):
         do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
         if do_pad_crop:
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
-            out = _pad_crop(out)  # type: ignore
+            out = _pad_crop(out)
         self.push_transform(
             out,
             orig_size=orig_size[1:],
@@ -1571,7 +1571,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
         randomize: bool = True,
-    ) -> torch.tensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).

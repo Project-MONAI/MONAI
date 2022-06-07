@@ -1593,9 +1593,9 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
         return affine
     r = len(affine) - 1
     s = np.array([float(o) / max(n, 0) for o, n in zip(spatial_size, new_spatial_size)])
-    scale = create_scale(r, s)
+    scale = create_scale(r, s.tolist())
     if centered:
-        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
     return affine @ convert_to_dst_type(scale, affine)[0]
 
 

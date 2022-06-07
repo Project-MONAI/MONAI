@@ -334,7 +334,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
         self.keep_size = keep_size
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
 
         # zoom box
@@ -347,7 +347,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 box_key,
                 extra_info={"zoom": self.zoomer.zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
             )
-            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
+            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(  # type: ignore
                 d[box_key], src_spatial_size=src_spatial_size
             )
 
@@ -370,7 +370,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -400,7 +400,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                 src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                 box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -484,7 +484,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -507,7 +507,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     box_key,
                     extra_info={"zoom": self.rand_zoom._zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
                 )
-                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
+                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(  # type: ignore
                     d[box_key], src_spatial_size=src_spatial_size
                 )
 
@@ -534,7 +534,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -565,7 +565,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                     src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                     box_inverse_transform = ZoomBox(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
                 # Remove the applied transform
                 self.pop_transform(d, key)
