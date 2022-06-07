@@ -177,3 +177,10 @@ Applications
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.box_selector
     :members:
+
+`Detection metrics`
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.metrics.coco
+    :members:
+.. automodule:: monai.apps.detection.metrics.matching
+    :members:

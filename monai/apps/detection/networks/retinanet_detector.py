@@ -302,6 +302,10 @@ class RetinaNetDetector(nn.Module):
                     torch.nn.SmoothL1Loss(beta=1.0 / 9, reduction="mean"),
                     encode_gt = True, decode_pred = False
                 )
+                detector.set_box_regression_loss(
+                    monai.losses.giou_loss.BoxGIoULoss(reduction="mean"),
+                    encode_gt = False, decode_pred = True
+                )
         """
         self.box_loss_func = box_loss
         self.encode_gt = encode_gt
