@@ -2278,10 +2278,11 @@ class GridPatchd(MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = results[first_key][1][i_patch]  # use the location of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
+            if self.patcher.return_location:
+                new_dict[WSIPatchKeys.LOCATION] = results[first_key][1][i_patch]  # use the location of the first item
+                new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
+                new_dict[WSIPatchKeys.COUNT] = num_patches
+                new_dict["offset"] = self.patcher.offset
             output.append(new_dict)
         return output
 
@@ -2375,10 +2376,11 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
                 new_dict[k] = deepcopy(d[k])
             # fill additional metadata
             new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = results[first_key][1][i_patch]  # use the location of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
+            if self.patcher.return_location:
+                new_dict[WSIPatchKeys.LOCATION] = results[first_key][1][i_patch]  # use the location of the first item
+                new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
+                new_dict[WSIPatchKeys.COUNT] = num_patches
+                new_dict["offset"] = self.patcher.offset
             output.append(new_dict)
         return output
 
