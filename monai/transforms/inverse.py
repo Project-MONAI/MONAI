@@ -206,6 +206,8 @@ class TraceableTransform(Transform):
                 all_transforms = data[key].applied_operations
             else:
                 all_transforms = data[self.trace_key(key)]
+        else:
+            raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
         if check:
             self.check_transforms_match(all_transforms[-1])
         return all_transforms.pop() if pop else all_transforms[-1]
