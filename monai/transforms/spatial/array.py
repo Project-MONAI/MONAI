@@ -1184,12 +1184,16 @@ class Zoom(InvertibleTransform):
         return self.inverse_transform(data, transform)
 
     def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
         if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
             orig_size = transform[TraceKeys.ORIG_SIZE]
             pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
-            xform = self.pop_transform(data, check=False)  # remove the padding cropping
-            with pad_or_crop.trace_transform(False):
-                data = pad_or_crop.inverse_transform(data, xform)
+            xform = data.applied_operations[-1]  # remove the padding cropping
+            xform[TraceKeys.ID] = TraceKeys.NONE
+            xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
+            xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
+            data = pad_or_crop.inverse(data)
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]

@@ -150,7 +150,7 @@ class TraceableTransform(Transform):
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
         xform_id = transform.get(TraceKeys.ID, "")
-        if xform_id == id(self):
+        if xform_id in [id(self), TraceKeys.NONE]:  # TraceKeys.NONE to skip the check
             return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
