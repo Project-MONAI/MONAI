@@ -1186,16 +1186,13 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
-
-    else:
-        spatial_axes_ = []
-        for a in ensure_tuple(spatial_axes):
-            if channel_first:
-                spatial_axes_.append(a if a < 0 else a + 1)
-            else:
-                spatial_axes_.append(a - 1 if a < 0 else a)
-
+        return list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+    spatial_axes_ = []
+    for a in ensure_tuple(spatial_axes):
+        if channel_first:
+            spatial_axes_.append(a % img_ndim if a < 0 else a + 1)
+        else:
+            spatial_axes_.append((a - 1) % (img_ndim - 1) if a < 0 else a)
     return spatial_axes_
 
 

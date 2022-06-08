@@ -15,9 +15,8 @@ import numpy as np
 import skimage.transform
 from parameterized import parameterized
 
-from monai.data import MetaTensor
 from monai.transforms import Resized
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
 
@@ -60,11 +59,7 @@ class TestResized(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             out = resize({"img": im})
-            if isinstance(im, MetaTensor):
-                im_inv = resize.inverse(out)
-                self.assertTrue(not im_inv["img"].applied_operations)
-                assert_allclose(im_inv["img"].shape, im.shape)
-                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
+            test_local_inversion(resize, out, {"img": im}, "img")
             assert_allclose(out["img"], expected, type_test=False, atol=0.9)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])

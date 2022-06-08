@@ -15,10 +15,9 @@ import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
-from monai.data import MetaTensor
 from monai.transforms import RandZoom
 from monai.utils import GridSampleMode, InterpolateMode
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(0.8, 1.2, "nearest", False), (0.8, 1.2, InterpolateMode.NEAREST, False)]
 
@@ -31,11 +30,7 @@ class TestRandZoom(NumpyImageTestCase2D):
             random_zoom.set_random_state(1234)
             im = p(self.imt[0])
             zoomed = random_zoom(im)
-            if isinstance(im, MetaTensor):
-                im_inv = random_zoom.inverse(zoomed)
-                self.assertTrue(not im_inv.applied_operations)
-                assert_allclose(im_inv.shape, im.shape)
-                assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+            test_local_inversion(random_zoom, zoomed, im)
             expected = [
                 zoom_scipy(channel, zoom=random_zoom._zoom, mode="nearest", order=0, prefilter=False)
                 for channel in self.imt[0]
@@ -50,11 +45,7 @@ class TestRandZoom(NumpyImageTestCase2D):
             random_zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
             random_zoom.set_random_state(12)
             zoomed = random_zoom(im)
-            if isinstance(im, MetaTensor):
-                im_inv = random_zoom.inverse(zoomed)
-                self.assertTrue(not im_inv.applied_operations)
-                assert_allclose(im_inv.shape, im.shape)
-                assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+            test_local_inversion(random_zoom, zoomed, im)
             self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
             zoomed = random_zoom(im)
             self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))

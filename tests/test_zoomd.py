@@ -15,9 +15,8 @@ import numpy as np
 from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
-from monai.data import MetaTensor
 from monai.transforms import Zoomd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
 
@@ -32,11 +31,7 @@ class TestZoomd(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             zoomed = zoom_fn({key: im})
-            if isinstance(im, MetaTensor):
-                im_inv = zoom_fn.inverse(zoomed)
-                self.assertTrue(not im_inv["img"].applied_operations)
-                assert_allclose(im_inv["img"].shape, im.shape)
-                assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
+            test_local_inversion(zoom_fn, zoomed, {key: im}, key)
             _order = 0
             if mode.endswith("linear"):
                 _order = 1

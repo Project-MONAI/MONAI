@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.transforms import Rotated
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: List[Tuple] = []
 for p in TEST_NDARRAYS:
@@ -62,12 +62,7 @@ class TestRotated2D(NumpyImageTestCase2D):
             rotated[k] = v.cpu() if isinstance(v, torch.Tensor) else v
         good = np.sum(np.isclose(expected, rotated["img"][0], atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
-
-        if isinstance(im, MetaTensor):
-            im_inv = rotate_fn.inverse(rotated)
-            self.assertTrue(not im_inv["img"].applied_operations)
-            assert_allclose(im_inv["img"].shape, im.shape)
-            assert_allclose(im_inv["img"].affine, im.affine, atol=1e-3, rtol=1e-3)
+        test_local_inversion(rotate_fn, rotated, {"img": im}, "img")
 
         expected = scipy.ndimage.rotate(
             self.segn[0, 0], -np.rad2deg(angle), (0, 1), not keep_size, order=0, mode=_mode, prefilter=False

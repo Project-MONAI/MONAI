@@ -1207,7 +1207,7 @@ class Zoom(InvertibleTransform):
         return out
 
 
-class Rotate90(Transform):
+class Rotate90(InvertibleTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See np.rot90 for additional details:
@@ -1231,18 +1231,58 @@ class Rotate90(Transform):
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
         self.spatial_axes = spatial_axes_
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        rot90: Callable = torch.rot90 if isinstance(img, torch.Tensor) else np.rot90  # type: ignore
-        out: NdarrayOrTensor = rot90(img, self.k, map_spatial_axes(img.ndim, self.spatial_axes))
+        if not isinstance(img, MetaTensor) and get_track_meta():
+            img = MetaTensor(img)
+        axes = map_spatial_axes(img.ndim, self.spatial_axes)
+        ori_shape = img.shape[1:]
+        out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
         out, *_ = convert_data_type(out, dtype=img.dtype)
+        if not isinstance(out, MetaTensor):
+            return out
+        out.meta = self.forward_meta(img.meta, ori_shape, out.shape[1:], axes, self.k)
+        self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
         return out
 
+    def forward_meta(self, img_meta, spatial_size, new_spatial_size, axes, k):
+        meta_dict = deepcopy(img_meta)
+        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+        r, sp_r = len(affine) - 1, len(spatial_size)
+        mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
+        if sp_r == 2:
+            rot90 = to_affine_nd(r, create_rotate(sp_r, [-np.pi / 2]))
+        else:
+            idx = {0, 1, 2} - set(axes)
+            angle = [0, 0, 0]
+            angle[2 - idx.pop()] = -np.pi / 2
+            rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
+        for _ in range(k):
+            mat = rot90 @ mat
+        mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in spatial_size])) @ mat
+        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine)[0]
+        return meta_dict
 
-class RandRotate90(RandomizableTransform):
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        transform = self.pop_transform(data)
+        return self.inverse_transform(data, transform)
+
+    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
+        axes = transform[TraceKeys.EXTRA_INFO]["axes"]
+        k = transform[TraceKeys.EXTRA_INFO]["k"]
+        inv_k = 4 - k % 4
+        xform = Rotate90(k=inv_k, spatial_axes=axes)
+        with xform.trace_transform(False):
+            data = xform(data)
+        return data
+
+
+class RandRotate90(RandomizableTransform, InvertibleTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1271,7 +1311,7 @@ class RandRotate90(RandomizableTransform):
             return None
         self._rand_k = self.R.randint(self.max_k) + 1
 
-    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -1280,10 +1320,19 @@ class RandRotate90(RandomizableTransform):
         if randomize:
             self.randomize()
 
-        if not self._do_transform:
-            return img
+        if self._do_transform:
+            out = Rotate90(self._rand_k, self.spatial_axes)(img)
+        else:
+            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
+        self.push_transform(out)
+        return out
 
-        return Rotate90(self._rand_k, self.spatial_axes)(img)
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        if not transform[TraceKeys.DO_TRANSFORM]:
+            return data
+        rotate_xform = self.pop_transform(data, check=False)
+        return Rotate90().inverse_transform(data, rotate_xform)
 
 
 class RandRotate(RandomizableTransform, InvertibleTransform):

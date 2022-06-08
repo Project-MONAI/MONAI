@@ -15,10 +15,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor
 from monai.transforms import RandAffine
 from monai.utils.type_conversion import convert_data_type
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env, test_local_inversion
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
@@ -145,12 +144,8 @@ class TestRandAffine(unittest.TestCase):
         result = g(**input_data)
         if input_param.get("cache_grid", False):
             self.assertTrue(g._cached_grid is not None)
+        test_local_inversion(g, result, input_data, "img")
 
-        if isinstance(input_data["img"], MetaTensor):
-            im_inv = g.inverse(result)
-            self.assertTrue(not im_inv.applied_operations)
-            assert_allclose(im_inv.shape, input_data["img"].shape)
-            assert_allclose(im_inv.affine, input_data["img"].affine, atol=1e-3, rtol=1e-3)
         assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4, type_test=False)
 
     def test_ill_cache(self):

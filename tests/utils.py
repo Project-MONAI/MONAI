@@ -708,6 +708,19 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
+def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
+    """test that invertible_xform can bring to_invert back to im"""
+    if not isinstance(im, MetaTensor):
+        return
+    im_inv = invertible_xform.inverse(to_invert)
+    if dict_key:
+        im_inv = im_inv[dict_key]
+        im = im[dict_key]
+    np.testing.assert_array_equal(im_inv.applied_operations, [])
+    assert_allclose(im_inv.shape, im.shape)
+    assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+
+
 TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")

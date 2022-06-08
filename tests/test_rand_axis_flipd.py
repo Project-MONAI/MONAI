@@ -13,9 +13,8 @@ import unittest
 
 import numpy as np
 
-from monai.data import MetaTensor
 from monai.transforms import RandAxisFlipd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase3D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase3D, assert_allclose, test_local_inversion
 
 
 class TestRandAxisFlip(NumpyImageTestCase3D):
@@ -24,15 +23,9 @@ class TestRandAxisFlip(NumpyImageTestCase3D):
             flip = RandAxisFlipd(keys="img", prob=1.0)
             im = p(self.imt[0])
             result = flip({"img": im})
-
+            test_local_inversion(flip, result, {"img": im}, "img")
             expected = [np.flip(channel, flip.flipper._axis) for channel in self.imt[0]]
             assert_allclose(result["img"], p(np.stack(expected)), type_test=False)
-
-            if isinstance(im, MetaTensor):
-                im_inv = flip.inverse(result)
-                self.assertTrue(not im_inv["img"].applied_operations)
-                assert_allclose(im_inv["img"], im)
-                assert_allclose(im_inv["img"].affine, im.affine)
 
 
 if __name__ == "__main__":

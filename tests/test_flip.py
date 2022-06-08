@@ -14,9 +14,8 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Flip
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -39,11 +38,7 @@ class TestFlip(NumpyImageTestCase2D):
             expected = np.stack(expected)
             result = flip(im)
             assert_allclose(result, p(expected), type_test=False)
-            if isinstance(im, MetaTensor):
-                im_inv = flip.inverse(result)
-                assert_allclose(im_inv, p(self.imt[0]))
-                assert_allclose(im_inv.affine, im.affine)
-                self.assertTrue(not im_inv.applied_operations)
+            test_local_inversion(flip, result, im)
 
 
 if __name__ == "__main__":
