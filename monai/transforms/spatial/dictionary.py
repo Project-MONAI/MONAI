@@ -524,7 +524,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         self.randomize()
         d = dict(data)
 
@@ -537,12 +537,13 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
             transform = self.pop_transform(d[key], check=False)
             if transform[TraceKeys.DO_TRANSFORM]:
-                d[key] = Rotate90().inverse_transform(d[key], transform)
+                xform = self.pop_transform(d[key], check=False)
+                d[key] = Rotate90().inverse_transform(d[key], xform)
         return d
 
 

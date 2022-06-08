@@ -838,7 +838,7 @@ class Resize(InvertibleTransform):
             return img
 
         original_sp_size = img.shape[1:]
-        img_, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
+        img_: MetaTensor = convert_data_type(img, dtype=torch.float)[0]
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
@@ -974,7 +974,7 @@ class Rotate(InvertibleTransform):
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype)
+        img_t: MetaTensor = convert_data_type(img, dtype=_dtype)[0]
 
         im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
@@ -1051,7 +1051,7 @@ class Rotate(InvertibleTransform):
             align_corners=False if align_corners == TraceKeys.NONE else align_corners,
             reverse_indexing=True,
         )
-        img_t = convert_data_type(data, torch.Tensor, dtype=dtype)[0]
+        img_t = convert_data_type(data, dtype=dtype)[0]
         transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
         sp_size = transform[TraceKeys.ORIG_SIZE]
         out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
@@ -1138,7 +1138,7 @@ class Zoom(InvertibleTransform):
         """
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
+        img_t, *_ = convert_data_type(img, dtype=torch.float32)
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
@@ -1243,8 +1243,8 @@ class Rotate90(InvertibleTransform):
         out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
         out, *_ = convert_data_type(out, dtype=img.dtype)
         if not isinstance(out, MetaTensor):
-            return out
-        out.meta = self.forward_meta(img.meta, ori_shape, out.shape[1:], axes, self.k)
+            return MetaTensor(out)
+        out.meta = self.forward_meta(img.meta, ori_shape, out.shape[1:], axes, self.k)  # type: ignore
         self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
         return out
 
@@ -2431,7 +2431,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         if not do_resampling:
-            out, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32, device=self.resampler.device)
+            out, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
         else:
             if grid is None:
                 grid = self.get_identity_grid(sp_size)

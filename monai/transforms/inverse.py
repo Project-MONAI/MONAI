@@ -145,7 +145,7 @@ class TraceableTransform(Transform):
                     data[self.trace_key(key)] = []
                 data[self.trace_key(key)].append(info)
         else:
-            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, {info} not tracked.")
+            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""

@@ -710,7 +710,8 @@ def query_memory(n=2):
 
 def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     """test that invertible_xform can bring to_invert back to im"""
-    if not isinstance(im, MetaTensor):
+    im_item = im if dict_key is None else im[dict_key]
+    if not isinstance(im_item, MetaTensor):
         return
     im_inv = invertible_xform.inverse(to_invert)
     if dict_key:

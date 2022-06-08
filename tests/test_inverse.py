@@ -176,11 +176,11 @@ TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
 for acc in [True, False]:
     TESTS.append(("Orientationd 3d", "3D", 0, True, Orientationd(KEYS, "RAS", as_closest_canonical=acc)))
 
-TESTS.append(("Rotate90d 2d", "2D", 0, False, Rotate90d(KEYS)))
+TESTS.append(("Rotate90d 2d", "2D", 0, True, Rotate90d(KEYS)))
 
-TESTS.append(("Rotate90d 3d", "3D", 0, False, Rotate90d(KEYS, k=2, spatial_axes=(1, 2))))
+TESTS.append(("Rotate90d 3d", "3D", 0, True, Rotate90d(KEYS, k=2, spatial_axes=(1, 2))))
 
-TESTS.append(("RandRotate90d 3d", "3D", 0, False, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
+TESTS.append(("RandRotate90d 3d", "3D", 0, True, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
 
 TESTS.append(("Spacingd 3d", "3D", 3e-2, True, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
