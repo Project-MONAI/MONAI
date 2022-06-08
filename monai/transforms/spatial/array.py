@@ -2693,6 +2693,8 @@ class GridPatch(Transform):
                 idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
                 idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+            else:
+                raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
             image_np = image_np[idx]
             locations = locations[idx]
