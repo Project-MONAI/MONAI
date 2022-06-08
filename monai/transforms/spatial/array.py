@@ -2730,8 +2730,7 @@ class GridPatch(Transform):
         # Pad the patch list to have the requested number of patches
         if self.num_patches and len(output) < self.num_patches:
             patch = convert_to_dst_type(
-                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
-                dst=array,
+                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
             )[0]
             start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
             output += [(patch, start_location)] * (self.num_patches - len(output))

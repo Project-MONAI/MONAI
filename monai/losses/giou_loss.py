@@ -50,7 +50,9 @@ class BoxGIoULoss(_Loss):
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         box_dtype = input.dtype
-        giou: torch.Tensor = box_pair_giou(target.to(dtype=COMPUTE_DTYPE), input.to(dtype=COMPUTE_DTYPE))  # type: ignore
+        giou: torch.Tensor = box_pair_giou(
+            target.to(dtype=COMPUTE_DTYPE), input.to(dtype=COMPUTE_DTYPE)
+        )  # type: ignore
         loss: torch.Tensor = 1.0 - giou
         if self.reduction == LossReduction.MEAN.value:
             loss = loss.mean()
