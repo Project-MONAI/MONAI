@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import Affine
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -159,7 +160,12 @@ class TestAffine(unittest.TestCase):
         result = g(**input_data)
         if isinstance(result, tuple):
             result = result[0]
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        if isinstance(input_data["img"], MetaTensor):
+            im_inv = g.inverse(result)
+            self.assertTrue(not im_inv.applied_operations)
+            assert_allclose(im_inv.shape, input_data["img"].shape)
+            assert_allclose(im_inv.affine, input_data["img"].affine, atol=1e-3, rtol=1e-3)
+        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

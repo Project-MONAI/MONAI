@@ -712,44 +712,16 @@ class Affined(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            orig_size = d[key].shape[1:]
-            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode)
-            self.push_transform(
-                d,
-                key,
-                orig_size=orig_size,
-                extra_info={
-                    "affine": affine,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                },
-            )
+            d[key], _ = self.affine(d[key], mode=mode, padding_mode=padding_mode)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            # Create inverse transform
-            fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            inv_affine = np.linalg.inv(fwd_affine)
-
-            affine_grid = AffineGrid(affine=inv_affine)
-            grid, _ = affine_grid(orig_size)
-
-            # Apply inverse transform
-            d[key] = self.affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.affine.inverse(d[key])
         return d
 
 
