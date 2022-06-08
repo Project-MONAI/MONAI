@@ -2216,11 +2216,8 @@ class GridPatchd(MapTransform):
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
+            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -2246,7 +2243,7 @@ class GridPatchd(MapTransform):
         offset: Optional[Sequence[int]] = None,
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
@@ -2300,11 +2297,8 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
+            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -2332,7 +2326,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         max_offset: Optional[Union[Sequence[int], int]] = None,
         num_patches: Optional[int] = None,
         overlap: float = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
