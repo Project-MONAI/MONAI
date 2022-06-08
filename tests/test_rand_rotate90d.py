@@ -26,7 +26,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_k(self):
         key = "test"
@@ -36,7 +36,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_spatial_axes(self):
         key = "test"
@@ -46,7 +46,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_prob_k_spatial_axes(self):
         key = "test"
@@ -56,7 +56,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             rotated = rotate({key: p(self.imt[0])})
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_no_key(self):
         key = "unknown"

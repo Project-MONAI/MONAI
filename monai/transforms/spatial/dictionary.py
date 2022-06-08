@@ -470,27 +470,16 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            spatial_axes = self.rotator.spatial_axes
-            num_times_rotated = self.rotator.k
-            num_times_to_rotate = 4 - num_times_rotated
-            inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
-            # Apply inverse
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.rotator(d[key])
         return d
 
 
@@ -545,24 +534,15 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = rotator(d[key])
-            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+            self.push_transform(d[key])
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
+            transform = self.pop_transform(d[key], check=False)
             if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                num_times_rotated = transform[TraceKeys.EXTRA_INFO]["rand_k"]
-                num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                # Apply inverse
-                d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+                d[key] = Rotate90().inverse_transform(d[key], transform)
         return d
 
 

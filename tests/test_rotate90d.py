@@ -24,7 +24,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             rotated = rotate({key: im})
-            test_local_inversion(rotate, rotated[key], im)
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
@@ -35,7 +35,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             rotated = rotate({key: im})
-            test_local_inversion(rotate, rotated[key], im)
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
@@ -46,7 +46,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             rotated = rotate({key: im})
-            test_local_inversion(rotate, rotated[key], im)
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
@@ -57,7 +57,7 @@ class TestRotate90d(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             rotated = rotate({key: im})
-            test_local_inversion(rotate, rotated[key], im)
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
