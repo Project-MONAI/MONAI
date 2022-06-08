@@ -121,8 +121,8 @@ class TestBoxTransform(unittest.TestCase):
             invert_transform_convert_mode = Invertd(
                 keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
             )
-            data_back = invert_transform_convert_mode(convert_result)
-            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
+            # data_back = invert_transform_convert_mode(convert_result)
+            # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
 
             # # test ZoomBoxd
             # transform_zoom = ZoomBoxd(

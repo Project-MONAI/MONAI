@@ -299,12 +299,13 @@ class SpatialResample(InvertibleTransform):
             if not USE_COMPILED:
                 _t_l = normalize_transform(
                     in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
-                )
+                )[0]
                 xform = _t_l @ xform  # type: ignore
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
             )
-            img = affine_xform(img, mode=mode, padding_mode=padding_mode)
+            with affine_xform.trace_transform(False):
+                img = affine_xform(img, mode=mode, padding_mode=padding_mode)
         else:
             affine_xform = AffineTransform(
                 normalized=False,
