@@ -2216,8 +2216,8 @@ class GridPatchd(MapTransform):
             np.random.randint(0, patch_size, 2) creates random start between 0 and `patch_size` for a 2D image.
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: amount of overlap between patches in each dimension. Default to 0.0.
-        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
-            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -2297,8 +2297,8 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
-            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.

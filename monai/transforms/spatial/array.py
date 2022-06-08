@@ -2632,8 +2632,8 @@ class GridPatch(Transform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
-            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -2660,7 +2660,7 @@ class GridPatch(Transform):
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
-        self.sort_fn = sort_fn.lower()
+        self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
 
     def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
@@ -2672,12 +2672,7 @@ class GridPatch(Transform):
         """
         if self.threshold is not None:
             n_dims = len(image_np.shape)
-            if self.sort_fn is None:
-                raise ValueError("When providing threshold, `sort_fn` need to be set.")
-            if self.sort_fn == GridPatchSort.MAX:
-                idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-            elif self.sort_fn == GridPatchSort.MIN:
-                idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) >= self.threshold).reshape(-1)
+            idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
             image_np = image_np[idx]
             locations = locations[idx]
         return image_np, locations
@@ -2694,11 +2689,11 @@ class GridPatch(Transform):
             locations = locations[: self.num_patches]
         elif self.num_patches is not None:
             n_dims = len(image_np.shape)
-            idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
-            if self.sort_fn == GridPatchSort.MAX:
-                idx = idx[: self.num_patches]
-            elif self.sort_fn == GridPatchSort.MIN:
-                idx = idx[-self.num_patches :]
+            if self.sort_fn == GridPatchSort.MIN:
+                idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+            elif self.sort_fn == GridPatchSort.MAX:
+                idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+            idx = idx[: self.num_patches]
             image_np = image_np[idx]
             locations = locations[idx]
         return image_np, locations
@@ -2756,8 +2751,8 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: when `num_patches` or `threshold` is provided, it determines if patches should be filtered according
-            to highest values (`"max"`), lowest values (`"min"`), or their default order (`None`). Default to None.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
