@@ -18,7 +18,6 @@ from monai.transforms import (
     Compose,
     CopyItemsd,
     EnsureChannelFirstd,
-    FromMetaTensord,
     Invertd,
     Lambda,
     LoadImaged,
@@ -29,7 +28,7 @@ from tests.utils import assert_allclose, download_url_or_skip_test, testing_data
 
 
 def update_fname(d):
-    d["im3_meta_dict"]["filename_or_obj"] = "file3.nii.gz"
+    d["im3"].meta["filename_or_obj"] = "file3.nii.gz"
     return d
 
 
@@ -59,22 +58,18 @@ class TestResampleToMatchd(unittest.TestCase):
                 EnsureChannelFirstd(("im1", "im2")),
                 CopyItemsd(("im2"), names=("im3")),
                 ResampleToMatchd("im3", "im1"),
-                FromMetaTensord("im3"),
                 Lambda(update_fname),
-                SaveImaged("im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False),
+                SaveImaged("im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, resample=False),
             ]
         )
         data = transforms({"im1": self.fnames[0], "im2": self.fnames[1]})
         # check that output sizes match
         assert_allclose(data["im1"].shape, data["im3"].shape)
         # and that the meta data has been updated accordingly
-        # assert_allclose(data["im3"].shape[1:], data["im3_meta_dict"]["spatial_shape"], type_test=False)
-        assert_allclose(data["im3_meta_dict"]["affine"], data["im1"].affine)
+        assert_allclose(data["im3"].affine, data["im1"].affine)
         # check we're different from the original
         self.assertTrue(any(i != j for i, j in zip(data["im3"].shape, data["im2"].shape)))
-        self.assertTrue(
-            any(i != j for i, j in zip(data["im3_meta_dict"]["affine"].flatten(), data["im2"].affine.flatten()))
-        )
+        self.assertTrue(any(i != j for i, j in zip(data["im3"].affine.flatten(), data["im2"].affine.flatten())))
         # test the inverse
         data = Invertd("im3", transforms, "im3")(data)
         assert_allclose(data["im2"].shape, data["im3"].shape)

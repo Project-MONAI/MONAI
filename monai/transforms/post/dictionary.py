@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.transforms.inverse import InvertibleTransform
@@ -623,12 +624,22 @@ class Invertd(MapTransform):
             self.device,
             self.post_func,
         ):
-            transform_key = InvertibleTransform.trace_key(orig_key)
-            if transform_key not in d:
-                warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
-                continue
+            if isinstance(d[key], MetaTensor):
+                if orig_key not in d:
+                    warnings.warn(f"transform info of `{orig_key}` is not available in MetaTensor {key}.")
+                    continue
+            else:
+                transform_key = InvertibleTransform.trace_key(orig_key)
+                if transform_key not in d:
+                    warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
+                    continue
 
-            transform_info = d[transform_key]
+            if orig_key in d and isinstance(d[orig_key], MetaTensor):
+                transform_info = d[orig_key].applied_operations
+                meta_info = d[orig_key].meta
+            else:
+                transform_info = d[InvertibleTransform.trace_key(orig_key)]
+                meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
             if nearest_interp:
                 transform_info = convert_inverse_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
@@ -638,23 +649,26 @@ class Invertd(MapTransform):
             if isinstance(input, torch.Tensor):
                 input = input.detach()
 
+            if not isinstance(input, MetaTensor):
+                input = MetaTensor(input, meta=meta_info, applied_operations=transform_info)
+
             # construct the input dict data
-            input_dict = {orig_key: input, transform_key: transform_info}
-            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
-            if orig_meta_key in d:
-                input_dict[orig_meta_key] = d[orig_meta_key]
+            input_dict = {orig_key: input}
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
+            if to_tensor and not isinstance(inverted[orig_key], MetaTensor):
+                inverted_data = self._totensor(inverted[orig_key])
+            else:
+                inverted_data = inverted[orig_key]
+            d[key] = post_func(inverted_data.to(device))
 
             # save the inverted meta dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
-
         return d
 
 
