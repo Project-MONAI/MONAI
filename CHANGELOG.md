@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.9.0] - 2022-06-08
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
 ## [0.8.1] - 2022-02-16
 ### Added
 * Support of `matshow3d` with given `channel_dim`
@@ -483,7 +492,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...HEAD
+[0.9.0]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0
