@@ -19,15 +19,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Patch-based readers and datasets for whole-slide imaging
 * New losses and metrics including `SurfaceDiceMetric`, `GeneralizedDiceFocalLoss`
 * New pre-processing transforms including `RandIntensityRemap`, `SpatialResample`
-* Multi-output and slice-based model support for `SlidingWindowInferer`
-* `NrrdReader` for NRRD file support via `pynrrd`
+* Multi-output and slice-based inference for `SlidingWindowInferer`
+* `NrrdReader` for NRRD file support
 * Torchscript utilities to save models with meta information
 * Gradient-based visualization module `SmoothGrad`
 * Automatic regular source code scanning for common vulnerabilities and coding errors
 
 ### Changed
-* Simplified `TestTimeAugmentation` using the de-collate and invertible transforms APIs
-* Refactored `monai.apps.pathology` modules into `monai.handlers` and `monai.transforms`
+* Simplified `TestTimeAugmentation` using de-collate and invertible transforms APIs
+* Refactoring `monai.apps.pathology` modules into `monai.handlers` and `monai.transforms`
 * Flexible activation and normalization layers for `TopologySearch` and `DiNTS`
 * Anisotropic first layers for 3D resnet
 * Flexible ordering of activation, normalization in `UNet`
