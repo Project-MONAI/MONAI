@@ -2392,9 +2392,12 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         self.push_transform(
-            out, orig_size=img.shape[1:], extra_info={"affine": mat, "mode": _mode, "padding_mode": _padding_mode}
+            out,
+            orig_size=img.shape[1:],
+            extra_info={"affine": mat, "mode": _mode, "padding_mode": _padding_mode, "do_resampling": do_resampling},
         )
-        out.meta = self.forward_meta(out.meta, mat, img.shape[1:], sp_size)
+        if isinstance(img, MetaTensor):
+            out.meta = self.forward_meta(img.meta, mat, img.shape[1:], sp_size)
         return out  # type: ignore
 
     def forward_meta(self, img_meta, mat, img_size, sp_size):
@@ -2409,9 +2412,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
 
         transform = self.pop_transform(data)
         # if transform was not performed nothing to do.
-        orig_size = transform[TraceKeys.ORIG_SIZE]
-        if not transform[TraceKeys.DO_TRANSFORM] and (data.shape[1:] == orig_size):
+        if not transform[TraceKeys.EXTRA_INFO]["do_resampling"]:
             return data
+        orig_size = transform[TraceKeys.ORIG_SIZE]
         orig_size = fall_back_tuple(orig_size, data.shape[1:])
         # Create inverse transform
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
