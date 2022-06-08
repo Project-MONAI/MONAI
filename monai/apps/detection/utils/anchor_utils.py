@@ -72,7 +72,7 @@ class AnchorGenerator(nn.Module):
         sizes: base size of each anchor.
             len(sizes) is the number of feature maps, i.e., the number of output levels for
             the feature pyramid network (FPN).
-            Each elment of ``sizes`` is a Sequence which represents several anchor sizes for each feature map.
+            Each element of ``sizes`` is a Sequence which represents several anchor sizes for each feature map.
         aspect_ratios: the aspect ratios of anchors. ``len(aspect_ratios) = len(sizes)``.
             For 2D images, each element of ``aspect_ratios[i]`` is a Sequence of float.
             For 3D images, each element of ``aspect_ratios[i]`` is a Sequence of 2 value Sequence.
@@ -286,7 +286,7 @@ class AnchorGenerator(nn.Module):
 
         Args:
             images: sized (B, C, W, H) or (B, C, W, H, D)
-            feature_maps: for FPN level i, feature_maps[i] is sizec (B, C_i, W_i, H_i) or (B, C_i, W_i, H_i, D_i).
+            feature_maps: for FPN level i, feature_maps[i] is sized (B, C_i, W_i, H_i) or (B, C_i, W_i, H_i, D_i).
                 This input argument does not have to be the actual feature maps.
                 Any list variable with the same (C_i, W_i, H_i) or (C_i, W_i, H_i, D_i) as feature maps works.
 

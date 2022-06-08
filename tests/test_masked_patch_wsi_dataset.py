@@ -18,14 +18,14 @@ from parameterized import parameterized
 
 from monai.data import MaskedPatchWSIDataset
 from monai.utils import WSIPatchKeys, optional_import, set_determinism
-from tests.utils import testing_data_config
+from tests.utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")
-openslide, has_osl = optional_import("openslide")
-imwrite, has_tiff = optional_import("tifffile", name="imwrite")
+_, has_osl = optional_import("openslide")
+_, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
@@ -46,6 +46,13 @@ TEST_CASE_0 = [
         "patch_size": (2, 2),
     },
 ]
+
+
+@skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
+def setUpModule():
+    hash_type = testing_data_config("images", FILE_KEY, "hash_type")
+    hash_val = testing_data_config("images", FILE_KEY, "hash_val")
+    download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
 class MaskedPatchWSIDatasetTests:
