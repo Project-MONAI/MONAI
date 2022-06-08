@@ -23,7 +23,7 @@ from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS[-1:]:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [dict(device=device), {"img": p(torch.arange(27).reshape((3, 3, 3)))}, p(np.arange(27).reshape((3, 3, 3)))]
@@ -147,7 +147,6 @@ class TestRandAffine(unittest.TestCase):
             self.assertTrue(g._cached_grid is not None)
 
         if isinstance(input_data["img"], MetaTensor):
-            print(result.shape, input_data["img"].shape)
             im_inv = g.inverse(result)
             self.assertTrue(not im_inv.applied_operations)
             assert_allclose(im_inv.shape, input_data["img"].shape)

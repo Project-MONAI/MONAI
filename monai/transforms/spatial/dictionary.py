@@ -836,58 +836,30 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        device = self.rand_affine.resampler.device
         spatial_size = d[first_key].shape[1:]  # type: ignore
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
-        affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
                 grid = self.rand_affine.rand_affine_grid(grid=grid)
-                affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "affine": affine,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                },
-            )
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
-
+                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
+            self.push_transform(d[key], extra_info={"do_resampling": do_resampling})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # if transform was not performed and spatial size is None, nothing to do.
-            if transform[TraceKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
-                orig_size = transform[TraceKeys.ORIG_SIZE]
-                # Create inverse transform
-                fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                inv_affine = np.linalg.inv(fwd_affine)
-
-                affine_grid = AffineGrid(affine=inv_affine)
-                grid, _ = affine_grid(orig_size)
-
-                # Apply inverse transform
-                d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            if self.pop_transform(d[key])[TraceKeys.EXTRA_INFO]["do_resampling"]:
+                d[key] = self.rand_affine.inverse(d[key])
 
         return d
 

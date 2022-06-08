@@ -1718,8 +1718,8 @@ class AffineGrid(Transform):
             affine = self.affine
 
         grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=self.dtype or grid.dtype)
+        affine = to_affine_nd(len(grid) - 1, affine)
         affine, *_ = convert_to_dst_type(affine, grid)
-
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
         return grid, affine
 
@@ -2195,7 +2195,7 @@ class Affine(InvertibleTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = self.forward_meta(data.meta, inv_affine, data.shape[1:], orig_size)
-        return out
+        return out  # type: ignore
 
 
 class RandAffine(RandomizableTransform, InvertibleTransform):
@@ -2350,6 +2350,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         randomize: bool = True,
+        grid=None,
     ) -> torch.Tensor:
         """
         Args:
@@ -2366,6 +2367,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             randomize: whether to execute `randomize()` function first, default to True.
+            grid: precomputed grid to be used (mainly to accelerate `RandAffined`).
 
         """
         if randomize:
@@ -2379,20 +2381,20 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         if not do_resampling:
-            out, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
-            mat = torch.eye(len(img.shape), dtype=torch.float64, device=self.resampler.device)
+            out, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32, device=self.resampler.device)
         else:
-            grid = self.get_identity_grid(sp_size)
-            if self._do_transform:
-                grid = self.rand_affine_grid(grid=grid, randomize=randomize)
+            if grid is None:
+                grid = self.get_identity_grid(sp_size)
+                if self._do_transform:
+                    grid = self.rand_affine_grid(grid=grid, randomize=randomize)
             out = self.resampler(img=img, grid=grid, mode=_mode, padding_mode=_padding_mode)
-            mat = self.rand_affine_grid.get_transformation_matrix()
-            if not isinstance(out, MetaTensor):
-                out = MetaTensor(out)
+        mat = self.rand_affine_grid.get_transformation_matrix()
+        if not isinstance(out, MetaTensor):
+            out = MetaTensor(out)
         self.push_transform(
             out, orig_size=img.shape[1:], extra_info={"affine": mat, "mode": _mode, "padding_mode": _padding_mode}
         )
-        self.forward_meta(out.meta, mat, img.shape[1:], sp_size)
+        out.meta = self.forward_meta(out.meta, mat, img.shape[1:], sp_size)
         return out  # type: ignore
 
     def forward_meta(self, img_meta, mat, img_size, sp_size):
@@ -2407,15 +2409,15 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
 
         transform = self.pop_transform(data)
         # if transform was not performed nothing to do.
-        if not transform[TraceKeys.DO_TRANSFORM]:
-            return data
         orig_size = transform[TraceKeys.ORIG_SIZE]
+        if not transform[TraceKeys.DO_TRANSFORM] and (data.shape[1:] == orig_size):
+            return data
+        orig_size = fall_back_tuple(orig_size, data.shape[1:])
         # Create inverse transform
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
         inv_affine = np.linalg.inv(fwd_affine)
-
         affine_grid = AffineGrid(affine=inv_affine)
         grid, _ = affine_grid(orig_size)
 
@@ -2424,7 +2426,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = self.forward_meta(data.meta, inv_affine, data.shape[1:], orig_size)
-        return out
+        return out  # type: ignore
 
 
 class Rand2DElastic(RandomizableTransform):

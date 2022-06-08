@@ -166,12 +166,12 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, True, CropForegroundd(KEYS, source_
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, True, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
 TESTS.append(("Flipd 3d", "3D", 0, True, Flipd(KEYS, [1, 2])))
-TESTS.append(("Flipd 3d", "3D", 0, False, Flipd(KEYS, [1, 2])))
+TESTS.append(("Flipd 3d", "3D", 0, True, Flipd(KEYS, [1, 2])))
 
 TESTS.append(("RandFlipd 3d", "3D", 0, True, RandFlipd(KEYS, 1, [1, 2])))
 
 TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
-TESTS.append(("RandAxisFlipd 3d", "3D", 0, False, RandAxisFlipd(KEYS, 1)))
+TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
 
 for acc in [True, False]:
     TESTS.append(("Orientationd 3d", "3D", 0, True, Orientationd(KEYS, "RAS", as_closest_canonical=acc)))
@@ -206,13 +206,13 @@ TESTS.append(
     )
 )
 
-TESTS.append(("Zoomd 1d", "1D odd", 0, False, Zoomd(KEYS, zoom=2, keep_size=False)))
+TESTS.append(("Zoomd 1d", "1D odd", 0, True, Zoomd(KEYS, zoom=2, keep_size=False)))
 
-TESTS.append(("Zoomd 2d", "2D", 2e-1, False, Zoomd(KEYS, zoom=0.9)))
+TESTS.append(("Zoomd 2d", "2D", 2e-1, True, Zoomd(KEYS, zoom=0.9)))
 
-TESTS.append(("Zoomd 3d", "3D", 3e-2, False, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
+TESTS.append(("Zoomd 3d", "3D", 3e-2, True, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
 
-TESTS.append(("RandZoom 3d", "3D", 9e-2, False, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+TESTS.append(("RandZoom 3d", "3D", 9e-2, True, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
 TESTS.append(("RandRotated, prob 0", "2D", 0, True, RandRotated(KEYS, prob=0, dtype=np.float64)))
 
@@ -255,7 +255,7 @@ TESTS.append(
         "Affine 3d",
         "3D",
         1e-1,
-        False,
+        True,
         Affined(
             KEYS,
             spatial_size=[155, 179, 192],
@@ -272,7 +272,7 @@ TESTS.append(
         "RandAffine 3d",
         "3D",
         1e-1,
-        False,
+        True,
         RandAffined(
             KEYS,
             [155, 179, 192],
@@ -286,7 +286,7 @@ TESTS.append(
     )
 )
 
-TESTS.append(("RandAffine 3d", "3D", 0, False, RandAffined(KEYS, spatial_size=None, prob=0)))
+TESTS.append(("RandAffine 3d", "3D", 0, True, RandAffined(KEYS, spatial_size=None, prob=0)))
 
 TESTS.append(
     (
