@@ -847,8 +847,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Note:
         This replacement will not work for below cases:
         1. Set the `multiprocessing_context` of DataLoader to `spawn`.
-        2. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
-        3. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
+        2. Launch distributed data parallel with `torch.multiprocessing.spawn`.
+        3. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
+        4. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
 
         If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
         otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
