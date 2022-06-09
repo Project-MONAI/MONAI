@@ -12,7 +12,6 @@
 import re
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
-import warnings
 import numpy as np
 import torch
 
@@ -122,7 +121,8 @@ def convert_to_tensor(
             if data.applied_operations:
                 raise ValueError(
                     f"cannot convert a MetaTensor with applied operations to a Tensor. Got{data.applied_operations}"
-                    "please reset the applied operations before converting it to a Tensor.")
+                    "please reset the applied operations before converting it to a Tensor."
+                )
             data = data.as_tensor()
         return data.to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
     if isinstance(data, np.ndarray):
