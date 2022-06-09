@@ -291,10 +291,10 @@ class SignalRandAddSine(RandomizableTransform):
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)
         length = signal.shape[1]
-        
+
         time = np.arange(0, length, 1)
         sine = self.magnitude * np.sin(self.freqs * time)
-        
+
         return signal + sine
 
 class SignalRandAddSquarePulse(RandomizableTransform):
@@ -337,10 +337,10 @@ class SignalRandAddSquarePulse(RandomizableTransform):
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)
         length = signal.shape[1]
-        
+
         time = np.arange(0, length, 1)
         squaredpulse = self.magnitude * square(self.freqs * time)
-        
+
         return signal + squaredpulse
 
 
@@ -382,9 +382,8 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)
         length = signal.shape[1]
-        
+
         time = np.arange(0, length, 1)
         gaussiannoise = self.magnitude * np.random.normal(size=length)
-        
-        return signal + gaussiannoise
 
+        return signal + gaussiannoise
