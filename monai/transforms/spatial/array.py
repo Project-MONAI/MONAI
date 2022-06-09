@@ -1328,10 +1328,12 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
             return data
-        rotate_xform = self.pop_transform(data, check=False)
+        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
+        rotate_xform = self.pop_transform(data)
         return Rotate90().inverse_transform(data, rotate_xform)
 
 
@@ -1452,10 +1454,12 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
             return data
-        rotate_xform = self.pop_transform(data, check=False)
+        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
+        rotate_xform = self.pop_transform(data)
         return Rotate(0).inverse_transform(data, rotate_xform)
 
 
@@ -1664,10 +1668,12 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
+        if not isinstance(data, MetaTensor):
+            raise NotImplementedError()
+        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
             return data
-        xform = self.pop_transform(data, check=False)
+        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
+        xform = self.pop_transform(data)
         return Zoom(self._zoom).inverse_transform(data, xform)
 
 

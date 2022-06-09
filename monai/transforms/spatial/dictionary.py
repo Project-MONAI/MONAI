@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -538,11 +539,14 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
-            transform = self.pop_transform(d[key], check=False)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                xform = self.pop_transform(d[key], check=False)
+            if not isinstance(d[key], MetaTensor):
+                continue
+            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+                xform = self.pop_transform(d[key])
                 d[key] = Rotate90().inverse_transform(d[key], xform)
         return d
 
@@ -1193,7 +1197,8 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             xform = self.pop_transform(d[key])
             if not xform[TraceKeys.DO_TRANSFORM]:
                 continue
-            self.pop_transform(d[key], check=False)  # drop the Flip
+            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+            self.pop_transform(d[key])  # drop the Flip
             with self.flipper.trace_transform(False):
                 d[key] = self.flipper(d[key])
         return d
