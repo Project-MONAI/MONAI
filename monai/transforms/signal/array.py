@@ -29,7 +29,10 @@ shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 __all__ = ["SignalRandDrop",
            "SignalRandScale",
            "SignalRandShift",
-           "SignalResample"]
+           "SignalResample",
+           "RandAddSine1d",
+           "RandAddSquarePulse1d",
+           "RandAddGaussianNoise1d"]
 
 class SignalResample(Transform):
     """
@@ -245,3 +248,71 @@ class SignalRandDrop(RandomizableTransform):
         signal = self._paste(signal, mask, (loc,))
 
         return signal
+
+class SignalRandAddSine(RandomizableTransform):
+    """
+    Randomly drop a portion of a signal
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self, v: Optional[float] = 1.0, boundaries: Tuple[float, float] = Tuple[None, None], *args, **kwargs
+    ) -> None:
+        """
+        Args:
+            v: scaling factor
+            boundaries: list defining lower and upper boundaries for the signal drop, lower and upper values need to be positive example : ``[0.2, 0.6]``
+        """
+        super().__init__()
+        if boundaries is None or None in boundaries:
+            raise ValueError("Incompatible values: boundaries needs to be a list of float.")
+        if (boundaries is None) or (None in boundaries) or (any(x < 0 for x in boundaries)):
+            raise ValueError("Incompatible values: boundaries needs to be a list of positive float.")
+
+        self.v = v
+        self.boundaries = boundaries
+
+    def _randomize(self):
+        super().randomize(None)
+        self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
+
+    def _paste_slices(self, tup):
+        pos, w, max_w = tup
+        max_w = max_w.shape[len(max_w.shape) - 1]
+        wall_min = max(pos, 0)
+        wall_max = min(pos + w, max_w)
+        block_min = -min(pos, 0)
+        block_max = max_w - max(pos + w, max_w)
+        block_max = block_max if block_max != 0 else None
+        return slice(wall_min, wall_max), slice(block_min, block_max)
+
+    def _paste(self, wall, block, loc):
+        loc_zip = zip(loc, block.shape, wall)
+        wall_slices, block_slices = zip(*map(self._paste_slices, loc_zip))
+
+        wall[:, wall_slices[0]] = block[block_slices[0]]
+
+        if wall.shape[0] == 1:
+            wall = wall.squeeze()
+        return wall
+
+    def __call__(self, signal: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            signal: input 1 dimension signal to be resampled
+        """
+        self._randomize()
+        if len(signal.shape) > 1:
+            length = signal.shape[len(signal.shape) - 1]
+        else:
+            signal = signal[np.newaxis, :]
+            length = signal.shape[1]
+
+        factor = self.v * self.magnitude
+        mask = np.zeros(round(factor * length))
+        loc = np.random.choice(range(length))
+        signal = self._paste(signal, mask, (loc,))
+
+        return signal
+
