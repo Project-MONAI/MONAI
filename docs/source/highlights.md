@@ -329,11 +329,11 @@ To easily visualize a 3D image as frames of 2D images, MONAI provides the utilit
 
 ![matshow3d example](../images/matshow3d.png)
 
-MONAI also provides the `blend_images` utility to blend the `image` and `label` to a RGB color image to better visualize the segmentation regions with the specified `cmap` mode and weights, etc. Showing a spleen segmentation `image` and the corresponding `label` as example:
+MONAI also provides the `blend_images` utility to blend the `image` and `label` to an RGB color image to better visualize the segmentation regions with the specified `cmap` mode and weights, etc. Showing a spleen segmentation `image` and the corresponding `label` as example:
 
 ![blend example](../images/blend.png)
 
-For more details of `TensorBoard utility`, `matshow3d` and `blend_images`, please check the [visualziation tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/transform_visualization.ipynb).
+For more details of `TensorBoard utility`, `matshow3d` and `blend_images`, please check the [visualization tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/transform_visualization.ipynb).
 
 And to visualize the class activation mapping for a trained classification model, MONAI provides CAM, GradCAM, GradCAM++ APIs for both 2D and 3D models:
 
@@ -386,7 +386,7 @@ The following figure compares the loss curves and validation scores for (1) trai
 ![transfer_mmar](../images/transfer_mmar.png)
 
 ### 5. Decollate batch data for flexible postprocessings
-`decollate batch` is introduced in MONAI v0.6, which simplifies the post processing transforms and provides flexible following operations on a batch of data with various data shapes. It can decollate batched data (e.g. model predictions) into a list of tensors, for the benefits such as:
+`decollate batch` is introduced in MONAI v0.6, which simplifies the post-processing transforms and provides flexible following operations on a batch of data with various data shapes. It can decollate batched data (e.g. model predictions) into a list of tensors, for the benefits such as:
 1. enabling postprocessing transforms for each item independently -- randomised transforms could be applied differently for each predicted item in a batch.
 2. simplifying the transform APIs and reducing the input validation burdens because both the preprocessing and postprocessing transforms now only need to support the "channel-first" input format.
 3. enabling the `Invertd` transform for the predictions and the inverted data with different shapes, as the data items are in a list, not stacked in a single tensor.
@@ -467,7 +467,7 @@ For [Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in 
 
 ![swin-unetr](../images/swin_unetr.png)
 
-The [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/swin_unetr_btcv_segmentation_3d.ipynb) shows a typical pipeline of multi-organ segmentation based on Swin UNETR model, DiceCE loss function, Mean Dice, etc. And we used weights from self-supervised pre-training of Swin UNETR encoder (3D Swin Tranformer) on a cohort of 5050 CT scans from publicly available datasets.
+The [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/swin_unetr_btcv_segmentation_3d.ipynb) shows a typical pipeline of multi-organ segmentation based on Swin UNETR model, DiceCE loss function, Mean Dice, etc. And we used weights from self-supervised pre-training of Swin UNETR encoder (3D Swin Transformer) on a cohort of 5050 CT scans from publicly available datasets.
 
 ## Performance optimization and GPU acceleration
 Typically, model training is a time-consuming step during deep learning development, especially in medical imaging applications. Volumetric medical images are usually large (as multi-dimensional arrays) and the model training process can be complex. Even with powerful hardware (e.g. CPU/GPU with large RAM), it is not easy to fully leverage them to achieve high performance. MONAI provides a fast training guide to achieve the best performance: https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
@@ -487,7 +487,7 @@ MONAI workflows can easily set `amp=True/False` in `SupervisedTrainer` or `Super
 We also executed the same test program on NVIDIA A100 GPU with the same software environment, obtained faster results:
 ![amp a100 results](../images/amp_training_a100.png)
 More details is available at [AMP training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/automatic_mixed_precision.ipynb).
-We also tried to combine `AMP` with `CacheDataset`, `GPU cache`, `GPU transforms`, `ThreadDataLoader`, `DiceCE` loss, tuning of network and optimizer, to achieve the fast training in MONAI, with a V100 GPU and the target validation mean dice = 0.94 of the forground channel only, it's more than `100x` speedup compared with the Pytorch regular implementation when achieving the same metric. And every epoch is 20x faster than regular training. Benchmark for reference:
+We also tried to combine `AMP` with `CacheDataset`, `GPU cache`, `GPU transforms`, `ThreadDataLoader`, `DiceCE` loss, tuning of network and optimizer, to achieve the fast training in MONAI, with a V100 GPU and the target validation mean dice = 0.94 of the foreground channel only, it's more than `100x` speedup compared with the Pytorch regular implementation when achieving the same metric. And every epoch is 20x faster than regular training. Benchmark for reference:
 ![fast training results](../images/fast_training.png)
 More details is available at [Fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb).
 
@@ -534,7 +534,7 @@ Sakinis, Tomas, et al. "Interactive segmentation of medical images through fully
 
 ![deepgrow scheme](../images/deepgrow.png)
 
-### 2. DeepEdit worflow for interactive segmentation
+### 2. DeepEdit workflow for interactive segmentation
 DeepEdit is a method that combines an automatic and a semi-automatic approach for 3D medical images into a single deep learning-based model. The [implementation](https://github.com/Project-MONAI/MONAI/tree/dev/monai/apps/deepedit) of the DeepEdit modules provides essential components for interactive segmentation. More details are available in the training and inference [tutorial](https://github.com/Project-MONAI/tutorials/tree/main/deepedit/ignite).
 
 The following figure shows the typical workflow of interactive segmentation:
@@ -563,7 +563,7 @@ The following figure shows the registration of CT images acquired at different t
 ### 6. 2D and 3D detection workflow
 The [implementation](https://github.com/Project-MONAI/MONAI/tree/dev/monai/apps/detection) contains 2D and 3D bounding box detection components of `RetinaNet`, which includes：bounding box operations, hard negative sampler, and RetinaNet detectors.
 
-The following figure shows the detection training and inference workfows:
+The following figure shows the detection training and inference workflows:
 
 ![detection workflow](../images/detection.png)
 
