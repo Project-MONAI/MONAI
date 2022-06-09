@@ -650,7 +650,9 @@ class Invertd(MapTransform):
                 input = input.detach()
 
             if not isinstance(input, MetaTensor):
-                input = MetaTensor(input, meta=meta_info, applied_operations=transform_info)
+                input = MetaTensor(input)
+            input.applied_operations = transform_info
+            input.meta = meta_info
 
             # construct the input dict data
             input_dict = {orig_key: input}
