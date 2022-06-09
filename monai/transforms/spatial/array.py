@@ -838,7 +838,7 @@ class Resize(InvertibleTransform):
             return img
 
         original_sp_size = img.shape[1:]
-        img_: MetaTensor = convert_data_type(img, dtype=torch.float)[0]
+        img_: MetaTensor = convert_data_type(img, MetaTensor, dtype=torch.float)[0]
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
@@ -974,7 +974,7 @@ class Rotate(InvertibleTransform):
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        img_t: MetaTensor = convert_data_type(img, dtype=_dtype)[0]
+        img_t: MetaTensor = convert_data_type(img, MetaTensor, dtype=_dtype)[0]
 
         im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
@@ -1051,7 +1051,7 @@ class Rotate(InvertibleTransform):
             align_corners=False if align_corners == TraceKeys.NONE else align_corners,
             reverse_indexing=True,
         )
-        img_t: torch.Tensor = convert_data_type(data, dtype=dtype)[0]
+        img_t: torch.Tensor = convert_data_type(data, MetaTensor, dtype=dtype)[0]
         transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
         sp_size = transform[TraceKeys.ORIG_SIZE]
         out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
@@ -1138,7 +1138,7 @@ class Zoom(InvertibleTransform):
         """
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
-        img_t: torch.Tensor = convert_data_type(img, dtype=torch.float32)[0]
+        img_t: torch.Tensor = convert_data_type(img, MetaTensor, dtype=torch.float32)[0]
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
@@ -2028,6 +2028,8 @@ class Resample(Transform):
         _dtype = dtype or self.dtype or img.dtype
         img_t = img if isinstance(img, torch.Tensor) else torch.as_tensor(img)
         img_t, *_ = convert_data_type(img_t, dtype=_dtype, device=_device)
+        if isinstance(grid, MetaTensor):
+            grid = grid.as_tensor()  # drops any meta/tracking transform info
         grid_t, *_ = convert_to_dst_type(grid, img_t)
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)

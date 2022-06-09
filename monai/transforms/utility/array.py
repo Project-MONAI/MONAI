@@ -395,6 +395,8 @@ class ToTensor(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
+        if isinstance(img, MetaTensor):
+            img.applied_operations = []  # drops tracking info
         return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
 
 

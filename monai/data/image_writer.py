@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import TYPE_CHECKING, Dict, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -269,6 +270,9 @@ class ImageWriter:
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
         output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
         # convert back at the end
+        if isinstance(output_array, MetaTensor):
+            warnings.warn("ignoring the tracking transform info.")
+            output_array.applied_operations = []
         data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
         affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
         return data_array[0], affine

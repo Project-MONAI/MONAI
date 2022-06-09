@@ -479,7 +479,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            d[key] = self.rotator(d[key])
+            d[key] = self.rotator.inverse(d[key])
         return d
 
 
