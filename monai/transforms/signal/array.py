@@ -315,4 +315,3 @@ class SignalRandAddSine(RandomizableTransform):
         signal = self._paste(signal, mask, (loc,))
 
         return signal
-
