@@ -135,7 +135,7 @@ class TestInvertd(unittest.TestCase):
         # 25300: 2 workers (cpu, non-macos)
         # 1812: 0 workers (gpu or macos)
         # 1821: windows torch 1.10.0
-        self.assertTrue((reverted.size - n_good) < 30000, f"diff.  {reverted.size - n_good}")
+        self.assertTrue((reverted.size - n_good) < 40000, f"diff.  {reverted.size - n_good}")
 
         set_determinism(seed=None)
 

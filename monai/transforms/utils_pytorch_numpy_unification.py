@@ -389,3 +389,12 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
         x: array/tensor
     """
     return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
+
+
+def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.linalg.inv` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore

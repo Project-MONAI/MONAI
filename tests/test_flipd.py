@@ -38,7 +38,7 @@ class TestFlipd(NumpyImageTestCase2D):
             im = p(self.imt[0])
             result = flip({"img": im})["img"]
             assert_allclose(result, p(expected), type_test=False)
-            test_local_inversion(flip, result, {"img": im}, "img")
+            test_local_inversion(flip, {"img": result}, {"img": im}, "img")
 
 
 if __name__ == "__main__":

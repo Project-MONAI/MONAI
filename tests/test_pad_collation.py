@@ -24,14 +24,12 @@ from monai.transforms import (
     PadListDataCollate,
     RandRotate,
     RandRotate90,
-    RandRotate90d,
     RandRotated,
     RandSpatialCrop,
     RandSpatialCropd,
     RandZoom,
     RandZoomd,
     ToTensor,
-    ToTensord,
 )
 from monai.utils import set_determinism
 

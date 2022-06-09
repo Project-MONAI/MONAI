@@ -43,7 +43,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import allclose, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -1042,7 +1042,7 @@ class Rotate(InvertibleTransform):
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        inv_rot_mat = np.linalg.inv(fwd_rot_mat)
+        inv_rot_mat = linalg_inv(fwd_rot_mat)
 
         xform = AffineTransform(
             normalized=False,
@@ -2238,7 +2238,8 @@ class Affine(InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = np.linalg.inv(fwd_affine)
+        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
 
         affine_grid = AffineGrid(affine=inv_affine)
         grid, _ = affine_grid(orig_size)
@@ -2472,7 +2473,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        inv_affine = np.linalg.inv(fwd_affine)
+        inv_affine = linalg_inv(fwd_affine)
+        inv_affine = convert_to_dst_type(inv_affine, data, dtype=inv_affine.dtype)[0]
         affine_grid = AffineGrid(affine=inv_affine)
         grid, _ = affine_grid(orig_size)
 
