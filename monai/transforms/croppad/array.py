@@ -443,8 +443,8 @@ class CropBase(InvertibleTransform):
     @staticmethod
     def calculate_slices_from_center_and_size(roi_center, roi_size) -> List[slice]:
         roi_slices = []
-        roi_center = [roi_center] if not isinstance(roi_center, Iterable) else roi_center
-        roi_size = [roi_size] if not isinstance(roi_size, Iterable) else roi_size
+        roi_center = roi_center if isinstance(roi_center, Iterable) else [roi_center]
+        roi_size = roi_size if isinstance(roi_size, Iterable) else [roi_size]
         for c, s in zip(roi_center, roi_size):
             c = c.item() if isinstance(c, torch.Tensor) else c
             s = s.item() if isinstance(s, torch.Tensor) else s
@@ -461,8 +461,8 @@ class CropBase(InvertibleTransform):
     @staticmethod
     def calculate_slices_from_start_and_end(roi_start, roi_end) -> List[slice]:
         # start +ve, end <= start
-        roi_start = [roi_start] if not isinstance(roi_start, Iterable) else roi_start
-        roi_end = [roi_end] if not isinstance(roi_end, Iterable) else roi_end
+        roi_start = roi_start if isinstance(roi_start, Iterable) else [roi_start]
+        roi_end = roi_end if isinstance(roi_end, Iterable) else [roi_end]
         roi_start = [max(r, 0) for r in roi_start]  # type: ignore
         roi_end = [max(r, s) for r, s in zip(roi_start, roi_end)]  # type: ignore
         roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
