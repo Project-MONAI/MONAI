@@ -211,11 +211,7 @@ class SignalRandDrop(RandomizableTransform):
         super().randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
 
-<<<<<<< HEAD
     def _paste_slices(self, tup):
-=======
-    def _paste_slices(self,tup):
->>>>>>> e8dfe65f36a6158bad444cc92a82ec4382613e99
         pos, w, max_w = tup
         max_w = max_w.shape[len(max_w.shape) - 1]
         wall_min = max(pos, 0)
@@ -228,11 +224,6 @@ class SignalRandDrop(RandomizableTransform):
     def _paste(self, wall, block, loc):
         loc_zip = zip(loc, block.shape, wall)
         wall_slices, block_slices = zip(*map(self._paste_slices, loc_zip))
-<<<<<<< HEAD
-=======
-
-        wall[:,wall_slices[0]] = block[block_slices[0]]
->>>>>>> e8dfe65f36a6158bad444cc92a82ec4382613e99
 
         wall[:, wall_slices[0]] = block[block_slices[0]]
 
@@ -240,11 +231,7 @@ class SignalRandDrop(RandomizableTransform):
             wall = wall.squeeze()
         return wall
 
-<<<<<<< HEAD
     def __call__(self, signal: np.ndarray) -> np.ndarray:
-=======
-    def __call__(self, signal: np.ndarray)-> np.ndarray:
->>>>>>> e8dfe65f36a6158bad444cc92a82ec4382613e99
         """
         Args:
             signal: input 1 dimension signal to be resampled
@@ -259,10 +246,6 @@ class SignalRandDrop(RandomizableTransform):
         factor = self.v * self.magnitude
         mask = np.zeros(round(factor * length))
         loc = np.random.choice(range(length))
-<<<<<<< HEAD
         signal = self._paste(signal, mask, (loc,))
-=======
-        signal = self._paste(signal,mask,(loc,))
->>>>>>> e8dfe65f36a6158bad444cc92a82ec4382613e99
 
         return signal
