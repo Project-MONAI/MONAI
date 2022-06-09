@@ -16,18 +16,11 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
-    AffineBoxToImageCoordinated,
     BoxToMaskd,
-    ClipBoxToImaged,
     ConvertBoxModed,
-    FlipBoxd,
     MaskToBoxd,
-    RandCropBoxByPosNegLabeld,
-    RandFlipBoxd,
     RandRotateBox90d,
-    RandZoomBoxd,
     RotateBox90d,
-    ZoomBoxd,
 )
 from monai.transforms import CastToTyped, Invertd
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
