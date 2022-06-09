@@ -2723,9 +2723,9 @@ class GridPatch(Transform):
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
         # Convert to original data type
-        patched_image, *_ = convert_to_dst_type(src=patched_image, dst=array)
-        locations, *_ = convert_to_dst_type(src=locations, dst=array)
-        output = list(zip(patched_image, locations))
+        output = list(
+            zip(convert_to_dst_type(src=patched_image, dst=array)[0], convert_to_dst_type(src=locations, dst=array)[0])
+        )
 
         # Pad the patch list to have the requested number of patches
         if self.num_patches and len(output) < self.num_patches:
