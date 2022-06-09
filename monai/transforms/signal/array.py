@@ -169,11 +169,7 @@ class SignalRandScale(RandomizableTransform):
         super().randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
 
-<<<<<<< HEAD
     def __call__(self, signal: np.ndarray) -> np.ndarray:
-=======
-    def __call__(self, signal: np.ndarray)-> np.ndarray:
->>>>>>> e8dfe65f36a6158bad444cc92a82ec4382613e99
         """
         Args:
             signal: input 1 dimension signal to be resampled
