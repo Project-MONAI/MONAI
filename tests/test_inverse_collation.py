@@ -31,6 +31,7 @@ from monai.transforms import (
     Compose,
     Flipd,
     LoadImaged,
+    RandAffined,
     RandAxisFlipd,
     RandFlipd,
     RandRotated,
@@ -60,9 +61,9 @@ TESTS_3D = [
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         Rotated(keys=KEYS, angle=np.pi, dtype=np.float64),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
-        # RandAffined(
-        #     keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # ),
+        RandAffined(
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        ),
     ]
 ]
 
@@ -77,9 +78,9 @@ TESTS_2D = [
         RandZoomd(keys=KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
         Rotated(keys=KEYS, angle=np.pi / 2, dtype=np.float64),
         RandRotated(keys=KEYS, prob=0.5, range_x=np.pi, dtype=np.float64),
-        # RandAffined(
-        #     keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # ),
+        RandAffined(
+            keys=KEYS, prob=0.5, rotate_range=np.pi, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        ),
     ]
 ]
 

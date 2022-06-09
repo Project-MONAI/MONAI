@@ -397,4 +397,6 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     Args:
         x: array/tensor
     """
+    if hasattr(torch, "inverse") and isinstance(x, torch.Tensor):  # pytorch 1.7.0
+        return torch.inverse(x)  # type: ignore
     return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
