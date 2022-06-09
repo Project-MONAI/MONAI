@@ -1051,7 +1051,7 @@ class Rotate(InvertibleTransform):
             align_corners=False if align_corners == TraceKeys.NONE else align_corners,
             reverse_indexing=True,
         )
-        img_t = convert_data_type(data, dtype=dtype)[0]
+        img_t: torch.Tensor = convert_data_type(data, dtype=dtype)[0]
         transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
         sp_size = transform[TraceKeys.ORIG_SIZE]
         out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
@@ -1138,7 +1138,7 @@ class Zoom(InvertibleTransform):
         """
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
-        img_t, *_ = convert_data_type(img, dtype=torch.float32)
+        img_t: torch.Tensor = convert_data_type(img, dtype=torch.float32)[0]
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
@@ -2431,7 +2431,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(img, MetaTensor) and get_track_meta():
             img = MetaTensor(img)
         if not do_resampling:
-            out, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
+            out: torch.Tensor = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)[0]
         else:
             if grid is None:
                 grid = self.get_identity_grid(sp_size)
