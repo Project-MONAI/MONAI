@@ -15,14 +15,8 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.detection.transforms.dictionary import (
-    BoxToMaskd,
-    ConvertBoxModed,
-    MaskToBoxd,
-    RandRotateBox90d,
-    RotateBox90d,
-)
-from monai.transforms import CastToTyped, Invertd
+from monai.apps.detection.transforms.dictionary import BoxToMaskd, ConvertBoxModed, MaskToBoxd
+from monai.transforms import CastToTyped
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 TESTS_3D = []
