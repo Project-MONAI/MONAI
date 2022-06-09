@@ -140,6 +140,7 @@ class TestInvertd(unittest.TestCase):
         # check labels match
         reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)
         original = LoadImaged(KEYS)(data[-1])["label"]
+        import pdb; pdb.set_trace()
         n_good = np.sum(np.isclose(reverted, original, atol=1e-3))
         reverted_name = item["label_inverted"].meta["filename_or_obj"]
         original_name = data[-1]["label"]
