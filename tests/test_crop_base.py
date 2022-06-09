@@ -16,7 +16,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import SpatialCrop, CropBase
+from monai.transforms import CropBase, SpatialCrop
 from tests.utils import TEST_NDARRAYS
 
 TEST_ERRORS = [
