@@ -94,6 +94,16 @@ class TestDataLoader(unittest.TestCase):
                 self.assertTrue(previous_batch is d, "Batch object was not repeated")
                 previous_batch = None
 
+    def test_thread_workers(self):
+        dataset = Dataset(data=self.datalist, transform=self.transform)
+        dataloader = ThreadDataLoader(dataset=dataset, batch_size=2, num_workers=2, use_thread_workers=True)
+
+        for d in dataloader:
+            self.assertEqual(d["image"][0], "spleen_19.nii.gz")
+            self.assertEqual(d["image"][1], "spleen_31.nii.gz")
+            self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
+            self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+
 
 if __name__ == "__main__":
     unittest.main()
