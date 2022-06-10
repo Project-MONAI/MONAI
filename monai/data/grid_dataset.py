@@ -187,7 +187,7 @@ class GridPatchDataset(IterableDataset):
     ) -> None:
         super().__init__(data=data, transform=None)
         self.patch_iter = patch_iter
-        self.transform = transform
+        self.patch_transform = transform
         self.with_coordinates = with_coordinates
 
     def __iter__(self):
@@ -195,13 +195,17 @@ class GridPatchDataset(IterableDataset):
             if not self.with_coordinates:
                 for patch, *_ in self.patch_iter(image):  # patch_iter to yield at least 1 item: patch
                     out_patch = (
-                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
+                        patch
+                        if self.patch_transform is None
+                        else apply_transform(self.patch_transform, patch, map_items=False)
                     )
                     yield out_patch
             else:
                 for patch, slices, *_ in self.patch_iter(image):  # patch_iter to yield at least 2 items: patch, coords
                     out_patch = (
-                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
+                        patch
+                        if self.patch_transform is None
+                        else apply_transform(self.patch_transform, patch, map_items=False)
                     )
                     yield out_patch, slices
 

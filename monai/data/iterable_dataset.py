@@ -116,7 +116,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         self._idx = self.R.randint(size)
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
-        raise NotImplementedError(f"`set_random_state` is not available in {self.__class__.__name__}.")
+        pass  # this should be done with `seed` in the constructor
 
 
 class CSVIterableDataset(IterableDataset):
