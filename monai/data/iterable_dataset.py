@@ -115,9 +115,6 @@ class ShuffleBuffer(Randomizable, IterableDataset):
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
 
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
-        pass  # this should be done with `seed` in the constructor
-
 
 class CSVIterableDataset(IterableDataset):
     """

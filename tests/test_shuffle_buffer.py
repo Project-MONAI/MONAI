@@ -20,7 +20,6 @@ from monai.utils import convert_data_type
 
 class TestShuffleBuffer(unittest.TestCase):
     def test_shape(self):
-
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0)
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=buffer, batch_size=2, num_workers=num_workers)
