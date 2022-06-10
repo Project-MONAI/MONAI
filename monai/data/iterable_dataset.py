@@ -11,7 +11,6 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
-import numpy as np
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
