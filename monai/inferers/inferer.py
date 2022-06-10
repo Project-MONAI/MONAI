@@ -273,6 +273,7 @@ class SliceInferer(SlidingWindowInferer):
     def __init__(self, spatial_dim: int = 0, *args, **kwargs) -> None:
         self.spatial_dim = spatial_dim
         super().__init__(*args, **kwargs)
+        self.orig_roi_size = ensure_tuple(self.roi_size)
 
     def __call__(
         self,
@@ -293,11 +294,13 @@ class SliceInferer(SlidingWindowInferer):
 
         # Check if ``roi_size`` tuple is 2D and ``inputs`` tensor is 3D
         self.roi_size = ensure_tuple(self.roi_size)
-        if len(self.roi_size) == 2 and len(inputs.shape[2:]) == 3:
-            self.roi_size = list(self.roi_size)
+        if len(self.orig_roi_size) == 2 and len(inputs.shape[2:]) == 3:
+            self.roi_size = list(self.orig_roi_size)
             self.roi_size.insert(self.spatial_dim, 1)
         else:
-            raise RuntimeError("Currently, only 2D `roi_size` with 3D `inputs` tensor is supported.")
+            raise RuntimeError(
+                f"Currently, only 2D `roi_size` ({self.orig_roi_size}) with 3D `inputs` tensor (shape={inputs.shape}) is supported."
+            )
 
         return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
 
