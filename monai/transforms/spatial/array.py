@@ -2054,6 +2054,7 @@ class RandAffine(RandomizableTransform):
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
         if not do_resampling:
             img, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
+            return img
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
             grid = self.rand_affine_grid(grid=grid, randomize=randomize)
