@@ -155,7 +155,9 @@ class ThreadDataLoader(DataLoader):
 
     The `use_thread_workers` will cause workers to be created as threads rather than processes although everything else
     in terms of how the class works is unchanged. This allows multiple workers to be used in Windows for example, or in
-    any other situation where thread semantics is desired.
+    any other situation where thread semantics is desired. Please note that some MONAI components like several datasets
+    and random transforms are not thread-safe and can't work as expected with `thread workers`, need to check all the
+    preprocessing components carefully before enabling `use_thread_workers`.
 
     See:
         * Fischetti et al. "Faster SGD training by minibatch persistency." ArXiv (2018) https://arxiv.org/abs/1806.07353
