@@ -81,9 +81,9 @@ def write_png(
     if scale is not None:
         data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
-            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint8)[0]
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint8, drop_meta=True)[0]
         elif scale == np.iinfo(np.uint16).max:
-            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint16)[0]
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint16, drop_meta=True)[0]
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 

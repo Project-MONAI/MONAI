@@ -1217,7 +1217,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
 
         for key in self.image_keys:
-            d[key] = self.img_rotator(d[key])
+            d[key] = self.img_rotator(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
         return d
 
@@ -1231,7 +1231,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
 
             if key_type == "image_key":
                 inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
-                d[key] = inverse_transform(d[key])
+                d[key] = inverse_transform(d[key])  # type: ignore
             if key_type == "box_key":
                 spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                 inverse_transform = RotateBox90(num_times_to_rotate, self.box_rotator.spatial_axes)
@@ -1275,7 +1275,7 @@ class RandRotateBox90d(RandRotate90d):
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:  # type: ignore
         self.randomize()
         d = dict(data)
 
@@ -1303,11 +1303,11 @@ class RandRotateBox90d(RandRotate90d):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = img_rotator(d[key])
+                d[key] = img_rotator(d[key])  # type: ignore
                 self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:  # type: ignore
         d = deepcopy(dict(data))
         if self._rand_k % 4 == 0:
             return d
@@ -1322,7 +1322,7 @@ class RandRotateBox90d(RandRotate90d):
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
                     inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                    d[key] = inverse_transform(d[key])
+                    d[key] = inverse_transform(d[key])  # type: ignore
                 if key_type == "box_key":
                     spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                     inverse_transform = RotateBox90(num_times_to_rotate, self.spatial_axes)

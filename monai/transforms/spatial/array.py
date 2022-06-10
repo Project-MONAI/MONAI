@@ -1025,9 +1025,9 @@ class Rotate(InvertibleTransform):
 
     def forward_meta(self, img_meta, rotate_mat):
         meta_dict = deepcopy(img_meta)
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+        affine = convert_data_type(img_meta["affine"], torch.Tensor, drop_meta=True)[0]
         mat = to_affine_nd(len(affine) - 1, rotate_mat)
-        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine)[0]
+        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine, drop_meta=True)[0]
         return meta_dict
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1775,7 +1775,7 @@ class AffineGrid(Transform):
 
         grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=self.dtype or grid.dtype)
         affine = to_affine_nd(len(grid) - 1, affine)
-        affine, *_ = convert_to_dst_type(affine, grid)
+        affine, *_ = convert_to_dst_type(affine, grid, drop_meta=True)
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
         return grid, affine
 
@@ -2226,7 +2226,7 @@ class Affine(InvertibleTransform):
         mat = to_affine_nd(r, mat)
         shift_1 = create_translate(r, [float(d - 1) / 2 for d in img_size[:r]])
         shift_2 = create_translate(r, [-float(d - 1) / 2 for d in sp_size[:r]])
-        mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
+        mat = shift_1 @ convert_data_type(mat, np.ndarray, drop_meta=True)[0] @ shift_2
         return affine @ convert_to_dst_type(mat, affine)[0]
 
     def forward_meta(self, img_meta, mat, img_size, sp_size):
