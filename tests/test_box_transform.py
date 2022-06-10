@@ -17,6 +17,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
+    AffineBoxToWorldCoordinated,
     BoxToMaskd,
     ClipBoxToImaged,
     ConvertBoxModed,
@@ -178,7 +179,7 @@ class TestBoxTransform(unittest.TestCase):
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
-            # test AffineBoxToImageCoordinated
+            # test AffineBoxToImageCoordinated, AffineBoxToWorldCoordinated
             transform_affine = AffineBoxToImageCoordinated(box_keys="boxes", box_ref_image_keys="image")
             with self.assertRaises(Exception) as context:
                 transform_affine(data)
@@ -188,6 +189,9 @@ class TestBoxTransform(unittest.TestCase):
             affine_result = transform_affine(data)
             assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
             invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
+            data_back = invert_transform_affine(affine_result)
+            assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
+            invert_transform_affine = AffineBoxToWorldCoordinated(box_keys="boxes", box_ref_image_keys="image")
             data_back = invert_transform_affine(affine_result)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
 
