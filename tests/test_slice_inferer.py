@@ -46,6 +46,9 @@ class TestSliceInferer(unittest.TestCase):
 
         self.assertTupleEqual(result.shape, input_volume.shape)
 
+        # test that the inferer can be run multiple times
+        result = inferer(input_volume, model)
+
 
 if __name__ == "__main__":
     unittest.main()
