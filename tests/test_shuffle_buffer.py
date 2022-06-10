@@ -24,7 +24,10 @@ class TestShuffleBuffer(unittest.TestCase):
         num_workers = 2 if sys.platform == "linux" else 0
         dataloader = DataLoader(dataset=buffer, batch_size=2, num_workers=num_workers)
         output = [convert_data_type(x, np.ndarray)[0] for x in dataloader]
-        np.testing.assert_allclose(output, [[2, 1], [3, 4]])
+        if num_workers == 0:
+            np.testing.assert_allclose(output, [[2, 1], [3, 4]])
+        else:  # multiprocess shuffle
+            np.testing.assert_allclose(output, [[2, 3], [1, 4]])
 
 
 if __name__ == "__main__":
