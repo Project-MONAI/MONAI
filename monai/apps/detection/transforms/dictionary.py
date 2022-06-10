@@ -248,7 +248,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         self.converter_to_image_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def extract_affine(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         d = dict(data)
 
         meta_key = self.image_meta_key
@@ -269,6 +269,12 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         affine_t, *_ = convert_data_type(affine, torch.Tensor)
         # torch.inverse should not run in half precision
         inv_affine_t = torch.inverse(affine_t.to(COMPUTE_DTYPE))
+        return affine, inv_affine_t
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -282,6 +288,54 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
             affine = transform["extra_info"]["affine"]
             d[key] = AffineBox()(d[key], affine=affine)
             self.pop_transform(d, key)
+        return d
+
+
+class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
+    """
+    Dictionary-based transform that converts box in image coordinate to world coordinate.
+
+    Args:
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
+        remove_empty: whether to remove the boxes that are actually empty
+        allow_missing_keys: don't raise exception if key is missing.
+        image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
+            it is a string, map to the `box_ref_image_key`.
+            if None, will try to construct meta_keys by `box_ref_image_key_{meta_key_postfix}`.
+        image_meta_key_postfix: if image_meta_keys=None, use `box_ref_image_key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        affine_lps_to_ras: default ``False``. Yet if 1) the image is read by ITKReader,
+            and 2) the ITKReader has affine_lps_to_ras=True, and 3) the box is in world coordinate,
+            then set ``affine_lps_to_ras=True``.
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        box_ref_image_keys: str,
+        allow_missing_keys: bool = False,
+        image_meta_key: Union[str, None] = None,
+        image_meta_key_postfix: Union[str, None] = DEFAULT_POST_FIX,
+        affine_lps_to_ras=False,
+    ) -> None:
+        super().__init__(
+            box_keys, box_ref_image_keys, allow_missing_keys, image_meta_key, image_meta_key_postfix, affine_lps_to_ras
+        )
+        self.converter_to_world_coordinate = AffineBox()
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
+
+        for key in self.key_iterator(d):
+            self.push_transform(d, key, extra_info={"affine": inv_affine_t})
+            d[key] = self.converter_to_world_coordinate(d[key], affine=affine)
         return d
 
 
