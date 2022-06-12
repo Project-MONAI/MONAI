@@ -51,7 +51,7 @@ TESTS = [
     ],
     [  # start and end. when center - size // 2 is neg, min set to 0
         {"roi_center": (2, 6), "roi_size": (9, -1)},
-        [slice(0, 7, None), slice(None)],
+        [slice(0, 6, None), slice(None)],
     ],
 ]
 

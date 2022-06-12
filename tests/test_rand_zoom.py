@@ -40,7 +40,7 @@ class TestRandZoom(NumpyImageTestCase2D):
             assert_allclose(zoomed, p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
-        for p in TEST_NDARRAYS[-1:]:
+        for p in TEST_NDARRAYS:
             im = p(self.imt[0])
             random_zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
             random_zoom.set_random_state(12)
