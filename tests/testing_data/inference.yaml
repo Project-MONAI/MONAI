@@ -29,16 +29,10 @@ preprocessing:
     keys: image
   - _target_: EnsureChannelFirstd
     keys: image
-  - _target_: FromMetaTensord
-    keys: image
-  - _target_: ToNumpyd
-    keys: image
   - _target_: ScaleIntensityd
     keys: image
   - _target_: RandRotated
     _disabled_: true
-    keys: image
-  - _target_: EnsureTyped
     keys: image
 dataset:
   _target_: need override
@@ -67,9 +61,6 @@ postprocessing:
   - _target_: AsDiscreted
     keys: pred
     argmax: true
-  - _target_: ToMetaTensord
-    keys: pred
-    meta_keys: image
   - _target_: SaveImaged
     keys: pred
     output_dir: "@_meta_#output_dir"

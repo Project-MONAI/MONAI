@@ -15,12 +15,14 @@ from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple, Union
 import torch
 import torch.nn.functional as F
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.transforms import Resize
 from monai.utils import (
     BlendMode,
     PytorchPadMode,
     convert_data_type,
+    convert_to_dst_type,
     ensure_tuple,
     fall_back_tuple,
     look_up_option,
@@ -272,7 +274,10 @@ def sliding_window_inference(
         final_output = dict(zip(dict_key, output_image_list))
     else:
         final_output = tuple(output_image_list)  # type: ignore
-    return final_output[0] if is_tensor_output else final_output  # type: ignore
+    final_output = final_output[0] if is_tensor_output else final_output  # type: ignore
+    if isinstance(inputs, MetaTensor):
+        final_output = convert_to_dst_type(final_output, inputs)[0]  # type: ignore
+    return final_output
 
 
 def _get_scan_interval(
