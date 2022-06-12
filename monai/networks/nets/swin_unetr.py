@@ -1,4 +1,4 @@
-# Copyright 2020 - 2022 -> (c) MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -40,12 +40,12 @@ class SwinUNETR(nn.Module):
         out_channels: int,
         depths: Sequence[int] = (2, 2, 2, 2),
         num_heads: Sequence[int] = (3, 6, 12, 24),
-        feature_size: int = 48,
+        feature_size: int = 24,
         norm_name: Union[Tuple, str] = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
-        normalize: bool = False,
+        normalize: bool = True,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
     ) -> None:
@@ -275,8 +275,6 @@ class SwinUNETR(nn.Module):
             self.swinViT.layers4[0].downsample.norm.bias.copy_(
                 weights["state_dict"]["module.layers4.0.downsample.norm.bias"]
             )
-            self.swinViT.norm.weight.copy_(weights["state_dict"]["module.norm.weight"])
-            self.swinViT.norm.bias.copy_(weights["state_dict"]["module.norm.bias"])
 
     def forward(self, x_in):
         hidden_states_out = self.swinViT(x_in, self.normalize)
@@ -476,7 +474,7 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index[:n, :n].reshape(-1)
+            self.relative_position_index.clone()[:n, :n].reshape(-1)
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
@@ -626,10 +624,10 @@ class SwinTransformerBlock(nn.Module):
             "attn.proj.bias",
             "norm2.weight",
             "norm2.bias",
-            "mlp.linear1.weight",
-            "mlp.linear1.bias",
-            "mlp.linear2.weight",
-            "mlp.linear2.bias",
+            "mlp.fc1.weight",
+            "mlp.fc1.bias",
+            "mlp.fc2.weight",
+            "mlp.fc2.bias",
         ]
         with torch.no_grad():
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
@@ -950,7 +948,6 @@ class SwinTransformer(nn.Module):
             elif i_layer == 3:
                 self.layers4.append(layer)
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
-        self.norm = norm_layer(self.num_features)
 
     def proj_out(self, x, normalize=False):
         if normalize:
@@ -967,7 +964,7 @@ class SwinTransformer(nn.Module):
                 x = rearrange(x, "n h w c -> n c h w")
         return x
 
-    def forward(self, x, normalize=False):
+    def forward(self, x, normalize=True):
         x0 = self.patch_embed(x)
         x0 = self.pos_drop(x0)
         x0_out = self.proj_out(x0, normalize)
