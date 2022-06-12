@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Tuple, Union
 
 import numpy as np
@@ -22,7 +23,7 @@ binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_ero
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
-__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance"]
+__all__ = ["ignore_background", "do_metric_reduction", "get_mask_edges", "get_surface_distance", "is_binary_tensor"]
 
 
 def ignore_background(y_pred: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor]):
@@ -155,10 +156,13 @@ def get_mask_edges(
         if not np.any(seg_pred | seg_gt):
             return np.zeros_like(seg_pred), np.zeros_like(seg_gt)
 
-        seg_pred, seg_gt = np.expand_dims(seg_pred, 0), np.expand_dims(seg_gt, 0)
+        channel_dim = 0
+        seg_pred, seg_gt = np.expand_dims(seg_pred, axis=channel_dim), np.expand_dims(seg_gt, axis=channel_dim)
         box_start, box_end = generate_spatial_bounding_box(np.asarray(seg_pred | seg_gt))
         cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
-        seg_pred, seg_gt = np.squeeze(cropper(seg_pred)), np.squeeze(cropper(seg_gt))
+        seg_pred, seg_gt = np.squeeze(cropper(seg_pred), axis=channel_dim), np.squeeze(
+            cropper(seg_gt), axis=channel_dim
+        )
 
     # Do binary erosion and use XOR to get edges
     edges_pred = binary_erosion(seg_pred) ^ seg_pred
@@ -200,3 +204,22 @@ def get_surface_distance(seg_pred: np.ndarray, seg_gt: np.ndarray, distance_metr
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
 
     return np.asarray(dis[seg_pred])
+
+
+def is_binary_tensor(input: torch.Tensor, name: str):
+    """Determines whether the input tensor is torch binary tensor or not.
+
+    Args:
+        input (torch.Tensor): tensor to validate.
+        name (str): name of the tensor being checked.
+
+    Raises:
+        ValueError: if `input` is not a PyTorch Tensor.
+
+    Returns:
+        Union[str, None]: warning message, if the tensor is not binary. Othwerwise, None.
+    """
+    if not isinstance(input, torch.Tensor):
+        raise ValueError(f"{name} must be of type PyTorch Tensor.")
+    if not torch.all(input.byte() == input) or input.max() > 1 or input.min() < 0:
+        warnings.warn(f"{name} should be a binarized tensor.")

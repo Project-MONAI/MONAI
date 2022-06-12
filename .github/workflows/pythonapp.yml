@@ -22,9 +22,9 @@ jobs:
   flake8-py3:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: cache weekly timestamp
@@ -32,7 +32,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ~/.cache/pip
@@ -63,9 +63,9 @@ jobs:
         minimum-size: 8
         maximum-size: 16
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: Prepare pip wheel
@@ -79,7 +79,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -105,6 +105,7 @@ jobs:
         python -m unittest -v
       env:
         QUICKTEST: True
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   packaging:
     runs-on: ubuntu-latest
@@ -112,11 +113,11 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: cache weekly timestamp
@@ -124,7 +125,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -189,13 +190,15 @@ jobs:
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
+      env:
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: cache weekly timestamp
@@ -203,7 +206,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |

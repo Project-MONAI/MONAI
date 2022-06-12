@@ -14,7 +14,7 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -30,7 +30,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     The `include_background` parameter can be set to ``False`` for an instance to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
-    background so excluding it in such cases helps convergence.
+    background.
 
     Args:
         include_background: whether to skip metric computation on the first channel of
@@ -84,13 +84,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        # check binarized input
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            raise ValueError("y should be a binarized tensor.")
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
+
         # check dimension
         dims = y_pred.ndimension()
         if dims < 2:

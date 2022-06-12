@@ -24,7 +24,6 @@ import torch.nn as nn
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import pytorch_after
 
 __all__ = [
     "one_hot",
@@ -487,7 +486,7 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
         src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
         path: target file path to save the input object.
         kwargs: other args for the `save_obj` except for the `obj` and `path`.
-            default `func` is `torch.save()`, details of the args of it:
+            default `func` is `torch.save()`, details of the args:
             https://pytorch.org/docs/stable/generated/torch.save.html.
 
     """
@@ -566,8 +565,8 @@ def convert_to_torchscript(
 
 
 def meshgrid_ij(*tensors):
-    if pytorch_after(1, 10):
-        return torch.meshgrid(*tensors, indexing="ij")
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10
     return torch.meshgrid(*tensors)
 
 

@@ -53,6 +53,8 @@ def run_testsuit():
         "test_ensure_channel_firstd",
         "test_fill_holes",
         "test_fill_holesd",
+        "test_foreground_mask",
+        "test_foreground_maskd",
         "test_global_mutual_information_loss",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
@@ -77,7 +79,6 @@ def run_testsuit():
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
-        "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_surface_distance",
@@ -114,6 +115,7 @@ def run_testsuit():
         "test_nifti_header_revise",
         "test_nifti_rw",
         "test_nifti_saver",
+        "test_nuclick_transforms",
         "test_nrrd_reader",
         "test_occlusion_sensitivity",
         "test_orientation",
@@ -168,6 +170,8 @@ def run_testsuit():
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
+        "test_bundle_utils",
+        "test_bundle_init_bundle",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

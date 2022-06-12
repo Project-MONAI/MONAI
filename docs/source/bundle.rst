@@ -41,3 +41,4 @@ Model Bundle
 .. autofunction:: run
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
+.. autofunction:: init_bundle
