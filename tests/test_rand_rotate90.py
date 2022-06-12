@@ -41,15 +41,15 @@ class TestRandRotate90(NumpyImageTestCase2D):
             assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
 
     def test_spatial_axes(self):
-        rotate = RandRotate90(spatial_axes=(0, 1))
+        rotate = RandRotate90(spatial_axes=(0, 1), prob=1.0)
         for p in TEST_NDARRAYS:
-            rotate.set_random_state(123)
+            rotate.set_random_state(1234)
             im = p(self.imt[0])
             rotated = rotate(im)
-            test_local_inversion(rotate, rotated, im)
-            expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
+            expected = [np.rot90(channel, rotate._rand_k, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
+            test_local_inversion(rotate, rotated, im)
 
     def test_prob_k_spatial_axes(self):
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))

@@ -61,7 +61,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             rotate.set_random_state(234)
             im = {key: p(self.imt[0])}
             rotated = rotate(im)
-            expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
+            expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
             test_local_inversion(rotate, rotated, im, key)

@@ -526,7 +526,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         super().randomize(None)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
-        # self.randomize()
+        self.randomize()
         d = dict(data)
 
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
