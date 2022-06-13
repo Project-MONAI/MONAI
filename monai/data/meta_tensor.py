@@ -183,6 +183,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             # else, handle the `MetaTensor` metadata.
             else:
                 meta_args = MetaObj.flatten_meta_objs(list(args) + list(kwargs.values()))
+                # this is not implemented but the network arch may run into this case:
+                # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
+                #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
                 ret._copy_meta(meta_args)
 
                 # If we have a batch of data, then we need to be careful if a slice of
@@ -195,17 +198,17 @@ class MetaTensor(MetaObj, torch.Tensor):
                         metas = decollate_batch(ret.meta)
                     # if indexing e.g., `batch[0]`
                     if func == torch.Tensor.__getitem__:
-                        idx = args[1]
-                        if isinstance(idx, Sequence):
-                            idx = idx[0]
+                        batch_idx = args[1]
+                        if isinstance(batch_idx, Sequence):
+                            batch_idx = batch_idx[0]
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if idx not in (slice(None, None, None), Ellipsis):
-                            meta = metas[idx]
+                        if batch_idx not in (slice(None, None, None), Ellipsis):
+                            meta = metas[batch_idx]
                             # if using e.g., `batch[0:2]`, then `is_batch` should still be
                             # `True`. Also re-collate the remaining elements.
-                            if isinstance(meta, list) and len(meta) > 1:
+                            if isinstance(meta, list):
                                 ret.meta = list_data_collate(meta)
                             # if using e.g., `batch[0]` or `batch[0, 1]`, then return single
                             # element from batch, and set `is_batch` to `False`.
