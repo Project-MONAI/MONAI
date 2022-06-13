@@ -535,7 +535,9 @@ class RotateBox90(Rotate90):
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
         super().__init__(k, spatial_axes)
 
-    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]) -> NdarrayOrTensor:  # type: ignore
+    def __call__(  # type: ignore
+        self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
