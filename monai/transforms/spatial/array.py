@@ -15,7 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -3061,11 +3061,8 @@ class GridPatch(Transform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -3081,7 +3078,7 @@ class GridPatch(Transform):
         offset: Optional[Sequence[int]] = None,
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
@@ -3092,24 +3089,45 @@ class GridPatch(Transform):
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
-        self.sort_fn: Optional[Callable]
-        if isinstance(sort_fn, str):
-            self.sort_fn = GridPatchSort.get_sort_fn(sort_fn)
-        else:
-            self.sort_fn = sort_fn
-
+        self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
-        if threshold:
-            self.filter_fn = self.threshold_fn
-        else:
-            self.filter_fn = self.one_fn
 
-    @staticmethod
-    def one_fn(patch):
-        return True
+    def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Filter the patches and their locations according to a threshold
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+        """
+        if self.threshold is not None:
+            n_dims = len(image_np.shape)
+            idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+            image_np = image_np[idx]
+            locations = locations[idx]
+        return image_np, locations
 
-    def threshold_fn(self, patch):
-        return patch.sum() < self.threshold
+    def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+        """
+        if self.sort_fn is None:
+            image_np = image_np[: self.num_patches]
+            locations = locations[: self.num_patches]
+        elif self.num_patches is not None:
+            n_dims = len(image_np.shape)
+            if self.sort_fn == GridPatchSort.MIN:
+                idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+            elif self.sort_fn == GridPatchSort.MAX:
+                idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+            else:
+                raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
+            idx = idx[: self.num_patches]
+            image_np = image_np[idx]
+            locations = locations[idx]
+        return image_np, locations
 
     def __call__(self, array: NdarrayOrTensor):
         # create the patch iterator which sweeps the image row-by-row
@@ -3123,25 +3141,28 @@ class GridPatch(Transform):
             mode=self.pad_mode,
             **self.pad_kwargs,
         )
+        patches = list(zip(*patch_iterator))
+        patched_image = np.array(patches[0])
+        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
 
-        if self.sort_fn is not None:
-            patch_iterator = sorted(patch_iterator, key=self.sort_fn)
-
-        output = [
-            (convert_to_dst_type(src=patch, dst=array)[0], convert_to_dst_type(src=slices[..., 0], dst=array)[0])
-            for patch, slices in patch_iterator
-            if self.filter_fn(patch)
-        ]
-
+        # Filter patches
         if self.num_patches:
-            output = output[: self.num_patches]
-            if len(output) < self.num_patches:
-                patch = convert_to_dst_type(
-                    src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)),
-                    dst=array,
-                )[0]
-                start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
-                output += [(patch, start_location)] * (self.num_patches - len(output))
+            patched_image, locations = self.filter_count(patched_image, locations)
+        elif self.threshold:
+            patched_image, locations = self.filter_threshold(patched_image, locations)
+
+        # Convert to original data type
+        output = list(
+            zip(convert_to_dst_type(src=patched_image, dst=array)[0], convert_to_dst_type(src=locations, dst=array)[0])
+        )
+
+        # Pad the patch list to have the requested number of patches
+        if self.num_patches and len(output) < self.num_patches:
+            patch = convert_to_dst_type(
+                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
+            )[0]
+            start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
+            output += [(patch, start_location)] * (self.num_patches - len(output))
 
         return output
 
@@ -3160,11 +3181,8 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
-        sort_fn: a callable or string that defines the order of the patches to be returned. If it is a callable, it
-            will be passed directly to the `key` argument of `sorted` function. The string can be "min" or "max",
-            which are, respectively, the minimum and maximum of the sum of intensities of a patch across all dimensions
-            and channels. Also "random" creates a random order of patches.
-            By default no sorting is being done and patches are returned in a row-major order.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
@@ -3181,7 +3199,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         max_offset: Optional[Union[Sequence[int], int]] = None,
         num_patches: Optional[int] = None,
         overlap: Union[Sequence[float], float] = 0.0,
-        sort_fn: Optional[Union[Callable, str]] = None,
+        sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
         pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         **pad_kwargs,
