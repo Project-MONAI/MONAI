@@ -376,7 +376,7 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
         to_long: convert input to long before performing mode.
     """
     dtype = torch.int64 if to_long else None
-    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype, drop_meta=True)
     o_t = torch.mode(x_t, dim).values
     o, *_ = convert_to_dst_type(o_t, x)
     return o
