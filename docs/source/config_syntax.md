@@ -12,10 +12,10 @@ Content:
 
 - [A basic example](#a-basic-example)
 - [Syntax examples explained](#syntax-examples-explained)
-  - [`@` to interpolate with Python objects](#1--to-interpolate-with-python-objects)
-  - [`$` to evaluate as Python expressions](#2--to-evaluate-as-python-expressions)
-  - [`%` to textually replace configuration elements](#3--to-textually-replace-configuration-elements)
-  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#4-instantiate-a-python-object)
+  - [`@` to interpolate with Python objects](#to-interpolate-with-python-objects)
+  - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
+  - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
+  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -73,13 +73,13 @@ For more details on the `ConfigParser` API, please see https://docs.monai.io/en/
 
 A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
 
-### 1. `@` to interpolate with Python objects
+### To interpolate with Python objects
 
 ```json
 "@preprocessing#transforms#keys"
 ```
 
-_Description:_ A reference to another configuration value defined at `preprocessing#transforms#keys`.
+_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing#transforms#keys`.
 where `#` indicates a sub-structure of this configuration file.
 
 ```json
@@ -88,7 +88,7 @@ where `#` indicates a sub-structure of this configuration file.
 
 _Description:_ `1` is interpreted as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
 
-### 2. `$` to evaluate as Python expressions
+### To evaluate as Python expressions
 
 ```json
 "$print(42)"
@@ -110,16 +110,16 @@ _Description:_ `$` followed by an import statement is handled slightly different
 Python expressions. The imported module `resnet18` will be available as a global variable
 to the other configuration sections. This is to simplify the use of external modules in the configuration.
 
-### 3. `%` to textually replace configuration elements
+### To textually replace configuration elements
 
 ```json
 "%demo_config.json#demo_net#in_channels"
 ```
 
-_Description:_ A macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
+_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
 `demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
-### 4. instantiate a Python object
+### Instantiate a Python object
 
 ```json
 {
