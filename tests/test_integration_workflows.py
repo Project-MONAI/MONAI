@@ -52,7 +52,6 @@ from monai.transforms import (
     SaveImaged,
     ScaleIntensityd,
     ToMetaTensord,
-    ToTensord,
 )
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
@@ -73,22 +72,18 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         [
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            FromMetaTensord(["image", "label"]),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=["image", "label"]),
         ]
     )
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
-            FromMetaTensord(["image", "label"]),
             ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
         ]
     )
 
@@ -116,7 +111,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -159,7 +153,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     train_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -226,10 +219,9 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            FromMetaTensord(["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
+            FromMetaTensord(["image", "label"]),
         ]
     )
 
@@ -249,7 +241,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),

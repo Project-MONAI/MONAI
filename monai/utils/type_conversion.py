@@ -317,12 +317,14 @@ def convert_data_type(
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
-    if isinstance(data, monai.data.MetaObj) and not issubclass(output_type, monai.data.MetaObj):
-        if data.applied_operations and not drop_meta:
-            raise ValueError(
-                f"Cannot convert a MetaTensor with applied operations to a Tensor. Got {data.applied_operations}. "
-                "Please set `drop_meta=True` or reset the applied operations before converting it to a Tensor."
-            )
+    # input MetaTensor, out type torch tensor, this will potentially drop the meta info
+    is_meta_to_tensor = (
+        issubclass(output_type, torch.Tensor)
+        and not issubclass(output_type, monai.data.MetaObj)
+        and isinstance(data, monai.data.MetaObj)
+    )
+    if is_meta_to_tensor and not drop_meta:
+        output_type = type(data)
 
     data_: NdarrayTensor
 
