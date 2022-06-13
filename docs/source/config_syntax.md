@@ -12,7 +12,7 @@ Content:
 
 - [A basic example](#a-basic-example)
 - [Syntax examples explained](#syntax-examples-explained)
-  - [`@` to interpolate with Python objects](#to-interpolate-with-python-objects)
+  - [`@` to reference Python objects in configurations](#to-reference-python-objects-in-configurations)
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
   - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
@@ -73,7 +73,7 @@ For more details on the `ConfigParser` API, please see https://docs.monai.io/en/
 
 A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
 
-### To interpolate with Python objects
+### To reference Python objects in configurations
 
 ```json
 "@preprocessing#transforms#keys"
@@ -86,7 +86,7 @@ where `#` indicates a sub-structure of this configuration file.
 "@preprocessing#1"
 ```
 
-_Description:_ `1` is interpreted as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
+_Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
 
 ### To evaluate as Python expressions
 
