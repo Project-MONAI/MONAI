@@ -1054,6 +1054,7 @@ class TorchVision:
 
         """
         img_t, *_ = convert_data_type(img, torch.Tensor, drop_meta=True)
+
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out

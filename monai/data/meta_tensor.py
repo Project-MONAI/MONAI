@@ -246,6 +246,17 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
+        if (
+            hasattr(torch, "return_types")
+            and hasattr(torch.return_types, func.__name__)
+            and isinstance(ret, getattr(torch.return_types, func.__name__))
+        ):
+            # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
+            out_items = MetaTensor.update_meta(ret, func, args, kwargs)
+            for idx in range(ret.n_fields):
+                ret[idx].meta = out_items[idx].meta
+                ret[idx].applied_operations = out_items[idx].applied_operations
+            return ret
         if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True
