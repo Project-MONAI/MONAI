@@ -109,7 +109,7 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `False`.
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly. default to `False`.
+            for other metadata, log the values directly. default to `False`.
 
     """
 
@@ -199,7 +199,7 @@ class OneOf(Compose):
             defaults to `False`.
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly. default to `False`.
+            for other metadata, log the values directly. default to `False`.
 
     """
 

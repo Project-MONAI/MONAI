@@ -8,11 +8,11 @@ jobs:
   integration-py3:
     container:
       image: nvcr.io/nvidia/pytorch:21.12-py3  # CUDA 11.5
-      options: --gpus all
+      options: --gpus all  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, common]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
@@ -22,7 +22,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |

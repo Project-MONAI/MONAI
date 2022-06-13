@@ -281,7 +281,10 @@ class ConfigComponent(ConfigItem, Instantiable):
         modname = self.resolve_module_name()
         args = self.resolve_args()
         args.update(kwargs)
-        return instantiate(modname, **args)
+        try:
+            return instantiate(modname, **args)
+        except Exception as e:
+            raise RuntimeError(f"Failed to instantiate {self}.") from e
 
 
 class ConfigExpression(ConfigItem):
@@ -337,12 +340,13 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, locals: Optional[Dict] = None):
+    def evaluate(self, globals: Optional[Dict] = None, locals: Optional[Dict] = None):
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
+            globals: besides ``self.globals``, other global symbols used in the expression at runtime.
             locals: besides ``globals``, may also have some local symbols used in the expression at runtime.
 
         """
@@ -354,7 +358,13 @@ class ConfigExpression(ConfigItem):
             return optional_module
         if not self.run_eval:
             return f"{value[len(self.prefix) :]}"
-        return eval(value[len(self.prefix) :], self.globals, locals)
+        globals_ = dict(self.globals)
+        if globals is not None:
+            for k, v in globals.items():
+                if k in globals_:
+                    warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
+                globals_[k] = v
+        return eval(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
     def is_expression(cls, config: Union[Dict, List, str]) -> bool:

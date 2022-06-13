@@ -60,20 +60,20 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
         np.testing.assert_allclose(
             item[0],
-            np.array([[[[1.4965, 2.4965], [5.4965, 6.4965]]], [[[11.3584, 12.3584], [15.3584, 16.3584]]]]),
+            np.array([[[[8.0577, 9.0577], [12.0577, 13.0577]]], [[[10.5540, 11.5540], [14.5540, 15.5540]]]]),
             rtol=1e-4,
         )
-        np.testing.assert_allclose(item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
         if sys.platform != "win32":
             for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
                 np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
             np.testing.assert_allclose(
                 item[0],
-                np.array([[[[1.2548, 2.2548], [5.2548, 6.2548]]], [[[9.1106, 10.1106], [13.1106, 14.1106]]]]),
+                np.array([[[[7.6533, 8.6533], [11.6533, 12.6533]]], [[[9.8524, 10.8524], [13.8524, 14.8524]]]]),
                 rtol=1e-3,
             )
             np.testing.assert_allclose(
-                item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
+                item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
             )
 
     def test_loading_dict(self):
@@ -102,20 +102,20 @@ class TestGridPatchDataset(unittest.TestCase):
             self.assertListEqual(item[0]["metadata"], ["test string", "test string"])
         np.testing.assert_allclose(
             item[0]["image"],
-            np.array([[[[1.4965, 2.4965], [5.4965, 6.4965]]], [[[11.3584, 12.3584], [15.3584, 16.3584]]]]),
+            np.array([[[[8.0577, 9.0577], [12.0577, 13.0577]]], [[[10.5540, 11.5540], [14.5540, 15.5540]]]]),
             rtol=1e-4,
         )
-        np.testing.assert_allclose(item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
         if sys.platform != "win32":
             for item in DataLoader(ds, batch_size=2, shuffle=False, num_workers=2):
                 np.testing.assert_equal(item[0]["image"].shape, (2, 1, 2, 2))
             np.testing.assert_allclose(
                 item[0]["image"],
-                np.array([[[[1.2548, 2.2548], [5.2548, 6.2548]]], [[[9.1106, 10.1106], [13.1106, 14.1106]]]]),
+                np.array([[[[7.6533, 8.6533], [11.6533, 12.6533]]], [[[9.8524, 10.8524], [13.8524, 14.8524]]]]),
                 rtol=1e-3,
             )
             np.testing.assert_allclose(
-                item[1], np.array([[[0, 1], [0, 2], [2, 4]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
+                item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
             )
 
 

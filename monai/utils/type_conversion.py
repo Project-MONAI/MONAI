@@ -17,12 +17,13 @@ import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayTensor
 from monai.utils import optional_import
-from monai.utils.module import look_up_option
 
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 
 __all__ = [
+    "get_numpy_dtype_from_string",
+    "get_torch_dtype_from_string",
     "dtype_torch_to_numpy",
     "dtype_numpy_to_torch",
     "get_equivalent_dtype",
@@ -35,36 +36,31 @@ __all__ = [
 ]
 
 
-_torch_to_np_dtype = {
-    torch.bool: np.dtype(bool),
-    torch.uint8: np.dtype(np.uint8),
-    torch.int8: np.dtype(np.int8),
-    torch.int16: np.dtype(np.int16),
-    torch.int32: np.dtype(np.int32),
-    torch.int64: np.dtype(np.int64),
-    torch.float16: np.dtype(np.float16),
-    torch.float32: np.dtype(np.float32),
-    torch.float64: np.dtype(np.float64),
-    torch.complex64: np.dtype(np.complex64),
-    torch.complex128: np.dtype(np.complex128),
-}
-_np_to_torch_dtype = {value: key for key, value in _torch_to_np_dtype.items()}
+def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
+    """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
+    return np.zeros([], dtype=dtype).dtype  # type: ignore
 
 
-def dtype_torch_to_numpy(dtype):
+def get_torch_dtype_from_string(dtype: str) -> torch.dtype:
+    """Get a torch dtype (e.g., `torch.float32`) from its string (e.g., `"float32"`)."""
+    return dtype_numpy_to_torch(get_numpy_dtype_from_string(dtype))
+
+
+def dtype_torch_to_numpy(dtype: torch.dtype) -> np.dtype:
     """Convert a torch dtype to its numpy equivalent."""
-    return look_up_option(dtype, _torch_to_np_dtype)
+    return torch.zeros([], dtype=dtype).numpy().dtype  # type: ignore
 
 
-def dtype_numpy_to_torch(dtype):
+def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
     """Convert a numpy dtype to its torch equivalent."""
-    # np dtypes can be given as np.float32 and np.dtype(np.float32) so unify them
-    dtype = np.dtype(dtype) if isinstance(dtype, (type, str)) else dtype
-    return look_up_option(dtype, _np_to_torch_dtype)
+    return torch.from_numpy(np.zeros([], dtype=dtype)).dtype
 
 
 def get_equivalent_dtype(dtype, data_type):
     """Convert to the `dtype` that corresponds to `data_type`.
+
+    The input dtype can also be a string. e.g., `"float32"` becomes `torch.float32` or
+    `np.float32` as necessary.
 
     Example::
 
@@ -301,3 +297,15 @@ def convert_to_dst_type(
     else:
         output_type = type(dst)
     return convert_data_type(data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence)
+
+
+def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
+    """
+    Convert to list from `torch.Tensor`/`np.ndarray`/`list`/`tuple` etc.
+    Args:
+        data: data to be converted
+    Returns:
+        a list
+
+    """
+    return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)

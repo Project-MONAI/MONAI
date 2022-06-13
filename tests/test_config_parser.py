@@ -14,6 +14,7 @@ import tempfile
 import unittest
 from unittest import skipUnless
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
@@ -113,7 +114,12 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
         parser["transform"]["transforms"][0]["keys"] = "label1"
-        self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
+        trans = parser.get_parsed_content(id="transform#transforms#0")
+        self.assertEqual(trans.keys[0], "label1")
+        # test re-use the parsed content or not with the `lazy` option
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0"))
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
+        self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
         # test nested id
         parser["transform#transforms#0#keys"] = "label2"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
@@ -176,6 +182,50 @@ class TestConfigParser(unittest.TestCase):
         with self.assertRaises(ValueError):
             parser.parse()
             parser.get_parsed_content(id="E")
+
+    def test_list_expressions(self):
+        config = {
+            "transform": {
+                "_target_": "Compose",
+                "transforms": [{"_target_": "RandScaleIntensity", "factors": 0.5, "prob": 1.0}],
+            },
+            "training": ["$monai.utils.set_determinism(seed=123)", "$@transform(np.asarray([1, 2]))"],
+        }
+        parser = ConfigParser(config=config)
+        parser.get_parsed_content("training", lazy=True, instantiate=True, eval_expr=True)
+        np.testing.assert_allclose(parser.get_parsed_content("training#1", lazy=True), [0.7942, 1.5885], atol=1e-4)
+
+    def test_contains(self):
+        empty_parser = ConfigParser({})
+        empty_parser.parse()
+
+        parser = ConfigParser({"value": 1, "entry": "string content"})
+        parser.parse()
+
+        with self.subTest("Testing empty parser"):
+            self.assertFalse("something" in empty_parser)
+
+        with self.subTest("Testing with keys"):
+            self.assertTrue("value" in parser)
+            self.assertFalse("value1" in parser)
+            self.assertTrue("entry" in parser)
+            self.assertFalse("entr" in parser)
+
+    def test_lambda_reference(self):
+        configs = {
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=configs)
+        trans = parser.get_parsed_content(id="transform")
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
+    def test_error_instance(self):
+        config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
+        parser = ConfigParser(config=config)
+        with self.assertRaises(RuntimeError):
+            parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
 
 
 if __name__ == "__main__":

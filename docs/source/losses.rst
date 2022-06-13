@@ -53,6 +53,11 @@ Segmentation Losses
 .. autoclass:: DiceFocalLoss
     :members:
 
+`GeneralizedDiceFocalLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GeneralizedDiceFocalLoss
+    :members:
+
 `FocalLoss`
 ~~~~~~~~~~~
 .. autoclass:: FocalLoss

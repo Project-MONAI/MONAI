@@ -21,6 +21,11 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1024']
       - id: detect-private-key
+      - id: forbid-new-submodules
+      - id: pretty-format-json
+        args: ['--autofix', '--no-sort-keys', '--indent=4']
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
 
   - repo: https://github.com/asottile/pyupgrade
     rev: v2.31.1
@@ -51,6 +56,12 @@ repos:
               monai/__init__.py|
               docs/source/conf.py
           )$
+
+  - repo: https://github.com/hadialqattan/pycln
+    rev: v1.3.3
+    hooks:
+      - id: pycln
+        args: [--config=pyproject.toml]
 
   #- repo: https://github.com/PyCQA/isort
   #  rev: 5.9.3

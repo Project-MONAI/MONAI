@@ -68,6 +68,8 @@ class UNet(nn.Module):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
+        adn_ordering: a string representing the ordering of activation (A), normalization (N), and dropout (D).
+            Defaults to "NDA". See also: :py:class:`monai.networks.blocks.ADN`.
 
     Examples::
 
@@ -122,6 +124,7 @@ class UNet(nn.Module):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: float = 0.0,
         bias: bool = True,
+        adn_ordering: str = "NDA",
         dimensions: Optional[int] = None,
     ) -> None:
 
@@ -155,6 +158,7 @@ class UNet(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.bias = bias
+        self.adn_ordering = adn_ordering
 
         def _create_block(
             inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
@@ -229,6 +233,7 @@ class UNet(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
                 bias=self.bias,
+                adn_ordering=self.adn_ordering,
             )
             return mod
         mod = Convolution(
@@ -241,6 +246,7 @@ class UNet(nn.Module):
             norm=self.norm,
             dropout=self.dropout,
             bias=self.bias,
+            adn_ordering=self.adn_ordering,
         )
         return mod
 
@@ -279,6 +285,7 @@ class UNet(nn.Module):
             bias=self.bias,
             conv_only=is_top and self.num_res_units == 0,
             is_transposed=True,
+            adn_ordering=self.adn_ordering,
         )
 
         if self.num_res_units > 0:
@@ -294,6 +301,7 @@ class UNet(nn.Module):
                 dropout=self.dropout,
                 bias=self.bias,
                 last_conv_only=is_top,
+                adn_ordering=self.adn_ordering,
             )
             conv = nn.Sequential(conv, ru)
 
