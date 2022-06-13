@@ -248,7 +248,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         # Convert to list (if necessary), process, and at end remove list if one was added.
         if (
             hasattr(torch, "return_types")
+            and hasattr(func, "__name__")
             and hasattr(torch.return_types, func.__name__)
+            and isinstance(getattr(torch.return_types, func.__name__), type)
             and isinstance(ret, getattr(torch.return_types, func.__name__))
         ):
             # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
