@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Optional, Sequence, Union
+from typing import Union
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -79,9 +79,9 @@ class AsymmetricFocalTverskyLoss(_Loss):
         axis = list(range(2, len(y_pred.shape)))
 
         # Calculate true positives (tp), false negatives (fn) and false positives (fp)
-        tp = torch.sum(y_true * y_pred, axis=axis)
-        fn = torch.sum(y_true * (1 - y_pred), axis=axis)
-        fp = torch.sum((1 - y_true) * y_pred, axis=axis)
+        tp = torch.sum(y_true * y_pred, dim=axis)
+        fn = torch.sum(y_true * (1 - y_pred), dim=axis)
+        fp = torch.sum((1 - y_true) * y_pred, dim=axis)
         dice_class = (tp + self.epsilon) / (tp + self.delta * fn + (1 - self.delta) * fp + self.epsilon)
 
         # Calculate losses separately for each class, enhancing both classes
@@ -89,7 +89,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         fore_dice = (1 - dice_class[:, 1]) * torch.pow(1 - dice_class[:, 1], -self.gamma)
 
         # Average class scores
-        loss = torch.mean(torch.stack([back_dice, fore_dice], axis=-1))
+        loss = torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
         return loss
 
 
@@ -157,7 +157,7 @@ class AsymmetricFocalLoss(_Loss):
         fore_ce = cross_entropy[:, 1]
         fore_ce = self.delta * fore_ce
 
-        loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], axis=1), axis=1))
+        loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], dim=1), dim=1))
         return loss
 
 
@@ -175,7 +175,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self,
         num_classes: int = 1,
         include_background: bool = True,
-        weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
+        weight: float = 0.5,
         gamma: float = 0.5,
         delta: float = 0.7,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
@@ -205,7 +205,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.num_classes = num_classes + 1
         self.gamma = gamma
         self.delta = delta
-        self.weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = weight
+        self.weight: float = weight
         self.asy_focal_loss = AsymmetricFocalLoss(gamma=self.gamma, delta=self.delta)
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(gamma=self.gamma, delta=self.delta)
 
@@ -236,9 +236,13 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
-        if self.weight is None:
-            loss = (asy_focal_loss + asy_focal_tversky_loss) / 2
-        else:
-            loss = self.weight * asy_focal_loss + (1 - self.weight) * asy_focal_tversky_loss
 
-        return loss
+        loss: torch.Tensor = self.weight * asy_focal_loss + (1 - self.weight) * asy_focal_tversky_loss
+
+        if self.reduction == LossReduction.SUM.value:
+            return torch.sum(loss)  # sum over the batch and channel dims
+        if self.reduction == LossReduction.NONE.value:
+            return loss  # returns [N, num_classes] losses
+        if self.reduction == LossReduction.MEAN.value:
+            return torch.mean(loss)
+        raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
