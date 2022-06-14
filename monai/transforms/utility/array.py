@@ -395,6 +395,8 @@ class ToTensor(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
+        if isinstance(img, MetaTensor):
+            img.applied_operations = []  # drops tracking info
         return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
 
 
@@ -411,6 +413,9 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        drop_meta: whether to drop the meta information of the input data, default to `True`.
+            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
+            If `False`, converting a MetaTensor into a non-metatensor instance will raise an error.
 
     """
 
@@ -422,11 +427,13 @@ class EnsureType(Transform):
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        drop_meta: bool = True,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.drop_meta = drop_meta
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -440,7 +447,12 @@ class EnsureType(Transform):
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
         out: NdarrayOrTensor
         out, *_ = convert_data_type(
-            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
+            data=data,
+            output_type=output_type,
+            dtype=self.dtype,
+            device=self.device,
+            wrap_sequence=self.wrap_sequence,
+            drop_meta=self.drop_meta,
         )
         return out
 
@@ -1051,7 +1063,8 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor)
+        img_t, *_ = convert_data_type(img, torch.Tensor, drop_meta=True)
+
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out

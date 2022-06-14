@@ -92,7 +92,7 @@ class TestBundleRun(unittest.TestCase):
         else:
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
-        cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#3#output_postfix seg {override}"
+        cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))

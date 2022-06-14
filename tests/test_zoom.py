@@ -17,7 +17,7 @@ from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import Zoom
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(1.5, "nearest"), (1.5, "nearest"), (0.8, "bilinear"), (0.8, "area")]
 
@@ -29,7 +29,9 @@ class TestZoom(NumpyImageTestCase2D):
     def test_correct_results(self, zoom, mode):
         for p in TEST_NDARRAYS:
             zoom_fn = Zoom(zoom=zoom, mode=mode, keep_size=False)
-            zoomed = zoom_fn(p(self.imt[0]))
+            im = p(self.imt[0])
+            zoomed = zoom_fn(im)
+            test_local_inversion(zoom_fn, zoomed, im)
             _order = 0
             if mode.endswith("linear"):
                 _order = 1
@@ -37,17 +39,21 @@ class TestZoom(NumpyImageTestCase2D):
             for channel in self.imt[0]:
                 expected.append(zoom_scipy(channel, zoom=zoom, mode="nearest", order=_order, prefilter=False))
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed, p(expected), atol=1.0)
+            assert_allclose(zoomed, p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         for p in TEST_NDARRAYS:
             zoom_fn = Zoom(zoom=[0.6, 0.6], keep_size=True, align_corners=True)
-            zoomed = zoom_fn(p(self.imt[0]), mode="bilinear")
-            assert_allclose(zoomed.shape, self.imt.shape[1:])
+            im = p(self.imt[0])
+            zoomed = zoom_fn(im, mode="bilinear")
+            assert_allclose(zoomed.shape, self.imt.shape[1:], type_test=False)
+            test_local_inversion(zoom_fn, zoomed, im)
 
             zoom_fn = Zoom(zoom=[1.3, 1.3], keep_size=True)
-            zoomed = zoom_fn(p(self.imt[0]))
-            assert_allclose(zoomed.shape, self.imt.shape[1:])
+            im = p(self.imt[0])
+            zoomed = zoom_fn(im)
+            assert_allclose(zoomed.shape, self.imt.shape[1:], type_test=False)
+            test_local_inversion(zoom_fn, zoomed, im)
 
     @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, zoom, mode, raises):

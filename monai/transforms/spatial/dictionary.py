@@ -16,7 +16,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from copy import deepcopy
-from enum import Enum
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -24,13 +23,12 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.networks.layers import AffineTransform
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
-    AffineGrid,
     Flip,
     GridDistortion,
     GridPatch,
@@ -40,7 +38,6 @@ from monai.transforms.spatial.array import (
     Rand3DElastic,
     RandAffine,
     RandAxisFlip,
-    RandFlip,
     RandGridDistortion,
     RandGridPatch,
     RandRotate,
@@ -70,7 +67,6 @@ from monai.utils import (
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.module import optional_import
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 nib, _ = optional_import("nibabel")
 
@@ -475,27 +471,16 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.rotator(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            spatial_axes = self.rotator.spatial_axes
-            num_times_rotated = self.rotator.k
-            num_times_to_rotate = 4 - num_times_rotated
-            inverse_transform = Rotate90(num_times_to_rotate, spatial_axes)
-            # Apply inverse
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.rotator.inverse(d[key])
         return d
 
 
@@ -540,7 +525,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         self._rand_k = self.R.randint(self.max_k) + 1
         super().randomize(None)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         self.randomize()
         d = dict(data)
 
@@ -550,24 +535,19 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = rotator(d[key])
-            self.push_transform(d, key, extra_info={"rand_k": self._rand_k})
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                num_times_rotated = transform[TraceKeys.EXTRA_INFO]["rand_k"]
-                num_times_to_rotate = 4 - num_times_rotated
-                inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                # Apply inverse
-                d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            if not isinstance(d[key], MetaTensor):
+                continue
+            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+                xform = self.pop_transform(d[key])
+                d[key] = Rotate90().inverse_transform(d[key], xform)
         return d
 
 
@@ -614,38 +594,16 @@ class Resized(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
             d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            # Create inverse transform
-            inverse_transform = Resize(
-                spatial_size=orig_size,
-                mode=mode,
-                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-            )
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.resizer.inverse(d[key])
         return d
 
 
@@ -737,44 +695,16 @@ class Affined(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            orig_size = d[key].shape[1:]
-            d[key], affine = self.affine(d[key], mode=mode, padding_mode=padding_mode)
-            self.push_transform(
-                d,
-                key,
-                orig_size=orig_size,
-                extra_info={
-                    "affine": affine,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                },
-            )
+            d[key], _ = self.affine(d[key], mode=mode, padding_mode=padding_mode)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            # Create inverse transform
-            fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            inv_affine = np.linalg.inv(fwd_affine)
-
-            affine_grid = AffineGrid(affine=inv_affine)
-            grid, _ = affine_grid(orig_size)
-
-            # Apply inverse transform
-            d[key] = self.affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.affine.inverse(d[key])
         return d
 
 
@@ -889,58 +819,30 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        device = self.rand_affine.resampler.device
         spatial_size = d[first_key].shape[1:]  # type: ignore
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
-        affine: torch.Tensor = torch.eye(len(sp_size) + 1, dtype=torch.float64, device=device)
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
                 grid = self.rand_affine.rand_affine_grid(grid=grid)
-                affine = self.rand_affine.rand_affine_grid.get_transformation_matrix()
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "affine": affine,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                },
-            )
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
-
+                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
+            self.push_transform(d[key], extra_info={"do_resampling": do_resampling})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # if transform was not performed and spatial size is None, nothing to do.
-            if transform[TraceKeys.DO_TRANSFORM] or self.rand_affine.spatial_size is not None:
-                orig_size = transform[TraceKeys.ORIG_SIZE]
-                # Create inverse transform
-                fwd_affine = transform[TraceKeys.EXTRA_INFO]["affine"]
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                inv_affine = np.linalg.inv(fwd_affine)
-
-                affine_grid = AffineGrid(affine=inv_affine)
-                grid, _ = affine_grid(orig_size)
-
-                # Apply inverse transform
-                d[key] = self.rand_affine.resampler(d[key], grid, mode, padding_mode)
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            if self.pop_transform(d[key])[TraceKeys.EXTRA_INFO]["do_resampling"]:
+                d[key] = self.rand_affine.inverse(d[key])
 
         return d
 
@@ -1233,22 +1135,16 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.flipper(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            _ = self.get_most_recent_transform(d, key)
-            # Inverse is same as forward
-            d[key] = self.flipper(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.flipper.inverse(d[key])
         return d
 
 
@@ -1266,7 +1162,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = RandFlip.backend
+    backend = Flip.backend
 
     def __init__(
         self,
@@ -1277,35 +1173,34 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.flipper = RandFlip(prob=1.0, spatial_axis=spatial_axis)
+        self.flipper = Flip(spatial_axis=spatial_axis)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandFlipd":
         super().set_random_state(seed, state)
-        self.flipper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
         for key in self.key_iterator(d):
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False)
-            self.push_transform(d, key)
+                d[key] = self.flipper(d[key])
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Inverse is same as forward
-                d[key] = self.flipper(d[key], randomize=False)
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            xform = self.pop_transform(d[key])
+            if not xform[TraceKeys.DO_TRANSFORM]:
+                continue
+            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
+            self.pop_transform(d[key])  # drop the Flip
+            with self.flipper.trace_transform(False):
+                d[key] = self.flipper(d[key])
         return d
 
 
@@ -1337,7 +1232,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.flipper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -1350,20 +1245,14 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
-            self.push_transform(d, key, extra_info={"axis": self.flipper._axis})
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axis"])
-                # Inverse is same as forward
-                d[key] = flipper(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.flipper.inverse(d[key])
         return d
 
 
@@ -1416,56 +1305,20 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            orig_size = d[key].shape[1:]
             d[key] = self.rotator(
                 d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
             )
-            rot_mat = self.rotator.get_rotation_matrix()
-            self.push_transform(
-                d,
-                key,
-                orig_size=orig_size,
-                extra_info={
-                    "rot_mat": rot_mat,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            inv_rot_mat = np.linalg.inv(fwd_rot_mat)
-
-            xform = AffineTransform(
-                normalized=False,
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                reverse_indexing=True,
-            )
-            img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
-            transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-
-            out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
-            out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
-            d[key] = out
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+        for key in self.key_iterator(d):
+            d[key] = self.rotator.inverse(d[key])
         return d
 
 
@@ -1535,7 +1388,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_rotate.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
@@ -1545,59 +1398,22 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             if self._do_transform:
-                d[key], rot_mat = self.rand_rotate(
+                d[key] = self.rand_rotate(
                     d[key],
                     mode=mode,
                     padding_mode=padding_mode,
                     align_corners=align_corners,
                     dtype=dtype,
                     randomize=False,
-                    get_matrix=True,
                 )
-            else:
-                rot_mat = np.eye(d[key].ndim)
-            self.push_transform(
-                d,
-                key,
-                orig_size=d[key].shape[1:],
-                extra_info={
-                    "rot_mat": rot_mat,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
-        for key, dtype in self.key_iterator(d, self.dtype):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-                inv_rot_mat = np.linalg.inv(fwd_rot_mat)
-
-                xform = AffineTransform(
-                    normalized=False,
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-                    reverse_indexing=True,
-                )
-                img_t, *_ = convert_data_type(d[key], torch.Tensor, dtype=dtype)
-                transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-                output: torch.Tensor
-                out = xform(img_t.unsqueeze(0), transform_t, spatial_size=transform[TraceKeys.ORIG_SIZE]).squeeze(0)
-                out, *_ = convert_to_dst_type(out, dst=d[key], dtype=out.dtype)
-                d[key] = out
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+        for key in self.key_iterator(d):
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.rand_rotate.inverse(d[key])
         return d
 
 
@@ -1651,45 +1467,18 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
             d[key] = self.zoomer(d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            zoom = np.array(self.zoomer.zoom)
-            inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-            mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-            padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-            align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-            # Apply inverse
-            d[key] = inverse_transform(
-                d[key],
-                mode=mode,
-                padding_mode=padding_mode,
-                align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-            )
-            # Size might be out by 1 voxel so pad
-            d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            d[key] = self.zoomer.inverse(d[key])
         return d
 
 
@@ -1761,7 +1550,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -1778,42 +1567,14 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
-            self.push_transform(
-                d,
-                key,
-                extra_info={
-                    "zoom": self.rand_zoom._zoom,
-                    "mode": mode.value if isinstance(mode, Enum) else mode,
-                    "padding_mode": padding_mode.value if isinstance(padding_mode, Enum) else padding_mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                },
-            )
+            self.push_transform(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Check if random transform was actually performed (based on `prob`)
-            if transform[TraceKeys.DO_TRANSFORM]:
-                # Create inverse transform
-                zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
-                mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-                padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-                align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-                inverse_transform = Zoom(zoom=(1 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                # Apply inverse
-                d[key] = inverse_transform(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=None if align_corners == TraceKeys.NONE else align_corners,
-                )
-                # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.ORIG_SIZE], mode="edge")(d[key])  # type: ignore
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
+            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+                d[key] = self.rand_zoom.inverse(d[key])
         return d
 
 

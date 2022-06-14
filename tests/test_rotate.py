@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rotate
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: List[Tuple] = []
 for p in TEST_NDARRAYS:
@@ -101,8 +101,10 @@ class TestRotate3D(NumpyImageTestCase3D):
     @parameterized.expand(TEST_CASES_SHAPE_3D)
     def test_correct_shape(self, im_type, angle, mode, padding_mode, align_corners):
         rotate_fn = Rotate(angle, True, align_corners=align_corners, dtype=np.float64)
-        rotated = rotate_fn(im_type(self.imt[0]), mode=mode, padding_mode=padding_mode)
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
+        test_local_inversion(rotate_fn, rotated, im)
 
     def test_ill_case(self):
         for p in TEST_NDARRAYS:

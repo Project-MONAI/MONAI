@@ -183,6 +183,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             # else, handle the `MetaTensor` metadata.
             else:
                 meta_args = MetaObj.flatten_meta_objs(list(args) + list(kwargs.values()))
+                # this is not implemented but the network arch may run into this case:
+                # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
+                #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
                 ret._copy_meta(meta_args)
 
                 # If we have a batch of data, then we need to be careful if a slice of
@@ -195,17 +198,17 @@ class MetaTensor(MetaObj, torch.Tensor):
                         metas = decollate_batch(ret.meta)
                     # if indexing e.g., `batch[0]`
                     if func == torch.Tensor.__getitem__:
-                        idx = args[1]
-                        if isinstance(idx, Sequence):
-                            idx = idx[0]
+                        batch_idx = args[1]
+                        if isinstance(batch_idx, Sequence):
+                            batch_idx = batch_idx[0]
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if idx not in (slice(None, None, None), Ellipsis):
-                            meta = metas[idx]
+                        if batch_idx not in (slice(None, None, None), Ellipsis):
+                            meta = metas[batch_idx]
                             # if using e.g., `batch[0:2]`, then `is_batch` should still be
                             # `True`. Also re-collate the remaining elements.
-                            if isinstance(meta, list) and len(meta) > 1:
+                            if isinstance(meta, list):
                                 ret.meta = list_data_collate(meta)
                             # if using e.g., `batch[0]` or `batch[0, 1]`, then return single
                             # element from batch, and set `is_batch` to `False`.
@@ -243,6 +246,19 @@ class MetaTensor(MetaObj, torch.Tensor):
         # we might have 1 or multiple outputs. Might be MetaTensor, might be something
         # else (e.g., `__repr__` returns a string).
         # Convert to list (if necessary), process, and at end remove list if one was added.
+        if (
+            hasattr(torch, "return_types")
+            and hasattr(func, "__name__")
+            and hasattr(torch.return_types, func.__name__)
+            and isinstance(getattr(torch.return_types, func.__name__), type)
+            and isinstance(ret, getattr(torch.return_types, func.__name__))
+        ):
+            # for torch.max(torch.tensor(1.0), dim=0), the return type is named-tuple like
+            out_items = MetaTensor.update_meta(ret, func, args, kwargs)
+            for idx in range(ret.n_fields):
+                ret[idx].meta = out_items[idx].meta
+                ret[idx].applied_operations = out_items[idx].applied_operations
+            return ret
         if isinstance(ret, (str, bytes)) or not isinstance(ret, Sequence):
             ret = [ret]
             unpack = True

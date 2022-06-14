@@ -16,7 +16,7 @@ from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import Zoomd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(1.5, "nearest", False), (0.3, "bilinear", False), (0.8, "bilinear", False)]
 
@@ -29,7 +29,9 @@ class TestZoomd(NumpyImageTestCase2D):
         key = "img"
         zoom_fn = Zoomd(key, zoom=zoom, mode=mode, keep_size=keep_size)
         for p in TEST_NDARRAYS:
-            zoomed = zoom_fn({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = zoom_fn({key: im})
+            test_local_inversion(zoom_fn, zoomed, {key: im}, key)
             _order = 0
             if mode.endswith("linear"):
                 _order = 1
@@ -38,7 +40,7 @@ class TestZoomd(NumpyImageTestCase2D):
             ]
 
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed[key], p(expected), atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         key = "img"

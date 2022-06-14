@@ -183,7 +183,7 @@ class MetaObj:
     @property
     def meta(self) -> dict:
         """Get the meta."""
-        return self._meta
+        return self._meta if hasattr(self, "_meta") else self.get_default_meta()
 
     @meta.setter
     def meta(self, d) -> None:
@@ -195,7 +195,9 @@ class MetaObj:
     @property
     def applied_operations(self) -> list:
         """Get the applied operations."""
-        return self._applied_operations
+        if hasattr(self, "_applied_operations"):
+            return self._applied_operations
+        return self.get_default_applied_operations()
 
     @applied_operations.setter
     def applied_operations(self, t) -> None:
@@ -215,7 +217,7 @@ class MetaObj:
     @property
     def is_batch(self) -> bool:
         """Return whether object is part of batch or not."""
-        return self._is_batch
+        return self._is_batch if hasattr(self, "_is_batch") else False
 
     @is_batch.setter
     def is_batch(self, val: bool) -> None:

@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import Flip
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -37,7 +37,8 @@ class TestFlip(NumpyImageTestCase2D):
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
             result = flip(im)
-            assert_allclose(result, p(expected))
+            assert_allclose(result, p(expected), type_test=False)
+            test_local_inversion(flip, result, im)
 
 
 if __name__ == "__main__":
