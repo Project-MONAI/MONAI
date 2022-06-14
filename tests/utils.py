@@ -708,12 +708,29 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
+def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
+    """test that invertible_xform can bring to_invert back to im"""
+    im_item = im if dict_key is None else im[dict_key]
+    if not isinstance(im_item, MetaTensor):
+        return
+    im_inv = invertible_xform.inverse(to_invert)
+    if dict_key:
+        im_inv = im_inv[dict_key]
+        im = im[dict_key]
+    np.testing.assert_array_equal(im_inv.applied_operations, [])
+    assert_allclose(im_inv.shape, im.shape)
+    assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+
+
 TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
 
-_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": torch.eye(4) * 2})
+DEFAULT_TEST_AFFINE = torch.tensor(
+    [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+)
+_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
 TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
 TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore

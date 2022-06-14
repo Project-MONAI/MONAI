@@ -34,10 +34,8 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     EnsureChannelFirstd,
-    EnsureType,
     EnsureTyped,
     FgBgToIndicesd,
-    FromMetaTensord,
     LoadImaged,
     RandAffined,
     RandAxisFlipd,
@@ -90,15 +88,13 @@ class IntegrationFastTrain(DistTestCase):
                 LoadImaged(keys=["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
-                FromMetaTensord(["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
                 # pre-compute foreground and background indexes
                 # and cache them to accelerate training
                 FgBgToIndicesd(keys="label", fg_postfix="_fg", bg_postfix="_bg"),
-                # change to execute transforms with Tensor data
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
+                EnsureTyped(keys=["image", "label"], drop_meta=True),
                 ToDeviced(keys=["image", "label"], device=device),
                 # randomly crop out patch samples from big
                 # image based on pos / neg ratio
@@ -137,10 +133,8 @@ class IntegrationFastTrain(DistTestCase):
                 LoadImaged(keys=["image", "label"]),
                 EnsureChannelFirstd(keys=["image", "label"]),
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
-                FromMetaTensord(["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
                 ToDeviced(keys=["image", "label"], device=device),
             ]
@@ -173,8 +167,8 @@ class IntegrationFastTrain(DistTestCase):
         optimizer = Novograd(model.parameters(), learning_rate * 10)
         scaler = torch.cuda.amp.GradScaler()
 
-        post_pred = Compose([EnsureType(), AsDiscrete(argmax=True, to_onehot=2)])
-        post_label = Compose([EnsureType(), AsDiscrete(to_onehot=2)])
+        post_pred = AsDiscrete(argmax=True, to_onehot=2)
+        post_label = AsDiscrete(to_onehot=2)
 
         dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 

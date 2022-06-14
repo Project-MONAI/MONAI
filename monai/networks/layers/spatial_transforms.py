@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
 
+import monai
 from monai.networks import to_norm_affine
 from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, look_up_option, optional_import
 
@@ -116,6 +118,10 @@ def grid_pull(
     ]
     out: torch.Tensor
     out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = monai.data.MetaTensor(
+            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
+        )
     return out
 
 
@@ -217,7 +223,12 @@ def grid_push(
     if shape is None:
         shape = tuple(input.shape[2:])
 
-    return _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = monai.data.MetaTensor(
+            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
+        )
+    return out
 
 
 class _GridCount(torch.autograd.Function):
@@ -313,7 +324,12 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
     if shape is None:
         shape = tuple(grid.shape[2:])
 
-    return _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = monai.data.MetaTensor(
+            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
+        )
+    return out
 
 
 class _GridGrad(torch.autograd.Function):
@@ -408,7 +424,12 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         for i in ensure_tuple(interpolation)
     ]
 
-    return _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = monai.data.MetaTensor(
+            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
+        )
+    return out
 
 
 class AffineTransform(nn.Module):

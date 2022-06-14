@@ -38,8 +38,6 @@ from monai.transforms import (
     SaveImage,
     ScaleIntensityd,
     Spacingd,
-    ToTensor,
-    ToTensord,
 )
 from monai.utils import set_determinism
 from monai.utils.enums import PostFix
@@ -65,13 +63,11 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
     train_transforms.set_random_state(1234)
@@ -82,9 +78,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
 
@@ -100,7 +94,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     # create UNet, DiceLoss and Adam optimizer
@@ -195,13 +189,12 @@ def run_inference_test(root_dir, device="cuda:0"):
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
             FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(

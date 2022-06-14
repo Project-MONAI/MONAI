@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from contextlib import contextmanager
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
@@ -126,9 +127,6 @@ class TraceableTransform(Transform):
 
         Returns:
             None, but data has been updated to store the applied transformation.
-
-        Raises:
-            - RuntimeError: data is neither `MetaTensor` nor dictionary
         """
         if not self.tracing:
             return
@@ -147,18 +145,24 @@ class TraceableTransform(Transform):
                     data[self.trace_key(key)] = []
                 data[self.trace_key(key)].append(info)
         else:
-            raise RuntimeError("`data` should be either `MetaTensor` or dictionary.")
+            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
-        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         xform_id = transform.get(TraceKeys.ID, "")
         if xform_id == id(self):
             return
+        # TraceKeys.NONE to skip the id check
+        if xform_id == TraceKeys.NONE:
+            return
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
-        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
+        raise RuntimeError(
+            f"Error {self.__class__.__name__} getting the most recently "
+            f"applied invertible transform {xform_name} {xform_id} != {id(self)}."
+        )
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
@@ -206,6 +210,8 @@ class TraceableTransform(Transform):
                 all_transforms = data[key].applied_operations
             else:
                 all_transforms = data[self.trace_key(key)]
+        else:
+            raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
         if check:
             self.check_transforms_match(all_transforms[-1])
         return all_transforms.pop() if pop else all_transforms[-1]
@@ -250,7 +256,7 @@ class TraceableTransform(Transform):
 
     @contextmanager
     def trace_transform(self, to_trace: bool):
-        """Temporarily set the tracing status of a transfrom with a context manager."""
+        """Temporarily set the tracing status of a transform with a context manager."""
         prev = self.tracing
         self.tracing = to_trace
         yield

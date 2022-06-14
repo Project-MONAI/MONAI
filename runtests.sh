@@ -268,6 +268,7 @@ do
         --autofix)
             doIsortFix=true
             doBlackFix=true
+            doPrecommit=true
             doIsortFormat=true
             doBlackFormat=true
             doCopyRight=true
@@ -403,6 +404,28 @@ then
     fi
 fi
 
+if [ $doPrecommit = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pre-commit${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pre_commit
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pre_commit run --all-files
+
+    pre_commit_status=$?
+    if [ ${pre_commit_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pre_commit_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
 
 if [ $doIsortFormat = true ]
 then
@@ -495,29 +518,6 @@ then
     then
         print_style_fail_msg
         exit ${flake8_status}
-    else
-        echo "${green}passed!${noColor}"
-    fi
-    set -e # enable exit on failure
-fi
-
-if [ $doPrecommit = true ]
-then
-    set +e  # disable exit on failure so that diagnostics can be given on failure
-    echo "${separator}${blue}pre-commit${noColor}"
-
-    # ensure that the necessary packages for code format testing are installed
-    if ! is_pip_installed pre_commit
-    then
-        install_deps
-    fi
-    ${cmdPrefix}${PY_EXE} -m pre_commit run --all-files
-
-    pre_commit_status=$?
-    if [ ${pre_commit_status} -ne 0 ]
-    then
-        print_style_fail_msg
-        exit ${pre_commit_status}
     else
         echo "${green}passed!${noColor}"
     fi

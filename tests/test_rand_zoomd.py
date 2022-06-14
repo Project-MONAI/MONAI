@@ -16,7 +16,7 @@ from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import RandZoomd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(0.8, 1.2, "nearest", None, False)]
 
@@ -37,14 +37,16 @@ class TestRandZoomd(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS:
             random_zoom.set_random_state(1234)
 
-            zoomed = random_zoom({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            test_local_inversion(random_zoom, zoomed, {key: im}, key)
             expected = [
                 zoom_scipy(channel, zoom=random_zoom.rand_zoom._zoom, mode="nearest", order=0, prefilter=False)
                 for channel in self.imt[0]
             ]
 
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed[key], p(expected), atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         key = "img"
@@ -52,7 +54,9 @@ class TestRandZoomd(NumpyImageTestCase2D):
             keys=key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True, padding_mode="constant", constant_values=2
         )
         for p in TEST_NDARRAYS:
-            zoomed = random_zoom({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            test_local_inversion(random_zoom, zoomed, {key: im}, key)
             np.testing.assert_array_equal(zoomed[key].shape, self.imt.shape[1:])
 
     @parameterized.expand(

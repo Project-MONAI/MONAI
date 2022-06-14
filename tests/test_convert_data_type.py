@@ -47,7 +47,7 @@ class TestTensor(torch.Tensor):
 class TestConvertDataType(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out))
+        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), drop_meta=True)
         # check input is unchanged
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):
@@ -79,7 +79,7 @@ class TestConvertDataSame(unittest.TestCase):
     # add test for subclass of Tensor
     @parameterized.expand(TESTS + [(np.array(1.0), TestTensor(np.array(1.0)))])
     def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out)
+        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, drop_meta=True)
         # check input is unchanged
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):

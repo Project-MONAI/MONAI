@@ -296,7 +296,7 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(collated.affine, torch.Tensor)
         expected_shape = (numel,) + tuple(ims[0].affine.shape)
         self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
-        self.assertEqual(len(collated.applied_operations), 1)
+        self.assertEqual(len(collated.applied_operations), numel)
 
     @parameterized.expand(TESTS)
     def test_dataset(self, device, dtype):
@@ -321,7 +321,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertIsInstance(batch, MetaTensor)
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
-            self.assertEqual(len(batch.applied_operations), 1)
+            self.assertEqual(len(batch.applied_operations), batch_size)
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):

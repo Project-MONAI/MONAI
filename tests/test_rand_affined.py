@@ -15,14 +15,15 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import RandAffined
 from monai.utils import GridSampleMode
-from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
-for p in TEST_NDARRAYS_NO_META_TENSOR:
+for p in TEST_NDARRAYS:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
@@ -211,12 +212,17 @@ class TestRandAffined(unittest.TestCase):
             if "_transforms" in key:
                 continue
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-3)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-3, type_test=False)
 
         g.set_random_state(4)
         res = g(input_data)
         # affine should be tensor because the resampler only supports pytorch backend
-        self.assertTrue(isinstance(res["img_transforms"][0]["extra_info"]["affine"], torch.Tensor))
+        if isinstance(res["img"], MetaTensor) and "extra_info" in res["img"].applied_operations[0]:
+            if not res["img"].applied_operations[-1]["extra_info"]["do_resampling"]:
+                return
+            affine_img = res["img"].applied_operations[0]["extra_info"]["affine"]
+            affine_seg = res["seg"].applied_operations[0]["extra_info"]["affine"]
+            assert_allclose(affine_img, affine_seg, rtol=_rtol, atol=1e-3)
 
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):
