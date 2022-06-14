@@ -486,7 +486,7 @@ def save_state(src: Union[torch.nn.Module, Dict], path: PathLike, **kwargs):
         src: input data to save, can be `nn.Module`, `state_dict`, a dictionary of `nn.Module` or `state_dict`.
         path: target file path to save the input object.
         kwargs: other args for the `save_obj` except for the `obj` and `path`.
-            default `func` is `torch.save()`, details of the args of it:
+            default `func` is `torch.save()`, details of the args:
             https://pytorch.org/docs/stable/generated/torch.save.html.
 
     """

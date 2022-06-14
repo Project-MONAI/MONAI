@@ -75,6 +75,11 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`PadBase`
+"""""""""
+.. autoclass:: PadBase
+    :special-members: __call__
+
 `Pad`
 """""
 .. autoclass:: Pad
@@ -102,6 +107,18 @@ Crop and Pad
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePad.png
     :alt: example of DivisiblePad
 .. autoclass:: DivisiblePad
+    :members:
+    :special-members: __call__
+
+`CropBase`
+""""""""""
+.. autoclass:: CropBase
+    :members:
+    :special-members: __call__
+
+`ListCropBase`
+""""""""""""""
+.. autoclass:: ListCropBase
     :members:
     :special-members: __call__
 
@@ -446,6 +463,15 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -737,6 +763,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
+
 `GridSplit`
 """""""""""
 .. autoclass:: GridSplit
@@ -974,6 +1012,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`PadBased`
+""""""""""
+.. autoclass:: PadBased
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
@@ -995,6 +1039,12 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`CropBased`
+"""""""""""
+.. autoclass:: CropBased
     :members:
     :special-members: __call__
 
@@ -1327,6 +1377,13 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
@@ -1510,6 +1567,18 @@ Spatial (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoomd.png
     :alt: example of RandZoomd
 .. autoclass:: RandZoomd
+    :members:
+    :special-members: __call__
+
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
     :members:
     :special-members: __call__
 

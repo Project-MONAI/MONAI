@@ -14,10 +14,9 @@ defined in :py:class:`monai.apps.detection.transforms.array`.
 
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
-
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Type, Union
+from typing import Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -30,15 +29,20 @@ from monai.apps.detection.transforms.array import (
     ConvertBoxToStandardMode,
     FlipBox,
     MaskToBox,
+    RotateBox90,
+    SpatialCropBox,
     ZoomBox,
 )
+from monai.apps.detection.transforms.box_ops import convert_box_to_mask
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import COMPUTE_DTYPE, BoxMode
+from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import Flip, RandFlip, RandZoom, SpatialPad, Zoom
+from monai.transforms import Flip, RandFlip, RandRotate90d, RandZoom, Rotate90, SpatialCrop, SpatialPad, Zoom
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
+from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
+from monai.utils import ImageMetaKey as Key
 from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
@@ -74,6 +78,15 @@ __all__ = [
     "MaskToBoxd",
     "MaskToBoxD",
     "MaskToBoxDict",
+    "RandCropBoxByPosNegLabeld",
+    "RandCropBoxByPosNegLabelD",
+    "RandCropBoxByPosNegLabelDict",
+    "RotateBox90d",
+    "RotateBox90D",
+    "RotateBox90Dict",
+    "RandRotateBox90d",
+    "RandRotateBox90D",
+    "RandRotateBox90Dict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -235,7 +248,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         self.converter_to_image_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def extract_affine(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         d = dict(data)
 
         meta_key = self.image_meta_key
@@ -256,6 +269,12 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         affine_t, *_ = convert_data_type(affine, torch.Tensor)
         # torch.inverse should not run in half precision
         inv_affine_t = torch.inverse(affine_t.to(COMPUTE_DTYPE))
+        return affine, inv_affine_t
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -272,6 +291,54 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         return d
 
 
+class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
+    """
+    Dictionary-based transform that converts box in image coordinate to world coordinate.
+
+    Args:
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
+        remove_empty: whether to remove the boxes that are actually empty
+        allow_missing_keys: don't raise exception if key is missing.
+        image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
+            it is a string, map to the `box_ref_image_key`.
+            if None, will try to construct meta_keys by `box_ref_image_key_{meta_key_postfix}`.
+        image_meta_key_postfix: if image_meta_keys=None, use `box_ref_image_key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        affine_lps_to_ras: default ``False``. Yet if 1) the image is read by ITKReader,
+            and 2) the ITKReader has affine_lps_to_ras=True, and 3) the box is in world coordinate,
+            then set ``affine_lps_to_ras=True``.
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        box_ref_image_keys: str,
+        allow_missing_keys: bool = False,
+        image_meta_key: Union[str, None] = None,
+        image_meta_key_postfix: Union[str, None] = DEFAULT_POST_FIX,
+        affine_lps_to_ras=False,
+    ) -> None:
+        super().__init__(
+            box_keys, box_ref_image_keys, allow_missing_keys, image_meta_key, image_meta_key_postfix, affine_lps_to_ras
+        )
+        self.converter_to_world_coordinate = AffineBox()
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
+
+        for key in self.key_iterator(d):
+            self.push_transform(d, key, extra_info={"affine": inv_affine_t})
+            d[key] = self.converter_to_world_coordinate(d[key], affine=affine)
+        return d
+
+
 class ZoomBoxd(MapTransform, InvertibleTransform):
     """
     Dictionary-based transform that zooms input boxes and images with the given zoom scale.
@@ -279,7 +346,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
             If a sequence, zoom should contain one value for each spatial axis.
@@ -386,7 +453,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
             # zoom boxes
             if key_type == "box_key":
@@ -408,7 +476,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         prob: Probability of zooming.
         min_zoom: Min zoom factor. Can be float or sequence same size as image.
             If a float, select a random factor from `[min_zoom, max_zoom]` then apply to all spatial dims
@@ -549,7 +617,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                         align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                     )
                     # Size might be out by 1 voxel so pad
-                    d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                    orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
                 # zoom boxes
                 if key_type == "box_key":
@@ -571,7 +640,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -635,7 +704,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
     Args:
         image_keys: Keys to pick image data for transformation.
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
@@ -715,7 +784,7 @@ class ClipBoxToImaged(MapTransform):
 
     Args:
         box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Multiple keys are allowed.
         box_ref_image_keys: The single key that represents the reference image
             to which ``box_keys`` and ``label_keys`` are attached.
         remove_empty: whether to remove the boxes that are actually empty
@@ -785,8 +854,8 @@ class BoxToMaskd(MapTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
-        box_ref_image_keys: Keys that represents the reference images to which ``box_keys`` are attached.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
         min_fg_label: min foreground box label.
         ellipse_mask: bool.
 
@@ -873,7 +942,7 @@ class MaskToBoxd(MapTransform):
     Args:
         box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
         box_mask_keys: Keys to store output box mask results for transformation. Same length with ``box_keys``.
-        label_keys: Keys that represents the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Same length with ``box_keys``.
         min_fg_label: min foreground box label.
         box_dtype: output dtype for box_keys
         label_dtype: output dtype for label_keys
@@ -935,6 +1004,387 @@ class MaskToBoxd(MapTransform):
         return d
 
 
+class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
+    """
+    Crop random fixed sized regions that contains foreground boxes.
+    Suppose all the expected fields specified by `image_keys` have same shape,
+    and add `patch_index` to the corresponding meta data.
+    And will return a list of dictionaries for all the cropped images.
+    If a dimension of the expected spatial size is bigger than the input image size,
+    will not crop that dimension. So the cropped result may be smaller than the expected size,
+    and the cropped results of several images may not have exactly the same shape.
+
+    Args:
+        image_keys: Keys to pick image data for transformation. They need to have the same spatial size.
+        box_keys: The single key to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        label_keys: Keys that represent the labels corresponding to the ``box_keys``. Multiple keys are allowed.
+        spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
+            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
+            for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
+            the spatial size of output data will be [32, 40, 40].
+        pos: used with `neg` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        neg: used with `pos` together to calculate the ratio ``pos / (pos + neg)`` for the probability
+            to pick a foreground voxel as a center rather than a background voxel.
+        num_samples: number of samples (crop regions) to take in each list.
+        whole_box: Bool, default True, whether we prefer to contain at least one whole box in the cropped foreground patch.
+            Even if True, it is still possible to get partial box if there are multiple boxes in the image.
+        thresh_image_key: if thresh_image_key is not None, use ``label == 0 & thresh_image > image_threshold`` to select
+            the negative sample(background) center. so the crop center will only exist on valid image area.
+        image_threshold: if enabled thresh_image_key, use ``thresh_image > image_threshold`` to determine
+            the valid image content area.
+        fg_indices_key: if provided pre-computed foreground indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        bg_indices_key: if provided pre-computed background indices of `label`, will ignore above `image_key` and
+            `image_threshold`, and randomly select crop centers based on them, need to provide `fg_indices_key`
+            and `bg_indices_key` together, expect to be 1 dim array of spatial indices after flattening.
+            a typical usage is to call `FgBgToIndicesd` transform first and cache the results.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
+            used to add `patch_index` to the meta dict.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
+            it can be a sequence of string, map to the `keys`.
+            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            used to add `patch_index` to the meta dict.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: str,
+        label_keys: KeysCollection,
+        spatial_size: Union[Sequence[int], int],
+        pos: float = 1.0,
+        neg: float = 1.0,
+        num_samples: int = 1,
+        whole_box: bool = True,
+        thresh_image_key: Optional[str] = None,
+        image_threshold: float = 0.0,
+        fg_indices_key: Optional[str] = None,
+        bg_indices_key: Optional[str] = None,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        allow_smaller: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        if len(self.image_keys) < 1:
+            raise ValueError("At least one image_keys should be provided.")
+
+        MapTransform.__init__(self, self.image_keys, allow_missing_keys)
+
+        box_keys_tuple = ensure_tuple(box_keys)
+        if len(box_keys_tuple) != 1:
+            raise ValueError(
+                "Please provide a single key for box_keys.\
+                All label_keys are attached to this box_keys."
+            )
+        self.box_keys = box_keys_tuple[0]
+        self.label_keys = ensure_tuple(label_keys)
+
+        self.spatial_size_: Union[Tuple[int, ...], Sequence[int], int] = spatial_size
+
+        if pos < 0 or neg < 0:
+            raise ValueError(f"pos and neg must be nonnegative, got pos={pos} neg={neg}.")
+        if pos + neg == 0:
+            raise ValueError("Incompatible values: pos=0 and neg=0.")
+        self.pos_ratio = pos / (pos + neg)
+        if num_samples < 1:
+            raise ValueError(f"num_samples needs to be positive int, got num_samples={num_samples}.")
+        self.num_samples = num_samples
+        self.whole_box = whole_box
+
+        self.thresh_image_key = thresh_image_key
+        self.image_threshold = image_threshold
+        self.fg_indices_key = fg_indices_key
+        self.bg_indices_key = bg_indices_key
+
+        self.meta_keys = ensure_tuple_rep(None, len(self.image_keys)) if meta_keys is None else ensure_tuple(meta_keys)
+        if len(self.image_keys) != len(self.meta_keys):
+            raise ValueError("meta_keys should have the same length as keys.")
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.image_keys))
+        self.centers: Optional[List[List[int]]] = None
+        self.allow_smaller = allow_smaller
+
+    def generate_fg_center_boxes_np(self, boxes: NdarrayOrTensor, image_size: Sequence[int]) -> np.ndarray:
+        # We don't require crop center to be whthin the boxes.
+        # As along as the cropped patch contains a box, it is considered as a foreground patch.
+        # Positions within extended_boxes are crop centers for foreground patches
+        spatial_dims = len(image_size)
+        boxes_np, *_ = convert_data_type(boxes, np.ndarray)
+
+        extended_boxes = np.zeros_like(boxes_np, dtype=int)
+        boxes_start = np.ceil(boxes_np[:, :spatial_dims]).astype(int)
+        boxes_stop = np.floor(boxes_np[:, spatial_dims:]).astype(int)
+        for axis in range(spatial_dims):
+            if not self.whole_box:
+                extended_boxes[:, axis] = boxes_start[:, axis] - self.spatial_size[axis] // 2 + 1
+                extended_boxes[:, axis + spatial_dims] = boxes_stop[:, axis] + self.spatial_size[axis] // 2 - 1
+            else:
+                # extended box start
+                extended_boxes[:, axis] = boxes_stop[:, axis] - self.spatial_size[axis] // 2 - 1
+                extended_boxes[:, axis] = np.minimum(extended_boxes[:, axis], boxes_start[:, axis])
+                # extended box stop
+                extended_boxes[:, axis + spatial_dims] = extended_boxes[:, axis] + self.spatial_size[axis] // 2
+                extended_boxes[:, axis + spatial_dims] = np.maximum(
+                    extended_boxes[:, axis + spatial_dims], boxes_stop[:, axis]
+                )
+        extended_boxes, _ = clip_boxes_to_image(extended_boxes, image_size, remove_empty=True)  # type: ignore
+        return extended_boxes
+
+    def randomize(  # type: ignore
+        self,
+        boxes: NdarrayOrTensor,
+        image_size: Sequence[int],
+        fg_indices: Optional[NdarrayOrTensor] = None,
+        bg_indices: Optional[NdarrayOrTensor] = None,
+        thresh_image: Optional[NdarrayOrTensor] = None,
+    ) -> None:
+        if fg_indices is None or bg_indices is None:
+            # We don't require crop center to be whthin the boxes.
+            # As along as the cropped patch contains a box, it is considered as a foreground patch.
+            # Positions within extended_boxes are crop centers for foreground patches
+            extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)
+            mask_img = convert_box_to_mask(
+                extended_boxes_np, np.ones(extended_boxes_np.shape[0]), image_size, bg_label=0, ellipse_mask=False
+            )
+            mask_img = np.amax(mask_img, axis=0, keepdims=True)[0:1, ...]
+            fg_indices_, bg_indices_ = map_binary_to_indices(mask_img, thresh_image, self.image_threshold)
+        else:
+            fg_indices_ = fg_indices
+            bg_indices_ = bg_indices
+
+        self.centers = generate_pos_neg_label_crop_centers(
+            self.spatial_size,
+            self.num_samples,
+            self.pos_ratio,
+            image_size,
+            fg_indices_,
+            bg_indices_,
+            self.R,
+            self.allow_smaller,
+        )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+        d = dict(data)
+        spatial_dims = len(d[self.image_keys[0]].shape) - 1
+        image_size = d[self.image_keys[0]].shape[1:]
+        self.spatial_size = ensure_tuple_rep(self.spatial_size_, spatial_dims)
+
+        # randomly sample crop centers
+        boxes = d[self.box_keys]
+        labels = [d[label_key] for label_key in self.label_keys]  # could be multiple arrays
+        fg_indices = d.pop(self.fg_indices_key, None) if self.fg_indices_key is not None else None
+        bg_indices = d.pop(self.bg_indices_key, None) if self.bg_indices_key is not None else None
+        thresh_image = d[self.thresh_image_key] if self.thresh_image_key else None
+        self.randomize(boxes, image_size, fg_indices, bg_indices, thresh_image)
+
+        if self.centers is None:
+            raise ValueError("no available ROI centers to crop.")
+
+        # initialize returned list with shallow copy to preserve key ordering
+        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
+
+        # crop images and boxes for each center.
+        for i, center in enumerate(self.centers):
+            results[i] = deepcopy(d)
+            # compute crop start and end, always crop, no padding
+            cropper = SpatialCrop(roi_center=tuple(center), roi_size=self.spatial_size)
+            crop_start = [max(s.start, 0) for s in cropper.slices]
+            crop_end = [min(s.stop, image_size_a) for s, image_size_a in zip(cropper.slices, image_size)]
+            crop_slices = [slice(int(s), int(e)) for s, e in zip(crop_start, crop_end)]
+
+            # crop images
+            cropper = SpatialCrop(roi_slices=crop_slices)
+            for image_key in self.image_keys:
+                results[i][image_key] = cropper(d[image_key])  # type: ignore
+
+            # crop boxes and labels
+            boxcropper = SpatialCropBox(roi_slices=crop_slices)
+            results[i][self.box_keys], cropped_labels = boxcropper(boxes, labels)
+            for label_key, cropped_labels_i in zip(self.label_keys, cropped_labels):
+                results[i][label_key] = cropped_labels_i
+
+            # add `patch_index` to the meta data
+            for key, meta_key, meta_key_postfix in zip(self.image_keys, self.meta_keys, self.meta_key_postfix):
+                meta_key = meta_key or f"{key}_{meta_key_postfix}"
+                if meta_key not in results[i]:
+                    results[i][meta_key] = {}  # type: ignore
+                results[i][meta_key][Key.PATCH_INDEX] = i  # type: ignore
+
+        return results
+
+
+class RotateBox90d(MapTransform, InvertibleTransform):
+    """
+    Input boxes and images are rotated by 90 degrees
+    in the plane specified by ``spatial_axes`` for ``k`` times
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
+        k: number of times to rotate by 90 degrees.
+        spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default (0, 1), this is the first two axis in spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    backend = RotateBox90.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        k: int = 1,
+        spatial_axes: Tuple[int, int] = (0, 1),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+        self.img_rotator = Rotate90(k, spatial_axes)
+        self.box_rotator = RotateBox90(k, spatial_axes)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            spatial_size = list(d[box_ref_image_key].shape[1:])
+            d[key] = self.box_rotator(d[key], spatial_size)
+            if self.img_rotator.k % 2 == 1:
+                # if k = 1 or 3, spatial_size will be transposed
+                spatial_size[self.img_rotator.spatial_axes[0]], spatial_size[self.img_rotator.spatial_axes[1]] = (
+                    spatial_size[self.img_rotator.spatial_axes[1]],
+                    spatial_size[self.img_rotator.spatial_axes[0]],
+                )
+            self.push_transform(d, key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
+
+        for key in self.image_keys:
+            d[key] = self.img_rotator(d[key])
+            self.push_transform(d, key, extra_info={"type": "image_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            num_times_to_rotate = 4 - self.img_rotator.k
+
+            if key_type == "image_key":
+                inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
+                d[key] = inverse_transform(d[key])
+            if key_type == "box_key":
+                spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                inverse_transform = RotateBox90(num_times_to_rotate, self.box_rotator.spatial_axes)
+                d[key] = inverse_transform(d[key], spatial_size)
+            self.pop_transform(d, key)
+        return d
+
+
+class RandRotateBox90d(RandRotate90d):
+    """
+    With probability `prob`, input boxes and images are rotated by 90 degrees
+    in the plane specified by `spatial_axes`.
+
+    Args:
+        image_keys: Keys to pick image data for transformation.
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: Keys that represent the reference images to which ``box_keys`` are attached.
+        prob: probability of rotating.
+            (Default 0.1, with 10% probability it returns a rotated array.)
+        max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`.
+            (Default 3)
+        spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
+            Default: (0, 1), this is the first two axis in spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    backend = RotateBox90.backend
+
+    def __init__(
+        self,
+        image_keys: KeysCollection,
+        box_keys: KeysCollection,
+        box_ref_image_keys: KeysCollection,
+        prob: float = 0.1,
+        max_k: int = 3,
+        spatial_axes: Tuple[int, int] = (0, 1),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(image_keys)
+        self.box_keys = ensure_tuple(box_keys)
+        super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
+        self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        self.randomize()
+        d = dict(data)
+
+        if self._rand_k % 4 == 0:
+            return d
+
+        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
+        # to be compatible with the random status of some previous integration tests
+        box_rotator = RotateBox90(self._rand_k, self.spatial_axes)
+        img_rotator = Rotate90(self._rand_k, self.spatial_axes)
+
+        for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
+            if self._do_transform:
+                spatial_size = list(d[box_ref_image_key].shape[1:])
+                d[key] = box_rotator(d[key], spatial_size)
+                if self._rand_k % 2 == 1:
+                    # if k = 1 or 3, spatial_size will be transposed
+                    spatial_size[self.spatial_axes[0]], spatial_size[self.spatial_axes[1]] = (
+                        spatial_size[self.spatial_axes[1]],
+                        spatial_size[self.spatial_axes[0]],
+                    )
+                self.push_transform(
+                    d, key, extra_info={"rand_k": self._rand_k, "spatial_size": spatial_size, "type": "box_key"}
+                )
+
+        for key in self.image_keys:
+            if self._do_transform:
+                d[key] = img_rotator(d[key])
+                self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = deepcopy(dict(data))
+        if self._rand_k % 4 == 0:
+            return d
+
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key)
+            key_type = transform[TraceKeys.EXTRA_INFO]["type"]
+            # Check if random transform was actually performed (based on `prob`)
+            if transform[TraceKeys.DO_TRANSFORM]:
+                num_times_rotated = transform[TraceKeys.EXTRA_INFO]["rand_k"]
+                num_times_to_rotate = 4 - num_times_rotated
+                # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
+                if key_type == "image_key":
+                    inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
+                    d[key] = inverse_transform(d[key])
+                if key_type == "box_key":
+                    spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                    inverse_transform = RotateBox90(num_times_to_rotate, self.spatial_axes)
+                    d[key] = inverse_transform(d[key], spatial_size)
+                self.pop_transform(d, key)
+        return d
+
+
 ConvertBoxModeD = ConvertBoxModeDict = ConvertBoxModed
 ConvertBoxToStandardModeD = ConvertBoxToStandardModeDict = ConvertBoxToStandardModed
 ZoomBoxD = ZoomBoxDict = ZoomBoxd
@@ -945,3 +1395,6 @@ RandFlipBoxD = RandFlipBoxDict = RandFlipBoxd
 ClipBoxToImageD = ClipBoxToImageDict = ClipBoxToImaged
 BoxToMaskD = BoxToMaskDict = BoxToMaskd
 MaskToBoxD = MaskToBoxDict = MaskToBoxd
+RandCropBoxByPosNegLabelD = RandCropBoxByPosNegLabelDict = RandCropBoxByPosNegLabeld
+RotateBox90D = RotateBox90Dict = RotateBox90d
+RandRotateBox90D = RandRotateBox90Dict = RandRotateBox90d

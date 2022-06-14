@@ -15,7 +15,11 @@
 set -e
 
 # FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
-export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+protobuf_major_version=$(pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
+if [ "$protobuf_major_version" -ge "4" ]
+then
+    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+fi
 
 # output formatting
 separator=""
@@ -532,8 +536,8 @@ then
     fi
     ${cmdPrefix}${PY_EXE} -m pylint --version
 
-    ignore_codes="E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
-    ${cmdPrefix}${PY_EXE} -m pylint monai tests -E --disable=$ignore_codes -j $NUM_PARALLEL
+    ignore_codes="C,R,W,E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
+    ${cmdPrefix}${PY_EXE} -m pylint monai tests --disable=$ignore_codes -j $NUM_PARALLEL
     pylint_status=$?
 
     if [ ${pylint_status} -ne 0 ]

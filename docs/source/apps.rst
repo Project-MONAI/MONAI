@@ -126,9 +126,19 @@ Applications
 `Detection`
 -----------
 
-`RetinaNet`
-~~~~~~~~~~~
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
+    :members:
+
+`RetinaNet Network`
+~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.apps.detection.networks.retinanet_network
+    :members:
+
+`RetinaNet Detector`
+~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.retinanet_detector
     :members:
 
 `Transforms`
@@ -153,4 +163,24 @@ Applications
 `Box coder`
 ~~~~~~~~~~~
 .. automodule:: monai.apps.detection.utils.box_coder
+    :members:
+
+`Detection Utilities`
+~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.detector_utils
+    :members:
+
+.. automodule:: monai.apps.detection.utils.predict_utils
+    :members:
+
+`Inference box selector`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_selector
+    :members:
+
+`Detection metrics`
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.metrics.coco
+    :members:
+.. automodule:: monai.apps.detection.metrics.matching
     :members:

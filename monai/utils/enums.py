@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 from enum import Enum
 from typing import Optional
 
@@ -37,6 +38,7 @@ __all__ = [
     "ForwardMode",
     "TransformBackends",
     "BoxModeName",
+    "GridPatchSort",
 ]
 
 
@@ -272,6 +274,7 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+    METADATA = "metadata"
 
 
 class PostFix:
@@ -329,3 +332,58 @@ class BoxModeName(Enum):
     XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
     CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+
+
+class ProbMapKeys(str, Enum):
+    """
+    The keys to be used for generating the probability maps from patches
+    """
+
+    LOCATION = "mask_location"
+    SIZE = "mask_size"
+    COUNT = "num_patches"
+    NAME = "name"
+
+
+class GridPatchSort(str, Enum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    RANDOM = "random"
+    MIN = "min"
+    MAX = "max"
+
+    @staticmethod
+    def min_fn(x):
+        return x[0].sum()
+
+    @staticmethod
+    def max_fn(x):
+        return -x[0].sum()
+
+    @staticmethod
+    def get_sort_fn(sort_fn):
+        if sort_fn == GridPatchSort.RANDOM:
+            return random.random
+        elif sort_fn == GridPatchSort.MIN:
+            return GridPatchSort.min_fn
+        elif sort_fn == GridPatchSort.MAX:
+            return GridPatchSort.max_fn
+        else:
+            raise ValueError(
+                f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                [e.value for e in GridPatchSort],
+            )
+
+
+class WSIPatchKeys(str, Enum):
+    """
+    The keys to be used for metadata of patches extracted from whole slide images
+    """
+
+    LOCATION = "patch_location"
+    LEVEL = "patch_level"
+    SIZE = "patch_size"
+    COUNT = "num_patches"
+    PATH = "path"

@@ -1,4 +1,4 @@
-# Copyright 2020 - 2022 -> (c) MONAI Consortium
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -474,7 +474,7 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index[:n, :n].reshape(-1)
+            self.relative_position_index.clone()[:n, :n].reshape(-1)
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)

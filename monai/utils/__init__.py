@@ -22,6 +22,7 @@ from .enums import (
     CommonKeys,
     DiceCEReduction,
     ForwardMode,
+    GridPatchSort,
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
@@ -32,12 +33,14 @@ from .enums import (
     MetricReduction,
     NumpyPadMode,
     PostFix,
+    ProbMapKeys,
     PytorchPadMode,
     SkipMode,
     TraceKeys,
     TransformBackends,
     UpsampleMode,
     Weight,
+    WSIPatchKeys,
 )
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (

@@ -1529,7 +1529,7 @@ def print_transform_backends():
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
 
 
-def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
+def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]]):
     """
     Utility to convert padding mode between numpy array and PyTorch Tensor.
 

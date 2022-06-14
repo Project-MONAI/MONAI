@@ -1,4 +1,4 @@
-# What's new in 0.8 🎉🎉
+# What's new in 0.8
 
 - Differentiable neural network topology search
 - Multiple instance learning for digital pathology WSI analysis

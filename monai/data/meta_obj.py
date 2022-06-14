@@ -14,6 +14,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Callable, Sequence
 
+from monai.utils.enums import TraceKeys
+
 _TRACK_META = True
 
 __all__ = ["get_track_meta", "set_track_meta", "MetaObj"]
@@ -73,6 +75,7 @@ class MetaObj:
 
     def __init__(self):
         self._meta: dict = self.get_default_meta()
+        self._applied_operations: list = self.get_default_applied_operations()
         self._is_batch: bool = False
 
     @staticmethod
@@ -183,8 +186,10 @@ class MetaObj:
         return self._meta
 
     @meta.setter
-    def meta(self, d: dict) -> None:
+    def meta(self, d) -> None:
         """Set the meta."""
+        if d == TraceKeys.NONE:
+            self._meta = self.get_default_meta()
         self._meta = d
 
     @property
@@ -193,8 +198,12 @@ class MetaObj:
         return self._applied_operations
 
     @applied_operations.setter
-    def applied_operations(self, t: list) -> None:
+    def applied_operations(self, t) -> None:
         """Set the applied operations."""
+        if t == TraceKeys.NONE:
+            # received no operations when decollating a batch
+            self._applied_operations = self.get_default_applied_operations()
+            return
         self._applied_operations = t
 
     def push_applied_operation(self, t: Any) -> None:

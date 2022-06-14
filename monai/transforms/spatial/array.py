@@ -24,7 +24,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd, zoom_affine
+from monai.data.utils import AFFINE_TOL, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, Pad
@@ -32,6 +32,7 @@ from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, ThreadUnsafe, Transform
 from monai.transforms.utils import (
+    convert_pad_mode,
     create_control_grid,
     create_grid,
     create_rotate,
@@ -47,6 +48,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     PytorchPadMode,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -56,15 +58,10 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
-from monai.utils.type_conversion import (
-    convert_data_type,
-    convert_to_dst_type,
-    get_equivalent_dtype,
-    get_torch_dtype_from_string,
-)
+from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
 
 nib, has_nib = optional_import("nibabel")
 
@@ -76,6 +73,8 @@ __all__ = [
     "Flip",
     "GridDistortion",
     "GridSplit",
+    "GridPatch",
+    "RandGridPatch",
     "Resize",
     "Rotate",
     "Zoom",
@@ -164,9 +163,9 @@ class SpatialResample(InvertibleTransform):
             img = MetaTensor(img, affine=dst_affine)
         img = img.to(torch.float32)
 
-        # update spatial_shape
-        if isinstance(img, MetaTensor):
-            img.meta[Key.SPATIAL_SHAPE] = img.shape[1:]
+        # # update spatial_shape
+        # if isinstance(img, MetaTensor):
+        #     img.meta[Key.SPATIAL_SHAPE] = img.shape[1:]
 
         # append the transform
         if isinstance(img, MetaTensor) and self.tracing:
@@ -270,13 +269,13 @@ class SpatialResample(InvertibleTransform):
             )
 
         try:
+            _s = convert_data_type(src_affine_, torch.Tensor, device=torch.device("cpu"))[0]
+            _d = convert_data_type(dst_affine, torch.Tensor, device=torch.device("cpu"))[0]
             xform = (
-                torch.linalg.solve(src_affine_, dst_affine)
-                if pytorch_after(1, 8, 0)
-                else torch.solve(dst_affine, src_affine_).solution  # type: ignore
+                torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
             )
         except (np.linalg.LinAlgError, RuntimeError) as e:
-            raise ValueError(f"src affine is not invertible: {src_affine_}") from e
+            raise ValueError("src affine is not invertible.") from e
         xform = to_affine_nd(spatial_rank, xform).to(img.device).to(_dtype)
         # no resampling if it's identity transform
         if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
@@ -1046,7 +1045,7 @@ class Zoom(Transform):
                     slice_vec[idx] = slice(half, half + od)
 
             padder = Pad(pad_vec, padding_mode or self.padding_mode)
-            zoomed = padder(zoomed)
+            zoomed = padder(zoomed)  # type: ignore
             zoomed = zoomed[tuple(slice_vec)]
 
         out, *_ = convert_to_dst_type(zoomed, dst=img)
@@ -2143,6 +2142,7 @@ class RandAffine(RandomizableTransform):
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
         if not do_resampling:
             img, *_ = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)
+            return img
         grid = self.get_identity_grid(sp_size)
         if self._do_transform:
             grid = self.rand_affine_grid(grid=grid, randomize=randomize)
@@ -2677,7 +2677,6 @@ class GridSplit(Transform):
                 image,
                 shape=(*self.grid, n_channels, split_size[0], split_size[1]),
                 strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-                writeable=False,
             )
             # Flatten the first two dimensions
             strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
@@ -2709,3 +2708,188 @@ class GridSplit(Transform):
         )
 
         return size, steps
+
+
+class GridPatch(Transform):
+    """
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps.
+    It can sort the patches and return all or a subset of them.
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        offset: offset of starting position in the array, default is 0 for each dimension.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        offset: Optional[Sequence[int]] = None,
+        num_patches: Optional[int] = None,
+        overlap: Union[Sequence[float], float] = 0.0,
+        sort_fn: Optional[str] = None,
+        threshold: Optional[float] = None,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **pad_kwargs,
+    ):
+        self.patch_size = ensure_tuple(patch_size)
+        self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
+        self.pad_mode: Optional[NumpyPadMode] = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
+        self.pad_kwargs = pad_kwargs
+        self.overlap = overlap
+        self.num_patches = num_patches
+        self.sort_fn = sort_fn.lower() if sort_fn else None
+        self.threshold = threshold
+
+    def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Filter the patches and their locations according to a threshold
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+        """
+        if self.threshold is not None:
+            n_dims = len(image_np.shape)
+            idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+            image_np = image_np[idx]
+            locations = locations[idx]
+        return image_np, locations
+
+    def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
+        """
+        Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
+        Args:
+            image: a numpy.ndarray representing a stack of patches
+            location: a numpy.ndarray representing the stack of location of each patch
+        """
+        if self.sort_fn is None:
+            image_np = image_np[: self.num_patches]
+            locations = locations[: self.num_patches]
+        elif self.num_patches is not None:
+            n_dims = len(image_np.shape)
+            if self.sort_fn == GridPatchSort.MIN:
+                idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+            elif self.sort_fn == GridPatchSort.MAX:
+                idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+            else:
+                raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
+            idx = idx[: self.num_patches]
+            image_np = image_np[idx]
+            locations = locations[idx]
+        return image_np, locations
+
+    def __call__(self, array: NdarrayOrTensor):
+        # create the patch iterator which sweeps the image row-by-row
+        array_np, *_ = convert_data_type(array, np.ndarray)
+        patch_iterator = iter_patch(
+            array_np,
+            patch_size=(None,) + self.patch_size,  # expand to have the channel dim
+            start_pos=(0,) + self.offset,  # expand to have the channel dim
+            overlap=self.overlap,
+            copy_back=False,
+            mode=self.pad_mode,
+            **self.pad_kwargs,
+        )
+        patches = list(zip(*patch_iterator))
+        patched_image = np.array(patches[0])
+        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+
+        # Filter patches
+        if self.num_patches:
+            patched_image, locations = self.filter_count(patched_image, locations)
+        elif self.threshold:
+            patched_image, locations = self.filter_threshold(patched_image, locations)
+
+        # Convert to original data type
+        output = list(
+            zip(convert_to_dst_type(src=patched_image, dst=array)[0], convert_to_dst_type(src=locations, dst=array)[0])
+        )
+
+        # Pad the patch list to have the requested number of patches
+        if self.num_patches and len(output) < self.num_patches:
+            patch = convert_to_dst_type(
+                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
+            )[0]
+            start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
+            output += [(patch, start_location)] * (self.num_patches - len(output))
+
+        return output
+
+
+class RandGridPatch(GridPatch, RandomizableTransform):
+    """
+    Extract all the patches sweeping the entire image in a row-major sliding-window manner with possible overlaps,
+    and with random offset for the minimal corner of the image, (0,0) for 2D and (0,0,0) for 3D.
+    It can sort the patches and return all or a subset of them.
+
+    Args:
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        min_offset: the minimum range of offset to be selected randomly. Defaults to 0.
+        max_offset: the maximum range of offset to be selected randomly.
+            Defaults to image size modulo patch size.
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
+            lowest values (`"min"`), or in their default order (`None`). Default to None.
+        threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
+            Defaults to no filtering.
+        pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        patch_size: Sequence[int],
+        min_offset: Optional[Union[Sequence[int], int]] = None,
+        max_offset: Optional[Union[Sequence[int], int]] = None,
+        num_patches: Optional[int] = None,
+        overlap: Union[Sequence[float], float] = 0.0,
+        sort_fn: Optional[str] = None,
+        threshold: Optional[float] = None,
+        pad_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        **pad_kwargs,
+    ):
+        super().__init__(
+            patch_size=patch_size,
+            offset=(),
+            num_patches=num_patches,
+            overlap=overlap,
+            sort_fn=sort_fn,
+            threshold=threshold,
+            pad_mode=pad_mode,
+            **pad_kwargs,
+        )
+        self.min_offset = min_offset
+        self.max_offset = max_offset
+
+    def randomize(self, array):
+        if self.min_offset is None:
+            min_offset = (0,) * len(self.patch_size)
+        else:
+            min_offset = ensure_tuple_rep(self.min_offset, len(self.patch_size))
+        if self.max_offset is None:
+            max_offset = tuple(s % p for s, p in zip(array.shape[1:], self.patch_size))
+        else:
+            max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
+
+        self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
+
+    def __call__(self, array: NdarrayOrTensor, randomize: bool = True):
+        if randomize:
+            self.randomize(array)
+        return super().__call__(array)

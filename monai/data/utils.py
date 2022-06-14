@@ -35,6 +35,8 @@ from monai.utils import (
     BlendMode,
     Method,
     NumpyPadMode,
+    PytorchPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -246,7 +248,7 @@ def iter_patch(
     start_pos: Sequence[int] = (),
     overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    mode: Optional[Union[NumpyPadMode, str]] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """
@@ -261,10 +263,8 @@ def iter_patch(
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: One of the listed string values in ``monai.utils.NumpyPadMode`` or ``monai.utils.PytorchPadMode``,
+            or a user supplied function. If None, no wrapping is performed. Defaults to ``"wrap"``.
         pad_opts: padding options, see `numpy.pad`
 
     Yields:
@@ -284,19 +284,28 @@ def iter_patch(
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
+    # set padded flag to false if pad mode is None
+    padded = True if mode else False
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+    if padded:
+        arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        # choose a start position in the padded image
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
 
-    # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        # choose a size to iterate over which is smaller than the actual padded image to prevent producing
+        # patches which are only in the padded regions
+        iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
+    else:
+        arrpad = arr
+        start_pos_padded = start_pos
+        iter_size = arr.shape
 
-    # choose a size to iterate over which is smaller than the actual padded image to prevent producing
-    # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
-
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap, padded=padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        if padded:
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        else:
+            coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
@@ -404,12 +413,16 @@ def list_data_collate(batch: Sequence):
                 data_for_batch = [d[key] for d in data]
                 ret[key] = default_collate(data_for_batch)
                 if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
+                    meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].meta = default_collate(meta_list)
+                    ops_list = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
+                    ret[key].applied_operations = default_collate(ops_list)
                     ret[key].is_batch = True
         else:
             ret = default_collate(data)
             if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = list_data_collate([i.meta for i in data])
+                ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
+                ret.applied_operations = default_collate([i.applied_operations or TraceKeys.NONE for i in data])
                 ret.is_batch = True
         return ret
     except RuntimeError as re:
@@ -532,14 +545,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
-        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            batch_size = len(out_list)
-            b, _, _ = _non_zipping_check(batch.meta, detach, pad, fill_value)
-            if b == batch_size:
-                metas = decollate_batch(batch.meta)
-                for i in range(len(out_list)):
-                    out_list[i].meta = metas[i]  # type: ignore
-                    out_list[i].is_batch = False  # type: ignore
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
@@ -562,8 +576,8 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
 def pad_list_data_collate(
     batch: Sequence,
     method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-    **np_kwargs,
+    mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+    **kwargs,
 ):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
@@ -581,13 +595,13 @@ def pad_list_data_collate(
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
+    return PadListDataCollate(method=method, mode=mode, **kwargs)(batch)
 
 
 def no_collation(x):
