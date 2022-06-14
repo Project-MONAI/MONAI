@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import MetaTensor, create_test_image_3d, decollate_batch
+from monai.data import create_test_image_3d, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
@@ -31,7 +31,6 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     EnsureChannelFirstd,
-    FromMetaTensord,
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
@@ -40,7 +39,6 @@ from monai.transforms import (
     Spacingd,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -187,7 +185,6 @@ def run_inference_test(root_dir, device="cuda:0"):
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
         ]
     )
@@ -225,11 +222,10 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
             # decollate prediction into a list
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
-            val_meta = decollate_batch(val_data[PostFix.meta("img")])
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            for img, meta in zip(val_outputs, val_meta):  # save a decollated batch of files
-                saver(MetaTensor(img, meta=meta))
+            for img in val_outputs:  # save a decollated batch of files
+                saver(img)
 
     return dice_metric.aggregate().item()
 
