@@ -34,6 +34,7 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     EnsureChannelFirstd,
+    EnsureTyped,
     FgBgToIndicesd,
     LoadImaged,
     RandAffined,
@@ -93,6 +94,7 @@ class IntegrationFastTrain(DistTestCase):
                 # and cache them to accelerate training
                 FgBgToIndicesd(keys="label", fg_postfix="_fg", bg_postfix="_bg"),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
+                EnsureTyped(keys=["image", "label"], drop_meta=True),
                 ToDeviced(keys=["image", "label"], device=device),
                 # randomly crop out patch samples from big
                 # image based on pos / neg ratio

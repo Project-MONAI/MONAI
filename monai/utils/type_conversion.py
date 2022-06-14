@@ -271,7 +271,7 @@ def convert_data_type(
     device: Optional[torch.device] = None,
     dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
-    drop_meta: bool = False,
+    drop_meta: bool = True,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
@@ -285,7 +285,9 @@ def convert_data_type(
             If left blank, it remains unchanged.
         wrap_sequence: if `False`, then lists will recursively call this function.
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
-        drop_meta: whether to drop the metadata when converting from a MetaTensor type to a non-MetaTensor.
+        drop_meta: whether to drop the meta information of the input data, default to `True`.
+            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
+            If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
 
     Returns:
         modified data, orig_type, orig_device
@@ -323,8 +325,13 @@ def convert_data_type(
         and not issubclass(output_type, monai.data.MetaObj)
         and isinstance(data, monai.data.MetaObj)
     )
-    if is_meta_to_tensor and not drop_meta:
-        output_type = type(data)
+    if not drop_meta:
+        if is_meta_to_tensor:
+            output_type = type(data)
+        else:
+            raise RuntimeError(
+                f"the specified output_type {output_type} is not compatible with option drop_meta=False."
+            )
 
     data_: NdarrayTensor
 
@@ -348,7 +355,7 @@ def convert_to_dst_type(
     dst: NdarrayTensor,
     dtype: Union[DtypeLike, torch.dtype, None] = None,
     wrap_sequence: bool = False,
-    drop_meta: bool = False,
+    drop_meta: bool = True,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -362,7 +369,9 @@ def convert_to_dst_type(
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
-        drop_meta: whether to drop the metadata when converting from a MetaTensor type to a non-MetaTensor.
+        drop_meta: whether to drop the meta information of the input data, default to `True`.
+            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
+            If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
 
     See Also:
         :func:`convert_data_type`
