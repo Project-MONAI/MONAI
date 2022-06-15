@@ -80,7 +80,7 @@ class MetaObj:
         self._is_batch: bool = False
 
     @staticmethod
-    def flatten_meta_objs(args: Iterable):
+    def flatten_meta_objs(*args: Iterable):
         """
         Recursively flatten input and yield all instances of `MetaObj`.
         This means that for both `torch.add(a, b)`, `torch.stack([a, b])` (and
@@ -88,11 +88,11 @@ class MetaObj:
         `MetaObj`.
 
         Args:
-            args: Iterable of inputs to be flattened.
+            args: Iterables of inputs to be flattened.
         Returns:
             list of nested `MetaObj` from input.
         """
-        for a in args:
+        for a in itertools.chain(*args):
             if isinstance(a, (list, tuple)):
                 yield from MetaObj.flatten_meta_objs(a)
             elif isinstance(a, MetaObj):
@@ -130,7 +130,7 @@ class MetaObj:
                 setattr(self, a, d() if callable(defaults) else d)
         return
 
-    def _copy_meta(self, input_objs) -> None:
+    def _copy_meta(self, input_objs, deep_copy=False) -> None:
         """
         Copy metadata from an iterable of `MetaObj` instances. For a given attribute, we copy the
         adjunct data from the first element in the list containing that attribute.
@@ -140,10 +140,10 @@ class MetaObj:
 
         """
         self._copy_attr(
-            ["meta", "applied_operations", "is_batch"],
+            ["meta", "applied_operations"],
             input_objs,
-            [MetaObj.get_default_meta(), MetaObj.get_default_applied_operations(), False],
-            False,
+            [MetaObj.get_default_meta(), MetaObj.get_default_applied_operations()],
+            deep_copy,
         )
 
     @staticmethod

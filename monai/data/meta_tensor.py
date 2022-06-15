@@ -175,6 +175,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         out = []
         metas = None
+        is_batch = any(x.is_batch for x in MetaObj.flatten_meta_objs(args, kwargs.values()) if hasattr(x, "is_batch"))
         for idx, ret in enumerate(rets):
             # if not `MetaTensor`, nothing to do.
             if not isinstance(ret, MetaTensor):
@@ -184,8 +185,9 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
-                meta_args = MetaObj.flatten_meta_objs(itertools.chain(args, kwargs.values()))  # type: ignore
-                ret._copy_meta(meta_args)
+                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())  # type: ignore
+                ret._copy_meta(meta_args, deep_copy=not is_batch)
+                ret.is_batch = is_batch
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
@@ -194,7 +196,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 # the data is returned. Depending on how the data are indexed, we return
                 # some or all of the metadata, and the return object may or may not be a
                 # batch of data (e.g., `batch[:,-1]` versus `batch[0]`).
-                if ret.is_batch:
+                if is_batch:
                     # if indexing e.g., `batch[0]`
                     if func == torch.Tensor.__getitem__:
                         batch_idx = args[1]
