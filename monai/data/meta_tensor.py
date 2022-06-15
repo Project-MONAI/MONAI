@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
+import itertools
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 
 import torch
 
@@ -126,7 +127,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         elif isinstance(x, MetaTensor):
             self.applied_operations = x.applied_operations
         else:
-            self.applied_operations = self.get_default_applied_operations()
+            self.applied_operations = MetaObj.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
@@ -134,11 +135,12 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.applied_operations = deepcopy(self.applied_operations)
         self.affine = self.affine.to(self.device)
 
-    def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
-        super()._copy_attr(attribute, input_objs, default_fn, deep_copy)
-        val = getattr(self, attribute)
-        if isinstance(val, torch.Tensor):
-            setattr(self, attribute, val.to(self.device))
+    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
+        super()._copy_attr(attributes, input_objs, defaults, deep_copy)
+        for a in attributes:
+            val = getattr(self, a)
+            if isinstance(val, torch.Tensor):
+                setattr(self, a, val.to(self.device))
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -182,20 +184,17 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
-                meta_args = MetaObj.flatten_meta_objs(list(args) + list(kwargs.values()))
-                # this is not implemented but the network arch may run into this case:
+                meta_args = MetaObj.flatten_meta_objs(itertools.chain(args, kwargs.values()))  # type: ignore
+                ret._copy_meta(meta_args)
+                # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
-                ret._copy_meta(meta_args)
 
                 # If we have a batch of data, then we need to be careful if a slice of
                 # the data is returned. Depending on how the data are indexed, we return
                 # some or all of the metadata, and the return object may or may not be a
                 # batch of data (e.g., `batch[:,-1]` versus `batch[0]`).
                 if ret.is_batch:
-                    # only decollate metadata once
-                    if metas is None:
-                        metas = decollate_batch(ret.meta)
                     # if indexing e.g., `batch[0]`
                     if func == torch.Tensor.__getitem__:
                         batch_idx = args[1]
@@ -205,6 +204,9 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
                         if batch_idx not in (slice(None, None, None), Ellipsis):
+                            # only decollate metadata once
+                            if metas is None:
+                                metas = decollate_batch(ret.meta)
                             meta = metas[batch_idx]
                             # if using e.g., `batch[0:2]`, then `is_batch` should still be
                             # `True`. Also re-collate the remaining elements.
@@ -226,6 +228,8 @@ class MetaTensor(MetaObj, torch.Tensor):
                         else:
                             dim = 0
                         if dim == 0:
+                            if metas is None:
+                                metas = decollate_batch(ret.meta)
                             ret.meta = metas[idx]
                             ret.is_batch = False
 

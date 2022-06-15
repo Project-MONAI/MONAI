@@ -96,12 +96,9 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(out, type(orig))
         if shape:
             assert_allclose(torch.as_tensor(out.shape), torch.as_tensor(orig.shape))
-        if vals:
-            assert_allclose(out, orig, **kwargs)
         if check_ids:
             self.check_ids(out, orig, ids)
         self.assertTrue(str(device) in str(out.device))
-
         # check meta and affine are equal and affine is on correct device
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
             self.check_meta(orig, out)
@@ -109,6 +106,8 @@ class TestMetaTensor(unittest.TestCase):
             if check_ids:
                 self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
+        if vals:
+            assert_allclose(out, orig, **kwargs)
 
     @parameterized.expand(TESTS)
     def test_as_tensor(self, device, dtype):
@@ -148,17 +147,17 @@ class TestMetaTensor(unittest.TestCase):
         orig, _ = self.get_im(device=device, dtype=dtype)
         m = orig.clone()
         m = m.to("cuda")
-        self.check(m, orig, ids=False, device="cuda")
+        self.check(m, orig, check_ids=False, device="cuda")
         m = m.cpu()
-        self.check(m, orig, ids=False, device="cpu")
+        self.check(m, orig, check_ids=False, device="cpu")
         m = m.cuda()
-        self.check(m, orig, ids=False, device="cuda")
+        self.check(m, orig, check_ids=False, device="cuda")
         m = m.to("cpu")
-        self.check(m, orig, ids=False, device="cpu")
+        self.check(m, orig, check_ids=False, device="cpu")
         m = m.to(device="cuda")
-        self.check(m, orig, ids=False, device="cuda")
+        self.check(m, orig, check_ids=False, device="cuda")
         m = m.to(device="cpu")
-        self.check(m, orig, ids=False, device="cpu")
+        self.check(m, orig, check_ids=False, device="cpu")
 
     @skip_if_no_cuda
     def test_affine_device(self):
@@ -174,10 +173,10 @@ class TestMetaTensor(unittest.TestCase):
         self.check(a, m, ids=True)
         # deepcopy
         a = deepcopy(m)
-        self.check(a, m, ids=False)
+        self.check(a, m, check_ids=False)
         # clone
         a = m.clone()
-        self.check(a, m, ids=False)
+        self.check(a, m, check_ids=False)
 
     @parameterized.expand(TESTS)
     def test_add(self, device, dtype):
@@ -202,7 +201,7 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv3d(im.shape[1], 5, 3)
         conv.to(device)
         out = conv(im)
-        self.check(out, im, shape=False, vals=False, ids=False)
+        self.check(out, im, shape=False, vals=False, check_ids=False)
 
     @parameterized.expand(TESTS)
     def test_stack(self, device, dtype):
@@ -210,8 +209,8 @@ class TestMetaTensor(unittest.TestCase):
         ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
         stacked = torch.stack(ims)
         self.assertIsInstance(stacked, MetaTensor)
-        orig_affine = ims[0].meta.pop("affine")
-        stacked_affine = stacked.meta.pop("affine")
+        orig_affine = ims[0].meta.get("affine")
+        stacked_affine = stacked.meta.get("affine")
         assert_allclose(orig_affine, stacked_affine)
         self.assertEqual(stacked.meta, ims[0].meta)
 
@@ -244,7 +243,7 @@ class TestMetaTensor(unittest.TestCase):
                     "your pytorch version if this is important to you."
                 )
                 im_conv = im_conv.as_tensor()
-            self.check(out, im_conv, ids=False)
+            self.check(out, im_conv, check_ids=False)
 
     def test_pickling(self):
         m, _ = self.get_im()
@@ -267,7 +266,7 @@ class TestMetaTensor(unittest.TestCase):
         im_conv = conv(im)
         with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
-        self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
+        self.check(im_conv2, im_conv, check_ids=False, rtol=1e-2, atol=1e-2)
 
     def test_out(self):
         """Test when `out` is given as an argument."""
