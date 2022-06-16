@@ -834,13 +834,18 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             # do the transform
             if do_resampling:
                 d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
-            self.push_transform(d[key], extra_info={"do_resampling": do_resampling})
+                # for the inverse, we need to know if the resampling was actually performed
+                d[key].applied_operations[-1][TraceKeys.EXTRA_INFO]["do_resampling"] = True
+            else:
+                self.push_transform(d[key], extra_info={"do_resampling": False})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
+            tr = self.get_most_recent_transform(d[key])
+            do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
             if self.pop_transform(d[key])[TraceKeys.EXTRA_INFO]["do_resampling"]:
                 d[key] = self.rand_affine.inverse(d[key])
 

@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
+from monai.data.meta_tensor import MetaTensor
 
 from monai.transforms import RandAffine
 from monai.utils.type_conversion import convert_data_type
@@ -147,6 +148,8 @@ class TestRandAffine(unittest.TestCase):
         test_local_inversion(g, result, input_data)
 
         assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4, type_test=False)
+        self.assertIsInstance(result, MetaTensor)
+        self.assertEqual(len(result.applied_operations), 1)
 
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):
