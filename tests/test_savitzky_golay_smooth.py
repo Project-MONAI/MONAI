@@ -12,11 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import SavitzkyGolaySmooth
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 # Zero-padding trivial tests
 
@@ -65,7 +64,7 @@ class TestSavitzkyGolaySmooth(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = SavitzkyGolaySmooth(**arguments)(p(image.astype(np.float32)))
-            torch.testing.assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
+            assert_allclose(result, p(expected_data.astype(np.float32)), rtol=1e-4, atol=atol)
 
 
 if __name__ == "__main__":
