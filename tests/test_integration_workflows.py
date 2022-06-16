@@ -24,7 +24,7 @@ from ignite.metrics import Accuracy
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import MetaTensor, create_test_image_3d, decollate_batch
+from monai.data import create_test_image_3d
 from monai.engines import IterationEvents, SupervisedEvaluator, SupervisedTrainer
 from monai.handlers import (
     CheckpointLoader,
@@ -43,7 +43,6 @@ from monai.transforms import (
     AsChannelFirstd,
     AsDiscreted,
     Compose,
-    FromMetaTensord,
     KeepLargestConnectedComponentd,
     LoadImaged,
     RandCropByPosNegLabeld,
@@ -51,10 +50,8 @@ from monai.transforms import (
     SaveImage,
     SaveImaged,
     ScaleIntensityd,
-    ToMetaTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import PostFix
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
 
@@ -221,7 +218,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
-            FromMetaTensord(["image", "label"]),
         ]
     )
 
@@ -245,7 +241,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            ToMetaTensord(keys="pred", meta_keys="image"),
             SaveImaged(keys="pred", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
@@ -257,11 +252,8 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     saver = SaveImage(output_dir=root_dir, output_postfix="seg_handler")
 
     def save_func(engine):
-        meta_data = from_engine(PostFix.meta("image"))(engine.state.batch)
-        if isinstance(meta_data, dict):
-            meta_data = decollate_batch(meta_data)
-        for m, o in zip(meta_data, from_engine("pred")(engine.state.output)):
-            saver(MetaTensor(o, meta=m))
+        for o in from_engine("pred")(engine.state.output):
+            saver(o)
 
     evaluator = SupervisedEvaluator(
         device=device,
