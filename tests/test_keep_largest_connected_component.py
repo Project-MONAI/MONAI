@@ -350,6 +350,7 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
         result = converter(input_image)
+        self.assertEqual(type(input_image), type(result))
         assert_allclose(result, expected, type_test=False)
 
     @parameterized.expand(TESTS)
