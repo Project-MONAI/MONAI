@@ -39,6 +39,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_LR_nifti.nii.gz",
             "hash_type": "sha256",
             "hash_val": "c01a50caa7a563158ecda43d93a1466bfc8aa939bc16b06452ac1089c54661c8"
+        },
+        "ref_avg152T1_RL": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_RL_nifti.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "8a731128dac4de46ccb2cc60d972b98f75a52f21fb63ddb040ca96f0aed8b51a"
         }
     },
     "models": {

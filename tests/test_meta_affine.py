@@ -17,21 +17,38 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.image_writer import ITKWriter
-from monai.transforms import EnsureChannelFirst, LoadImage, Randomizable, Transform
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirst,
+    EnsureChannelFirstd,
+    LoadImage,
+    LoadImaged,
+    MapTransform,
+    Orientation,
+    Orientationd,
+    Randomizable,
+    Spacing,
+    Spacingd,
+    Transform,
+)
 from monai.utils import convert_data_type, optional_import
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 itk, has_itk = optional_import("itk")
 TINY_DIFF = 1e-4
 
-key = "ref_avg152T1_LR"
+keys = ("img1", "img2")
+key, key_1 = "ref_avg152T1_LR", "ref_avg152T1_RL"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
+FILE_PATH_1 = os.path.join(os.path.dirname(__file__), "testing_data", f"{key_1}.nii.gz")
 
-TEST_CASES = [
+TEST_CASES_ARRAY = [
+    [Compose([Spacing(pixdim=(1.0, 1.1, 1.2)), Orientation(axcodes="RAS")]), {}, TINY_DIFF],
+    [Compose([Orientation(axcodes="RAS"), Spacing(pixdim=(1.0, 1.1, 1.2))]), {}, TINY_DIFF],
+    ["CropForeground", {"k_divisible": 3}, TINY_DIFF],
     ["BorderPad", {"spatial_border": (2, 3, 4)}, TINY_DIFF],
     ["CenterScaleCrop", {"roi_scale": (0.6, 0.7, 0.8)}, TINY_DIFF],
     ["CenterSpatialCrop", {"roi_size": (30, 200, 52)}, TINY_DIFF],
-    ["CropForeground", {"k_divisible": 3}, TINY_DIFF],
     ["DivisiblePad", {"k": 16}, TINY_DIFF],
     ["RandScaleCrop", {"roi_scale": (0.3, 0.4, 0.5)}, TINY_DIFF],
     ["RandSpatialCrop", {"roi_size": (31, 32, 33)}, TINY_DIFF],
@@ -39,7 +56,7 @@ TEST_CASES = [
     ["Spacing", {"pixdim": (1.0, 1.1, 1.2)}, TINY_DIFF],
     ["Orientation", {"axcodes": "RAS"}, TINY_DIFF],
     ["Flip", {"spatial_axis": (0, 1)}, TINY_DIFF],
-    ["Resize", {"spatial_size": (100, 201, 134)}, 10.0],
+    ["Resize", {"spatial_size": (100, 201, 1)}, 30.0],
     ["Rotate", {"angle": (np.pi / 3, np.pi / 2, np.pi / 4), "mode": "bilinear"}, 20.0],
     ["Zoom", {"zoom": (0.8, 0.91, 1.2)}, 20.0],
     ["Rotate90", {"k": 3}, TINY_DIFF],
@@ -48,17 +65,6 @@ TEST_CASES = [
     ["RandFlip", {"prob": 1.0}, TINY_DIFF],
     ["RandAxisFlip", {"prob": 1.0}, TINY_DIFF],
     ["RandZoom", {"prob": 1.0, "mode": "trilinear"}, TINY_DIFF],
-    [
-        "Affine",
-        {
-            "rotate_params": (np.pi / 4, 0.0, 0.0),
-            "translate_params": (3, 4, 5),
-            "spatial_size": (30, 40, 50),
-            "mode": "bilinear",
-            "image_only": True,
-        },
-        20.0,
-    ],
     [
         "RandAffine",
         {
@@ -72,7 +78,27 @@ TEST_CASES = [
         },
         20.0,
     ],
+    [
+        "Affine",
+        {
+            "rotate_params": (np.pi / 4, 0.0, 0.0),
+            "translate_params": (3, 4, 5),
+            "spatial_size": (30, 40, 50),
+            "mode": "bilinear",
+            "image_only": True,
+        },
+        20.0,
+    ],
 ]
+
+TEST_CASES_DICT = [
+    [Compose([Spacingd(keys, pixdim=(1.0, 1.1, 1.2)), Orientationd(keys, axcodes="LAS")]), {}, TINY_DIFF],
+    [Compose([Orientationd(keys, axcodes="LAS"), Spacingd(keys, pixdim=(1.0, 1.1, 1.2))]), {}, TINY_DIFF],
+    ["CropForegroundd", {"k_divisible": 3, "source_key": "img1"}, TINY_DIFF],
+]
+for c in TEST_CASES_ARRAY[3:-1]:  # exclude CropForegroundd and Affined
+    TEST_CASES_DICT.append(deepcopy(c))
+    TEST_CASES_DICT[-1][0] = TEST_CASES_DICT[-1][0] + "d"  # type: ignore
 
 
 def _create_itk_obj(array, affine):
@@ -98,36 +124,54 @@ class TestAffineConsistencyITK(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        config = testing_data_config("images", f"{key}")
-        download_url_or_skip_test(url=config["url"], filepath=FILE_PATH)
+        for k, n in ((key, FILE_PATH), (key_1, FILE_PATH_1)):
+            config = testing_data_config("images", f"{k}")
+            download_url_or_skip_test(filepath=n, **config)
 
-    @parameterized.expand(TEST_CASES)
+    def run_transform(self, img, xform_cls, args_dict):
+        if isinstance(xform_cls, Transform):
+            xform = xform_cls
+            output = xform(img, **args_dict)
+        else:
+            if isinstance(xform_cls, str):
+                xform_cls, _ = optional_import("monai.transforms", name=xform_cls)
+            if issubclass(xform_cls, MapTransform):
+                args_dict.update({"keys": keys})
+            xform = xform_cls(**args_dict)
+            if isinstance(xform, Randomizable):
+                xform.set_random_state(5)
+            output = xform(img)
+        return output
+
+    @parameterized.expand(TEST_CASES_ARRAY)
     def test_linear_consistent(self, xform_cls, input_dict, atol):
         """xformcls testing itk consistency"""
         img = LoadImage()(FILE_PATH)
         img = EnsureChannelFirst()(img)
-
         ref_1 = _create_itk_obj(img[0], img.affine)
-
-        if isinstance(xform_cls, Transform):
-            xform = xform_cls
-            output = xform(img, **input_dict)
-        else:
-            if isinstance(xform_cls, str):
-                xform_cls, _ = optional_import("monai.transforms", name=xform_cls)
-            xform = xform_cls(**input_dict)
-            if isinstance(xform, Randomizable):
-                xform.set_random_state(5)
-            output = xform(img)
-
+        output = self.run_transform(img, xform_cls, input_dict)
         ref_2 = _create_itk_obj(output[0], output.affine)
         expected = _resample_to_affine(ref_1, ref_2)
-
         # compare ref_2 and expected results from itk
         diff = np.abs(itk.GetArrayFromImage(ref_2) - itk.GetArrayFromImage(expected))
         avg_diff = np.mean(diff)
 
         self.assertTrue(avg_diff < atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
+
+    @parameterized.expand(TEST_CASES_DICT)
+    def test_linear_consistent_dict(self, xform_cls, input_dict, atol):
+        """xformcls testing itk consistency"""
+        img = LoadImaged(keys)({keys[0]: FILE_PATH, keys[1]: FILE_PATH_1})
+        img = EnsureChannelFirstd(keys)(img)
+        ref_1 = {k: _create_itk_obj(img[k][0], img[k].affine) for k in keys}
+        output = self.run_transform(img, xform_cls, input_dict)
+        ref_2 = {k: _create_itk_obj(output[k][0], output[k].affine) for k in keys}
+        expected = {k: _resample_to_affine(ref_1[k], ref_2[k]) for k in keys}
+        # compare ref_2 and expected results from itk
+        diff = {k: np.abs(itk.GetArrayFromImage(ref_2[k]) - itk.GetArrayFromImage(expected[k])) for k in keys}
+        avg_diff = {k: np.mean(diff[k]) for k in keys}
+        for k in keys:
+            self.assertTrue(avg_diff[k] < atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
 
 
 if __name__ == "__main__":
