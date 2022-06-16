@@ -57,7 +57,7 @@ metadata.json File
 
 This file contains the metadata information relating to the model, including what the shape and format of inputs and outputs are, what the meaning of the outputs are, what type of model is present, and other information. The JSON structure is a dictionary containing a defined set of keys with additional user-specified keys. The mandatory keys are as follows:
 
-* **version**: version of the stored model, this allows multiple versions of the same model to be differentiated.
+* **version**: version of the stored model, this allows multiple versions of the same model to be differentiated. Versions should follow semantic versioning and contain only characters valid in filenames as we may include the version to construct bundle file name.
 * **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
 * **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
 * **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
