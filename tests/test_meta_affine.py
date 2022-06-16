@@ -32,7 +32,7 @@ from monai.transforms import (
     Transform,
 )
 from monai.utils import convert_data_type, optional_import
-from tests.utils import download_url_or_skip_test, testing_data_config
+from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 itk, has_itk = optional_import("itk")
 TINY_DIFF = 1e-4
@@ -151,6 +151,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
         ref_1 = _create_itk_obj(img[0], img.affine)
         output = self.run_transform(img, xform_cls, input_dict)
         ref_2 = _create_itk_obj(output[0], output.affine)
+        assert_allclose(output.pixdim, np.asarray(ref_2.GetSpacing()), type_test=False)
         expected = _resample_to_affine(ref_1, ref_2)
         # compare ref_2 and expected results from itk
         diff = np.abs(itk.GetArrayFromImage(ref_2) - itk.GetArrayFromImage(expected))

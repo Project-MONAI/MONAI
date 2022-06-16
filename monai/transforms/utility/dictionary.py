@@ -1011,6 +1011,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         print(lambd(input_data)['label'].shape)
         (4, 2, 2)
 
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
