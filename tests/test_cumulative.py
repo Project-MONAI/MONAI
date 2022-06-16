@@ -35,6 +35,8 @@ class TestCumulative(unittest.TestCase):
         c.append()
         c.extend()
         self.assertEqual(c.get_buffer(), [])
+        c.get_buffer().append(1)
+        self.assertEqual(c.get_buffer(), [])  # no in-place update for the buffer
 
         c.reset()
 

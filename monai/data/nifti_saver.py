@@ -29,8 +29,8 @@ class NiftiSaver:
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together.
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
-    where the input image name is extracted from the provided meta data dictionary.
-    If no meta data provided, use index from 0 as the filename prefix.
+    where the input image name is extracted from the provided metadata dictionary.
+    If no metadata provided, use index from 0 as the filename prefix.
 
     Note: image should include channel dimension: [B],C,H,W,[D].
 
@@ -129,7 +129,7 @@ class NiftiSaver:
         Args:
             data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
-            meta_data: the meta data information corresponding to the data.
+            meta_data: the metadata information corresponding to the data.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`
