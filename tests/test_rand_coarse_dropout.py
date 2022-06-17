@@ -17,6 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandCoarseDropout
 from monai.utils import fall_back_tuple
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_0 = [
     {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": 5, "prob": 1.0},
@@ -64,9 +65,11 @@ class TestRandCoarseDropout(unittest.TestCase):
         [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
     )
     def test_value(self, input_param, input_data):
-        dropout = RandCoarseDropout(**input_param)
-        result = dropout(input_data)
-        self.assertEqual(type(result), type(input_data))
+        for p in TEST_NDARRAYS:
+            dropout = RandCoarseDropout(**input_param)
+            im = p(input_data)
+            result = dropout(im)
+            self.assertEqual(type(result), type(im))
         holes = input_param.get("holes")
         max_holes = input_param.get("max_holes")
         spatial_size = fall_back_tuple(input_param.get("spatial_size"), input_data.shape[1:])
@@ -84,7 +87,7 @@ class TestRandCoarseDropout(unittest.TestCase):
             if input_param.get("dropout_holes", True):
                 fill_value = input_param.get("fill_value", None)
                 if isinstance(fill_value, (int, float)):
-                    np.testing.assert_allclose(data, fill_value)
+                    assert_allclose(data, fill_value, type_test=False)
                 elif fill_value is not None:
                     min_value = data.min()
                     max_value = data.max()
@@ -92,7 +95,7 @@ class TestRandCoarseDropout(unittest.TestCase):
                     self.assertGreaterEqual(min_value, fill_value[0])
                     self.assertLess(max_value, fill_value[1])
             else:
-                np.testing.assert_allclose(data, input_data[h])
+                assert_allclose(data, input_data[h], type_test=False)
 
             if max_spatial_size is None:
                 self.assertTupleEqual(data.shape[1:], tuple(spatial_size))

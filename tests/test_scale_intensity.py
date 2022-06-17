@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
 from monai.transforms import ScaleIntensity
 from monai.transforms.utils import rescale_array
@@ -19,15 +20,17 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-    def test_range_scale(self):
-        for p in TEST_NDARRAYS:
-            scaler = ScaleIntensity(minv=1.0, maxv=2.0)
-            result = scaler(p(self.imt))
-            mina = self.imt.min()
-            maxa = self.imt.max()
-            norm = (self.imt - mina) / (maxa - mina)
-            expected = p((norm * (2.0 - 1.0)) + 1.0)
-            assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_range_scale(self, p):
+        scaler = ScaleIntensity(minv=1.0, maxv=2.0)
+        im = p(self.imt)
+        result = scaler(im)
+        self.assertEqual(type(result), type(im))
+        mina = self.imt.min()
+        maxa = self.imt.max()
+        norm = (self.imt - mina) / (maxa - mina)
+        expected = p((norm * (2.0 - 1.0)) + 1.0)
+        assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
 
     def test_factor_scale(self):
         for p in TEST_NDARRAYS:

@@ -19,7 +19,7 @@ import torch
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
-from monai.data.utils import decollate_batch, list_data_collate, remove_extra_metadata
+from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils.enums import PostFix
 from monai.utils.type_conversion import convert_to_tensor
 
@@ -304,12 +304,17 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        return self.meta["affine"]  # type: ignore
+        return self.meta.get("affine", self.get_default_affine())  # type: ignore
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
         self.meta["affine"] = torch.as_tensor(d, device=self.device)
+
+    @property
+    def pixdim(self):
+        """Get the spacing"""
+        return affine_to_spacing(self.affine)
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
