@@ -384,7 +384,7 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, v: Optional[float] = 1.0, boundaries: Tuple[float, float] = Tuple[None, None], *args, **kwargs
+        self, v: Optional[float] = 1.0, boundaries: Tuple[float, float] = Tuple[None, None], frequencies: Tuple[float, float] = Tuple[None, None], *args, **kwargs
     ) -> None:
         """
         Args:
@@ -400,10 +400,12 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
 
         self.v = v
         self.boundaries = boundaries
+        self.frequencies = frequencies
 
     def _randomize(self):
         super().randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
+        self.freqs = self.R.uniform(low=self.frequencies[0], high=self.frequencies[1])
 
     def __call__(self, signal: np.ndarray) -> np.ndarray:
         """
@@ -468,15 +470,41 @@ class SignalRandAddSinePartial(RandomizableTransform):
         block_max = block_max if block_max != 0 else None
         return slice(wall_min, wall_max), slice(block_min, block_max)
 
-    def _paste(self, wall, block, loc):
-        loc_zip = zip(loc, block.shape, wall)
-        wall_slices, block_slices = zip(*map(self._paste_slices, loc_zip))
+        time = np.arange(0, length, 1)
+        sine = self.magnitude * np.sin(self.freqs * time)
 
-        wall[:, wall_slices[0]] = block[block_slices[0]]
+        return signal + sine
 
-        if wall.shape[0] == 1:
-            wall = wall.squeeze()
-        return wall
+class SignalRandAddSquarePulse(RandomizableTransform):
+    """
+    Add a random square pulse signal to the input signal
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self, v: Optional[float] = 1.0, boundaries: Tuple[float, float] = Tuple[None, None], frequencies: Tuple[float, float] = Tuple[None, None], *args, **kwargs
+    ) -> None:
+        """
+        Args:
+            v: scaling factor
+            boundaries: list defining lower and upper boundaries for the signal drop, lower and upper values need to be positive example : ``[0.2, 0.6]``
+            frequencies: list defining lower and upper frequencies for sinusoidal signal generation example : ``[0.001, 0.02]``
+        """
+        super().__init__()
+        if boundaries is None or None in boundaries:
+            raise ValueError("Incompatible values: boundaries needs to be a list of float.")
+        if (boundaries is None) or (None in boundaries) or (any(x < 0 for x in boundaries)):
+            raise ValueError("Incompatible values: boundaries needs to be a list of positive float.")
+
+        self.v = v
+        self.boundaries = boundaries
+        self.frequencies = frequencies
+
+    def _randomize(self):
+        super().randomize(None)
+        self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
+        self.freqs = self.R.uniform(low=self.frequencies[0], high=self.frequencies[1])
 
     def __call__(self, signal: np.ndarray) -> np.ndarray:
         """
@@ -484,11 +512,9 @@ class SignalRandAddSinePartial(RandomizableTransform):
             signal: input 1 dimension signal to be resampled
         """
         self._randomize()
-        if len(signal.shape) > 1:
-            length = signal.shape[len(signal.shape) - 1]
-        else:
-            signal = signal[np.newaxis, :]
-            length = signal.shape[1]
+        if len(signal.shape) == 1:
+            signal = np.expand_dims(signal, axis=0)
+        length = signal.shape[1]
 
         time_partial = np.arange(0, round(self.fracs * length), 1)
         sine_partial = self.v * self.magnitude * np.sin(self.freqs * time_partial)
@@ -498,7 +524,50 @@ class SignalRandAddSinePartial(RandomizableTransform):
         if len(signal.shape) == 1:
             signal = np.expand_dims(signal, axis=0)
 
-        return signal
+        return signal + squaredpulse
+
+
+class SignalRandAddGaussianNoise(RandomizableTransform):
+    """
+    Add a random sinusoidal signal to the input signal
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self, v: Optional[float] = 1.0, boundaries: Tuple[float, float] = Tuple[None, None], *args, **kwargs
+    ) -> None:
+        """
+        Args:
+            v: scaling factor
+            boundaries: list defining lower and upper boundaries for the signal drop, lower and upper values need to be positive example : ``[0.2, 0.6]``
+            frequencies: list defining lower and upper frequencies for sinusoidal signal generation example : ``[0.001, 0.02]``
+        """
+        super().__init__()
+        if boundaries is None or None in boundaries:
+            raise ValueError("Incompatible values: boundaries needs to be a list of float.")
+        if (boundaries is None) or (None in boundaries) or (any(x < 0 for x in boundaries)):
+            raise ValueError("Incompatible values: boundaries needs to be a list of positive float.")
+
+        self.v = v
+        self.boundaries = boundaries
+
+    def _randomize(self):
+        super().randomize(None)
+        self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
+
+    def __call__(self, signal: np.ndarray) -> np.ndarray:
+        """
+        Args:
+            signal: input 1 dimension signal to be resampled
+        """
+        self._randomize()
+        if len(signal.shape) == 1:
+            signal = np.expand_dims(signal, axis=0)
+        length = signal.shape[1]
+
+        time = np.arange(0, length, 1)
+        gaussiannoise = self.magnitude * np.random.normal(size=length)
 
 
 class SignalRandAddSquarePulsePartial(RandomizableTransform):

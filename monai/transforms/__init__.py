@@ -294,6 +294,7 @@ from .post.dictionary import (
     VoteEnsembleDict,
 )
 from .signal.array import (
+<<<<<<< HEAD
     SignalContinousWavelet,
     SignalFillEmpty,
     SignalNormalize,
@@ -310,6 +311,15 @@ from .signal.array import (
     SignalShortTimeFourier,
     SignalStandardize,
     SignalZeroPad,
+=======
+    SignalRandDrop,
+    SignalRandScale,
+    SignalRandShift,
+    SignalResample,
+    SignalRandAddSine,
+    SignalRandAddSquarePulse,
+    SignalRandAddGaussianNoise
+>>>>>>> 503a753e0fcf8f83a1a8956025d35035c4d2a911
 )
 from .smooth_field.array import (
     RandSmoothDeform,
