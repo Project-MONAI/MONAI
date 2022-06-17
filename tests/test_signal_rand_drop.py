@@ -28,7 +28,7 @@ class TestSignalRandDrop(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)
         droped = SignalRandDrop(v, boundaries)
         dropedsignal = droped(sig)
-        self.assertEqual(len(dropedsignal), len(sig))
+        self.assertEqual(dropedsignal.shape[1], sig.shape[1])
 
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_mono_channels(self, v, boundaries):
@@ -36,7 +36,7 @@ class TestSignalRandDrop(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)[0, :]
         droped = SignalRandDrop(v, boundaries)
         dropedsignal = droped(sig)
-        self.assertEqual(len(dropedsignal), len(sig))
+        self.assertEqual(dropedsignal.shape[1], len(sig))
 
 
 if __name__ == "__main__":

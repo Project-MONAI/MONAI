@@ -30,7 +30,7 @@ class TestSignalResample(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)
         resampled = SignalResample(method, current_sample_rate, target_sample_rate)
         resampledsignal = resampled(sig)
-        self.assertEqual(len(resampledsignal), len(sig))
+        self.assertEqual(resampledsignal.shape[1], sig.shape[1] / 2)
 
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_mono_channels(self, method, current_sample_rate, target_sample_rate):
@@ -40,7 +40,7 @@ class TestSignalResample(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)[0, :]
         resampled = SignalResample(method, current_sample_rate, target_sample_rate)
         resampledsignal = resampled(sig)
-        self.assertEqual(len(resampledsignal), len(sig) / 2)
+        self.assertEqual(resampledsignal.shape[1], len(sig) / 2)
 
 
 if __name__ == "__main__":

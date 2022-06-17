@@ -590,6 +590,78 @@ Signal
     :members:
     :special-members: __call__
 
+`SignalRandAddSine`
+"""""""""""""""""
+.. autoclass:: SignalRandAddSine
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulse`
+"""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulse
+    :members:
+    :special-members: __call__
+
+`SignalRandAddGaussianNoise`
+"""""""""""""""""
+.. autoclass:: SignalRandAddGaussianNoise
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSinePartial`
+"""""""""""""""""
+.. autoclass:: SignalRandAddSinePartial
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulsePartial`
+"""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulsePartial
+    :members:
+    :special-members: __call__
+
+`SignalNormalize`
+"""""""""""""""""
+.. autoclass:: SignalNormalize
+    :members:
+    :special-members: __call__
+
+`SignalStandardize`
+"""""""""""""""""
+.. autoclass:: SignalStandardize
+    :members:
+    :special-members: __call__
+
+`SignalZeroPad`
+"""""""""""""""""
+.. autoclass:: SignalZeroPad
+    :members:
+    :special-members: __call__
+
+`SignalFillEmpty`
+"""""""""""""""""
+.. autoclass:: SignalFillEmpty
+    :members:
+    :special-members: __call__
+
+`SignalRemoveFrequency`
+"""""""""""""""""
+.. autoclass:: SignalRemoveFrequency
+    :members:
+    :special-members: __call__
+
+`SignalShortTimeFourier`
+"""""""""""""""""
+.. autoclass:: SignalShortTimeFourier
+    :members:
+    :special-members: __call__
+
+`SignalContinousWavelet`
+"""""""""""""""""
+.. autoclass:: SignalContinousWavelet
+    :members:
+    :special-members: __call__
+
 Spatial
 ^^^^^^^
 

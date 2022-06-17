@@ -18,25 +18,25 @@ from parameterized import parameterized
 from monai.transforms.signal.array import SignalRandShift
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [("wrap", 0, 1, [-1.0, 1, 0]), ("constant", 0, 1, [-1.0, 1, 0])]
+VALID_CASES = [(1, "wrap", 0, [-1.0, 1, 0])]
 
 
 class TestSignalRandShift(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_multi_channels(self, mode, filling, v, boundaries):
-        self.assertIsInstance(SignalRandShift(mode, filling, v, boundaries), SignalRandShift)
+    def test_correct_parameters_multi_channels(self, v, mode, filling, boundaries):
+        self.assertIsInstance(SignalRandShift(v, mode, filling, boundaries), SignalRandShift)
         sig = np.load(TEST_SIGNAL)
-        shifted = SignalRandShift(mode, filling, v, boundaries)
+        shifted = SignalRandShift(v, mode, filling, boundaries)
         shiftedsignal = shifted(sig)
-        self.assertEqual(len(shiftedsignal), len(sig))
+        self.assertEqual(shiftedsignal.shape[1], sig.shape[1])
 
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, mode, filling, v, boundaries):
-        self.assertIsInstance(SignalRandShift(mode, filling, v, boundaries), SignalRandShift)
+    def test_correct_parameters_mono_channels(self, v, mode, filling, boundaries):
+        self.assertIsInstance(SignalRandShift(v, mode, filling, boundaries), SignalRandShift)
         sig = np.load(TEST_SIGNAL)[0, :]
-        shifted = SignalRandShift(mode, filling, v, boundaries)
-        shidtedsignal = shifted(sig)
-        self.assertEqual(len(shidtedsignal), len(sig))
+        shifted = SignalRandShift(v, mode, filling, boundaries)
+        shiftedsignal = shifted(sig)
+        self.assertEqual(shiftedsignal.shape[1], len(sig))
 
 
 if __name__ == "__main__":

@@ -28,7 +28,7 @@ class TestSignalRandScale(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)
         scaled = SignalRandScale(v, boundaries)
         scaledsignal = scaled(sig)
-        self.assertEqual(len(scaledsignal), len(sig))
+        self.assertEqual(scaledsignal.shape[1], sig.shape[1])
 
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_mono_channels(self, v, boundaries):
@@ -36,7 +36,7 @@ class TestSignalRandScale(unittest.TestCase):
         sig = np.load(TEST_SIGNAL)[0, :]
         scaled = SignalRandScale(v, boundaries)
         scaledsignal = scaled(sig)
-        self.assertEqual(len(scaledsignal), len(sig))
+        self.assertEqual(scaledsignal.shape[1], len(sig))
 
 
 if __name__ == "__main__":
