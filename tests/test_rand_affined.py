@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor
 from monai.transforms import RandAffined
 from monai.utils import GridSampleMode
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.utils import assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
@@ -28,7 +28,10 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
     TESTS.append(
         [
             dict(device=device, spatial_size=None, keys=("img", "seg")),
-            {"img": MetaTensor(torch.arange(27).reshape((3, 3, 3))), "seg": MetaTensor(torch.arange(27).reshape((3, 3, 3)))},
+            {
+                "img": MetaTensor(torch.arange(27).reshape((3, 3, 3))),
+                "seg": MetaTensor(torch.arange(27).reshape((3, 3, 3))),
+            },
             torch.arange(27).reshape((3, 3, 3)),
         ]
     )
@@ -82,10 +85,11 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
                 keys=("img", "seg"),
                 device=device,
             ),
-            {"img": MetaTensor(torch.arange(64).reshape((1, 8, 8))), "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8)))},
-            torch.tensor(
-                [[[18.7362, 15.5820, 12.4278], [27.3988, 24.2446, 21.0904], [36.0614, 32.9072, 29.7530]]]
-            ),
+            {
+                "img": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+                "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+            },
+            torch.tensor([[[18.7362, 15.5820, 12.4278], [27.3988, 24.2446, 21.0904], [36.0614, 32.9072, 29.7530]]]),
         ]
     )
     TESTS.append(
@@ -101,7 +105,10 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
                 keys=("img", "seg"),
                 device=device,
             ),
-            {"img": MetaTensor(torch.arange(64).reshape((1, 8, 8))), "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8)))},
+            {
+                "img": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+                "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+            },
             {
                 "img": MetaTensor(
                     torch.tensor(
@@ -148,7 +155,10 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
                 keys=("img", "seg"),
                 device=device,
             ),
-            {"img": MetaTensor(torch.arange(64).reshape((1, 8, 8))), "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8)))},
+            {
+                "img": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+                "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+            },
             {
                 "img": MetaTensor(
                     np.array(
@@ -179,7 +189,10 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
                 keys=("img", "seg"),
                 device=device,
             ),
-            {"img": MetaTensor(torch.arange(64).reshape((1, 8, 8))), "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8)))},
+            {
+                "img": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+                "seg": MetaTensor(torch.arange(64).reshape((1, 8, 8))),
+            },
             {
                 "img": MetaTensor(
                     torch.tensor(
@@ -219,9 +232,15 @@ class TestRandAffined(unittest.TestCase):
         if isinstance(res["img"], MetaTensor) and "extra_info" in res["img"].applied_operations[0]:
             if not res["img"].applied_operations[-1]["extra_info"]["do_resampling"]:
                 return
-            affine_img = res["img"].applied_operations[0]["extra_info"]["affine"]
-            affine_seg = res["seg"].applied_operations[0]["extra_info"]["affine"]
+            affine_img = res["img"].applied_operations[0]["extra_info"]["rand_affine_info"]["extra_info"]["affine"]
+            affine_seg = res["seg"].applied_operations[0]["extra_info"]["rand_affine_info"]["extra_info"]["affine"]
             assert_allclose(affine_img, affine_seg, rtol=_rtol, atol=1e-3)
+
+        res_inv = g.inverse(res)
+        for k, v in res_inv.items():
+            self.assertIsInstance(v, MetaTensor)
+            self.assertEqual(len(v.applied_operations), 0)
+            self.assertTupleEqual(v.shape, input_data[k].shape)
 
     def test_ill_cache(self):
         with self.assertWarns(UserWarning):

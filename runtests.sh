@@ -374,7 +374,6 @@ then
     clang_format
 
     echo "${green}done!${noColor}"
-    exit
 fi
 
 # unconditionally report on the state of monai

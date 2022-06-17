@@ -14,8 +14,8 @@ import unittest
 import numpy as np
 import torch
 from parameterized import parameterized
-from monai.data.meta_tensor import MetaTensor
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandAffine
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env, test_local_inversion
