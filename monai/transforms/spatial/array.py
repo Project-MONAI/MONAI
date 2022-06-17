@@ -345,10 +345,10 @@ class ResampleToMatch(SpatialResample):
     and the size of the output image will match."""
 
     @deprecated_arg(
-        name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extacted directly."
+        name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
     @deprecated_arg(
-        name="dst_meta", since="0.8", msg_suffix="img_dst should be `MetaTensor`, so affine can be extacted directly."
+        name="dst_meta", since="0.8", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
     )
     def __call__(  # type: ignore
         self,
