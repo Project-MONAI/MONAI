@@ -53,9 +53,8 @@ class TestRandLambda(unittest.TestCase):
         assert_allclose(img, ret)
         if isinstance(ret, MetaTensor):
             out = trans.inverse(ret)
-            out = trans.inverse(out)
             self.assertTrue(isinstance(out, MetaTensor))
-            self.assertFalse(out.applied_operations)
+            self.assertEqual(len(out.applied_operations), 1)
 
 
 if __name__ == "__main__":
