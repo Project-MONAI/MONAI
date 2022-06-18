@@ -323,7 +323,7 @@ def convert_data_type(
         # input has a MetaObj, user chose keep the metadata, but the output type cannot take a MetaObj.
         if issubclass(output_type, torch.Tensor):
             # user-specified MetaTensor to torch tensor keep the MetaTensor type, for backward compatibility
-            output_type = type(data)
+            output_type = type(data)  # type: ignore
         else:
             raise RuntimeError(f"the specified output_type {output_type} cannot have the metaobj, but drop_meta=False.")
 
