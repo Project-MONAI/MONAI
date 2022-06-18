@@ -319,19 +319,13 @@ def convert_data_type(
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
-    # input MetaTensor, out type torch tensor, this will potentially drop the meta info
-    is_meta_to_tensor = (
-        issubclass(output_type, torch.Tensor)
-        and not issubclass(output_type, monai.data.MetaObj)
-        and isinstance(data, monai.data.MetaObj)
-    )
-    if not drop_meta:
-        if is_meta_to_tensor:
-            output_type = type(data)
+    if not drop_meta and not issubclass(output_type, monai.data.MetaObj) and isinstance(data, monai.data.MetaObj):
+        # input has a MetaObj, user chose keep the metadata, but the output type cannot take a MetaObj.
+        if issubclass(output_type, torch.Tensor):
+            # user-specified MetaTensor to torch tensor keep the MetaTensor type, for backward compatibility
+            output_type = type(data)  # type: ignore
         else:
-            raise RuntimeError(
-                f"the specified output_type {output_type} is not compatible with option drop_meta=False."
-            )
+            raise RuntimeError(f"the specified output_type {output_type} cannot have the metaobj, but drop_meta=False.")
 
     data_: NdarrayTensor
 
