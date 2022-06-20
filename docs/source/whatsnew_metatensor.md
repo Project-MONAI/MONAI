@@ -51,7 +51,27 @@ That is to say, you can use `FromMetaTensord` to convert from e.g., `{"img": Met
 
 ## Batches of `MetaTensor`
 
-There
+The end user should not really need to modify this logic, it is here for interest.
+
+We use a flag inside of the meta data to determine whether a `MetaTensor` is in fact a batch of multiple images. This logic is contained in our `default_collate`:
+
+```python
+im1, im2 = MetaTensor(...), MetaTensor(...)
+print(im1.meta.is_batch)  # False
+batch = default_collate([im1, im2])
+print(batch.meta.is_batch)  # True
+```
+
+Similar functionality can be seen with the `DataLoader`:
+```python
+ds = Dataset([im1, im2])
+print(ds[0].meta.is_batch)  # False
+dl = DataLoader(ds, batch_size=2)
+batch = next(iter(dl))
+print(batch.meta.is_batch)  # True
+```
+
+<p class="callout info">We recommend using MONAI's Dataset where possible, as this will use the correct collation method and ensure that MONAI is made aware of when a batch of data is being used or just a single image.</p>
 
 ## Disabling `MetaTensor`
 
