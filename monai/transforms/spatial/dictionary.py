@@ -849,7 +849,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             tr = self.pop_transform(d[key])
             do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
-                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])
+                d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
                 d[key] = self.rand_affine.inverse(d[key])
 
         return d
