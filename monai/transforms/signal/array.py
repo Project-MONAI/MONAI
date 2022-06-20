@@ -286,7 +286,7 @@ class SignalRandAddSine(RandomizableTransform):
             v: scaling factor
             boundaries: list defining lower and upper boundaries for the signal drop,
             lower and upper values need to be positive example : ``[0.2, 0.6]``
-            frequencies: list defining lower and upper frequencies for sinusoidal 
+            frequencies: list defining lower and upper frequencies for sinusoidal
             signal generation example : ``[0.001, 0.02]``
         """
         super().__init__()
