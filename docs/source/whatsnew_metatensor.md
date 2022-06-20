@@ -71,7 +71,7 @@ batch = next(iter(dl))
 print(batch.meta.is_batch)  # True
 ```
 
-<p class="callout info">We recommend using MONAI's Dataset where possible, as this will use the correct collation method and ensure that MONAI is made aware of when a batch of data is being used or just a single image.</p>
+**We recommend using MONAI's Dataset where possible, as this will use the correct collation method and ensure that MONAI is made aware of when a batch of data is being used or just a single image.**
 
 ## Disabling `MetaTensor`
 
