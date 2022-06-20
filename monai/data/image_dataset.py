@@ -86,7 +86,7 @@ class ImageDataset(Dataset, Randomizable):
             raise ValueError("transform_with_metadata=True requires image_only=False.")
         self.image_only = image_only
         self.transform_with_metadata = transform_with_metadata
-        self.loader = LoadImage(reader, dtype, *args, **kwargs)  # type: ignore
+        self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
         self.set_random_state(seed=get_seed())
         self._seed = 0  # transform synchronization seed
 
@@ -101,13 +101,14 @@ class ImageDataset(Dataset, Randomizable):
         meta_data, seg_meta_data, seg, label = None, None, None, None
 
         # load data and optionally meta
-        img = self.loader(self.image_files[index])
-        if not self.image_only:
-            meta_data = img.meta
-        if self.seg_files is not None:
-            seg = self.loader(self.seg_files[index])
-            if not self.image_only:
-                seg_meta_data = seg.meta
+        if self.image_only:
+            img = self.loader(self.image_files[index])
+            if self.seg_files is not None:
+                seg = self.loader(self.seg_files[index])
+        else:
+            img, meta_data = self.loader(self.image_files[index])
+            if self.seg_files is not None:
+                seg, seg_meta_data = self.loader(self.seg_files[index])
 
         # apply the transforms
         if self.transform is not None:
