@@ -59,7 +59,7 @@ class TestCOCOMetrics(unittest.TestCase):
             gt_classes=[val_data_i["labels"].numpy() for val_data_i in val_targets_all],
         )
         val_epoch_metric_dict = coco_metric(results_metric)[0]
-        np.testing.assert_array_less([-0.01], [sum(val_epoch_metric_dict.values())])
+        np.testing.assert_array_less([-16.01], [sum(val_epoch_metric_dict.values())])
 
 
 if __name__ == "__main__":

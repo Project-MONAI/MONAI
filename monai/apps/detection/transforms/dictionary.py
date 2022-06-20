@@ -248,7 +248,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         self.converter_to_image_coordinate = AffineBox()
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def extract_affine(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
         d = dict(data)
 
         meta_key = self.image_meta_key
@@ -269,6 +269,12 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         affine_t, *_ = convert_data_type(affine, torch.Tensor)
         # torch.inverse should not run in half precision
         inv_affine_t = torch.inverse(affine_t.to(COMPUTE_DTYPE))
+        return affine, inv_affine_t
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": affine})
@@ -282,6 +288,54 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
             affine = transform["extra_info"]["affine"]
             d[key] = AffineBox()(d[key], affine=affine)
             self.pop_transform(d, key)
+        return d
+
+
+class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
+    """
+    Dictionary-based transform that converts box in image coordinate to world coordinate.
+
+    Args:
+        box_keys: Keys to pick box data for transformation. The box mode is assumed to be ``StandardMode``.
+        box_ref_image_keys: The single key that represents the reference image to which ``box_keys`` are attached.
+        remove_empty: whether to remove the boxes that are actually empty
+        allow_missing_keys: don't raise exception if key is missing.
+        image_meta_key: explicitly indicate the key of the corresponding metadata dictionary.
+            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
+            the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
+            it is a string, map to the `box_ref_image_key`.
+            if None, will try to construct meta_keys by `box_ref_image_key_{meta_key_postfix}`.
+        image_meta_key_postfix: if image_meta_keys=None, use `box_ref_image_key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
+            For example, to handle key `image`,  read/write affine matrices from the
+            metadata `image_meta_dict` dictionary's `affine` field.
+        affine_lps_to_ras: default ``False``. Yet if 1) the image is read by ITKReader,
+            and 2) the ITKReader has affine_lps_to_ras=True, and 3) the box is in world coordinate,
+            then set ``affine_lps_to_ras=True``.
+    """
+
+    def __init__(
+        self,
+        box_keys: KeysCollection,
+        box_ref_image_keys: str,
+        allow_missing_keys: bool = False,
+        image_meta_key: Union[str, None] = None,
+        image_meta_key_postfix: Union[str, None] = DEFAULT_POST_FIX,
+        affine_lps_to_ras=False,
+    ) -> None:
+        super().__init__(
+            box_keys, box_ref_image_keys, allow_missing_keys, image_meta_key, image_meta_key_postfix, affine_lps_to_ras
+        )
+        self.converter_to_world_coordinate = AffineBox()
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+
+        affine, inv_affine_t = self.extract_affine(data)
+
+        for key in self.key_iterator(d):
+            self.push_transform(d, key, extra_info={"affine": inv_affine_t})
+            d[key] = self.converter_to_world_coordinate(d[key], affine=affine)
         return d
 
 
@@ -341,7 +395,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
         self.keep_size = keep_size
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
 
         # zoom box
@@ -354,7 +408,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 box_key,
                 extra_info={"zoom": self.zoomer.zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
             )
-            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
+            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(  # type: ignore
                 d[box_key], src_spatial_size=src_spatial_size
             )
 
@@ -377,7 +431,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -407,7 +461,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                 src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                 box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -491,7 +545,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -514,7 +568,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     box_key,
                     extra_info={"zoom": self.rand_zoom._zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
                 )
-                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
+                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(  # type: ignore
                     d[box_key], src_spatial_size=src_spatial_size
                 )
 
@@ -541,7 +595,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -572,7 +626,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                     src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                     box_inverse_transform = ZoomBox(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
                 # Remove the applied transform
                 self.pop_transform(d, key)
@@ -613,7 +667,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         d = dict(data)
 
         for key in self.image_keys:
-            d[key] = self.flipper(d[key])
+            d[key] = self.flipper(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -631,7 +685,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
 
             # flip image, copied from monai.transforms.spatial.dictionary.Flipd
             if key_type == "image_key":
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key])  # type: ignore
 
             # flip boxes
             if key_type == "box_key":
@@ -689,7 +743,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False)
+                d[key] = self.flipper(d[key], randomize=False)  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -709,7 +763,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
             if transform[TraceKeys.DO_TRANSFORM]:
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
-                    d[key] = self.flipper(d[key], randomize=False)
+                    d[key] = self.flipper(d[key], randomize=False)  # type: ignore
 
                 # flip boxes
                 if key_type == "box_key":
@@ -1217,7 +1271,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
 
         for key in self.image_keys:
-            d[key] = self.img_rotator(d[key])
+            d[key] = self.img_rotator(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
         return d
 
@@ -1231,7 +1285,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
 
             if key_type == "image_key":
                 inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
-                d[key] = inverse_transform(d[key])
+                d[key] = inverse_transform(d[key])  # type: ignore
             if key_type == "box_key":
                 spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                 inverse_transform = RotateBox90(num_times_to_rotate, self.box_rotator.spatial_axes)
@@ -1275,7 +1329,7 @@ class RandRotateBox90d(RandRotate90d):
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:  # type: ignore
         self.randomize()
         d = dict(data)
 
@@ -1303,11 +1357,11 @@ class RandRotateBox90d(RandRotate90d):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = img_rotator(d[key])
+                d[key] = img_rotator(d[key])  # type: ignore
                 self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:  # type: ignore
         d = deepcopy(dict(data))
         if self._rand_k % 4 == 0:
             return d
@@ -1322,7 +1376,7 @@ class RandRotateBox90d(RandRotate90d):
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
                     inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                    d[key] = inverse_transform(d[key])
+                    d[key] = inverse_transform(d[key])  # type: ignore
                 if key_type == "box_key":
                     spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                     inverse_transform = RotateBox90(num_times_to_rotate, self.spatial_axes)

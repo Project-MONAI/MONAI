@@ -25,6 +25,7 @@ class TestRemoveRepeatedChannel(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChannel(**input_param)(input_data)
+        self.assertEqual(type(input_data), type(result))
         self.assertEqual(result.shape, expected_shape)
 
 

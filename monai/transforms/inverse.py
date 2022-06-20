@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import warnings
 from contextlib import contextmanager
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
@@ -28,13 +29,10 @@ class TraceableTransform(Transform):
     `trace_key: list of transforms` to each data dictionary.
 
     The ``__call__`` method of this transform class must be implemented so
-    that the transformation information for each key is stored when
-    ``__call__`` is called. If the transforms were applied to keys "image" and
-    "label", there will be two extra keys in the dictionary: "image_transforms"
-    and "label_transforms" (based on `TraceKeys.KEY_SUFFIX`). Each list
-    contains a list of the transforms applied to that key.
+    that the transformation information for each key is stored in ``data.applied_operations``
+    when ``__call__`` is called.
 
-    The information in ``data[key_transform]`` will be compatible with the
+    The information in ``data.applied_operations`` will be compatible with the
     default collate since it only stores strings, numbers and arrays.
 
     `tracing` could be enabled by `self.set_tracing` or setting
@@ -95,20 +93,18 @@ class TraceableTransform(Transform):
         """
         Push to a stack of applied transforms.
 
-        Data can be one of two things:
+        Data can be one of two types:
             1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxilliary data. In
-                this case, a key must be supplied.
+            2. A dictionary of data containing arrays/tensors and auxiliary data. In
+                this case, a key must be supplied (the dictionary-based approach is deprecated).
 
-        If `data` is of type `MetaTensor`, then the applied transform will be added to
-            its internal list.
+        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
 
         If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to
-                its internal list.
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
             2. Else, the applied transform will be appended to an adjacent list using
                 `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`.
+                will be appended to `image_transforms`. (This is deprecated.)
 
         Hopefully it is clear that there are three total possibilities:
             1. data is `MetaTensor`
@@ -126,9 +122,6 @@ class TraceableTransform(Transform):
 
         Returns:
             None, but data has been updated to store the applied transformation.
-
-        Raises:
-            - RuntimeError: data is neither `MetaTensor` nor dictionary
         """
         if not self.tracing:
             return
@@ -147,18 +140,24 @@ class TraceableTransform(Transform):
                     data[self.trace_key(key)] = []
                 data[self.trace_key(key)].append(info)
         else:
-            raise RuntimeError("`data` should be either `MetaTensor` or dictionary.")
+            warnings.warn(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}. {info} not tracked.")
 
     def check_transforms_match(self, transform: Mapping) -> None:
         """Check transforms are of same instance."""
-        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         xform_id = transform.get(TraceKeys.ID, "")
         if xform_id == id(self):
             return
+        # TraceKeys.NONE to skip the id check
+        if xform_id == TraceKeys.NONE:
+            return
+        xform_name = transform.get(TraceKeys.CLASS_NAME, "")
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
-        raise RuntimeError(f"Error inverting the most recently applied invertible transform {xform_name} {xform_id}.")
+        raise RuntimeError(
+            f"Error {self.__class__.__name__} getting the most recently "
+            f"applied invertible transform {xform_name} {xform_id} != {id(self)}."
+        )
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
@@ -166,18 +165,16 @@ class TraceableTransform(Transform):
 
         Data can be one of two things:
             1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxilliary data. In
-                this case, a key must be supplied.
+            2. A dictionary of data containing arrays/tensors and auxiliary data. In
+                this case, a key must be supplied (the dictionary-based approach is deprecated).
 
-        If `data` is of type `MetaTensor`, then the applied transform will be added to
-            its internal list.
+        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
 
         If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to
-                its internal list.
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
             2. Else, the applied transform will be appended to an adjacent list using
                 `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`.
+                will be appended to `image_transforms`. (This is deprecated.)
 
         Hopefully it is clear that there are three total possibilities:
             1. data is `MetaTensor`
@@ -187,8 +184,7 @@ class TraceableTransform(Transform):
         Args:
             - data: dictionary of data or `MetaTensor`
             - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most
-                recently-applied transform.
+            - check: if true, check that `self` is the same type as the most recently-applied transform.
             - pop: if true, remove the transform as it is returned.
 
         Returns:
@@ -206,6 +202,8 @@ class TraceableTransform(Transform):
                 all_transforms = data[key].applied_operations
             else:
                 all_transforms = data[self.trace_key(key)]
+        else:
+            raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
         if check:
             self.check_transforms_match(all_transforms[-1])
         return all_transforms.pop() if pop else all_transforms[-1]
@@ -237,8 +235,7 @@ class TraceableTransform(Transform):
         Args:
             - data: dictionary of data or `MetaTensor`
             - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most
-                recently-applied transform.
+            - check: if true, check that `self` is the same type as the most recently-applied transform.
 
         Returns:
             Dictionary of most recently applied transform
@@ -250,7 +247,7 @@ class TraceableTransform(Transform):
 
     @contextmanager
     def trace_transform(self, to_trace: bool):
-        """Temporarily set the tracing status of a transfrom with a context manager."""
+        """Temporarily set the tracing status of a transform with a context manager."""
         prev = self.tracing
         self.tracing = to_trace
         yield
@@ -271,7 +268,7 @@ class InvertibleTransform(TraceableTransform):
           different parameters being passed to each label (e.g., different
           interpolation for image and label).
 
-        - the inverse transforms are applied in a last- in-first-out order. As
+        - the inverse transforms are applied in a last-in-first-out order. As
           the inverse is applied, its entry is removed from the list detailing
           the applied transformations. That is to say that during the forward
           pass, the list of applied transforms grows, and then during the

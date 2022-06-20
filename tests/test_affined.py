@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Affined
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, test_local_inversion
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -160,8 +160,9 @@ class TestAffined(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_affine(self, input_param, input_data, expected_val):
         g = Affined(**input_param)
-        result = g(input_data)["img"]
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        result = g(input_data)
+        test_local_inversion(g, result, input_data, dict_key="img")
+        assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

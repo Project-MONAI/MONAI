@@ -105,6 +105,7 @@ __all__ = [
     "convert_pad_mode",
     "convert_to_contiguous",
     "get_unique_labels",
+    "scale_affine",
 ]
 
 
@@ -1185,16 +1186,13 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
-
-    else:
-        spatial_axes_ = []
-        for a in ensure_tuple(spatial_axes):
-            if channel_first:
-                spatial_axes_.append(a if a < 0 else a + 1)
-            else:
-                spatial_axes_.append(a - 1 if a < 0 else a)
-
+        return list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+    spatial_axes_ = []
+    for a in ensure_tuple(spatial_axes):
+        if channel_first:
+            spatial_axes_.append(a % img_ndim if a < 0 else a + 1)
+        else:
+            spatial_axes_.append((a - 1) % (img_ndim - 1) if a < 0 else a)
     return spatial_axes_
 
 
@@ -1571,6 +1569,31 @@ def convert_to_contiguous(data, **kwargs):
     if isinstance(data, Sequence):
         return [convert_to_contiguous(i, **kwargs) for i in data]
     return data
+
+
+def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+    """
+    Scale the affine matrix according to the new spatial size.
+
+    Args:
+        affine: affine matrix to scale.
+        spatial_size: original spatial size.
+        new_spatial_size: new spatial size.
+        centered: whether the scaling is with respect to
+            the image center (True, default) or corner (False).
+
+    Returns:
+        Scaled affine matrix.
+
+    """
+    if spatial_size == new_spatial_size:
+        return affine
+    r = len(affine) - 1
+    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
+    scale = create_scale(r, s.tolist())
+    if centered:
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
+    return affine @ convert_to_dst_type(scale, affine)[0]
 
 
 if __name__ == "__main__":

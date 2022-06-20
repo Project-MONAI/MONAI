@@ -392,6 +392,24 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -411,19 +429,9 @@ def list_data_collate(batch: Sequence):
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                ret[key] = default_collate(data_for_batch)
-                if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    meta_list = [i.meta or TraceKeys.NONE for i in data_for_batch]
-                    ret[key].meta = default_collate(meta_list)
-                    ops_list = [i.applied_operations or TraceKeys.NONE for i in data_for_batch]
-                    ret[key].applied_operations = default_collate(ops_list)
-                    ret[key].is_batch = True
+                ret[key] = collate_meta_tensor(data_for_batch)
         else:
-            ret = default_collate(data)
-            if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = default_collate([i.meta or TraceKeys.NONE for i in data])
-                ret.applied_operations = default_collate([i.applied_operations or TraceKeys.NONE for i in data])
-                ret.is_batch = True
+            ret = collate_meta_tensor(data)
         return ret
     except RuntimeError as re:
         re_str = str(re)
@@ -550,7 +558,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
                 if isinstance(t, MetaObj):
                     t.meta = m
                     t.is_batch = False
-            for t, m in zip(out_list, decollate_batch(batch.applied_operations)):
+            for t, m in zip(out_list, batch.applied_operations):
                 if isinstance(t, MetaObj):
                     t.applied_operations = m
                     t.is_batch = False
@@ -848,7 +856,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True, drop_meta=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")

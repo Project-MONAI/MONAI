@@ -21,7 +21,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import monai
-from monai.data import MetaTensor, create_test_image_3d, decollate_batch
+from monai.data import create_test_image_3d, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.networks import eval_mode
@@ -31,18 +31,14 @@ from monai.transforms import (
     AsDiscrete,
     Compose,
     EnsureChannelFirstd,
-    FromMetaTensord,
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
     SaveImage,
     ScaleIntensityd,
     Spacingd,
-    ToTensor,
-    ToTensord,
 )
 from monai.utils import set_determinism
-from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
@@ -65,13 +61,11 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
                 keys=["img", "seg"], label_key="seg", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
     train_transforms.set_random_state(1234)
@@ -82,9 +76,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
 
@@ -100,7 +92,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     # create UNet, DiceLoss and Adam optimizer
@@ -185,6 +177,13 @@ def run_inference_test(root_dir, device="cuda:0"):
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
 
+    saver = SaveImage(
+        output_dir=os.path.join(root_dir, "output"),
+        dtype=np.float32,
+        output_ext=".nii.gz",
+        output_postfix="seg",
+        mode="bilinear",
+    )
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
@@ -193,15 +192,13 @@ def run_inference_test(root_dir, device="cuda:0"):
             # resampling with align_corners=True or dtype=float64 will generate
             # slight different results between PyTorch 1.5 an 1.6
             Spacingd(keys=["img", "seg"], pixdim=[1.2, 0.8, 0.7], mode=["bilinear", "nearest"], dtype=np.float32),
-            FromMetaTensord(["img", "seg"]),
             ScaleIntensityd(keys="img"),
-            ToTensord(keys=["img", "seg"]),
         ]
     )
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([ToTensor(), Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), saver])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(
@@ -218,13 +215,6 @@ def run_inference_test(root_dir, device="cuda:0"):
     with eval_mode(model):
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6
-        saver = SaveImage(
-            output_dir=os.path.join(root_dir, "output"),
-            dtype=np.float32,
-            output_ext=".nii.gz",
-            output_postfix="seg",
-            mode="bilinear",
-        )
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
@@ -232,11 +222,8 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
             # decollate prediction into a list
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
-            val_meta = decollate_batch(val_data[PostFix.meta("img")])
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            for img, meta in zip(val_outputs, val_meta):  # save a decollated batch of files
-                saver(MetaTensor(img, meta=meta))
 
     return dice_metric.aggregate().item()
 

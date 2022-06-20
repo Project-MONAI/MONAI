@@ -113,6 +113,7 @@ class PadBase(InvertibleTransform):
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def _forward_meta(self, out, img, to_pad):
+
         if not isinstance(out, MetaTensor) or not isinstance(img, MetaTensor):
             return out
         meta_dict = copy.deepcopy(img.meta)
@@ -442,8 +443,8 @@ class CropBase(InvertibleTransform):
     @staticmethod
     def calculate_slices_from_center_and_size(roi_center, roi_size) -> List[slice]:
         roi_slices = []
-        roi_center = [roi_center] if not isinstance(roi_center, Iterable) else roi_center
-        roi_size = [roi_size] if not isinstance(roi_size, Iterable) else roi_size
+        roi_center = roi_center if isinstance(roi_center, Iterable) else [roi_center]
+        roi_size = roi_size if isinstance(roi_size, Iterable) else [roi_size]
         for c, s in zip(roi_center, roi_size):
             c = c.item() if isinstance(c, torch.Tensor) else c
             s = s.item() if isinstance(s, torch.Tensor) else s
@@ -460,8 +461,8 @@ class CropBase(InvertibleTransform):
     @staticmethod
     def calculate_slices_from_start_and_end(roi_start, roi_end) -> List[slice]:
         # start +ve, end <= start
-        roi_start = [roi_start] if not isinstance(roi_start, Iterable) else roi_start
-        roi_end = [roi_end] if not isinstance(roi_end, Iterable) else roi_end
+        roi_start = roi_start if isinstance(roi_start, Iterable) else [roi_start]
+        roi_end = roi_end if isinstance(roi_end, Iterable) else [roi_end]
         roi_start = [max(r, 0) for r in roi_start]  # type: ignore
         roi_end = [max(r, s) for r, s in zip(roi_start, roi_end)]  # type: ignore
         roi_slices = [slice(s, e) for s, e in zip(roi_start, roi_end)]
@@ -508,7 +509,7 @@ class CropBase(InvertibleTransform):
         out.meta = meta_dict
         out.meta["affine"] = img.affine @ convert_to_dst_type(mat, img.affine)[0]
         # out.meta["original_affine"] = img.affine
-        # out.meta["spatial_shape"] = out.shape[1:]f
+        # out.meta["spatial_shape"] = out.shape[1:]
         return out
 
     def _forward(self, img: torch.Tensor, slices: Optional[Tuple[slice, ...]]) -> torch.Tensor:
@@ -1411,6 +1412,9 @@ class ResizeWithPadOrCrop(InvertibleTransform):
 
     def inverse(self, img: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(img)
+        return self.inverse_transform(img, transform)
+
+    def inverse_transform(self, img: torch.Tensor, transform) -> torch.Tensor:
         if not isinstance(img, MetaTensor):
             raise RuntimeError()
         # we joined the cropping and padding, so put them back before calling the inverse

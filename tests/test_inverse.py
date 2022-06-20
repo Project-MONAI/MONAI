@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import random
+import sys
 import unittest
 from functools import partial
 from typing import TYPE_CHECKING, List, Tuple
@@ -19,10 +20,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data import CacheDataset, DataLoader, MetaTensor, create_test_image_2d, create_test_image_3d, decollate_batch
+from monai.networks.nets import UNet
 from monai.transforms import (
     AddChanneld,
     Affined,
+    BatchInverseTransform,
     BorderPadd,
     CenterScaleCropd,
     CenterSpatialCropd,
@@ -47,6 +50,7 @@ from monai.transforms import (
     RandSpatialCropd,
     RandSpatialCropSamplesd,
     RandWeightedCropd,
+    RandZoomd,
     Resized,
     ResizeWithPadOrCrop,
     ResizeWithPadOrCropd,
@@ -55,10 +59,13 @@ from monai.transforms import (
     Spacingd,
     SpatialCropd,
     SpatialPadd,
+    ToMetaTensord,
     Transposed,
+    Zoomd,
+    allow_missing_keys_mode,
+    convert_inverse_interp_mode,
 )
-from monai.transforms.meta_utility.dictionary import ToMetaTensord
-from monai.utils import get_seed, optional_import, set_determinism
+from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
@@ -158,30 +165,32 @@ TESTS.append(("CropForegroundd 3d", "3D", 0, True, CropForegroundd(KEYS, source_
 
 TESTS.append(("ResizeWithPadOrCropd 3d", "3D", 0, True, ResizeWithPadOrCropd(KEYS, [201, 150, 105])))
 
-TESTS.append(("Flipd 3d", "3D", 0, False, Flipd(KEYS, [1, 2])))
+TESTS.append(("Flipd 3d", "3D", 0, True, Flipd(KEYS, [1, 2])))
+TESTS.append(("Flipd 3d", "3D", 0, True, Flipd(KEYS, [1, 2])))
 
-TESTS.append(("RandFlipd 3d", "3D", 0, False, RandFlipd(KEYS, 1, [1, 2])))
+TESTS.append(("RandFlipd 3d", "3D", 0, True, RandFlipd(KEYS, 1, [1, 2])))
 
-TESTS.append(("RandAxisFlipd 3d", "3D", 0, False, RandAxisFlipd(KEYS, 1)))
+TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
+TESTS.append(("RandAxisFlipd 3d", "3D", 0, True, RandAxisFlipd(KEYS, 1)))
 
 for acc in [True, False]:
     TESTS.append(("Orientationd 3d", "3D", 0, True, Orientationd(KEYS, "RAS", as_closest_canonical=acc)))
 
-TESTS.append(("Rotate90d 2d", "2D", 0, False, Rotate90d(KEYS)))
+TESTS.append(("Rotate90d 2d", "2D", 0, True, Rotate90d(KEYS)))
 
-TESTS.append(("Rotate90d 3d", "3D", 0, False, Rotate90d(KEYS, k=2, spatial_axes=(1, 2))))
+TESTS.append(("Rotate90d 3d", "3D", 0, True, Rotate90d(KEYS, k=2, spatial_axes=(1, 2))))
 
-TESTS.append(("RandRotate90d 3d", "3D", 0, False, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
+TESTS.append(("RandRotate90d 3d", "3D", 0, True, RandRotate90d(KEYS, prob=1, spatial_axes=(1, 2))))
 
 TESTS.append(("Spacingd 3d", "3D", 3e-2, True, Spacingd(KEYS, [0.5, 0.7, 0.9], diagonal=False)))
 
-TESTS.append(("Resized 2d", "2D", 2e-1, False, Resized(KEYS, [50, 47])))
+TESTS.append(("Resized 2d", "2D", 2e-1, True, Resized(KEYS, [50, 47])))
 
-TESTS.append(("Resized 3d", "3D", 5e-2, False, Resized(KEYS, [201, 150, 78])))
+TESTS.append(("Resized 3d", "3D", 5e-2, True, Resized(KEYS, [201, 150, 78])))
 
-TESTS.append(("Resized longest 2d", "2D", 2e-1, False, Resized(KEYS, 47, "longest", "area")))
+TESTS.append(("Resized longest 2d", "2D", 2e-1, True, Resized(KEYS, 47, "longest", "area")))
 
-TESTS.append(("Resized longest 3d", "3D", 5e-2, False, Resized(KEYS, 201, "longest", "trilinear", True)))
+TESTS.append(("Resized longest 3d", "3D", 5e-2, True, Resized(KEYS, 201, "longest", "trilinear", True)))
 
 TESTS.append(
     ("Lambdad 2d", "2D", 5e-2, False, Lambdad(KEYS, func=lambda x: x + 5, inv_func=lambda x: x - 5, overwrite=True))
@@ -197,22 +206,22 @@ TESTS.append(
     )
 )
 
-# TESTS.append(("Zoomd 1d", "1D odd", 0, False, Zoomd(KEYS, zoom=2, keep_size=False)))
+TESTS.append(("Zoomd 1d", "1D odd", 0, True, Zoomd(KEYS, zoom=2, keep_size=False)))
 
-# TESTS.append(("Zoomd 2d", "2D", 2e-1, False, Zoomd(KEYS, zoom=0.9)))
+TESTS.append(("Zoomd 2d", "2D", 2e-1, True, Zoomd(KEYS, zoom=0.9)))
 
-# TESTS.append(("Zoomd 3d", "3D", 3e-2, False, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
+TESTS.append(("Zoomd 3d", "3D", 3e-2, True, Zoomd(KEYS, zoom=[2.5, 1, 3], keep_size=False)))
 
-# TESTS.append(("RandZoom 3d", "3D", 9e-2, False, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
+TESTS.append(("RandZoom 3d", "3D", 9e-2, True, RandZoomd(KEYS, 1, [0.5, 0.6, 0.9], [1.1, 1, 1.05], keep_size=True)))
 
-TESTS.append(("RandRotated, prob 0", "2D", 0, False, RandRotated(KEYS, prob=0, dtype=np.float64)))
+TESTS.append(("RandRotated, prob 0", "2D", 0, True, RandRotated(KEYS, prob=0, dtype=np.float64)))
 
 TESTS.append(
     (
         "Rotated 2d",
         "2D",
         8e-2,
-        False,
+        True,
         Rotated(KEYS, random.uniform(np.pi / 6, np.pi), keep_size=True, align_corners=False, dtype=np.float64),
     )
 )
@@ -222,7 +231,7 @@ TESTS.append(
         "Rotated 3d",
         "3D",
         1e-1,
-        False,
+        True,
         Rotated(KEYS, [random.uniform(np.pi / 6, np.pi) for _ in range(3)], True, dtype=np.float64),
     )
 )
@@ -232,7 +241,7 @@ TESTS.append(
         "RandRotated 3d",
         "3D",
         1e-1,
-        False,
+        True,
         RandRotated(KEYS, *[random.uniform(np.pi / 6, np.pi) for _ in range(3)], 1, dtype=np.float64),  # type: ignore
     )
 )
@@ -246,7 +255,7 @@ TESTS.append(
         "Affine 3d",
         "3D",
         1e-1,
-        False,
+        True,
         Affined(
             KEYS,
             spatial_size=[155, 179, 192],
@@ -263,7 +272,7 @@ TESTS.append(
         "RandAffine 3d",
         "3D",
         1e-1,
-        False,
+        True,
         RandAffined(
             KEYS,
             [155, 179, 192],
@@ -277,7 +286,7 @@ TESTS.append(
     )
 )
 
-TESTS.append(("RandAffine 3d", "3D", 0, False, RandAffined(KEYS, spatial_size=None, prob=0)))
+TESTS.append(("RandAffine 3d", "3D", 0, True, RandAffined(KEYS, spatial_size=None, prob=0)))
 
 TESTS.append(
     (
@@ -451,52 +460,47 @@ class TestInverse(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             t2.inverse(data)
 
-    # @parameterized.expand(N_SAMPLES_TESTS)
-    # def test_inverse_inferred_seg(self, extra_transform):
+    @parameterized.expand(N_SAMPLES_TESTS)
+    def test_inverse_inferred_seg(self, extra_transform):
 
-    #     test_data = []
-    #     for _ in range(20):
-    #         image, label = create_test_image_2d(100, 101)
-    #         test_data.append({"image": image, "label": label.astype(np.float32)})
+        test_data = []
+        for _ in range(20):
+            image, label = create_test_image_2d(100, 101)
+            test_data.append({"image": image, "label": label.astype(np.float32)})
 
-    #     batch_size = 10
-    #     # num workers = 0 for mac
-    #     num_workers = 2 if sys.platform == "linux" else 0
-    #     transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
-    #     num_invertible_transforms = sum(1 for i in transforms.transforms if isinstance(i, InvertibleTransform))
+        batch_size = 10
+        # num workers = 0 for mac
+        num_workers = 2 if sys.platform == "linux" else 0
+        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
 
-    #     dataset = CacheDataset(test_data, transform=transforms, progress=False)
-    #     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        dataset = CacheDataset(test_data, transform=transforms, progress=False)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    #     device = "cuda" if torch.cuda.is_available() else "cpu"
-    #     model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(2,)).to(device)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(2, 4), strides=(1,)).to(device)
 
-    #     data = first(loader)
-    #     self.assertEqual(len(data["label"].applied_operations), num_invertible_transforms)
-    #     self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
+        data = first(loader)
+        self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
 
-    #     labels = data["label"].to(device)
-    #     segs = model(labels).detach().cpu()
-    #     label_transform_key = TraceableTransform.trace_key("label")
-    #     segs_dict = {"label": segs, label_transform_key: data[label_transform_key]}
+        labels = data["label"].to(device)
+        self.assertTrue(isinstance(labels, MetaTensor))
+        segs = model(labels).detach().cpu()
+        segs_decollated = decollate_batch(segs)
+        self.assertTrue(isinstance(segs_decollated[0], MetaTensor))
+        # inverse of individual segmentation
+        seg_metatensor = first(segs_decollated)
+        # test to convert interpolation mode for 1 data of model output batch
+        convert_inverse_interp_mode(seg_metatensor.applied_operations, mode="nearest", align_corners=None)
 
-    #     segs_dict_decollated = decollate_batch(segs_dict)
-    #     # inverse of individual segmentation
-    #     seg_dict = first(segs_dict_decollated)
-    #     # test to convert interpolation mode for 1 data of model output batch
-    #     convert_inverse_interp_mode(seg_dict, mode="nearest", align_corners=None)
+        with allow_missing_keys_mode(transforms):
+            inv_seg = transforms.inverse({"label": seg_metatensor})["label"]
+        self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
 
-    #     with allow_missing_keys_mode(transforms):
-    #         inv_seg = transforms.inverse(seg_dict)["label"]
-    #     self.assertEqual(len(data["label_transforms"]), num_invertible_transforms)
-    #     self.assertEqual(len(seg_dict["label_transforms"]), num_invertible_transforms)
-    #     self.assertEqual(inv_seg.shape[1:], test_data[0]["label"].shape)
-
-    #     # Inverse of batch
-    #     batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
-    #     with allow_missing_keys_mode(transforms):
-    #         inv_batch = batch_inverter(segs_dict)
-    #     self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
+        # Inverse of batch
+        batch_inverter = BatchInverseTransform(transforms, loader, collate_fn=no_collation, detach=True)
+        with allow_missing_keys_mode(transforms):
+            inv_batch = batch_inverter(first(loader))
+        self.assertEqual(inv_batch[0]["label"].shape[1:], test_data[0]["label"].shape)
 
 
 if __name__ == "__main__":

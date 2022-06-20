@@ -9,25 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
+"""
+Profiling MetaTensor
+"""
 
-from parameterized import parameterized
+import cProfile
 
-from monai.transforms import RepeatChannel
-from tests.utils import TEST_NDARRAYS
+import torch
 
-TESTS = []
-for p in TEST_NDARRAYS:
-    TESTS.append([{"repeats": 3}, p([[[0, 1], [1, 2]]]), (3, 2, 2)])
-
-
-class TestRepeatChannel(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = RepeatChannel(**input_param)(input_data)
-        self.assertEqual(type(input_data), type(result))
-        self.assertEqual(result.shape, expected_shape)
-
+from monai.data.meta_tensor import MetaTensor
 
 if __name__ == "__main__":
-    unittest.main()
+    n_chan = 3
+    for hwd in (10, 200):
+        shape = (n_chan, hwd, hwd, hwd)
+        a = MetaTensor(torch.rand(shape), meta={"affine": torch.eye(4) * 2, "fname": "something1"})
+        b = MetaTensor(torch.rand(shape), meta={"affine": torch.eye(4) * 3, "fname": "something2"})
+        cProfile.run("c = a + b", filename=f"out_{hwd}.prof")

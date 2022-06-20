@@ -47,7 +47,7 @@ class TestTensor(torch.Tensor):
 class TestConvertDataType(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out))
+        converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), drop_meta=True)
         # check input is unchanged
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):
@@ -60,6 +60,17 @@ class TestConvertDataType(unittest.TestCase):
 
     def test_neg_stride(self):
         _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
+
+    def test_metatensor_comp(self):
+        meta_tensor = MetaTensor(torch.eye(3))
+        out = convert_data_type(meta_tensor, torch.Tensor, drop_meta=False)[0]
+        self.assertTrue(isinstance(out, MetaTensor))  # keep the original meta info as much as possible
+        out = convert_data_type(meta_tensor, MetaTensor, drop_meta=False)[0]
+        self.assertTrue(isinstance(out, MetaTensor))  # keep the original meta info as much as possible
+        out = convert_data_type(meta_tensor, torch.Tensor, drop_meta=True)[0]
+        self.assertTrue(not isinstance(out, MetaTensor) and isinstance(out, torch.Tensor))
+        with self.assertRaises(RuntimeError):
+            convert_data_type(meta_tensor, np.ndarray, drop_meta=False)  # not dropping meta but converting to numpy
 
     @parameterized.expand(TESTS_LIST)
     def test_convert_list(self, in_image, im_out, wrap):
@@ -79,7 +90,7 @@ class TestConvertDataSame(unittest.TestCase):
     # add test for subclass of Tensor
     @parameterized.expand(TESTS + [(np.array(1.0), TestTensor(np.array(1.0)))])
     def test_convert_data_type(self, in_image, im_out):
-        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out)
+        converted_im, orig_type, orig_device = convert_to_dst_type(in_image, im_out, drop_meta=True)
         # check input is unchanged
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):

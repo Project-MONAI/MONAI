@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
 from monai.utils import OptionalImportError
-from tests.utils import SkipIfModule, SkipIfNoModule
+from tests.utils import TEST_NDARRAYS, SkipIfModule, SkipIfNoModule, assert_allclose
 
 n_samples = 500
 hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.hanning(n_samples)
@@ -125,8 +125,9 @@ class TestDetectEnvelope(unittest.TestCase):
         ]
     )
     def test_value(self, arguments, image, expected_data, atol):
-        result = DetectEnvelope(**arguments)(image)
-        np.testing.assert_allclose(result, expected_data, atol=atol)
+        for p in TEST_NDARRAYS:
+            result = DetectEnvelope(**arguments)(p(image))
+            assert_allclose(result, p(expected_data), atol=atol)
 
     @parameterized.expand(
         [

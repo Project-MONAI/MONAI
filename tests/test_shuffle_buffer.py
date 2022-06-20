@@ -9,23 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 import numpy as np
 
-from monai.transforms import RandAxisFlipd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase3D, assert_allclose, test_local_inversion
+from monai.data import DataLoader, ShuffleBuffer
+from monai.utils import convert_data_type
 
 
-class TestRandAxisFlip(NumpyImageTestCase3D):
-    def test_correct_results(self):
-        for p in TEST_NDARRAYS:
-            flip = RandAxisFlipd(keys="img", prob=1.0)
-            im = p(self.imt[0])
-            result = flip({"img": im})
-            test_local_inversion(flip, result, {"img": im}, "img")
-            expected = [np.flip(channel, flip.flipper._axis) for channel in self.imt[0]]
-            assert_allclose(result["img"], p(np.stack(expected)), type_test=False)
+class TestShuffleBuffer(unittest.TestCase):
+    def test_shape(self):
+        buffer = ShuffleBuffer([1, 2, 3, 4], seed=0)
+        num_workers = 2 if sys.platform == "linux" else 0
+        dataloader = DataLoader(dataset=buffer, batch_size=2, num_workers=num_workers)
+        output = [convert_data_type(x, np.ndarray)[0] for x in dataloader]
+        if num_workers == 0:
+            np.testing.assert_allclose(output, [[2, 1], [3, 4]])
+        else:  # multiprocess shuffle
+            np.testing.assert_allclose(output, [[2, 3], [1, 4]])
 
 
 if __name__ == "__main__":
