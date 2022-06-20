@@ -318,7 +318,7 @@ def check_confusion_matrix_metric_name(metric_name: str):
         return "mcc"
     if metric_name in ["fowlkes_mallows_index", "fm"]:
         return "fm"
-    if metric_name in ["informedness", "bookmaker_informedness", "bm"]:
+    if metric_name in ["informedness", "bookmaker_informedness", "bm", "youden_index", "youden"]:
         return "bm"
     if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"
