@@ -11,16 +11,17 @@
 
 import os
 import unittest
-
 import numpy as np
 from parameterized import parameterized
-
 from monai.transforms import SignalRandAddSquarePulse
+from monai.utils import optional_import
+from unittest import skipUnless
 
+_, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [(1, [0, 1], [0.001, 0.2])]
 
-
+@skipUnless(has_scipy, "scipy required")
 class TestSignalRandDrop(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, v, boundaries, frequencies):

@@ -11,16 +11,17 @@
 
 import os
 import unittest
-
 import numpy as np
 from parameterized import parameterized
-
 from monai.transforms.signal.array import SignalResample
+from monai.utils import optional_import
+from unittest import skipUnless
 
+_, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [("interpolation", 500, 250), ("polynomial", 500, 250), ("fourier", 500, 250)]
 
-
+@skipUnless(has_scipy, "scipy required")
 class TestSignalResample(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, method, current_sample_rate, target_sample_rate):

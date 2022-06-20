@@ -11,10 +11,8 @@
 
 import os
 import unittest
-
 import numpy as np
 from parameterized import parameterized
-
 from monai.transforms import SignalRandDrop
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")

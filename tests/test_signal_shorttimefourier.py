@@ -11,17 +11,18 @@
 
 import os
 import unittest
-
 import numpy as np
 from parameterized import parameterized
-
 from monai.transforms import SignalShortTimeFourier
+from monai.utils import optional_import
+from unittest import skipUnless
 
+_, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [(500, 256, 128)]
 EXPECTED_RESULTS = [(6, 129, 14), (1, 129, 14)]
 
-
+@skipUnless(has_scipy, "scipy required")
 class TestSignalRandDrop(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, frequency, nperseg, noverlap):
