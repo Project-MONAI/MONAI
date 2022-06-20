@@ -697,6 +697,7 @@ class Flip(InvertibleTransform):
         # shape and axes include the channel dim
         m = dict(img_meta)
         affine = m.get("affine")
+        _shape = m.get("spatial_shape", None) or shape
         if affine is None:
             return m
         mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
@@ -1005,7 +1006,7 @@ class Rotate(InvertibleTransform):
             align_corners=_align_corners,
             reverse_indexing=True,
         )
-        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
+        output = img if img_t.lazy_resample else xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
         if not isinstance(out, MetaTensor):
             return out

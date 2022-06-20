@@ -119,6 +119,7 @@ class Compose(Randomizable, InvertibleTransform):
         map_items: bool = True,
         unpack_items: bool = False,
         log_stats: bool = False,
+        lazy_resample: bool = True,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -126,6 +127,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.map_items = map_items
         self.unpack_items = unpack_items
         self.log_stats = log_stats
+        self.lazy_resample = lazy_resample
         self.set_random_state(seed=get_seed())
 
     def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None) -> "Compose":

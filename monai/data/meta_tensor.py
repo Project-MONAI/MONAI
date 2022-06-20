@@ -235,6 +235,8 @@ class MetaTensor(MetaObj, torch.Tensor):
                             ret.is_batch = False
 
                 ret.affine = ret.affine.to(ret.device)
+                if not ret.lazy_resample:
+                    ret.meta["spatial_shape"] = ret.shape[2:] if ret.is_batch else ret.shape[1:]
             out.append(ret)
         # if the input was a tuple, then return it as a tuple
         return tuple(out) if isinstance(rets, tuple) else out
@@ -315,6 +317,24 @@ class MetaTensor(MetaObj, torch.Tensor):
     def pixdim(self):
         """Get the spacing"""
         return affine_to_spacing(self.affine)
+
+    @property
+    def lazy_resample(self):
+        return self.meta.get("lazy_resample", False)
+
+    @lazy_resample.setter
+    def lazy_resample(self, flag: bool):
+        if not flag and self.meta.get("lazy_resample", True):
+            import monai
+            resample = monai.transforms.SpatialResample()
+            new_tensor = resample(
+                self.as_tensor(),
+                src_affine=self.meta["original_affine"],
+                dst_affine=self.meta["affine"],
+                spatial_size=self.meta["spatial_shape"],
+            )
+            self = monai.data.utils.convert_to_dst_type(new_tensor, self, drop_meta=False)[0]
+            self.meta['lazy_resample'] = False
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
