@@ -15,12 +15,14 @@ from typing import Any, Callable, Dict, List, Mapping, Sequence, Tuple, Union
 import torch
 import torch.nn.functional as F
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.transforms import Resize
 from monai.utils import (
     BlendMode,
     PytorchPadMode,
     convert_data_type,
+    convert_to_dst_type,
     ensure_tuple,
     fall_back_tuple,
     look_up_option,
@@ -172,7 +174,9 @@ def sliding_window_inference(
             [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
             for idx in slice_range
         ]
-        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+        window_data = torch.cat(
+            [convert_data_type(inputs[win_slice], torch.Tensor, drop_meta=True)[0] for win_slice in unravel_slice]
+        ).to(sw_device)
         seg_prob_out = predictor(window_data, *args, **kwargs)  # batched patch segmentation
 
         # convert seg_prob_out to tuple seg_prob_tuple, this does not allocate new memory.
@@ -272,7 +276,10 @@ def sliding_window_inference(
         final_output = dict(zip(dict_key, output_image_list))
     else:
         final_output = tuple(output_image_list)  # type: ignore
-    return final_output[0] if is_tensor_output else final_output  # type: ignore
+    final_output = final_output[0] if is_tensor_output else final_output  # type: ignore
+    if isinstance(inputs, MetaTensor):
+        final_output = convert_to_dst_type(final_output, inputs)[0]  # type: ignore
+    return final_output
 
 
 def _get_scan_interval(
