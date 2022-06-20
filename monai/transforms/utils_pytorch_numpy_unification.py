@@ -376,7 +376,7 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
         to_long: convert input to long before performing mode.
     """
     dtype = torch.int64 if to_long else None
-    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype, drop_meta=True)
     o_t = torch.mode(x_t, dim).values
     o, *_ = convert_to_dst_type(o_t, x)
     return o
@@ -389,3 +389,14 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
         x: array/tensor
     """
     return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
+
+
+def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.linalg.inv` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
+        return torch.inverse(x)  # type: ignore
+    return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
