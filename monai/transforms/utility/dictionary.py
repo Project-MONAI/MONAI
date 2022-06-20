@@ -1041,15 +1041,11 @@ class Lambdad(MapTransform, InvertibleTransform):
             ret = self._lambd(img=d[key], func=func)
             if overwrite:
                 d[key] = ret
-            if isinstance(d[key], MetaTensor):
-                self.push_transform(d, key)
         return d
 
     def inverse(self, data):
         d = deepcopy(dict(data))
         for key, overwrite in self.key_iterator(d, self.overwrite):
-            if isinstance(d[key], MetaTensor):
-                self.pop_transform(d[key])
             ret = self._lambd.inverse(data=d[key])
             if overwrite:
                 d[key] = ret
@@ -1105,22 +1101,28 @@ class RandLambdad(Lambdad, RandomizableTransform):
         self.randomize(data)
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
+            ret = deepcopy(d[key])
+            if not isinstance(d[key], MetaTensor):
+                ret = MetaTensor(ret)
             if self._do_transform:
-                ret = self._lambd(d[key], func=func)
-                if overwrite:
-                    d[key] = ret
-            if isinstance(d[key], MetaTensor):
-                self.push_transform(d[key])
+                ret = self._lambd(ret, func=func)
+                self.push_transform(ret, extra_info={"lambda_info": self._lambd.pop_transform(ret)})
+            else:
+                self.push_transform(ret)
+            if overwrite:
+                d[key] = ret
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key, overwrite in self.key_iterator(d, self.overwrite):
-            if isinstance(d[key], MetaTensor) and not self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
-                continue
-            ret = self._lambd.inverse(d[key])
-            if overwrite:
-                d[key] = ret
+            if isinstance(d[key], MetaTensor):
+                tr = self.pop_transform(d[key])
+                if tr[TraceKeys.DO_TRANSFORM]:
+                    d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["lambda_info"])  # type: ignore
+                    ret = self._lambd.inverse(d[key])
+                    if overwrite:
+                        d[key] = ret
         return d
 
 

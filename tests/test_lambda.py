@@ -25,7 +25,7 @@ class TestLambda(NumpyImageTestCase2D):
                 return x
 
             lambd = Lambda(func=identity_func)
-            assert_allclose(identity_func(img), lambd(img))
+            assert_allclose(identity_func(img), lambd(img), type_test=False)
 
     def test_lambda_slicing(self):
         for p in TEST_NDARRAYS:
@@ -36,11 +36,11 @@ class TestLambda(NumpyImageTestCase2D):
 
             lambd = Lambda(func=slice_func)
             out = lambd(img)
-            assert_allclose(slice_func(img), out)
-            if isinstance(out, MetaTensor):
-                self.assertTrue(out.applied_operations)
-                out = lambd.inverse(out)
-                self.assertFalse(out.applied_operations)
+            assert_allclose(slice_func(img), out, type_test=False)
+            self.assertIsInstance(out, MetaTensor)
+            self.assertEqual(len(out.applied_operations), 1)
+            out = lambd.inverse(out)
+            self.assertEqual(len(out.applied_operations), 0)
 
 
 if __name__ == "__main__":
