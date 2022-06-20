@@ -86,7 +86,7 @@ class ImageDataset(Dataset, Randomizable):
             raise ValueError("transform_with_metadata=True requires image_only=False.")
         self.image_only = image_only
         self.transform_with_metadata = transform_with_metadata
-        self.loader = LoadImage(reader, dtype, *args, **kwargs)
+        self.loader = LoadImage(reader, dtype, *args, **kwargs)  # type: ignore
         self.set_random_state(seed=get_seed())
         self._seed = 0  # transform synchronization seed
 
