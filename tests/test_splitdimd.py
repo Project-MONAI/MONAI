@@ -47,7 +47,7 @@ class TestSplitDimd(unittest.TestCase):
             out = SplitDimd("i", dim=dim, keepdim=keepdim, update_meta=update_meta)(data)
             self.assertIsInstance(out, dict)
             self.assertEqual(len(out.keys()), len(data.keys()) + arr.shape[dim])
-            # if updating meta data, pick some random points and
+            # if updating metadata, pick some random points and
             # check same world coordinates between input and output
             if update_meta:
                 for _ in range(10):

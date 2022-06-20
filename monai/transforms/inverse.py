@@ -29,13 +29,10 @@ class TraceableTransform(Transform):
     `trace_key: list of transforms` to each data dictionary.
 
     The ``__call__`` method of this transform class must be implemented so
-    that the transformation information for each key is stored when
-    ``__call__`` is called. If the transforms were applied to keys "image" and
-    "label", there will be two extra keys in the dictionary: "image_transforms"
-    and "label_transforms" (based on `TraceKeys.KEY_SUFFIX`). Each list
-    contains a list of the transforms applied to that key.
+    that the transformation information for each key is stored in ``data.applied_operations``
+    when ``__call__`` is called.
 
-    The information in ``data[key_transform]`` will be compatible with the
+    The information in ``data.applied_operations`` will be compatible with the
     default collate since it only stores strings, numbers and arrays.
 
     `tracing` could be enabled by `self.set_tracing` or setting
@@ -96,20 +93,18 @@ class TraceableTransform(Transform):
         """
         Push to a stack of applied transforms.
 
-        Data can be one of two things:
+        Data can be one of two types:
             1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxilliary data. In
-                this case, a key must be supplied.
+            2. A dictionary of data containing arrays/tensors and auxiliary data. In
+                this case, a key must be supplied (the dictionary-based approach is deprecated).
 
-        If `data` is of type `MetaTensor`, then the applied transform will be added to
-            its internal list.
+        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
 
         If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to
-                its internal list.
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
             2. Else, the applied transform will be appended to an adjacent list using
                 `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`.
+                will be appended to `image_transforms`. (This is deprecated.)
 
         Hopefully it is clear that there are three total possibilities:
             1. data is `MetaTensor`
@@ -170,18 +165,16 @@ class TraceableTransform(Transform):
 
         Data can be one of two things:
             1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxilliary data. In
-                this case, a key must be supplied.
+            2. A dictionary of data containing arrays/tensors and auxiliary data. In
+                this case, a key must be supplied (the dictionary-based approach is deprecated).
 
-        If `data` is of type `MetaTensor`, then the applied transform will be added to
-            its internal list.
+        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
 
         If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to
-                its internal list.
+            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
             2. Else, the applied transform will be appended to an adjacent list using
                 `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`.
+                will be appended to `image_transforms`. (This is deprecated.)
 
         Hopefully it is clear that there are three total possibilities:
             1. data is `MetaTensor`
@@ -191,8 +184,7 @@ class TraceableTransform(Transform):
         Args:
             - data: dictionary of data or `MetaTensor`
             - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most
-                recently-applied transform.
+            - check: if true, check that `self` is the same type as the most recently-applied transform.
             - pop: if true, remove the transform as it is returned.
 
         Returns:
@@ -243,8 +235,7 @@ class TraceableTransform(Transform):
         Args:
             - data: dictionary of data or `MetaTensor`
             - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most
-                recently-applied transform.
+            - check: if true, check that `self` is the same type as the most recently-applied transform.
 
         Returns:
             Dictionary of most recently applied transform
@@ -277,7 +268,7 @@ class InvertibleTransform(TraceableTransform):
           different parameters being passed to each label (e.g., different
           interpolation for image and label).
 
-        - the inverse transforms are applied in a last- in-first-out order. As
+        - the inverse transforms are applied in a last-in-first-out order. As
           the inverse is applied, its entry is removed from the list detailing
           the applied transformations. That is to say that during the forward
           pass, the list of applied transforms grows, and then during the

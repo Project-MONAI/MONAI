@@ -645,17 +645,17 @@ class Invertd(MapTransform):
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
-            input = d[key]
-            if isinstance(input, torch.Tensor):
-                input = input.detach()
+            inputs = d[key]
+            if isinstance(inputs, torch.Tensor):
+                inputs = inputs.detach()
 
-            if not isinstance(input, MetaTensor):
-                input = MetaTensor(input)
-            input.applied_operations = transform_info
-            input.meta = meta_info
+            if not isinstance(inputs, MetaTensor):
+                inputs = MetaTensor(inputs)
+            inputs.applied_operations = transform_info
+            inputs.meta = meta_info
 
             # construct the input dict data
-            input_dict = {orig_key: input}
+            input_dict = {orig_key: inputs}
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)

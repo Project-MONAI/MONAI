@@ -177,6 +177,13 @@ def run_inference_test(root_dir, device="cuda:0"):
     segs = sorted(glob(os.path.join(root_dir, "seg*.nii.gz")))
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images, segs)]
 
+    saver = SaveImage(
+        output_dir=os.path.join(root_dir, "output"),
+        dtype=np.float32,
+        output_ext=".nii.gz",
+        output_postfix="seg",
+        mode="bilinear",
+    )
     # define transforms for image and segmentation
     val_transforms = Compose(
         [
@@ -191,7 +198,7 @@ def run_inference_test(root_dir, device="cuda:0"):
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     # sliding window inference need to input 1 image in every iteration
     val_loader = monai.data.DataLoader(val_ds, batch_size=1, num_workers=4)
-    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
+    val_post_tran = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5), saver])
     dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 
     model = UNet(
@@ -208,13 +215,6 @@ def run_inference_test(root_dir, device="cuda:0"):
     with eval_mode(model):
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6
-        saver = SaveImage(
-            output_dir=os.path.join(root_dir, "output"),
-            dtype=np.float32,
-            output_ext=".nii.gz",
-            output_postfix="seg",
-            mode="bilinear",
-        )
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
             # define sliding window size and batch size for windows inference
@@ -224,8 +224,6 @@ def run_inference_test(root_dir, device="cuda:0"):
             val_outputs = [val_post_tran(i) for i in decollate_batch(val_outputs)]
             # compute metrics
             dice_metric(y_pred=val_outputs, y=val_labels)
-            for img in val_outputs:  # save a decollated batch of files
-                saver(img)
 
     return dice_metric.aggregate().item()
 

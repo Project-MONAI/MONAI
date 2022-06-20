@@ -29,6 +29,7 @@ class TestAsChannelLast(unittest.TestCase):
     def test_shape(self, in_type, input_param, expected_shape):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelLast(**input_param)(test_data)
+        self.assertEqual(type(result), type(test_data))
         self.assertTupleEqual(result.shape, expected_shape)
 
 

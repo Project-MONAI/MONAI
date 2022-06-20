@@ -12,9 +12,12 @@
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Randomizable
 from monai.transforms.utility.array import RandLambda
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 class RandTest(Randomizable):
@@ -31,22 +34,27 @@ class RandTest(Randomizable):
 
 
 class TestRandLambda(unittest.TestCase):
-    def test_rand_lambdad_identity(self):
-        img = np.zeros((10, 10))
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_rand_lambdad_identity(self, t):
+        img = t(np.zeros((10, 10)))
 
         test_func = RandTest()
         test_func.set_random_state(seed=134)
         expected = test_func(img)
         test_func.set_random_state(seed=134)
         ret = RandLambda(func=test_func)(img)
-        np.testing.assert_allclose(expected, ret)
+        assert_allclose(expected, ret)
         ret = RandLambda(func=test_func, prob=0.0)(img)
-        np.testing.assert_allclose(img, ret)
+        assert_allclose(img, ret)
 
         trans = RandLambda(func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
         ret = trans(img)
-        np.testing.assert_allclose(img, ret)
+        assert_allclose(img, ret)
+        if isinstance(ret, MetaTensor):
+            out = trans.inverse(ret)
+            self.assertTrue(isinstance(out, MetaTensor))
+            self.assertEqual(len(out.applied_operations), 1)
 
 
 if __name__ == "__main__":

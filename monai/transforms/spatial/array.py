@@ -345,10 +345,10 @@ class ResampleToMatch(SpatialResample):
     and the size of the output image will match."""
 
     @deprecated_arg(
-        name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extacted directly."
+        name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
     @deprecated_arg(
-        name="dst_meta", since="0.8", msg_suffix="img_dst should be `MetaTensor`, so affine can be extacted directly."
+        name="dst_meta", since="0.8", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
     )
     def __call__(  # type: ignore
         self,
@@ -1345,9 +1345,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
             If single number, angle is uniformly sampled from (-range_x, range_x).
         range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
-            If single number, angle is uniformly sampled from (-range_y, range_y).
+            If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
         range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
-            If single number, angle is uniformly sampled from (-range_z, range_z).
+            If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
         prob: Probability of rotation.
         keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.
