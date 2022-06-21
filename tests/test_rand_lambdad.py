@@ -43,7 +43,7 @@ class TestRandLambdad(unittest.TestCase):
         assert_allclose(expected["prop"], out["prop"], type_test=False)
         inv = tr.inverse(out)
         self.assertIsInstance(inv["img"], MetaTensor)
-        self.assertEqual(len(inv["img"].applied_operations), 0)
+        self.assertEqual(len(inv["img"].applied_operations), 0)  # type: ignore
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_rand_lambdad_identity(self, t):
