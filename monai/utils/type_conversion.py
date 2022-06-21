@@ -105,7 +105,8 @@ def convert_to_tensor(
     track_meta: bool = False,
 ):
     """
-    Utility to convert the input data to a PyTorch Tensor, if tracking meta, convert to `MetaTensor`.
+    Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
+    otherwise, the output will be a regular torch Tensor.
     If passing a dictionary, list or tuple, recursively check every item and convert it to PyTorch Tensor.
 
     Args:
@@ -278,7 +279,7 @@ def convert_data_type(
     data_: NdarrayTensor
 
     if issubclass(output_type, torch.Tensor):
-        track_meta = True if issubclass(output_type, monai.data.MetaTensor) else False
+        track_meta = issubclass(output_type, monai.data.MetaTensor)
         data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
         return data_, orig_type, orig_device
     if issubclass(output_type, np.ndarray):
