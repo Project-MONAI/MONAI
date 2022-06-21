@@ -22,6 +22,5 @@ class TestPrintTransformBackends(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main()
     a = TestPrintTransformBackends()
     a.test_get_number_of_conversions()

@@ -56,6 +56,17 @@ class TestSmartCacheDataset(unittest.TestCase):
                 num_init_workers=4,
                 num_replace_workers=num_replace_workers,
             )
+            if transform is None:
+                # Check without providing transfrom
+                dataset2 = SmartCacheDataset(
+                    data=test_data,
+                    replace_rate=replace_rate,
+                    cache_num=16,
+                    num_init_workers=4,
+                    num_replace_workers=num_replace_workers,
+                )
+                for k in ["image", "label", "extra"]:
+                    self.assertEqual(dataset[0][k], dataset2[0][k])
 
             self.assertEqual(len(dataset._cache), dataset.cache_num)
             for i in range(dataset.cache_num):

@@ -76,7 +76,8 @@ Links
 -----
 
 - Website: https://monai.io/
-- API documentation: https://docs.monai.io
+- API documentation (milestone): https://docs.monai.io/
+- API documentation (latest dev): https://docs.monai.io/en/latest/
 - Code: https://github.com/Project-MONAI/MONAI
 - Project tracker: https://github.com/Project-MONAI/MONAI/projects
 - Issue tracker: https://github.com/Project-MONAI/MONAI/issues
@@ -85,6 +86,7 @@ Links
 - FAQ: https://github.com/Project-MONAI/MONAI/wiki/Frequently-asked-questions-and-answers
 - Test status: https://github.com/Project-MONAI/MONAI/actions
 - PyPI package: https://pypi.org/project/monai/
+- conda-forge: https://anaconda.org/conda-forge/monai
 - Weekly previews: https://pypi.org/project/monai-weekly/
 - Docker Hub: https://hub.docker.com/r/projectmonai/monai
 

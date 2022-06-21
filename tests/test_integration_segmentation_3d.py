@@ -18,7 +18,6 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
-from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.data import create_test_image_3d, decollate_batch
@@ -40,11 +39,13 @@ from monai.transforms import (
     ToTensor,
     ToTensord,
 )
-from monai.utils import set_determinism
+from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix
 from monai.visualize import plot_2d_or_3d_image
 from tests.testing_data.integration_answers import test_integration_value
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
+
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 TASK = "integration_segmentation_3d"
 
