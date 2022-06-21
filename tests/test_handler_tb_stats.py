@@ -14,9 +14,11 @@ import tempfile
 import unittest
 
 from ignite.engine import Engine, Events
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.handlers import TensorBoardStatsHandler
+from monai.utils import optional_import
+
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
 class TestHandlerTBStats(unittest.TestCase):
