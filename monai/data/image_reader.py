@@ -391,12 +391,7 @@ class PydicomReader(ImageReader):
 
     """
 
-    def __init__(
-        self,
-        channel_dim: Optional[int] = None,
-        affine_lps_to_ras: bool = True,
-        **kwargs,
-    ):
+    def __init__(self, channel_dim: Optional[int] = None, affine_lps_to_ras: bool = True, **kwargs):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
