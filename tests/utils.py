@@ -734,6 +734,8 @@ _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST
 TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
 TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+# alias for branch tests
+TEST_NDARRAYS_ALL = TEST_NDARRAYS  # type: ignore
 
 
 TEST_DEVICES = [[torch.device("cpu")]]
