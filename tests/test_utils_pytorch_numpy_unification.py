@@ -36,7 +36,7 @@ class TestPytorchNumpyUnification(unittest.TestCase):
             for p in TEST_NDARRAYS:
                 arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(np.float32))
                 results.append(percentile(arr, q))
-                assert_allclose(results[0], results[-1], type_test=False, atol=1e-4)
+                assert_allclose(results[0], results[-1], type_test=False, atol=1e-4, rtol=1e-4)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:
