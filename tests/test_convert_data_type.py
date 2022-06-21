@@ -34,7 +34,7 @@ for in_type in TEST_NDARRAYS + (int, float, MetaTensor):
         TESTS_LIST.append(
             (
                 [in_type(np.array(1.0)), in_type(np.array(1.0))],  # type: ignore
-                [out_type(np.array(1.0)), out_type(np.array(1.0))],
+                [out_type(np.array(1.0)), out_type(np.array(1.0))],  # type: ignore
                 False,
             )
         )
