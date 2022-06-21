@@ -93,6 +93,7 @@ from .type_conversion import (
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_list,
+    convert_to_meta_tensor,
     convert_to_numpy,
     convert_to_tensor,
     dtype_numpy_to_torch,

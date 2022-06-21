@@ -41,8 +41,8 @@ WORKDIR /opt/tools
 ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
 RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
     find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
-    cp ngc-cli/ngc ngc && \
     rm -rf ngccli_linux.zip ngc-cli.md5
+ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 RUN apt-get update \
   && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
   && rm -rf /var/lib/apt/lists/*
