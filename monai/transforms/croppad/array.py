@@ -53,21 +53,22 @@ from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
 __all__ = [
-    "BorderPad",
-    "BoundingRect",
-    "CenterScaleCrop",
-    "CenterSpatialCrop",
-    "CropForeground",
     "Pad",
-    "RandCropByLabelClasses",
-    "RandCropByPosNegLabel",
-    "RandScaleCrop",
-    "RandSpatialCrop",
-    "RandSpatialCropSamples",
-    "RandWeightedCrop",
-    "ResizeWithPadOrCrop",
-    "SpatialCrop",
     "SpatialPad",
+    "BorderPad",
+    "DivisiblePad",
+    "SpatialCrop",
+    "CenterSpatialCrop",
+    "CenterScaleCrop",
+    "RandSpatialCrop",
+    "RandScaleCrop",
+    "RandSpatialCropSamples",
+    "CropForeground",
+    "RandWeightedCrop",
+    "RandCropByPosNegLabel",
+    "RandCropByLabelClasses",
+    "ResizeWithPadOrCrop",
+    "BoundingRect",
 ]
 
 

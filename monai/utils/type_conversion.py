@@ -120,6 +120,7 @@ def convert_to_tensor(
             default to `False`.
 
     """
+
     def _convert_tensor(tensor):
         if not isinstance(tensor, torch.Tensor):
             tensor = torch.as_tensor(tensor)
