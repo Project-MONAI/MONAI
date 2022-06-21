@@ -25,6 +25,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
@@ -776,6 +777,9 @@ class Lambda(InvertibleTransform):
         if not callable(fn):
             raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
         out = fn(img)
+        # convert to MetaTensor if necessary
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             self.push_transform(out)
         return out
@@ -807,15 +811,22 @@ class RandLambda(Lambda, RandomizableTransform):
 
     def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         self.randomize(img)
-        out = super().__call__(img, func) if self._do_transform else img
+        out = deepcopy(super().__call__(img, func) if self._do_transform else img)
+        # convert to MetaTensor if necessary
+        if not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
         if isinstance(out, MetaTensor):
-            self.push_transform(out)
+            lambda_info = self.pop_transform(out) if self._do_transform else {}
+            self.push_transform(out, extra_info=lambda_info)
         return out
 
     def inverse(self, data: torch.Tensor):
-        if isinstance(data, MetaTensor) and not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
-            return data
-        return super().inverse(data)
+        do_transform = self.get_most_recent_transform(data).pop(TraceKeys.DO_TRANSFORM)
+        if do_transform:
+            data = super().inverse(data)
+        else:
+            self.pop_transform(data)
+        return data
 
 
 class LabelToMask(Transform):

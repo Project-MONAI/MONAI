@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Randomizable
 from monai.transforms.utility.dictionary import RandLambdad
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -33,6 +34,17 @@ class RandTest(Randomizable):
 
 
 class TestRandLambdad(unittest.TestCase):
+    def check(self, tr: RandLambdad, input: dict, out: dict, expected: dict):
+        if isinstance(input["img"], MetaTensor):
+            self.assertEqual(len(input["img"].applied_operations), 0)
+        self.assertIsInstance(out["img"], MetaTensor)
+        self.assertEqual(len(out["img"].applied_operations), 1)
+        assert_allclose(expected["img"], out["img"], type_test=False)
+        assert_allclose(expected["prop"], out["prop"], type_test=False)
+        inv = tr.inverse(out)
+        self.assertIsInstance(inv["img"], MetaTensor)
+        self.assertEqual(len(inv["img"].applied_operations), 0)  # type: ignore
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_rand_lambdad_identity(self, t):
         img = t(np.zeros((10, 10)))
@@ -42,18 +54,22 @@ class TestRandLambdad(unittest.TestCase):
         test_func.set_random_state(seed=134)
         expected = {"img": test_func(data["img"]), "prop": 1.0}
         test_func.set_random_state(seed=134)
-        ret = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])(data)
-        assert_allclose(expected["img"], ret["img"])
-        assert_allclose(expected["prop"], ret["prop"])
-        ret = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)(data)
-        assert_allclose(data["img"], ret["img"])
-        assert_allclose(data["prop"], ret["prop"])
 
+        # default prob
+        tr = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])
+        ret = tr(data)
+        self.check(tr, data, ret, expected)
+
+        # prob = 0
+        tr = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)
+        ret = tr(data)
+        self.check(tr, data, ret, expected=data)
+
+        # prob = 0.5
         trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
         ret = trans(data)
-        assert_allclose(data["img"], ret["img"])
-        assert_allclose(data["prop"], ret["prop"])
+        self.check(trans, data, ret, expected=data)
 
 
 if __name__ == "__main__":
