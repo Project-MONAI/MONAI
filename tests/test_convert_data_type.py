@@ -90,7 +90,7 @@ class TestConvertDataSame(unittest.TestCase):
             output_type = MetaTensor
         elif isinstance(im_out, torch.Tensor):
             output_type = torch.Tensor
-        elif isinstance(im_out, np.ndarray):
+        else:
             output_type = np.ndarray
         self.assertEqual(type(converted_im), output_type)
         # check dtype is unchanged
