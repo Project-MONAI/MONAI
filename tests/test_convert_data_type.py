@@ -18,16 +18,16 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS: List[Tuple] = []
-for in_type in TEST_NDARRAYS + (int, float, MetaTensor):
-    for out_type in TEST_NDARRAYS + (MetaTensor,):
+for in_type in TEST_NDARRAYS_ALL + (int, float):
+    for out_type in TEST_NDARRAYS_ALL:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0))))  # type: ignore
 
 TESTS_LIST: List[Tuple] = []
-for in_type in TEST_NDARRAYS + (int, float, MetaTensor):
-    for out_type in TEST_NDARRAYS + (MetaTensor,):
+for in_type in TEST_NDARRAYS_ALL + (int, float):
+    for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(
             ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
         )
