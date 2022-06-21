@@ -15,7 +15,7 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
-from monai.utils.misc import ensure_tuple, is_module_ver_at_least
+from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
@@ -54,29 +54,10 @@ def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_n
 
 
 def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
-    """`moveaxis` for pytorch and numpy, using `permute` for pytorch version < 1.7"""
+    """`moveaxis` for pytorch and numpy"""
     if isinstance(x, torch.Tensor):
-        if hasattr(torch, "movedim"):  # `movedim` is new in torch 1.7.0
-            # torch.moveaxis is a recent alias since torch 1.8.0
-            return torch.movedim(x, src, dst)  # type: ignore
-        return _moveaxis_with_permute(x, src, dst)
+        return torch.movedim(x, src, dst)  # type: ignore
     return np.moveaxis(x, src, dst)
-
-
-def _moveaxis_with_permute(
-    x: torch.Tensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]
-) -> torch.Tensor:
-    # get original indices
-    indices = list(range(x.ndim))
-    len_indices = len(indices)
-    for s, d in zip(ensure_tuple(src), ensure_tuple(dst)):
-        # make src and dst positive
-        # remove desired index and insert it in new position
-        pos_s = len_indices + s if s < 0 else s
-        pos_d = len_indices + d if d < 0 else d
-        indices.pop(pos_s)
-        indices.insert(pos_d, pos_s)
-    return x.permute(indices)
 
 
 def in1d(x, y):
@@ -101,10 +82,7 @@ def percentile(
 ) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
-    Pytorch uses `quantile`, but this functionality is only available from v1.7.
-    For earlier methods, we calculate it ourselves. This doesn't do interpolation,
-    so is the equivalent of ``numpy.percentile(..., interpolation="nearest")``.
-    For more details, please refer to:
+    Pytorch uses `quantile`. For more details please refer to:
     https://pytorch.org/docs/stable/generated/torch.quantile.html.
     https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
@@ -112,7 +90,7 @@ def percentile(
         x: input data
         q: percentile to compute (should in range 0 <= q <= 100)
         dim: the dim along which the percentiles are computed. default is to compute the percentile
-            along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
+            along a flattened version of the array.
         keepdim: whether the output data has dim retained or not.
         kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
             https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
@@ -130,18 +108,7 @@ def percentile(
         result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
     else:
         q = torch.tensor(q, device=x.device)
-        if hasattr(torch, "quantile"):  # `quantile` is new in torch 1.7.0
-            result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
-        else:
-            # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
-            # corresponds to k=1, not k=0. Thus, we need the `1 +`.
-            k = 1 + (0.01 * q * (x.numel() - 1)).round().int()
-            if k.numel() > 1:
-                r = [x.view(-1).kthvalue(int(_k)).values.item() for _k in k]
-                result = torch.tensor(r, device=x.device)
-            else:
-                result = x.view(-1).kthvalue(int(k)).values.item()
-
+        result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
     return result
 
 
@@ -277,8 +244,6 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrT
 def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.maximum` with equivalent implementation for torch.
 
-    `torch.maximum` only available from pt>1.6, else use `torch.stack` and `torch.max`.
-
     Args:
         a: first array/tensor
         b: second array/tensor
@@ -287,10 +252,7 @@ def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
         Element-wise maximum between two arrays/tensors.
     """
     if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
-        # is torch and has torch.maximum (pt>1.6)
-        if hasattr(torch, "maximum"):  # `maximum` is new in torch 1.7.0
-            return torch.maximum(a, b)
-        return torch.stack((a, b)).max(dim=0)[0]
+        return torch.maximum(a, b)
     return np.maximum(a, b)
 
 
@@ -414,7 +376,7 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
         to_long: convert input to long before performing mode.
     """
     dtype = torch.int64 if to_long else None
-    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype)
+    x_t, *_ = convert_data_type(x, torch.Tensor, dtype=dtype, drop_meta=True)
     o_t = torch.mode(x_t, dim).values
     o, *_ = convert_to_dst_type(o_t, x)
     return o
@@ -427,3 +389,14 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
         x: array/tensor
     """
     return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
+
+
+def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.linalg.inv` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
+        return torch.inverse(x)  # type: ignore
+    return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore

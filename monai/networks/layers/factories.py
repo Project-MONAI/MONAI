@@ -60,11 +60,16 @@ can be parameterized with the factory name and the arguments to pass to the crea
     layer = use_factory( (fact.TEST, kwargs) )
 """
 
+import warnings
 from typing import Any, Callable, Dict, Tuple, Type, Union
 
+import torch
 import torch.nn as nn
 
-from monai.utils import look_up_option
+from monai.utils import look_up_option, optional_import
+
+InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -240,6 +245,43 @@ def local_response_factory(_dim) -> Type[nn.LocalResponseNorm]:
 @Norm.factory_function("syncbatch")
 def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
     return nn.SyncBatchNorm
+
+
+@Norm.factory_function("instance_nvfuser")
+def instance_nvfuser_factory(dim):
+    """
+    `InstanceNorm3dNVFuser` is a faster verison of InstanceNorm layer and implemented in `apex`.
+    It only supports 3d tensors as the input. It also requires to use with CUDA and non-Windows OS.
+    In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
+    `nn.InstanceNorm3d` will be returned instead.
+    This layer is based on a customized autograd function, which is not supported in TorchScript currently.
+    Please switch to use `nn.InstanceNorm3d` if TorchScript is necessary.
+
+    Please check the following link for more details about how to install `apex`:
+    https://github.com/NVIDIA/apex#installation
+
+    """
+    types = (nn.InstanceNorm1d, nn.InstanceNorm2d)
+    if dim != 3:
+        warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
+        return types[dim - 1]
+    # test InstanceNorm3dNVFuser installation with a basic example
+    has_nvfuser_flag = has_nvfuser
+    if not torch.cuda.is_available():
+        return nn.InstanceNorm3d
+    try:
+        layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
+        inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
+        out = layer(inp)
+        del inp, out, layer
+    except Exception:
+        has_nvfuser_flag = False
+    if not has_nvfuser_flag:
+        warnings.warn(
+            "`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead."
+        )
+        return nn.InstanceNorm3d
+    return InstanceNorm3dNVFuser
 
 
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)

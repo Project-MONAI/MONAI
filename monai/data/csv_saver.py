@@ -27,7 +27,7 @@ class CSVSaver:
     Save the data in a dictionary format cache, and write to a CSV file finally.
     Typically, the data can be classification predictions, call `save` for single data
     or call `save_batch` to save a batch of data together, and call `finalize` to write
-    the cached data into CSV file. If no meta data provided, use index from 0 to save data.
+    the cached data into CSV file. If no metadata provided, use index from 0 to save data.
     Note that this saver can't support multi-processing because it reads / writes single
     CSV file and can't guarantee the data order in multi-processing situation.
 
@@ -88,7 +88,7 @@ class CSVSaver:
 
         Args:
             data: target data content that save into cache.
-            meta_data: the meta data information corresponding to the data.
+            meta_data: the metadata information corresponding to the data.
 
         """
         save_key = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
