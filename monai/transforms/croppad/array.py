@@ -23,11 +23,14 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
+    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -46,89 +49,112 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
 )
-from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.enums import TraceKeys, TransformBackends
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
 __all__ = [
-    "Pad",
-    "SpatialPad",
     "BorderPad",
-    "DivisiblePad",
-    "SpatialCrop",
-    "CenterSpatialCrop",
-    "CenterScaleCrop",
-    "RandSpatialCrop",
-    "RandScaleCrop",
-    "RandSpatialCropSamples",
-    "CropForeground",
-    "RandWeightedCrop",
-    "RandCropByPosNegLabel",
-    "RandCropByLabelClasses",
-    "ResizeWithPadOrCrop",
     "BoundingRect",
+    "CenterScaleCrop",
+    "CenterSpatialCrop",
+    "CropForeground",
+    "Pad",
+    "RandCropByLabelClasses",
+    "RandCropByPosNegLabel",
+    "RandScaleCrop",
+    "RandSpatialCrop",
+    "RandSpatialCropSamples",
+    "RandWeightedCrop",
+    "ResizeWithPadOrCrop",
+    "SpatialCrop",
+    "SpatialPad",
 ]
 
 
-class Pad(Transform):
+class Pad(InvertibleTransform):
     """
     Perform padding for a given an amount of padding in each dimension.
-    If input is `torch.Tensor`, `torch.nn.functional.pad` will be used, otherwise, `np.pad` will be used.
+
+    `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
+    in which case `np.pad` will be used.
 
     Args:
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            if None, must provide in the `__call__` at runtime.
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
-    """
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+        kwargs: other arguments for the `torch.pad` function.
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    """
 
     def __init__(
         self,
-        to_pad: List[Tuple[int, int]],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        to_pad: Optional[List[Tuple[int, int]]] = None,
+        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
 
-    @staticmethod
-    def _np_pad(img: np.ndarray, all_pad_width, mode, **kwargs) -> np.ndarray:
-        return np.pad(img, all_pad_width, mode=mode, **kwargs)  # type: ignore
-
-    @staticmethod
-    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in all_pad_width[1:] for val in sublist[::-1]][::-1]
-        # torch.pad expects `[B, C, H, W, [D]]` shape
-        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
-
     def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+        self,
+        img: torch.Tensor,
+        to_pad: Optional[List[Tuple[int, int]]] = None,
+        mode: Optional[Union[PytorchPadMode, str]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
         """
         Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"`` or ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to `self.mode`.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
+            to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+                default to `self.to_pad`.
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+                default to `self.mode`.
+            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
 
         """
-        if not np.asarray(self.to_pad).any():
+        to_pad_ = self.to_pad if to_pad is None else to_pad
+        mode_ = self.mode if mode is None else mode
+        if to_pad is None:
+            raise ValueError("must provde `to_pad` to execute padding.")
+        kwargs_ = dict(self.kwargs)
+        kwargs_.update(kwargs)
+
+        img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
+
+        if not np.asarray(to_pad_).any():
             # all zeros, skip padding
-            return img
-        mode = convert_pad_mode(dst=img, mode=mode or self.mode).value
-        pad = self._pt_pad if isinstance(img, torch.Tensor) else self._np_pad
-        return pad(img, self.to_pad, mode, **self.kwargs)  # type: ignore
+            return img_t
+
+        mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
+        pad_width = [val for sublist in to_pad_[1:] for val in sublist[::-1]][::-1]
+        # torch.pad expects `[B, C, H, W, [D]]` shape
+        img_t = pad_pt(img_t.unsqueeze(0), pad_width, mode=mode_, **kwargs_).squeeze(0)
+
+        if get_track_meta():
+            spatial_rank = max(len(img_t.affine) - 1, 1)
+            to_shift = [-s[0] for s in to_pad_[1:]]  # skipping the channel pad
+            mat = create_translate(spatial_rank, to_shift)
+            img_t.meta["affine"] = img_t.affine @ convert_to_dst_type(mat, img_t.affine)[0]
+            self.push_transform(img_t, extra_info={"padded": to_pad})
+        return img_t
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        padded = transform[TraceKeys.EXTRA_INFO]["padded"]
+        if padded[0][0] != 0 or padded[0][1] != 0:
+            raise NotImplementedError(
+                "Inverse uses SpatialCrop, which hasn't yet been extended to crop channels. Trivial change."
+            )
+        roi_start = [i[0] for i in padded[1:]]
+        roi_end = [i - j[1] for i, j in zip(data.shape[1:], padded[1:])]
+        cropper = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+        with cropper.trace_transform(False):
+            return cropper(data)
 
 
 class SpatialPad(Transform):
