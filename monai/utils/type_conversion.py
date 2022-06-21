@@ -128,7 +128,7 @@ def convert_to_tensor(
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
             return monai.data.MetaTensor(tensor)
         if not track_meta and isinstance(tensor, monai.data.MetaTensor):
-            return tensor.as_tensor(tensor)
+            return tensor.as_tensor()
         return tensor
 
     if isinstance(data, torch.Tensor):
@@ -145,13 +145,13 @@ def convert_to_tensor(
     elif (has_cp and isinstance(data, cp_ndarray)) or isinstance(data, (float, int, bool)):
         return _convert_tensor(data, dtype=dtype, device=device)  # type: ignore
     elif isinstance(data, list):
-        list_ret = [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
+        list_ret = [convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data]
         return _convert_tensor(list_ret, dtype=dtype, device=device) if wrap_sequence else list_ret
     elif isinstance(data, tuple):
-        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
+        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data)
         return _convert_tensor(tuple_ret, dtype=dtype, device=device) if wrap_sequence else tuple_ret  # type: ignore
     elif isinstance(data, dict):
-        return {k: convert_to_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
+        return {k: convert_to_tensor(v, dtype=dtype, device=device, track_meta=track_meta) for k, v in data.items()}
 
     return data
 
@@ -291,10 +291,7 @@ def convert_data_type(
 
 
 def convert_to_dst_type(
-    src: Any,
-    dst: NdarrayTensor,
-    dtype: Union[DtypeLike, torch.dtype, None] = None,
-    wrap_sequence: bool = False,
+    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -331,7 +328,7 @@ def convert_to_dst_type(
         output_type = type(dst)
     output: NdarrayTensor
     output, _type, _device = convert_data_type(
-        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence,
+        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):  # type: ignore
         output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
