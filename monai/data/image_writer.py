@@ -768,11 +768,11 @@ class PILWriter(ImageWriter):
             _min, _max = np.min(data), np.max(data)
             if len(data.shape) == 3:
                 data = np.moveaxis(data, -1, 0)  # to channel first
-                data = convert_data_type(xform(data), np.ndarray, drop_meta=True)[0]  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0]  # type: ignore
                 data = np.moveaxis(data, 0, -1)
             else:  # (H, W)
                 data = np.expand_dims(data, 0)  # make a channel
-                data = convert_data_type(xform(data), np.ndarray, drop_meta=True)[0][0]  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0][0]  # type: ignore
             if mode != InterpolateMode.NEAREST:
                 data = np.clip(data, _min, _max)
         return data

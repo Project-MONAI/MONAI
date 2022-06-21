@@ -14,7 +14,6 @@ import unittest
 import numpy as np
 import torch
 
-from monai.data import MetaTensor
 from monai.transforms import EnsureTyped
 from tests.utils import assert_allclose
 
@@ -90,19 +89,6 @@ class TestEnsureTyped(unittest.TestCase):
             torch.testing.assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]))
             self.assertEqual(result["meta"]["path"], "temp/test")
             self.assertEqual(result["extra"], None)
-
-    def test_error(self):
-        # simulate metatenor input data but drop_meta=False to not removing the meta
-        test_data = {
-            "img": MetaTensor(
-                np.array([1.0, 2.0], dtype=np.float32),
-                meta={"dims": 3, "size": np.array([1, 2, 3]), "path": "temp/test"},
-            )
-        }
-        with self.assertRaises(RuntimeError):
-            EnsureTyped(keys="img", data_type="numpy", device="cpu", drop_meta=False)(test_data)
-        result = EnsureTyped(keys="img", data_type="tensor", device="cpu", drop_meta=False)(test_data)
-        self.assertTrue(isinstance(result["img"], MetaTensor))
 
 
 if __name__ == "__main__":

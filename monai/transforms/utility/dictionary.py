@@ -446,7 +446,6 @@ class CastToTyped(MapTransform):
         self,
         keys: KeysCollection,
         dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
-        drop_meta: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -456,15 +455,12 @@ class CastToTyped(MapTransform):
             dtype: convert image to this data type, default is `np.float32`.
                 it also can be a sequence of dtypes or torch.dtype,
                 each element corresponds to a key in ``keys``.
-            drop_meta: whether to drop the meta information of the input data, default to `True`.
-                If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-                If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.converter = CastToType(drop_meta=drop_meta)
+        self.converter = CastToType()
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -543,7 +539,6 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        drop_meta: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -555,15 +550,10 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             device: for Tensor data type, specify the target device.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-            drop_meta: whether to drop the meta information of the input data, default to `True`.
-                If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-                If `False`, converting a MetaTensor into a non-metatensor instance will raise an error.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(
-            data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence, drop_meta=drop_meta
-        )
+        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

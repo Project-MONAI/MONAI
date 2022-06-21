@@ -362,16 +362,12 @@ class CastToType(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dtype=np.float32, drop_meta: bool = True) -> None:
+    def __init__(self, dtype=np.float32) -> None:
         """
         Args:
             dtype: convert image to this data type, default is `np.float32`.
-            drop_meta: whether to drop the meta information of the input data, default to `True`.
-                If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-                If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
         """
         self.dtype = dtype
-        self.drop_meta = drop_meta
 
     def __call__(self, img: NdarrayOrTensor, dtype: Union[DtypeLike, torch.dtype] = None) -> NdarrayOrTensor:
         """
@@ -384,7 +380,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype, drop_meta=self.drop_meta)[0]  # type: ignore
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
 
 
 class ToTensor(Transform):
@@ -434,9 +430,6 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        drop_meta: whether to drop the meta information of the input data, default to `True`.
-            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-            If `False`, converting a MetaTensor into a non-metatensor instance will raise an error.
 
     """
 
@@ -448,13 +441,11 @@ class EnsureType(Transform):
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        drop_meta: bool = True,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
-        self.drop_meta = drop_meta
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -468,12 +459,7 @@ class EnsureType(Transform):
         output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
         out: NdarrayOrTensor
         out, *_ = convert_data_type(
-            data=data,
-            output_type=output_type,
-            dtype=self.dtype,
-            device=self.device,
-            wrap_sequence=self.wrap_sequence,
-            drop_meta=self.drop_meta,
+            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
         )
         return out
 
@@ -1109,7 +1095,7 @@ class TorchVision:
             img: PyTorch Tensor data for the TorchVision transform.
 
         """
-        img_t, *_ = convert_data_type(img, torch.Tensor, drop_meta=True)
+        img_t, *_ = convert_data_type(img, torch.Tensor)
 
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
