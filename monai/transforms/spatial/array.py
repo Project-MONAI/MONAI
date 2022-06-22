@@ -159,7 +159,7 @@ class SpatialResample(InvertibleTransform):
         """
         dtype = img.dtype
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta():
+        if get_track_meta() and isinstance(img, MetaTensor):
             self.update_meta(img, dst_affine)
             self.push_transform(
                 img,
@@ -175,8 +175,7 @@ class SpatialResample(InvertibleTransform):
         return img
 
     def update_meta(self, img, dst_affine):
-        if isinstance(img, MetaTensor):
-            img.affine = dst_affine
+        img.affine = dst_affine
 
     @deprecated_arg(
         name="src_affine", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
@@ -635,7 +634,7 @@ class Orientation(InvertibleTransform):
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
 
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        if get_track_meta():
+        if get_track_meta() and isinstance(data_array, MetaTensor):
             self.update_meta(data_array, new_affine)
             self.push_transform(data_array, extra_info={"old_affine": affine_np})
         return data_array
@@ -676,18 +675,14 @@ class Flip(InvertibleTransform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def forward_meta(self, img_meta, shape, axes):
+    def update_meta(self, img, shape, axes):
         # shape and axes include the channel dim
-        m = dict(img_meta)
-        affine = m.get("affine")
-        if affine is None:
-            return m
+        affine = img.affine
         mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
         for axis in axes:
             sp = axis - 1
             mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        m["affine"] = affine @ mat
-        return m
+        img.affine = affine @ mat
 
     def forward_image(self, img, axes) -> torch.Tensor:
         return torch.flip(img, axes)
@@ -697,13 +692,12 @@ class Flip(InvertibleTransform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
         """
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axis)
         out = self.forward_image(img, axes)
-        if isinstance(out, MetaTensor):
-            out.meta = self.forward_meta(out.meta, out.shape, axes)
-        self.push_transform(out)
+        if get_track_meta() and isinstance(out, MetaTensor):
+            self.update_meta(out, out.shape, axes)
+            self.push_transform(out)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
