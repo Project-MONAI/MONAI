@@ -72,11 +72,11 @@ class TestTimeAugmentation:
         image_key: key used to extract image from input dictionary.
         orig_key: the key of the original input data in the dict. will get the applied transform information
             for this input data, then invert them for the expected data with `image_key`.
-        orig_meta_keys: the key of the meta data of original input data, will get the `affine`, `data_shape`, etc.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+        orig_meta_keys: the key of the metadata of original input data, will get the `affine`, `data_shape`, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{orig_key}_{meta_key_postfix}`.
-        meta_key_postfix: use `key_{postfix}` to fetch the meta data according to the key data,
-            default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: use `key_{postfix}` to fetch the metadata according to the key data,
+            default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
             this arg only works when `meta_keys=None`.

@@ -14,7 +14,14 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 from monai.transforms.spatial.array import Resize
-from monai.utils import InterpolateMode, deprecated, ensure_tuple_rep, look_up_option, optional_import
+from monai.utils import (
+    InterpolateMode,
+    convert_data_type,
+    deprecated,
+    ensure_tuple_rep,
+    look_up_option,
+    optional_import,
+)
 
 Image, _ = optional_import("PIL", name="Image")
 
@@ -38,7 +45,7 @@ def write_png(
         data: input data to write to file.
         file_name: expected file name that saved on disk.
         output_spatial_shape: spatial shape of the output image.
-        mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
             The interpolation mode. Defaults to ``"bicubic"``.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling to
@@ -74,9 +81,9 @@ def write_png(
     if scale is not None:
         data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
         if scale == np.iinfo(np.uint8).max:
-            data = (scale * data).astype(np.uint8, copy=False)
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint8)[0]
         elif scale == np.iinfo(np.uint16).max:
-            data = (scale * data).astype(np.uint16, copy=False)
+            data = convert_data_type((scale * data), np.ndarray, dtype=np.uint16)[0]
         else:
             raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535]")
 

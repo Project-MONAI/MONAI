@@ -40,6 +40,19 @@ Blocks
 .. autoclass:: MemoryEfficientSwish
     :members:
 
+`FPN`
+~~~~~
+.. autoclass:: ExtraFPNBlock
+    :members:
+.. autoclass:: FeaturePyramidNetwork
+    :members:
+.. autoclass:: LastLevelMaxPool
+    :members:
+.. autoclass:: LastLevelP6P7
+    :members:
+.. autoclass:: BackboneWithFPN
+    :members:
+
 `Mish`
 ~~~~~~
 .. autoclass:: Mish
@@ -483,6 +496,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`SwinUNETR`
+~~~~~~~~~~~
+.. autoclass:: SwinUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -578,11 +596,6 @@ Nets
 `TorchVisionFCModel`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFCModel
-  :members:
-
-`TorchVisionFullyConvModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionFullyConvModel
   :members:
 
 `MILModel`
