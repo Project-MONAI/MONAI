@@ -49,8 +49,8 @@ class TraceableTransform(Transform):
     def trace_key(key: Hashable = None):
         """The key to store the stack of applied transforms."""
         if key is None:
-            return TraceKeys.KEY_SUFFIX
-        return str(key) + TraceKeys.KEY_SUFFIX
+            return f"{TraceKeys.KEY_SUFFIX}"
+        return f"{key}{TraceKeys.KEY_SUFFIX}"
 
     def get_transform_info(
         self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
@@ -201,7 +201,7 @@ class TraceableTransform(Transform):
             if key in data and isinstance(data[key], MetaTensor):
                 all_transforms = data[key].applied_operations
             else:
-                all_transforms = data[self.trace_key(key)]
+                all_transforms = data.get(self.trace_key(key), MetaTensor.get_default_applied_operations())
         else:
             raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
         if check:
