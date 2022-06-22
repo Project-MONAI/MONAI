@@ -725,12 +725,12 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
 TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+    TEST_NDARRAYS_ALL = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
 
 TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")  # type: ignore
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
+    TEST_NDARRAYS_ALL = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]

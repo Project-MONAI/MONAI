@@ -812,10 +812,10 @@ class Resize(InvertibleTransform):
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            return img
+            return convert_to_tensor(img, track_meta=get_track_meta())
 
         original_sp_size = img.shape[1:]
-        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=get_track_meta())
+        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
@@ -839,7 +839,7 @@ class Resize(InvertibleTransform):
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
         if get_track_meta() and isinstance(out, MetaTensor):
-            self.update_meta(img, original_sp_size, spatial_size_)
+            self.update_meta(out, original_sp_size, spatial_size_)
             self.push_transform(
                 out,
                 orig_size=original_sp_size,
@@ -856,8 +856,6 @@ class Resize(InvertibleTransform):
         img.affine = scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         transform = self.pop_transform(data)
         return self.inverse_transform(data, transform)
 
@@ -944,12 +942,10 @@ class Rotate(InvertibleTransform):
             ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        img_t: MetaTensor = convert_data_type(img, MetaTensor, dtype=_dtype)[0]
 
-        im_shape = np.asarray(img_t.shape[1:])  # spatial dimensions
+        im_shape = np.asarray(img.shape[1:])  # spatial dimensions
         input_ndim = len(im_shape)
         if input_ndim not in (2, 3):
             raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
@@ -967,9 +963,10 @@ class Rotate(InvertibleTransform):
         shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
         transform = shift @ transform @ shift_1
 
+        img_t = img.to(_dtype)
         transform_t, *_ = convert_to_dst_type(transform, img_t)
-        _mode = look_up_option(mode or self.mode, GridSampleMode).value
-        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode).value
+        _mode = look_up_option(mode or self.mode, GridSampleMode)
+        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
         xform = AffineTransform(
             normalized=False,
@@ -980,32 +977,27 @@ class Rotate(InvertibleTransform):
         )
         output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
-        if not isinstance(out, MetaTensor):
-            return out
-        out.meta = self.forward_meta(img.meta, transform_t)  # type: ignore
-        self.push_transform(
-            out,
-            orig_size=img_t.shape[1:],
-            extra_info={
-                "rot_mat": transform,
-                "mode": _mode,
-                "padding_mode": _padding_mode,
-                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-            },
-        )
+        if get_track_meta() and isinstance(out, MetaTensor):
+            self.update_meta(out, transform_t)  # type: ignore
+            self.push_transform(
+                out,
+                orig_size=img_t.shape[1:],
+                extra_info={
+                    "rot_mat": transform,
+                    "mode": _mode,
+                    "padding_mode": _padding_mode,
+                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                    "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+                },
+            )
         return out
 
-    def forward_meta(self, img_meta, rotate_mat):
-        meta_dict = deepcopy(img_meta)
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+    def update_meta(self, img, rotate_mat):
+        affine = convert_to_tensor(img.affine, track_meta=False)
         mat = to_affine_nd(len(affine) - 1, rotate_mat)
-        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine)[0]
-        return meta_dict
+        img.affine = affine @ convert_to_dst_type(mat, affine)[0]
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         transform = self.pop_transform(data)
         return self.inverse_transform(data, transform)
 
@@ -1030,7 +1022,7 @@ class Rotate(InvertibleTransform):
         out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
         out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
         if isinstance(data, MetaTensor):
-            out.meta = self.forward_meta(data.meta, transform_t)  # type: ignore
+            self.update_meta(out, transform_t)  # type: ignore
         return out
 
 

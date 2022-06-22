@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Flipd
-from tests.utils import TEST_DEVICES, TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 INVALID_CASES = [("wrong_axis", ["s", 1], TypeError), ("not_numbers", "s", TypeError)]
 
@@ -39,7 +39,7 @@ class TestFlipd(NumpyImageTestCase2D):
 
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             flip = Flipd(keys="img", spatial_axis=spatial_axis)
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)

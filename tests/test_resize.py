@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -70,7 +70,7 @@ class TestResize(NumpyImageTestCase2D):
         ]
 
         expected = np.stack(expected).astype(np.float32)
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
             out = resize(im)
             if isinstance(im, MetaTensor):

@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resized
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
 
@@ -57,7 +57,7 @@ class TestResized(NumpyImageTestCase2D):
         ]
 
         expected = np.stack(expected).astype(np.float32)
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
             out = resize({"img": im})
             test_local_inversion(resize, out, {"img": im}, "img")
