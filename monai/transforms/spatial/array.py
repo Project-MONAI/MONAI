@@ -1158,7 +1158,7 @@ class Zoom(InvertibleTransform):
         do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
         if do_pad_crop:
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
-            out = _pad_crop(out)
+            out = _pad_crop(out)  # type: ignore
         self.push_transform(
             out,
             orig_size=orig_size[1:],
@@ -1192,7 +1192,7 @@ class Zoom(InvertibleTransform):
             xform[TraceKeys.ID] = TraceKeys.NONE
             xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
             xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
-            data = pad_or_crop.inverse(data)
+            data = pad_or_crop.inverse(data)  # type: ignore
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
