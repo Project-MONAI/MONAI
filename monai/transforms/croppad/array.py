@@ -372,14 +372,14 @@ class Crop(InvertibleTransform):
 
     backend = [TransformBackends.TORCH]
 
+    @staticmethod
     def compute_slices(
-        self,
         roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_slices: Optional[Sequence[slice]] = None,
-    ) -> None:
+    ):
         """
         Compute the crop slices based on specified `center & size` or `start & end`.
 
@@ -397,8 +397,8 @@ class Crop(InvertibleTransform):
 
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
-                raise ValueError("Only slice steps of 1/None are currently supported")
-            self.slices = list(roi_slices)
+                raise ValueError("only slice steps of 1/None are currently supported")
+            return list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
                 roi_center, *_ = convert_data_type(
@@ -406,33 +406,31 @@ class Crop(InvertibleTransform):
                 )
                 roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
                 _zeros = torch.zeros_like(roi_center)
-                roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
+                roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)
                 roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
             else:
                 if roi_start is None or roi_end is None:
-                    raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
+                    raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
                 roi_start_torch, *_ = convert_data_type(
                     data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
                 )
-                roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
+                roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))
                 roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
                 roi_end_torch = maximum(roi_end_torch, roi_start_torch)
             # convert to slices (accounting for 1d)
             if roi_start_torch.numel() == 1:
-                self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
+                return [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
             else:
-                self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
+                return [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, slices: Tuple[slice, ...]) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
-        if self.slices is None:
-            raise ValueError("must compute the crop slices first.")
         orig_size = img.shape[1:]
         sd = len(img.shape[1:])  # spatial dims
-        slices = list(self.slices)
         if len(slices) < sd:
             slices += [slice(None)] * (sd - len(slices))
         # Add in the channel (no cropping)
@@ -495,7 +493,7 @@ class SpatialCrop(Crop):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
-        self.compute_slices(
+        self.slices = self.compute_slices(
             roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices,
         )
 
@@ -505,10 +503,10 @@ class SpatialCrop(Crop):
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img)
+        return super().__call__(img=img, slices=self.slices)
 
 
-class CenterSpatialCrop(Transform):
+class CenterSpatialCrop(Crop):
     """
     Crop at the center of image with specified ROI size.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
@@ -522,8 +520,6 @@ class CenterSpatialCrop(Transform):
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
     """
-
-    backend = SpatialCrop.backend
 
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
