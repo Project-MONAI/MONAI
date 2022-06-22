@@ -119,9 +119,9 @@ def grid_pull(
     out: torch.Tensor
     out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(
-            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
-        )
+        meta = input.meta if input.is_batch else deepcopy(input.meta)
+        applied_ops = input.applied_operations if input.is_batch else deepcopy(input.applied_operations)
+        out = monai.data.MetaTensor(out, meta=meta, applied_operations=applied_ops)
     return out
 
 
@@ -225,9 +225,9 @@ def grid_push(
 
     out: torch.Tensor = _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(
-            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
-        )
+        meta = input.meta if input.is_batch else deepcopy(input.meta)
+        applied_ops = input.applied_operations if input.is_batch else deepcopy(input.applied_operations)
+        out = monai.data.MetaTensor(out, meta=meta, applied_operations=applied_ops)
     return out
 
 
@@ -326,9 +326,9 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
     out: torch.Tensor = _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(
-            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
-        )
+        meta = input.meta if input.is_batch else deepcopy(input.meta)
+        applied_ops = input.applied_operations if input.is_batch else deepcopy(input.applied_operations)
+        out = monai.data.MetaTensor(out, meta=meta, applied_operations=applied_ops)
     return out
 
 
@@ -426,9 +426,9 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 
     out: torch.Tensor = _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(
-            out, meta=deepcopy(input.meta), applied_operations=deepcopy(input.applied_operations)
-        )
+        meta = input.meta if input.is_batch else deepcopy(input.meta)
+        applied_ops = input.applied_operations if input.is_batch else deepcopy(input.applied_operations)
+        out = monai.data.MetaTensor(out, meta=meta, applied_operations=applied_ops)
     return out
 
 
