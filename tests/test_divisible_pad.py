@@ -16,11 +16,11 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import DivisiblePad
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS = []
 
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     # pad first dim to be divisible by 7, the second unchanged.
     TESTS.append([{"k": (7, -1), "mode": "constant"}, p(np.zeros((3, 8, 7))), p(np.zeros((3, 14, 7)))])
 
@@ -40,13 +40,9 @@ class TestDivisiblePad(unittest.TestCase):
         self.assertAlmostEqual(result.shape, expected_val.shape)
 
     def test_pad_kwargs(self):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             input_data = p(np.zeros((3, 8, 4)))
-            if isinstance(input_data, np.ndarray):
-                result = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))(input_data)
-                np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)), rtol=1e-7, atol=0)
-            else:
-                result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
+            result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
             torch.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1, rtol=1e-7, atol=0)
 
 

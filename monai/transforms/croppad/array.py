@@ -306,7 +306,7 @@ class BorderPad(Pad):
         return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
 
 
-class DivisiblePad(Transform):
+class DivisiblePad(Pad):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
@@ -316,8 +316,8 @@ class DivisiblePad(Transform):
     def __init__(
         self,
         k: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
+        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         """
@@ -325,43 +325,42 @@ class DivisiblePad(Transform):
             k: the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-            kwargs: other arguments for the `np.pad` or `torch.pad` function.
-                note that `np.pad` treats channel dimension as the first dimension.
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+                default to `self.mode`.
+            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.method: Method = Method(method)
-        self.kwargs = kwargs
+        super().__init__(mode=mode, **kwargs)
 
     def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+        self,
+        img: torch.Tensor,
+        mode: Optional[Union[PytorchPadMode, str]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
         """
         Args:
-            img: data to be transformed, assuming `img` is channel-first
-                and padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            img: data to be transformed, assuming `img` is channel-first and
+                padding doesn't apply to the channel dim.
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+                default to `self.mode`.
+            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
 
         """
         new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
-        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method, mode=mode or self.mode, **self.kwargs)
-
-        return spatial_pad(img)
+        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method)
+        data_pad_width = spatial_pad._determine_data_pad_width(img.shape[1:])
+        all_pad_width = [(0, 0)] + data_pad_width
+        return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
 
 
 class SpatialCrop(Transform):
