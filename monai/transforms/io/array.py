@@ -28,7 +28,15 @@ import torch
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader
+from monai.data.image_reader import (
+    ImageReader,
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode
@@ -47,6 +55,7 @@ SUPPORTED_READERS = {
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
+    "pydicomreader": PydicomReader,
 }
 
 

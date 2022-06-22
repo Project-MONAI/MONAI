@@ -385,7 +385,7 @@ class PydicomReader(ImageReader):
             This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             If None, `original_channel_dim` will be either `no_channel` or `-1`.
         affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
-            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix remains in the ITK convention.
+            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix remains in the Dicom convention.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
 
@@ -419,9 +419,9 @@ class PydicomReader(ImageReader):
             kwargs: additional args for `pydicom.dcmread` API, will override `self.kwargs` for existing keys.
 
         Returns:
-            If `data` represents a filename or a directory: return a tuple.
-            If `data` represents a list of filenames or a list of directories, return a list of tuples.
-            The tuple is consisted with (data array, metadata).
+            If `data` represents a filename: return a pydicom dataset object.
+            If `data` represents a list of filenames or a directory: return a list of pydicom dataset object.
+            If `data` represents a list of directories: return a list of list of pydicom dataset object.
 
         """
         img_ = []
@@ -429,66 +429,45 @@ class PydicomReader(ImageReader):
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
+
+        self.has_series = False
+
         for name in filenames:
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                img_.append(self._read_dicom_slices(name, **kwargs_))
+                slices = []
+                for slc in glob.glob(os.path.join(name, "**")):
+                    slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                img_.append(slices if len(slices) > 1 else slices[0])
+                self.has_series = True
             else:
-                ds = self._read_single_file(filename=name, **kwargs_)
-                ds_array = self._get_array_data(ds)
-                ds_metadata = self._get_meta_dict(ds)
-                ds_metadata["spatial_shape"] = ds_array.shape
-                ds_metadata["spacing"] = np.asarray(ds_metadata["00280030"]["Value"])
-                img_.append((ds_array, ds_metadata))
+                ds = pydicom.dcmread(fp=name, **kwargs_)
+                img_.append(ds)
         return img_ if len(filenames) > 1 else img_[0]
 
-    def _read_single_file(self, filename: PathLike, **kwargs):
+    def _combine_dicom_series(self, data):
         """
-        Read image data from specified filename.
-
-        Args:
-            filename: file name to read. It should also include the path.
-            kwargs: additional args for `pydicom.dcmread` API.
-
-        """
-        ds = pydicom.dcmread(filename, **kwargs)
-        if hasattr(ds, "pixel_array"):
-            return ds
-        elif hasattr(ds, "waveform_array"):
-            raise NotImplementedError("Waveform data is not implemented.")
-        elif hasattr(ds, "overlay_array"):
-            raise NotImplementedError("Overlay data is not implemented.")
-        else:
-            raise ValueError("PydicomReader can only read pixel data, waveform data and overlay data.")
-
-    def _read_dicom_slices(self, name: PathLike, **kwargs):
-        """
-        Read a list of dicom slices. Their data arrays will be stacked together at a new dimension as the
+        Combine dicom series. Their data arrays will be stacked together at a new dimension as the
         last dimension. The stack order depends on Instance Number. The metadata will be produced by the
         first slice's metadata, as well as the new spacing.
-
         Args:
-            name: the directory that contains DICOM images series.
-            kwargs: additional args for `pydicom.dcmread` API.
-
+            data: a list of pydicom dataset objects.
         Returns:
             a tuple that consisted with data array and metadata.
-
         """
         slices = []
-        for slc in glob.glob(os.path.join(name, "**")):
-            slc_ds = self._read_single_file(filename=slc, **kwargs)
+        # for a dicom s
+        for slc_ds in data:
             if hasattr(slc_ds, "InstanceNumber"):
                 slices.append(slc_ds)
             else:
-                warnings.warn(f"slice: {slc} in directory {name} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber)  # type: ignore
+                warnings.warn(f"slice: {slc_ds[0x0008, 0x0018]} does not have InstanceNumber tag, skip it.")
+        slices = sorted(slices, key=lambda s: s.InstanceNumber)
 
         if len(slices) == 0:
-            raise ValueError(f"the directory: {name} does not have valid slices.")
-        if len(slices) == 1:
-            return slices[0]
+            raise ValueError("the input does not have valid slices.")
+
         first_slice = slices[0]
         average_distance = 0.0
         first_array = self._get_array_data(first_slice)
@@ -500,27 +479,32 @@ class PydicomReader(ImageReader):
             slc = slices[idx]
             slc_array = self._get_array_data(slc)
             slc_shape = slc_array.shape
-            slc_spacing, slc_pos = slc.PixelSpacing, slc.ImagePositionPatient[2]  # type: ignore
+            slc_spacing, slc_pos = slc.PixelSpacing, slc.ImagePositionPatient[2]
             if spacing != slc_spacing:
-                raise ValueError(f"the directory: {name} contains slices that have different spacings.")
+                raise ValueError("the list contains slices that have different spacings.")
             if shape != slc_shape:
-                raise ValueError(f"the directory: {name} contains slices that have different shapes.")
+                raise ValueError("the list contains slices that have different shapes.")
             average_distance += abs(pos - slc_pos)
             pos = slc_pos
             stack_array.append(slc_array)
-        average_distance /= len(slices) - 1
-        spacing.append(average_distance)
 
-        stack_metadata = self._get_meta_dict(first_slice)
-        stack_metadata["spacing"] = np.asarray(spacing)
-        stack_metadata["lastImagePositionPatient"] = slices[-1].ImagePositionPatient
-        stack_metadata["spatial_shape"] = shape + (len(slices),)
-
-        stack_array = np.stack(stack_array, axis=-1)
+        if len(slices) > 1:
+            average_distance /= len(slices) - 1
+            spacing.append(average_distance)
+            stack_array = np.stack(stack_array, axis=-1)
+            stack_metadata = self._get_meta_dict(first_slice)
+            stack_metadata["spacing"] = np.asarray(spacing)
+            stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
+            stack_metadata["spatial_shape"] = shape + (len(slices),)
+        else:
+            stack_array = stack_array[0]
+            stack_metadata = self._get_meta_dict(first_slice)
+            stack_metadata["spacing"] = np.asarray(spacing)
+            stack_metadata["spatial_shape"] = shape
 
         return stack_array, stack_metadata
 
-    def get_data(self, dicom_data):
+    def get_data(self, data):
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -529,14 +513,32 @@ class PydicomReader(ImageReader):
         and the metadata of the first image is used to represent the output metadata.
 
         Args:
-            dicom_data: a tuple or a list of tuple. The tuple should consist with data array and metadata.
+            data: a pydicom dataset object, or a list of pydicom dataset objects, or a list of list of
+                pydicom dataset objects.
 
         """
+
+        dicom_data = []
+        if self.has_series is True:
+            # a list, or a list of list
+            if not isinstance(data[0], List):
+                dicom_data.append(self._combine_dicom_series(data))
+            else:
+                for series in data:
+                    dicom_data.append(series)
+        else:
+            if not isinstance(data, List):
+                data = [data]
+            for d in data:
+                data_array = self._get_array_data(d)
+                metadata = self._get_meta_dict(d)
+                metadata["spatial_shape"] = data_array.shape
+                metadata["spacing"] = np.asarray(metadata["00280030"]["Value"])
+                dicom_data.append((data_array, metadata))
+
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
-        if not isinstance(dicom_data, List):
-            # for single image, put (data array, metadata) into a list
-            dicom_data = [dicom_data]
+
         for (data, header) in ensure_tuple(dicom_data):
             img_array.append(data)
             header["original_affine"] = self._get_affine(header, self.affine_lps_to_ras)
