@@ -552,7 +552,9 @@ class CenterScaleCrop(Crop):
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         img_size = img.shape[1:]
         ndim = len(img_size)
-        roi_size = fall_back_tuple([ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)], img_size)
+        roi_size = fall_back_tuple(
+            [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)], img_size,
+        )
         roi_center = [i // 2 for i in img.shape[1:]]
         slices = self.compute_slices(roi_center=roi_center, roi_size=roi_size)
         return super().__call__(img=img, slices=slices)
