@@ -25,15 +25,31 @@ __all__ = ["TraceableTransform", "InvertibleTransform"]
 
 class TraceableTransform(Transform):
     """
-    Maintains a stack of applied transforms. The stack is inserted as pairs of
-    `trace_key: list of transforms` to each data dictionary.
+    Maintains a stack of applied transforms to data.
+
+    Data can be one of two types:
+        1. A `MetaTensor` (this is the preferred data type).
+        2. A dictionary of data containing arrays/tensors and auxiliary metadata. In
+            this case, a key must be supplied (this dictionary-based approach is deprecated).
+
+    If `data` is of type `MetaTensor`, then the applied transform will be added to ``data.applied_operations``.
+
+    If `data` is a dictionary, then one of two things can happen:
+        1. If data[key] is a `MetaTensor`, the applied transform will be added to ``data[key].applied_operations``.
+        2. Else, the applied transform will be appended to an adjacent list using
+            `trace_key`. If, for example, the key is `image`, then the transform
+            will be appended to `image_transforms` (this dictionary-based approach is deprecated).
+
+    Hopefully it is clear that there are three total possibilities:
+        1. data is `MetaTensor`
+        2. data is dictionary, data[key] is `MetaTensor`
+        3. data is dictionary, data[key] is not `MetaTensor` (this is a deprecated approach).
 
     The ``__call__`` method of this transform class must be implemented so
-    that the transformation information for each key is stored in ``data.applied_operations``
-    when ``__call__`` is called.
+    that the transformation information is stored during the data transformation.
 
-    The information in ``data.applied_operations`` will be compatible with the
-    default collate since it only stores strings, numbers and arrays.
+    The information in the stack of applied transforms must be compatible with the
+    default collate, by only storing strings, numbers and arrays.
 
     `tracing` could be enabled by `self.set_tracing` or setting
     `MONAI_TRACE_TRANSFORM` when initializing the class.
@@ -56,18 +72,17 @@ class TraceableTransform(Transform):
         self, data, key: Hashable = None, extra_info: Optional[dict] = None, orig_size: Optional[Tuple] = None
     ) -> dict:
         """
-        Return a dictionary with the relevant information pertaining to an applied
-        transform.
+        Return a dictionary with the relevant information pertaining to an applied transform.
 
         Args:
-            - data: input data. Can be dictionary or MetaTensor. We can use `shape` to
+            data: input data. Can be dictionary or MetaTensor. We can use `shape` to
                 determine the original size of the object (unless that has been given
                 explicitly, see `orig_size`).
-            - key: if data is a dictionary, data[key] will be modified
-            - extra_info: if desired, any extra information pertaining to the applied
+            key: if data is a dictionary, data[key] will be modified.
+            extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
-            - orig_size: sometimes during the inverse it is useful to know what the size
+            orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
 
         Returns:
@@ -93,31 +108,13 @@ class TraceableTransform(Transform):
         """
         Push to a stack of applied transforms.
 
-        Data can be one of two types:
-            1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxiliary data. In
-                this case, a key must be supplied (the dictionary-based approach is deprecated).
-
-        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
-
-        If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
-            2. Else, the applied transform will be appended to an adjacent list using
-                `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`. (This is deprecated.)
-
-        Hopefully it is clear that there are three total possibilities:
-            1. data is `MetaTensor`
-            2. data is dictionary, data[key] is `MetaTensor`
-            3. data is dictionary, data[key] is not `MetaTensor`.
-
         Args:
-            - data: dictionary of data or `MetaTensor`
-            - key: if data is a dictionary, data[key] will be modified
-            - extra_info: if desired, any extra information pertaining to the applied
+            data: dictionary of data or `MetaTensor`.
+            key: if data is a dictionary, data[key] will be modified.
+            extra_info: if desired, any extra information pertaining to the applied
                 transform can be stored in this dictionary. These are often needed for
                 computing the inverse transformation.
-            - orig_size: sometimes during the inverse it is useful to know what the size
+            orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
 
         Returns:
@@ -161,31 +158,13 @@ class TraceableTransform(Transform):
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
-        Get most recent transform.
-
-        Data can be one of two things:
-            1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxiliary data. In
-                this case, a key must be supplied (the dictionary-based approach is deprecated).
-
-        If `data` is of type `MetaTensor`, then the applied transform will be added to its internal list.
-
-        If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to its internal list.
-            2. Else, the applied transform will be appended to an adjacent list using
-                `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`. (This is deprecated.)
-
-        Hopefully it is clear that there are three total possibilities:
-            1. data is `MetaTensor`
-            2. data is dictionary, data[key] is `MetaTensor`
-            3. data is dictionary, data[key] is not `MetaTensor`.
+        Get most recent transform for the stack.
 
         Args:
-            - data: dictionary of data or `MetaTensor`
-            - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most recently-applied transform.
-            - pop: if true, remove the transform as it is returned.
+            data: dictionary of data or `MetaTensor`.
+            key: if data is a dictionary, data[key] will be modified.
+            check: if true, check that `self` is the same type as the most recently-applied transform.
+            pop: if true, remove the transform as it is returned.
 
         Returns:
             Dictionary of most recently applied transform
@@ -212,30 +191,10 @@ class TraceableTransform(Transform):
         """
         Return and pop the most recent transform.
 
-        Data can be one of two things:
-            1. A `MetaTensor`
-            2. A dictionary of data containing arrays/tensors and auxilliary data. In
-                this case, a key must be supplied.
-
-        If `data` is of type `MetaTensor`, then the applied transform will be added to
-            its internal list.
-
-        If `data` is a dictionary, then one of two things can happen:
-            1. If data[key] is a `MetaTensor`, the applied transform will be added to
-                its internal list.
-            2. Else, the applied transform will be appended to an adjacent list using
-                `trace_key`. If, for example, the key is `image`, then the transform
-                will be appended to `image_transforms`.
-
-        Hopefully it is clear that there are three total possibilities:
-            1. data is `MetaTensor`
-            2. data is dictionary, data[key] is `MetaTensor`
-            3. data is dictionary, data[key] is not `MetaTensor`.
-
         Args:
-            - data: dictionary of data or `MetaTensor`
-            - key: if data is a dictionary, data[key] will be modified
-            - check: if true, check that `self` is the same type as the most recently-applied transform.
+            data: dictionary of data or `MetaTensor`
+            key: if data is a dictionary, data[key] will be modified
+            check: if true, check that `self` is the same type as the most recently-applied transform.
 
         Returns:
             Dictionary of most recently applied transform
