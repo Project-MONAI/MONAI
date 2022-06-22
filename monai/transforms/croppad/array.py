@@ -524,15 +524,16 @@ class CenterSpatialCrop(Crop):
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
         roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
-        center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
-        return cropper(img)
+        roi_center = [i // 2 for i in img.shape[1:]]
+        slices = self.compute_slices(roi_center=roi_center, roi_size=roi_size)
+        return super().__call__(img=img, slices=slices)
 
 
 class CenterScaleCrop(Transform):
