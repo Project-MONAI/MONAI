@@ -16,6 +16,7 @@ from .croppad.array import (
     BoundingRect,
     CenterScaleCrop,
     CenterSpatialCrop,
+    Crop,
     CropForeground,
     DivisiblePad,
     Pad,

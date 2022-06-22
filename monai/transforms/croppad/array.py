@@ -58,6 +58,7 @@ __all__ = [
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
+    "Crop",
     "SpatialCrop",
     "CenterSpatialCrop",
     "CenterScaleCrop",
@@ -363,23 +364,15 @@ class DivisiblePad(Pad):
         return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
 
 
-class SpatialCrop(Transform):
+class Crop(InvertibleTransform):
     """
-    General purpose cropper to produce sub-volume region of interest (ROI).
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
-    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
-    not have exactly the same shape.
-    It can support to crop ND spatial (channel-first) data.
+    Perform crop operation on the input image.
 
-    The cropped region can be parameterised in various ways:
-        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
-        - a spatial center and size
-        - the start and end coordinates of the ROI
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
-    def __init__(
+    def compute_slices(
         self,
         roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
         roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
@@ -388,6 +381,8 @@ class SpatialCrop(Transform):
         roi_slices: Optional[Sequence[slice]] = None,
     ) -> None:
         """
+        Compute the crop slices based on specified `center & size` or `start & end`.
+
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
             roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
@@ -396,6 +391,7 @@ class SpatialCrop(Transform):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
+
         """
         roi_start_torch: torch.Tensor
 
@@ -427,14 +423,89 @@ class SpatialCrop(Transform):
             else:
                 self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
         """
-        sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
-        slices = [slice(None)] + self.slices[:sd]
-        return img[tuple(slices)]
+        if self.slices is None:
+            raise ValueError("must compute the crop slices first.")
+        orig_size = img.shape[1:]
+        sd = len(img.shape[1:])  # spatial dims
+        slices = list(self.slices)
+        if len(slices) < sd:
+            slices += [slice(None)] * (sd - len(slices))
+        # Add in the channel (no cropping)
+        slices = [slice(None)] + slices[:sd]
+
+        img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
+        img_t = img_t[tuple(slices)]
+        if get_track_meta():
+            self._update_meta(tensor=img_t, slices=slices)
+            cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
+            cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
+            cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
+            self.push_transform(img_t, extra_info={"cropped": cropped})
+        return img_t
+
+    def _update_meta(self, tensor: MetaTensor, slices: List):
+        spatial_rank = max(len(tensor.affine) - 1, 1)
+        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
+        mat = create_translate(spatial_rank, to_shift)
+        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+
+    def inverse(self, img: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(img)
+        cropped = transform[TraceKeys.EXTRA_INFO]["cropped"]
+        # the amount we pad is equal to the amount we cropped in each direction
+        inverse_transform = BorderPad(cropped)
+        # Apply inverse transform
+        with inverse_transform.trace_transform(False):
+            return inverse_transform(img)
+
+
+class SpatialCrop(Crop):
+    """
+    General purpose cropper to produce sub-volume region of interest (ROI).
+    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
+    not have exactly the same shape.
+    It can support to crop ND spatial (channel-first) data.
+    The cropped region can be parameterised in various ways:
+        - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
+        - a spatial center and size
+        - the start and end coordinates of the ROI
+    """
+
+    def __init__(
+        self,
+        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_slices: Optional[Sequence[slice]] = None,
+    ) -> None:
+        """
+        Args:
+            roi_center: voxel coordinates for center of the crop ROI.
+            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+                will not crop that dimension of the image.
+            roi_start: voxel coordinates for start of the crop ROI.
+            roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
+                use the end coordinate of image.
+            roi_slices: list of slices for each of the spatial dimensions.
+        """
+        self.compute_slices(
+            roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices,
+        )
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+
+        """
+        return super().__call__(img=img)
 
 
 class CenterSpatialCrop(Transform):

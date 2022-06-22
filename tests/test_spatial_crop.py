@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import SpatialCrop
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = [
     [{"roi_center": [1, 1, 1], "roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
@@ -37,15 +37,15 @@ class TestSpatialCrop(unittest.TestCase):
     def test_shape(self, input_param, input_shape, expected_shape):
         input_data = np.random.randint(0, 2, size=input_shape)
         results = []
-        for p in TEST_NDARRAYS:
-            for q in TEST_NDARRAYS + (None,):
+        for p in TEST_NDARRAYS_ALL:
+            for q in TEST_NDARRAYS_ALL + (None,):
                 input_param_mod = {
                     k: q(v) if k != "roi_slices" and q is not None else v for k, v in input_param.items()
                 }
                 im = p(input_data)
                 result = SpatialCrop(**input_param_mod)(im)
-                self.assertEqual(type(im), type(result))
-                if isinstance(result, torch.Tensor):
+                self.assertTrue(isinstance(result, torch.Tensor))
+                if isinstance(im, torch.Tensor):
                     self.assertEqual(result.device, im.device)
                 self.assertTupleEqual(result.shape, expected_shape)
                 results.append(result)

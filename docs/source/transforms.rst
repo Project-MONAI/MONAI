@@ -105,6 +105,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`Crop`
+""""""
+.. autoclass:: Crop
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
