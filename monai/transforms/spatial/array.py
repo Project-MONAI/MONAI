@@ -57,6 +57,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
     pytorch_after,
+    convert_to_tensor,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
@@ -157,16 +158,9 @@ class SpatialResample(InvertibleTransform):
         Also append the transform to the stack.
         """
         dtype = img.dtype
-
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if isinstance(img, MetaTensor):
             img.affine = dst_affine
-        elif get_track_meta():
-            img = MetaTensor(img, affine=dst_affine)
-        img = img.to(torch.float32)
-
-        # # update spatial_shape
-        # if isinstance(img, MetaTensor):
-        #     img.meta[Key.SPATIAL_SHAPE] = img.shape[1:]
 
         # append the transform
         if isinstance(img, MetaTensor) and self.tracing:
@@ -238,19 +232,15 @@ class SpatialResample(InvertibleTransform):
         padding_mode = padding_mode or self.padding_mode
         original_spatial_shape = img.shape[1:]
 
-        img = img.to(_dtype)
         src_affine_ = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
-        if get_track_meta() and not isinstance(img, MetaTensor):
-            img = MetaTensor(img)
+        img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)
         spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
         if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
             spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
         src_affine_ = to_affine_nd(spatial_rank, src_affine_)
         src_affine_ = src_affine_.to(_dtype)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
-        if not isinstance(dst_affine, torch.Tensor):
-            dst_affine = torch.as_tensor(dst_affine)
-        dst_affine = dst_affine.to(_dtype).to(src_affine_.device)
+        dst_affine = convert_to_tensor(dst_affine, dtype=_dtype, device=src_affine_.device)
 
         in_spatial_size = torch.tensor(img.shape[1 : spatial_rank + 1])
         if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
