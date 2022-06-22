@@ -856,7 +856,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True, drop_meta=True)[0]
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")

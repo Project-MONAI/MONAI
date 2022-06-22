@@ -105,7 +105,8 @@ def convert_to_tensor(
     track_meta: bool = False,
 ):
     """
-    Utility to convert the input data to a PyTorch Tensor, if tracking meta, convert to `MetaTensor`.
+    Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
+    otherwise, the output will be a regular torch Tensor.
     If passing a dictionary, list or tuple, recursively check every item and convert it to PyTorch Tensor.
 
     Args:
@@ -121,13 +122,14 @@ def convert_to_tensor(
 
     """
 
-    def _convert_tensor(tensor):
+    def _convert_tensor(tensor, **kwargs):
         if not isinstance(tensor, torch.Tensor):
-            tensor = torch.as_tensor(tensor)
+            # if input data is not Tensor, convert it to Tensor first
+            tensor = torch.as_tensor(tensor, **kwargs)
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
             return monai.data.MetaTensor(tensor)
         if not track_meta and isinstance(tensor, monai.data.MetaTensor):
-            return tensor.as_tensor(tensor)
+            return tensor.as_tensor()
         return tensor
 
     if isinstance(data, torch.Tensor):
@@ -142,15 +144,15 @@ def convert_to_tensor(
                 data = np.ascontiguousarray(data)
             return _convert_tensor(data, dtype=dtype, device=device)
     elif (has_cp and isinstance(data, cp_ndarray)) or isinstance(data, (float, int, bool)):
-        return _convert_tensor(data, dtype=dtype, device=device)  # type: ignore
+        return _convert_tensor(data, dtype=dtype, device=device)
     elif isinstance(data, list):
-        list_ret = [convert_to_tensor(i, dtype=dtype, device=device) for i in data]
+        list_ret = [convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data]
         return _convert_tensor(list_ret, dtype=dtype, device=device) if wrap_sequence else list_ret
     elif isinstance(data, tuple):
-        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device) for i in data)
-        return _convert_tensor(tuple_ret, dtype=dtype, device=device) if wrap_sequence else tuple_ret  # type: ignore
+        tuple_ret = tuple(convert_to_tensor(i, dtype=dtype, device=device, track_meta=track_meta) for i in data)
+        return _convert_tensor(tuple_ret, dtype=dtype, device=device) if wrap_sequence else tuple_ret
     elif isinstance(data, dict):
-        return {k: convert_to_tensor(v, dtype=dtype, device=device) for k, v in data.items()}
+        return {k: convert_to_tensor(v, dtype=dtype, device=device, track_meta=track_meta) for k, v in data.items()}
 
     return data
 
@@ -230,7 +232,6 @@ def convert_data_type(
     device: Optional[torch.device] = None,
     dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
-    drop_meta: bool = True,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
@@ -244,9 +245,6 @@ def convert_data_type(
             If left blank, it remains unchanged.
         wrap_sequence: if `False`, then lists will recursively call this function.
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
-        drop_meta: whether to drop the meta information of the input data, default to `True`.
-            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-            If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
 
     Returns:
         modified data, orig_type, orig_device
@@ -278,18 +276,10 @@ def convert_data_type(
 
     dtype_ = get_equivalent_dtype(dtype, output_type)
 
-    if not drop_meta and not issubclass(output_type, monai.data.MetaObj) and isinstance(data, monai.data.MetaObj):
-        # input has a MetaObj, user chose keep the metadata, but the output type cannot take a MetaObj.
-        if issubclass(output_type, torch.Tensor):
-            # user-specified MetaTensor to torch tensor keep the MetaTensor type, for backward compatibility
-            output_type = type(data)  # type: ignore
-        else:
-            raise RuntimeError(f"the specified output_type {output_type} cannot have the metaobj, but drop_meta=False.")
-
     data_: NdarrayTensor
 
     if issubclass(output_type, torch.Tensor):
-        track_meta = True if issubclass(output_type, monai.data.MetaTensor) else False
+        track_meta = issubclass(output_type, monai.data.MetaTensor)
         data_ = convert_to_tensor(data, dtype=dtype_, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
         return data_, orig_type, orig_device
     if issubclass(output_type, np.ndarray):
@@ -302,11 +292,7 @@ def convert_data_type(
 
 
 def convert_to_dst_type(
-    src: Any,
-    dst: NdarrayTensor,
-    dtype: Union[DtypeLike, torch.dtype, None] = None,
-    wrap_sequence: bool = False,
-    drop_meta: bool = True,
+    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -320,9 +306,6 @@ def convert_to_dst_type(
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
-        drop_meta: whether to drop the meta information of the input data, default to `True`.
-            If `True`, then the meta information will be dropped quietly, unless the output type is MetaTensor.
-            If `False`, converting a MetaTensor into a non-tensor instance will raise an error.
 
     See Also:
         :func:`convert_data_type`
@@ -346,7 +329,7 @@ def convert_to_dst_type(
         output_type = type(dst)
     output: NdarrayTensor
     output, _type, _device = convert_data_type(
-        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence, drop_meta=drop_meta
+        data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):  # type: ignore
         output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
