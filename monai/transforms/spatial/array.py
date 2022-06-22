@@ -237,10 +237,9 @@ class SpatialResample(InvertibleTransform):
         spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
         if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
             spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size
-        src_affine_ = to_affine_nd(spatial_rank, src_affine_)
-        src_affine_ = src_affine_.to(_dtype)
+        src_affine_ = to_affine_nd(spatial_rank, src_affine_).to(_dtype)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
-        dst_affine = convert_to_tensor(dst_affine, dtype=_dtype, device=src_affine_.device)
+        dst_affine = convert_to_dst_type(dst_affine, src_affine_)[0]
         if not isinstance(dst_affine, torch.Tensor):
             raise ValueError(f"dst_affine should be a torch.Tensor, got {type(dst_affine)}")
 
@@ -339,7 +338,9 @@ class ResampleToMatch(SpatialResample):
         if dst_affine is not None:
             super().update_meta(img, dst_affine)
         if isinstance(img_dst, MetaTensor) and isinstance(img, MetaTensor):
-            img.meta[Key.FILENAME_OR_OBJ] = img_dst.meta.get(Key.FILENAME_OR_OBJ, img.meta[Key.FILENAME_OR_OBJ])
+            original_fname = img.meta[Key.FILENAME_OR_OBJ]
+            img.meta = deepcopy(img_dst.meta)
+            img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
 
     @deprecated_arg(
         name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
