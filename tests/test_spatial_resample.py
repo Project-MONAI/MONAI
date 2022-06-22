@@ -18,9 +18,9 @@ from parameterized import parameterized
 from monai.config import USE_COMPILED
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import to_affine_nd, convert_to_dst_type
+from monai.data.utils import convert_to_dst_type, to_affine_nd
 from monai.transforms import SpatialResample
-from tests.utils import TEST_DEVICES, assert_allclose, TEST_NDARRAYS_ALL
+from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 
@@ -123,23 +123,22 @@ for device in TEST_DEVICES:
 
 TEST_TORCH_INPUT = []
 for track_meta in (True,):
-    TEST_TORCH_INPUT.extend(t + [track_meta] for t in TEST_4_5_D)
+    for t in TEST_4_5_D:
+        TEST_TORCH_INPUT.append(t + [track_meta])
 
 
 class TestSpatialResample(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_flips(self, img, device, data_param, expected_output):
-        img = MetaTensor(img, affine=torch.eye(4)).to(device)
-        out = SpatialResample()(img=img, **data_param)
-        assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, data_param["dst_affine"])
-        # for p in TEST_NDARRAYS_ALL:
-        #     img = p(img)
-        #     if hasattr(img, 'to'):
-        #         img = img.to(device)
-        #     out = SpatialResample()(img=img, **data_param)
-        #     assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        #     assert_allclose(out.affine, data_param["dst_affine"])
+        for p in TEST_NDARRAYS_ALL:
+            img = p(img)
+            if isinstance(img, MetaTensor):
+                img.affine = torch.eye(4)
+            if hasattr(img, "to"):
+                img = img.to(device)
+            out = SpatialResample()(img=img, **data_param)
+            assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
+            assert_allclose(out.affine, data_param["dst_affine"])
 
     @parameterized.expand(TEST_4_5_D)
     def test_4d_5d(self, new_shape, tile, device, dtype, expected_data):

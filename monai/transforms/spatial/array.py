@@ -50,6 +50,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     convert_to_dst_type,
+    convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -57,7 +58,6 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
     pytorch_after,
-    convert_to_tensor,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
@@ -159,11 +159,8 @@ class SpatialResample(InvertibleTransform):
         """
         dtype = img.dtype
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if isinstance(img, MetaTensor):
-            img.affine = dst_affine
-
-        # append the transform
-        if isinstance(img, MetaTensor) and self.tracing:
+        if get_track_meta():
+            self.update_meta(img, dst_affine)
             self.push_transform(
                 img,
                 extra_info={
@@ -175,11 +172,14 @@ class SpatialResample(InvertibleTransform):
                 },
                 orig_size=original_spatial_shape,
             )
-
         return img
 
+    def update_meta(self, img, dst_affine):
+        if isinstance(img, MetaTensor):
+            img.affine = dst_affine
+
     @deprecated_arg(
-        name="src_affine", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extacted directly."
+        name="src_affine", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
     def __call__(
         self,
@@ -232,7 +232,7 @@ class SpatialResample(InvertibleTransform):
         padding_mode = padding_mode or self.padding_mode
         original_spatial_shape = img.shape[1:]
 
-        src_affine_ = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
+        src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
         img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)
         spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
         if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
@@ -241,6 +241,8 @@ class SpatialResample(InvertibleTransform):
         src_affine_ = src_affine_.to(_dtype)
         dst_affine = to_affine_nd(spatial_rank, dst_affine) if dst_affine is not None else src_affine_
         dst_affine = convert_to_tensor(dst_affine, dtype=_dtype, device=src_affine_.device)
+        if not isinstance(dst_affine, torch.Tensor):
+            raise ValueError(f"dst_affine should be a torch.Tensor, got {type(dst_affine)}")
 
         in_spatial_size = torch.tensor(img.shape[1 : spatial_rank + 1])
         if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
@@ -267,7 +269,7 @@ class SpatialResample(InvertibleTransform):
             )
         except (np.linalg.LinAlgError, RuntimeError) as e:
             raise ValueError("src affine is not invertible.") from e
-        xform = to_affine_nd(spatial_rank, xform).to(img.device).to(_dtype)
+        xform = to_affine_nd(spatial_rank, xform).to(device=img.device, dtype=_dtype)
         # no resampling if it's identity transform
         if allclose(xform, torch.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size):
             return self._post_process(
@@ -333,6 +335,11 @@ class ResampleToMatch(SpatialResample):
     """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
+    def update_meta(self, img: torch.Tensor, dst_img: torch.Tensor):
+        super().update_meta(img, dst_img)
+        if isinstance(dst_img, MetaTensor) and isinstance(img, MetaTensor):
+            img.meta[Key.FILENAME_OR_OBJ] = dst_img.meta.get(Key.FILENAME_OR_OBJ, img.meta[Key.FILENAME_OR_OBJ])
+
     @deprecated_arg(
         name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
@@ -342,7 +349,7 @@ class ResampleToMatch(SpatialResample):
     def __call__(  # type: ignore
         self,
         img: torch.Tensor,
-        img_dst: Optional[torch.Tensor] = None,
+        img_dst: torch.Tensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
         mode: Optional[str] = None,
@@ -351,21 +358,20 @@ class ResampleToMatch(SpatialResample):
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         if img_dst is None:
-            raise RuntimeError("`img_dst` is missing")
+            raise RuntimeError("`img_dst` is missing.")
         dst_affine = img_dst.affine if isinstance(img_dst, MetaTensor) else torch.eye(4)
-        spatial_size = img_dst.shape[1:]  # skip channel
-
         img = super().__call__(
             img=img,
             dst_affine=dst_affine,
-            spatial_size=spatial_size,  # skip channel
+            spatial_size=img_dst.shape[1:],  # skip channel
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
         )
-        if isinstance(img, MetaTensor) and isinstance(img_dst, MetaTensor):
-            img.meta[Key.FILENAME_OR_OBJ] = img_dst.meta[Key.FILENAME_OR_OBJ]
+        if get_track_meta():
+            img = convert_to_tensor(img, track_meta=True)
+            self.update_meta(img, img_dst)
         return img
 
 
