@@ -815,7 +815,7 @@ class Resize(InvertibleTransform):
             return img
 
         original_sp_size = img.shape[1:]
-        img_: MetaTensor = convert_data_type(img, MetaTensor, dtype=torch.float)[0]
+        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=get_track_meta())
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
@@ -830,34 +830,30 @@ class Resize(InvertibleTransform):
             anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
             img_ = anti_aliasing_filter(img_)
 
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
 
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        if not isinstance(out, MetaTensor):
-            return out
-        out.meta = self.forward_meta(img.meta, original_sp_size, spatial_size_)  # type: ignore
-        self.push_transform(
-            out,
-            orig_size=original_sp_size,
-            extra_info={
-                "mode": _mode,
-                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
-            },
-        )
+        if get_track_meta() and isinstance(out, MetaTensor):
+            self.update_meta(img, original_sp_size, spatial_size_)
+            self.push_transform(
+                out,
+                orig_size=original_sp_size,
+                extra_info={
+                    "mode": _mode,
+                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                    "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
+                },
+            )
         return out
 
-    def forward_meta(self, img_meta, spatial_size, new_spatial_size):
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
-        meta = deepcopy(img_meta)
-        meta["affine"] = scale_affine(affine, spatial_size, new_spatial_size)
-        return meta
+    def update_meta(self, img, spatial_size, new_spatial_size):
+        affine = convert_to_tensor(img.affine, track_meta=False)
+        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         if not isinstance(data, MetaTensor):
