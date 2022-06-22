@@ -31,7 +31,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
 
     def __init__(
         self,
-        include_background: bool = True,
         to_onehot_y: bool = False,
         delta: float = 0.7,
         gamma: float = 0.75,
@@ -40,15 +39,12 @@ class AsymmetricFocalTverskyLoss(_Loss):
     ) -> None:
         """
         Args:
-            include_background (bool, optional): If False channel index 0 (background category) is excluded from the calculation.
-            Defaults to True.
             to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
             delta (float, optional): weight of the backgrand. Defaults to 0.7.
             gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
             epsilon (float, optional): it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.delta = delta
         self.gamma = gamma
@@ -62,14 +58,6 @@ class AsymmetricFocalTverskyLoss(_Loss):
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
-
-        if not self.include_background:
-            if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-            else:
-                # if skipping background, removing first channel
-                y_true = y_true[:, 1:]
-                y_pred = y_pred[:, 1:]
 
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
@@ -105,7 +93,6 @@ class AsymmetricFocalLoss(_Loss):
 
     def __init__(
         self,
-        include_background: bool = True,
         to_onehot_y: bool = False,
         delta: float = 0.7,
         gamma: float = 2,
@@ -114,15 +101,12 @@ class AsymmetricFocalLoss(_Loss):
     ):
         """
         Args:
-            include_background (bool, optional): If False channel index 0 (background category) is excluded from the calculation.
-            Defaults to True.
             to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
             delta (float, optional): weight of the backgrand. Defaults to 0.7.
             gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
             epsilon (float, optional): it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        self.include_background = include_background
         self.to_onehot_y = to_onehot_y
         self.delta = delta
         self.gamma = gamma
@@ -136,14 +120,6 @@ class AsymmetricFocalLoss(_Loss):
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
                 y_true = one_hot(y_true, num_classes=n_pred_ch)
-
-        if not self.include_background:
-            if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
-            else:
-                # if skipping background, removing first channel
-                y_true = y_true[:, 1:]
-                y_pred = y_pred[:, 1:]
 
         if y_true.shape != y_pred.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
@@ -173,8 +149,8 @@ class AsymmetricUnifiedFocalLoss(_Loss):
 
     def __init__(
         self,
+        to_onehot_y: bool = False,
         num_classes: int = 1,
-        include_background: bool = True,
         weight: float = 0.5,
         gamma: float = 0.5,
         delta: float = 0.7,
@@ -182,8 +158,6 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     ):
         """
         Args:
-            include_background (bool, optional): If False channel index 0 (background category) is excluded from the calculation.
-            Defaults to True.
             to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
             delta (float, optional): weight of the backgrand. Defaults to 0.7.
             gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
@@ -200,8 +174,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
             >>> fl(pred, grnd)
         """
         super().__init__(reduction=LossReduction(reduction).value)
-        self.include_background = include_background
-
+        self.to_onehot_y = to_onehot_y
         self.num_classes = num_classes + 1
         self.gamma = gamma
         self.delta = delta
@@ -209,7 +182,23 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         self.asy_focal_loss = AsymmetricFocalLoss(gamma=self.gamma, delta=self.delta)
         self.asy_focal_tversky_loss = AsymmetricFocalTverskyLoss(gamma=self.gamma, delta=self.delta)
 
+    # TODO: Implement this  function to support multiple classes segmentation
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            y_pred (torch.Tensor): the shape should be BNH[WD], where N is the number of classes.
+                It only support binary segmentation.
+                The input should be the original logits since it will be transformed by
+                    a sigmoid in the forward function.
+            y_true (torch.Tensor): the shape should be BNH[WD], where N is the number of classes.
+                It only support binary segmentation.
+
+        Raises:
+            ValueError: When input and target are different shape
+            ValueError: When len(y_pred.shape) != 4 and len(y_pred.shape) != 5
+            ValueError: When num_classes
+            ValueError: When the number of classes entered does not match the expected number
+        """
         if y_pred.shape != y_true.shape:
             raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
 
@@ -219,20 +208,16 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         if y_pred.shape[1] == 1:
             y_pred = one_hot(y_pred, num_classes=self.num_classes)
             y_true = one_hot(y_true, num_classes=self.num_classes)
+
         if torch.max(y_true) != self.num_classes - 1:
             raise ValueError(f"Pelase make sure the number of classes is {self.num_classes-1}")
+
         n_pred_ch = y_pred.shape[1]
-
-        if not self.include_background:
+        if self.to_onehot_y:
             if n_pred_ch == 1:
-                warnings.warn("single channel prediction, `include_background=False` ignored.")
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                # if skipping background, removing first channel
-                y_true = y_true[:, 1:]
-                y_pred = y_pred[:, 1:]
-
-        if y_true.shape != y_pred.shape:
-            raise ValueError(f"ground truth has different shape ({y_true.shape}) from input ({y_pred.shape})")
+                y_true = one_hot(y_true, num_classes=n_pred_ch)
 
         asy_focal_loss = self.asy_focal_loss(y_pred, y_true)
         asy_focal_tversky_loss = self.asy_focal_tversky_loss(y_pred, y_true)
