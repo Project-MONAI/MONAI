@@ -479,13 +479,8 @@ class Spacing(InvertibleTransform):
             data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
-        # if the input isn't MetaTensor and output isn't desired to be one either,
-        # nothing to do.
-        if not isinstance(data_array, MetaTensor) and not get_track_meta():
-            warnings.warn(
-                "`Orientation` applied to non-MetaTensor object and metadata tracking is off, transform does nothing."
-            )
-            return data_array
+        # if the input isn't MetaTensor, create MetaTensor with the default info.
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
 
         original_spatial_shape = data_array.shape[1:]
         sr = len(original_spatial_shape)
@@ -497,7 +492,7 @@ class Spacing(InvertibleTransform):
             affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
             affine_ = to_affine_nd(sr, affine_np)
         else:
-            warnings.warn("`data_array` is not of type `MetaTensor, assuming affine to be identity.")
+            warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
             affine_ = np.eye(sr + 1, dtype=np.float64)
 
@@ -510,8 +505,8 @@ class Spacing(InvertibleTransform):
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
-        if not isinstance(data_array, MetaTensor):
-            data_array = MetaTensor(data_array, affine=torch.as_tensor(affine_))
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
+        data_array.affine = torch.as_tensor(affine_)
 
         # we don't want to track the nested transform otherwise two will be appended
         data_array = self.sp_resample(  # type: ignore
