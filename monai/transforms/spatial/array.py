@@ -584,13 +584,7 @@ class Orientation(InvertibleTransform):
                 `torch.Tensor`.
 
         """
-        # if the input isn't MetaTensor and output isn't desired to be one either,
-        # nothing to do.
-        if not isinstance(data_array, MetaTensor) and not get_track_meta():
-            warnings.warn(
-                "`Orientation` applied to non-MetaTensor object and metadata tracking is off, transform does nothing."
-            )
-            return data_array
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
 
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
@@ -640,14 +634,14 @@ class Orientation(InvertibleTransform):
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
 
-        if isinstance(data_array, MetaTensor):
-            data_array.affine = new_affine
-        else:
-            data_array = MetaTensor(data_array, affine=new_affine)
-
-        self.push_transform(data_array, extra_info={"old_affine": affine_np})
-
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
+        if get_track_meta():
+            self.update_meta(data_array, new_affine)
+            self.push_transform(data_array, extra_info={"old_affine": affine_np})
         return data_array
+
+    def update_meta(self, img, new_affine):
+        img.affine = new_affine
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
