@@ -188,7 +188,7 @@ class SpatialPad(Pad):
         self,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
@@ -215,12 +215,11 @@ class SpatialPad(Pad):
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+                default to `self.mode`.
+            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
 
         """
         data_pad_width = self._determine_data_pad_width(img.shape[1:])
@@ -229,13 +228,12 @@ class SpatialPad(Pad):
         return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
 
 
-class BorderPad(Transform):
+class BorderPad(Pad):
     """
     Pad the input data by adding specified borders to every dimension.
 
     Args:
         spatial_border: specified size for every spatial border. Any -ve values will be set to 0. It can be 3 shapes:
-
             - single int number, pad all the borders with the same size.
             - length equals the length of image shape, pad every spatial dimension separately.
               for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
@@ -255,31 +253,30 @@ class BorderPad(Transform):
 
     """
 
-    backend = Pad.backend
-
     def __init__(
         self,
         spatial_border: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode = mode
-        self.kwargs = kwargs
+        super().__init__(mode=mode, **kwargs)
 
     def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+        self,
+        img: torch.Tensor,
+        mode: Optional[Union[PytorchPadMode, str]] = None,
+        **kwargs,
+    ) -> torch.Tensor:
         """
         Args:
             img: data to be transformed, assuming `img` is channel-first and
                 padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+                default to `self.mode`.
+            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
 
         Raises:
             ValueError: When ``self.spatial_border`` does not contain ints.
@@ -306,8 +303,7 @@ class BorderPad(Transform):
             )
 
         all_pad_width = [(0, 0)] + data_pad_width
-        padder = Pad(all_pad_width, mode or self.mode, **self.kwargs)
-        return padder(img)
+        return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
 
 
 class DivisiblePad(Transform):
