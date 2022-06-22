@@ -426,6 +426,7 @@ then
     set -e # enable exit on failure
 fi
 
+
 if [ $doIsortFormat = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
