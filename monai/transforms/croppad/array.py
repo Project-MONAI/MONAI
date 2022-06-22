@@ -536,7 +536,7 @@ class CenterSpatialCrop(Crop):
         return super().__call__(img=img, slices=slices)
 
 
-class CenterScaleCrop(Transform):
+class CenterScaleCrop(Crop):
     """
     Crop at the center of image with specified scale of ROI size.
 
@@ -546,17 +546,16 @@ class CenterScaleCrop(Transform):
 
     """
 
-    backend = CenterSpatialCrop.backend
-
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         self.roi_scale = roi_scale
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         img_size = img.shape[1:]
         ndim = len(img_size)
-        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        sp_crop = CenterSpatialCrop(roi_size=roi_size)
-        return sp_crop(img=img)
+        roi_size = fall_back_tuple([ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)], img_size)
+        roi_center = [i // 2 for i in img.shape[1:]]
+        slices = self.compute_slices(roi_center=roi_center, roi_size=roi_size)
+        return super().__call__(img=img, slices=slices)
 
 
 class RandSpatialCrop(Randomizable, Transform):

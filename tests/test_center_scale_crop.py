@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import CenterScaleCrop
 
 TEST_CASE_0 = [{"roi_scale": [0.6, 0.3, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 1, 3)]
@@ -38,13 +39,13 @@ class TestCenterScaleCrop(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
     def test_shape(self, input_param, input_data, expected_shape):
         result = CenterScaleCrop(**input_param)(input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(input_data, torch.Tensor))
+        self.assertTrue(isinstance(result, MetaTensor))
         np.testing.assert_allclose(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_2])
     def test_value(self, input_param, input_data, expected_value):
         result = CenterScaleCrop(**input_param)(input_data)
-        self.assertEqual(isinstance(result, torch.Tensor), isinstance(input_data, torch.Tensor))
+        self.assertTrue(isinstance(result, MetaTensor))
         np.testing.assert_allclose(result, expected_value)
 
 
