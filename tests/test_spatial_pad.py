@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.transforms import SpatialPad
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS = []
 
@@ -69,7 +69,7 @@ class TestSpatialPad(unittest.TestCase):
         results_2 = []
         input_data = self.get_arr(input_shape)
         # check result is the same regardless of input type
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             padder = SpatialPad(**input_param)
             r1 = padder(p(input_data))
             r2 = padder(p(input_data), mode=input_param["mode"])
@@ -81,19 +81,13 @@ class TestSpatialPad(unittest.TestCase):
                     torch.testing.assert_allclose(results[0], results[-1], atol=0, rtol=1e-5)
 
     def test_pad_kwargs(self):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             input_data = p(np.zeros((3, 8, 4)))
-            if isinstance(input_data, torch.Tensor):
-                result = (
-                    SpatialPad(spatial_size=[15, 8], method="end", mode="constant", value=2)(img=input_data)
-                    .cpu()
-                    .numpy()
-                )
-            else:
-                result = SpatialPad(
-                    spatial_size=[15, 8], method="end", mode="constant", constant_values=((0, 0), (1, 1), (2, 2))
-                )(img=input_data)
-                torch.testing.assert_allclose(result[:, 8:, :4], np.ones((3, 7, 4)), rtol=1e-7, atol=0)
+            result = (
+                SpatialPad(spatial_size=[15, 8], method="end", mode="constant", value=2)(img=input_data)
+                .cpu()
+                .numpy()
+            )
             torch.testing.assert_allclose(result[:, :, 4:], np.ones((3, 15, 4)) + 1, rtol=1e-7, atol=0)
 
 
