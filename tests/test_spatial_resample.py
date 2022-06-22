@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.config import USE_COMPILED
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import convert_to_dst_type, to_affine_nd
+from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 

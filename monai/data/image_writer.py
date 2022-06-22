@@ -15,6 +15,7 @@ import numpy as np
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing, ensure_tuple, ensure_tuple_rep, orientation_ras_lps, to_affine_nd
 from monai.transforms.spatial.array import Resize, SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
@@ -24,6 +25,7 @@ from monai.utils import (
     InterpolateMode,
     OptionalImportError,
     convert_data_type,
+    convert_to_tensor,
     look_up_option,
     optional_import,
     require_pkg,
@@ -258,11 +260,18 @@ class ImageWriter:
                 ``np.float64`` for best precision. If ``None``, use the data type of input data.
                 The output data type of this method is always ``np.float32``.
         """
+        orig_type = type(data_array)
+        data_array = convert_to_tensor(data_array, track_meta=True)
+        if affine is not None:
+            data_array.affine = convert_to_tensor(affine, track_meta=False)  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
-        output_array, target_affine = resampler(
-            data_array[None], src_affine=affine, dst_affine=target_affine, spatial_size=output_spatial_shape
-        )
-        return output_array[0], target_affine
+        output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
+        # convert back at the end
+        if isinstance(output_array, MetaTensor):
+            output_array.applied_operations = []
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
+        return data_array[0], affine
 
     @classmethod
     def convert_to_channel_last(
@@ -755,11 +764,11 @@ class PILWriter(ImageWriter):
             _min, _max = np.min(data), np.max(data)
             if len(data.shape) == 3:
                 data = np.moveaxis(data, -1, 0)  # to channel first
-                data = xform(data)  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0]  # type: ignore
                 data = np.moveaxis(data, 0, -1)
             else:  # (H, W)
                 data = np.expand_dims(data, 0)  # make a channel
-                data = xform(data)[0]  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0][0]  # type: ignore
             if mode != InterpolateMode.NEAREST:
                 data = np.clip(data, _min, _max)
         return data

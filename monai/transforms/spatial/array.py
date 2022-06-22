@@ -335,10 +335,11 @@ class ResampleToMatch(SpatialResample):
     """Resample an image to match given metadata. The affine matrix will be aligned,
     and the size of the output image will match."""
 
-    def update_meta(self, img: torch.Tensor, dst_img: torch.Tensor):
-        super().update_meta(img, dst_img)
-        if isinstance(dst_img, MetaTensor) and isinstance(img, MetaTensor):
-            img.meta[Key.FILENAME_OR_OBJ] = dst_img.meta.get(Key.FILENAME_OR_OBJ, img.meta[Key.FILENAME_OR_OBJ])
+    def update_meta(self, img: torch.Tensor, dst_affine=None, img_dst=None):
+        if dst_affine is not None:
+            super().update_meta(img, dst_affine)
+        if isinstance(img_dst, MetaTensor) and isinstance(img, MetaTensor):
+            img.meta[Key.FILENAME_OR_OBJ] = img_dst.meta.get(Key.FILENAME_OR_OBJ, img.meta[Key.FILENAME_OR_OBJ])
 
     @deprecated_arg(
         name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
@@ -369,9 +370,7 @@ class ResampleToMatch(SpatialResample):
             align_corners=align_corners,
             dtype=dtype,
         )
-        if get_track_meta():
-            img = convert_to_tensor(img, track_meta=True)
-            self.update_meta(img, img_dst)
+        self.update_meta(img, dst_affine=dst_affine, img_dst=img_dst)
         return img
 
 

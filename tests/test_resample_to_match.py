@@ -84,6 +84,7 @@ class TestResampleToMatch(unittest.TestCase):
         im_mod2 = tr.inverse(im_mod)
         self.assertEqual(im_mod2.shape, data["im2"].shape)
         self.assertLess(((im_mod2.affine - data["im2"].affine) ** 2).sum() ** 0.5, 1e-2)
+        self.assertEqual(im_mod2.applied_operations, [])
 
 
 if __name__ == "__main__":
