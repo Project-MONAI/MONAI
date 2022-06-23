@@ -1449,14 +1449,18 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         if randomize:
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
+        out = convert_to_tensor(out, track_meta=get_track_meta())
         out = MetaTensor(out) if not isinstance(out, MetaTensor) and get_track_meta() else out
-        self.push_transform(out)
+        if get_track_meta() and isinstance(out, MetaTensor):
+            xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
+            self.push_transform(out, extra_info=xform_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if not transform[TraceKeys.DO_TRANSFORM]:
             return data
+        data.applied_operations.append(transform[TraceKeys.EXTRA_INFO])
         return self.flipper.inverse(data)
 
 

@@ -1192,7 +1192,11 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key])
-            self.push_transform(d[key])
+            else:
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            if get_track_meta() and isinstance(d[key], MetaTensor):
+                xform_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                self.push_transform(d[key], extra_info=xform_info)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -1201,8 +1205,6 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
             xform = self.pop_transform(d[key])
             if not xform[TraceKeys.DO_TRANSFORM]:
                 continue
-            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
-            self.pop_transform(d[key])  # drop the Flip
             with self.flipper.trace_transform(False):
                 d[key] = self.flipper(d[key])
         return d
