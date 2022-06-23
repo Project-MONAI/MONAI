@@ -104,6 +104,16 @@ class Pad(InvertibleTransform):
         self.mode = mode
         self.kwargs = kwargs
 
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        """
+        dynamically compute the pad width according to the spatial shape.
+
+        Args:
+            spatial_shape: spatial shape of the original image.
+
+        """
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -124,9 +134,9 @@ class Pad(InvertibleTransform):
 
         """
         to_pad_ = self.to_pad if to_pad is None else to_pad
+        if to_pad_ is None:
+            to_pad_ = self.compute_pad_width(img.shape[1:])
         mode_ = self.mode if mode is None else mode
-        if to_pad is None:
-            raise ValueError("must provde `to_pad` to execute padding.")
         kwargs_ = dict(self.kwargs)
         kwargs_.update(kwargs)
 
@@ -197,37 +207,23 @@ class SpatialPad(Pad):
         self.method: Method = look_up_option(method, Method)
         super().__init__(mode=mode, **kwargs)
 
-    def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
-        spatial_size = fall_back_tuple(self.spatial_size, data_shape)
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        """
+        dynamically compute the pad width according to the spatial shape.
+
+        Args:
+            spatial_shape: spatial shape of the original image.
+
+        """
+        spatial_size = fall_back_tuple(self.spatial_size, spatial_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
             for i, sp_i in enumerate(spatial_size):
-                width = max(sp_i - data_shape[i], 0)
+                width = max(sp_i - spatial_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
-            return pad_width
-        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
-
-    def __call__(
-        self,
-        img: torch.Tensor,
-        mode: Optional[Union[PytorchPadMode, str]] = None,
-        **kwargs,
-    ) -> torch.Tensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-                default to `self.mode`.
-            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
-
-        """
-        data_pad_width = self._determine_data_pad_width(img.shape[1:])
-        all_pad_width = [(0, 0)] + data_pad_width
-
-        return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
+        else:
+            pad_width = [(0, max(sp_i - spatial_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
+        return [(0, 0)] + pad_width
 
 
 class BorderPad(Pad):
@@ -264,29 +260,7 @@ class BorderPad(Pad):
         self.spatial_border = spatial_border
         super().__init__(mode=mode, **kwargs)
 
-    def __call__(
-        self,
-        img: torch.Tensor,
-        mode: Optional[Union[PytorchPadMode, str]] = None,
-        **kwargs,
-    ) -> torch.Tensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-                default to `self.mode`.
-            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
-
-        Raises:
-            ValueError: When ``self.spatial_border`` does not contain ints.
-            ValueError: When ``self.spatial_border`` length is not one of
-                [1, len(spatial_shape), 2*len(spatial_shape)].
-
-        """
-        spatial_shape = img.shape[1:]
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
         spatial_border = ensure_tuple(self.spatial_border)
         if not all(isinstance(b, int) for b in spatial_border):
             raise ValueError(f"self.spatial_border must contain only ints, got {spatial_border}.")
@@ -303,9 +277,7 @@ class BorderPad(Pad):
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
-
-        all_pad_width = [(0, 0)] + data_pad_width
-        return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
+        return [(0, 0)] + data_pad_width
 
 
 class DivisiblePad(Pad):
@@ -341,28 +313,10 @@ class DivisiblePad(Pad):
         self.method: Method = Method(method)
         super().__init__(mode=mode, **kwargs)
 
-    def __call__(
-        self,
-        img: torch.Tensor,
-        mode: Optional[Union[PytorchPadMode, str]] = None,
-        **kwargs,
-    ) -> torch.Tensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-                default to `self.mode`.
-            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
-
-        """
-        new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
         spatial_pad = SpatialPad(spatial_size=new_size, method=self.method)
-        data_pad_width = spatial_pad._determine_data_pad_width(img.shape[1:])
-        all_pad_width = [(0, 0)] + data_pad_width
-        return super().__call__(img=img, to_pad=all_pad_width, mode=mode, **kwargs)
+        return spatial_pad.compute_pad_width(spatial_shape)
 
 
 class Crop(InvertibleTransform):
