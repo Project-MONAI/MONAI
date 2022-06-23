@@ -111,7 +111,7 @@ class BoxMode(ABC):
 
                 boxes = torch.ones(10,6)
                 boxmode = BoxMode()
-                boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
+                boxmode.boxes_to_corners(boxes) # will return a 6-element tuple, each element is a 10x1 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -132,7 +132,7 @@ class BoxMode(ABC):
 
                 corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
                 boxmode = BoxMode()
-                boxmode.corners_to_boxes(corners) will return a 10x4 tensor
+                boxmode.corners_to_boxes(corners) # will return a 10x4 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
