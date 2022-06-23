@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCrop
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_0 = [
     {"roi_size": [3, 3, -1], "random_center": True},
@@ -57,7 +57,7 @@ class TestRandSpatialCrop(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             cropper = RandSpatialCrop(**input_param)
             result = cropper(p(input_data))
             roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]

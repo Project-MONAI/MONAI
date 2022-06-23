@@ -430,6 +430,7 @@ class Crop(InvertibleTransform):
 
         """
         orig_size = img.shape[1:]
+        slices = list(slices)
         sd = len(img.shape[1:])  # spatial dims
         if len(slices) < sd:
             slices += [slice(None)] * (sd - len(slices))
@@ -524,16 +525,18 @@ class CenterSpatialCrop(Crop):
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
+    def compute_slices(self, spatial_size: Sequence[int]):
+        roi_size = fall_back_tuple(self.roi_size, spatial_size)
+        roi_center = [i // 2 for i in spatial_size]
+        return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
+
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
-        roi_center = [i // 2 for i in img.shape[1:]]
-        slices = self.compute_slices(roi_center=roi_center, roi_size=roi_size)
-        return super().__call__(img=img, slices=slices)
+        return super().__call__(img=img, slices=self.compute_slices(img.shape[1:]))
 
 
 class CenterScaleCrop(Crop):
@@ -552,15 +555,12 @@ class CenterScaleCrop(Crop):
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         img_size = img.shape[1:]
         ndim = len(img_size)
-        roi_size = fall_back_tuple(
-            [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)], img_size,
-        )
-        roi_center = [i // 2 for i in img.shape[1:]]
-        slices = self.compute_slices(roi_center=roi_center, roi_size=roi_size)
-        return super().__call__(img=img, slices=slices)
+        roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
+        cropper = CenterSpatialCrop(roi_size=roi_size)
+        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
 
 
-class RandSpatialCrop(Randomizable, Transform):
+class RandSpatialCrop(Randomizable, Crop):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
@@ -583,8 +583,6 @@ class RandSpatialCrop(Randomizable, Transform):
         random_size: crop with random size or specific size ROI.
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
-
-    backend = CenterSpatialCrop.backend
 
     def __init__(
         self,
@@ -609,9 +607,9 @@ class RandSpatialCrop(Randomizable, Transform):
             self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -620,9 +618,9 @@ class RandSpatialCrop(Randomizable, Transform):
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
-            return img[self._slices]
+            return super().__call__(img=img, slices=self._slices)
         cropper = CenterSpatialCrop(self._size)
-        return cropper(img)
+        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
 
 
 class RandScaleCrop(RandSpatialCrop):
