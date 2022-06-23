@@ -943,16 +943,16 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialCrop.backend
 
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        label: Optional[NdarrayOrTensor] = None,
+        label: Optional[torch.Tensor] = None,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
         image_threshold: float = 0.0,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
@@ -975,10 +975,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def randomize(
         self,
-        label: NdarrayOrTensor,
+        label: torch.Tensor,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
     ) -> None:
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
@@ -1002,12 +1002,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        img: torch.Tensor,
+        label: Optional[torch.Tensor] = None,
+        image: Optional[torch.Tensor] = None,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
-    ) -> List[NdarrayOrTensor]:
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
@@ -1030,12 +1030,14 @@ class RandCropByPosNegLabel(Randomizable, Transform):
             image = self.image
 
         self.randomize(label, fg_indices, bg_indices, image)
-        results: List[NdarrayOrTensor] = []
+        results: List[torch.Tensor] = []
         if self.centers is not None:
-            for center in self.centers:
+            for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
-                results.append(cropper(img))
+                cropped = SpatialCrop(roi_center=center, roi_size=roi_size)(img)
+                if get_track_meta():
+                    cropped.meta[Key.PATCH_INDEX] = i
+                results.append(cropped)
 
         return results
 
