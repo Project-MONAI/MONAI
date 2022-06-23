@@ -23,12 +23,12 @@ def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = T
     Args:
         ksp: k-space data that can be
             1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
-            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D.
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input ksp is expected to be 2 (representing real and imaginary channels)
 
     Returns:
-        Union[ndarray,Tensor] "out" which is the output image (inverse fourier of ksp)
+        "out" which is the output image (inverse fourier of ksp)
 
     Example:
 
@@ -73,12 +73,12 @@ def fftn_centered(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = Tru
     Args:
         im: image that can be
             1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
-            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D.
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input im is expected to be 2 (representing real and imaginary channels)
 
     Returns:
-        Union[ndarray,Tensor] "out" which is the output kspace (fourier of im)
+        "out" which is the output kspace (fourier of im)
 
     Example:
 
