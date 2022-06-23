@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCropSamples
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},
@@ -71,7 +71,7 @@ TEST_CASE_2 = [
 class TestRandSpatialCropSamples(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape, expected_last_item):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             xform = RandSpatialCropSamples(**input_param)
             xform.set_random_state(1234)
             result = xform(p(input_data))

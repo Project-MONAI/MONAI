@@ -50,6 +50,7 @@ from monai.utils import (
     fall_back_tuple,
     look_up_option,
 )
+from monai.utils import ImageMetaKey as Key
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
@@ -726,12 +727,16 @@ class RandSpatialCropSamples(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
-        return [self.cropper(img) for _ in range(self.num_samples)]
+        ret = [self.cropper(img) for _ in range(self.num_samples)]
+        if get_track_meta():
+            for i, r in enumerate(ret):
+                r.meta[Key.PATCH_INDEX] = i
+        return ret
 
 
 class CropForeground(Transform):
