@@ -2415,27 +2415,26 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                     grid = self.rand_affine_grid(grid=grid, randomize=randomize)
             out = self.resampler(img=img, grid=grid, mode=_mode, padding_mode=_padding_mode)
         mat = self.rand_affine_grid.get_transformation_matrix()
-        if not isinstance(out, MetaTensor):
-            out = MetaTensor(out)
-        self.push_transform(
-            out,
-            orig_size=img.shape[1:],
-            extra_info={"affine": mat, "mode": _mode, "padding_mode": _padding_mode, "do_resampling": do_resampling},
-        )
-        if isinstance(img, MetaTensor):
-            out.meta = self.forward_meta(img.meta, mat, img.shape[1:], sp_size)
+        out = convert_to_tensor(out, track_meta=get_track_meta())
+        if get_track_meta() and isinstance(out, MetaTensor):
+            self.push_transform(
+                out,
+                orig_size=img.shape[1:],
+                extra_info={
+                    "affine": mat,
+                    "mode": _mode,
+                    "padding_mode": _padding_mode,
+                    "do_resampling": do_resampling,
+                },
+            )
+            self.forward_meta(out, mat, img.shape[1:], sp_size)
         return out  # type: ignore
 
-    def forward_meta(self, img_meta, mat, img_size, sp_size):
-        meta_dict = deepcopy(img_meta)
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
-        meta_dict["affine"] = Affine.compute_w_affine(affine, mat, img_size, sp_size)
-        return meta_dict
+    def forward_meta(self, img, mat, img_size, sp_size):
+        affine = convert_data_type(img.affine, torch.Tensor)[0]
+        img.affine = Affine.compute_w_affine(affine, mat, img_size, sp_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError("data must be a MetaTensor")
-
         transform = self.pop_transform(data)
         # if transform was not performed nothing to do.
         if not transform[TraceKeys.EXTRA_INFO]["do_resampling"]:
@@ -2455,7 +2454,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         out = self.resampler(data, grid, mode, padding_mode)
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
-        out.meta = self.forward_meta(data.meta, inv_affine, data.shape[1:], orig_size)
+        out.meta = data.meta
+        self.forward_meta(out, inv_affine, data.shape[1:], orig_size)
         return out  # type: ignore
 
 
