@@ -11,7 +11,7 @@
 
 import unittest
 
-from fft_utils import fftn, ifftn
+from fft_utils import fftn_centered, ifftn_centered
 from parameterized import parameterized
 
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -42,19 +42,20 @@ for p in TEST_NDARRAYS:
 class TestFFT(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test(self, test_data, res_data):
-        result = fftn(test_data, spatial_dims=2, is_complex=False)
+        result = fftn_centered(test_data, spatial_dims=2, is_complex=False)
         assert_allclose(result, res_data, type_test=True)
 
     @parameterized.expand(TESTS_CONSISTENCY)
     def test_consistency(self, test_data):
-        result = fftn(test_data, spatial_dims=2, is_complex=False)
-        result = ifftn(result, spatial_dims=2, is_complex=True)
+        result = fftn_centered(test_data, spatial_dims=2, is_complex=False)
+        result = ifftn_centered(result, spatial_dims=2, is_complex=True)
         result = (result[..., 0] ** 2 + result[..., 1] ** 2) ** 0.5
         assert_allclose(result, test_data, type_test=False)
 
     @parameterized.expand(TESTS_CONSISTENCY_COMPLEX)
     def test_consistency_complex(self, test_data):
-        result = ifftn(fftn(test_data, spatial_dims=2), spatial_dims=2)
+        result = fftn_centered(test_data, spatial_dims=2)
+        result = ifftn_centered(result, spatial_dims=2)
         assert_allclose(result, test_data, type_test=False)
 
 

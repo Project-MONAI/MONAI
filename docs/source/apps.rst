@@ -184,3 +184,11 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.metrics.matching
     :members:
+
+
+
+"Reconstruction"
+
+.. automodule:: monai.apps.reconstruction.fft_utils
+.. autofunction:: monai.apps.reconstruction.fft_utils.fftn_centered
+.. autofunction:: monai.apps.reconstruction.fft_utils.ifftn_centered
