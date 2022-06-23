@@ -1380,7 +1380,7 @@ class RandHistogramShift(RandomizableTransform):
         m = (fp[1:] - fp[:-1]) / (xp[1:] - xp[:-1])
         b = fp[:-1] - (m * xp[:-1])
 
-        indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1), side="left") - 1
+        indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
         indices = ns.clip(indices, 0, len(m) - 1)
 
         f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
