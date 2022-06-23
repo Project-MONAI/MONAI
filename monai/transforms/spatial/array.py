@@ -1502,16 +1502,20 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
             self.flipper.spatial_axis = self._axis
             out = self.flipper(img)
         else:
-            out = img if not isinstance(img, MetaTensor) and get_track_meta() else img
-        self.push_transform(out, extra_info={"axes": self._axis})
+            out = convert_to_tensor(img, track_meta=get_track_meta())
+        if get_track_meta() and isinstance(out, MetaTensor):
+            xform = self.pop_transform(out, check=False) if self._do_transform else {}
+            xform["axes"] = self._axis
+            self.push_transform(out, extra_info=xform)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         if not transform[TraceKeys.DO_TRANSFORM]:
             return data
-        self.flipper.spatial_axis = transform[TraceKeys.EXTRA_INFO]["axes"]
-        return self.flipper.inverse(data)
+        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO]["axes"])
+        with flipper.trace_transform(False):
+            return flipper(data)
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform):

@@ -11,10 +11,10 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 
-from monai.data import set_track_meta, MetaTensor
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate90d
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
