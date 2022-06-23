@@ -505,7 +505,7 @@ class Spacing(InvertibleTransform):
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        data_array.affine = torch.as_tensor(affine_)
+        data_array.affine = torch.as_tensor(affine_)  # type: ignore
 
         # we don't want to track the nested transform otherwise two will be appended
         data_array = self.sp_resample(  # type: ignore
@@ -812,7 +812,7 @@ class Resize(InvertibleTransform):
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            return convert_to_tensor(img, track_meta=get_track_meta())
+            return convert_to_tensor(img, track_meta=get_track_meta())   # type: ignore
 
         original_sp_size = img.shape[1:]
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
