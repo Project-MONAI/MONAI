@@ -16,12 +16,12 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCrop
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],
     [
-        {"spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
+        {"spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "value": 1},
         (3, 8, 8, 4),
         (3, 15, 4, 8),
     ],
@@ -34,7 +34,7 @@ TEST_CASES = [
 class TestResizeWithPadOrCrop(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_shape, expected_shape):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             if isinstance(p(0), torch.Tensor) and (
                 "constant_values" in input_param or input_param["mode"] == "reflect"
             ):

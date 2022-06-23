@@ -43,7 +43,6 @@ from monai.transforms.utils import (
 from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
 from monai.utils import (
     Method,
-    NumpyPadMode,
     PytorchPadMode,
     ensure_tuple,
     ensure_tuple_rep,
@@ -1186,7 +1185,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         return results
 
 
-class ResizeWithPadOrCrop(Transform):
+class ResizeWithPadOrCrop(InvertibleTransform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
@@ -1196,17 +1195,12 @@ class ResizeWithPadOrCrop(Transform):
     Args:
         spatial_size: the spatial size of output data after padding or crop.
             If has non-positive values, the corresponding size of input image will be used (no padding).
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
-
+        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+        pad_kwargs: other arguments for the `torch.pad` function.
     """
 
     backend = list(set(SpatialPad.backend) & set(CenterSpatialCrop.backend))
@@ -1214,28 +1208,48 @@ class ResizeWithPadOrCrop(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
+        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
     def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+        self, img: torch.Tensor, mode: Optional[Union[PytorchPadMode, str]] = None, **pad_kwargs,
+    ) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
                 padding or cropping doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
+            pad_kwargs: other arguments for the `torch.pad` function.
+
         """
-        return self.padder(self.cropper(img), mode=mode)
+        ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
+        # remove the individual info and combine
+        if get_track_meta():
+            pad_info = ret.applied_operations.pop(-1)
+            crop_info = ret.applied_operations.pop(-1)
+            self.push_transform(ret, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+        return ret
+
+    def inverse(self, img: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(img)
+        return self.inverse_transform(img, transform)
+
+    def inverse_transform(self, img: torch.Tensor, transform) -> torch.Tensor:
+        # we joined the cropping and padding, so put them back before calling the inverse
+        crop_info = transform[TraceKeys.EXTRA_INFO].pop("crop_info")
+        pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
+        img.applied_operations.append(crop_info)
+        img.applied_operations.append(pad_info)
+        # first inverse the padder
+        inv = self.padder.inverse(img)
+        # and then inverse the cropper (self)
+        return self.cropper.inverse(inv)
 
 
 class BoundingRect(Transform):
