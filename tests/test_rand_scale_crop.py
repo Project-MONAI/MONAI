@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandScaleCrop
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_scale": [1.0, 1.0, -1.0], "random_center": True},
@@ -56,13 +56,13 @@ TEST_CASE_6 = [
 class TestRandScaleCrop(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             result = RandScaleCrop(**input_param)(p(input_data))
             self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             cropper = RandScaleCrop(**input_param)
             result = cropper(p(input_data))
             roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
@@ -70,7 +70,7 @@ class TestRandScaleCrop(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_random_shape(self, input_param, input_data, expected_shape):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             cropper = RandScaleCrop(**input_param)
             cropper.set_random_state(seed=123)
             result = cropper(p(input_data))

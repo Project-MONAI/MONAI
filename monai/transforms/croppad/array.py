@@ -655,7 +655,7 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
