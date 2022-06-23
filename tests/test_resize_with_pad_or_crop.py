@@ -21,7 +21,7 @@ from tests.utils import TEST_NDARRAYS_ALL
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],
     [
-        {"spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "value": 1},
+        {"spatial_size": [15, 4, 8], "mode": "constant", "method": "end", "constant_values": 1},
         (3, 8, 8, 4),
         (3, 15, 4, 8),
     ],

@@ -42,7 +42,11 @@ class TestDivisiblePad(unittest.TestCase):
     def test_pad_kwargs(self):
         for p in TEST_NDARRAYS_ALL:
             input_data = p(np.zeros((3, 8, 4)))
-            result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
+            if isinstance(input_data, np.ndarray):
+                result = DivisiblePad(k=5, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))(input_data)
+                np.testing.assert_allclose(result[:, :1, :4], np.ones((3, 1, 4)), rtol=1e-7, atol=0)
+            else:
+                result = DivisiblePad(k=5, mode="constant", value=2)(input_data).cpu()
             torch.testing.assert_allclose(result[:, :, 4:5], np.ones((3, 10, 1)) + 1, rtol=1e-7, atol=0)
 
 

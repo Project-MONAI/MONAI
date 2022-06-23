@@ -84,19 +84,23 @@ class Pad(InvertibleTransform):
     Args:
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
-        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-        kwargs: other arguments for the `torch.pad` function.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
         to_pad: Optional[List[Tuple[int, int]]] = None,
-        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.to_pad = to_pad
@@ -113,11 +117,21 @@ class Pad(InvertibleTransform):
         """
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
+    @staticmethod
+    def _np_pad(img: np.ndarray, pad_width, mode, **kwargs) -> np.ndarray:
+        return np.pad(img, pad_width, mode=mode, **kwargs)
+
+    @staticmethod
+    def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
+        # torch.pad expects `[B, C, H, W, [D]]` shape
+        return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
+
     def __call__(
         self,
         img: torch.Tensor,
         to_pad: Optional[List[Tuple[int, int]]] = None,
-        mode: Optional[Union[PytorchPadMode, str]] = None,
+        mode: Optional[str] = None,
         **kwargs,
     ) -> torch.Tensor:
         """
@@ -125,11 +139,14 @@ class Pad(InvertibleTransform):
             img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
             to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
                 default to `self.to_pad`.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-                default to `self.mode`.
-            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         to_pad_ = self.to_pad if to_pad is None else to_pad
@@ -143,15 +160,24 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
-            mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
-            pad_width = [val for sublist in to_pad_[1:] for val in sublist[::-1]][::-1]
-            # torch.pad expects `[B, C, H, W, [D]]` shape
-            img_t = pad_pt(img_t.unsqueeze(0), pad_width, mode=mode_, **kwargs_).squeeze(0)
-
+            try:
+                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
+                out = self._pt_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+            # but if mode or args don't exist in pytorch, use numpy instead
+            except (ValueError, TypeError) as err:
+                if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
+                    # extract metadata
+                    img_np = img_t.detach().cpu().numpy()
+                    mode = convert_pad_mode(dst=img_np, mode=mode_).value
+                    out = torch.as_tensor(self._np_pad(img_np, pad_width=to_pad_, mode=mode_, **kwargs_))
+                    if get_track_meta():
+                        out = MetaTensor(out, meta=img_t.meta, applied_operations=img_t.applied_operations)  # type: ignore
+        else:
+            out = img_t
         if get_track_meta():
-            self._update_meta(tensor=img_t, to_pad=to_pad_)
-            self.push_transform(img_t, extra_info={"padded": to_pad_})
-        return img_t
+            self._update_meta(tensor=out, to_pad=to_pad_)
+            self.push_transform(out, extra_info={"padded": to_pad_})
+        return out
 
     def _update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
         spatial_rank = max(len(tensor.affine) - 1, 1)
@@ -185,11 +211,14 @@ class SpatialPad(Pad):
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-            default to `self.mode`.
-        kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
@@ -197,7 +226,7 @@ class SpatialPad(Pad):
         self,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
@@ -251,7 +280,7 @@ class BorderPad(Pad):
     def __init__(
         self,
         spatial_border: Union[Sequence[int], int],
-        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_border = spatial_border
@@ -288,7 +317,7 @@ class DivisiblePad(Pad):
         self,
         k: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         """
@@ -298,11 +327,14 @@ class DivisiblePad(Pad):
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-                default to `self.mode`.
-            kwargs: other arguments for the `torch.pad` function, will override `self.kwargs`.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         See also :py:class:`monai.transforms.SpatialPad`
         """
@@ -730,7 +762,7 @@ class CropForeground(Crop):
         allow_smaller: bool = True,
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Optional[Union[PytorchPadMode, str]] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ) -> None:
         """
@@ -745,10 +777,14 @@ class CropForeground(Crop):
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-            pad_kwargs: other arguments for the `torch.pad` function.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         self.select_fn = select_fn
@@ -783,7 +819,7 @@ class CropForeground(Crop):
         img: torch.Tensor,
         box_start: np.ndarray,
         box_end: np.ndarray,
-        mode: Optional[Union[PytorchPadMode, str]] = None,
+        mode: Optional[str] = None,
         **pad_kwargs,
     ):
         """
@@ -804,7 +840,7 @@ class CropForeground(Crop):
             ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = app_op
         return ret
 
-    def __call__(self, img: torch.Tensor, mode: Optional[Union[PytorchPadMode, str]] = None, **pad_kwargs):
+    def __call__(self, img: torch.Tensor, mode: Optional[str] = None, **pad_kwargs):
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
@@ -1197,10 +1233,15 @@ class ResizeWithPadOrCrop(InvertibleTransform):
             If has non-positive values, the corresponding size of input image will be used (no padding).
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
-        mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-        pad_kwargs: other arguments for the `torch.pad` function.
+            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
+
     """
 
     backend = list(set(SpatialPad.backend) & set(CenterSpatialCrop.backend))
@@ -1209,23 +1250,27 @@ class ResizeWithPadOrCrop(InvertibleTransform):
         self,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
     def __call__(
-        self, img: torch.Tensor, mode: Optional[Union[PytorchPadMode, str]] = None, **pad_kwargs,
+        self, img: torch.Tensor, mode: Optional[ str] = None, **pad_kwargs,
     ) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
                 padding or cropping doesn't apply to the channel dim.
-            mode: available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html.
-            pad_kwargs: other arguments for the `torch.pad` function.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
