@@ -17,7 +17,7 @@ from parameterized import parameterized
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 #
-im = [[[1, 1, 1], [1, 1, 1], [1, 1, 1]]]
+im = [[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]]
 res = [
     [[[0.0, 0.0], [0.0, 3.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]]
 ]
@@ -47,7 +47,8 @@ class TestFFT(unittest.TestCase):
 
     @parameterized.expand(TESTS_CONSISTENCY)
     def test_consistency(self, test_data):
-        result = ifftn(fftn(test_data, spatial_dims=2, is_complex=False), spatial_dims=2, is_complex=True)
+        result = fftn(test_data, spatial_dims=2, is_complex=False)
+        result = ifftn(result, spatial_dims=2, is_complex=True)
         result = (result[..., 0] ** 2 + result[..., 1] ** 2) ** 0.5
         assert_allclose(result, test_data, type_test=False)
 

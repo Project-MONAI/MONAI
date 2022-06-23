@@ -14,21 +14,26 @@ from numpy import ndarray
 from torch import Tensor
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 
 def ifftn(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
     """
     Pytorch-based ifft for spatial_dims-dim signals.
-    inputs:
+    Args:
         ksp: k-space data
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input ksp is expected to be 2 (representing real and imaginary channels)
+    Returns:
+        out: output image (inverse fourier of ksp)
     """
     # handle numpy format
     isnp = False
     if isinstance(ksp, ndarray):
-        ksp = torch.from_numpy(ksp)
+        ksp_t, *_ = convert_data_type(ksp, torch.Tensor)
         isnp = True
+    else:
+        ksp_t = ksp.clone()
 
     # define spatial dims to perform ifftshift, fftshift, and ifft
     shift = tuple(range(-spatial_dims, 0))
@@ -38,32 +43,38 @@ def ifftn(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> T
     dims = tuple(range(-spatial_dims, 0))
 
     # apply ifft
-    x = torch.fft.ifftshift(ksp, dim=shift)
+    x = torch.fft.ifftshift(ksp_t, dim=shift)
     if is_complex:
         x = torch.view_as_real(torch.fft.ifftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
-    out = torch.fft.fftshift(x, dim=shift)
+    out_t = torch.fft.fftshift(x, dim=shift)
 
     # handle numpy format
     if isnp:
-        out = out.numpy()
+        out, *_ = convert_to_dst_type(src=out_t, dst=ksp)
+    else:
+        out = out_t.clone()
     return out
 
 
 def fftn(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
     """
     Pytorch-based fft for spatial_dims-dim signals.
-    inputs:
+    Args:
         im: image
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input im is expected to be 2 (representing real and imaginary channels)
+    Returns:
+        out: output kspace (fourier of im)
     """
     # handle numpy format
     isnp = False
     if isinstance(im, ndarray):
-        im = torch.from_numpy(im)
+        im_t, *_ = convert_data_type(im, torch.Tensor)
         isnp = True
+    else:
+        im_t = im.clone()
 
     # define spatial dims to perform ifftshift, fftshift, and fft
     shift = tuple(range(-spatial_dims, 0))
@@ -73,14 +84,16 @@ def fftn(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> Ten
     dims = tuple(range(-spatial_dims, 0))
 
     # apply fft
-    x = torch.fft.ifftshift(im, dim=shift)
+    x = torch.fft.ifftshift(im_t, dim=shift)
     if is_complex:
         x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
-    out = torch.fft.fftshift(x, dim=shift)
+    out_t = torch.fft.fftshift(x, dim=shift)
 
     # handle numpy format
     if isnp:
-        out = out.numpy()
+        out, *_ = convert_to_dst_type(src=out_t, dst=im)
+    else:
+        out = out_t.clone()
     return out
