@@ -2427,10 +2427,10 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                     "do_resampling": do_resampling,
                 },
             )
-            self.forward_meta(out, mat, img.shape[1:], sp_size)
+            self.update_meta(out, mat, img.shape[1:], sp_size)
         return out  # type: ignore
 
-    def forward_meta(self, img, mat, img_size, sp_size):
+    def update_meta(self, img, mat, img_size, sp_size):
         affine = convert_data_type(img.affine, torch.Tensor)[0]
         img.affine = Affine.compute_w_affine(affine, mat, img_size, sp_size)
 
@@ -2455,7 +2455,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
         out.meta = data.meta
-        self.forward_meta(out, inv_affine, data.shape[1:], orig_size)
+        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out  # type: ignore
 
 

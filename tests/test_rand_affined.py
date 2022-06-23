@@ -9,13 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import unittest
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandAffined
 from monai.utils import GridSampleMode
 from tests.utils import assert_allclose, is_tf32_env
@@ -212,21 +213,25 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
 
 
 class TestRandAffined(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_rand_affined(self, input_param, input_data, expected_val):
+    @parameterized.expand(x + [y] for x, y in itertools.product(TESTS, (False, True)))
+    def test_rand_affined(self, input_param, input_data, expected_val, track_meta):
+        set_track_meta(track_meta)
         g = RandAffined(**input_param).set_random_state(123)
         res = g(input_data)
         if input_param.get("cache_grid", False):
             self.assertTrue(g.rand_affine._cached_grid is not None)
         for key in res:
             result = res[key]
-            self.assertIsInstance(result, MetaTensor)
-            self.assertEqual(len(result.applied_operations), 1)
+            if track_meta:
+                self.assertIsInstance(result, MetaTensor)
+                self.assertEqual(len(result.applied_operations), 1)
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             assert_allclose(result, expected, rtol=_rtol, atol=1e-3, type_test=False)
 
         g.set_random_state(4)
         res = g(input_data)
+        if not track_meta:
+            return
 
         # affine should be tensor because the resampler only supports pytorch backend
         if isinstance(res["img"], MetaTensor) and "extra_info" in res["img"].applied_operations[0]:
