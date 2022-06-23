@@ -11,8 +11,10 @@
 
 import unittest
 
+import torch
 import numpy as np
 
+from monai.data import set_track_meta, MetaTensor
 from monai.transforms import RandRotate90d
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
@@ -29,6 +31,12 @@ class TestRandRotate90d(NumpyImageTestCase2D):
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
             assert_allclose(rotated[key], p(expected), type_test=False)
+
+            set_track_meta(False)
+            rotated = rotate(im)[key]
+            self.assertNotIsInstance(rotated, MetaTensor)
+            self.assertIsInstance(rotated, torch.Tensor)
+            set_track_meta(True)
 
     def test_k(self):
         key = "test"

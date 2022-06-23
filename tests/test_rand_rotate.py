@@ -17,6 +17,7 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.data import set_track_meta, MetaTensor
 from monai.transforms import RandRotate
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
@@ -112,6 +113,12 @@ class TestRandRotate3D(NumpyImageTestCase3D):
         rotated = rotate_fn(im)
         torch.testing.assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
         test_local_inversion(rotate_fn, rotated, im)
+
+        set_track_meta(False)
+        rotated = rotate_fn(im)
+        self.assertNotIsInstance(rotated, MetaTensor)
+        self.assertIsInstance(rotated, torch.Tensor)
+        set_track_meta(True)
 
 
 if __name__ == "__main__":

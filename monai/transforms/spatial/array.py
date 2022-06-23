@@ -1410,8 +1410,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
-        self.push_transform(out, extra_info=rot_info)
+        if get_track_meta() and isinstance(out, MetaTensor):
+            rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
+            self.push_transform(out, extra_info=rot_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

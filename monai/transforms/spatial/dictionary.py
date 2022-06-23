@@ -532,8 +532,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
-            xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
-            self.push_transform(d[key], extra_info=xform)
+            if get_track_meta() and isinstance(d[key], MetaTensor):
+                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                self.push_transform(d[key], extra_info=xform)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -1414,8 +1415,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
-            self.push_transform(d[key], extra_info=rot_info)
+            if get_track_meta() and isinstance(d[key], MetaTensor):
+                rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                self.push_transform(d[key], extra_info=rot_info)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
