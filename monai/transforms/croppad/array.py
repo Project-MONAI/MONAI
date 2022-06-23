@@ -1106,16 +1106,16 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialCrop.backend
 
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
         ratios: Optional[List[Union[float, int]]] = None,
-        label: Optional[NdarrayOrTensor] = None,
+        label: Optional[torch.Tensor] = None,
         num_classes: Optional[int] = None,
         num_samples: int = 1,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
         image_threshold: float = 0.0,
         indices: Optional[List[NdarrayOrTensor]] = None,
         allow_smaller: bool = False,
@@ -1133,9 +1133,9 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     def randomize(
         self,
-        label: NdarrayOrTensor,
+        label: torch.Tensor,
         indices: Optional[List[NdarrayOrTensor]] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
     ) -> None:
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
@@ -1151,11 +1151,11 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        img: torch.Tensor,
+        label: Optional[torch.Tensor] = None,
+        image: Optional[torch.Tensor] = None,
         indices: Optional[List[NdarrayOrTensor]] = None,
-    ) -> List[NdarrayOrTensor]:
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input data to crop samples from based on the ratios of every class, assumes `img` is a
@@ -1176,10 +1176,12 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.randomize(label, indices, image)
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
-            for center in self.centers:
+            for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
-                results.append(cropper(img))
+                cropped = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)(img)
+                if get_track_meta():
+                    cropped.meta[Key.PATCH_INDEX] = i
+                results.append(cropped)
 
         return results
 
