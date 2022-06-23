@@ -859,7 +859,7 @@ class RandWeightedCrop(Randomizable, Transform):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: NdarrayOrTensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
@@ -880,9 +880,11 @@ class RandWeightedCrop(Randomizable, Transform):
         self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[NdarrayOrTensor] = []
-        for center in self.centers:
-            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))
+        for i, center in enumerate(self.centers):
+            cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
+            if get_track_meta():
+                cropped.meta[Key.PATCH_INDEX] = i
+            results.append(cropped)
         return results
 
 
