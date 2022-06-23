@@ -297,7 +297,7 @@ class ResampleToMatch(SpatialResample):
         padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    ) -> Tuple[NdarrayOrTensor, Dict]:
         """
         Args:
             img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
