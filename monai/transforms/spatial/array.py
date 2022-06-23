@@ -302,14 +302,14 @@ class ResampleToMatch(SpatialResample):
         Args:
             img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
                 at most three spatial dimensions.
-            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``. 
-                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``. 
-                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample 
-            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form 
-                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not 
-                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is 
+            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
+                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
+                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
+            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
+                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
+                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
                 automatically computed, containing the previous field of view.  Defaults to ``None``.
-                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample 
+                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -319,8 +319,8 @@ class ResampleToMatch(SpatialResample):
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            align_corners: Geometrically, we consider the pixels of the input as squares rather than points. 
-                Defaults to ``False``.  
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                Defaults to ``False``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
