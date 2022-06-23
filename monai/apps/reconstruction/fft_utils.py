@@ -18,10 +18,12 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
     Pytorch-based ifft for spatial_dims-dim signals.
-    This is equivalent to do fft in numpy based on numpy.fft.ifftn, numpy.fft.fftshift, and numpy.fft.ifft.shift
+    This is equivalent to do fft in numpy based on numpy.fft.ifftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
-        ksp: k-space data
+        ksp: k-space data that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D.
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input ksp is expected to be 2 (representing real and imaginary channels)
 
@@ -66,10 +68,12 @@ def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = T
 def fftn_centered(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
     Pytorch-based fft for spatial_dims-dim signals.
-    This is equivalent to do ifft in numpy based on numpy.fft.fftn, numpy.fft.fftshift, and numpy.fft.ifft.shift
+    This is equivalent to do ifft in numpy based on numpy.fft.fftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
-        im: image
+        im: image that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D.
         spatial_dims: number of spatial dimensions (e.g., is 2 for an image, and is 3 for a volume)
         is_complex: if True, then the last dimension of the input im is expected to be 2 (representing real and imaginary channels)
 
