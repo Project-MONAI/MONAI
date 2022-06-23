@@ -373,8 +373,6 @@ class PydicomReader(ImageReader):
     Load medical images based on Pydicom library.
     All the supported image formats can be found at:
     https://dicom.nema.org/medical/dicom/current/output/chtml/part10/chapter_7.html
-    The loaded data array will be in C order, for example, a 3D image NumPy
-    array index order will be `CDWH`.
 
     This class refers to:
     https://nipy.org/nibabel/dicom/dicom_orientation.html#dicom-affine-formula
@@ -417,6 +415,10 @@ class PydicomReader(ImageReader):
         Args:
             data: file name or a list of file names to read,
             kwargs: additional args for `pydicom.dcmread` API, will override `self.kwargs` for existing keys.
+                If the `get_data` function will be called later, please ensure that the argument `stop_before_pixels`
+                is `True`, and `specific_tags` covers all necessary tags,
+                such as `PixelSpacing`, `ImagePositionPatient`, `ImageOrientationPatient` and all `pixel_array`
+                related tags.
 
         Returns:
             If `data` represents a filename: return a pydicom dataset object.
@@ -448,21 +450,33 @@ class PydicomReader(ImageReader):
 
     def _combine_dicom_series(self, data):
         """
-        Combine dicom series. Their data arrays will be stacked together at a new dimension as the
-        last dimension. The stack order depends on Instance Number. The metadata will be produced by the
-        first slice's metadata, as well as the new spacing.
+        Combine dicom series (a list of pydicom dataset objects). Their data arrays will be stacked together at a new
+        dimension as the last dimension.
+
+        The stack order depends on Instance Number. The metadata will be based on the
+        first slice's metadata, and some new items will be added:
+
+        "spacing": the new spacing of the stacked volume.
+        "lastImagePositionPatient": `ImagePositionPatient` for the last slice, it will be used to achieve the affine
+            matrix.
+        "spatial_shape": the spatial shape of the stacked volume.
+
         Args:
             data: a list of pydicom dataset objects.
         Returns:
             a tuple that consisted with data array and metadata.
         """
         slices = []
-        # for a dicom s
+        # for a dicom series
         for slc_ds in data:
+            if not hasattr(slc_ds, "PixelSpacing"):
+                raise ValueError(f"slice: {slc_ds.filename} does not have PixelSpacing tag.")
+            if not hasattr(slc_ds, "ImagePositionPatient"):
+                raise ValueError(f"slice: {slc_ds.filename} does not have ImagePositionPatient tag.")
             if hasattr(slc_ds, "InstanceNumber"):
                 slices.append(slc_ds)
             else:
-                warnings.warn(f"slice: {slc_ds[0x0008, 0x0018]} does not have InstanceNumber tag, skip it.")
+                warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
         slices = sorted(slices, key=lambda s: s.InstanceNumber)
 
         if len(slices) == 0:
@@ -512,6 +526,9 @@ class PydicomReader(ImageReader):
         When loading a list of files, they are stacked together at a new dimension as the first dimension,
         and the metadata of the first image is used to represent the output metadata.
 
+        To use this function, all pydicom dataset objects should contain: `pixel_array`, `PixelSpacing`,
+        `ImagePositionPatient` and `ImageOrientationPatient`.
+
         Args:
             data: a pydicom dataset object, or a list of pydicom dataset objects, or a list of list of
                 pydicom dataset objects.
@@ -519,14 +536,17 @@ class PydicomReader(ImageReader):
         """
 
         dicom_data = []
+        # dicom series
         if self.has_series is True:
-            # a list, or a list of list
+            # a list, all objects within a list belong to one dicom series
             if not isinstance(data[0], List):
                 dicom_data.append(self._combine_dicom_series(data))
+            # a list of list, each inner list represents a dicom series
             else:
                 for series in data:
-                    dicom_data.append(series)
+                    dicom_data.append(self._combine_dicom_series(series))
         else:
+            # a single pydicom dataset object
             if not isinstance(data, List):
                 data = [data]
             for d in data:
@@ -539,15 +559,17 @@ class PydicomReader(ImageReader):
         img_array: List[np.ndarray] = []
         compatible_meta: Dict = {}
 
-        for (data, header) in ensure_tuple(dicom_data):
-            img_array.append(data)
-            header["original_affine"] = self._get_affine(header, self.affine_lps_to_ras)
-            header["affine"] = header["original_affine"].copy()
+        for (data_array, metadata) in ensure_tuple(dicom_data):
+            img_array.append(data_array)
+            metadata["original_affine"] = self._get_affine(metadata, self.affine_lps_to_ras)
+            metadata["affine"] = metadata["original_affine"].copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+                metadata["original_channel_dim"] = (
+                    "no_channel" if len(data_array.shape) == len(metadata["spatial_shape"]) else -1
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
-            _copy_compatible_dict(header, compatible_meta)
+                metadata["original_channel_dim"] = self.channel_dim
+            _copy_compatible_dict(metadata, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
@@ -559,6 +581,11 @@ class PydicomReader(ImageReader):
             img: a Pydicom dataset object.
 
         """
+        if not hasattr(img, "ImagePositionPatient"):
+            raise ValueError(f"dicom data: {img.filename} does not have ImagePositionPatient.")
+        if not hasattr(img, "ImageOrientationPatient"):
+            raise ValueError(f"dicom data: {img.filename} does not have ImageOrientationPatient.")
+
         meta_dict = img.to_json_dict()
         # remove Pixel Data "7FE00008" or "7FE00009" or "7FE00010"
         # remove Data Set Trailing Padding "FFFCFFFC"
@@ -579,17 +606,19 @@ class PydicomReader(ImageReader):
 
         """
         affine: np.ndarray = np.eye(4)
+        # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
+        # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
         dr, dc = metadata["spacing"][:2]
-        affine[0, 0] = rx * dr
-        affine[0, 1] = cx * dc
+        affine[0, 0] = cx * dr
+        affine[0, 1] = rx * dc
         affine[0, 3] = sx
-        affine[1, 0] = ry * dr
-        affine[1, 1] = cy * dc
+        affine[1, 0] = cy * dr
+        affine[1, 1] = ry * dc
         affine[1, 3] = sy
-        affine[2, 0] = rz * dr
-        affine[2, 1] = cz * dc
+        affine[2, 0] = cz * dr
+        affine[2, 1] = rz * dc
         affine[2, 2] = 0
         affine[2, 3] = sz
 
@@ -606,21 +635,6 @@ class PydicomReader(ImageReader):
             affine = orientation_ras_lps(affine)
         return affine
 
-    def _get_spatial_shape(self, img):
-        """
-        Get the spatial shape of `img`.
-
-        Args:
-            img: a Pydicom dataset object loaded from an image file.
-
-        """
-        sr = itk.array_from_matrix(img.GetDirection()).shape[0]
-        sr = max(min(sr, 3), 1)
-        _size = list(itk.size(img))
-        if self.channel_dim is not None:
-            _size.pop(self.channel_dim)
-        return np.asarray(_size[:sr])
-
     def _get_array_data(self, img):
         """
         Get the array data of the image. If `RescaleSlope` and `RescaleIntercept` are available, the raw array data
@@ -631,6 +645,8 @@ class PydicomReader(ImageReader):
 
         """
         # process Dicom series
+        if not hasattr(img, "pixel_array"):
+            raise ValueError(f"dicom data: {img.filename} does not have pixel_array.")
         data = img.pixel_array.astype(np.float32)
 
         slope, offset = 1, 0
@@ -644,7 +660,7 @@ class PydicomReader(ImageReader):
         if rescale_flag is True:
             data = data * slope + offset
 
-        return np.transpose(data, (1, 0))
+        return data
 
 
 @require_pkg(pkg_name="nibabel")
