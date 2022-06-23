@@ -1201,21 +1201,18 @@ class Rotate90(InvertibleTransform):
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axes)
         ori_shape = img.shape[1:]
         out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
-        out, *_ = convert_data_type(out, dtype=img.dtype)
-        if not isinstance(out, MetaTensor):
-            return MetaTensor(out)
-        out.meta = self.forward_meta(img.meta, ori_shape, out.shape[1:], axes, self.k)  # type: ignore
-        self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
+        out = convert_to_dst_type(out, img)[0]
+        if get_track_meta() and isinstance(out, MetaTensor):
+            self.update_meta(out, ori_shape, out.shape[1:], axes, self.k)  # type: ignore
+            self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
         return out
 
-    def forward_meta(self, img_meta, spatial_size, new_spatial_size, axes, k):
-        meta_dict = deepcopy(img_meta)
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
+    def update_meta(self, img, spatial_size, new_spatial_size, axes, k):
+        affine = convert_data_type(img.affine, torch.Tensor)[0]
         r, sp_r = len(affine) - 1, len(spatial_size)
         mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
         if sp_r == 2:
@@ -1228,12 +1225,9 @@ class Rotate90(InvertibleTransform):
         for _ in range(k):
             mat = rot90 @ mat
         mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in spatial_size])) @ mat
-        meta_dict["affine"] = affine @ convert_to_dst_type(mat, affine)[0]
-        return meta_dict
+        img.affine = affine @ convert_to_dst_type(mat, affine)[0]
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         transform = self.pop_transform(data)
         return self.inverse_transform(data, transform)
 

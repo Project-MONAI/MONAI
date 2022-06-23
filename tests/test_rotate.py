@@ -17,7 +17,7 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
-from monai.data import set_track_meta, MetaTensor
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 

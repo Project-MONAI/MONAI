@@ -13,46 +13,60 @@ import unittest
 
 import numpy as np
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate90d
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 
 class TestRotate90d(NumpyImageTestCase2D):
     def test_rotate90_default(self):
         key = "test"
         rotate = Rotate90d(keys=key)
-        for p in TEST_NDARRAYS:
-            rotated = rotate({key: p(self.imt[0])})
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            set_track_meta(True)
+            rotated = rotate({key: im})
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
+            set_track_meta(False)
+            rotated = rotate({key: im})
+            self.assertNotIsInstance(rotated[key], MetaTensor)
+            set_track_meta(True)
 
     def test_k(self):
         key = None
         rotate = Rotate90d(keys=key, k=2)
-        for p in TEST_NDARRAYS:
-            rotated = rotate({key: p(self.imt[0])})
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            rotated = rotate({key: im})
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
-        for p in TEST_NDARRAYS:
-            rotated = rotate({key: p(self.imt[0])})
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            rotated = rotate({key: im})
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_prob_k_spatial_axes(self):
         key = "test"
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
-        for p in TEST_NDARRAYS:
-            rotated = rotate({key: p(self.imt[0])})
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            rotated = rotate({key: im})
+            test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected))
+            assert_allclose(rotated[key], p(expected), type_test=False)
 
     def test_no_key(self):
         key = "unknown"
