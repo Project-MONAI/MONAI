@@ -2172,8 +2172,7 @@ class Affine(InvertibleTransform):
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         """
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_size = img.shape[1:]
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
         _mode = mode or self.mode
@@ -2184,10 +2183,12 @@ class Affine(InvertibleTransform):
             return out if self.image_only else (out, affine)
         if not self.norm_coord:
             warnings.warn("customized transform may not work with the metadata operation.")
-        out.meta = self.forward_meta(img.meta, affine, img_size, sp_size)  # type: ignore
-        self.push_transform(
-            out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
-        )
+        if get_track_meta():
+            out.meta = img.meta
+            self.update_meta(out, affine, img_size, sp_size)  # type: ignore
+            self.push_transform(
+                out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
+            )
         return out if self.image_only else (out, affine)
 
     @classmethod
@@ -2199,15 +2200,11 @@ class Affine(InvertibleTransform):
         mat = shift_1 @ convert_data_type(mat, np.ndarray)[0] @ shift_2
         return affine @ convert_to_dst_type(mat, affine)[0]
 
-    def forward_meta(self, img_meta, mat, img_size, sp_size):
-        meta_dict = deepcopy(img_meta)
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
-        meta_dict["affine"] = Affine.compute_w_affine(affine, mat, img_size, sp_size)
-        return meta_dict
+    def update_meta(self, img, mat, img_size, sp_size):
+        affine = convert_data_type(img.affine, torch.Tensor)[0]
+        img.affine = Affine.compute_w_affine(affine, mat, img_size, sp_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         transform = self.pop_transform(data)
         orig_size = transform[TraceKeys.ORIG_SIZE]
         # Create inverse transform
@@ -2223,7 +2220,8 @@ class Affine(InvertibleTransform):
         out = self.resampler(data, grid, mode, padding_mode)
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
-        out.meta = self.forward_meta(data.meta, inv_affine, data.shape[1:], orig_size)
+        out.meta = data.meta
+        self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out  # type: ignore
 
 
@@ -2407,8 +2405,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
         _mode = mode or self.mode
         _padding_mode = padding_mode or self.padding_mode
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if not do_resampling:
             out: torch.Tensor = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)[0]
         else:
