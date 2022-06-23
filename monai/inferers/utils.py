@@ -175,7 +175,7 @@ def sliding_window_inference(
             for idx in slice_range
         ]
         window_data = torch.cat(
-            [convert_data_type(inputs[win_slice], torch.Tensor, drop_meta=True)[0] for win_slice in unravel_slice]
+            [convert_data_type(inputs[win_slice], torch.Tensor)[0] for win_slice in unravel_slice]
         ).to(sw_device)
         seg_prob_out = predictor(window_data, *args, **kwargs)  # batched patch segmentation
 
