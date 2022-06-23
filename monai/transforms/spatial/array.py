@@ -1409,18 +1409,18 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             )
             out = rotator(img)
         else:
-            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
-        self.push_transform(out)
+            out = convert_to_tensor(img, track_meta=get_track_meta())
+        rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
+        self.push_transform(out, extra_info=rot_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         if not isinstance(data, MetaTensor):
             raise NotImplementedError()
-        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
+        xform_info = self.pop_transform(data)
+        if not xform_info[TraceKeys.DO_TRANSFORM]:
             return data
-        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
-        rotate_xform = self.pop_transform(data)
-        return Rotate(0).inverse_transform(data, rotate_xform)
+        return Rotate(0).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform):

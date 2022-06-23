@@ -18,17 +18,17 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandRotate
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi / 2, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "nearest", "border", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", True))
     TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
 
 TEST_CASES_3D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append(
         (p, np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 87, 104, 109))
     )
@@ -108,8 +108,10 @@ class TestRandRotate3D(NumpyImageTestCase3D):
             dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
-        rotated = rotate_fn(im_type(self.imt[0]))
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im)
         torch.testing.assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
+        test_local_inversion(rotate_fn, rotated, im)
 
 
 if __name__ == "__main__":
