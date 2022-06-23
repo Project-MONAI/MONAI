@@ -54,8 +54,8 @@ class TestRandHistogramShift(unittest.TestCase):
     def test_interp(self):
         tr = RandHistogramShift()
         for array_type in (torch.tensor, np.array):
-            x = array_type([0, 4, 6, 10])
-            y = array_type([1, -1, 3, 5])
+            x = array_type([0.0, 4.0, 6.0, 10.0])
+            y = array_type([1.0, -1.0, 3.0, 5.0])
 
             yi = tr.interp(array_type([0, 2, 4, 8, 10]), x, y)
             assert yi.shape == (5,)
