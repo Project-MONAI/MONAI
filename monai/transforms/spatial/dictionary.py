@@ -23,6 +23,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
@@ -58,6 +59,7 @@ from monai.utils import (
     InterpolateMode,
     NumpyPadMode,
     WSIPatchKeys,
+    convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
@@ -529,9 +531,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
-            if self._do_transform:
-                d[key] = rotator(d[key])
-            self.push_transform(d[key])
+            d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
+            xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
+            self.push_transform(d[key], extra_info=xform)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
@@ -539,11 +541,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             if not isinstance(d[key], MetaTensor):
                 continue
-            d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
-            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
-                d[key].applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE  # type: ignore
-                xform = self.pop_transform(d[key])
-                d[key] = Rotate90().inverse_transform(d[key], xform)
+            xform = self.pop_transform(d[key])
+            if xform[TraceKeys.DO_TRANSFORM]:
+                d[key] = Rotate90().inverse_transform(d[key], xform[TraceKeys.EXTRA_INFO])
         return d
 
 

@@ -812,7 +812,7 @@ class Resize(InvertibleTransform):
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            return convert_to_tensor(img, track_meta=get_track_meta())   # type: ignore
+            return convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
 
         original_sp_size = img.shape[1:]
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
@@ -1282,17 +1282,18 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
         if self._do_transform:
             out = Rotate90(self._rand_k, self.spatial_axes)(img)
         else:
-            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
-        self.push_transform(out)
+            out = convert_to_tensor(img, track_meta=get_track_meta())
+
+        if get_track_meta() and isinstance(out, MetaTensor):
+            maybe_rot90_info = self.pop_transform(out, check=False) if self._do_transform else {}
+            self.push_transform(out, extra_info=maybe_rot90_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
-        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
+        xform_info = self.pop_transform(data)
+        if not xform_info[TraceKeys.DO_TRANSFORM]:
             return data
-        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
-        rotate_xform = self.pop_transform(data)
+        rotate_xform = xform_info[TraceKeys.EXTRA_INFO]
         return Rotate90().inverse_transform(data, rotate_xform)
 
 
