@@ -16,9 +16,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from copy import deepcopy
-from enum import Enum
-from itertools import chain
-from math import floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -51,7 +48,7 @@ from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import PostFix, TraceKeys
+from monai.utils.enums import PostFix
 
 __all__ = [
     "Padd",
@@ -1013,7 +1010,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         return ret
 
 
-class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
+class ResizeWithPadOrCropd(Padd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
 
@@ -1037,8 +1034,6 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
 
     """
 
-    backend = ResizeWithPadOrCrop.backend
-
     def __init__(
         self,
         keys: KeysCollection,
@@ -1048,52 +1043,8 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         method: Union[Method, str] = Method.SYMMETRIC,
         **pad_kwargs,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            orig_size = d[key].shape[1:]
-            d[key] = self.padcropper(d[key], mode=m)
-            self.push_transform(d, key, orig_size=orig_size, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            # Unfortunately, we can't just use ResizeWithPadOrCrop with original size because of odd/even rounding.
-            # Instead, we first pad any smaller dimensions, and then we crop any larger dimensions.
-
-            # First, do pad
-            if np.any((orig_size - current_size) > 0):
-                pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
-                # in each direction, if original size is even and current size is odd, += 1
-                pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
-                pad_to_start[pad_to_start < 0] = 0
-                pad_to_end = orig_size - current_size - pad_to_start
-                pad_to_end[pad_to_end < 0] = 0
-                pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-                d[key] = BorderPad(pad)(d[key])
-
-            # Next crop
-            if np.any((orig_size - current_size) < 0):
-                if self.padcropper.padder.method == Method.SYMMETRIC:
-                    roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
-                else:
-                    roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
-
-                d[key] = SpatialCrop(roi_center, orig_size)(d[key])
-
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
+        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
+        super().__init__(keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class BoundingRectd(MapTransform):
