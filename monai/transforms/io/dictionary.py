@@ -16,7 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Type, Union
 
 import numpy as np
 
@@ -237,7 +237,7 @@ class SaveImaged(MapTransform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[image_writer.ImageWriter, str, None] = None,
+        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))

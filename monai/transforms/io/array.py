@@ -20,7 +20,7 @@ import traceback
 import warnings
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -339,7 +339,7 @@ class SaveImage(Transform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[image_writer.ImageWriter, str, None] = None,
+        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
         channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(

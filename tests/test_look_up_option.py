@@ -14,7 +14,7 @@ from enum import Enum
 
 from parameterized import parameterized
 
-from monai.utils import look_up_option
+from monai.utils import StrEnum, look_up_option
 
 
 class _CaseEnum(Enum):
@@ -25,6 +25,11 @@ class _CaseEnum(Enum):
 class _CaseEnum1(Enum):
     CONST = "constant"
     EMPTY = "empty"
+
+
+class _CaseStrEnum(StrEnum):
+    MODE_A = "A"
+    MODE_B = "B"
 
 
 TEST_CASES = (
@@ -45,6 +50,14 @@ class TestLookUpOption(unittest.TestCase):
     def test_default(self):
         output = look_up_option("not here", {"a", "b"}, default=None)
         self.assertEqual(output, None)
+
+    def test_str_enum(self):
+        output = look_up_option("C", {"A", "B"}, default=None)
+        self.assertEqual(output, None)
+        self.assertEqual(list(_CaseStrEnum), ["A", "B"])
+        self.assertEqual(_CaseStrEnum.MODE_A, "A")
+        self.assertEqual(str(_CaseStrEnum.MODE_A), "A")
+        self.assertEqual(look_up_option("A", _CaseStrEnum), "A")
 
     def test_no_found(self):
         with self.assertRaisesRegex(ValueError, "Unsupported"):
