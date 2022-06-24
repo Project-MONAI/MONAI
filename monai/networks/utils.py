@@ -19,7 +19,8 @@ from copy import deepcopy
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
+from torch import nn
 
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
@@ -46,7 +47,12 @@ __all__ = [
 ]
 
 
-def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
+def one_hot(
+    labels: torch.Tensor,
+    num_classes: int = -1,
+    dtype: torch.dtype = torch.LongTensor,
+    dim: int = 1,
+) -> torch.Tensor:
     """
     For every value v in `labels`, the value in the output will be either 1 or 0. Each vector along the `dim`-th
     dimension has the "one-hot" format, i.e., it has a total length of `num_classes`,
@@ -57,8 +63,9 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
         labels: input tensor of integers to be converted into the 'one-hot' format. Internally `labels` will be
             converted into integers `labels.long()`.
         num_classes: number of output channels, the corresponding length of `labels[dim]` will be converted to
-            `num_classes` from `1`.
-        dtype: the data type of the output one_hot label.
+            `num_classes` from `1`. If `num_classes` is not specified, the num_classes will be calulated dynamically
+            from the data by finding the maximum integer in the label.
+        dtype: the data type of the output one_hot label. Defualts to LongTensor
         dim: the dimension to be converted to `num_classes` channels from `1` channel, should be non-negative number.
 
     Example:
@@ -81,22 +88,20 @@ def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.f
 
     """
 
-    # if `dim` is bigger, add singleton dim at the end
-    if labels.ndim < dim + 1:
-        shape = list(labels.shape) + [1] * (dim + 1 - len(labels.shape))
-        labels = torch.reshape(labels, shape)
+    assert (
+        labels.size(dim) == 1
+    ), "labels should have a channel with length equal to one."
 
-    sh = list(labels.shape)
+    # Squeeze the dimension and calulate one hot
+    # It add he dimension at the last
+    one_hot_channel_last = F.one_hot(
+        labels.squeeze(dim).long(), num_classes=num_classes
+    )
 
-    if sh[dim] != 1:
-        raise AssertionError("labels should have a channel with length equal to one.")
+    # Move the last one hotted dimension back to the indicated place
+    one_hot_channel_moved = torch.movedim(one_hot_channel_last, -1, dim)
 
-    sh[dim] = num_classes
-
-    o = torch.zeros(size=sh, dtype=dtype, device=labels.device)
-    labels = o.scatter_(dim=dim, index=labels.long(), value=1)
-
-    return labels
+    return one_hot_channel_moved.type(dtype)
 
 
 @deprecated(since="0.8.0", msg_suffix="use `monai.utils.misc.sample_slices` instead.")
