@@ -32,6 +32,7 @@ from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
     CenterSpatialCrop,
+    Crop,
     CropForeground,
     DivisiblePad,
     Pad,
@@ -57,9 +58,12 @@ from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensu
 from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
+    "Padd",
     "SpatialPadd",
     "BorderPadd",
     "DivisiblePadd",
+    "Cropd",
+    "RandCropd",
     "SpatialCropd",
     "CenterSpatialCropd",
     "CenterScaleCropd",
@@ -72,12 +76,18 @@ __all__ = [
     "ResizeWithPadOrCropd",
     "BoundingRectd",
     "RandCropByLabelClassesd",
+    "PadD",
+    "PadDict",
     "SpatialPadD",
     "SpatialPadDict",
     "BorderPadD",
     "BorderPadDict",
     "DivisiblePadD",
     "DivisiblePadDict",
+    "CropD",
+    "CropDict",
+    "RandCropD",
+    "RandCropDict",
     "SpatialCropD",
     "SpatialCropDict",
     "CenterSpatialCropD",
@@ -283,7 +293,78 @@ class DivisiblePadd(Padd):
         super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
-class SpatialCropd(MapTransform, InvertibleTransform):
+class Cropd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        cropper: crop transform for the input image.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = Crop.backend
+
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+        self.cropper = cropper
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.cropper(d[key])
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.cropper.inverse(d[key])
+        return d
+
+
+class RandCropd(Cropd, Randomizable):
+    """
+    Base class for random crop transform.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        cropper: random crop transform for the input image.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+    backend = Crop.backend
+
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+        self.cropper = cropper
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandCropd":
+        super().set_random_state(seed, state)
+        if isinstance(self.cropper, Randomizable):
+            self.cropper.set_random_state(seed, state)
+        return self
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        if isinstance(self.cropper, Randomizable):
+            self.cropper.randomize(img_size)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        # only randomize at start
+        self.randomize(d[self.first_key(d)].shape[1:])
+
+        for key in self.key_iterator(d):
+            kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
+            d[key] = self.cropper(d[key], **kwargs)
+        return d
+
+
+class SpatialCropd(Cropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     General purpose cropper to produce sub-volume region of interest (ROI).
@@ -322,37 +403,10 @@ class SpatialCropd(MapTransform, InvertibleTransform):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
+
         """
-        super().__init__(keys, allow_missing_keys)
-        self.cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            self.push_transform(d, key)
-            d[key] = self.cropper(d[key])
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            # get required pad to start and end
-            pad_to_start = np.array([s.indices(o)[0] for s, o in zip(self.cropper.slices, orig_size)])
-            pad_to_end = orig_size - current_size - pad_to_start
-            # interleave mins and maxes
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
+        cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
 class CenterSpatialCropd(MapTransform, InvertibleTransform):
@@ -1487,6 +1541,8 @@ PadD = PadDict = Padd
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
+CropD = CropDict = Cropd
+RandCropD = RandCropDict = RandCropd
 SpatialCropD = SpatialCropDict = SpatialCropd
 CenterSpatialCropD = CenterSpatialCropDict = CenterSpatialCropd
 CenterScaleCropD = CenterScaleCropDict = CenterScaleCropd

@@ -1031,6 +1031,18 @@ Crop and Pad (Dict)
     :members:
     :special-members: __call__
 
+`Cropd`
+"""""""
+.. autoclass:: Cropd
+    :members:
+    :special-members: __call__
+
+`RandCropd`
+"""""""""""
+.. autoclass:: RandCropd
+    :members:
+    :special-members: __call__
+
 `SpatialCropd`
 """"""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCropd.png
