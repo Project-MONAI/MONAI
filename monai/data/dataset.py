@@ -669,7 +669,7 @@ class CacheDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_workers: Optional[int] = 1,
@@ -847,8 +847,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Note:
         This replacement will not work for below cases:
         1. Set the `multiprocessing_context` of DataLoader to `spawn`.
-        2. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
-        3. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
+        2. Launch distributed data parallel with `torch.multiprocessing.spawn`.
+        3. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
+        4. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
 
         If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
         otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
@@ -856,7 +857,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Args:
         data: input data to load and transform to generate dataset for model.
         transform: transforms to execute operations on input data.
-        replace_rate: percentage of the cached items to be replaced in every epoch.
+        replace_rate: percentage of the cached items to be replaced in every epoch (default to 0.1).
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
@@ -883,8 +884,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        replace_rate: float,
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
+        replace_rate: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
         num_init_workers: Optional[int] = 1,

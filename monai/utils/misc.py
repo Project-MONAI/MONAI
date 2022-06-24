@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections.abc
 import inspect
 import itertools
 import os
@@ -19,6 +18,7 @@ import tempfile
 import types
 import warnings
 from ast import literal_eval
+from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
@@ -26,7 +26,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor, PathLike
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.utils.module import version_leq
 
 __all__ = [
@@ -88,19 +88,27 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if isinstance(obj, torch.Tensor):
-        return int(obj.dim()) > 0  # a 0-d tensor is not iterable
-    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, (str, bytes))
+    try:
+        if hasattr(obj, "ndim") and obj.ndim == 0:
+            return False  # a 0-d tensor is not iterable
+    except Exception:
+        return False
+    return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
-def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
+def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
-    """
-    if not issequenceiterable(vals):
-        return (vals,)
 
-    return tuple(vals)
+    Args:
+        vals: input data to convert to a tuple.
+        wrap_array: if `True`, treat the input numerical array (ndarray/tensor) as one item of the tuple.
+            if `False`, try to convert the array with `tuple(vals)`, default to `False`.
+
+    """
+    if wrap_array and isinstance(vals, (np.ndarray, torch.Tensor)):
+        return (vals,)
+    return tuple(vals) if issequenceiterable(vals) else (vals,)
 
 
 def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
@@ -147,7 +155,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
 
 
 def fall_back_tuple(
-    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+    user_provided: Any, default: Union[Sequence, NdarrayTensor], func: Callable = lambda x: x and x > 0
 ) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
@@ -354,11 +362,12 @@ def copy_to_device(
 
 class ImageMetaKey:
     """
-    Common key names in the meta data header of images
+    Common key names in the metadata header of images
     """
 
     FILENAME_OR_OBJ = "filename_or_obj"
     PATCH_INDEX = "patch_index"
+    SPATIAL_SHAPE = "spatial_shape"
 
 
 def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:

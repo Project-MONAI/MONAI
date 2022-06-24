@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import torch
 from torch.optim.optimizer import Optimizer
@@ -26,7 +28,7 @@ from monai.engines.utils import (
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import, pytorch_after
+from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 
 if TYPE_CHECKING:
@@ -55,7 +57,7 @@ class Trainer(Workflow):
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
-    def get_train_stats(self) -> Dict[str, float]:
+    def get_train_stats(self) -> dict[str, float]:
         return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
 
 
@@ -93,7 +95,7 @@ class SupervisedTrainer(Trainer):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
         event_names: additional custom ignite events that will register to the engine.
             new events can be a list of str or `ignite.engine.events.EventEnum`.
@@ -105,6 +107,10 @@ class SupervisedTrainer(Trainer):
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -112,25 +118,27 @@ class SupervisedTrainer(Trainer):
         self,
         device: torch.device,
         max_epochs: int,
-        train_data_loader: Union[Iterable, DataLoader],
+        train_data_loader: Iterable | DataLoader,
         network: torch.nn.Module,
         optimizer: Optimizer,
         loss_function: Callable,
-        epoch_length: Optional[int] = None,
+        epoch_length: int | None = None,
         non_blocking: bool = False,
         prepare_batch: Callable = default_prepare_batch,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        inferer: Optional[Inferer] = None,
-        postprocessing: Optional[Transform] = None,
-        key_train_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        inferer: Inferer | None = None,
+        postprocessing: Transform | None = None,
+        key_train_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        train_handlers: Optional[Sequence] = None,
+        train_handlers: Sequence | None = None,
         amp: bool = False,
-        event_names: Optional[List[Union[str, EventEnum]]] = None,
-        event_to_attr: Optional[dict] = None,
+        event_names: list[str | EventEnum] | None = None,
+        event_to_attr: dict | None = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -149,6 +157,8 @@ class SupervisedTrainer(Trainer):
             event_names=event_names,
             event_to_attr=event_to_attr,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
 
         self.network = network
@@ -157,7 +167,7 @@ class SupervisedTrainer(Trainer):
         self.inferer = SimpleInferer() if inferer is None else inferer
         self.optim_set_to_none = optim_set_to_none
 
-    def _iteration(self, engine: Engine, batchdata: Dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedTrainer, batchdata: dict[str, torch.Tensor]):
         """
         Callback function for the Supervised Training processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -167,7 +177,7 @@ class SupervisedTrainer(Trainer):
             - LOSS: loss value computed by loss function.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `SupervisedTrainer` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -176,41 +186,37 @@ class SupervisedTrainer(Trainer):
         """
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
-        batch = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
+        batch = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
         if len(batch) == 2:
             inputs, targets = batch
-            args: Tuple = ()
-            kwargs: Dict = {}
+            args: tuple = ()
+            kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
         # put iteration outputs into engine.state
-        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}  # type: ignore
+        engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
         def _compute_pred_loss():
-            engine.state.output[Keys.PRED] = self.inferer(inputs, self.network, *args, **kwargs)
+            engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
             engine.fire_event(IterationEvents.FORWARD_COMPLETED)
-            engine.state.output[Keys.LOSS] = self.loss_function(engine.state.output[Keys.PRED], targets).mean()
+            engine.state.output[Keys.LOSS] = engine.loss_function(engine.state.output[Keys.PRED], targets).mean()
             engine.fire_event(IterationEvents.LOSS_COMPLETED)
 
-        self.network.train()
-        # `set_to_none` only work from PyTorch 1.7.0
-        if not pytorch_after(1, 7):
-            self.optimizer.zero_grad()
-        else:
-            self.optimizer.zero_grad(set_to_none=self.optim_set_to_none)
+        engine.network.train()
+        engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
-        if self.amp and self.scaler is not None:
-            with torch.cuda.amp.autocast():
+        if engine.amp and engine.scaler is not None:
+            with torch.cuda.amp.autocast(**engine.amp_kwargs):
                 _compute_pred_loss()
-            self.scaler.scale(engine.state.output[Keys.LOSS]).backward()  # type: ignore
+            engine.scaler.scale(engine.state.output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            engine.scaler.step(engine.optimizer)
+            engine.scaler.update()
         else:
             _compute_pred_loss()
-            engine.state.output[Keys.LOSS].backward()  # type: ignore
+            engine.state.output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
-            self.optimizer.step()
+            engine.optimizer.step()
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
 
         return engine.state.output
@@ -265,12 +271,16 @@ class GanTrainer(Trainer):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.
         optim_set_to_none: when calling `optimizer.zero_grad()`, instead of setting to zero, set the grads to None.
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
+        to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
+            `device`, `non_blocking`.
+        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
 
     """
 
@@ -285,23 +295,25 @@ class GanTrainer(Trainer):
         d_network: torch.nn.Module,
         d_optimizer: Optimizer,
         d_loss_function: Callable,
-        epoch_length: Optional[int] = None,
-        g_inferer: Optional[Inferer] = None,
-        d_inferer: Optional[Inferer] = None,
+        epoch_length: int | None = None,
+        g_inferer: Inferer | None = None,
+        d_inferer: Inferer | None = None,
         d_train_steps: int = 1,
         latent_shape: int = 64,
         non_blocking: bool = False,
         d_prepare_batch: Callable = default_prepare_batch,
         g_prepare_batch: Callable = default_make_latent,
         g_update_latents: bool = True,
-        iteration_update: Optional[Callable[[Engine, Any], Any]] = None,
-        postprocessing: Optional[Transform] = None,
-        key_train_metric: Optional[Dict[str, Metric]] = None,
-        additional_metrics: Optional[Dict[str, Metric]] = None,
+        iteration_update: Callable[[Engine, Any], Any] | None = None,
+        postprocessing: Transform | None = None,
+        key_train_metric: dict[str, Metric] | None = None,
+        additional_metrics: dict[str, Metric] | None = None,
         metric_cmp_fn: Callable = default_metric_cmp_fn,
-        train_handlers: Optional[Sequence] = None,
+        train_handlers: Sequence | None = None,
         decollate: bool = True,
         optim_set_to_none: bool = False,
+        to_kwargs: dict | None = None,
+        amp_kwargs: dict | None = None,
     ):
         if not isinstance(train_data_loader, DataLoader):
             raise ValueError("train_data_loader must be PyTorch DataLoader.")
@@ -321,6 +333,8 @@ class GanTrainer(Trainer):
             handlers=train_handlers,
             postprocessing=postprocessing,
             decollate=decollate,
+            to_kwargs=to_kwargs,
+            amp_kwargs=amp_kwargs,
         )
         self.g_network = g_network
         self.g_optimizer = g_optimizer
@@ -337,13 +351,13 @@ class GanTrainer(Trainer):
         self.optim_set_to_none = optim_set_to_none
 
     def _iteration(
-        self, engine: Engine, batchdata: Union[Dict, Sequence]
-    ) -> Dict[str, Union[torch.Tensor, int, float, bool]]:
+        self, engine: GanTrainer, batchdata: dict | Sequence
+    ) -> dict[str, torch.Tensor | int | float | bool]:
         """
         Callback function for Adversarial Training processing logic of 1 iteration in Ignite Engine.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            engine: `GanTrainer` to execute operation for an iteration.
             batchdata: input data for this iteration, usually can be dictionary or tuple of Tensor data.
 
         Raises:
@@ -353,45 +367,40 @@ class GanTrainer(Trainer):
         if batchdata is None:
             raise ValueError("must provide batch data for current iteration.")
 
-        d_input = self.prepare_batch(batchdata, engine.state.device, engine.non_blocking)  # type: ignore
-        batch_size = self.data_loader.batch_size  # type: ignore
-        g_input = self.g_prepare_batch(
+        d_input = engine.prepare_batch(batchdata, engine.state.device, engine.non_blocking, **engine.to_kwargs)
+        batch_size = engine.data_loader.batch_size  # type: ignore
+        g_input = engine.g_prepare_batch(
             num_latents=batch_size,
-            latent_size=self.latent_shape,
-            device=engine.state.device,  # type: ignore
-            non_blocking=engine.non_blocking,  # type: ignore
+            latent_size=engine.latent_shape,
+            device=engine.state.device,
+            non_blocking=engine.non_blocking,
+            **engine.to_kwargs,
         )
-        g_output = self.g_inferer(g_input, self.g_network)
+        g_output = engine.g_inferer(g_input, engine.g_network)
 
         # Train Discriminator
         d_total_loss = torch.zeros(1)
-        for _ in range(self.d_train_steps):
-            # `set_to_none` only work from PyTorch 1.7.0
-            if not pytorch_after(1, 7):
-                self.d_optimizer.zero_grad()
-            else:
-                self.d_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
-            dloss = self.d_loss_function(g_output, d_input)
+        for _ in range(engine.d_train_steps):
+            engine.d_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
+            dloss = engine.d_loss_function(g_output, d_input)
             dloss.backward()
-            self.d_optimizer.step()
+            engine.d_optimizer.step()
             d_total_loss += dloss.item()
 
         # Train Generator
-        if self.g_update_latents:
-            g_input = self.g_prepare_batch(
+        if engine.g_update_latents:
+            g_input = engine.g_prepare_batch(
                 num_latents=batch_size,
-                latent_size=self.latent_shape,
-                device=engine.state.device,  # type: ignore
-                non_blocking=engine.non_blocking,  # type: ignore
+                latent_size=engine.latent_shape,
+                device=engine.state.device,
+                non_blocking=engine.non_blocking,
+                **engine.to_kwargs,
             )
-        g_output = self.g_inferer(g_input, self.g_network)
-        if not pytorch_after(1, 7):
-            self.g_optimizer.zero_grad()
-        else:
-            self.g_optimizer.zero_grad(set_to_none=self.optim_set_to_none)
-        g_loss = self.g_loss_function(g_output)
+        g_output = engine.g_inferer(g_input, engine.g_network)
+        engine.g_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
+        g_loss = engine.g_loss_function(g_output)
         g_loss.backward()
-        self.g_optimizer.step()
+        engine.g_optimizer.step()
 
         return {
             GanKeys.REALS: d_input,

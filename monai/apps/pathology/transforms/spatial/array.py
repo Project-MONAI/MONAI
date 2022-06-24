@@ -17,12 +17,13 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.utils import convert_data_type, convert_to_dst_type
+from monai.utils import convert_data_type, convert_to_dst_type, deprecated
 from monai.utils.enums import TransformBackends
 
 __all__ = ["SplitOnGrid", "TileOnGrid"]
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridSplit` instead.")
 class SplitOnGrid(Transform):
     """
     Split the image into patches based on the provided grid shape.
@@ -107,6 +108,7 @@ class SplitOnGrid(Transform):
         return patch_size, steps
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridPatch` or `monai.transforms.RandGridPatch` instead.")
 class TileOnGrid(Randomizable, Transform):
     """
     Tile the 2D image into patches on a grid and maintain a subset of it.
@@ -209,7 +211,7 @@ class TileOnGrid(Randomizable, Transform):
                 constant_values=self.background_val,
             )
 
-        # extact tiles
+        # extract tiles
         x_step, y_step = self.step, self.step
         h_tile, w_tile = self.tile_size, self.tile_size
         c_image, h_image, w_image = img_np.shape

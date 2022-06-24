@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 from monai.networks.nets import NetAdapter
-from monai.utils import deprecated, deprecated_arg, optional_import
+from monai.utils import deprecated_arg, optional_import
 
 models, _ = optional_import("torchvision.models")
 
 
-__all__ = ["TorchVisionFCModel", "TorchVisionFullyConvModel"]
+__all__ = ["TorchVisionFCModel"]
 
 
 class TorchVisionFCModel(NetAdapter):
@@ -71,45 +71,4 @@ class TorchVisionFCModel(NetAdapter):
             use_conv=use_conv,
             pool=pool,
             bias=bias,
-        )
-
-
-@deprecated(since="0.6.0", removed="0.9.0", msg_suffix="Please consider using `TorchVisionFCModel` instead.")
-class TorchVisionFullyConvModel(TorchVisionFCModel):
-    """
-    Customize TorchVision models to replace fully connected layer by convolutional layer.
-
-    Args:
-        model_name: name of any torchvision with adaptive avg pooling and fully connected layer at the end.
-            ``resnet18`` (default), ``resnet34``, ``resnet50``, ``resnet101``, ``resnet152``,
-            ``resnext50_32x4d``, ``resnext101_32x8d``, ``wide_resnet50_2``, ``wide_resnet101_2``.
-        num_classes: number of classes for the last classification layer. Default to 1.
-        pool_size: the kernel size for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to (7, 7).
-        pool_stride: the stride for `AvgPool2d` to replace `AdaptiveAvgPool2d`. Default to 1.
-        pretrained: whether to use the imagenet pretrained weights. Default to False.
-
-    .. deprecated:: 0.6.0
-        Use :class:`monai.networks.nets.TorchVisionFCModel` instead.
-
-    """
-
-    @deprecated_arg("n_classes", since="0.6")
-    def __init__(
-        self,
-        model_name: str = "resnet18",
-        num_classes: int = 1,
-        pool_size: Union[int, Tuple[int, int]] = (7, 7),
-        pool_stride: Union[int, Tuple[int, int]] = 1,
-        pretrained: bool = False,
-        n_classes: Optional[int] = None,
-    ):
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes == 1:
-            num_classes = n_classes
-        super().__init__(
-            model_name=model_name,
-            num_classes=num_classes,
-            use_conv=True,
-            pool=("avg", {"kernel_size": pool_size, "stride": pool_stride}),
-            pretrained=pretrained,
         )

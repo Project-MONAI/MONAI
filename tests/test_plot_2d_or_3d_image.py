@@ -15,11 +15,12 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
 from tests.utils import SkipIfNoModule
+
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
