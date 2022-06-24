@@ -333,5 +333,3 @@ Bounding box
 ------------
 .. automodule:: monai.data.box_utils
     :members:
-
-
