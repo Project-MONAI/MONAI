@@ -15,11 +15,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForegroundd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_POSITION, TESTS = [], []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
 
     TEST_POSITION.append(
         [
@@ -153,10 +154,10 @@ class TestCropForegroundd(unittest.TestCase):
     def test_value(self, argments, input_data, expected_data):
         result = CropForegroundd(**argments)(input_data)
         r, i = result["img"], input_data["img"]
-        self.assertEqual(type(r), type(i))
-        if isinstance(r, torch.Tensor):
+        self.assertEqual(type(r), MetaTensor)
+        if isinstance(i, torch.Tensor):
             self.assertEqual(r.device, i.device)
-        assert_allclose(r, expected_data)
+        assert_allclose(r, expected_data, type_test=False)
 
     @parameterized.expand(TEST_POSITION)
     def test_foreground_position(self, argments, input_data, _):
