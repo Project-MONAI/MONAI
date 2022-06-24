@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabeld
 from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS = [
     [
@@ -35,7 +35,6 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            PostFix.meta("image"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 2, 2),
     ],
@@ -54,7 +53,6 @@ TESTS = [
             "image": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "extra": np.random.randint(0, 2, size=[3, 3, 3, 3]),
             "label": np.random.randint(0, 2, size=[3, 3, 3, 3]),
-            PostFix.meta("label"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -73,7 +71,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 2, 2, 2),
     ],
@@ -93,7 +90,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 2),
     ],
@@ -113,7 +109,6 @@ TESTS = [
             "image": np.zeros([3, 3, 3, 3]) - 1,
             "extra": np.zeros([3, 3, 3, 3]),
             "label": np.ones([3, 3, 3, 3]),
-            PostFix.meta("extra"): {"affine": np.eye(3), "shape": "CHWD"},
         },
         (3, 3, 3, 3),
     ],
@@ -131,13 +126,13 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_shape):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             input_param_mod = self.convert_data_type(p, input_param)
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabeld(**input_param_mod)
             cropper.set_random_state(0)
             result = cropper(input_data_mod)
-            self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
+            self.assertListEqual(cropper.cropper.spatial_size, input_param["spatial_size"])
 
             self.assertIsInstance(result, list)
 
@@ -146,7 +141,7 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             for k in ("image", "extra", "label"):
                 self.assertTupleEqual(result[0][k].shape, expected_shape)
                 for i, item in enumerate(result):
-                    self.assertEqual(item[PostFix.meta(k)]["patch_index"], i)
+                    self.assertEqual(item[k].meta["patch_index"], i)
 
     def test_correct_center(self):
         cropper = RandCropByPosNegLabeld(keys="label", label_key="label", spatial_size=[3, 3])

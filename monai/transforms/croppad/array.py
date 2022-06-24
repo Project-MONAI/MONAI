@@ -1056,6 +1056,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         image: Optional[torch.Tensor] = None,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
+        randomize: bool = True,
     ) -> List[torch.Tensor]:
         """
         Args:
@@ -1069,6 +1070,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                 need to provide `fg_indices` and `bg_indices` together.
             bg_indices: background indices to randomly select crop centers,
                 need to provide `fg_indices` and `bg_indices` together.
+            randomize: whether to execute the random operations, default to `True`.
 
         """
         if label is None:
@@ -1078,7 +1080,8 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, fg_indices, bg_indices, image)
+        if randomize:
+            self.randomize(label, fg_indices, bg_indices, image)
         results: List[torch.Tensor] = []
         if self.centers is not None:
             for i, center in enumerate(self.centers):
@@ -1087,7 +1090,6 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                 if get_track_meta():
                     cropped.meta[Key.PATCH_INDEX] = i
                 results.append(cropped)
-
         return results
 
 
