@@ -48,10 +48,7 @@ __all__ = [
 
 
 def one_hot(
-    labels: torch.Tensor,
-    num_classes: int = -1,
-    dtype: torch.dtype = torch.LongTensor,
-    dim: int = 1,
+    labels: torch.Tensor, num_classes: int = -1, dtype: torch.dtype = torch.float, dim: int = 1
 ) -> torch.Tensor:
     """
     For every value v in `labels`, the value in the output will be either 1 or 0. Each vector along the `dim`-th
@@ -65,7 +62,7 @@ def one_hot(
         num_classes: number of output channels, the corresponding length of `labels[dim]` will be converted to
             `num_classes` from `1`. If `num_classes` is not specified, the num_classes will be calulated dynamically
             from the data by finding the maximum integer in the label.
-        dtype: the data type of the output one_hot label. Defualts to LongTensor
+        dtype: the data type of the output one_hot label.
         dim: the dimension to be converted to `num_classes` channels from `1` channel, should be non-negative number.
 
     Example:
@@ -88,15 +85,11 @@ def one_hot(
 
     """
 
-    assert (
-        labels.size(dim) == 1
-    ), "labels should have a channel with length equal to one."
+    assert labels.size(dim) == 1, "labels should have a channel with length equal to one."
 
     # Squeeze the dimension and calulate one hot
     # It add he dimension at the last
-    one_hot_channel_last = F.one_hot(
-        labels.squeeze(dim).long(), num_classes=num_classes
-    )
+    one_hot_channel_last = F.one_hot(labels.squeeze(dim).long(), num_classes=num_classes)
 
     # Move the last one hotted dimension back to the indicated place
     one_hot_channel_moved = torch.movedim(one_hot_channel_last, -1, dim)
