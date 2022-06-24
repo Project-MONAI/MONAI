@@ -903,13 +903,16 @@ class RandWeightedCrop(Randomizable, Transform):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[torch.Tensor]:
+    def __call__(
+        self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None, randomize: bool = True,
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
             weight_map: weight map used to generate patch samples. The weights must be non-negative.
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
+            randomize: whether to execute random operations, defautl to `True`.
 
         Returns:
             A list of image patches
@@ -921,13 +924,15 @@ class RandWeightedCrop(Randomizable, Transform):
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
 
-        self.randomize(weight_map)
+        if randomize:
+            self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[NdarrayOrTensor] = []
         for i, center in enumerate(self.centers):
             cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i
+                cropped.meta["crop_center"] = center
             results.append(cropped)
         return results
 
