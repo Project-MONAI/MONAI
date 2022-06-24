@@ -577,7 +577,7 @@ def create_grid(
     dtype: Union[DtypeLike, torch.dtype] = float,
     device: Optional[torch.device] = None,
     backend=TransformBackends.NUMPY,
-):
+) -> NdarrayOrTensor:
     """
     compute a `spatial_size` mesh.
 

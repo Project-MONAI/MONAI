@@ -1458,7 +1458,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
         transform = self.pop_transform(data)
         if not transform[TraceKeys.DO_TRANSFORM]:
             return data
-        data.applied_operations.append(transform[TraceKeys.EXTRA_INFO])
+        data.applied_operations.append(transform[TraceKeys.EXTRA_INFO])  # type: ignore
         return self.flipper.inverse(data)
 
 
@@ -1717,13 +1717,16 @@ class AffineGrid(Transform):
         if grid is None:  # create grid from spatial_size
             if spatial_size is None:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
-            grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
-        grid = convert_to_tensor(grid, dtype=self.dtype or grid.dtype, track_meta=get_track_meta())
+            grid_ = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)  # type: ignore
+        else:
+            grid_ = grid
+        _dtype = self.dtype or grid_.dtype
+        grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
         _b = TransformBackends.TORCH
-        _device = grid.device
+        _device = grid_.device
         affine: NdarrayOrTensor
         if self.affine is None:
-            spatial_dims = len(grid.shape) - 1
+            spatial_dims = len(grid_.shape) - 1
             affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
                 affine = affine @ create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
@@ -1736,10 +1739,10 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        affine = to_affine_nd(len(grid) - 1, affine)
-        affine = convert_to_tensor(affine, device=grid.device, dtype=grid.dtype, track_meta=False)
-        grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
-        return grid, affine
+        affine = to_affine_nd(len(grid_) - 1, affine)
+        affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)
+        grid_ = (affine @ grid_.reshape((grid_.shape[0], -1))).reshape([-1] + list(grid_.shape[1:]))  # type: ignore
+        return grid_, affine
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -1905,7 +1908,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.randomize(control_grid.shape[1:])
         _offset, *_ = convert_to_dst_type(self.rand_mag * self.random_offset, control_grid)
         control_grid[: len(spatial_size)] += _offset
-        return control_grid
+        return control_grid  # type: ignore
 
 
 class Resample(Transform):

@@ -103,7 +103,7 @@ def convert_to_tensor(
     device: Optional[torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
-):
+) -> torch.Tensor:
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
     otherwise, the output will be a regular torch Tensor.
@@ -134,7 +134,7 @@ def convert_to_tensor(
 
     dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
-        return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
+        return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)  # type: ignore
     if isinstance(data, np.ndarray):
         # skip array of string classes and object, refer to:
         # https://github.com/pytorch/pytorch/blob/v1.9.0/torch/utils/data/_utils/collate.py#L13

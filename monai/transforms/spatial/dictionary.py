@@ -1634,7 +1634,7 @@ class GridDistortiond(MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.grid_distortion(d[key], mode=mode, padding_mode=padding_mode)
@@ -1694,7 +1694,7 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         self.rand_grid_distortion.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
