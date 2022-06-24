@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandScaleCropd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "roi_scale": [1.0, 1.0, -1.0], "random_center": True},
@@ -25,7 +25,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     # test `allow_missing_keys` with key "label"
-    {"keys": ["label", "img"], "roi_scale": [1.0, 1.0, 1.0], "random_center": False, "allow_missing_keys": True},
+    {"keys": ["img", "label"], "roi_scale": [1.0, 1.0, 1.0], "random_center": False, "allow_missing_keys": True},
     {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
     (3, 3, 3, 3),
 ]
@@ -68,11 +68,11 @@ class TestRandScaleCropd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_value(self, input_param, input_data):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             cropper = RandScaleCropd(**input_param)
             input_data["img"] = p(input_data["img"])
             result = cropper(input_data)
-            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.cropper._size]
             assert_allclose(
                 result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False
             )

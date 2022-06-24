@@ -593,12 +593,14 @@ class RandSpatialCrop(Randomizable, Crop):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
-        self.randomize(img.shape[1:])
+        if randomize:
+            self.randomize(img.shape[1:])
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
@@ -639,19 +641,26 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        """
-        Apply the transform to `img`, assuming `img` is channel-first and
-        slicing doesn't apply to the channel dim.
-        """
-        img_size = img.shape[1:]
+    def get_max_roi_size(self, img_size):
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
             self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
         else:
             self.max_roi_size = None
-        return super().__call__(img=img)
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        self.get_max_roi_size(img_size)
+        super().randomize(img_size)
+
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+
+        """
+        self.get_max_roi_size(img.shape[1:])
+        return super().__call__(img=img, randomize=randomize)
 
 
 class RandSpatialCropSamples(Randomizable, Transform):

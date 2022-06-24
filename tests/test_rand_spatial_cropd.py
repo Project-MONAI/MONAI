@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCropd
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TEST_CASE_0 = [
     {"keys": "img", "roi_size": [3, 3, -1], "random_center": True},
@@ -63,12 +63,12 @@ class TestRandSpatialCropd(unittest.TestCase):
     def test_value(self, input_param, input_data):
         cropper = RandSpatialCropd(**input_param)
         result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.cropper._size]
         np.testing.assert_allclose(result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_random_shape(self, input_param, input_data, expected_shape):
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             cropper = RandSpatialCropd(**input_param)
             cropper.set_random_state(seed=123)
             input_data["img"] = p(input_data["img"])
