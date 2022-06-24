@@ -853,7 +853,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         bg_indices: Optional[NdarrayOrTensor] = None,
         image: Optional[NdarrayOrTensor] = None,
     ) -> None:
-        self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)   
+        self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
         d = dict(data)

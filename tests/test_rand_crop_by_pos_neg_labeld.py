@@ -16,7 +16,6 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandCropByPosNegLabeld
-from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS = [
