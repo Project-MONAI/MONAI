@@ -12,12 +12,14 @@
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.networks.blocks.fft_utils_t import fftn_centered_t, ifftn_centered_t
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 
 def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
-    Pytorch-based ifft for spatial_dims-dim signals.
+    Pytorch-based ifft for spatial_dims-dim signals. "centered" means this function automatically takes care
+    of the required ifft and fft shifts. This function calls monai.metworks.blocks.fft_utils_t.ifftn_centered_t.
     This is equivalent to do fft in numpy based on numpy.fft.ifftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
@@ -45,20 +47,8 @@ def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = T
     # handle numpy format
     ksp_t, *_ = convert_data_type(ksp, torch.Tensor)
 
-    # define spatial dims to perform ifftshift, fftshift, and ifft
-    shift = tuple(range(-spatial_dims, 0))
-    if is_complex:
-        assert ksp.shape[-1] == 2
-        shift = tuple(range(-spatial_dims - 1, -1))
-    dims = tuple(range(-spatial_dims, 0))
-
-    # apply ifft
-    x = torch.fft.ifftshift(ksp_t, dim=shift)
-    if is_complex:
-        x = torch.view_as_real(torch.fft.ifftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
-    else:
-        x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
-    out_t = torch.fft.fftshift(x, dim=shift)
+    # compute ifftn
+    out_t = ifftn_centered_t(ksp_t, spatial_dims=spatial_dims, is_complex=is_complex)
 
     # handle numpy format
     out, *_ = convert_to_dst_type(src=out_t, dst=ksp)
@@ -67,7 +57,8 @@ def ifftn_centered(ksp: NdarrayOrTensor, spatial_dims: int, is_complex: bool = T
 
 def fftn_centered(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = True) -> NdarrayOrTensor:
     """
-    Pytorch-based fft for spatial_dims-dim signals.
+    Pytorch-based fft for spatial_dims-dim signals. "centered" means this function automatically takes care
+    of the required ifft and fft shifts. This function calls monai.metworks.blocks.fft_utils_t.fftn_centered_t.
     This is equivalent to do ifft in numpy based on numpy.fft.fftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
@@ -95,20 +86,8 @@ def fftn_centered(im: NdarrayOrTensor, spatial_dims: int, is_complex: bool = Tru
     # handle numpy format
     im_t, *_ = convert_data_type(im, torch.Tensor)
 
-    # define spatial dims to perform ifftshift, fftshift, and fft
-    shift = tuple(range(-spatial_dims, 0))
-    if is_complex:
-        assert im.shape[-1] == 2
-        shift = tuple(range(-spatial_dims - 1, -1))
-    dims = tuple(range(-spatial_dims, 0))
-
-    # apply fft
-    x = torch.fft.ifftshift(im_t, dim=shift)
-    if is_complex:
-        x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
-    else:
-        x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
-    out_t = torch.fft.fftshift(x, dim=shift)
+    # compute ifftn
+    out_t = fftn_centered_t(im_t, spatial_dims=spatial_dims, is_complex=is_complex)
 
     # handle numpy format
     out, *_ = convert_to_dst_type(src=out_t, dst=im)

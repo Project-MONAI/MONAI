@@ -11,9 +11,9 @@
 
 import unittest
 
-from monai.apps.reconstruction.fft_utils import fftn_centered, ifftn_centered
 from parameterized import parameterized
 
+from monai.data.fft_utils import fftn_centered, ifftn_centered
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 #

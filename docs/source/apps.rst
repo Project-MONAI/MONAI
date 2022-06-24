@@ -187,9 +187,3 @@ Applications
 
 
 
-`Reconstruction`
------------------
-
-.. automodule:: monai.apps.reconstruction.fft_utils
-.. autofunction:: monai.apps.reconstruction.fft_utils.fftn_centered
-.. autofunction:: monai.apps.reconstruction.fft_utils.ifftn_centered
