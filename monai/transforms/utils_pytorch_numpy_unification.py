@@ -276,7 +276,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
     """
 
     if isinstance(a, np.ndarray):
-        return np.cumsum(a, axis)
+        return np.cumsum(a, axis)  # type: ignore
     if axis is None:
         return torch.cumsum(a[:], 0, **kwargs)
     return torch.cumsum(a, dim=axis, **kwargs)

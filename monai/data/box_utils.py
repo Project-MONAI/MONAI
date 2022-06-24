@@ -110,7 +110,8 @@ class BoxMode(ABC):
             .. code-block:: python
 
                 boxes = torch.ones(10,6)
-                boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
+                boxmode = BoxMode()
+                boxmode.boxes_to_corners(boxes) # will return a 6-element tuple, each element is a 10x1 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -130,7 +131,8 @@ class BoxMode(ABC):
             .. code-block:: python
 
                 corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
-                boxmode.corners_to_boxes(corners) will return a 10x4 tensor
+                boxmode = BoxMode()
+                boxmode.corners_to_boxes(corners) # will return a 10x4 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -516,9 +518,9 @@ def convert_box_mode(
             boxes = torch.ones(10,4)
             # The following three lines are equivalent
             # They convert boxes with format [xmin, ymin, xmax, ymax] to [xcenter, ycenter, xsize, ysize].
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode="ccwh")
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode="ccwh")
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
     """
     src_boxmode = get_boxmode(src_mode)
     dst_boxmode = get_boxmode(dst_mode)
@@ -570,8 +572,8 @@ def convert_box_to_standard_mode(
             boxes = torch.ones(10,6)
             # The following two lines are equivalent
             # They convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
-            box_convert_standard_mode(boxes=boxes, mode="xxyyzz")
-            box_convert_mode(boxes=boxes, src_mode="xxyyzz", dst_mode="xyzxyz")
+            convert_box_to_standard_mode(boxes=boxes, mode="xxyyzz")
+            convert_box_mode(boxes=boxes, src_mode="xxyyzz", dst_mode="xyzxyz")
     """
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())
 
@@ -1034,8 +1036,12 @@ def non_max_suppression(
         Indexes of ``boxes`` that are kept after NMS.
 
     Example:
-        keep = non_max_suppression(boxes, scores, num_thresh=0.1)
-        boxes_after_nms = boxes[keep]
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            scores = torch.ones(10)
+            keep = non_max_suppression(boxes, scores, num_thresh=0.1)
+            boxes_after_nms = boxes[keep]
     """
 
     # returns empty array if boxes is empty
