@@ -1001,6 +1001,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`Padd`
+""""""
+.. autoclass:: Padd
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png

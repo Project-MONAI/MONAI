@@ -23,6 +23,7 @@ from math import ceil, floor
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
 from monai.config import IndexSelection, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
@@ -33,6 +34,7 @@ from monai.transforms.croppad.array import (
     CenterSpatialCrop,
     CropForeground,
     DivisiblePad,
+    Pad,
     RandCropByLabelClasses,
     RandCropByPosNegLabel,
     ResizeWithPadOrCrop,
@@ -55,7 +57,6 @@ from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensu
 from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
-    "PadModeSequence",
     "SpatialPadd",
     "BorderPadd",
     "DivisiblePadd",
@@ -103,24 +104,64 @@ __all__ = [
     "RandCropByLabelClassesDict",
 ]
 
-PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 DEFAULT_POST_FIX = PostFix.meta()
 
 
-class SpatialPadd(MapTransform, InvertibleTransform):
+class Padd(MapTransform, InvertibleTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.Pad`.
+
+    """
+    backend = Pad.backend
+
+    def __init__(
+        self, keys: KeysCollection, padder: Pad, mode: str = PytorchPadMode.CONSTANT, allow_missing_keys: bool = False
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            padder: pad transform for the input image.
+            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.padder = padder
+        self.mode = ensure_tuple_rep(mode, len(self.keys))
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key, m in self.key_iterator(d, self.mode):
+            d[key] = self.padder(d[key], mode=m)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.padder.inverse(d[key])
+        return d
+
+
+class SpatialPadd(Padd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
-    """
 
-    backend = SpatialPad.backend
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         method: Union[Method, str] = Method.SYMMETRIC,
-        mode: PadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -147,36 +188,8 @@ class SpatialPadd(MapTransform, InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        super().__init__(keys, allow_missing_keys)
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padder = SpatialPad(spatial_size, method, **kwargs)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key, m in self.key_iterator(d, self.mode):
-            self.push_transform(d, key, extra_info={"mode": m.value if isinstance(m, Enum) else m})
-            d[key] = self.padder(d[key], mode=m)
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            if self.padder.method == Method.SYMMETRIC:
-                current_size = d[key].shape[1:]
-                roi_center = [floor(i / 2) if r % 2 == 0 else (i - 1) // 2 for r, i in zip(orig_size, current_size)]
-            else:
-                roi_center = [floor(r / 2) if r % 2 == 0 else (r - 1) // 2 for r in orig_size]
-
-            inverse_transform = SpatialCrop(roi_center, orig_size)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
+        padder = SpatialPad(spatial_size, method, **kwargs)
+        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class BorderPadd(MapTransform, InvertibleTransform):
@@ -191,7 +204,7 @@ class BorderPadd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_border: Union[Sequence[int], int],
-        mode: PadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -270,7 +283,7 @@ class DivisiblePadd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         k: Union[Sequence[int], int],
-        mode: PadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
         method: Union[Method, str] = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -835,7 +848,7 @@ class CropForegroundd(MapTransform, InvertibleTransform):
         margin: Union[Sequence[int], int] = 0,
         allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: PadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -1435,7 +1448,7 @@ class ResizeWithPadOrCropd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        mode: PadModeSequence = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: Union[Method, str] = Method.SYMMETRIC,
         **pad_kwargs,
@@ -1528,6 +1541,7 @@ class BoundingRectd(MapTransform):
         return d
 
 
+PadD = PadDict = Padd
 SpatialPadD = SpatialPadDict = SpatialPadd
 BorderPadD = BorderPadDict = BorderPadd
 DivisiblePadD = DivisiblePadDict = DivisiblePadd
