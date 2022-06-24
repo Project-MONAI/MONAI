@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.apps.detection.transforms.box_ops import convert_mask_to_box
 from monai.apps.detection.transforms.dictionary import (
     AffineBoxToImageCoordinated,
     AffineBoxToWorldCoordinated,
@@ -64,8 +65,19 @@ for p in TEST_NDARRAYS:
         [{"boxes": p(boxes), "image": p(image), "labels": p(labels)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
     )
 
+TESTS_2D_mask = []
+boxes_mask = [[[-1, 0], [0, -1]]]
+for p in TEST_NDARRAYS:
+    TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0]]), p([0]))])
+
 
 class TestBoxTransform(unittest.TestCase):
+    @parameterized.expand(TESTS_2D_mask)
+    def test_value_2d_mask(self, mask, expected_box_label):
+        box_label = convert_mask_to_box(mask)
+        assert_allclose(box_label[0], expected_box_label[0], type_test=True, device_test=True, atol=1e-3)
+        assert_allclose(box_label[1], expected_box_label[1], type_test=True, device_test=True, atol=1e-3)
+
     @parameterized.expand(TESTS_2D)
     def test_value_2d(self, data, expected_mask):
         test_dtype = [torch.float32, torch.float16]
