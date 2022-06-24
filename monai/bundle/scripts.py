@@ -595,7 +595,8 @@ def ckpt_export(
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
         Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
     else:
-        copy_model_state(dst=net, src=ckpt_file_ if key_in_ckpt_ == "" else ckpt_file_[key_in_ckpt_])
+        ckpt = torch.load(ckpt_file_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     # convert to TorchScript model and save with metadata, config content
     net = convert_to_torchscript(model=net)
