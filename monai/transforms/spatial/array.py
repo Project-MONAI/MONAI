@@ -1866,6 +1866,7 @@ class RandDeformGrid(Randomizable, Transform):
 
     backend = [TransformBackends.TORCH]
 
+    @deprecated_arg(name="as_tensor_output", since="0.8")
     def __init__(
         self,
         spacing: Union[Sequence[float], float],
@@ -1881,15 +1882,12 @@ class RandDeformGrid(Randomizable, Transform):
                 spacing=(2, 2) indicates deformation field defined on every other pixel in 2D.
             magnitude_range: the random offsets will be generated from
                 `uniform[magnitude[0], magnitude[1])`.
-            as_tensor_output: whether to output tensor instead of numpy array.
-                defaults to True.
             device: device to store the output grid data.
         """
         self.spacing = spacing
         self.magnitude = magnitude_range
 
         self.rand_mag = 1.0
-        self.as_tensor_output = as_tensor_output
         self.random_offset: np.ndarray
         self.device = device
 
@@ -1897,7 +1895,7 @@ class RandDeformGrid(Randomizable, Transform):
         self.random_offset = self.R.normal(size=([len(grid_size)] + list(grid_size))).astype(np.float32, copy=False)
         self.rand_mag = self.R.uniform(self.magnitude[0], self.magnitude[1])
 
-    def __call__(self, spatial_size: Sequence[int]):
+    def __call__(self, spatial_size: Sequence[int]) -> torch.Tensor:
         """
         Args:
             spatial_size: spatial size of the grid.
@@ -1907,8 +1905,6 @@ class RandDeformGrid(Randomizable, Transform):
         self.randomize(control_grid.shape[1:])
         _offset, *_ = convert_to_dst_type(self.rand_mag * self.random_offset, control_grid)
         control_grid[: len(spatial_size)] += _offset
-        if not self.as_tensor_output:
-            control_grid, *_ = convert_data_type(control_grid, output_type=np.ndarray, dtype=np.float32)
         return control_grid
 
 
@@ -1961,12 +1957,12 @@ class Resample(Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
-        grid: Optional[NdarrayOrTensor] = None,
+        img: torch.Tensor,
+        grid: torch.Tensor,
         mode: Optional[str] = None,
         padding_mode: Optional[str] = None,
         dtype: DtypeLike = None,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -1989,14 +1985,10 @@ class Resample(Transform):
         See also:
             :py:const:`monai.config.USE_COMPILED`
         """
-        if grid is None:
-            raise ValueError("Unknown grid.")
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
-        img_t = img if isinstance(img, torch.Tensor) else torch.as_tensor(img)
-        img_t, *_ = convert_data_type(img_t, dtype=_dtype, device=_device)
-        if isinstance(grid, MetaTensor):
-            grid = grid.as_tensor()  # drops any meta/tracking transform info
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t)
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
             grid_t = grid_t.clone(memory_format=torch.contiguous_format)
@@ -2525,9 +2517,7 @@ class Rand2DElastic(RandomizableTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
-        self.deform_grid = RandDeformGrid(
-            spacing=spacing, magnitude_range=magnitude_range, as_tensor_output=True, device=device
-        )
+        self.deform_grid = RandDeformGrid(spacing=spacing, magnitude_range=magnitude_range, device=device)
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
             shear_range=shear_range,
@@ -2559,12 +2549,12 @@ class Rand2DElastic(RandomizableTransform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Optional[str] = None,
         padding_mode: Optional[str] = None,
         randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W),
@@ -2597,7 +2587,7 @@ class Rand2DElastic(RandomizableTransform):
         else:
             _device = img.device if isinstance(img, torch.Tensor) else self.device
             grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
-        out: NdarrayOrTensor = self.resampler(
+        out: torch.Tensor = self.resampler(
             img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
         return out
@@ -2719,12 +2709,12 @@ class Rand3DElastic(RandomizableTransform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Optional[str] = None,
         padding_mode: Optional[str] = None,
         randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W, D),
@@ -2752,7 +2742,7 @@ class Rand3DElastic(RandomizableTransform):
             offset = torch.as_tensor(self.rand_offset, device=_device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
-        out: NdarrayOrTensor = self.resampler(
+        out: torch.Tensor = self.resampler(
             img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
         )
         return out
