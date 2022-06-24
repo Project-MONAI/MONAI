@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import CenterSpatialCropd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_SHAPES = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_SHAPES.append(
         [{"keys": "img", "roi_size": [2, -1, -1]}, {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))}, (3, 2, 3, 3)]
     )
@@ -28,7 +28,7 @@ for p in TEST_NDARRAYS:
     )
 
 TEST_CASES = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES.append(
         [
             {"keys": "img", "roi_size": [2, 2]},

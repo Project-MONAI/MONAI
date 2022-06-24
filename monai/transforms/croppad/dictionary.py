@@ -379,8 +379,6 @@ class SpatialCropd(Cropd):
         - the start and end coordinates of the ROI
     """
 
-    backend = SpatialCrop.backend
-
     def __init__(
         self,
         keys: KeysCollection,
@@ -409,7 +407,7 @@ class SpatialCropd(Cropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class CenterSpatialCropd(MapTransform, InvertibleTransform):
+class CenterSpatialCropd(Cropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
     If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
@@ -427,42 +425,11 @@ class CenterSpatialCropd(MapTransform, InvertibleTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = CenterSpatialCrop.backend
-
     def __init__(
         self, keys: KeysCollection, roi_size: Union[Sequence[int], int], allow_missing_keys: bool = False
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.cropper = CenterSpatialCrop(roi_size)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            orig_size = d[key].shape[1:]
-            d[key] = self.cropper(d[key])
-            self.push_transform(d, key, orig_size=orig_size)
-        return d
-
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
-
-        for key in self.key_iterator(d):
-            transform = self.get_most_recent_transform(d, key)
-            # Create inverse transform
-            orig_size = np.array(transform[TraceKeys.ORIG_SIZE])
-            current_size = np.array(d[key].shape[1:])
-            pad_to_start = np.floor((orig_size - current_size) / 2).astype(int)
-            # in each direction, if original size is even and current size is odd, += 1
-            pad_to_start[np.logical_and(orig_size % 2 == 0, current_size % 2 == 1)] += 1
-            pad_to_end = orig_size - current_size - pad_to_start
-            pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-            inverse_transform = BorderPad(pad)
-            # Apply inverse transform
-            d[key] = inverse_transform(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
-
-        return d
+        cropper = CenterSpatialCrop(roi_size)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
 class CenterScaleCropd(MapTransform, InvertibleTransform):
