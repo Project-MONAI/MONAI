@@ -71,7 +71,7 @@ for p in TEST_NDARRAYS:
     TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0]]), p([0]))])
 boxes_mask = [[[-1, 0], [0, -1]], [[-1, 1], [1, -1]]]
 for p in TEST_NDARRAYS:
-    TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0],[0.0, 0.0, 2.0, 2.0]]), p([0, 1]))])
+    TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0], [0.0, 0.0, 2.0, 2.0]]), p([0, 1]))])
 
 
 class TestBoxTransform(unittest.TestCase):
