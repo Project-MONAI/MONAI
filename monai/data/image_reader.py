@@ -383,9 +383,14 @@ class PydicomReader(ImageReader):
             This is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             If None, `original_channel_dim` will be either `no_channel` or `-1`.
         affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
-            Set to ``True`` to be consistent with ``NibabelReader``, otherwise the affine matrix remains in the Dicom convention.
+            Set to ``True`` to be consistent with ``NibabelReader``,
+            otherwise the affine matrix remains in the Dicom convention.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
+            If the `get_data` function will be called
+            (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
+            `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
+            `ImagePositionPatient`, `ImageOrientationPatient` and all `pixel_array` related tags.
 
     """
 
@@ -415,10 +420,6 @@ class PydicomReader(ImageReader):
         Args:
             data: file name or a list of file names to read,
             kwargs: additional args for `pydicom.dcmread` API, will override `self.kwargs` for existing keys.
-                If the `get_data` function will be called later, please ensure that the argument `stop_before_pixels`
-                is `True`, and `specific_tags` covers all necessary tags,
-                such as `PixelSpacing`, `ImagePositionPatient`, `ImageOrientationPatient` and all `pixel_array`
-                related tags.
 
         Returns:
             If `data` represents a filename: return a pydicom dataset object.
@@ -456,10 +457,10 @@ class PydicomReader(ImageReader):
         The stack order depends on Instance Number. The metadata will be based on the
         first slice's metadata, and some new items will be added:
 
-        "spacing": the new spacing of the stacked volume.
+        "spacing": the new spacing of the stacked slices.
         "lastImagePositionPatient": `ImagePositionPatient` for the last slice, it will be used to achieve the affine
             matrix.
-        "spatial_shape": the spatial shape of the stacked volume.
+        "spatial_shape": the spatial shape of the stacked slices.
 
         Args:
             data: a list of pydicom dataset objects.
@@ -523,8 +524,9 @@ class PydicomReader(ImageReader):
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
         It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the metadata of the first image is used to represent the output metadata.
+        For dicom series within the input, all slices will be stacked first,
+        When loading a list of files (dicom file, or stacked dicom series), they are stacked together at a new
+        dimension as the first dimension, and the metadata of the first image is used to represent the output metadata.
 
         To use this function, all pydicom dataset objects should contain: `pixel_array`, `PixelSpacing`,
         `ImagePositionPatient` and `ImageOrientationPatient`.
@@ -536,7 +538,7 @@ class PydicomReader(ImageReader):
         """
 
         dicom_data = []
-        # dicom series
+        # combine dicom series if exists
         if self.has_series is True:
             # a list, all objects within a list belong to one dicom series
             if not isinstance(data[0], List):

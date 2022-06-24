@@ -50,12 +50,12 @@ nrrd, _ = optional_import("nrrd")
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
 SUPPORTED_READERS = {
+    "pydicomreader": PydicomReader,
     "itkreader": ITKReader,
     "nrrdreader": NrrdReader,
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
-    "pydicomreader": PydicomReader,
 }
 
 
@@ -119,7 +119,7 @@ class LoadImage(Transform):
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
-                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``, ``"PydicomReader"``.
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             image_only: if True return only the image volume, otherwise return image data array and header dict.
