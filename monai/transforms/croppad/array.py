@@ -1206,6 +1206,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         label: Optional[torch.Tensor] = None,
         image: Optional[torch.Tensor] = None,
         indices: Optional[List[NdarrayOrTensor]] = None,
+        randomize: bool = True,
     ) -> List[torch.Tensor]:
         """
         Args:
@@ -1215,6 +1216,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
             image: optional image data to help select valid area, can be same as `img` or another image array.
                 use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
             indices: list of indices for every class in the image, used to randomly select crop centers.
+            randomize: whether to execute the random operations, default to `True`.
 
         """
         if label is None:
@@ -1224,7 +1226,8 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, indices, image)
+        if randomize:
+            self.randomize(label, indices, image)
         results: List[NdarrayOrTensor] = []
         if self.centers is not None:
             for i, center in enumerate(self.centers):
