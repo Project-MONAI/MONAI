@@ -2785,11 +2785,11 @@ class GridDistortion(Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
+        img: torch.Tensor,
         distort_steps: Optional[Sequence[Sequence]] = None,
         mode: Optional[str] = None,
         padding_mode: Optional[str] = None,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -2831,7 +2831,7 @@ class GridDistortion(Transform):
         coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
-        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
 
 
 class RandGridDistortion(RandomizableTransform):
@@ -2887,12 +2887,8 @@ class RandGridDistortion(RandomizableTransform):
         )
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        randomize: bool = True,
-    ) -> NdarrayOrTensor:
+        self, img: torch.Tensor, mode: Optional[str] = None, padding_mode: Optional[str] = None, randomize: bool = True
+    ) -> torch.Tensor:
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
@@ -2907,7 +2903,7 @@ class RandGridDistortion(RandomizableTransform):
         if randomize:
             self.randomize(img.shape[1:])
         if not self._do_transform:
-            return img
+            return convert_to_tensor(img, track_meta=get_track_meta())
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
