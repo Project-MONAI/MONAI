@@ -412,7 +412,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
                 dtype=dtype,
             )
             d[key] = img
-            d[src_meta_key] = new_meta
+            d[src_meta_key] = new_meta  # type: ignore
 
             # Remove the applied transform
             self.pop_transform(d, key)
