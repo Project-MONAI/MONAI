@@ -39,6 +39,7 @@ from monai.transforms.croppad.array import (
     RandCropByPosNegLabel,
     RandScaleCrop,
     RandSpatialCrop,
+    RandSpatialCropSamples,
     ResizeWithPadOrCrop,
     SpatialCrop,
     SpatialPad,
@@ -46,7 +47,6 @@ from monai.transforms.croppad.array import (
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import (
-    allow_missing_keys_mode,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     is_positive,
@@ -54,8 +54,10 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
+from monai.utils import MAX_SEED
 from monai.utils import ImageMetaKey as Key
 from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = [
@@ -533,7 +535,7 @@ class RandScaleCropd(RandCropd):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
 
 
-class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
+class RandSpatialCropSamplesd(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandSpatialCropSamples`.
     Crop image with random size or specific size ROI to generate a list of N samples.
@@ -562,15 +564,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
-        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-            used to add `patch_index` to the meta dict.
-            for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the metadata is a dictionary object which contains: filename, original_shape, etc.
-            it can be a sequence of string, map to the `keys`.
-            if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
-            to the key data, default is `meta_dict`, the metadata is a dictionary object.
-            used to add `patch_index` to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -578,8 +571,8 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
 
     """
 
-    backend = RandSpatialCropd.backend
-
+    @deprecated_arg(name="meta_keys", since="0.8")
+    @deprecated_arg(name="meta_key_postfix", since="0.8")
     def __init__(
         self,
         keys: KeysCollection,
@@ -593,56 +586,32 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        if num_samples < 1:
-            raise ValueError(f"num_samples must be positive, got {num_samples}.")
-        self.num_samples = num_samples
-        self.cropper = RandSpatialCropd(keys, roi_size, max_roi_size, random_center, random_size, allow_missing_keys)
-        self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
-        if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
+        self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandSpatialCropSamplesd":
         super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
         return self
 
     def randomize(self, data: Optional[Any] = None) -> None:
-        pass
+        self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
-        ret = []
-        for i in range(self.num_samples):
-            d = dict(data)
-            # deep copy all the unmodified data
-            for key in set(data.keys()).difference(set(self.keys)):
-                d[key] = deepcopy(data[key])
-            cropped = self.cropper(d)
-            # self.cropper will have added RandSpatialCropd to the list. Change to RandSpatialCropSamplesd
-            for key in self.key_iterator(cropped):
-                cropped[self.trace_key(key)][-1][TraceKeys.CLASS_NAME] = self.__class__.__name__  # type: ignore
-                cropped[self.trace_key(key)][-1][TraceKeys.ID] = id(self)  # type: ignore
-            # add `patch_index` to the metadata
-            for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-                meta_key = meta_key or f"{key}_{meta_key_postfix}"
-                if meta_key not in cropped:
-                    cropped[meta_key] = {}  # type: ignore
-                cropped[meta_key][Key.PATCH_INDEX] = i  # type: ignore
-            ret.append(cropped)
-        return ret
+        # output starts as empty list of dictionaries
+        ret: List[Dict[Hashable, torch.Tensor]] = [{} for _ in range(self.cropper.num_samples)]
+        # deep copy all the unmodified data
+        for key in set(data.keys()).difference(set(self.keys)):
+            for r in ret:
+                r[key] = deepcopy(data[key])
 
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
-        d = deepcopy(dict(data))
-        # We changed the transform name from RandSpatialCropd to RandSpatialCropSamplesd
-        # Need to revert that since we're calling RandSpatialCropd's inverse
-        for key in self.key_iterator(d):
-            d[self.trace_key(key)][-1][TraceKeys.CLASS_NAME] = self.cropper.__class__.__name__
-            d[self.trace_key(key)][-1][TraceKeys.ID] = id(self.cropper)
-        context_manager = allow_missing_keys_mode if self.allow_missing_keys else _nullcontext
-        with context_manager(self.cropper):
-            return self.cropper.inverse(d)
+        # for each key we reset the random state to ensure crops are the same
+        self.randomize()
+        for key in self.key_iterator(dict(data)):
+            self.cropper.set_random_state(seed=self.sub_seed)
+            for i, im in enumerate(self.cropper(data[key])):
+                ret[i][key] = im
+        return ret
 
 
 class CropForegroundd(MapTransform, InvertibleTransform):
