@@ -1237,8 +1237,7 @@ class Rotate90(InvertibleTransform):
         inv_k = 4 - k % 4
         xform = Rotate90(k=inv_k, spatial_axes=axes)
         with xform.trace_transform(False):
-            data = xform(data)
-        return data
+            return xform(data)
 
 
 class RandRotate90(RandomizableTransform, InvertibleTransform):
@@ -1416,8 +1415,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         xform_info = self.pop_transform(data)
         if not xform_info[TraceKeys.DO_TRANSFORM]:
             return data
@@ -1602,8 +1599,8 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
-            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-                The interpolation mode. Defaults to ``self.mode``.
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``,
+                ``"area"``}, the interpolation mode. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
@@ -1679,7 +1676,7 @@ class AffineGrid(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
@@ -1702,8 +1699,8 @@ class AffineGrid(Transform):
         self.affine = affine
 
     def __call__(
-        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[NdarrayOrTensor] = None
-    ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+        self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
         Therefore, either `spatial_size` or `grid` must be provided.
@@ -1721,16 +1718,13 @@ class AffineGrid(Transform):
             if spatial_size is None:
                 raise ValueError("Incompatible values: grid=None and spatial_size=None.")
             grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=self.dtype)
-        _b = TransformBackends.TORCH if isinstance(grid, torch.Tensor) else TransformBackends.NUMPY
-        _device = grid.device if isinstance(grid, torch.Tensor) else self.device
+        grid = convert_to_tensor(grid, dtype=self.dtype or grid.dtype, track_meta=get_track_meta())
+        _b = TransformBackends.TORCH
+        _device = grid.device
         affine: NdarrayOrTensor
         if self.affine is None:
             spatial_dims = len(grid.shape) - 1
-            affine = (
-                torch.eye(spatial_dims + 1, device=_device)
-                if _b == TransformBackends.TORCH
-                else np.eye(spatial_dims + 1)
-            )
+            affine = torch.eye(spatial_dims + 1, device=_device)
             if self.rotate_params:
                 affine = affine @ create_rotate(spatial_dims, self.rotate_params, device=_device, backend=_b)
             if self.shear_params:
@@ -1742,10 +1736,8 @@ class AffineGrid(Transform):
         else:
             affine = self.affine
 
-        # FIXME: grid to keep metadata
-        grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=self.dtype or grid.dtype)
         affine = to_affine_nd(len(grid) - 1, affine)
-        affine, *_ = convert_to_dst_type(affine, grid)
+        affine = convert_to_tensor(affine, device=grid.device, dtype=grid.dtype, track_meta=False)
         grid = (affine @ grid.reshape((grid.shape[0], -1))).reshape([-1] + list(grid.shape[1:]))
         return grid, affine
 
@@ -1839,13 +1831,12 @@ class RandAffineGrid(Randomizable, Transform):
         spatial_size: Optional[Sequence[int]] = None,
         grid: Optional[NdarrayOrTensor] = None,
         randomize: bool = True,
-    ) -> NdarrayOrTensor:
+    ) -> torch.Tensor:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-            randomize: boolean as to whether the grid parameters governing the grid
-                should be randomized.
+            randomize: boolean as to whether the grid parameters governing the grid should be randomized.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
@@ -1859,11 +1850,11 @@ class RandAffineGrid(Randomizable, Transform):
             scale_params=self.scale_params,
             device=self.device,
         )
-        _grid: NdarrayOrTensor
+        _grid: torch.Tensor
         _grid, self.affine = affine_grid(spatial_size, grid)
         return _grid
 
-    def get_transformation_matrix(self) -> Optional[NdarrayOrTensor]:
+    def get_transformation_matrix(self) -> Optional[torch.Tensor]:
         """Get the most recently applied transformation matrix"""
         return self.affine
 

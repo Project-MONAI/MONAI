@@ -132,6 +132,7 @@ def convert_to_tensor(
             return tensor.as_tensor()
         return tensor
 
+    dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
     if isinstance(data, np.ndarray):

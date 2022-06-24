@@ -672,7 +672,7 @@ def create_rotate(
     spatial_dims: int,
     radians: Union[Sequence[float], float],
     device: Optional[torch.device] = None,
-    backend=TransformBackends.NUMPY,
+    backend: str = TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
