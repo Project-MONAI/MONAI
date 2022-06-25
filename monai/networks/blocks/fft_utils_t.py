@@ -12,6 +12,8 @@
 import torch
 from torch import Tensor
 
+from monai.utils.type_conversion import convert_data_type
+
 
 def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
     """
@@ -54,9 +56,9 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
         x = torch.view_as_real(torch.fft.ifftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
-    out = torch.fft.fftshift(x, dim=shift)
+    out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
 
-    return out  # type: ignore[no-any-return]
+    return out
 
 
 def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
@@ -100,6 +102,6 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
         x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
-    out = torch.fft.fftshift(x, dim=shift)
+    out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
 
-    return out  # type: ignore[no-any-return]
+    return out
