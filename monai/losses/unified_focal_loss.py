@@ -23,7 +23,9 @@ class AsymmetricFocalTverskyLoss(_Loss):
     """
     AsymmetricFocalTverskyLoss is a variant of FocalTverskyLoss, which attentions to the foreground class.
 
-    Reimplementation of the Asymmetric Focal Tversky Loss (with a build-in sigmoid activation) described in:
+    Actually, it's only supported for binary image segmentation now.
+
+    Reimplementation of the Asymmetric Focal Tversky Loss described in:
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
     Michael Yeung, Computerized Medical Imaging and Graphics
@@ -39,10 +41,10 @@ class AsymmetricFocalTverskyLoss(_Loss):
     ) -> None:
         """
         Args:
-            to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
-            delta (float, optional): weight of the backgrand. Defaults to 0.7.
-            gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon (float, optional): it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            delta : weight of the backgrand. Defaults to 0.7.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -85,7 +87,9 @@ class AsymmetricFocalLoss(_Loss):
     """
     AsymmetricFocalLoss is a variant of FocalTverskyLoss, which attentions to the foreground class.
 
-    Reimplementation of the Asymmetric Focal Loss (with a build-in sigmoid activation) described in:
+    Actually, it's only supported for binary image segmentation now.
+
+    Reimplementation of the Asymmetric Focal Loss described in:
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
     Michael Yeung, Computerized Medical Imaging and Graphics
@@ -101,10 +105,10 @@ class AsymmetricFocalLoss(_Loss):
     ):
         """
         Args:
-            to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
-            delta (float, optional): weight of the backgrand. Defaults to 0.7.
-            gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon (float, optional): it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
+            delta : weight of the backgrand. Defaults to 0.7.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -141,7 +145,9 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     """
     AsymmetricUnifiedFocalLoss is a variant of Focal Loss.
 
-    Reimplementation of the Asymmetric Unified Focal Tversky Loss (with a build-in sigmoid activation) described in:
+    Actually, it's only supported for binary image segmentation now
+
+    Reimplementation of the Asymmetric Unified Focal Tversky Loss described in:
 
     - "Unified Focal Loss: Generalising Dice and Cross Entropy-based Losses to Handle Class Imbalanced Medical Image Segmentation",
     Michael Yeung, Computerized Medical Imaging and Graphics
@@ -158,12 +164,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     ):
         """
         Args:
-            to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
-            delta (float, optional): weight of the backgrand. Defaults to 0.7.
-            gamma (float, optional): value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon (float, optional): it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
-            weight (Optional[Union[Sequence[float], float, int, torch.Tensor]]):
-                                                weight for each loss function, if it's none it's 0.5. Defaults to None.
+            to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
+            delta : weight of the backgrand. Defaults to 0.7.
+            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
+            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
 
         Example:
             >>> import torch
@@ -186,11 +191,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            y_pred (torch.Tensor): the shape should be BNH[WD], where N is the number of classes.
+            y_pred : the shape should be BNH[WD], where N is the number of classes.
                 It only support binary segmentation.
                 The input should be the original logits since it will be transformed by
                     a sigmoid in the forward function.
-            y_true (torch.Tensor): the shape should be BNH[WD], where N is the number of classes.
+            y_true : the shape should be BNH[WD], where N is the number of classes.
                 It only support binary segmentation.
 
         Raises:
