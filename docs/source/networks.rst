@@ -233,6 +233,13 @@ Blocks
 .. autoclass:: DVF2DDF
     :members:
 
+ 
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.networks.blocks.fft_utils_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftn_centered_t
+
 Layers
 ------
 

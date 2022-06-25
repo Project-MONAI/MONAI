@@ -41,7 +41,6 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
 
             output2 = ifftn_centered(ksp, spatial_dims=2, is_complex=True)
     """
-
     # define spatial dims to perform ifftshift, fftshift, and ifft
     shift = tuple(range(-spatial_dims, 0))
     if is_complex:
@@ -63,7 +62,7 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
 def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
     """
     Pytorch-based fft for spatial_dims-dim signals. "centered" means this function automatically takes care
-        of the required ifft and fft shifts.
+    of the required ifft and fft shifts.
     This is equivalent to do ifft in numpy based on numpy.fft.fftn, numpy.fft.fftshift, and numpy.fft.ifftshift
 
     Args:
@@ -88,7 +87,6 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
 
             output2 = fftn_centered(im, spatial_dims=2, is_complex=True)
     """
-
     # define spatial dims to perform ifftshift, fftshift, and fft
     shift = tuple(range(-spatial_dims, 0))
     if is_complex:
