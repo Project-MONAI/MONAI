@@ -184,6 +184,3 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.metrics.matching
     :members:
-
-
-
