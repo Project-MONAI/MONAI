@@ -297,7 +297,44 @@ class ResampleToMatch(SpatialResample):
         padding_mode: Union[GridSamplePadMode, str, None] = None,
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
-    ):
+    ) -> Tuple[NdarrayOrTensor, Dict]:
+        """
+        Args:
+            img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
+                at most three spatial dimensions.
+            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
+                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
+                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
+            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
+                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
+                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
+                automatically computed, containing the previous field of view.  Defaults to ``None``.
+                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `USE_COMPILED` is `True`, this argument uses
+                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                Defaults to ``False``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            dtype: data type for resampling computation. Defaults to ``self.dtype`` or
+                ``np.float64`` (for best precision). If ``None``, use the data type of input data.
+                To be compatible with other modules, the output data type is always `float32`.
+
+        Raises:
+            RuntimeError: When ``src_meta`` is missing.
+            RuntimeError: When ``dst_meta`` is missing.
+            ValueError: When the affine matrix of the source image is not invertible.
+
+        Returns:
+            Resampled input image, Metadata
+
+        """
         if src_meta is None:
             raise RuntimeError("`in_meta` is missing")
         if dst_meta is None:
@@ -1052,9 +1089,9 @@ class RandRotate(RandomizableTransform):
         range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
             If single number, angle is uniformly sampled from (-range_x, range_x).
         range_y: Range of rotation angle in radians in the plane defined by the first and third axes.
-            If single number, angle is uniformly sampled from (-range_y, range_y).
+            If single number, angle is uniformly sampled from (-range_y, range_y). only work for 3D data.
         range_z: Range of rotation angle in radians in the plane defined by the second and third axes.
-            If single number, angle is uniformly sampled from (-range_z, range_z).
+            If single number, angle is uniformly sampled from (-range_z, range_z). only work for 3D data.
         prob: Probability of rotation.
         keep_size: If it is False, the output shape is adapted so that the
             input array is contained completely in the output.

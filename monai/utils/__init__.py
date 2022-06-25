@@ -36,6 +36,7 @@ from .enums import (
     ProbMapKeys,
     PytorchPadMode,
     SkipMode,
+    StrEnum,
     TraceKeys,
     TransformBackends,
     UpsampleMode,
