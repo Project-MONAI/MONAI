@@ -42,9 +42,9 @@ class AsymmetricFocalTverskyLoss(_Loss):
         """
         Args:
             to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
-            delta : weight of the backgrand. Defaults to 0.7.
+            delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -106,9 +106,9 @@ class AsymmetricFocalLoss(_Loss):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            delta : weight of the backgrand. Defaults to 0.7.
+            delta : weight of the background. Defaults to 0.7.
             gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
@@ -156,7 +156,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
     def __init__(
         self,
         to_onehot_y: bool = False,
-        num_classes: int = 1,
+        num_classes: int = 2,
         weight: float = 0.5,
         gamma: float = 0.5,
         delta: float = 0.7,
@@ -165,9 +165,10 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         Args:
             to_onehot_y : whether to convert `y` into the one-hot format. Defaults to False.
-            delta : weight of the backgrand. Defaults to 0.7.
-            gamma : value of the exponent gamma in the definition of the Focal loss  . Defaults to 0.75.
-            epsilon : it's define a very small number each time. simmily smooth value. Defaults to 1e-7.
+            num_classes : number of classes, it only supports 2 now. Defaults to 2.
+            delta : weight of the background. Defaults to 0.7.
+            gamma : value of the exponent gamma in the definition of the Focal loss. Defaults to 0.75.
+            epsilon : it defines a very small number each time. simmily smooth value. Defaults to 1e-7.
             weight : weight for each loss function, if it's none it's 0.5. Defaults to None.
 
         Example:
@@ -180,7 +181,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.to_onehot_y = to_onehot_y
-        self.num_classes = num_classes + 1
+        self.num_classes = num_classes
         self.gamma = gamma
         self.delta = delta
         self.weight: float = weight
@@ -192,11 +193,11 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         """
         Args:
             y_pred : the shape should be BNH[WD], where N is the number of classes.
-                It only support binary segmentation.
+                It only supports binary segmentation.
                 The input should be the original logits since it will be transformed by
                     a sigmoid in the forward function.
             y_true : the shape should be BNH[WD], where N is the number of classes.
-                It only support binary segmentation.
+                It only supports binary segmentation.
 
         Raises:
             ValueError: When input and target are different shape
