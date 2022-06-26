@@ -49,4 +49,4 @@ fire
 jsonschema
 pynrrd
 pre-commit
-pydicom==2.3.0
+pydicom
