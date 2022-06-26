@@ -105,9 +105,11 @@ for spatial_dims in [2, 3]:
 
 
 class TestDynUNet(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
+    @parameterized.expand(TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
+        if "alphadropout" in input_param.get("dropout"):
+            self.assertTrue(any(isinstance(x, torch.nn.AlphaDropout) for x in net.modules()))
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
