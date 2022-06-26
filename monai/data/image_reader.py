@@ -21,7 +21,12 @@ import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
 from monai.config import DtypeLike, KeysCollection, PathLike
-from monai.data.utils import correct_nifti_header_if_necessary, is_supported_format, orientation_ras_lps
+from monai.data.utils import (
+    affine_to_spacing,
+    correct_nifti_header_if_necessary,
+    is_supported_format,
+    orientation_ras_lps,
+)
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
@@ -385,6 +390,8 @@ class PydicomReader(ImageReader):
         affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
             Set to ``True`` to be consistent with ``NibabelReader``,
             otherwise the affine matrix remains in the Dicom convention.
+        swap_ij: whether to swap the first two spatial axes. Default to ``True``, so that the outputs
+            are consistent with the other readers.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
@@ -392,13 +399,20 @@ class PydicomReader(ImageReader):
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
             `ImagePositionPatient`, `ImageOrientationPatient` and all `pixel_array` related tags.
 
+    Note::
+
+        the current
+
     """
 
-    def __init__(self, channel_dim: Optional[int] = None, affine_lps_to_ras: bool = True, **kwargs):
+    def __init__(
+        self, channel_dim: Optional[int] = None, affine_lps_to_ras: bool = True, swap_ij: bool = True, **kwargs
+    ):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
+        self.swap_ij = swap_ij
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -557,15 +571,22 @@ class PydicomReader(ImageReader):
         compatible_meta: Dict = {}
 
         for (data_array, metadata) in ensure_tuple(dicom_data):
-            img_array.append(data_array)
-            metadata["original_affine"] = self._get_affine(metadata, self.affine_lps_to_ras)
-            metadata["affine"] = metadata["original_affine"].copy()
+            img_array.append(np.ascontiguousarray(np.swapaxes(data_array, 0, 1) if self.swap_ij else data_array))
+            affine = self._get_affine(metadata, self.affine_lps_to_ras)
+            if self.swap_ij:
+                affine = affine @ np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+                sp_size = list(metadata["spatial_shape"])
+                sp_size[0], sp_size[1] = sp_size[1], sp_size[0]
+                metadata["spatial_shape"] = ensure_tuple(sp_size)
+            metadata["original_affine"] = affine
+            metadata["affine"] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
                 metadata["original_channel_dim"] = (
                     "no_channel" if len(data_array.shape) == len(metadata["spatial_shape"]) else -1
                 )
             else:
                 metadata["original_channel_dim"] = self.channel_dim
+            metadata["spacing"] = affine_to_spacing(metadata["original_affine"], r=len(metadata["spatial_shape"]))
             _copy_compatible_dict(metadata, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
