@@ -439,9 +439,7 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                slices = []
-                for slc in glob.glob(os.path.join(name, "**")):
-                    slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in glob.glob(os.path.join(name, "**"))]
                 img_.append(slices if len(slices) > 1 else slices[0])
                 self.has_series = True
             else:
@@ -470,10 +468,6 @@ class PydicomReader(ImageReader):
         slices = []
         # for a dicom series
         for slc_ds in data:
-            if not hasattr(slc_ds, "PixelSpacing"):
-                raise ValueError(f"slice: {slc_ds.filename} does not have PixelSpacing tag.")
-            if not hasattr(slc_ds, "ImagePositionPatient"):
-                raise ValueError(f"slice: {slc_ds.filename} does not have ImagePositionPatient tag.")
             if hasattr(slc_ds, "InstanceNumber"):
                 slices.append(slc_ds)
             else:
@@ -487,18 +481,18 @@ class PydicomReader(ImageReader):
         average_distance = 0.0
         first_array = self._get_array_data(first_slice)
         shape = first_array.shape
-        spacing, pos = first_slice.PixelSpacing, first_slice.ImagePositionPatient[2]
-        stack_array = []
-        stack_array.append(first_array)
+        spacing = getattr(first_slice, "PixelSpacing", (1.0, 1.0, 1.0))
+        pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
+        stack_array = [first_array]
         for idx in range(1, len(slices)):
-            slc = slices[idx]
-            slc_array = self._get_array_data(slc)
+            slc_array = self._get_array_data(slices[idx])
             slc_shape = slc_array.shape
-            slc_spacing, slc_pos = slc.PixelSpacing, slc.ImagePositionPatient[2]
+            slc_spacing = getattr(first_slice, "PixelSpacing", (1.0, 1.0, 1.0))
+            slc_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
             if spacing != slc_spacing:
-                raise ValueError("the list contains slices that have different spacings.")
+                warnings.warn(f"the list contains slices that have different spacings {spacing} and {slc_spacing}.")
             if shape != slc_shape:
-                raise ValueError("the list contains slices that have different shapes.")
+                warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
             average_distance += abs(pos - slc_pos)
             pos = slc_pos
             stack_array.append(slc_array)
@@ -509,7 +503,8 @@ class PydicomReader(ImageReader):
             stack_array = np.stack(stack_array, axis=-1)
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
-            stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
+            if hasattr(slices[-1], "ImagePositionPatient"):
+                stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
             stack_metadata["spatial_shape"] = shape + (len(slices),)
         else:
             stack_array = stack_array[0]
@@ -555,7 +550,7 @@ class PydicomReader(ImageReader):
                 data_array = self._get_array_data(d)
                 metadata = self._get_meta_dict(d)
                 metadata["spatial_shape"] = data_array.shape
-                metadata["spacing"] = np.asarray(metadata["00280030"]["Value"])
+                metadata["spacing"] = np.asarray(metadata.get("00280030", {}).get("Value", (1.0, 1.0, 1.0)))
                 dicom_data.append((data_array, metadata))
 
         img_array: List[np.ndarray] = []
@@ -608,11 +603,13 @@ class PydicomReader(ImageReader):
 
         """
         affine: np.ndarray = np.eye(4)
+        if not ("00200037" in metadata and "00200032" in metadata):
+            return affine
         # "00200037" is the tag of `ImageOrientationPatient`
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        dr, dc = metadata["spacing"][:2]
+        dr, dc = metadata.get("spacing", (1.0, 1.0))[:2]
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -625,7 +622,7 @@ class PydicomReader(ImageReader):
         affine[2, 3] = sz
 
         # 3d
-        if "lastImagePositionPatient" in metadata.keys():
+        if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
             n = metadata["spatial_shape"][-1]
             k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
@@ -640,7 +637,7 @@ class PydicomReader(ImageReader):
     def _get_array_data(self, img):
         """
         Get the array data of the image. If `RescaleSlope` and `RescaleIntercept` are available, the raw array data
-        will be rescaled. The output data has the type: np.float32
+        will be rescaled. The output data has the dtype np.float32 if the rescaling is applied.
 
         Args:
             img: a Pydicom dataset object.
@@ -649,9 +646,9 @@ class PydicomReader(ImageReader):
         # process Dicom series
         if not hasattr(img, "pixel_array"):
             raise ValueError(f"dicom data: {img.filename} does not have pixel_array.")
-        data = img.pixel_array.astype(np.float32)
+        data = img.pixel_array
 
-        slope, offset = 1, 0
+        slope, offset = 1.0, 0.0
         rescale_flag = False
         if hasattr(img, "RescaleSlope"):
             slope = img.RescaleSlope
@@ -659,8 +656,8 @@ class PydicomReader(ImageReader):
         if hasattr(img, "RescaleIntercept"):
             offset = img.RescaleIntercept
             rescale_flag = True
-        if rescale_flag is True:
-            data = data * slope + offset
+        if rescale_flag:
+            data = data.astype(np.float32) * slope + offset
 
         return data
 
