@@ -9,20 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
+"""
+Profiling MetaTensor
+"""
 
-from monai.transforms.utility.dictionary import Identityd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+import cProfile
 
+import torch
 
-class TestIdentityd(NumpyImageTestCase2D):
-    def test_identityd(self):
-        for p in TEST_NDARRAYS:
-            img = p(self.imt)
-            data = {"img": img}
-            identity = Identityd(keys=data.keys())
-            assert_allclose(img, identity(data)["img"])
-
+from monai.data.meta_tensor import MetaTensor
 
 if __name__ == "__main__":
-    unittest.main()
+    n_chan = 3
+    for hwd in (10, 200):
+        shape = (n_chan, hwd, hwd, hwd)
+        a = MetaTensor(torch.rand(shape), meta={"affine": torch.eye(4) * 2, "fname": "something1"})
+        b = MetaTensor(torch.rand(shape), meta={"affine": torch.eye(4) * 3, "fname": "something2"})
+        cProfile.run("c = a + b", filename=f"out_{hwd}.prof")

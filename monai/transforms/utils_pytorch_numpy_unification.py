@@ -276,7 +276,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
     """
 
     if isinstance(a, np.ndarray):
-        return np.cumsum(a, axis)
+        return np.cumsum(a, axis)  # type: ignore
     if axis is None:
         return torch.cumsum(a[:], 0, **kwargs)
     return torch.cumsum(a, dim=axis, **kwargs)
@@ -389,3 +389,14 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
         x: array/tensor
     """
     return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
+
+
+def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.linalg.inv` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor
+    """
+    if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
+        return torch.inverse(x)  # type: ignore
+    return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore

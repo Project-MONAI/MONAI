@@ -36,6 +36,7 @@ from monai.utils import (
     Method,
     NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -391,6 +392,24 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -410,15 +429,9 @@ def list_data_collate(batch: Sequence):
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                ret[key] = default_collate(data_for_batch)
-                if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
-                    ret[key].is_batch = True
+                ret[key] = collate_meta_tensor(data_for_batch)
         else:
-            ret = default_collate(data)
-            if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = list_data_collate([i.meta for i in data])
-                ret.is_batch = True
+            ret = collate_meta_tensor(data)
         return ret
     except RuntimeError as re:
         re_str = str(re)
@@ -529,7 +542,9 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """
     if batch is None:
         return batch
-    if isinstance(batch, (float, int, str, bytes)):
+    if isinstance(batch, (float, int, str, bytes)) or (
+        type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
+    ):
         return batch
     if isinstance(batch, torch.Tensor):
         if detach:
@@ -538,11 +553,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
-        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            metas = decollate_batch(batch.meta)
-            for i in range(len(out_list)):
-                out_list[i].meta = metas[i]  # type: ignore
-                out_list[i].is_batch = False  # type: ignore
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, batch.applied_operations):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
@@ -643,6 +662,8 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     Returns:
         an `r` dimensional vector of spacing.
     """
+    if len(affine.shape) != 2 or affine.shape[0] != affine.shape[1]:
+        raise ValueError(f"affine must be a square matrix, got {affine.shape}.")
     _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))

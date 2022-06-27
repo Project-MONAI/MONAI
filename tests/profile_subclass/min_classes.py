@@ -9,20 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
 
-from monai.transforms.utility.dictionary import Identityd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+"""
+Minimal subclassing as baselines
+Adapted from https://github.com/pytorch/pytorch/tree/v1.11.0/benchmarks/overrides_benchmark
+"""
 
+import torch
 
-class TestIdentityd(NumpyImageTestCase2D):
-    def test_identityd(self):
-        for p in TEST_NDARRAYS:
-            img = p(self.imt)
-            data = {"img": img}
-            identity = Identityd(keys=data.keys())
-            assert_allclose(img, identity(data)["img"])
+__all__ = ["SubTensor", "SubWithTorchFunc"]
 
 
-if __name__ == "__main__":
-    unittest.main()
+class SubTensor(torch.Tensor):
+    pass
+
+
+class SubWithTorchFunc(torch.Tensor):
+    def __torch_function__(self, func, types, args=(), kwargs=None):
+        return super().__torch_function__(func, types, args, {} if kwargs is None else kwargs)

@@ -291,9 +291,9 @@ class GeneralizedDiceLoss(_Loss):
         self.batch = batch
 
     def w_func(self, grnd):
-        if self.w_type == Weight.SIMPLE:
+        if self.w_type == str(Weight.SIMPLE):
             return torch.reciprocal(grnd)
-        if self.w_type == Weight.SQUARE:
+        if self.w_type == str(Weight.SQUARE):
             return torch.reciprocal(grnd * grnd)
         return torch.ones_like(grnd)
 
