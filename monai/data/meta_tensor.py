@@ -84,15 +84,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         *args,
         **kwargs,
     ) -> MetaTensor:
-        _kwargs = (
-            {
-                "device": kwargs.pop("device", None),
-                "dtype": kwargs.pop("dtype", None),
-                "memory_format": kwargs.pop("memory_format"),
-            }
-            if kwargs
-            else {}
-        )
+        _kwargs = {"device": kwargs.pop("device", None), "dtype": kwargs.pop("dtype", None)} if kwargs else {}
         return torch.as_tensor(x, *args, **_kwargs).as_subclass(cls)  # type: ignore
 
     def __init__(
