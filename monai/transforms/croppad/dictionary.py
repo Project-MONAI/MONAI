@@ -23,6 +23,7 @@ import torch
 
 from monai.config import IndexSelection, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -45,7 +46,7 @@ from monai.transforms.croppad.array import (
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, NumpyPadMode, PytorchPadMode, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix
 
@@ -118,7 +119,11 @@ class Padd(MapTransform, InvertibleTransform):
     backend = Pad.backend
 
     def __init__(
-        self, keys: KeysCollection, padder: Pad, mode: str = PytorchPadMode.CONSTANT, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        padder: Pad,
+        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
@@ -145,7 +150,7 @@ class Padd(MapTransform, InvertibleTransform):
             d[key] = self.padder(d[key], mode=m)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.padder.inverse(d[key])
@@ -307,10 +312,10 @@ class Cropd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.cropper(d[key])
+            d[key] = self.cropper(d[key])  # type: ignore
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, MetaTensor]) -> Dict[Hashable, MetaTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.cropper.inverse(d[key])
@@ -352,7 +357,7 @@ class RandCropd(Cropd, Randomizable):
         self.randomize(d[self.first_key(d)].shape[1:])
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
-            d[key] = self.cropper(d[key], **kwargs)
+            d[key] = self.cropper(d[key], **kwargs)  # type: ignore
         return d
 
 
@@ -584,7 +589,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     def randomize(self, data: Optional[Any] = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: List[Dict[Hashable, torch.Tensor]] = [{} for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
@@ -623,7 +628,7 @@ class CropForegroundd(Cropd):
         margin: Union[Sequence[int], int] = 0,
         allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -657,7 +662,6 @@ class CropForegroundd(Cropd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        super().__init__(keys, allow_missing_keys)
         self.source_key = source_key
         self.start_coord_key = start_coord_key
         self.end_coord_key = end_coord_key
@@ -670,11 +674,11 @@ class CropForegroundd(Cropd):
             **pad_kwargs,
         )
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
-
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
+        self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
         d[self.start_coord_key] = box_start
         d[self.end_coord_key] = box_end
@@ -731,7 +735,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:  # type: ignore
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: List = [{} for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
@@ -793,9 +797,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
         allow_missing_keys: don't raise exception if key is missing.
-
-    Raises:
-        ValueError: When ``pos`` or ``neg`` are negative.
+        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
+        super().__init__(keys, padder=padcropper, mg`` are negative.
         ValueError: When ``pos=0`` and ``neg=0``. Incompatible values.
 
     """
@@ -1037,13 +1040,13 @@ class ResizeWithPadOrCropd(Padd):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[Sequence[str], str] = NumpyPadMode.CONSTANT,
+        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: Union[Method, str] = Method.SYMMETRIC,
         **pad_kwargs,
     ) -> None:
         padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
-        super().__init__(keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys)
+        super().__init__(keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys)  # type: ignore
 
 
 class BoundingRectd(MapTransform):
