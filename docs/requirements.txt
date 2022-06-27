@@ -29,3 +29,4 @@ pyyaml
 fire
 jsonschema
 pynrrd
+pydicom
