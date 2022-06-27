@@ -13,14 +13,9 @@ import unittest
 
 import numpy as np
 import torch
+from mri_transforms import apply_mask, complex_abs, convert_to_tensor_complex, create_mask_for_mask_type
 from parameterized import parameterized
 
-from mri_transforms import (
-    apply_mask,
-    complex_abs,
-    convert_to_tensor_complex,
-    create_mask_for_mask_type,
-)
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
