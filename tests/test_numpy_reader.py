@@ -105,7 +105,7 @@ class TestNumpyReader(unittest.TestCase):
 
                 num_workers = 2 if sys.platform == "linux" else 0
                 loader = DataLoader(
-                    Dataset(data=datalist, transform=LoadImaged(keys="image", reader=NumpyReader())),
+                    Dataset(data=datalist, transform=LoadImaged(keys="image", reader=NumpyReader(), image_only=False)),
                     batch_size=2,
                     num_workers=num_workers,
                 )
