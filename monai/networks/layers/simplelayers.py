@@ -363,7 +363,7 @@ class SavitzkyGolayFilter(nn.Module):
         a = idx ** torch.arange(order + 1, dtype=torch.float, device="cpu").reshape(-1, 1)
         y = torch.zeros(order + 1, dtype=torch.float, device="cpu")
         y[0] = 1.0
-        return torch.lstsq(y, a).solution.squeeze()
+        return torch.linalg.lstsq(a, y).solution.squeeze()
 
 
 class HilbertTransform(nn.Module):
