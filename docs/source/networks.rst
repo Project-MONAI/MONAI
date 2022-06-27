@@ -239,6 +239,10 @@ N-Dim Fourier Transform
 .. automodule:: monai.networks.blocks.fft_utils_t
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftn_centered_t
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll_1d
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
 Layers
 ------

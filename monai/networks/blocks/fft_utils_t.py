@@ -9,10 +9,116 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional, Sequence
+
 import torch
 from torch import Tensor
 
 from monai.utils.type_conversion import convert_data_type
+
+
+def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
+    """
+    Similar to roll but for only one dim.
+
+    Args:
+        x: input data (k-space or image) that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
+        shift: the amount of shift along each of shift_dims dimension
+        shift_dim: the dimension over which the shift is applied
+
+    Returns:
+        1d-shifted version of x
+
+    Note:
+        This function is called when fftshift and ifftshift are not available in the running pytorch version
+    """
+    shift = shift % x.size(shift_dim)
+    if shift == 0:
+        return x
+
+    left = x.narrow(shift_dim, 0, x.size(shift_dim) - shift)
+    right = x.narrow(shift_dim, x.size(shift_dim) - shift, shift)
+
+    return torch.cat((right, left), dim=shift_dim)
+
+
+def roll(x: Tensor, shift: Sequence[int], shift_dims: Sequence[int]) -> Tensor:
+    """
+    Similar to np.roll but applies to PyTorch Tensors
+
+    Args:
+        x: input data (k-space or image) that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
+        shift: the amount of shift along each of shift_dims dimensions
+        shift_dims: dimensions over which the shift is applied
+
+    Returns:
+        shifted version of x
+
+    Note:
+        This function is called when fftshift and ifftshift are not available in the running pytorch version
+    """
+    assert len(shift) == len(shift_dims)
+    for s, d in zip(shift, shift_dims):
+        x = roll_1d(x, s, d)
+    return x
+
+
+def fftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
+    """
+    Similar to np.fft.fftshift but applies to PyTorch Tensors
+
+    Args:
+        x: input data (k-space or image) that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
+        shift_dims: dimensions over which the shift is applied
+
+    Returns:
+        fft-shifted version of x
+
+    Note:
+        This function is called when fftshift is not available in the running pytorch version
+    """
+    if shift_dims is None:
+        # for torch.jit.script based on the fastmri repository
+        shift_dims = [0] * (x.dim())
+        for i in range(1, x.dim()):
+            shift_dims[i] = i
+    shift = [0] * len(shift_dims)
+    for i, dim_num in enumerate(shift_dims):
+        shift[i] = x.shape[dim_num] // 2
+    return roll(x, shift, shift_dims)
+
+
+def ifftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
+    """
+    Similar to np.fft.ifftshift but applies to PyTorch Tensors
+
+    Args:
+        x: input data (k-space or image) that can be
+            1) real-valued: the shape is (C,H,W) for 2D spatial inputs and (C,H,W,D) for 3D, or
+            2) complex-valued: the shape is (C,H,W,2) for 2D spatial data and (C,H,W,D,2) for 3D. C is the number of channels.
+        shift_dims: dimensions over which the shift is applied
+
+    Returns:
+        ifft-shifted version of x
+
+    Note:
+        This function is called when ifftshift is not available in the running pytorch version
+    """
+    if shift_dims is None:
+        # for torch.jit.script based on the fastmri repository
+        shift_dims = [0] * (x.dim())
+        for i in range(1, x.dim()):
+            shift_dims[i] = i
+    shift = [0] * len(shift_dims)
+    for i, dim_num in enumerate(shift_dims):
+        shift[i] = (x.shape[dim_num] + 1) // 2
+    return roll(x, shift, shift_dims)
 
 
 def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) -> Tensor:
@@ -51,12 +157,20 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
     dims = tuple(range(-spatial_dims, 0))
 
     # apply ifft
-    x = torch.fft.ifftshift(ksp, dim=shift)
+    if hasattr(torch.fft, "ifftshift"):  # ifftshift was added in pytorch 1.8
+        x = torch.fft.ifftshift(ksp, dim=shift)
+    else:
+        x = ifftshift(ksp, shift)
+
     if is_complex:
         x = torch.view_as_real(torch.fft.ifftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
-    out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
+
+    if hasattr(torch.fft, "fftshift"):
+        out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
+    else:
+        out = convert_data_type(fftshift(x, shift), torch.Tensor)[0]
 
     return out
 
@@ -97,11 +211,19 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
     dims = tuple(range(-spatial_dims, 0))
 
     # apply fft
-    x = torch.fft.ifftshift(im, dim=shift)
+    if hasattr(torch.fft, "ifftshift"):  # ifftshift was added in pytorch 1.8
+        x = torch.fft.ifftshift(im, dim=shift)
+    else:
+        x = ifftshift(im, shift)
+
     if is_complex:
         x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
-    out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
+
+    if hasattr(torch.fft, "fftshift"):
+        out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
+    else:
+        out = convert_data_type(fftshift(x, shift), torch.Tensor)[0]
 
     return out
