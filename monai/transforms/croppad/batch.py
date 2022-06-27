@@ -80,7 +80,8 @@ class PadListDataCollate(InvertibleTransform):
         # data is either list of dicts or list of lists
         is_list_of_dicts = isinstance(batch[0], dict)
         # loop over items inside of each element in a batch
-        for key_or_idx in batch[0].keys() if is_list_of_dicts else range(len(batch[0])):
+        batch_item = tuple(batch[0].keys()) if is_list_of_dicts else range(len(batch[0]))
+        for key_or_idx in batch_item:
             # calculate max size of each dimension
             max_shapes = []
             for elem in batch:

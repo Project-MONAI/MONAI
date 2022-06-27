@@ -16,22 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.detection.transforms.box_ops import convert_mask_to_box
-from monai.apps.detection.transforms.dictionary import (
-    AffineBoxToImageCoordinated,
-    AffineBoxToWorldCoordinated,
-    BoxToMaskd,
-    ClipBoxToImaged,
-    ConvertBoxModed,
-    FlipBoxd,
-    MaskToBoxd,
-    RandCropBoxByPosNegLabeld,
-    RandFlipBoxd,
-    RandRotateBox90d,
-    RandZoomBoxd,
-    RotateBox90d,
-    ZoomBoxd,
-)
-from monai.transforms import CastToTyped, Invertd
+from monai.apps.detection.transforms.dictionary import BoxToMaskd, ConvertBoxModed, MaskToBoxd
+from monai.transforms import CastToTyped
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_3D = []
