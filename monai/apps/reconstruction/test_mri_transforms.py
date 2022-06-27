@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.reconstruction.mri_transforms import (
+from mri_transforms import (
     apply_mask,
     complex_abs,
     convert_to_tensor_complex,
