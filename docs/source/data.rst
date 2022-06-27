@@ -268,11 +268,6 @@ TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
 
-N-Dim Fourier Transform
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: monai.data.fft_utils
-.. autofunction:: monai.data.fft_utils.fftn_centered
-.. autofunction:: monai.data.fft_utils.ifftn_centered
 
 
 
