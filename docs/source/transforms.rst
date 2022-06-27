@@ -792,6 +792,31 @@ Smooth Field
     :members:
     :special-members: __call__
 
+
+MRI Transforms
+^^^^^^^^^^^^^^^
+
+`General`
+"""""""""
+.. autofunction:: monai.apps.reconstruction.mri_transforms.convert_to_tensor_complex
+.. autofunction:: monai.apps.reconstruction.mri_transforms.complex_abs
+
+`Under-sampling`
+"""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.mri_transforms.MaskFunc
+    :members:
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.mri_transforms.RandomMaskFunc
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.mri_transforms.EquispacedMaskFunc
+    :special-members: __call__
+
+.. autofunction:: monai.apps.reconstruction.mri_transforms.create_mask_for_mask_type
+.. autofunction:: monai.apps.reconstruction.mri_transforms.apply_mask
+
+
 Utility
 ^^^^^^^
 
