@@ -45,8 +45,7 @@ from monai.transforms.croppad.array import (
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED
-from monai.utils import Method, NumpyPadMode, PytorchPadMode, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, NumpyPadMode, PytorchPadMode, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix
 
@@ -115,6 +114,7 @@ class Padd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.Pad`.
 
     """
+
     backend = Pad.backend
 
     def __init__(
@@ -328,6 +328,7 @@ class RandCropd(Cropd, Randomizable):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
     backend = Crop.backend
 
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
@@ -560,6 +561,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         ValueError: When ``num_samples`` is nonpositive.
 
     """
+
     backend = RandSpatialCropSamples.backend
 
     @deprecated_arg(name="meta_keys", since="0.9")
@@ -982,10 +984,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         return self
 
     def randomize(
-        self,
-        label: torch.Tensor,
-        indices: Optional[List[NdarrayOrTensor]] = None,
-        image: Optional[torch.Tensor] = None,
+        self, label: torch.Tensor, indices: Optional[List[NdarrayOrTensor]] = None, image: Optional[torch.Tensor] = None
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 

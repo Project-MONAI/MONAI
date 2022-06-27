@@ -174,9 +174,7 @@ class TestRandWeightedCrop3D(NumpyImageTestCase3D):
                 weight[0, 13, 31] = 1.1
                 weight[0, 24, 21] = 1
                 crop.set_random_state(10)
-                result = crop(
-                    {"img": p(img), "seg": p(self.segn[0]), "w": q(weight)}
-                )
+                result = crop({"img": p(img), "seg": p(self.segn[0]), "w": q(weight)})
                 self.assertTrue(len(result) == n_samples)
                 for c, e in zip(crop.cropper.centers, [[14, 32, 40], [41, 32, 40], [20, 32, 40]]):
                     assert_allclose(c, e, type_test=False)

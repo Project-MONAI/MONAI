@@ -41,15 +41,8 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
-from monai.utils import (
-    Method,
-    PytorchPadMode,
-    ensure_tuple,
-    ensure_tuple_rep,
-    fall_back_tuple,
-    look_up_option,
-)
 from monai.utils import ImageMetaKey as Key
+from monai.utils import Method, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
 from monai.utils.enums import TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
@@ -98,10 +91,7 @@ class Pad(InvertibleTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        to_pad: Optional[List[Tuple[int, int]]] = None,
-        mode: str = PytorchPadMode.CONSTANT,
-        **kwargs,
+        self, to_pad: Optional[List[Tuple[int, int]]] = None, mode: str = PytorchPadMode.CONSTANT, **kwargs
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode
@@ -128,11 +118,7 @@ class Pad(InvertibleTransform):
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
     def __call__(
-        self,
-        img: torch.Tensor,
-        to_pad: Optional[List[Tuple[int, int]]] = None,
-        mode: Optional[str] = None,
-        **kwargs,
+        self, img: torch.Tensor, to_pad: Optional[List[Tuple[int, int]]] = None, mode: Optional[str] = None, **kwargs
     ) -> torch.Tensor:
         """
         Args:
@@ -278,10 +264,7 @@ class BorderPad(Pad):
     """
 
     def __init__(
-        self,
-        spatial_border: Union[Sequence[int], int],
-        mode: str = PytorchPadMode.CONSTANT,
-        **kwargs,
+        self, spatial_border: Union[Sequence[int], int], mode: str = PytorchPadMode.CONSTANT, **kwargs
     ) -> None:
         self.spatial_border = spatial_border
         super().__init__(mode=mode, **kwargs)
@@ -479,7 +462,7 @@ class SpatialCrop(Crop):
             roi_slices: list of slices for each of the spatial dimensions.
         """
         self.slices = self.compute_slices(
-            roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices,
+            roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
         )
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
@@ -824,12 +807,7 @@ class CropForeground(Crop):
         return box_start_, box_end_
 
     def crop_pad(
-        self,
-        img: torch.Tensor,
-        box_start: np.ndarray,
-        box_end: np.ndarray,
-        mode: Optional[str] = None,
-        **pad_kwargs,
+        self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: Optional[str] = None, **pad_kwargs
     ):
         """
         Crop and pad based on the bounding box.
@@ -904,7 +882,7 @@ class RandWeightedCrop(Randomizable, Transform):
         )  # using only the first channel as weight map
 
     def __call__(
-        self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None, randomize: bool = True,
+        self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None, randomize: bool = True
     ) -> List[torch.Tensor]:
         """
         Args:
@@ -1183,10 +1161,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.allow_smaller = allow_smaller
 
     def randomize(
-        self,
-        label: torch.Tensor,
-        indices: Optional[List[NdarrayOrTensor]] = None,
-        image: Optional[torch.Tensor] = None,
+        self, label: torch.Tensor, indices: Optional[List[NdarrayOrTensor]] = None, image: Optional[torch.Tensor] = None
     ) -> None:
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
@@ -1275,9 +1250,7 @@ class ResizeWithPadOrCrop(InvertibleTransform):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(
-        self, img: torch.Tensor, mode: Optional[ str] = None, **pad_kwargs,
-    ) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, mode: Optional[str] = None, **pad_kwargs) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
