@@ -20,7 +20,7 @@ import numpy as np
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import ITKReader, NibabelReader
+from monai.data import ITKReader, NibabelReader, PydicomReader
 from monai.transforms import LoadImage
 
 
@@ -134,6 +134,31 @@ TEST_CASE_18 = [
     (128, 128, 3, 128),
 ]
 
+# test same dicom data with PydicomReader
+TEST_CASE_19 = [
+    {"image_only": False, "reader": PydicomReader()},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (16, 16, 4),
+]
+
+TEST_CASE_20 = [
+    {"image_only": False, "reader": "PydicomReader", "ensure_channel_first": True},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (1, 16, 16, 4),
+]
+
+TEST_CASE_21 = [
+    {"image_only": False, "reader": "PydicomReader", "affine_lps_to_ras": True, "defer_size": "2 MB"},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (16, 16, 4),
+]
+
+# test reader consistency between PydicomReader and ITKReader on dicom data
+TEST_CASE_22 = ["tests/testing_data/CT_DICOM"]
+
 
 class TestLoadImage(unittest.TestCase):
     @parameterized.expand(
@@ -174,7 +199,7 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(header["original_affine"], np_diag)
             self.assertTupleEqual(result.shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_10, TEST_CASE_11, TEST_CASE_12])
+    @parameterized.expand([TEST_CASE_10, TEST_CASE_11, TEST_CASE_12, TEST_CASE_19, TEST_CASE_20, TEST_CASE_21])
     def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape, expected_np_shape):
         result, header = LoadImage(**input_param)(filenames)
         self.assertTrue("affine" in header)
@@ -207,6 +232,18 @@ class TestLoadImage(unittest.TestCase):
                 np.testing.assert_allclose(result[:, :, 0], test_image[:, :, 0])
                 np.testing.assert_allclose(result[:, :, 1], test_image[:, :, 1])
                 np.testing.assert_allclose(result[:, :, 2], test_image[:, :, 2])
+
+    @parameterized.expand([TEST_CASE_22])
+    def test_dicom_reader_consistency(self, filenames):
+        itk_param = {"reader": "ITKReader"}
+        pydicom_param = {"reader": "PydicomReader"}
+        for affine_flag in [True, False]:
+            itk_param["affine_lps_to_ras"] = affine_flag
+            pydicom_param["affine_lps_to_ras"] = affine_flag
+            itk_result, itk_header = LoadImage(**itk_param)(filenames)
+            pydicom_result, pydicom_header = LoadImage(**pydicom_param)(filenames)
+            np.testing.assert_allclose(pydicom_result, itk_result)
+            np.testing.assert_allclose(itk_header["affine"], pydicom_header["affine"])
 
     def test_load_nifti_multichannel(self):
         test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
