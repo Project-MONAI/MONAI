@@ -593,9 +593,9 @@ def create_grid(
     _backend = look_up_option(backend, TransformBackends)
     _dtype = dtype or float
     if _backend == TransformBackends.NUMPY:
-        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)
+        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)  # type: ignore
     if _backend == TransformBackends.TORCH:
-        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)
+        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)  # type: ignore
     raise ValueError(f"backend {backend} is not supported")
 
 

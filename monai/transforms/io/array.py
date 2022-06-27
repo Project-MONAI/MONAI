@@ -20,7 +20,7 @@ import traceback
 import warnings
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -28,7 +28,15 @@ import torch
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader
+from monai.data.image_reader import (
+    ImageReader,
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    PILReader,
+    PydicomReader,
+)
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
@@ -43,6 +51,7 @@ nrrd, _ = optional_import("nrrd")
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
 SUPPORTED_READERS = {
+    "pydicomreader": PydicomReader,
     "itkreader": ITKReader,
     "nrrdreader": NrrdReader,
     "numpyreader": NumpyReader,
@@ -111,7 +120,7 @@ class LoadImage(Transform):
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
-                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``, ``"PydicomReader"``.
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
             image_only: if True return only the image MetaTensor, otherwise return image and header dict.
@@ -331,7 +340,7 @@ class SaveImage(Transform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[image_writer.ImageWriter, str, None] = None,
+        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
         channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(

@@ -1260,7 +1260,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if xform[TraceKeys.DO_TRANSFORM]:
-                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])
+                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])  # type: ignore
                 d[key] = self.flipper.inverse(d[key])
         return d
 

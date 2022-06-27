@@ -103,7 +103,7 @@ def convert_to_tensor(
     device: Optional[torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
-) -> torch.Tensor:
+):
     """
     Utility to convert the input data to a PyTorch Tensor, if `track_meta` is True, the output will be a `MetaTensor`,
     otherwise, the output will be a regular torch Tensor.

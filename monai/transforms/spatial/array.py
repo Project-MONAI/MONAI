@@ -358,6 +358,40 @@ class ResampleToMatch(SpatialResample):
         align_corners: Optional[bool] = False,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
+        """
+        Args:
+            img: input image to be resampled to match ``dst_meta``. It currently supports channel-first arrays with
+                at most three spatial dimensions.
+            src_meta: Dictionary containing the source affine matrix in the form ``{'affine':src_affine}``.
+                If ``affine`` is not specified, an identity matrix is assumed.  Defaults to ``None``.
+                See also:  https://docs.monai.io/en/stable/transforms.html#spatialresample
+            dst_meta: Dictionary containing the target affine matrix and target spatial shape in the form
+                ``{'affine':src_affine, 'spatial_shape':spatial_size}``. If ``affine`` is  not
+                specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
+                automatically computed, containing the previous field of view.  Defaults to ``None``.
+                See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
+            mode: {``"bilinear"``, ``"nearest"``}
+                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `USE_COMPILED` is `True`, this argument uses
+                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+                Defaults to ``False``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            dtype: data type for resampling computation. Defaults to ``self.dtype`` or
+                ``np.float64`` (for best precision). If ``None``, use the data type of input data.
+                To be compatible with other modules, the output data type is always `float32`.
+        Raises:
+            RuntimeError: When ``src_meta`` is missing.
+            RuntimeError: When ``dst_meta`` is missing.
+            ValueError: When the affine matrix of the source image is not invertible.
+        Returns:
+            Resampled input image, Metadata
+        """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
         dst_affine = img_dst.affine if isinstance(img_dst, MetaTensor) else torch.eye(4)
@@ -1723,7 +1757,7 @@ class AffineGrid(Transform):
         _dtype = self.dtype or grid_.dtype
         grid_: torch.Tensor = convert_to_tensor(grid_, dtype=_dtype, track_meta=get_track_meta())  # type: ignore
         _b = TransformBackends.TORCH
-        _device = grid_.device
+        _device = grid_.device  # type: ignore
         affine: NdarrayOrTensor
         if self.affine is None:
             spatial_dims = len(grid_.shape) - 1
@@ -1740,9 +1774,9 @@ class AffineGrid(Transform):
             affine = self.affine
 
         affine = to_affine_nd(len(grid_) - 1, affine)
-        affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)
+        affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
         grid_ = (affine @ grid_.reshape((grid_.shape[0], -1))).reshape([-1] + list(grid_.shape[1:]))  # type: ignore
-        return grid_, affine
+        return grid_, affine  # type: ignore
 
 
 class RandAffineGrid(Randomizable, Transform):
@@ -1810,7 +1844,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params: Optional[List[float]] = None
 
         self.device = device
-        self.affine: Optional[NdarrayOrTensor] = torch.eye(4, dtype=torch.float64)
+        self.affine: Optional[torch.Tensor] = torch.eye(4, dtype=torch.float64)
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
         out_param = []
@@ -1958,7 +1992,7 @@ class Resample(Transform):
         self.device = device
         self.dtype = dtype
 
-    def __call__(
+    def __call__(  # type: ignore
         self,
         img: torch.Tensor,
         grid: torch.Tensor,
@@ -2169,7 +2203,7 @@ class Affine(InvertibleTransform):
             return out if self.image_only else (out, affine)
         if not self.norm_coord:
             warnings.warn("customized transform may not work with the metadata operation.")
-        if get_track_meta():
+        if get_track_meta() and isinstance(img, MetaTensor):
             out.meta = img.meta
             self.update_meta(out, affine, img_size, sp_size)  # type: ignore
             self.push_transform(
@@ -2206,7 +2240,7 @@ class Affine(InvertibleTransform):
         out = self.resampler(data, grid, mode, padding_mode)
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
-        out.meta = data.meta
+        out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out  # type: ignore
 
@@ -2440,7 +2474,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         out = self.resampler(data, grid, mode, padding_mode)
         if not isinstance(out, MetaTensor):
             out = MetaTensor(out)
-        out.meta = data.meta
+        out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out  # type: ignore
 
@@ -2834,7 +2868,7 @@ class GridDistortion(Transform):
         coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
-        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
 
 
 class RandGridDistortion(RandomizableTransform):
@@ -2906,7 +2940,7 @@ class RandGridDistortion(RandomizableTransform):
         if randomize:
             self.randomize(img.shape[1:])
         if not self._do_transform:
-            return convert_to_tensor(img, track_meta=get_track_meta())
+            return convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
         return self.grid_distortion(img, distort_steps=self.distort_steps, mode=mode, padding_mode=padding_mode)
 
 
