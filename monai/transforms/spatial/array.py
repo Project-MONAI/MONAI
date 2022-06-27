@@ -2770,7 +2770,7 @@ class GridPatch(Transform):
             patch = convert_to_dst_type(
                 src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
             )[0]
-            start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
+            start_location = convert_to_dst_type(src=np.zeros(len(self.patch_size)), dst=array)[0]
             output += [(patch, start_location)] * (self.num_patches - len(output))
 
         return output
