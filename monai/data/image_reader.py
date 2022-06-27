@@ -398,11 +398,6 @@ class PydicomReader(ImageReader):
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
             `ImagePositionPatient`, `ImageOrientationPatient` and all `pixel_array` related tags.
-
-    Note::
-
-        the current
-
     """
 
     def __init__(
