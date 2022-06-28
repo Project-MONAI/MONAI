@@ -484,10 +484,10 @@ class HoverNet(nn.Module):
         # decode branches
         self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize)
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
-        self.type_prediction: _DecoderBranch = None # type: ignore 
+        self.type_prediction: _DecoderBranch = None  # type: ignore
 
         if out_classes > 0:
-            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)  
+            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)
 
         for m in self.modules():
             if isinstance(m, conv_type):
