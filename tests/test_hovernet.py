@@ -15,7 +15,6 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.layers import Act, Norm
 from monai.networks.nets import HoverNet
 from tests.utils import test_script_save
 

@@ -526,7 +526,7 @@ class HoverNet(nn.Module):
         x_np = self.nucleus_prediction(x, short_cuts)
         x_hv = self.horizontal_vertical(x, short_cuts)
 
-        if not self.type_prediction is None:
+        if self.type_prediction is not None:
             x_tp = self.type_prediction(x, short_cuts)
             return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
 
