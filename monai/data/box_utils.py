@@ -621,7 +621,7 @@ def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: floa
         min_center_to_border: np.ndarray = np.stack(center_to_border, axis=1).min(axis=1)
         return min_center_to_border > eps  # array[bool]
 
-    return torch.stack(center_to_border, dim=1).to(COMPUTE_DTYPE).min(dim=1)[0] > eps  # Tensor[bool]
+    return torch.stack(center_to_border, dim=1).to(COMPUTE_DTYPE).min(dim=1)[0] > eps  # type: ignore
 
 
 def boxes_center_distance(
