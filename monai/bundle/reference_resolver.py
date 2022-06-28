@@ -113,17 +113,15 @@ class ReferenceResolver:
                 `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
                 Currently support ``instantiate``, ``eval_expr`` and ``default``.
-                `instantiate` and `eval_expr` are defaulting to True, `default` is the return value
-                if the `id` is not in the config content.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
         if id in self.resolved_content:
             return self.resolved_content[id]
         try:
-            item = look_up_option(id, self.items, print_all_options=False)
+            item = look_up_option(id, self.items, print_all_options=False, default=kwargs.get("default", "no_default"))
         except ValueError as err:
-            if "default" in kwargs:
-                return kwargs.get("default")
             raise KeyError(f"id='{id}' is not found in the config resolver.") from err
         item_config = item.get_config()
 
@@ -181,8 +179,9 @@ class ReferenceResolver:
             id: id name of the expected item.
             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
                 Currently support ``instantiate``, ``eval_expr`` and ``default``.
-                `instantiate` and `eval_expr` are defaulting to True, `default` is the return value
-                if the `id` is not in the config content.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
+
         """
         return self._resolve_one_item(id=id, **kwargs)
 

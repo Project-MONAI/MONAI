@@ -18,6 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
+from monai.bundle.config_item import ConfigExpression, ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -130,7 +131,7 @@ class TestConfigParser(unittest.TestCase):
         for v, cls in zip(root.values(), [Compose, Dataset, DataLoader]):
             self.assertTrue(isinstance(v, cls))
         # test default value
-        self.assertEqual(parser.get_parsed_content(id="abc", default=12345), 12345)
+        self.assertEqual(parser.get_parsed_content(id="abc", default=ConfigItem(12345, "abc")), 12345)
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
