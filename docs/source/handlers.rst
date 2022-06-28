@@ -95,12 +95,6 @@ Metric logger
     :members:
 
 
-Segmentation saver
-------------------
-.. autoclass:: SegmentationSaver
-    :members:
-
-
 Training stats handler
 ----------------------
 .. autoclass:: StatsHandler
@@ -173,4 +167,9 @@ NVTX Handlers
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
+  :members:
+
+Probability Map Handlers
+------------------------
+.. automodule:: monai.handlers.probability_maps
   :members:

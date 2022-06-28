@@ -13,16 +13,23 @@ import unittest
 
 import numpy as np
 import skimage.transform
+import torch
 from parameterized import parameterized
 
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
 TEST_CASE_1 = [{"spatial_size": 15, "mode": "area"}, (6, 10, 15)]
 
 TEST_CASE_2 = [{"spatial_size": 6, "mode": "trilinear", "align_corners": True}, (2, 4, 6)]
+
+TEST_CASE_3 = [{"spatial_size": 15, "anti_aliasing": True}, (6, 10, 15)]
+
+TEST_CASE_4 = [{"spatial_size": 6, "anti_aliasing": True, "anti_aliasing_sigma": 2.0}, (2, 4, 6)]
+
+diff_t = 0.3 if is_tf32_env() else 0.2
 
 
 class TestResize(NumpyImageTestCase2D):
@@ -36,10 +43,18 @@ class TestResize(NumpyImageTestCase2D):
             resize(self.imt[0])
 
     @parameterized.expand(
-        [((32, -1), "area"), ((32, 32), "area"), ((32, 32, 32), "trilinear"), ((256, 256), "bilinear")]
+        [
+            ((32, -1), "area", True),
+            ((32, 32), "area", False),
+            ((32, 32, 32), "trilinear", True),
+            ((256, 256), "bilinear", False),
+            ((256, 256), "nearest-exact" if pytorch_after(1, 11) else "nearest", False),
+            ((128, 64), "area", True),  # already in a good shape
+        ]
     )
-    def test_correct_results(self, spatial_size, mode):
-        resize = Resize(spatial_size, mode=mode)
+    def test_correct_results(self, spatial_size, mode, anti_aliasing):
+        """resize 'spatial_size' and 'mode'"""
+        resize = Resize(spatial_size, mode=mode, anti_aliasing=anti_aliasing)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -47,7 +62,7 @@ class TestResize(NumpyImageTestCase2D):
             spatial_size = (32, 64)
         expected = [
             skimage.transform.resize(
-                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=False
+                channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=anti_aliasing
             )
             for channel in self.imt[0]
         ]
@@ -55,9 +70,20 @@ class TestResize(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         for p in TEST_NDARRAYS:
             out = resize(p(self.imt[0]))
-            assert_allclose(out, expected, type_test=False, atol=0.9)
+            if not anti_aliasing:
+                assert_allclose(out, expected, type_test=False, atol=0.9)
+            else:
+                # skimage uses reflect padding for anti-aliasing filter.
+                # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead.
+                # Thus their results near the image boundary will be different.
+                if isinstance(out, torch.Tensor):
+                    out = out.cpu().detach().numpy()
+                good = np.sum(np.isclose(expected, out, atol=0.9))
+                self.assertLessEqual(
+                    np.abs(good - expected.size) / float(expected.size), diff_t, f"at most {diff_t} percent mismatch "
+                )
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_longest_shape(self, input_param, expected_shape):
         input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
         input_param["size_mode"] = "longest"

@@ -16,7 +16,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from abc import abstractmethod
 from collections.abc import Iterable
 from functools import partial
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -29,19 +29,13 @@ from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGola
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
-from monai.utils import (
-    InvalidPyTorchVersionError,
-    convert_data_type,
-    convert_to_dst_type,
-    ensure_tuple,
-    ensure_tuple_rep,
-    ensure_tuple_size,
-    fall_back_tuple,
-    pytorch_after,
-)
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_to_tensor, get_equivalent_dtype
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
+from monai.utils.module import min_version, optional_import
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
+
+skimage, _ = optional_import("skimage", "0.19.0", min_version)
 
 __all__ = [
     "RandGaussianNoise",
@@ -601,7 +595,8 @@ class RandBiasField(RandomizableTransform):
 
 class NormalizeIntensity(Transform):
     """
-    Normalize input based on provided args, using calculated mean and std if not provided.
+    Normalize input based on the `subtrahend` and `divisor`: `(img - subtrahend) / divisor`.
+    Use calculated mean or std value of the input image if no `subtrahend` or `divisor` provided.
     This transform can normalize only non-zero values or entire image, and can also calculate
     mean and std on each channel separately.
     When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
@@ -1085,7 +1080,6 @@ class SavitzkyGolaySmooth(Transform):
 class DetectEnvelope(Transform):
     """
     Find the envelope of the input data along the requested axis using a Hilbert transform.
-    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
 
     Args:
         axis: Axis along which to detect the envelope. Default 1, i.e. the first spatial dimension.
@@ -1097,9 +1091,6 @@ class DetectEnvelope(Transform):
     backend = [TransformBackends.TORCH]
 
     def __init__(self, axis: int = 1, n: Union[int, None] = None) -> None:
-
-        if not pytorch_after(1, 7):
-            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         if axis < 0:
             raise ValueError("axis must be zero or positive.")
@@ -1362,7 +1353,7 @@ class RandHistogramShift(RandomizableTransform):
         prob: probability of histogram shift.
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, num_control_points: Union[Tuple[int, int], int] = 10, prob: float = 0.1) -> None:
         RandomizableTransform.__init__(self, prob)
@@ -1377,8 +1368,25 @@ class RandHistogramShift(RandomizableTransform):
             if min(num_control_points) <= 2:
                 raise ValueError("num_control_points should be greater than or equal to 3")
             self.num_control_points = (min(num_control_points), max(num_control_points))
-        self.reference_control_points: np.ndarray
-        self.floating_control_points: np.ndarray
+        self.reference_control_points: NdarrayOrTensor
+        self.floating_control_points: NdarrayOrTensor
+
+    def interp(self, x: NdarrayOrTensor, xp: NdarrayOrTensor, fp: NdarrayOrTensor) -> NdarrayOrTensor:
+        ns = torch if isinstance(x, torch.Tensor) else np
+        if isinstance(x, np.ndarray):
+            # approx 2x faster than code below for ndarray
+            return np.interp(x, xp, fp)
+
+        m = (fp[1:] - fp[:-1]) / (xp[1:] - xp[:-1])
+        b = fp[:-1] - (m * xp[:-1])
+
+        indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
+        indices = ns.clip(indices, 0, len(m) - 1)
+
+        f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
+        f[x < xp[0]] = fp[0]  # type: ignore
+        f[x > xp[-1]] = fp[-1]  # type: ignore
+        return f
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -1401,14 +1409,13 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-        img_np, *_ = convert_data_type(img, np.ndarray)
-        img_min, img_max = img_np.min(), img_np.max()
-        reference_control_points_scaled = self.reference_control_points * (img_max - img_min) + img_min
-        floating_control_points_scaled = self.floating_control_points * (img_max - img_min) + img_min
-        img_np = np.asarray(  # type: ignore
-            np.interp(img_np, reference_control_points_scaled, floating_control_points_scaled), dtype=img_np.dtype
-        )
-        img, *_ = convert_to_dst_type(img_np, dst=img)
+
+        xp, *_ = convert_to_dst_type(self.reference_control_points, dst=img)
+        yp, *_ = convert_to_dst_type(self.floating_control_points, dst=img)
+        img_min, img_max = img.min(), img.max()
+        reference_control_points_scaled = xp * (img_max - img_min) + img_min
+        floating_control_points_scaled = yp * (img_max - img_min) + img_min
+        img = self.interp(img, reference_control_points_scaled, floating_control_points_scaled)
         return img
 
 
@@ -2167,3 +2174,99 @@ class RandIntensityRemap(RandomizableTransform):
                 img = IntensityRemap(self.kernel_size, self.R.choice([-self.slope, self.slope]))(img)
 
         return img
+
+
+class ForegroundMask(Transform):
+    """
+    Creates a binary mask that defines the foreground based on thresholds in RGB or HSV color space.
+    This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
+    low values (dark) while the background has high values (white). Otherwise, set `invert` argument to `True`.
+
+    Args:
+        threshold: an int or a float number that defines the threshold that values less than that are foreground.
+            It also can be a callable that receives each dimension of the image and calculate the threshold,
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
+            Moreover, a dictionary can be passed that defines such thresholds for each channel, like
+            {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
+        hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
+            Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        threshold: Union[Dict, Callable, str, float, int] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+    ) -> None:
+        self.thresholds: Dict[str, Union[Callable, float]] = {}
+        if threshold is not None:
+            if isinstance(threshold, dict):
+                for mode, th in threshold.items():
+                    self._set_threshold(th, mode.upper())
+            else:
+                self._set_threshold(threshold, "R")
+                self._set_threshold(threshold, "G")
+                self._set_threshold(threshold, "B")
+        if hsv_threshold is not None:
+            if isinstance(hsv_threshold, dict):
+                for mode, th in hsv_threshold.items():
+                    self._set_threshold(th, mode.upper())
+            else:
+                self._set_threshold(hsv_threshold, "H")
+                self._set_threshold(hsv_threshold, "S")
+                self._set_threshold(hsv_threshold, "V")
+
+        self.thresholds = {k: v for k, v in self.thresholds.items() if v is not None}
+        if self.thresholds.keys().isdisjoint(set("RGBHSV")):
+            raise ValueError(
+                f"Threshold for at least one channel of RGB or HSV needs to be set. {self.thresholds} is provided."
+            )
+        self.invert = invert
+
+    def _set_threshold(self, threshold, mode):
+        if callable(threshold):
+            self.thresholds[mode] = threshold
+        elif isinstance(threshold, str):
+            self.thresholds[mode] = getattr(skimage.filters, "threshold_" + threshold.lower())
+        elif isinstance(threshold, (float, int)):
+            self.thresholds[mode] = float(threshold)
+        else:
+            raise ValueError(
+                f"`threshold` should be either a callable, string, or float number, {type(threshold)} was given."
+            )
+
+    def _get_threshold(self, image, mode):
+        threshold = self.thresholds.get(mode)
+        if callable(threshold):
+            return threshold(image)
+        return threshold
+
+    def __call__(self, image: NdarrayOrTensor):
+        img_rgb, *_ = convert_data_type(image, np.ndarray)
+        if self.invert:
+            img_rgb = skimage.util.invert(img_rgb)
+        foregrounds = []
+        if not self.thresholds.keys().isdisjoint(set("RGB")):
+            rgb_foreground = np.zeros_like(img_rgb[:1])
+            for img, mode in zip(img_rgb, "RGB"):
+                threshold = self._get_threshold(img, mode)
+                if threshold:
+                    rgb_foreground = np.logical_or(rgb_foreground, img <= threshold)
+            foregrounds.append(rgb_foreground)
+        if not self.thresholds.keys().isdisjoint(set("HSV")):
+            img_hsv = skimage.color.rgb2hsv(img_rgb, channel_axis=0)
+            hsv_foreground = np.zeros_like(img_rgb[:1])
+            for img, mode in zip(img_hsv, "HSV"):
+                threshold = self._get_threshold(img, mode)
+                if threshold:
+                    hsv_foreground = np.logical_or(hsv_foreground, img > threshold)
+            foregrounds.append(hsv_foreground)
+
+        mask = np.stack(foregrounds).all(axis=0)
+        return convert_to_dst_type(src=mask, dst=image)[0]

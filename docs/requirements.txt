@@ -28,3 +28,5 @@ tifffile; platform_system == "Linux"
 pyyaml
 fire
 jsonschema
+pynrrd
+pydicom

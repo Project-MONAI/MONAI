@@ -213,11 +213,14 @@ def instantiate(path: str, **kwargs):
     component = locate(path)
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
-    if isclass(component):
-        return component(**kwargs)
-    # support regular function, static method and class method
-    if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
-        return partial(component, **kwargs)
+    try:
+        if isclass(component):
+            return component(**kwargs)
+        # support regular function, static method and class method
+        if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
+            return partial(component, **kwargs)
+    except Exception as e:
+        raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e
 
     warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
     return component

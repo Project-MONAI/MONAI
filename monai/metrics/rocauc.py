@@ -49,10 +49,14 @@ class ROCAUCMetric(CumulativeIterationMetric):
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self):
+    def aggregate(self, average: Union[Average, str, None] = None):  # type: ignore
         """
-        As AUC metric needs to execute on the overall data, so usually users accumulate `y_pred` and `y`
-        of every iteration, then execute real computation and reduction on the accumulated data.
+        Typically `y_pred` and `y` are stored in the cumulative buffers at each iteration,
+        This function reads the buffers and computes the area under the ROC.
+
+        Args:
+            average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
+                Type of averaging performed if not binary classification. Defaults to `self.average`.
 
         """
         y_pred, y = self.get_buffer()
@@ -60,7 +64,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
         if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
             raise ValueError("y_pred and y must be PyTorch Tensor.")
 
-        return compute_roc_auc(y_pred=y_pred, y=y, average=self.average)
+        return compute_roc_auc(y_pred=y_pred, y=y, average=average or self.average)
 
 
 def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:

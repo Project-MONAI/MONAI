@@ -39,6 +39,13 @@ Metrics
 .. autoclass:: DiceMetric
     :members:
 
+`Generalized Dice Score`
+------------------------
+.. autofunction:: compute_generalized_dice
+
+.. autoclass:: GeneralizedDiceScore
+    :members:
+
 `Area under the ROC curve`
 --------------------------
 .. autofunction:: compute_roc_auc
@@ -67,6 +74,13 @@ Metrics
 .. autofunction:: compute_average_surface_distance
 
 .. autoclass:: SurfaceDistanceMetric
+    :members:
+
+`Surface dice`
+--------------
+.. autofunction:: compute_surface_dice
+
+.. autoclass:: SurfaceDiceMetric
     :members:
 
 `Mean squared error`
