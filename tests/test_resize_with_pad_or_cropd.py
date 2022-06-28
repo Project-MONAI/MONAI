@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ResizeWithPadOrCropd
-from tests.utils import TEST_NDARRAYS_ALL
+from tests.utils import TEST_NDARRAYS_ALL, pytorch_after
 
 TEST_CASES = [
     [{"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 8, 8)],
@@ -26,8 +26,16 @@ TEST_CASES = [
         (3, 15, 4, 8),
     ],
     [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
-    [{"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 4, 4)],
-    [{"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 8, 8, 4)],
+    [
+        {"keys": "img", "spatial_size": [15, 4, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 15, 4, 4),
+    ],
+    [
+        {"keys": "img", "spatial_size": [-1, -1, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        {"img": np.zeros((3, 8, 8, 4))},
+        (3, 8, 8, 4),
+    ],
 ]
 
 
@@ -39,10 +47,13 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
                 "constant_values" in input_param or input_param["mode"] == "reflect"
             ):
                 continue
-            paddcroper = ResizeWithPadOrCropd(**input_param)
+            padcropper = ResizeWithPadOrCropd(**input_param)
             input_data["img"] = p(input_data["img"])
-            result = paddcroper(input_data)
+            result = padcropper(input_data)
             np.testing.assert_allclose(result["img"].shape, expected_val)
+            inv = padcropper.inverse(result)
+            for k in input_data:
+                self.assertTupleEqual(inv[k].shape, input_data[k].shape)
 
 
 if __name__ == "__main__":

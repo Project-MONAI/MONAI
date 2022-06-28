@@ -15,8 +15,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCrop
-from tests.utils import TEST_NDARRAYS_ALL
+from tests.utils import TEST_NDARRAYS_ALL, pytorch_after
 
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8)],
@@ -26,8 +27,16 @@ TEST_CASES = [
         (3, 15, 4, 8),
     ],
     [{"spatial_size": [15, 4, -1], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 4, 4)],
-    [{"spatial_size": [15, 4, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 15, 4, 4)],
-    [{"spatial_size": [-1, -1, -1], "mode": "reflect"}, (3, 8, 8, 4), (3, 8, 8, 4)],
+    [
+        {"spatial_size": [15, 4, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        (3, 8, 8, 4),
+        (3, 15, 4, 4),
+    ],
+    [
+        {"spatial_size": [-1, -1, -1], "mode": "reflect" if pytorch_after(1, 11) else "constant"},
+        (3, 8, 8, 4),
+        (3, 8, 8, 4),
+    ],
 ]
 
 
@@ -39,11 +48,17 @@ class TestResizeWithPadOrCrop(unittest.TestCase):
                 "constant_values" in input_param or input_param["mode"] == "reflect"
             ):
                 continue
-            paddcroper = ResizeWithPadOrCrop(**input_param)
-            result = paddcroper(p(np.zeros(input_shape)))
+            padcropper = ResizeWithPadOrCrop(**input_param)
+            result = padcropper(p(np.zeros(input_shape)))
             np.testing.assert_allclose(result.shape, expected_shape)
-            result = paddcroper(p(np.zeros(input_shape)), mode="constant")
+            result = padcropper(p(np.zeros(input_shape)), mode="constant")
             np.testing.assert_allclose(result.shape, expected_shape)
+            self.assertIsInstance(result, MetaTensor)
+            self.assertEqual(len(result.applied_operations), 1)
+            inv = padcropper.inverse(result)
+            self.assertTupleEqual(inv.shape, input_shape)
+            self.assertIsInstance(inv, MetaTensor)
+            self.assertEqual(inv.applied_operations, [])
 
 
 if __name__ == "__main__":
