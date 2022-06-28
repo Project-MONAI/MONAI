@@ -30,7 +30,7 @@
 
 from collections import OrderedDict
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Sequence, Type, Union
+from typing import Callable, Dict, List, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
