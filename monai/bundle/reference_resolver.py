@@ -111,8 +111,10 @@ class ReferenceResolver:
             waiting_list: set of ids pending to be resolved.
                 It's used to detect circular references such as:
                 `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
-             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the return value
+                if the `id` is not in the config content.
 
         """
         if id in self.resolved_content:
@@ -120,6 +122,8 @@ class ReferenceResolver:
         try:
             item = look_up_option(id, self.items, print_all_options=False)
         except ValueError as err:
+            if "default" in kwargs:
+                return kwargs.get("default")
             raise KeyError(f"id='{id}' is not found in the config resolver.") from err
         item_config = item.get_config()
 
@@ -175,9 +179,10 @@ class ReferenceResolver:
 
         Args:
             id: id name of the expected item.
-            kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
-
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the return value
+                if the `id` is not in the config content.
         """
         return self._resolve_one_item(id=id, **kwargs)
 

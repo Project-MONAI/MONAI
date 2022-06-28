@@ -129,6 +129,8 @@ class TestConfigParser(unittest.TestCase):
         root = parser.get_parsed_content(id="")
         for v, cls in zip(root.values(), [Compose, Dataset, DataLoader]):
             self.assertTrue(isinstance(v, cls))
+        # test default value
+        self.assertEqual(parser.get_parsed_content(id="abc", default=12345), 12345)
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
