@@ -15,7 +15,6 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.layers import Act, Norm
 from monai.networks.nets import HoverNet
 from tests.utils import test_script_save
 
@@ -23,7 +22,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_0 = [  # fast mode, batch 16
     {
-        "out_classes":5, 
+        "out_classes":5,
         "mode": HoverNet.Mode.FAST
     },
     (16, 3, 256, 256),
@@ -32,7 +31,7 @@ TEST_CASE_0 = [  # fast mode, batch 16
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
     {
-        "out_classes": None, 
+        "out_classes": None,
         "mode": HoverNet.Mode.FAST
     },
     (16, 3, 256, 256),
@@ -41,7 +40,7 @@ TEST_CASE_1 = [  # single channel 2D, batch 16
 
 TEST_CASE_2 = [  # single channel 3D, batch 16
     {
-        "out_classes": None, 
+        "out_classes": None,
         "mode": HoverNet.Mode.ORIGINAL
     },
     (16, 3, 270, 270),
@@ -50,7 +49,7 @@ TEST_CASE_2 = [  # single channel 3D, batch 16
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 16
     {
-        "out_classes": 6, 
+        "out_classes": 6,
         "mode": HoverNet.Mode.ORIGINAL
     },
     (16, 3, 270, 270),
@@ -59,7 +58,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
 
 TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
     {
-        "out_classes": None, 
+        "out_classes": None,
         "mode": HoverNet.Mode.FAST,
         "dropout_prob": 0.5
     },
@@ -71,26 +70,26 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4]
 
 ILL_CASES = [
     [
-        {  
-            "out_classes": 6, 
+        {
+            "out_classes": 6,
             "mode": 3
         }
     ],
     [
-        {  
-            "out_classes": 1000, 
+        {
+            "out_classes": 1000,
             "mode": HoverNet.Mode.ORIGINAL
         }
     ],
     [
-        {  
-            "out_classes": 1, 
+        {
+            "out_classes": 1,
             "mode": HoverNet.Mode.ORIGINAL
         }
     ],
     [
-        {  
-            "out_classes": 6, 
+        {
+            "out_classes": 6,
             "mode": HoverNet.Mode.ORIGINAL,
             "dropout_prob": 100
         }
@@ -106,7 +105,7 @@ class TestHoverNet(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             for item in result:
                 self.assertEqual(result[item].shape, expected_shapes[item])
-                
+
 
     def test_script(self):
         net = HoverNet(mode=HoverNet.Mode.FAST)
