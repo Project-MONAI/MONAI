@@ -14,8 +14,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import BorderPadd
-from monai.utils import NumpyPadMode
-from monai.utils.enums import PytorchPadMode
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.padders import PadTest
 
 TESTS = [
