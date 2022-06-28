@@ -43,7 +43,7 @@ from .efficientnet import (
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
-from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet, hovernet
+from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor

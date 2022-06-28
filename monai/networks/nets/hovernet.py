@@ -40,7 +40,7 @@ from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode, export
 
-__all__ = ["HoverNet", "hovernet", "Hovernet", "HoVernet", "HoVerNet"]
+__all__ = ["HoverNet", "Hovernet", "HoVernet", "HoVerNet"]
 
 
 class _DenseLayerDecoder(nn.Module):
@@ -533,4 +533,4 @@ class HoverNet(nn.Module):
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
 
 
-hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
+Hovernet = HoVernet = HoVerNet = HoverNet
