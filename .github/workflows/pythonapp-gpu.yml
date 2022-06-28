@@ -34,7 +34,7 @@ jobs:
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT18+CUDA102
             # pytorch 1.8.2 LTS
-            pytorch: "torch==1.8.2 torchvision==0.9.2"
+            pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT18+CUDA112
             # we explicitly set pytorch to -h to avoid pip install error
