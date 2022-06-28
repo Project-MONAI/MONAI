@@ -160,11 +160,11 @@ class Pad(InvertibleTransform):
         else:
             out = img_t
         if get_track_meta():
-            self._update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
+            self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
             self.push_transform(out, extra_info={"padded": to_pad_})
         return out
 
-    def _update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
+    def update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
@@ -210,7 +210,7 @@ class SpatialPad(Pad):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
@@ -298,7 +298,7 @@ class DivisiblePad(Pad):
     def __init__(
         self,
         k: Union[Sequence[int], int],
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
@@ -402,14 +402,14 @@ class Crop(InvertibleTransform):
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
         img_t = img_t[slices]  # type: ignore
         if get_track_meta():
-            self._update_meta(tensor=img_t, slices=slices)
+            self.update_meta(tensor=img_t, slices=slices)
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
             cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
             self.push_transform(img_t, extra_info={"cropped": cropped})
         return img_t
 
-    def _update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):
+    def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
         mat = create_translate(spatial_rank, to_shift)
@@ -1244,7 +1244,7 @@ class ResizeWithPadOrCrop(InvertibleTransform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):

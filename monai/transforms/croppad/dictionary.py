@@ -168,7 +168,7 @@ class SpatialPadd(Padd):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -260,7 +260,7 @@ class DivisiblePadd(Padd):
         keys: KeysCollection,
         k: Union[Sequence[int], int],
         mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -1042,7 +1042,7 @@ class ResizeWithPadOrCropd(Padd):
         spatial_size: Union[Sequence[int], int],
         mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
         **pad_kwargs,
     ) -> None:
         padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
