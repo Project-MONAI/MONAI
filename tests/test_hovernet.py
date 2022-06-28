@@ -31,13 +31,13 @@ TEST_CASE_0 = [  # fast mode, batch 16
 ]
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
-    {"out_classes": None, "mode": HoverNet.Mode.FAST},
+    {"mode": HoverNet.Mode.FAST},
     (1, 3, 256, 256),
     {"nucleus_prediction": (1, 2, 164, 164), "horizonal_vertical": (1, 2, 164, 164)},
 ]
 
 TEST_CASE_2 = [  # single channel 3D, batch 16
-    {"out_classes": None, "mode": HoverNet.Mode.ORIGINAL},
+    {"mode": HoverNet.Mode.ORIGINAL},
     (1, 3, 270, 270),
     {"nucleus_prediction": (1, 2, 80, 80), "horizonal_vertical": (1, 2, 80, 80)},
 ]
@@ -49,7 +49,7 @@ TEST_CASE_3 = [  # 4-channel 3D, batch 16
 ]
 
 TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
-    {"out_classes": None, "mode": HoverNet.Mode.FAST, "dropout_prob": 0.5},
+    {"mode": HoverNet.Mode.FAST, "dropout_prob": 0.5},
     (1, 3, 256, 256),
     {"nucleus_prediction": (1, 2, 164, 164), "horizonal_vertical": (1, 2, 164, 164)},
 ]

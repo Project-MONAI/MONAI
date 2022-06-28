@@ -30,7 +30,7 @@
 
 from collections import OrderedDict
 from enum import Enum
-from typing import Callable, Dict, List, Sequence, Union
+from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -328,15 +328,15 @@ class _DecoderBranch(nn.ModuleList):
         self.output_features = nn.Sequential()
         _i = len(decode_config)
         _pad_size = (kernel_size - 1) // 2
-        block = nn.Sequential(
+        _seq_block = nn.Sequential(
             OrderedDict(
                 [("conva", conv_type(256, 64, kernel_size=kernel_size, stride=1, bias=False, padding=_pad_size))]
             )
         )
 
-        self.output_features.add_module(f"decoderblock{_i + 1}", block)
+        self.output_features.add_module(f"decoderblock{_i + 1}", _seq_block)
 
-        block = nn.Sequential(
+        _seq_block = nn.Sequential(
             OrderedDict(
                 [
                     ("norm", get_norm_layer(name=norm, spatial_dims=2, channels=64)),
@@ -346,7 +346,7 @@ class _DecoderBranch(nn.ModuleList):
             )
         )
 
-        self.output_features.add_module(f"decoderblock{_i + 2}", block)
+        self.output_features.add_module(f"decoderblock{_i + 2}", _seq_block)
 
         self.upsample = UpSample(
             2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
@@ -400,9 +400,9 @@ class HoverNet(nn.Module):
 
     def __init__(
         self,
-        mode: int = Mode.FAST,
+        mode: Mode = Mode.FAST,
         in_channels: int = 3,
-        out_classes: int = None,
+        out_classes: int = 0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         dropout_prob: float = 0.0,
@@ -415,14 +415,10 @@ class HoverNet(nn.Module):
         if mode not in [self.Mode.ORIGINAL, self.Mode.FAST]:
             raise ValueError("Input size should be 270 x 270 when using Mode.ORIGINAL")
 
-        if out_classes == 0:
-            out_classes = None
-
-        if out_classes:
-            if out_classes > 128:
-                raise ValueError("Number of nuclear types classes exceeds maximum (128)")
-            elif out_classes == 1:
-                raise ValueError("Number of nuclear type classes should either be None or >1")
+        if out_classes > 128:
+            raise ValueError("Number of nuclear types classes exceeds maximum (128)")
+        elif out_classes == 1:
+            raise ValueError("Number of nuclear type classes should either be None or >1")
 
         if dropout_prob > 1 or dropout_prob < 0:
             raise ValueError("Dropout can only be in the range 0.0 to 1.0")
@@ -439,7 +435,7 @@ class HoverNet(nn.Module):
             _ksize = 5
             _pad = 0
 
-        conv_type: Callable = Conv[Conv.CONV, 2]
+        conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
         self.input_features = nn.Sequential(
             OrderedDict(
@@ -488,11 +484,10 @@ class HoverNet(nn.Module):
         # decode branches
         self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize)
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
+        self.type_prediction: _DecoderBranch = None # type: ignore 
 
-        if out_classes:
-            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)
-        else:
-            self.type_prediction = None
+        if out_classes > 0:
+            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)  
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -525,8 +520,9 @@ class HoverNet(nn.Module):
 
         x_np = self.nucleus_prediction(x, short_cuts)
         x_hv = self.horizontal_vertical(x, short_cuts)
+        tp = self.type_prediction
 
-        if self.type_prediction is not None:
+        if tp is not None:
             x_tp = self.type_prediction(x, short_cuts)
             return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
 
