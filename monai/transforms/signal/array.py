@@ -432,7 +432,6 @@ class SignalRandAddSinePartial(RandomizableTransform):
 
         return signal
 
-
 class SignalRandAddGaussianNoise(RandomizableTransform):
     """
     Add a random gaussian noise to the input signal
