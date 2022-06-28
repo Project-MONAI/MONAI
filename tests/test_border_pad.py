@@ -11,45 +11,32 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import BorderPad
-from monai.utils import NumpyPadMode
-from tests.utils import TEST_NDARRAYS_ALL
+from monai.utils.enums import NumpyPadMode, PytorchPadMode
+from tests.padders import PadTest
 
-TEST_CASE_1 = [{"spatial_border": 2, "mode": "constant"}, np.zeros((3, 8, 8, 4)), np.zeros((3, 12, 12, 8))]
-
-TEST_CASE_2 = [{"spatial_border": [1, 2, 3], "mode": "constant"}, np.zeros((3, 8, 8, 4)), np.zeros((3, 10, 12, 10))]
-
-TEST_CASE_3 = [
-    {"spatial_border": [1, 2, 3, 4, 5, 6], "mode": "constant"},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 11, 15, 15)),
-]
-
-TEST_CASE_4 = [
-    {"spatial_border": [1, 2, 3, 4, 5, 6], "mode": NumpyPadMode.CONSTANT},
-    np.zeros((3, 8, 8, 4)),
-    np.zeros((3, 11, 15, 15)),
+TESTS = [
+    [{"spatial_border": 2}, (3, 8, 8, 4), (3, 12, 12, 8)],
+    [{"spatial_border": [1, 2, 3]}, (3, 8, 8, 4), (3, 10, 12, 10)],
+    [{"spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
+    [{"spatial_border": [1, 2, 3, 4, 5, 6]}, (3, 8, 8, 4), (3, 11, 15, 15)],
 ]
 
 
-class TestBorderPad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_pad_shape(self, input_param, input_data, expected_val):
-        for p in TEST_NDARRAYS_ALL:
-            padder = BorderPad(**input_param)
-            r1 = padder(p(input_data))
-            r2 = padder(input_data, mode=input_param["mode"])
-            self.assertAlmostEqual(r1.shape, expected_val.shape)
-            self.assertAlmostEqual(r2.shape, expected_val.shape)
+class TestBorderPad(PadTest):
+    Padder = BorderPad
+
+    @parameterized.expand(TESTS)
+    def test_pad(self, input_param, input_shape, expected_shape):
+        modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT]
+        self.pad_test(input_param, input_shape, expected_shape, modes)
 
     def test_pad_kwargs(self):
-        padder = BorderPad(spatial_border=2, mode="constant", constant_values=((0, 0), (1, 1), (2, 2)))
-        result = padder(np.zeros((3, 8, 4)))
-        np.testing.assert_allclose(result[:, :2, 2:6], np.ones((3, 2, 4)))
-        np.testing.assert_allclose(result[:, :, :2], np.ones((3, 12, 2)) + 1)
+        kwargs = {"spatial_border": 2, "mode": "constant"}
+        unchanged_slices = [slice(None), slice(2, -2), slice(2, -2)]
+        self.pad_test_kwargs(unchanged_slices, **kwargs)
 
 
 if __name__ == "__main__":

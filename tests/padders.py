@@ -75,7 +75,8 @@ class PadTest(unittest.TestCase):
                                 # check results are same regardless of input type
                                 if base_comparison is None:
                                     base_comparison = r_im
-                                torch.testing.assert_allclose(r_im, base_comparison, atol=0, rtol=1e-5)
+                                else:
+                                    assert_allclose(r_im, base_comparison)
                                 # test inverse
                                 if isinstance(r_im, MetaTensor):
                                     r_out = padder.inverse(r_out)
