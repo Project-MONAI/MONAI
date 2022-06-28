@@ -21,79 +21,46 @@ from tests.utils import test_script_save
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_0 = [  # fast mode, batch 16
-    {
-        "out_classes":5,
-        "mode": HoverNet.Mode.FAST
-    },
+    {"out_classes": 5, "mode": HoverNet.Mode.FAST},
     (16, 3, 256, 256),
-    {"nucleus_prediction":(16, 2, 164, 164),"type_prediction":(16, 5, 164, 164),"horizonal_vertical":(16, 2, 164, 164)}
+    {
+        "nucleus_prediction": (16, 2, 164, 164),
+        "type_prediction": (16, 5, 164, 164),
+        "horizonal_vertical": (16, 2, 164, 164),
+    },
 ]
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
-    {
-        "out_classes": None,
-        "mode": HoverNet.Mode.FAST
-    },
+    {"out_classes": None, "mode": HoverNet.Mode.FAST},
     (16, 3, 256, 256),
-    {"nucleus_prediction":(16, 2, 164, 164),"horizonal_vertical":(16, 2, 164, 164)}
+    {"nucleus_prediction": (16, 2, 164, 164), "horizonal_vertical": (16, 2, 164, 164)},
 ]
 
 TEST_CASE_2 = [  # single channel 3D, batch 16
-    {
-        "out_classes": None,
-        "mode": HoverNet.Mode.ORIGINAL
-    },
+    {"out_classes": None, "mode": HoverNet.Mode.ORIGINAL},
     (16, 3, 270, 270),
-    {"nucleus_prediction":(16, 2, 80, 80),"horizonal_vertical":(16, 2, 80, 80)}
+    {"nucleus_prediction": (16, 2, 80, 80), "horizonal_vertical": (16, 2, 80, 80)},
 ]
 
 TEST_CASE_3 = [  # 4-channel 3D, batch 16
-    {
-        "out_classes": 6,
-        "mode": HoverNet.Mode.ORIGINAL
-    },
+    {"out_classes": 6, "mode": HoverNet.Mode.ORIGINAL},
     (16, 3, 270, 270),
-    {"nucleus_prediction":(16, 2, 80, 80),"type_prediction":(16, 6, 80, 80),"horizonal_vertical":(16, 2, 80, 80)}
+    {"nucleus_prediction": (16, 2, 80, 80), "type_prediction": (16, 6, 80, 80), "horizonal_vertical": (16, 2, 80, 80)},
 ]
 
 TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
-    {
-        "out_classes": None,
-        "mode": HoverNet.Mode.FAST,
-        "dropout_prob": 0.5
-    },
+    {"out_classes": None, "mode": HoverNet.Mode.FAST, "dropout_prob": 0.5},
     (16, 3, 256, 256),
-    {"nucleus_prediction":(16, 2, 164, 164),"horizonal_vertical":(16, 2, 164, 164)},
+    {"nucleus_prediction": (16, 2, 164, 164), "horizonal_vertical": (16, 2, 164, 164)},
 ]
 
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4]
 
 ILL_CASES = [
-    [
-        {
-            "out_classes": 6,
-            "mode": 3
-        }
-    ],
-    [
-        {
-            "out_classes": 1000,
-            "mode": HoverNet.Mode.ORIGINAL
-        }
-    ],
-    [
-        {
-            "out_classes": 1,
-            "mode": HoverNet.Mode.ORIGINAL
-        }
-    ],
-    [
-        {
-            "out_classes": 6,
-            "mode": HoverNet.Mode.ORIGINAL,
-            "dropout_prob": 100
-        }
-    ],
+    [{"out_classes": 6, "mode": 3}],
+    [{"out_classes": 1000, "mode": HoverNet.Mode.ORIGINAL}],
+    [{"out_classes": 1, "mode": HoverNet.Mode.ORIGINAL}],
+    [{"out_classes": 6, "mode": HoverNet.Mode.ORIGINAL, "dropout_prob": 100}],
 ]
 
 
@@ -105,7 +72,6 @@ class TestHoverNet(unittest.TestCase):
             result = net.forward(torch.randn(input_shape).to(device))
             for item in result:
                 self.assertEqual(result[item].shape, expected_shapes[item])
-
 
     def test_script(self):
         net = HoverNet(mode=HoverNet.Mode.FAST)
@@ -130,4 +96,4 @@ class TestHoverNet(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(argv=['first-arg-is-ignored'], exit=False)
+    unittest.main(argv=["first-arg-is-ignored"], exit=False)
