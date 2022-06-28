@@ -71,29 +71,13 @@ class _DenseLayerDecoder(nn.Module):
 
         self.layers = nn.Sequential()
 
-        self.layers.add_module(
-            "preact_bna/bn",
-            get_norm_layer(name=norm, spatial_dims=2, channels=in_channels),
-        )
+        self.layers.add_module("preact_bna/bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.layers.add_module("preact_bna/relu", get_act_layer(name=act))
-        self.layers.add_module(
-            "conv1", conv_type(in_channels, num_features, kernel_size=1, bias=False)
-        )
-        self.layers.add_module(
-            "conv1/norm",
-            get_norm_layer(name=norm, spatial_dims=2, channels=num_features),
-        )
+        self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, bias=False))
+        self.layers.add_module("conv1/norm", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("conv1/relu2", get_act_layer(name=act))
         self.layers.add_module(
-            "conv2",
-            conv_type(
-                num_features,
-                out_channels,
-                kernel_size=kernel_size,
-                padding=0,
-                groups=4,
-                bias=False,
-            ),
+            "conv2", conv_type(num_features, out_channels, kernel_size=kernel_size, padding=0, groups=4, bias=False)
         )
 
         if dropout_prob > 0:
@@ -139,32 +123,19 @@ class _DecoderBlock(nn.Sequential):
 
         conv_type: Callable = Conv[Conv.CONV, 2]
 
-        self.add_module(
-            "conva",
-            conv_type(
-                in_channels, in_channels // 4, kernel_size=kernel_size, bias=False
-            ),
-        )
+        self.add_module("conva", conv_type(in_channels, in_channels // 4, kernel_size=kernel_size, bias=False))
 
         _in_channels = in_channels // 4
         for i in range(layers):
             layer = _DenseLayerDecoder(
-                num_features,
-                _in_channels,
-                out_channels,
-                dropout_prob,
-                act=act,
-                norm=norm,
-                kernel_size=kernel_size,
+                num_features, _in_channels, out_channels, dropout_prob, act=act, norm=norm, kernel_size=kernel_size
             )
             _in_channels += out_channels
             self.add_module("denselayerdecoder%d" % (i + 1), layer)
 
         trans = _Transition(_in_channels, act=act, norm=norm)
         self.add_module(f"bna_block", trans)
-        self.add_module(
-            "convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False)
-        )
+        self.add_module("convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False))
 
 
 class _DenseLayer(nn.Sequential):
@@ -203,49 +174,23 @@ class _DenseLayer(nn.Sequential):
         dropout_type: Callable = Dropout[Dropout.DROPOUT, 2]
 
         if not drop_first_norm_relu:
-            self.layers.add_module(
-                "preact_norm",
-                get_norm_layer(name=norm, spatial_dims=2, channels=in_channels),
-            )
+            self.layers.add_module("preact_norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
             self.layers.add_module("preact_relu", get_act_layer(name=act))
 
-        self.layers.add_module(
-            "conv1",
-            conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False),
-        )
-        self.layers.add_module(
-            "norm2", get_norm_layer(name=norm, spatial_dims=2, channels=num_features)
-        )
+        self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False))
+        self.layers.add_module("norm2", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("relu2", get_act_layer(name=act))
 
         if in_channels != 64 and drop_first_norm_relu:
             self.layers.add_module(
-                "conv2",
-                conv_type(
-                    num_features,
-                    num_features,
-                    kernel_size=kernel_size,
-                    stride=2,
-                    padding=2,
-                    bias=False,
-                ),
+                "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, stride=2, padding=2, bias=False)
             )
         else:
-            self.layers.add_module(
-                "conv2",
-                conv_type(
-                    num_features, num_features, kernel_size=1, padding=0, bias=False
-                ),
-            )
+            self.layers.add_module("conv2", conv_type(num_features, num_features, kernel_size=1, padding=0, bias=False))
 
-        self.layers.add_module(
-            "norm3", get_norm_layer(name=norm, spatial_dims=2, channels=num_features)
-        )
+        self.layers.add_module("norm3", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("relu3", get_act_layer(name=act))
-        self.layers.add_module(
-            "conv3",
-            conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False),
-        )
+        self.layers.add_module("conv3", conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False))
 
         if dropout_prob > 0:
             self.layers.add_module("dropout", dropout_type(dropout_prob))
@@ -253,10 +198,7 @@ class _DenseLayer(nn.Sequential):
 
 class _Transition(nn.Sequential):
     def __init__(
-        self,
-        in_channels: int,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        self, in_channels: int, act: Union[str, tuple] = ("relu", {"inplace": True}), norm: Union[str, tuple] = "batch"
     ) -> None:
         """
         Args:
@@ -268,9 +210,7 @@ class _Transition(nn.Sequential):
 
         conv_type: Callable = Conv[Conv.CONV, 2]
 
-        self.add_module(
-            "norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels)
-        )
+        self.add_module("norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.add_module("relu", get_act_layer(name=act))
 
 
@@ -307,39 +247,17 @@ class _ResidualBlock(nn.Module):
         conv_type: Callable = Conv[Conv.CONV, 2]
 
         if in_channels == 64:
-            self.shortcut = conv_type(
-                in_channels, out_channels, kernel_size=1, bias=False
-            )
+            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, bias=False)
         else:
-            self.shortcut = conv_type(
-                in_channels,
-                out_channels,
-                kernel_size=1,
-                stride=2,
-                padding=1,
-                bias=False,
-            )
+            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, stride=2, padding=1, bias=False)
 
         layer = _DenseLayer(
-            num_features,
-            in_channels,
-            out_channels,
-            dropout_prob,
-            act=act,
-            norm=norm,
-            drop_first_norm_relu=True,
+            num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
         )
         self.layers.add_module("prim_denselayer%d" % (1), layer)
 
         for i in range(1, layers):
-            layer = _DenseLayer(
-                num_features,
-                out_channels,
-                out_channels,
-                dropout_prob,
-                act=act,
-                norm=norm,
-            )
+            layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
             self.layers.add_module("main_denselayer%d" % (i + 1), layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
@@ -413,19 +331,7 @@ class _DecoderBranch(nn.ModuleList):
         _pad_size = (kernel_size - 1) // 2
         block = nn.Sequential(
             OrderedDict(
-                [
-                    (
-                        "conva",
-                        conv_type(
-                            256,
-                            64,
-                            kernel_size=kernel_size,
-                            stride=1,
-                            bias=False,
-                            padding=_pad_size,
-                        ),
-                    )
-                ]
+                [("conva", conv_type(256, 64, kernel_size=kernel_size, stride=1, bias=False, padding=_pad_size))]
             )
         )
 
@@ -444,16 +350,10 @@ class _DecoderBranch(nn.ModuleList):
         self.output_features.add_module(f"decoderblock{_i + 2}", block)
 
         self.upsample = UpSample(
-            2,
-            scale_factor=2,
-            mode=UpsampleMode.NONTRAINABLE,
-            interp_mode=InterpolateMode.BILINEAR,
-            bias=False,
+            2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
         )
 
-    def forward(
-        self, xin: torch.Tensor, short_cuts: List[torch.Tensor]
-    ) -> torch.Tensor:
+    def forward(self, xin: torch.Tensor, short_cuts: List[torch.Tensor]) -> torch.Tensor:
 
         block_number = len(short_cuts) - 1
         x = xin + short_cuts[block_number]
@@ -521,13 +421,9 @@ class HoverNet(nn.Module):
 
         if out_classes:
             if out_classes > 128:
-                raise ValueError(
-                    "Number of nuclear types classes exceeds maximum (128)"
-                )
+                raise ValueError("Number of nuclear types classes exceeds maximum (128)")
             elif out_classes == 1:
-                raise ValueError(
-                    "Number of nuclear type classes should either be None or >1"
-                )
+                raise ValueError("Number of nuclear type classes should either be None or >1")
 
         if dropout_prob > 1 or dropout_prob < 0:
             raise ValueError("Dropout can only be in the range 0.0 to 1.0")
@@ -551,21 +447,9 @@ class HoverNet(nn.Module):
                 [
                     (
                         "conv0",
-                        conv_type(
-                            in_channels,
-                            _init_features,
-                            kernel_size=7,
-                            stride=1,
-                            padding=_pad,
-                            bias=False,
-                        ),
+                        conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
                     ),
-                    (
-                        "norm0",
-                        get_norm_layer(
-                            name=norm, spatial_dims=2, channels=_init_features
-                        ),
-                    ),
+                    ("norm0", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
                     ("relu0", get_act_layer(name=act)),
                 ]
             )
@@ -596,22 +480,10 @@ class HoverNet(nn.Module):
         # bottleneck convolution
         self.bottleneck = nn.Sequential()
         self.bottleneck.add_module(
-            "conv_bottleneck",
-            conv_type(
-                _in_channels,
-                _num_features,
-                kernel_size=1,
-                stride=1,
-                padding=0,
-                bias=False,
-            ),
+            "conv_bottleneck", conv_type(_in_channels, _num_features, kernel_size=1, stride=1, padding=0, bias=False)
         )
         self.upsample = UpSample(
-            2,
-            scale_factor=2,
-            mode=UpsampleMode.NONTRAINABLE,
-            interp_mode=InterpolateMode.BILINEAR,
-            bias=False,
+            2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
         )
 
         # decode branches
@@ -619,9 +491,7 @@ class HoverNet(nn.Module):
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
 
         if out_classes:
-            self.type_prediction = _DecoderBranch(
-                out_channels=out_classes, kernel_size=_ksize
-            )
+            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)
         else:
             self.type_prediction = None
 
@@ -636,9 +506,7 @@ class HoverNet(nn.Module):
 
         if self.mode == 1:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
-                raise ValueError(
-                    "Input size should be 270 x 270 when using Mode.ORIGINAL"
-                )
+                raise ValueError("Input size should be 270 x 270 when using Mode.ORIGINAL")
         else:
             if x.shape[-1] != 256 or x.shape[-2] != 256:
                 raise ValueError("Input size should be 256 x 256 when using Mode.FAST")
@@ -661,10 +529,6 @@ class HoverNet(nn.Module):
 
         if not self.type_prediction is None:
             x_tp = self.type_prediction(x, short_cuts)
-            return {
-                "nucleus_prediction": x_np,
-                "horizonal_vertical": x_hv,
-                "type_prediction": x_tp,
-            }
+            return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
