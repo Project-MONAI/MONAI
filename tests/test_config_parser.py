@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
-from monai.bundle.config_item import ConfigExpression, ConfigItem
+from monai.bundle.config_item import ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
