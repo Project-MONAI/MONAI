@@ -18,23 +18,23 @@ from parameterized import parameterized
 from monai.transforms import SignalRandDrop
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [(1, [0, 1]), (0.5, [0.01, 0.1])]
+VALID_CASES = [([0, 1],), ([0.01, 0.1],)]
 
 
 class TestSignalRandDrop(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_multi_channels(self, v, boundaries):
-        self.assertIsInstance(SignalRandDrop(v, boundaries), SignalRandDrop)
+    def test_correct_parameters_multi_channels(self, boundaries):
+        self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)
         sig = np.load(TEST_SIGNAL)
-        droped = SignalRandDrop(v, boundaries)
+        droped = SignalRandDrop(boundaries)
         dropedsignal = droped(sig)
         self.assertEqual(dropedsignal.shape[1], sig.shape[1])
 
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, v, boundaries):
-        self.assertIsInstance(SignalRandDrop(v, boundaries), SignalRandDrop)
+    def test_correct_parameters_mono_channels(self, boundaries):
+        self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)
         sig = np.load(TEST_SIGNAL)[0, :]
-        droped = SignalRandDrop(v, boundaries)
+        droped = SignalRandDrop(boundaries)
         dropedsignal = droped(sig)
         self.assertEqual(dropedsignal.shape[1], len(sig))
 

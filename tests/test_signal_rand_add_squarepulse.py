@@ -21,24 +21,24 @@ from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [(1, [0, 1], [0.001, 0.2])]
+VALID_CASES = [([0, 1], [0.001, 0.2])]
 
 
 @skipUnless(has_scipy, "scipy required")
 class TestSignalRandDrop(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_multi_channels(self, v, boundaries, frequencies):
-        self.assertIsInstance(SignalRandAddSquarePulse(v, boundaries, frequencies), SignalRandAddSquarePulse)
+    def test_correct_parameters_multi_channels(self, boundaries, frequencies):
+        self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)
         sig = np.load(TEST_SIGNAL)
-        squared = SignalRandAddSquarePulse(v, boundaries, frequencies)
+        squared = SignalRandAddSquarePulse(boundaries, frequencies)
         squaredsignal = squared(sig)
         self.assertEqual(squaredsignal.shape[1], sig.shape[1])
 
     @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, v, boundaries, frequencies):
-        self.assertIsInstance(SignalRandAddSquarePulse(v, boundaries, frequencies), SignalRandAddSquarePulse)
+    def test_correct_parameters_mono_channels(self, boundaries, frequencies):
+        self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)
         sig = np.load(TEST_SIGNAL)[0, :]
-        squared = SignalRandAddSquarePulse(v, boundaries, frequencies)
+        squared = SignalRandAddSquarePulse(boundaries, frequencies)
         squaredsignal = squared(sig)
         self.assertEqual(squaredsignal.shape[1], len(sig))
 
