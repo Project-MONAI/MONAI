@@ -18,7 +18,8 @@
 # Origial publication:
 #  @article{graham2019hover,
 #    title={Hover-net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images},
-#    author={Graham, Simon and Vu, Quoc Dang and Raza, Shan E Ahmed and Azam, Ayesha and Tsang, Yee Wah and Kwak, Jin Tae and Rajpoot, Nasir},
+#    author={Graham, Simon and Vu, Quoc Dang and Raza, Shan E Ahmed and Azam, Ayesha and Tsang, Yee Wah and Kwak,
+#            Jin Tae and Rajpoot, Nasir},
 #    journal={Medical Image Analysis},
 #    pages={101563},
 #    year={2019},
@@ -134,7 +135,7 @@ class _DecoderBlock(nn.Sequential):
             self.add_module("denselayerdecoder%d" % (i + 1), layer)
 
         trans = _Transition(_in_channels, act=act, norm=norm)
-        self.add_module(f"bna_block", trans)
+        self.add_module("bna_block", trans)
         self.add_module("convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False))
 
 
@@ -207,8 +208,6 @@ class _Transition(nn.Sequential):
             norm: feature normalization type and arguments. Defaults to batch norm.
         """
         super().__init__()
-
-        conv_type: Callable = Conv[Conv.CONV, 2]
 
         self.add_module("norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.add_module("relu", get_act_layer(name=act))
@@ -532,3 +531,6 @@ class HoverNet(nn.Module):
             return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
 
         return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
+
+
+hovernet = Hovernet = HoVernet = HoVerNet = HoverNet
