@@ -12,41 +12,36 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor
 from monai.transforms import CenterSpatialCrop
+from tests.croppers import CropTest
 
-TEST_CASE_0 = [{"roi_size": [2, 2, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 3)]
-
-TEST_CASE_1 = [{"roi_size": [2, 2, 2]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
-
-TEST_CASE_2 = [
-    {"roi_size": [2, 2]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2], [2, 3]]]),
+TEST_SHAPES = [
+    [{"roi_size": [2, 2, -1]}, (3, 3, 3, 3), (3, 2, 2, 3)],
+    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"roi_size": [2, 2, 2]}, (3, 3, 3, 3), (3, 2, 2, 2)],
 ]
 
-TEST_CASE_3 = [
-    {"roi_size": [2, 2, 2]},
-    torch.randint(0, 2, size=[3, 3, 3, 3], device="cuda" if torch.cuda.is_available() else "cpu"),
-    (3, 2, 2, 2),
+TEST_VALUES = [
+    [
+        {"roi_size": [2, 2]},
+        np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+        np.array([[[1, 2], [2, 3]]]),
+    ]
 ]
 
 
-class TestCenterSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3])
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = CenterSpatialCrop(**input_param)(input_data)
-        self.assertTrue(isinstance(result, MetaTensor))
-        np.testing.assert_allclose(result.shape, expected_shape)
+class TestCenterSpatialCrop(CropTest):
+    Cropper = CenterSpatialCrop
 
-    @parameterized.expand([TEST_CASE_2])
-    def test_value(self, input_param, input_data, expected_value):
-        result = CenterSpatialCrop(**input_param)(input_data)
-        self.assertTrue(isinstance(result, MetaTensor))
-        np.testing.assert_allclose(result, expected_value)
+    @parameterized.expand(TEST_SHAPES)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        self.crop_test(input_param, input_shape, expected_shape)
+
+    @parameterized.expand(TEST_VALUES)
+    def test_value(self, input_param, input_arr, expected_arr):
+        self.crop_test_value(input_param, input_arr, expected_arr)
 
 
 if __name__ == "__main__":

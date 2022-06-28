@@ -370,7 +370,7 @@ class Crop(InvertibleTransform):
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
                 roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
                 _zeros = torch.zeros_like(roi_center_t)
-                roi_start_t = torch.maximum(roi_center_t - torch.floor_divide(roi_size_t, 2), _zeros)
+                roi_start_t = torch.maximum(roi_center_t - torch.div(roi_size_t, 2, rounding_mode="floor"), _zeros)
                 roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
             else:
                 if roi_start is None or roi_end is None:
