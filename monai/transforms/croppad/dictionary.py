@@ -107,8 +107,6 @@ __all__ = [
     "RandCropByLabelClassesDict",
 ]
 
-DEFAULT_POST_FIX = PostFix.meta()
-
 
 class Padd(MapTransform, InvertibleTransform):
     """
@@ -580,7 +578,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = PostFix.meta(),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -718,7 +716,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = PostFix.meta(),
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -797,8 +795,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
         allow_missing_keys: don't raise exception if key is missing.
-        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
-        super().__init__(keys, padder=padcropper, mg`` are negative.
+
+    Raises:
+        ValueError: When ``pos`` or ``neg`` are negative.
         ValueError: When ``pos=0`` and ``neg=0``. Incompatible values.
 
     """
@@ -818,7 +817,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = PostFix.meta(),
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -962,7 +961,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         image_threshold: float = 0.0,
         indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = PostFix.meta(),
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
