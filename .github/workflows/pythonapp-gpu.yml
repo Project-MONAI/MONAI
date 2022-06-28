@@ -46,9 +46,9 @@ jobs:
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT111+CUDA116
             # we explicitly set pytorch to -h to avoid pip install error
-            # 22.04: 1.12.0a0+bd13bc6
+            # 22.05: 1.12.0a0+8a1a93a
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.04-py3"
+            base: "nvcr.io/nvidia/pytorch:22.05-py3"
           - environment: PT110+CUDA102
             pytorch: "torch==1.10.2 torchvision==0.11.3"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
