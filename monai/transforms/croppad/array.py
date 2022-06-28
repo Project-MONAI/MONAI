@@ -298,8 +298,8 @@ class DivisiblePad(Pad):
     def __init__(
         self,
         k: Union[Sequence[int], int],
-        method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
+        method: str = Method.SYMMETRIC,
         **kwargs,
     ) -> None:
         """
@@ -307,14 +307,14 @@ class DivisiblePad(Pad):
             k: the target k for each spatial dimension.
                 if `k` is negative or 0, the original size is preserved.
                 if `k` is an int, the same `k` be applied to all the input spatial dimensions.
-            method: {``"symmetric"``, ``"end"``}
-                Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            method: {``"symmetric"``, ``"end"``}
+                Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
