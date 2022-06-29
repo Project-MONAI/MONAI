@@ -2667,7 +2667,7 @@ class GridPatch(Transform):
     Args:
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: offset of starting position in the array, default is 0 for each dimension.
-        num_patches: number of patches to return. Defaults to None, which returns all the available patches. 
+        num_patches: number of patches to return. Defaults to None, which returns all the available patches.
             If the required patches are more than the available patches, padding will be applied.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
