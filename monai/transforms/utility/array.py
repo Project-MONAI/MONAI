@@ -334,7 +334,7 @@ class SplitDim(Transform):
                 shift = torch.eye(ndim, device=item.affine.device, dtype=item.affine.dtype)
                 shift[self.dim - 1, -1] = idx
                 item.affine = item.affine @ shift
-        return outputs
+        return outputs  # type: ignore
 
 
 @deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
