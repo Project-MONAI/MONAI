@@ -112,7 +112,6 @@ class TestRotate3D(NumpyImageTestCase3D):
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
         test_local_inversion(rotate_fn, rotated, im)
 
-
     def test_ill_case(self):
         for p in TEST_NDARRAYS_ALL:
             rotate_fn = Rotate(10, True)

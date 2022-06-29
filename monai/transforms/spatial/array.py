@@ -1189,8 +1189,7 @@ class Zoom(InvertibleTransform):
             padcrop_xform = transform[TraceKeys.EXTRA_INFO]["padcrop"]
             padcrop_xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
             padcrop_xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
-            data.applied_operations.append(padcrop_xform)  # type: ignore
-            data = pad_or_crop.inverse(data)  # type: ignore
+            data = pad_or_crop.inverse_transform(data, padcrop_xform)  # type: ignore
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
