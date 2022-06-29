@@ -58,11 +58,6 @@ class TestInvertd(unittest.TestCase):
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64),
                 RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
                 ResizeWithPadOrCropd(KEYS, 100),
-                # test EnsureTensor for complicated dict data and invert it
-                # CopyItemsd(PostFix.meta("image"), times=1, names="test_dict"),
-                # test to support Tensor, Numpy array and dictionary when inverting
-                # EnsureTyped(keys=["image", "test_dict"]),
-                # ToTensord("image"),
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
                 CopyItemsd("label", times=2, names=["label_inverted", "label_inverted1"]),
                 CopyItemsd("image", times=2, names=["image_inverted", "image_inverted1"]),

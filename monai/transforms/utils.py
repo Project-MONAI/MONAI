@@ -1243,7 +1243,10 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
             t.allow_missing_keys = o_s
 
 
-def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
+_interp_modes = list(InterpolateMode) + list(GridSampleMode)
+
+
+def convert_inverse_interp_mode(trans_info, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
     Change the interpolation mode when inverting spatial transforms, default to "nearest".
     This function modifies trans_info's `TraceKeys.EXTRA_INFO`.
@@ -1256,24 +1259,27 @@ def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_c
         align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
 
     """
-    interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
-
-    # set to string for DataLoader collation
-    align_corners_ = TraceKeys.NONE if align_corners is None else align_corners
-
-    for item in ensure_tuple(trans_info):
-        if TraceKeys.EXTRA_INFO in item:
-            orig_mode = item[TraceKeys.EXTRA_INFO].get("mode", None)
-            if orig_mode is not None:
-                if orig_mode[0] in interp_modes:
-                    item[TraceKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
-                elif orig_mode in interp_modes:
-                    item[TraceKeys.EXTRA_INFO]["mode"] = mode
-            if "align_corners" in item[TraceKeys.EXTRA_INFO]:
-                if issequenceiterable(item[TraceKeys.EXTRA_INFO]["align_corners"]):
-                    item[TraceKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
-                else:
-                    item[TraceKeys.EXTRA_INFO]["align_corners"] = align_corners_
+    if isinstance(trans_info, (list, tuple)):
+        return [convert_inverse_interp_mode(x, mode=mode, align_corners=align_corners) for x in trans_info]
+    if not isinstance(trans_info, Mapping):
+        return trans_info
+    trans_info = dict(trans_info)
+    if "mode" in trans_info:
+        current_mode = trans_info["mode"]
+        if current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
+        elif current_mode in _interp_modes:
+            trans_info["mode"] = mode
+    if "align_corners" in trans_info:
+        _align_corners = TraceKeys.NONE if align_corners is None else align_corners
+        current_value = trans_info["align_corners"]
+        trans_info["align_corners"] = (
+            [_align_corners for _ in mode] if issequenceiterable(current_value) else _align_corners
+        )
+    if ("mode" not in trans_info) and ("align_corners" not in trans_info):
+        return {
+            k: convert_inverse_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
+        }
     return trans_info
 
 
