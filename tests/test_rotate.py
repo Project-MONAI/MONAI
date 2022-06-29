@@ -103,15 +103,15 @@ class TestRotate3D(NumpyImageTestCase3D):
     def test_correct_shape(self, im_type, angle, mode, padding_mode, align_corners):
         rotate_fn = Rotate(angle, True, align_corners=align_corners, dtype=np.float64)
         im = im_type(self.imt[0])
+        set_track_meta(False)
+        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
+        self.assertNotIsInstance(rotated, MetaTensor)
+        np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
         set_track_meta(True)
         rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
         np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
         test_local_inversion(rotate_fn, rotated, im)
 
-        set_track_meta(False)
-        rotated = rotate_fn(im, mode=mode, padding_mode=padding_mode)
-        self.assertNotIsInstance(rotated, MetaTensor)
-        np.testing.assert_allclose(self.imt[0].shape, rotated.shape)
 
     def test_ill_case(self):
         for p in TEST_NDARRAYS_ALL:
