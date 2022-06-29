@@ -29,6 +29,7 @@ NP_MODES: List = [
     # "reflect",
     "wrap",
     "median",
+    "mean",
 ]
 MODES += NP_MODES
 MODES += [NumpyPadMode(i) for i in NP_MODES]

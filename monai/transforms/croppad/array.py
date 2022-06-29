@@ -107,8 +107,13 @@ class Pad(InvertibleTransform):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @staticmethod
-    def _np_pad(img: np.ndarray, pad_width, mode, **kwargs) -> np.ndarray:
-        return np.pad(img, pad_width, mode=mode, **kwargs)
+    def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
+        mode = convert_pad_mode(dst=img_np, mode=mode).value
+        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
+        if isinstance(img, MetaTensor):
+            out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)
+        return out
 
     @staticmethod
     def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
@@ -145,18 +150,16 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
-            try:
-                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
-                out = self._pt_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
-            # but if mode or args don't exist in pytorch, use numpy instead
-            except (ValueError, TypeError) as err:
-                if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
-                    # extract metadata
-                    img_np = img_t.detach().cpu().numpy()
-                    mode = convert_pad_mode(dst=img_np, mode=mode_).value
-                    out = torch.as_tensor(self._np_pad(img_np, pad_width=to_pad_, mode=mode_, **kwargs_))
-                    if get_track_meta():
-                        out = MetaTensor(out, meta=img_t.meta, applied_operations=img_t.applied_operations)
+            if mode in ["linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"]:
+                out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+            else:
+                try:
+                    mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
+                    out = self._pt_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                # but if mode or args don't exist in pytorch, use numpy instead
+                except (ValueError, TypeError) as err:
+                    if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
+                        out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
         else:
             out = img_t
         if get_track_meta():
