@@ -18,7 +18,6 @@ import numpy as np
 from monai.transforms import (
     AddChanneld,
     Compose,
-    FromMetaTensord,
     LoadImaged,
     RandSpatialCropSamplesd,
     RepeatChanneld,
