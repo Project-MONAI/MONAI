@@ -19,9 +19,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import OptionalImportError
 from tests.utils import TEST_NDARRAYS, assert_allclose
