@@ -1647,7 +1647,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             self.randomize(img=img)
 
         if not self._do_transform:
-            out = MetaTensor(img) if not isinstance(img, MetaTensor) and get_track_meta() else img
+            out = convert_to_tensor(img, track_meta=get_track_meta())
         else:
             out = Zoom(
                 self._zoom,
@@ -1657,17 +1657,16 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 **self.kwargs,
             )(img)
-        self.push_transform(out)
+        if get_track_meta() and isinstance(out, MetaTensor):
+            z_info = self.pop_transform(out, check=False) if self._do_transform else {}
+            self.push_transform(out, extra_info=z_info)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
-        if not self.pop_transform(data)[TraceKeys.DO_TRANSFORM]:
+        xform_info = self.pop_transform(data)
+        if not xform_info[TraceKeys.DO_TRANSFORM]:
             return data
-        data.applied_operations[-1][TraceKeys.ID] = TraceKeys.NONE
-        xform = self.pop_transform(data)
-        return Zoom(self._zoom).inverse_transform(data, xform)
+        return Zoom(self._zoom).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
 class AffineGrid(Transform):

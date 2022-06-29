@@ -1582,13 +1582,19 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.rand_zoom(
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
-            self.push_transform(d[key])
+            else:
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            if get_track_meta() and isinstance(d[key], MetaTensor):
+                xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
+                self.push_transform(d[key], extra_info=xform)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
-            if self.pop_transform(d[key])[TraceKeys.DO_TRANSFORM]:
+            xform = self.pop_transform(d[key])
+            if xform[TraceKeys.DO_TRANSFORM]:
+                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])
                 d[key] = self.rand_zoom.inverse(d[key])
         return d
 
