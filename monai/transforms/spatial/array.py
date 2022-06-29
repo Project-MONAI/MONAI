@@ -1186,8 +1186,7 @@ class Zoom(InvertibleTransform):
         if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
             orig_size = transform[TraceKeys.ORIG_SIZE]
             pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
-            data.applied_operations.append(transform[TraceKeys.EXTRA_INFO]["padcrop"])  # type: ignore
-            data = pad_or_crop.inverse(data)  # type: ignore
+            data = pad_or_crop.inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["padcrop"])  # type: ignore
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]

@@ -12,16 +12,20 @@
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
 from monai.transforms import RandShiftIntensity
-from tests.utils import NumpyImageTestCase2D
+from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
 class TestRandShiftIntensity(NumpyImageTestCase2D):
-    def test_value(self):
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_value(self, p):
         shifter = RandShiftIntensity(offsets=1.0, prob=1.0)
         shifter.set_random_state(seed=0)
-        result = shifter(self.imt, factor=1.0)
+        im = p(self.imt)
+        result = shifter(im, factor=1.0)
+        self.assertEqual(type(result), type(im))
         np.random.seed(0)
         # simulate the randomize() of transform
         np.random.random()

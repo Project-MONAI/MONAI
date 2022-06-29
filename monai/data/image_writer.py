@@ -622,6 +622,8 @@ class NibabelWriter(ImageWriter):
         if dtype is not None:
             data_array = data_array.astype(dtype, copy=False)
         affine = convert_data_type(affine, np.ndarray)[0]
+        if affine is None:
+            affine = np.eye(4)
         affine = to_affine_nd(r=3, affine=affine)
         return nib.nifti1.Nifti1Image(
             data_array,

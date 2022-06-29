@@ -32,7 +32,7 @@ from monai.transforms import (
     RandScaleIntensityd,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
+from monai.transforms.spatial.dictionary import RandFlipd
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
@@ -173,12 +173,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_image_no_label(self):
         transforms = RandFlipd(["image"], prob=1.0)
-        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
-        tta(self.get_data(1, (20, 20), include_label=False))
-
-    @unittest.skipUnless(has_nib, "Requires nibabel")
-    def test_requires_meta_dict(self):
-        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

@@ -49,6 +49,7 @@ class TestRandHistogramShift(unittest.TestCase):
         g = RandHistogramShift(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
+        self.assertEqual(type(input_data["img"]), type(result))
         assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
 
     def test_interp(self):
