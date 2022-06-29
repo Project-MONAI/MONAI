@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from typing import Optional, Sequence
+import re
 
 import numpy as np
 import torch
@@ -17,17 +18,25 @@ from numpy import ndarray
 from torch import Tensor
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_tensor, convert_to_numpy
+from monai.transforms.transform import Randomizable
 
-
-def convert_to_tensor_complex(data: ndarray) -> Tensor:
+def convert_to_tensor_complex(data, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False,track_meta: bool = False,) -> Tensor:
     """
-    Convert numpy array to PyTorch tensor.
-    For complex arrays, the real and imaginary
-    parts are stacked along the last dimension.
+    Convert complex-valued data to a 2-channel PyTorch tensor.
+    The real and imaginary parts are stacked along the last dimension.
+    This function relies on 'monai.utils.type_conversion.convert_to_tensor'
 
     Args:
-        data: Input numpy array
+        data: input data can be PyTorch Tensor, numpy array, list, int, and float.
+            will convert Tensor, Numpy array, float, int, bool to Tensor, strings and objects keep the original.
+            for list, convert every item to a Tensor if applicable.
+        dtype: target data type to when converting to Tensor.
+        device: target device to put the converted Tensor data.
+        wrap_sequence: if `False`, then lists will recursively call this function.
+            E.g., `[1, 2]` -> `[tensor(1), tensor(2)]`. If `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: whether to track the meta information, if `True`, will convert to `MetaTensor`.
+            default to `False`.
 
     Returns:
         PyTorch version of the data
@@ -42,12 +51,28 @@ def convert_to_tensor_complex(data: ndarray) -> Tensor:
             # the following line prints torch.Size([2, 2, 2])
             print(convert_to_tensor_complex(data).shape)
     """
-    if np.iscomplexobj(data):
-        data = np.stack((data.real, data.imag), axis=-1)
-    return convert_data_type(data, torch.Tensor)[0]
+    if isinstance(data, torch.Tensor):
+        data = torch.stack([data.real,data.imag],dim=-1)
+    
+    elif isinstance(data, np.ndarray):
+        if re.search(r"[SaUO]", data.dtype.str) is None:
+            # numpy array with 0 dims is also sequence iterable,
+            # `ascontiguousarray` will add 1 dim if img has no dim, so we only apply on data with dims
+            if data.ndim > 0:
+                data = np.ascontiguousarray(data)
+            data = np.stack((data.real, data.imag), axis=-1)
+    
+    elif isinstance(data, (float, int)):
+        data = [[data.real,data.imag]]
 
+    elif isinstance(data, list):
+        data = convert_to_numpy(data)
+        data = np.stack((data.real, data.imag), axis=-1).tolist()
 
-def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
+    converted_data: Tensor = convert_to_tensor(data, dtype=dtype, device=device,wrap_sequence=wrap_sequence,track_meta=track_meta)
+    return converted_data
+
+def complex_abs(x:NdarrayOrTensor) -> NdarrayOrTensor:
     """
     Compute the absolute value of a complex array.
 
@@ -65,11 +90,12 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
             # the following line prints 5
             print(complex_abs(x))
     """
-    assert x.shape[-1] == 2
+    if x.shape[-1] == 2:
+        raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
     return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5
 
 
-class MaskFunc:
+class MaskFunc(Randomizable):
     """
     A basic class for under-sampling mask setup. It provides common features for under-sampling msak generators.
     For example, RandomMaskFunc and EquispacedMaskFunc (two mask-generating objects defined right after this module)
@@ -92,7 +118,6 @@ class MaskFunc:
 
         self.center_fractions = center_fractions
         self.accelerations = accelerations
-        self.rng = np.random.RandomState()
 
     def __call__(self, spatial_size: Sequence[int], seed: Optional[int] = None) -> Tensor:
         """
@@ -109,9 +134,10 @@ class MaskFunc:
         Returns:
             mask which is the under-sampling mask.
         """
-        mask_shape = [1 for _ in spatial_size]
-        mask_shape[-2] = spatial_size[-2]
-        return torch.ones(mask_shape)
+        #mask_shape = [1 for _ in spatial_size]
+        #mask_shape[-2] = spatial_size[-2]
+        #return torch.ones(mask_shape)
+        raise NotImplementedError
 
     def choose_acceleration(self) -> Sequence[float]:
         """
@@ -123,7 +149,7 @@ class MaskFunc:
                 (1) center_fraction: chosen fraction of center kspace lines to exclude from under-sampling
                 (2) acceleration: chosen acceleration factor
         """
-        choice = self.rng.randint(0, len(self.accelerations))
+        choice = self.R.randint(0, len(self.accelerations))
         center_fraction = self.center_fractions[choice]
         acceleration = self.accelerations[choice]
         return center_fraction, acceleration
@@ -166,14 +192,14 @@ class RandomMaskFunc(MaskFunc):
         if len(spatial_size) < 3:
             raise ValueError("Shape should have 3 or more dimensions")
 
-        self.rng.seed(seed)
+        self.R.seed(seed)
         num_cols = spatial_size[-2]
         center_fraction, acceleration = self.choose_acceleration()
 
         # Create the mask
         num_low_freqs = int(round(num_cols * center_fraction))
         prob = (num_cols / acceleration - num_low_freqs) / (num_cols - num_low_freqs)
-        mask = self.rng.uniform(size=num_cols) < prob
+        mask = self.R.uniform(size=num_cols) < prob
         pad = (num_cols - num_low_freqs + 1) // 2
         mask[pad : pad + num_low_freqs] = True
 
@@ -223,7 +249,7 @@ class EquispacedMaskFunc(MaskFunc):
         if len(spatial_size) < 3:
             raise ValueError("Shape should have 3 or more dimensions")
 
-        self.rng.seed(seed)
+        self.R.seed(seed)
         center_fraction, acceleration = self.choose_acceleration()
         num_cols = spatial_size[-2]
         num_low_freqs = int(round(num_cols * center_fraction))
@@ -235,7 +261,7 @@ class EquispacedMaskFunc(MaskFunc):
 
         # Determine acceleration rate by adjusting for the number of low frequencies
         adjusted_accel = (acceleration * (num_low_freqs - num_cols)) / (num_low_freqs * acceleration - num_cols)
-        offset = self.rng.randint(0, round(adjusted_accel))
+        offset = self.R.randint(0, round(adjusted_accel))
 
         accel_samples = np.arange(offset, num_cols - 1, adjusted_accel)
         accel_samples = np.around(accel_samples).astype(np.uint)
