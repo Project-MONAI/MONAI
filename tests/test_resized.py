@@ -78,6 +78,7 @@ class TestResized(NumpyImageTestCase2D):
         result = Resized(**input_param)(input_data)
         self.assertNotIsInstance(result["img"], MetaTensor)
         np.testing.assert_allclose(result["img"].shape[1:], expected_shape)
+        set_track_meta(True)
 
 
 if __name__ == "__main__":

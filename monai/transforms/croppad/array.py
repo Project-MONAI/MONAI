@@ -147,6 +147,7 @@ class Pad(InvertibleTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
@@ -164,7 +165,7 @@ class Pad(InvertibleTransform):
             out = img_t
         if get_track_meta():
             self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
-            self.push_transform(out, extra_info={"padded": to_pad_})
+            self.push_transform(out, orig_size=_orig_size, extra_info={"padded": to_pad_})
         return out
 
     def update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
@@ -404,13 +405,14 @@ class Crop(InvertibleTransform):
         slices = tuple([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
         img_t = img_t[slices]  # type: ignore
         if get_track_meta():
             self.update_meta(tensor=img_t, slices=slices)
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
             cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
-            self.push_transform(img_t, extra_info={"cropped": cropped})
+            self.push_transform(img_t, orig_size=_orig_size, extra_info={"cropped": cropped})
         return img_t
 
     def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):

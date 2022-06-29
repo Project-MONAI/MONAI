@@ -316,7 +316,7 @@ class EnsureChannelFirstd(MapTransform):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))
+            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
         return d
 
 
@@ -399,7 +399,7 @@ class SplitDimd(MapTransform):
         self.output_postfixes = output_postfixes
         self.splitter = SplitDim(dim, keepdim, update_meta)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])

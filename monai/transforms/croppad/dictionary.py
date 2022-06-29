@@ -747,8 +747,6 @@ class RandWeightedCropd(Randomizable, MapTransform):
         return ret
 
 
-@deprecated_arg(name="meta_keys", since="0.9")
-@deprecated_arg(name="meta_key_postfix", since="0.9")
 class RandCropByPosNegLabeld(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByPosNegLabel`.
@@ -803,6 +801,8 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
 
     backend = RandCropByPosNegLabel.backend
 
+    @deprecated_arg(name="meta_keys", since="0.9")
+    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -872,8 +872,6 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         return ret
 
 
-@deprecated_arg(name="meta_keys", since="0.9")
-@deprecated_arg(name="meta_key_postfix", since="0.9")
 class RandCropByLabelClassesd(Randomizable, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandCropByLabelClasses`.
@@ -948,6 +946,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
 
     backend = RandCropByLabelClasses.backend
 
+    @deprecated_arg(name="meta_keys", since="0.9")
+    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,

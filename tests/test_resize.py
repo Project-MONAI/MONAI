@@ -104,6 +104,7 @@ class TestResize(NumpyImageTestCase2D):
         result = Resize(**input_param)(input_data)
         self.assertNotIsInstance(result, MetaTensor)
         np.testing.assert_allclose(result.shape[1:], expected_shape)
+        set_track_meta(True)
 
     def test_longest_infinite_decimals(self):
         resize = Resize(spatial_size=1008, size_mode="longest", mode="bilinear", align_corners=False)

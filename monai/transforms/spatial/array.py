@@ -232,7 +232,7 @@ class SpatialResample(InvertibleTransform):
         original_spatial_shape = img.shape[1:]
 
         src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
-        img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)
+        img = convert_to_tensor(data=img, track_meta=get_track_meta(), dtype=_dtype)  # type: ignore
         spatial_rank = min(len(img.shape) - 1, src_affine_.shape[0] - 1, 3)
         if (not isinstance(spatial_size, int) or spatial_size != -1) and spatial_size is not None:
             spatial_rank = min(len(ensure_tuple(spatial_size)), 3)  # infer spatial rank based on spatial_size

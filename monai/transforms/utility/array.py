@@ -312,7 +312,7 @@ class SplitDim(Transform):
         self.keepdim = keepdim
         self.update_meta = update_meta
 
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`.
         """
@@ -322,7 +322,7 @@ class SplitDim(Transform):
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
-            outputs = np.split(img, n_out, self.dim)
+            outputs = np.split(img, n_out, self.dim)  # type: ignore
         for idx, item in enumerate(outputs):
             if not self.keepdim:
                 outputs[idx] = item.squeeze(self.dim)
