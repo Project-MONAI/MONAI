@@ -722,23 +722,20 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
-if torch.cuda.is_available():
-    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS_ALL = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
-
 TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
 if torch.cuda.is_available():
-    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")  # type: ignore
-    TEST_NDARRAYS_ALL = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
+    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
+    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
 TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
-TEST_NDARRAYS_ALL: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+# alias for branch tests
+TEST_NDARRAYS_ALL = TEST_NDARRAYS  # type: ignore
 
 
 TEST_DEVICES = [[torch.device("cpu")]]
