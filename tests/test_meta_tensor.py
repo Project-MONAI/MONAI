@@ -284,6 +284,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_collate(self, device, dtype):
         numel = 3
         ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
+        ims = [MetaTensor(im, applied_operations=[f"t{i}"]) for i, im in enumerate(ims)]
         collated = list_data_collate(ims)
         # tensor
         self.assertIsInstance(collated, MetaTensor)
@@ -295,6 +296,7 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(collated.affine, torch.Tensor)
         expected_shape = (numel,) + tuple(ims[0].affine.shape)
         self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
+        self.assertEqual(len(collated.applied_operations), numel)
 
     @parameterized.expand(TESTS)
     def test_dataset(self, device, dtype):
@@ -308,6 +310,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_dataloader(self, dtype):
         batch_size = 5
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ims = [MetaTensor(im, applied_operations=[f"t{i}"]) for i, im in enumerate(ims)]
         ds = Dataset(ims)
         im_shape = tuple(ims[0].shape)
         affine_shape = tuple(ims[0].affine.shape)
@@ -318,6 +321,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertIsInstance(batch, MetaTensor)
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
+            self.assertEqual(len(batch.applied_operations), batch_size)
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):
@@ -429,7 +433,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_transforms(self):
         key = "im"
         _, im = self.get_im()
-        tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16), ToMetaTensord(key), FromMetaTensord(key)])
+        tr = Compose([ToMetaTensord(key), BorderPadd(key, 1), DivisiblePadd(key, 16), FromMetaTensord(key)])
         num_tr = len(tr.transforms)
         data = {key: im, PostFix.meta(key): {"affine": torch.eye(4)}}
 
@@ -437,7 +441,7 @@ class TestMetaTensor(unittest.TestCase):
         is_meta = isinstance(im, MetaTensor)
         for i, _tr in enumerate(tr.transforms):
             data = _tr(data)
-            is_meta = isinstance(_tr, ToMetaTensord)
+            is_meta = isinstance(_tr, (ToMetaTensord, BorderPadd, DivisiblePadd))
             if is_meta:
                 self.assertEqual(len(data), 1)  # im
                 self.assertIsInstance(data[key], MetaTensor)
@@ -454,7 +458,7 @@ class TestMetaTensor(unittest.TestCase):
         is_meta = isinstance(im, MetaTensor)
         for i, _tr in enumerate(tr.transforms[::-1]):
             data = _tr.inverse(data)
-            is_meta = isinstance(_tr, FromMetaTensord)
+            is_meta = isinstance(_tr, (FromMetaTensord, BorderPadd, DivisiblePadd))
             if is_meta:
                 self.assertEqual(len(data), 1)  # im
                 self.assertIsInstance(data[key], MetaTensor)
@@ -488,7 +492,7 @@ class TestMetaTensor(unittest.TestCase):
         _, im = self.get_im()
         tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16)])
         data = tr({key: im})
-        m = MetaTensor(im, applied_operations=data[PostFix.transforms(key)])
+        m = MetaTensor(im, applied_operations=data["im"].applied_operations)
         self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
     @parameterized.expand(TESTS)

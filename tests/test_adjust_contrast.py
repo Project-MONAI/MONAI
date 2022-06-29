@@ -29,7 +29,9 @@ class TestAdjustContrast(NumpyImageTestCase2D):
     def test_correct_results(self, gamma):
         adjuster = AdjustContrast(gamma=gamma)
         for p in TEST_NDARRAYS:
-            result = adjuster(p(self.imt))
+            im = p(self.imt)
+            result = adjuster(im)
+            self.assertTrue(type(im), type(result))
             if gamma == 1.0:
                 expected = self.imt
             else:

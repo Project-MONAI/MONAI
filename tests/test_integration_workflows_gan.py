@@ -26,7 +26,7 @@ from monai.engines.utils import GanKeys as Keys
 from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandler
 from monai.networks import normal_init
 from monai.networks.nets import Discriminator, Generator
-from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd, ToTensord
+from monai.transforms import AsChannelFirstd, Compose, LoadImaged, RandFlipd, ScaleIntensityd
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
@@ -42,7 +42,6 @@ def run_training_test(root_dir, device="cuda:0"):
             AsChannelFirstd(keys=["reals"]),
             ScaleIntensityd(keys=["reals"]),
             RandFlipd(keys=["reals"], prob=0.5),
-            ToTensord(keys=["reals"]),
         ]
     )
     train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=0.5)

@@ -310,10 +310,12 @@ class EnsureChannelFirstd(MapTransform):
         """
         super().__init__(keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
+        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))
         return d
 

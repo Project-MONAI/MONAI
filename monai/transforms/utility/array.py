@@ -212,7 +212,7 @@ class EnsureChannelFirst(Transform):
         self.strict_check = strict_check
         self.add_channel = AddChannel()
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
