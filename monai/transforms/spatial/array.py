@@ -1135,9 +1135,8 @@ class Zoom(InvertibleTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
-        if not isinstance(img, MetaTensor) and get_track_meta():
-            img = MetaTensor(img)
-        img_t: torch.Tensor = convert_data_type(img, MetaTensor, dtype=torch.float32)[0]
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = img.to(torch.float32)
 
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
@@ -1155,44 +1154,39 @@ class Zoom(InvertibleTransform):
         orig_size, z_size = img_t.shape, zoomed.shape
 
         out, *_ = convert_to_dst_type(zoomed, dst=img)
-        out.meta = self.forward_meta(img.meta, orig_size[1:], z_size[1:])  # type: ignore
+        if get_track_meta() and isinstance(img, MetaTensor):
+            self.update_meta(out, orig_size[1:], z_size[1:])  # type: ignore
         do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
         if do_pad_crop:
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
             out = _pad_crop(out)  # type: ignore
-        self.push_transform(
-            out,
-            orig_size=orig_size[1:],
-            extra_info={
-                "mode": _mode,
-                "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                "do_padcrop": do_pad_crop,
-            },
-        )
+        if get_track_meta() and isinstance(img, MetaTensor):
+            pad_crop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
+            self.push_transform(
+                out,
+                orig_size=orig_size[1:],
+                extra_info={
+                    "mode": _mode,
+                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
+                    "do_padcrop": do_pad_crop,
+                    "padcrop": pad_crop_xform,
+                },
+            )
         return out
 
-    def forward_meta(self, img_meta, spatial_size, new_spatial_size):
-        affine = convert_data_type(img_meta["affine"], torch.Tensor)[0]
-        meta = deepcopy(img_meta)
-        meta["affine"] = scale_affine(affine, spatial_size, new_spatial_size)
-        return meta
+    def update_meta(self, img, spatial_size, new_spatial_size):
+        affine = convert_to_tensor(img.affine, track_meta=False)
+        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         transform = self.pop_transform(data)
         return self.inverse_transform(data, transform)
 
     def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
-        if not isinstance(data, MetaTensor):
-            raise NotImplementedError()
         if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
             orig_size = transform[TraceKeys.ORIG_SIZE]
             pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
-            xform = data.applied_operations[-1]  # remove the padding cropping
-            xform[TraceKeys.ID] = TraceKeys.NONE
-            xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
-            xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
+            data.applied_operations.append(transform[TraceKeys.EXTRA_INFO]["padcrop"])  # type: ignore
             data = pad_or_crop.inverse(data)  # type: ignore
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
@@ -1482,7 +1476,6 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        out = MetaTensor(out) if not isinstance(out, MetaTensor) and get_track_meta() else out
         if get_track_meta() and isinstance(out, MetaTensor):
             xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=xform_info)
