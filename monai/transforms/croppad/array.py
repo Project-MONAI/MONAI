@@ -246,6 +246,7 @@ class BorderPad(Pad):
 
     Args:
         spatial_border: specified size for every spatial border. Any -ve values will be set to 0. It can be 3 shapes:
+
             - single int number, pad all the borders with the same size.
             - length equals the length of image shape, pad every spatial dimension separately.
               for example, image shape(CHW) is [1, 4, 4], spatial_border is [2, 1],
@@ -435,6 +436,7 @@ class SpatialCrop(Crop):
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
+
     The cropped region can be parameterised in various ways:
         - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
         - a spatial center and size
