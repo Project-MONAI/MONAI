@@ -1161,7 +1161,6 @@ class Zoom(InvertibleTransform):
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
             out = _pad_crop(out)  # type: ignore
         if get_track_meta() and isinstance(img, MetaTensor):
-            pad_crop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
             self.push_transform(
                 out,
                 orig_size=orig_size[1:],

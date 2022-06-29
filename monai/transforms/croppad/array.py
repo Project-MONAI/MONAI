@@ -41,9 +41,20 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
-from monai.utils.enums import TraceKeys, TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
+from monai.utils import (
+    Method,
+    PytorchPadMode,
+    TraceKeys,
+    TransformBackends,
+    convert_data_type,
+    convert_to_dst_type,
+    convert_to_tensor,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+    look_up_option,
+    pytorch_after,
+)
 
 __all__ = [
     "Pad",
@@ -375,7 +386,12 @@ class Crop(InvertibleTransform):
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
                 roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
                 _zeros = torch.zeros_like(roi_center_t)
-                roi_start_t = torch.maximum(roi_center_t - torch.div(roi_size_t, 2), _zeros)
+                half = (
+                    torch.divide(roi_size_t, 2, rounding_mode="floor")
+                    if pytorch_after(1, 8)
+                    else torch.floor_divide(roi_size_t, 2)
+                )
+                roi_start_t = torch.maximum(roi_center_t - half, _zeros)
                 roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
             else:
                 if roi_start is None or roi_end is None:
