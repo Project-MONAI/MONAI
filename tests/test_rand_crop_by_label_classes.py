@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndices, RandCropByLabelClasses
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS_INDICES, TESTS_SHAPE = [], []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     # One-Hot label
     TESTS_INDICES.append(
         [
