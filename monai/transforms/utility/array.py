@@ -17,6 +17,7 @@ import logging
 import sys
 import time
 import warnings
+from copy import deepcopy
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -24,7 +25,10 @@ import torch
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import no_collation
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
@@ -34,6 +38,7 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
+    TraceKeys,
     convert_data_type,
     convert_to_cupy,
     convert_to_numpy,
@@ -207,7 +212,7 @@ class EnsureChannelFirst(Transform):
         self.strict_check = strict_check
         self.add_channel = AddChannel()
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
@@ -228,8 +233,8 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return self.add_channel(img)
-        return AsChannelFirst(channel_dim=channel_dim)(img)
+            return self.add_channel(img)  # type: ignore
+        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -297,13 +302,15 @@ class SplitDim(Transform):
         dim: dimension on which to split
         keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
             dimension will be squeezed.
+        update_meta: whether to update the MetaObj in each split result.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: int = -1, keepdim: bool = True) -> None:
+    def __init__(self, dim: int = -1, keepdim: bool = True, update_meta=True) -> None:
         self.dim = dim
         self.keepdim = keepdim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
         """
@@ -311,14 +318,24 @@ class SplitDim(Transform):
         """
         n_out = img.shape[self.dim]
         if n_out <= 1:
-            raise RuntimeError("Input image is singleton along dimension to be split.")
+            raise RuntimeError(f"Input image is singleton along dimension to be split, got shape {img.shape}.")
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
-            outputs = np.split(img, n_out, self.dim)  # type: ignore
-        if not self.keepdim:
-            outputs = [o.squeeze(self.dim) for o in outputs]
-        return outputs  # type: ignore
+            outputs = np.split(img, n_out, self.dim)
+        for idx, item in enumerate(outputs):
+            if not self.keepdim:
+                outputs[idx] = item.squeeze(self.dim)
+            if self.update_meta and isinstance(img, MetaTensor):
+                if not isinstance(item, MetaTensor):
+                    item = MetaTensor(item, meta=deepcopy(img.meta))
+                if self.dim == 0:  # don't update affine if channel dim
+                    continue
+                ndim = len(item.affine)
+                shift = torch.eye(ndim, device=item.affine.device, dtype=item.affine.dtype)
+                shift[self.dim - 1, -1] = idx
+                item.affine = item.affine @ shift
+        return outputs
 
 
 @deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
@@ -396,6 +413,8 @@ class ToTensor(Transform):
         """
         Apply the transform to `img` and make it contiguous.
         """
+        if isinstance(img, MetaTensor):
+            img.applied_operations = []  # drops tracking info
         return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
 
 
@@ -565,7 +584,7 @@ class SqueezeDim(Transform):
             return img.squeeze()
         # for pytorch/numpy unification
         if img.shape[self.dim] != 1:
-            raise ValueError("Can only squeeze singleton dimension")
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape}.")
         return img.squeeze(self.dim)
 
 
@@ -699,7 +718,7 @@ class SimulateDelay(Transform):
         return img
 
 
-class Lambda(Transform):
+class Lambda(InvertibleTransform):
     """
     Apply a user-defined lambda as a transform.
 
@@ -715,6 +734,7 @@ class Lambda(Transform):
 
     Args:
         func: Lambda/function to be applied.
+        inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -723,10 +743,11 @@ class Lambda(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Optional[Callable] = None) -> None:
+    def __init__(self, func: Optional[Callable] = None, inv_func: Callable = no_collation) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
+        self.inv_func = inv_func
 
     def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         """
@@ -737,16 +758,23 @@ class Lambda(Transform):
 
         Raises:
             TypeError: When ``func`` is not an ``Optional[Callable]``.
-            ValueError: When ``func=None`` and ``self.func=None``. Incompatible values.
 
         """
-        if func is not None:
-            if not callable(func):
-                raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
-            return func(img)
-        if self.func is not None:
-            return self.func(img)
-        raise ValueError("Incompatible values: func=None and self.func=None.")
+        fn = func if func is not None else self.func
+        if not callable(fn):
+            raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
+        out = fn(img)
+        # convert to MetaTensor if necessary
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
+        if isinstance(out, MetaTensor):
+            self.push_transform(out)
+        return out
+
+    def inverse(self, data: torch.Tensor):
+        if isinstance(data, MetaTensor):
+            self.pop_transform(data)
+        return self.inv_func(data)
 
 
 class RandLambda(Lambda, RandomizableTransform):
@@ -757,19 +785,35 @@ class RandLambda(Lambda, RandomizableTransform):
     Args:
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+        inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
-        Lambda.__init__(self=self, func=func)
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func)
         RandomizableTransform.__init__(self=self, prob=prob)
 
     def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         self.randomize(img)
-        return super().__call__(img=img, func=func) if self._do_transform else img
+        out = deepcopy(super().__call__(img, func) if self._do_transform else img)
+        # convert to MetaTensor if necessary
+        if not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
+        if isinstance(out, MetaTensor):
+            lambda_info = self.pop_transform(out) if self._do_transform else {}
+            self.push_transform(out, extra_info=lambda_info)
+        return out
+
+    def inverse(self, data: torch.Tensor):
+        do_transform = self.get_most_recent_transform(data).pop(TraceKeys.DO_TRANSFORM)
+        if do_transform:
+            data = super().inverse(data)
+        else:
+            self.pop_transform(data)
+        return data
 
 
 class LabelToMask(Transform):
@@ -1053,6 +1097,7 @@ class TorchVision:
 
         """
         img_t, *_ = convert_data_type(img, torch.Tensor)
+
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
