@@ -15,60 +15,57 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandSpatialCrop
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.croppers import CropTest
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
-TEST_CASE_0 = [
-    {"roi_size": [3, 3, -1], "random_center": True},
-    np.random.randint(0, 2, size=[3, 3, 3, 4]),
-    (3, 3, 3, 4),
+TEST_SHAPES = [
+    [{"roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],
+    [{"roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
 ]
 
-TEST_CASE_1 = [{"roi_size": [3, 3, 3], "random_center": True}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 3, 3, 3)]
-
-TEST_CASE_2 = [
-    {"roi_size": [3, 3, 3], "random_center": False},
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 3, 3, 3),
+TEST_VALUES = [
+    [
+        {"roi_size": [3, 3], "random_center": False},
+        np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+    ]
 ]
 
-TEST_CASE_3 = [
-    {"roi_size": [3, 3], "random_center": False},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-]
-
-TEST_CASE_4 = [
-    {"roi_size": [3, 3, 3], "max_roi_size": [5, -1, 4], "random_center": True, "random_size": True},
-    np.random.randint(0, 2, size=[1, 4, 5, 6]),
-    (1, 4, 4, 3),
-]
-
-TEST_CASE_5 = [
-    {"roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True},
-    np.random.randint(0, 2, size=[1, 4, 5, 6]),
-    (1, 3, 4, 3),
+TEST_RANDOM_SHAPES = [
+    [
+        {"roi_size": [3, 3, 3], "max_roi_size": [5, -1, 4], "random_center": True, "random_size": True},
+        (1, 4, 5, 6),
+        (1, 4, 4, 3),
+    ],
+    [{"roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True}, (1, 4, 5, 6), (1, 3, 4, 3)],
 ]
 
 
-class TestRandSpatialCrop(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = RandSpatialCrop(**input_param)(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+class TestRandSpatialCrop(CropTest):
+    Cropper = RandSpatialCrop
 
-    @parameterized.expand([TEST_CASE_3])
+    @parameterized.expand(TEST_SHAPES)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        self.crop_test(input_param, input_shape, expected_shape)
+
+    @parameterized.expand(TEST_VALUES)
     def test_value(self, input_param, input_data):
-        for p in TEST_NDARRAYS:
-            cropper = RandSpatialCrop(**input_param)
-            result = cropper(p(input_data))
-            roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-            assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
+        for im_type in TEST_NDARRAYS_ALL:
+            with self.subTest(im_type=im_type):
+                cropper = RandSpatialCrop(**input_param)
+                result = cropper(im_type(input_data))
+                roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
+                assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
-    def test_random_shape(self, input_param, input_data, expected_shape):
-        cropper = RandSpatialCrop(**input_param)
-        cropper.set_random_state(seed=123)
-        result = cropper(input_data)
-        self.assertTupleEqual(result.shape, expected_shape)
+    @parameterized.expand(TEST_RANDOM_SHAPES)
+    def test_random_shape(self, input_param, input_shape, expected_shape):
+        for im_type in TEST_NDARRAYS_ALL:
+            with self.subTest(im_type=im_type):
+                cropper = RandSpatialCrop(**input_param)
+                cropper.set_random_state(seed=123)
+                input_data = im_type(np.random.randint(0, 2, input_shape))
+                result = cropper(input_data)
+                self.assertTupleEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
