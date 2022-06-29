@@ -19,7 +19,7 @@ import tempfile
 import warnings
 import zipfile
 from pathlib import Path
-from typing import List, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
