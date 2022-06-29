@@ -965,8 +965,8 @@ def spatial_crop_boxes(
     # convert to float32 since torch.clamp_ does not support float16
     boxes_t = boxes_t.to(dtype=COMPUTE_DTYPE)
 
-    roi_start_t, *_ = convert_to_dst_type(src=roi_start, dst=boxes_t, wrap_sequence=True).to(torch.int16)
-    roi_end_t, *_ = convert_to_dst_type(src=roi_end, dst=boxes_t, wrap_sequence=True).to(torch.int16)
+    roi_start_t = convert_to_dst_type(src=roi_start, dst=boxes_t, wrap_sequence=True)[0].to(torch.int16)
+    roi_end_t = convert_to_dst_type(src=roi_end, dst=boxes_t, wrap_sequence=True)[0].to(torch.int16)
     roi_end_t = torch.maximum(roi_end_t, roi_start_t)
 
     # makes sure the bounding boxes are within the patch
