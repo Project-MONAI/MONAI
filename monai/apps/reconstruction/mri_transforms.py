@@ -14,11 +14,10 @@ import re
 
 import numpy as np
 import torch
-from numpy import ndarray
 from torch import Tensor
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor, convert_to_numpy
+from monai.utils.type_conversion import convert_to_tensor, convert_to_numpy
 from monai.transforms.transform import Randomizable
 
 def convert_to_tensor_complex(data, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = False,track_meta: bool = False,) -> Tensor:
@@ -53,7 +52,7 @@ def convert_to_tensor_complex(data, dtype: Optional[torch.dtype] = None, device:
     """
     if isinstance(data, torch.Tensor):
         data = torch.stack([data.real,data.imag],dim=-1)
-    
+
     elif isinstance(data, np.ndarray):
         if re.search(r"[SaUO]", data.dtype.str) is None:
             # numpy array with 0 dims is also sequence iterable,
@@ -61,7 +60,7 @@ def convert_to_tensor_complex(data, dtype: Optional[torch.dtype] = None, device:
             if data.ndim > 0:
                 data = np.ascontiguousarray(data)
             data = np.stack((data.real, data.imag), axis=-1)
-    
+
     elif isinstance(data, (float, int)):
         data = [[data.real,data.imag]]
 
