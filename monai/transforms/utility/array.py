@@ -315,10 +315,10 @@ class SplitDim(Transform):
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
-            outputs = np.split(img, n_out, self.dim)
+            outputs = np.split(img, n_out, self.dim)  # type: ignore
         if not self.keepdim:
             outputs = [o.squeeze(self.dim) for o in outputs]
-        return outputs
+        return outputs  # type: ignore
 
 
 @deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")

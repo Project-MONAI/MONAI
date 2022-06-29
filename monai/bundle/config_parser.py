@@ -226,7 +226,8 @@ class ConfigParser:
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
                 Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
                 ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
-                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
+                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`), ``default``
+                (the default config item if the `id` is not in the config content).
 
         """
         if not self.ref_resolver.is_resolved():
