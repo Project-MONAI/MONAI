@@ -19,7 +19,7 @@ import tempfile
 import warnings
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import List, TYPE_CHECKING, Optional
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlretrieve
@@ -28,6 +28,7 @@ from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "4.4")
+requests_get, has_requests = optional_import("requests", name="get")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -144,6 +145,47 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 
     logger.info(f"Verified '{_basename(filepath)}', {hash_type}: {val}.")
     return True
+
+
+def get_tcia_metadata(query: str, attribute: Optional[str] = None):
+    """
+    Achieve metadata of a public The Cancer Imaging Archive (TCIA) dataset.
+
+    This function makes use of The National Biomedical Imaging Archive (NBIA) REST APIs to access the metadata
+    of objects in the TCIA database.
+    Please refer to the following link for more details:
+    https://wiki.cancerimagingarchive.net/display/Public/NBIA+Search+REST+API+Guide
+
+    This function relys on `requests` package.
+
+    Args:
+        query: queries used to achieve the corresponding metadata. A query is consisted with query name and
+            query parameters. The format is like: <query name>?<parameter 1>&<parameter 2>.
+            For example: "getSeries?Collection=C4KC-KiTS&Modality=SEG"
+            Please refer to the section of Image Metadata APIs in the link mentioned
+            above for more details.
+        attribute: Achieved metadata may contain multiple attributes, if specifying an attribute name, other attributes
+            will be ignored.
+
+    """
+
+    if has_requests:
+        baseurl = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
+        full_url = baseurl + query
+        resp = requests_get(full_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("requests package is necessary, please install it.")
+    metadata_list: List = []
+    if len(resp.text) == 0:
+        return metadata_list
+    for d in resp.json():
+        if attribute is not None and attribute in d:
+            metadata_list.append(d[attribute])
+        else:
+            metadata_list.append(d)
+
+    return metadata_list
 
 
 def download_url(
