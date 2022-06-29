@@ -705,10 +705,12 @@ class RandSpatialCropSamples(Randomizable, Transform):
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
-        ret = [self.cropper(img) for _ in range(self.num_samples)]
-        if get_track_meta():
-            for i, r in enumerate(ret):
-                r.meta[Key.PATCH_INDEX] = i  # type: ignore
+        ret = []
+        for i in range(self.num_samples):
+            cropped = self.cropper(img)
+            if get_track_meta():
+                cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
+            ret.append(cropped)
         return ret
 
 
