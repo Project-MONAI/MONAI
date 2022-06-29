@@ -48,7 +48,6 @@ from monai.transforms.transform import MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import PostFix
 
 __all__ = [
     "Padd",
@@ -578,7 +577,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         random_center: bool = True,
         random_size: bool = True,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = PostFix.meta(),
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -716,7 +715,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         num_samples: int = 1,
         center_coord_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = PostFix.meta(),
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -817,7 +816,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         fg_indices_key: Optional[str] = None,
         bg_indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = PostFix.meta(),
+        meta_key_postfix: str = "meta_dict",
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -961,7 +960,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         image_threshold: float = 0.0,
         indices_key: Optional[str] = None,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = PostFix.meta(),
+        meta_key_postfix: str = "meta_dict",
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
