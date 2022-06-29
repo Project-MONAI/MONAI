@@ -395,7 +395,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
         self.keep_size = keep_size
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
 
         # zoom box
@@ -408,7 +408,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 box_key,
                 extra_info={"zoom": self.zoomer.zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
             )
-            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
+            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(  # type: ignore
                 d[box_key], src_spatial_size=src_spatial_size
             )
 
@@ -431,7 +431,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -453,14 +453,15 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
             # zoom boxes
             if key_type == "box_key":
                 zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                 src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                 box_inverse_transform = ZoomBox(zoom=(1 / zoom).tolist(), keep_size=self.zoomer.keep_size)
-                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
             # Remove the applied transform
             self.pop_transform(d, key)
@@ -544,7 +545,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -567,7 +568,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     box_key,
                     extra_info={"zoom": self.rand_zoom._zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
                 )
-                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
+                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(  # type: ignore
                     d[box_key], src_spatial_size=src_spatial_size
                 )
 
@@ -594,7 +595,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -616,7 +617,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                         align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                     )
                     # Size might be out by 1 voxel so pad
-                    d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                    orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
 
                 # zoom boxes
                 if key_type == "box_key":
@@ -624,7 +626,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     zoom = np.array(transform[TraceKeys.EXTRA_INFO]["zoom"])
                     src_spatial_size = transform[TraceKeys.EXTRA_INFO]["src_spatial_size"]
                     box_inverse_transform = ZoomBox(zoom=(1.0 / zoom).tolist(), keep_size=self.rand_zoom.keep_size)
-                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)
+                    d[key] = box_inverse_transform(d[key], src_spatial_size=src_spatial_size)  # type: ignore
 
                 # Remove the applied transform
                 self.pop_transform(d, key)
@@ -665,7 +667,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         d = dict(data)
 
         for key in self.image_keys:
-            d[key] = self.flipper(d[key])
+            d[key] = self.flipper(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -683,7 +685,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
 
             # flip image, copied from monai.transforms.spatial.dictionary.Flipd
             if key_type == "image_key":
-                d[key] = self.flipper(d[key])
+                d[key] = self.flipper(d[key])  # type: ignore
 
             # flip boxes
             if key_type == "box_key":
@@ -741,7 +743,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False)
+                d[key] = self.flipper(d[key], randomize=False)  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
 
         for box_key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
@@ -761,7 +763,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
             if transform[TraceKeys.DO_TRANSFORM]:
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
-                    d[key] = self.flipper(d[key], randomize=False)
+                    d[key] = self.flipper(d[key], randomize=False)  # type: ignore
 
                 # flip boxes
                 if key_type == "box_key":
@@ -1204,7 +1206,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             # crop images
             cropper = SpatialCrop(roi_slices=crop_slices)
             for image_key in self.image_keys:
-                results[i][image_key] = cropper(d[image_key])
+                results[i][image_key] = cropper(d[image_key])  # type: ignore
 
             # crop boxes and labels
             boxcropper = SpatialCropBox(roi_slices=crop_slices)
@@ -1269,7 +1271,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
 
         for key in self.image_keys:
-            d[key] = self.img_rotator(d[key])
+            d[key] = self.img_rotator(d[key])  # type: ignore
             self.push_transform(d, key, extra_info={"type": "image_key"})
         return d
 
@@ -1283,7 +1285,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
 
             if key_type == "image_key":
                 inverse_transform = Rotate90(num_times_to_rotate, self.img_rotator.spatial_axes)
-                d[key] = inverse_transform(d[key])
+                d[key] = inverse_transform(d[key])  # type: ignore
             if key_type == "box_key":
                 spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                 inverse_transform = RotateBox90(num_times_to_rotate, self.box_rotator.spatial_axes)
@@ -1327,7 +1329,7 @@ class RandRotateBox90d(RandRotate90d):
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:  # type: ignore
         self.randomize()
         d = dict(data)
 
@@ -1355,11 +1357,11 @@ class RandRotateBox90d(RandRotate90d):
 
         for key in self.image_keys:
             if self._do_transform:
-                d[key] = img_rotator(d[key])
+                d[key] = img_rotator(d[key])  # type: ignore
                 self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:  # type: ignore
         d = deepcopy(dict(data))
         if self._rand_k % 4 == 0:
             return d
@@ -1374,7 +1376,7 @@ class RandRotateBox90d(RandRotate90d):
                 # flip image, copied from monai.transforms.spatial.dictionary.RandFlipd
                 if key_type == "image_key":
                     inverse_transform = Rotate90(num_times_to_rotate, self.spatial_axes)
-                    d[key] = inverse_transform(d[key])
+                    d[key] = inverse_transform(d[key])  # type: ignore
                 if key_type == "box_key":
                     spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
                     inverse_transform = RotateBox90(num_times_to_rotate, self.spatial_axes)

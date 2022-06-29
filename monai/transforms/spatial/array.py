@@ -1660,7 +1660,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
         if get_track_meta() and isinstance(out, MetaTensor):
             z_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=z_info)
-        return out
+        return out  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         xform_info = self.pop_transform(data)
