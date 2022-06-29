@@ -57,10 +57,20 @@ class UnetResBlock(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             dropout=dropout,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            dropout=dropout,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
@@ -71,7 +81,15 @@ class UnetResBlock(nn.Module):
             self.downsample = True
         if self.downsample:
             self.conv3 = get_conv_layer(
-                spatial_dims, in_channels, out_channels, kernel_size=1, stride=stride, dropout=dropout, conv_only=True
+                spatial_dims,
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                stride=stride,
+                dropout=dropout,
+                act=None,
+                norm=None,
+                conv_only=False,
             )
             self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
 
@@ -93,7 +111,7 @@ class UnetResBlock(nn.Module):
 
 class UnetBasicBlock(nn.Module):
     """
-    A CNN module module that can be used for DynUNet, based on:
+    A CNN module that can be used for DynUNet, based on:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
     `nnU-Net: Self-adapting Framework for U-Net-Based Medical Image Segmentation <https://arxiv.org/abs/1809.10486>`_.
 
@@ -128,10 +146,20 @@ class UnetBasicBlock(nn.Module):
             kernel_size=kernel_size,
             stride=stride,
             dropout=dropout,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.conv2 = get_conv_layer(
-            spatial_dims, out_channels, out_channels, kernel_size=kernel_size, stride=1, dropout=dropout, conv_only=True
+            spatial_dims,
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            dropout=dropout,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
         self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
@@ -190,7 +218,9 @@ class UnetUpBlock(nn.Module):
             stride=upsample_stride,
             dropout=dropout,
             bias=trans_bias,
-            conv_only=True,
+            act=None,
+            norm=None,
+            conv_only=False,
             is_transposed=True,
         )
         self.conv_block = UnetBasicBlock(
@@ -218,7 +248,16 @@ class UnetOutBlock(nn.Module):
     ):
         super().__init__()
         self.conv = get_conv_layer(
-            spatial_dims, in_channels, out_channels, kernel_size=1, stride=1, dropout=dropout, bias=True, conv_only=True
+            spatial_dims,
+            in_channels,
+            out_channels,
+            kernel_size=1,
+            stride=1,
+            dropout=dropout,
+            bias=True,
+            act=None,
+            norm=None,
+            conv_only=False,
         )
 
     def forward(self, inp):
@@ -232,7 +271,7 @@ def get_conv_layer(
     kernel_size: Union[Sequence[int], int] = 3,
     stride: Union[Sequence[int], int] = 1,
     act: Optional[Union[Tuple, str]] = Act.PRELU,
-    norm: Union[Tuple, str] = Norm.INSTANCE,
+    norm: Optional[Union[Tuple, str]] = Norm.INSTANCE,
     dropout: Optional[Union[Tuple, str, float]] = None,
     bias: bool = False,
     conv_only: bool = True,

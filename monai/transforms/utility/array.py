@@ -321,7 +321,7 @@ class SplitDim(Transform):
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
-            outputs = np.split(img, n_out, self.dim)
+            outputs = np.split(img, n_out, self.dim)  # type: ignore
         for idx, item in enumerate(outputs):
             if not self.keepdim:
                 outputs[idx] = item.squeeze(self.dim)
