@@ -71,6 +71,7 @@ __all__ = [
     "HistogramNormalize",
     "IntensityRemap",
     "RandIntensityRemap",
+    "ForegroundMask",
 ]
 
 
