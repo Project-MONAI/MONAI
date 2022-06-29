@@ -61,7 +61,8 @@ def roll(x: Tensor, shift: Sequence[int], shift_dims: Sequence[int]) -> Tensor:
     Note:
         This function is called when fftshift and ifftshift are not available in the running pytorch version
     """
-    assert len(shift) == len(shift_dims)
+    if len(shift) != len(shift_dims):
+        raise ValueError(f"len(shift) != len(shift_dims), got f{len(shift)} and f{len(shift_dims)}.")
     for s, d in zip(shift, shift_dims):
         x = roll_1d(x, s, d)
     return x
@@ -152,7 +153,8 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
     # define spatial dims to perform ifftshift, fftshift, and ifft
     shift = tuple(range(-spatial_dims, 0))
     if is_complex:
-        assert ksp.shape[-1] == 2
+        if ksp.shape[-1] != 2:
+            raise ValueError(f"ksp.shape[-1] is not 2 ({ksp.shape[-1]}).")
         shift = tuple(range(-spatial_dims - 1, -1))
     dims = tuple(range(-spatial_dims, 0))
 
@@ -206,7 +208,8 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
     # define spatial dims to perform ifftshift, fftshift, and fft
     shift = tuple(range(-spatial_dims, 0))
     if is_complex:
-        assert im.shape[-1] == 2
+        if im.shape[-1] != 2:
+            raise ValueError(f"img.shape[-1] is not 2 ({im.shape[-1]}).")
         shift = tuple(range(-spatial_dims - 1, -1))
     dims = tuple(range(-spatial_dims, 0))
 
