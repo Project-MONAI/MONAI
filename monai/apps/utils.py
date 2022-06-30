@@ -29,6 +29,7 @@ from monai.utils import look_up_option, min_version, optional_import
 
 gdown, has_gdown = optional_import("gdown", "4.4")
 requests_get, has_requests = optional_import("requests", name="get")
+pd, has_pandas = optional_import("pandas")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -353,3 +354,42 @@ def download_and_extract(
         filename = filepath or Path(tmp_dir, _basename(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
+
+
+def download_tcia_series_instance(
+    series_uid: str,
+    download_dir: PathLike,
+    output_dir: PathLike,
+    check_md5: bool = False,
+    hashes_filename: str = "md5hashes.csv",
+):
+    """
+    Download a dicom series from a public The Cancer Imaging Archive (TCIA) dataset.
+    The downloaded compressed file will be stored in `download_dir`, and the uncompressed folder will be saved
+    in `output_dir`.
+
+    Args:
+        series_uid: SeriesInstanceUID of a dicom series.
+        download_dir: the path to store the downloaded compressed file. The full path of the file is:
+            `os.path.join(download_dir, f"{series_uid}.zip")`.
+        output_dir: target directory to save extracted dicom series.
+        check_md5: whether to download the MD5 hash values as well. If True, will check hash values for all images in
+            the downloaded dicom series.
+        hashes_filename: file that contains hashes.
+
+    """
+    query_name = "getImageWithMD5Hash" if check_md5 else "getImage"
+    baseurl = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
+    download_url = f"{baseurl}{query_name}?SeriesInstanceUID={series_uid}"
+
+    download_and_extract(
+        url=download_url,
+        filepath=os.path.join(download_dir, f"{series_uid}.zip"),
+        output_dir=output_dir,
+    )
+    if check_md5:
+        if not has_pandas:
+            raise ValueError("pandas package is necessary, please install it.")
+        hashes_df = pd.read_csv(os.path.join(output_dir, hashes_filename))
+        for dcm, md5hash in hashes_df.values:
+            check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
