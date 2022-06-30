@@ -43,7 +43,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
 
@@ -90,8 +90,7 @@ __all__ = [
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
-InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
-PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
+ModeSequence = Union[Sequence[str], str]
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
@@ -377,8 +376,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         box_keys: KeysCollection,
         box_ref_image_keys: KeysCollection,
         zoom: Union[Sequence[float], float],
-        mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        mode: ModeSequence = InterpolateMode.AREA,
+        padding_mode: ModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
@@ -519,8 +518,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         prob: float = 0.1,
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
-        mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        mode: ModeSequence = InterpolateMode.AREA,
+        padding_mode: ModeSequence = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,

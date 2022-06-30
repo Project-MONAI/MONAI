@@ -61,7 +61,7 @@ class SmoothField(Randomizable):
         high: float = 1.0,
         channels: int = 1,
         spatial_size: Optional[Sequence[int]] = None,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         device: Optional[torch.device] = None,
     ):
@@ -167,7 +167,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
@@ -267,7 +267,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
@@ -309,7 +309,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_mode(self, mode: Union[InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
@@ -363,7 +363,7 @@ class RandSmoothDeform(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        field_mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        field_mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,

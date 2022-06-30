@@ -127,7 +127,7 @@ def pad_images(
         if max(pt_pad_width) == 0:
             # if there is no need to pad
             return input_images, [orig_size] * input_images.shape[0]
-        mode_: str = convert_pad_mode(dst=input_images, mode=mode).value
+        mode_: str = convert_pad_mode(dst=input_images, mode=mode)
         return F.pad(input_images, pt_pad_width, mode=mode_, **kwargs), [orig_size] * input_images.shape[0]
 
     # If input_images: List[Tensor])

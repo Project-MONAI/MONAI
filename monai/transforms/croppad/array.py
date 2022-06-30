@@ -110,6 +110,7 @@ class Pad(InvertibleTransform):
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
         """
         dynamically compute the pad width according to the spatial shape.
+        the output is the amount of padding for all dimensions including the channel.
 
         Args:
             spatial_shape: spatial shape of the original image.

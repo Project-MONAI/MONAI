@@ -51,7 +51,7 @@ class Warp(nn.Module):
         # resolves _interp_mode for different methods
 
         if USE_COMPILED:
-            if mode in (inter.value for inter in GridSampleMode):
+            if mode in GridSampleMode:
                 mode = GridSampleMode(mode)
                 if mode == GridSampleMode.BILINEAR:
                     mode = 1
@@ -68,7 +68,7 @@ class Warp(nn.Module):
 
         # resolves _padding_mode for different methods
         if USE_COMPILED:
-            if padding_mode in (pad.value for pad in GridSamplePadMode):
+            if padding_mode in GridSamplePadMode:
                 padding_mode = GridSamplePadMode(padding_mode)
                 if padding_mode == GridSamplePadMode.ZEROS:
                     padding_mode = 7

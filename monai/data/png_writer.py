@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence
 
 import numpy as np
 
@@ -31,7 +31,7 @@ def write_png(
     data: np.ndarray,
     file_name: str,
     output_spatial_shape: Optional[Sequence[int]] = None,
-    mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+    mode: str = InterpolateMode.BICUBIC,
     scale: Optional[int] = None,
 ) -> None:
     """

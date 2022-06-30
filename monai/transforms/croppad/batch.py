@@ -14,7 +14,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from copy import deepcopy
-from typing import Any, Dict, Hashable, Union
+from typing import Any, Dict, Hashable
 
 import numpy as np
 import torch
@@ -22,7 +22,7 @@ import torch
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.utils.enums import Method, NumpyPadMode, PytorchPadMode, TraceKeys
+from monai.utils.enums import Method, NumpyPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
 
@@ -62,12 +62,7 @@ class PadListDataCollate(InvertibleTransform):
 
     """
 
-    def __init__(
-        self,
-        method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        **kwargs,
-    ) -> None:
+    def __init__(self, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs) -> None:
         self.method = method
         self.mode = mode
         self.kwargs = kwargs

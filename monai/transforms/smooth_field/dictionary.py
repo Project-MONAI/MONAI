@@ -39,10 +39,6 @@ __all__ = [
 ]
 
 
-InterpolateModeType = Union[InterpolateMode, str]
-GridSampleModeType = Union[GridSampleMode, str]
-
-
 class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
     """
     Dictionary version of RandSmoothFieldAdjustContrast.
@@ -71,7 +67,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
@@ -149,7 +145,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
@@ -229,12 +225,12 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        field_mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        field_mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[GridSampleModeType, Sequence[GridSampleModeType]] = GridSampleMode.NEAREST,
+        grid_mode: Union[str, Sequence[str]] = GridSampleMode.NEAREST,
         grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         device: Optional[torch.device] = None,

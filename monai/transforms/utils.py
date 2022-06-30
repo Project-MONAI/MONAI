@@ -1533,7 +1533,7 @@ def print_transform_backends():
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
 
 
-def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]]):
+def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
     """
     Utility to convert padding mode between numpy array and PyTorch Tensor.
 
@@ -1542,7 +1542,6 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, Py
         mode: current padding mode.
 
     """
-    mode = mode.value if isinstance(mode, (NumpyPadMode, PytorchPadMode)) else mode
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"

@@ -747,7 +747,7 @@ class PILWriter(ImageWriter):
         cls,
         data_array: NdarrayOrTensor,
         output_spatial_shape: Optional[Sequence[int]] = None,
-        mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+        mode: str = InterpolateMode.BICUBIC,
     ):
         """
         Resample ``data_array`` to ``output_spatial_shape`` if needed.

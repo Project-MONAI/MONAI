@@ -1161,8 +1161,7 @@ class Zoom(InvertibleTransform):
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
             out = _pad_crop(out)  # type: ignore
         if get_track_meta() and isinstance(img, MetaTensor):
-            if do_pad_crop:
-                self.pop_transform(out, check=False)
+            padcrop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
             self.push_transform(
                 out,
                 orig_size=orig_size[1:],
@@ -1170,7 +1169,7 @@ class Zoom(InvertibleTransform):
                     "mode": _mode,
                     "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
                     "do_padcrop": do_pad_crop,
-                    "z_size": z_size[1:],
+                    "padcrop": padcrop_xform,
                 },
             )
         return out
@@ -1185,9 +1184,13 @@ class Zoom(InvertibleTransform):
 
     def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
         if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
-            pad_or_crop = ResizeWithPadOrCrop(spatial_size=transform[TraceKeys.EXTRA_INFO]["z_size"], mode="edge")
-            with pad_or_crop.trace_transform(False):
-                data = pad_or_crop(data)
+            orig_size = transform[TraceKeys.ORIG_SIZE]
+            pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
+            padcrop_xform = transform[TraceKeys.EXTRA_INFO]["padcrop"]
+            padcrop_xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
+            padcrop_xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
+            # this uses inverse because spatial_size // 2 in the forward pass of center crop may cause issues
+            data = pad_or_crop.inverse_transform(data, padcrop_xform)  # type: ignore
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
@@ -2029,10 +2032,8 @@ class Resample(Transform):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
             grid_t = moveaxis(grid_t[:sr], 0, -1)  # type: ignore
             _padding_mode = self.padding_mode if padding_mode is None else padding_mode
-            _padding_mode = _padding_mode.value if isinstance(_padding_mode, GridSamplePadMode) else _padding_mode
             bound = 1 if _padding_mode == "reflection" else _padding_mode
             _interp_mode = self.mode if mode is None else mode
-            _interp_mode = _interp_mode.value if isinstance(_interp_mode, GridSampleMode) else _interp_mode
             if _interp_mode == "bicubic":
                 interp = 3
             elif _interp_mode == "bilinear":
@@ -2051,8 +2052,8 @@ class Resample(Transform):
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
                 grid_t.unsqueeze(0),
-                mode=self.mode.value if mode is None else GridSampleMode(mode).value,
-                padding_mode=self.padding_mode.value if padding_mode is None else GridSamplePadMode(padding_mode).value,
+                mode=self.mode if mode is None else GridSampleMode(mode),
+                padding_mode=self.padding_mode if padding_mode is None else GridSamplePadMode(padding_mode),
                 align_corners=True,
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
