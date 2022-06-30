@@ -26,7 +26,7 @@ TESTS = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range
 class TestSSIMMetric(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test(self, x, y, drange, res):
-        result = SSIMMetric()._compute_metric(x, y, drange)
+        result = SSIMMetric(data_range=drange)._compute_metric(x, y)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
 
