@@ -2668,6 +2668,7 @@ class GridPatch(Transform):
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         offset: offset of starting position in the array, default is 0 for each dimension.
         num_patches: number of patches to return. Defaults to None, which returns all the available patches.
+            If the required patches are more than the available patches, padding will be applied.
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
@@ -2770,7 +2771,7 @@ class GridPatch(Transform):
             patch = convert_to_dst_type(
                 src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
             )[0]
-            start_location = convert_to_dst_type(src=np.zeros((len(self.patch_size), 1)), dst=array)[0]
+            start_location = convert_to_dst_type(src=np.zeros(len(self.patch_size)), dst=array)[0]
             output += [(patch, start_location)] * (self.num_patches - len(output))
 
         return output
