@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - update-key-deps
   pull_request:
 
 concurrency:
