@@ -74,7 +74,7 @@ jobs:
         if [ ${{ matrix.environment }} = "PT17+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
           [ ${{ matrix.environment }} = "PT110+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT111+CUDA102" ]
+          [ ${{ matrix.environment }} = "PT112+CUDA102" ]
         then
         PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \

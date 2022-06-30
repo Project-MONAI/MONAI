@@ -20,7 +20,7 @@ from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
 from tests.utils import SkipIfNoModule
 
-SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 SummaryWriterX, _ = optional_import("tensorboardX", name="SummaryWriter")
 
@@ -35,6 +35,7 @@ TEST_CASE_4 = [(1, 1, 10, 10, 10)]
 TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 
 
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestPlot2dOr3dImage(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image(self, shape):
