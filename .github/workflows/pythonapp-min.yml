@@ -51,11 +51,11 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.12.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.11.0
+        python -m pip install torch==1.12.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -101,7 +101,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.11.0
+        python -m pip install torch==1.12.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
+        pytorch-version: [1.7.1, 1.8.2, 1.9.1, 1.10.2, 1.11.0, latest]
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -150,12 +150,14 @@ jobs:
           python -m pip install torch
         elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
           python -m pip install torch==1.7.1
-        elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
-          python -m pip install torch==1.8.1
+        elif [ ${{ matrix.pytorch-version }} == "1.8.2" ]; then
+          python -m pip install torch==1.8.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cpu
         elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
           python -m pip install torch==1.9.1
         elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
           python -m pip install torch==1.10.2
+        elif [ ${{ matrix.pytorch-version }} == "1.11.0" ]; then
+          python -m pip install torch==1.11.0
         fi
         python -m pip install -r requirements-min.txt
         python -m pip list
