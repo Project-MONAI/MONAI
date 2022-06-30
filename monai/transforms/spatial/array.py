@@ -1161,7 +1161,8 @@ class Zoom(InvertibleTransform):
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
             out = _pad_crop(out)  # type: ignore
         if get_track_meta() and isinstance(img, MetaTensor):
-            padcrop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
+            if do_pad_crop:
+                self.pop_transform(out, check=False)
             self.push_transform(
                 out,
                 orig_size=orig_size[1:],
@@ -1169,7 +1170,7 @@ class Zoom(InvertibleTransform):
                     "mode": _mode,
                     "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
                     "do_padcrop": do_pad_crop,
-                    "padcrop": padcrop_xform,
+                    "z_size": z_size[1:],
                 },
             )
         return out
@@ -1184,12 +1185,9 @@ class Zoom(InvertibleTransform):
 
     def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
         if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
-            padcrop_xform = transform[TraceKeys.EXTRA_INFO]["padcrop"]
-            padcrop_xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
-            padcrop_xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
-            data = pad_or_crop.inverse_transform(data, padcrop_xform)  # type: ignore
+            pad_or_crop = ResizeWithPadOrCrop(spatial_size=transform[TraceKeys.EXTRA_INFO]["z_size"], mode="edge")
+            with pad_or_crop.trace_transform(False):
+                data = pad_or_crop(data)
         # Create inverse transform
         mode = transform[TraceKeys.EXTRA_INFO]["mode"]
         align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
