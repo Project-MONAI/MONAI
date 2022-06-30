@@ -13,7 +13,8 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from ssim_loss import SSIM
+
+from monai.apps.reconstruction.ssim_metric import SSIMMetric
 
 x = torch.ones([1, 1, 10, 10]) / 2
 y1 = torch.ones([1, 1, 10, 10]) / 2
@@ -22,10 +23,10 @@ data_range = x.max().unsqueeze(0)
 TESTS = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
 
 
-class TestSSIMLoss(unittest.TestCase):
+class TestSSIMMetric(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test(self, x, y, drange, res):
-        result = 1 - SSIM()(x, y, drange)
+        result = SSIMMetric()._compute_metric(x, y, drange)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
 

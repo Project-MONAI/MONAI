@@ -103,6 +103,10 @@ Metrics
 .. autoclass:: PSNRMetric
     :members:
 
+`Structural similarity index measure`
+--------------------------------------
+.. autoclass:: monai.apps.reconstruction.ssim_metric.SSIMMetric
+
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
