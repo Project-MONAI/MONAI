@@ -338,6 +338,9 @@ class TestMetaTensor(unittest.TestCase):
         self.check_meta(im[0], im)
         self.check_meta(next(iter(im)), im)
 
+        self.assertEqual(im[None].shape, (1, 1, 10, 8))
+        self.assertEqual(data[None].shape, (1, 5, 1, 10, 8))
+
         # index
         d = data[0]
         self.check(d, ims[0], ids=False)

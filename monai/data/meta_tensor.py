@@ -204,7 +204,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if batch_idx not in (slice(None, None, None), Ellipsis):
+                        if batch_idx not in (slice(None, None, None), Ellipsis, None):
                             # only decollate metadata once
                             if metas is None:
                                 metas = decollate_batch(ret.meta)
