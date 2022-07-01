@@ -52,8 +52,9 @@ class SSIMLoss(nn.Module):
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: first sample (e.g., the reference image).
-            y: second sample (e.g., the reconstructed image)
+            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D. 
+                A fastMRI sample should use the 2D format with C being the number of slices.
+            y: second sample (e.g., the reconstructed image). It has similar shape as x.
             data_range: dynamic range of the data
 
         Returns:
