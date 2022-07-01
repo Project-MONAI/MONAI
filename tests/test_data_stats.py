@@ -14,6 +14,8 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
+from io import StringIO
 
 import numpy as np
 import torch
@@ -132,6 +134,17 @@ TEST_CASE_8 = [
 ]
 
 
+@contextmanager
+def captured_output():
+    new_out, new_err = StringIO(), StringIO()
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = new_out, new_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
+
+
 class TestDataStats(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, input_param, input_data, expected_print):
@@ -165,6 +178,18 @@ class TestDataStats(unittest.TestCase):
                 content = f.read()
             if sys.platform != "win32":
                 self.assertEqual(content, expected_print)
+
+    def test_multiple_data_stats(self):
+        with captured_output() as (out, _err):
+            input_data = np.array([[0, 1], [1, 2]])
+            transform = DataStats()
+            _ = DataStats()
+            _ = transform(input_data)
+        output = out.getvalue().strip()
+        if sys.platform != "win32":
+            self.assertEqual(
+                output, "Data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)"
+            )
 
 
 if __name__ == "__main__":
