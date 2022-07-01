@@ -62,7 +62,7 @@ from monai.transforms import (
     Transposed,
     Zoomd,
     allow_missing_keys_mode,
-    convert_inverse_interp_mode,
+    convert_applied_interp_mode,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
@@ -489,7 +489,7 @@ class TestInverse(unittest.TestCase):
         # inverse of individual segmentation
         seg_metatensor = first(segs_decollated)
         # test to convert interpolation mode for 1 data of model output batch
-        convert_inverse_interp_mode(seg_metatensor.applied_operations, mode="nearest", align_corners=None)
+        convert_applied_interp_mode(seg_metatensor.applied_operations, mode="nearest", align_corners=None)
 
         # manually invert the last crop samples
         xform = seg_metatensor.applied_operations.pop(-1)

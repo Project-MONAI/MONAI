@@ -68,7 +68,7 @@ exposure, has_skimage = optional_import("skimage.exposure")
 __all__ = [
     "allow_missing_keys_mode",
     "compute_divisible_spatial_size",
-    "convert_inverse_interp_mode",
+    "convert_applied_interp_mode",
     "copypaste_arrays",
     "create_control_grid",
     "create_grid",
@@ -1246,21 +1246,20 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 _interp_modes = list(InterpolateMode) + list(GridSampleMode)
 
 
-def convert_inverse_interp_mode(trans_info, mode: str = "nearest", align_corners: Optional[bool] = None):
+def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
-    Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    This function modifies trans_info's `TraceKeys.EXTRA_INFO`.
+    Recursively change the interpolation mode in the applied operation stacks, default to "nearest".
 
     See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
     Args:
-        trans_info: transforms inverse information list, contains context of every invertible transform.
+        trans_info: applied operation stack, tracking the previously applied invertible transform.
         mode: target interpolation mode to convert, default to "nearest" as it's usually used to save the mode output.
         align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
 
     """
     if isinstance(trans_info, (list, tuple)):
-        return [convert_inverse_interp_mode(x, mode=mode, align_corners=align_corners) for x in trans_info]
+        return [convert_applied_interp_mode(x, mode=mode, align_corners=align_corners) for x in trans_info]
     if not isinstance(trans_info, Mapping):
         return trans_info
     trans_info = dict(trans_info)
@@ -1278,7 +1277,7 @@ def convert_inverse_interp_mode(trans_info, mode: str = "nearest", align_corners
         )
     if ("mode" not in trans_info) and ("align_corners" not in trans_info):
         return {
-            k: convert_inverse_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
+            k: convert_applied_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
         }
     return trans_info
 

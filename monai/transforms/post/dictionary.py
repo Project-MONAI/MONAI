@@ -38,7 +38,7 @@ from monai.transforms.post.array import (
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
-from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
+from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
 from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
@@ -641,7 +641,7 @@ class Invertd(MapTransform):
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
                 meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
             if nearest_interp:
-                transform_info = convert_inverse_interp_mode(
+                transform_info = convert_applied_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 

@@ -1,0 +1,123 @@
+---
+input_keys: [image, segs]
+test_device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
+init_affine: "$np.array([[-2, 0, 0, 90], [0, 2, 0, -126], [0, 0, 2, -72], [0, 0, 0, 1]], dtype=np.float64)"
+init_shape: [1, 91, 109, 91]
+TEST_CASE_1:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImageD
+    keys: "@input_keys"
+    ensure_channel_first: True
+  - _target_: ToDeviced
+    keys: "@input_keys"
+    device: "@test_device"
+  - _target_: CenterScaleCropD
+    keys: "@input_keys"
+    roi_scale: 0.98
+  - _target_: CropForegroundD
+    keys: "@input_keys"
+    source_key: seg
+    start_coord_key: null
+    end_coord_key: null
+    k_divisible: 5
+  - _target_: RandSpatialCropD
+    keys: "@input_keys"
+    roi_size: [76, 87, 73]
+  - _target_: RandScaleCropD
+    keys: "@input_keys"
+    roi_scale: 0.9
+  - _target_: ResizeWithPadOrCropD
+    keys: "@input_keys"
+    spatial_size: [32, 43, 54]
+  - _target_: DivisiblePadD
+    keys: "@input_keys"
+    k: 3
+
+TEST_CASE_2:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys: "@input_keys"
+    ensure_channel_first: False
+  - _target_: ToDeviced
+    keys: "@input_keys"
+    device: "@test_device"
+  - _target_: EnsureChannelFirstd
+    keys: "@input_keys"
+  - _target_: RandGaussianNoised
+    keys: "$@input_keys[0]"
+  - _target_: RandBiasFieldd
+    keys: "$@input_keys[0]"
+
+TEST_CASE_3:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImageD
+    keys: "@input_keys"
+    ensure_channel_first: True
+  - _target_: CenterScaleCropD
+    keys: "@input_keys"
+    roi_scale: 0.98
+  - _target_: CropForegroundD
+    keys: "@input_keys"
+    source_key: seg
+    start_coord_key: null
+    end_coord_key: null
+    k_divisible: 5
+  - _target_: ToDeviced
+    keys: "@input_keys"
+    device: "@test_device"
+  - _target_: RandRotate90d
+    keys: "@input_keys"
+    prob: 1.0
+    spatial_axes: [2, 1]
+  - _target_: Spacingd
+    keys: "@input_keys"
+    pixdim: [1.8, 2.1, 2.3]
+  - _target_: RandFlipd
+    keys: "@input_keys"
+    prob: 1.0
+    spatial_axis: 2
+  - _target_: RandAffined
+    keys: "@input_keys"
+    prob: 1.0
+    spatial_size: [80, 91, 92]
+    rotate_range: 1.0
+    scale_range: 0.1
+  - _target_: RandAxisFlipD
+    keys: "@input_keys"
+    prob: 1.0
+  - _target_: RandRotated
+    keys: "@input_keys"
+    prob: 1.0
+    range_y: "$np.pi/3"
+  - _target_: RandZoomD
+    keys: "@input_keys"
+    prob: 1.0
+    max_zoom: 1.2
+    keep_size: True
+  - _target_: ResizeWithPadOrCropD
+    keys: "@input_keys"
+    spatial_size: [71, 56, 80]
+  - _target_: Resized
+    keys: "@input_keys"
+    spatial_size: [72, 57, 82]
+
+TEST_CASE_1_answer:
+  load_shape: [1, 1, 33, 45, 54]
+  affine: "$np.array([[-2, 0, 0, 34], [0, 2, 0, -64], [0, 0, 2, -54], [0, 0, 0, 1]], dtype=np.float64)"
+  inv_affine: "@init_affine"
+  inv_shape: "@init_shape"
+
+TEST_CASE_2_answer:
+  load_shape: [1, 1, 91, 109, 91]
+  affine: "$np.array([[-2, 0, 0, 90], [0, 2, 0, -126], [0, 0, 2, -72], [0, 0, 0, 1]], dtype=np.float64)"
+  inv_affine: "@init_affine"
+  inv_shape: "@init_shape"
+
+TEST_CASE_3_answer:
+  load_shape: [1, 1, 72, 57, 82]
+  affine: "$np.array([[1.746961, 0, 0.305282, -72.538789], [-0.399689, 0.84702, 2.244019, -116.362969], [0.134585, 2.097027, -0.755613, -25.211197], [0, 0, 0, 1]], dtype=np.float64)"
+  inv_affine: "@init_affine"
+  inv_shape: "@init_shape"

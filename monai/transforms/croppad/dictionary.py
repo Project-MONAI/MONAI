@@ -175,7 +175,7 @@ class SpatialPadd(Padd):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             spatial_size: the spatial size of output data after padding, if a dimension of the input
-                data size is bigger than the pad size, will not pad that dimension.
+                data size is larger than the pad size, will not pad that dimension.
                 If its components have non-positive values, the corresponding size of input image will be used.
                 for example: if the spatial size of input data is [30, 30, 30] and `spatial_size=[32, 25, -1]`,
                 the spatial size of output data will be [32, 30, 30].
@@ -362,7 +362,7 @@ class SpatialCropd(Cropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     General purpose cropper to produce sub-volume region of interest (ROI).
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
@@ -388,7 +388,7 @@ class SpatialCropd(Cropd):
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
                 will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
@@ -404,7 +404,7 @@ class SpatialCropd(Cropd):
 class CenterSpatialCropd(Cropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CenterSpatialCrop`.
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
@@ -412,7 +412,7 @@ class CenterSpatialCropd(Cropd):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_size: the size of the crop region e.g. [224,224,128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -454,7 +454,7 @@ class RandSpatialCropd(RandCropd):
     center or at the image center. And allows to set the minimum and maximum size to limit the randomly
     generated ROI. Suppose all the expected fields specified by `keys` have same shape.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
@@ -463,7 +463,7 @@ class RandSpatialCropd(RandCropd):
             See also: monai.transforms.MapTransform
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -537,7 +537,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
     specified by `keys` have same shape, and add `patch_index` to the corresponding metadata.
     It will return a list of dictionaries for all the cropped images.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
@@ -546,7 +546,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
             See also: monai.transforms.MapTransform
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -641,7 +641,7 @@ class CropForegroundd(Cropd):
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                than box size, default to `True`. if the margined size is larger than image size, will pad with
                 specified `mode`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -677,8 +677,10 @@ class CropForegroundd(Cropd):
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
-        d[self.start_coord_key] = box_start
-        d[self.end_coord_key] = box_end
+        if self.start_coord_key is not None:
+            d[self.start_coord_key] = box_start
+        if self.end_coord_key is not None:
+            d[self.end_coord_key] = box_end
         for key, m in self.key_iterator(d, self.mode):
             d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
         return d
@@ -756,7 +758,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
     and add `patch_index` to the corresponding metadata.
     And will return a list of dictionaries for all the cropped images.
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected size,
     and the cropped results of several images may not have exactly the same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center
@@ -767,7 +769,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding foreground/background.
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `data[label_key]` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -910,7 +912,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
          [0, 1, 3],      [1, 2, 1],
          [0, 0, 0]]      [1, 3, 0]]
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
@@ -921,7 +923,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
             See also: :py:class:`monai.transforms.compose.MapTransform`
         label_key: name of key for label image, this will be used for finding indices of every class.
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `label` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].

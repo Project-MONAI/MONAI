@@ -1246,12 +1246,13 @@ class Rotate90(InvertibleTransform):
         affine = convert_data_type(img.affine, torch.Tensor)[0]
         r, sp_r = len(affine) - 1, len(spatial_size)
         mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
+        s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
         if sp_r == 2:
-            rot90 = to_affine_nd(r, create_rotate(sp_r, [-np.pi / 2]))
+            rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
         else:
-            idx = {0, 1, 2} - set(axes)
+            idx = {1, 2, 3} - set(axes)
             angle = [0, 0, 0]
-            angle[2 - idx.pop()] = -np.pi / 2
+            angle[idx.pop() - 1] = s * np.pi / 2
             rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
         for _ in range(k):
             mat = rot90 @ mat
