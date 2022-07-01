@@ -20,13 +20,19 @@ x = torch.ones([1, 1, 10, 10]) / 2
 y1 = torch.ones([1, 1, 10, 10]) / 2
 y2 = torch.zeros([1, 1, 10, 10])
 data_range = x.max().unsqueeze(0)
-TESTS2D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
+TESTS2D = []
+for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+    TESTS2D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
+    TESTS2D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
 
 x = torch.ones([1, 1, 10, 10, 10]) / 2
 y1 = torch.ones([1, 1, 10, 10, 10]) / 2
 y2 = torch.zeros([1, 1, 10, 10, 10])
 data_range = x.max().unsqueeze(0)
-TESTS3D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
+TESTS3D = []
+for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
+    TESTS3D.append((x.to(device), y1.to(device), data_range.to(device), torch.tensor(1.0).unsqueeze(0).to(device)))
+    TESTS3D.append((x.to(device), y2.to(device), data_range.to(device), torch.tensor(0.0).unsqueeze(0).to(device)))
 
 
 class TestSSIMLoss(unittest.TestCase):

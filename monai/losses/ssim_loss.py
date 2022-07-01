@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.type_conversion import convert_to_dst_type
 
 
 class SSIMLoss(nn.Module):
@@ -73,14 +73,15 @@ class SSIMLoss(nn.Module):
         data_range = data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
         conv = getattr(F, f"conv{self.spatial_dims}d")
+        w = convert_to_dst_type(src=self.w, dst=x)[0]
 
         c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
         c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
-        ux = conv(x, convert_to_tensor(self.w))  # mu_x
-        uy = conv(y, convert_to_tensor(self.w))  # mu_y
-        uxx = conv(x * x, convert_to_tensor(self.w))  # mu_x^2
-        uyy = conv(y * y, convert_to_tensor(self.w))  # mu_y^2
-        uxy = conv(x * y, convert_to_tensor(self.w))  # mu_xy
+        ux = conv(x, w)  # mu_x
+        uy = conv(y, w)  # mu_y
+        uxx = conv(x * x, w)  # mu_x^2
+        uyy = conv(y * y, w)  # mu_y^2
+        uxy = conv(x * y, w)  # mu_xy
         vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
         vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
         vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
