@@ -482,10 +482,10 @@ class TestInverse(unittest.TestCase):
         self.assertEqual(data["image"].shape[0], batch_size * NUM_SAMPLES)
 
         labels = data["label"].to(device)
-        self.assertTrue(isinstance(labels, MetaTensor))
+        self.assertIsInstance(labels, MetaTensor)
         segs = model(labels).detach().cpu()
         segs_decollated = decollate_batch(segs)
-        self.assertTrue(isinstance(segs_decollated[0], MetaTensor))
+        self.assertIsInstance(segs_decollated[0], MetaTensor)
         # inverse of individual segmentation
         seg_metatensor = first(segs_decollated)
         # test to convert interpolation mode for 1 data of model output batch

@@ -727,10 +727,12 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform):
         cropping doesn't change the channel dim.
         """
         ret = []
+        orig_size = img.shape[1:]
         for i in range(self.num_samples):
             cropped = self.cropper(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
+                self.push_transform(cropped, orig_size=orig_size, extra_info=self.pop_transform(cropped, check=False))
             ret.append(cropped)
         return ret
 
@@ -928,13 +930,14 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
             self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         for i, center in enumerate(self.centers):
             cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, extra_info=self.pop_transform(ret_, check=False))
+                self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
             results.append(cropped)
         return results
 
@@ -1085,6 +1088,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1093,7 +1097,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
                 results.append(cropped)
         return results
 
@@ -1231,6 +1235,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
         if randomize:
             self.randomize(label, indices, image)
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1239,7 +1244,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, extra_info=self.pop_transform(ret_, check=False))
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
                 results.append(cropped)
 
         return results
@@ -1295,13 +1300,14 @@ class ResizeWithPadOrCrop(InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
+        orig_size = img.shape[1:]
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
             pad_info = ret_.applied_operations.pop(-1)
             crop_info = ret_.applied_operations.pop(-1)
-            self.push_transform(ret_, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+            self.push_transform(ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info})
         return ret
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
