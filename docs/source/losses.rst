@@ -96,7 +96,7 @@ Reconstruction Losses
 
 `SSIMLoss`
 ~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.ssim_loss.SSIMLoss
+.. autoclass:: monai.losses.ssim_loss.SSIMLoss
     :members:
 
 

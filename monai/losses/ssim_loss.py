@@ -26,26 +26,31 @@ class SSIMLoss(nn.Module):
 
     For more info, visit
         https://vicuesoft.com/glossary/term/ssim-ms-ssim/
+
+    SSIM reference paper:
+        Wang, Zhou, et al. "Image quality assessment: from error visibility to structural
+        similarity." IEEE transactions on image processing 13.4 (2004): 600-612.
     """
 
-    def __init__(self, win_size: int = 7, k1: float = 0.01, k2: float = 0.03):
+    def __init__(self, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2):
         """
         Args:
             win_size: gaussian weighting window size
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
+            spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
         """
         super().__init__()
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
-        self.register_buffer("w", torch.ones(1, 1, win_size, win_size) / win_size**2)
+        self.spatial_dims = spatial_dims
+        self.register_buffer(
+            "w", torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
+        )
         self.cov_norm = (win_size**2) / (win_size**2 - 1)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
-        y and x are of shape (B,C,H,W) where B is batch_size, C is number of channels,
-            and (H,W) are height and width. C can also serve as the slice dimension to pass volumes.
-
         Args:
             x: first sample (e.g., the reference image).
             y: second sample (e.g., the reconstructed image)
@@ -62,16 +67,19 @@ class SSIMLoss(nn.Module):
                 y = torch.ones([1,1,10,10])/2
                 data_range = x.max().unsqueeze(0)
                 # the following line should print 1.0 (or 0.9999)
-                print(1-SSIMLoss()(x,y,data_range))
+                print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
         """
-        data_range = data_range[:, None, None, None]
+        data_range = data_range[(None,) * (self.spatial_dims + 2)]
+        # determine whether to work with 2D convolution or 3D
+        conv = getattr(F, f"conv{self.spatial_dims}d")
+
         c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
         c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
-        ux = F.conv2d(x, convert_to_tensor(self.w))  # mu_x
-        uy = F.conv2d(y, convert_to_tensor(self.w))  # mu_y
-        uxx = F.conv2d(x * x, convert_to_tensor(self.w))  # mu_x^2
-        uyy = F.conv2d(y * y, convert_to_tensor(self.w))  # mu_y^2
-        uxy = F.conv2d(x * y, convert_to_tensor(self.w))  # mu_xy
+        ux = conv(x, convert_to_tensor(self.w))  # mu_x
+        uy = conv(y, convert_to_tensor(self.w))  # mu_y
+        uxx = conv(x * x, convert_to_tensor(self.w))  # mu_x^2
+        uyy = conv(y * y, convert_to_tensor(self.w))  # mu_y^2
+        uxy = conv(x * y, convert_to_tensor(self.w))  # mu_xy
         vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
         vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
         vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
