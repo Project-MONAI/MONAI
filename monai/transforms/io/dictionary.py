@@ -15,6 +15,7 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+import warnings
 from pathlib import Path
 from typing import Optional, Type, Union
 
@@ -25,6 +26,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
+from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
@@ -75,6 +77,7 @@ class LoadImaged(MapTransform):
         image_only: bool = False,
         ensure_channel_first: bool = False,
         allow_missing_keys: bool = False,
+        warn_on_shape_mismatch: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -104,6 +107,8 @@ class LoadImaged(MapTransform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             allow_missing_keys: don't raise exception if key is missing.
+            warn_on_shape_mismatch: logs a warning to the console when image shapes of the provided paths do not match.
+                This will only log once per sample that has a mismatch. default to `True`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
@@ -116,6 +121,8 @@ class LoadImaged(MapTransform):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
+        self.warn_on_shape_mismatch = warn_on_shape_mismatch
+        self.has_warned_about: list = []
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
@@ -127,8 +134,28 @@ class LoadImaged(MapTransform):
 
         """
         d = dict(data)
+        image_shapes = []
+        # From python 3.6 and up, dictionaries are ordered, so we can assume that the dict orders we get
+        # are all in the same order, unless the user goes out of their way to shuffle them.
+        first_path = list(d.values())[0]
+        # Keep a copy of the original input dict around in case we need to log it
+        input_dict = dict(data)
+
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
+
+            # Prevent unnessecary collecting when we don't need to
+            if self.warn_on_shape_mismatch and (first_path not in self.has_warned_about):
+                # _loader returns a tuple of (ndarray, dict), we want the ndarray.shape
+                # We should also make sure we don't include the channel dim in our comparisons
+                # So we ensure that we only collect it after passing it to an EnsureChannelFirst, and only taking
+                # the non-channel dims
+                image_shapes.append(
+                    EnsureChannelFirst()(data[0], data[1])[0].shape[1:]
+                    if isinstance(data, tuple)
+                    else EnsureChannelFirst()(data).shape[1:]
+                )
+
             if self._loader.image_only:
                 if not isinstance(data, np.ndarray):
                     raise ValueError("loader must return a numpy array (because image_only=True was used).")
@@ -143,6 +170,27 @@ class LoadImaged(MapTransform):
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Metadata with key {meta_key} already exists and overwriting=False.")
                 d[meta_key] = data[1]
+
+        # Only warn the first time per sample to prevent spamming the logs
+        if self.warn_on_shape_mismatch and (first_path not in self.has_warned_about):
+            # all() is a lazy function, i.e. it will stop at the first instance of shapes mismatching
+            if not all(x == image_shapes[0] for x in image_shapes):
+                warnings.warn(
+                    message="Loaded image shapes do not match for input dictionary:"
+                    + f"\n{input_dict}"
+                    + "\nResulting in image shapes:"
+                    + "\n".join(
+                        f"\t{key}: {value.shape if hasattr(value, 'shape') else 'Not an Image'}"
+                        for key, value in d.items()
+                    )
+                    + "\nIf you do not wish to see this warning, pass `warn_on_shape_mismatch = False` to "
+                    + "LoadImaged()",
+                    category=UserWarning,
+                )
+
+                # We save the path of the first key for later comparisons.
+                self.has_warned_about.append(first_path)
+
         return d
 
 
