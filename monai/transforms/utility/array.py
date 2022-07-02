@@ -623,8 +623,8 @@ class DataStats(Transform):
         if logging.root.getEffectiveLevel() > logging.INFO:
             # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
             has_console_handler = any(
-                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler
-                for h in _logger.handlers  # type:ignore[attr-defined]
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
+                for h in _logger.handlers
             )
             if not has_console_handler:
                 # if the root log level is higher than INFO, set a separate stream handler to record
