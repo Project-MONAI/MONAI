@@ -642,10 +642,17 @@ class DataStats(Transform):
         _logger = logging.getLogger(self._logger_name)
         _logger.setLevel(logging.INFO)
         if logging.root.getEffectiveLevel() > logging.INFO:
-            # if the root log level is higher than INFO, set a separate stream handler to record
-            console = logging.StreamHandler(sys.stdout)
-            console.setLevel(logging.INFO)
-            _logger.addHandler(console)
+            # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
+            has_console_handler = any(
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
+                for h in _logger.handlers
+            )
+            if not has_console_handler:
+                # if the root log level is higher than INFO, set a separate stream handler to record
+                console = logging.StreamHandler(sys.stdout)
+                console.setLevel(logging.INFO)
+                console.is_data_stats_handler = True  # type:ignore[attr-defined]
+                _logger.addHandler(console)
 
     def __call__(
         self,
