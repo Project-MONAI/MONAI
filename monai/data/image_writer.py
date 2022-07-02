@@ -803,7 +803,8 @@ class PILWriter(ImageWriter):
         data: np.ndarray = super().create_backend_obj(data_array)
         if scale:
             # scale the data to be in an integer range
-            data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+            data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
+
             if scale == np.iinfo(np.uint8).max:
                 data = (scale * data).astype(np.uint8, copy=False)
             elif scale == np.iinfo(np.uint16).max:

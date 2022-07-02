@@ -449,7 +449,6 @@ class ScaleIntensity(Transform):
                 ret = rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
         else:
             ret = (img * (1 + self.factor)) if self.factor is not None else img
-
         ret, *_ = convert_data_type(ret, dtype=self.dtype or img.dtype)
         return ret
 
@@ -1030,7 +1029,7 @@ class MaskIntensity(Transform):
                 f"got img channels={img.shape[0]} mask_data channels={mask_data_.shape[0]}."
             )
 
-        return img * mask_data_
+        return convert_to_dst_type(img * mask_data_, dst=img)[0]
 
 
 class SavitzkyGolaySmooth(Transform):
@@ -1148,7 +1147,7 @@ class GaussianSmooth(Transform):
             sigma = torch.as_tensor(self.sigma, device=img_t.device)
         gaussian_filter = GaussianFilter(img_t.ndim - 1, sigma, approx=self.approx)
         out_t: torch.Tensor = gaussian_filter(img_t.unsqueeze(0)).squeeze(0)
-        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
+        out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
 
         return out
 
@@ -1257,7 +1256,7 @@ class GaussianSharpen(Transform):
         blurred_f = gf1(img_t.unsqueeze(0))
         filter_blurred_f = gf2(blurred_f)
         out_t: torch.Tensor = (blurred_f + self.alpha * (blurred_f - filter_blurred_f)).squeeze(0)
-        out, *_ = convert_data_type(out_t, type(img), device=img.device if isinstance(img, torch.Tensor) else None)
+        out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
         return out
 
 
@@ -1457,7 +1456,8 @@ class GibbsNoise(Transform, Fourier):
         # build and apply mask
         k = self._apply_mask(k)
         # map back
-        img = self.inv_shift_fourier(k, n_dims)
+        out = self.inv_shift_fourier(k, n_dims)
+        img, *_ = convert_to_dst_type(out, dst=img, dtype=out.dtype)
 
         return img
 
@@ -2089,10 +2089,6 @@ class IntensityRemap(RandomizableTransform):
             curve.
         slope: slope of the linear component. Easiest to leave default value
             and tune the kernel_size parameter instead.
-        return_map: set to True for the transform to return a dictionary version
-            of the lookup table used in the intensity remapping. The keys
-            correspond to the old intensities, and the values are the new
-            values.
     """
 
     def __init__(self, kernel_size: int = 30, slope: float = 0.7):
@@ -2108,9 +2104,9 @@ class IntensityRemap(RandomizableTransform):
             img: image to remap.
         """
 
-        img = img.clone()
+        img_ = convert_to_tensor(img)
         # sample noise
-        vals_to_sample = torch.unique(img).tolist()
+        vals_to_sample = torch.unique(img_).tolist()
         noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
         # smooth
         noise = torch.nn.AvgPool1d(self.kernel_size, stride=1)(noise.unsqueeze(0)).squeeze()
@@ -2118,11 +2114,11 @@ class IntensityRemap(RandomizableTransform):
         grid = torch.arange(len(noise)) / len(noise)
         noise += self.slope * grid
         # rescale
-        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img.max() + img.min()
+        noise = (noise - noise.min()) / (noise.max() - noise.min()) * img_.max() + img_.min()
 
         # intensity remapping function
-        index_img = torch.bucketize(img, torch.tensor(vals_to_sample))
-        img = noise[index_img]
+        index_img = torch.bucketize(img_, torch.tensor(vals_to_sample))
+        img, *_ = convert_to_dst_type(noise[index_img], dst=img)
 
         return img
 
@@ -2155,7 +2151,7 @@ class RandIntensityRemap(RandomizableTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.kernel_size = kernel_size
         self.slope = slope
-        self.channel_wise = True
+        self.channel_wise = channel_wise
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """

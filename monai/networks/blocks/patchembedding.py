@@ -140,7 +140,7 @@ class PatchEmbed(nn.Module):
         patch_size: Union[Sequence[int], int] = 2,
         in_chans: int = 1,
         embed_dim: int = 48,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         spatial_dims: int = 3,
     ) -> None:
         """

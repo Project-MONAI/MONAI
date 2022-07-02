@@ -722,10 +722,10 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
 
 
-TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
+TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
+    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
@@ -735,7 +735,7 @@ TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS
 TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
 # alias for branch tests
-TEST_NDARRAYS_ALL = TEST_NDARRAYS  # type: ignore
+TEST_NDARRAYS_ALL = TEST_NDARRAYS
 
 
 TEST_DEVICES = [[torch.device("cpu")]]
