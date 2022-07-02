@@ -99,7 +99,7 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
     return boxes_affine
 
 
-def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]) -> NdarrayOrTensor:
+def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]):
     """
     Zoom boxes
 
@@ -128,7 +128,7 @@ def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]) -> N
 
 def resize_boxes(
     boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int], dst_spatial_size: Union[Sequence[int], int]
-) -> NdarrayOrTensor:
+):
     """
     Resize boxes when the corresponding image is resized
 
