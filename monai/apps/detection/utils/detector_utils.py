@@ -151,7 +151,7 @@ def pad_images(
     # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
     padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode=mode, **kwargs)
     for idx, img in enumerate(input_images):
-        images[idx, ...] = padder(img)  # type: ignore
+        images[idx, ...] = padder(img)
 
     return images, [list(ss) for ss in image_sizes]
 

@@ -262,7 +262,7 @@ def convert_box_to_mask(
             boxes_only_mask = resizer(boxes_only_mask[None])[0]  # type: ignore
         else:
             # generate a rect mask
-            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])  # type: ignore
+            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])
         # apply to global mask
         slicing = [b]
         slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type:ignore
@@ -334,7 +334,7 @@ def select_labels(
     Return:
         selected labels, does not share memory with original labels.
     """
-    labels_tuple = ensure_tuple(labels, True)  # type: ignore
+    labels_tuple = ensure_tuple(labels, True)
 
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]

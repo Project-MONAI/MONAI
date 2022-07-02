@@ -119,7 +119,7 @@ class SmoothField(Randomizable):
         field = self.field.clone()
 
         if self.spatial_zoom is not None:
-            resized_field = interpolate(  # type: ignore
+            resized_field = interpolate(
                 input=field,
                 scale_factor=self.spatial_zoom,
                 mode=look_up_option(self.mode, InterpolateMode).value,

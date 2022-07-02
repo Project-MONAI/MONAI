@@ -184,7 +184,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
-                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())  # type: ignore
+                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
                 ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
                 # the following is not implemented but the network arch may run into this case:
@@ -304,7 +304,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        return self.meta.get("affine", self.get_default_affine())  # type: ignore
+        return self.meta.get("affine", self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:

@@ -453,7 +453,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                 )
                 # Size might be out by 1 voxel so pad
                 orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
-                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
+                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])
 
             # zoom boxes
             if key_type == "box_key":
@@ -617,7 +617,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                     )
                     # Size might be out by 1 voxel so pad
                     orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
-                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])  # type: ignore
+                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])
 
                 # zoom boxes
                 if key_type == "box_key":

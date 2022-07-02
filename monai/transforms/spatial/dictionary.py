@@ -965,7 +965,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         if self._do_transform:
             grid = self.rand_2d_elastic.deform_grid(spatial_size=sp_size)
             grid = self.rand_2d_elastic.rand_affine_grid(grid=grid)
-            grid = torch.nn.functional.interpolate(  # type: ignore
+            grid = torch.nn.functional.interpolate(
                 recompute_scale_factor=True,
                 input=grid.unsqueeze(0),
                 scale_factor=ensure_tuple_rep(self.rand_2d_elastic.deform_grid.spacing, 2),
