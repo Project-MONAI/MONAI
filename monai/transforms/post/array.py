@@ -25,7 +25,14 @@ from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
 from monai.transforms.utils import fill_holes, get_largest_connected_component_mask, get_unique_labels
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import (
+    TransformBackends,
+    convert_data_type,
+    convert_to_tensor,
+    deprecated_arg,
+    ensure_tuple,
+    look_up_option,
+)
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -345,27 +352,28 @@ class KeepLargestConnectedComponent(Transform):
         else:
             applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
 
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         if self.independent:
             for i in applied_labels:
-                foreground = img[i] > 0 if is_onehot else img[0] == i
+                foreground = img_[i] > 0 if is_onehot else img_[0] == i
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 if is_onehot:
-                    img[i][foreground != mask] = 0
+                    img_[i][foreground != mask] = 0
                 else:
-                    img[0][foreground != mask] = 0
-            return img
+                    img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         if not is_onehot:  # not one-hot, union of labels
-            labels, *_ = convert_to_dst_type(applied_labels, dst=img, wrap_sequence=True)
-            foreground = (img[..., None] == labels).any(-1)[0]
+            labels, *_ = convert_to_dst_type(applied_labels, dst=img_, wrap_sequence=True)
+            foreground = (img_[..., None] == labels).any(-1)[0]
             mask = get_largest_connected_component_mask(foreground, self.connectivity)
-            img[0][foreground != mask] = 0
-            return img
+            img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         # one-hot, union of labels
-        foreground = (img[applied_labels, ...] == 1).any(0)
+        foreground = (img_[applied_labels, ...] == 1).any(0)
         mask = get_largest_connected_component_mask(foreground, self.connectivity)
         for i in applied_labels:
-            img[i][foreground != mask] = 0
-        return img
+            img_[i][foreground != mask] = 0
+        return convert_to_dst_type(img_, dst=img)[0]
 
 
 class LabelFilter:
@@ -414,13 +422,14 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
+            img_ = convert_to_tensor(img, track_meta=False)
             if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
-                appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
-                return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
-            else:
-                out = self(img.detach().cpu().numpy())
-                out, *_ = convert_to_dst_type(out, img)
-                return out
+                appl_lbls = torch.as_tensor(self.applied_labels, device=img_.device)
+                out = torch.where(torch.isin(img_, appl_lbls), img_, torch.tensor(0.0).to(img_))
+                return convert_to_dst_type(out, dst=img)[0]
+            out = self(img_.detach().cpu().numpy())
+            out, *_ = convert_to_dst_type(out, img)
+            return out
         return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
 
@@ -541,7 +550,7 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
