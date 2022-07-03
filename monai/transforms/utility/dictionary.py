@@ -292,8 +292,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
-    @deprecated_arg(name="meta_keys", since="0.8", msg_suffix="not needed if image is type `MetaTensor`.")
-    @deprecated_arg(name="meta_key_postfix", since="0.8", msg_suffix="not needed if image is type `MetaTensor`.")
+    @deprecated_arg(name="meta_keys", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
+    @deprecated_arg(name="meta_key_postfix", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
         self,
         keys: KeysCollection,

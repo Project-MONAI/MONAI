@@ -178,7 +178,7 @@ class SpatialResample(InvertibleTransform):
         img.affine = dst_affine
 
     @deprecated_arg(
-        name="src_affine", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
+        name="src_affine", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
     def __call__(
         self,
@@ -342,10 +342,10 @@ class ResampleToMatch(SpatialResample):
             img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
 
     @deprecated_arg(
-        name="src_meta", since="0.8", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
+        name="src_meta", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
     @deprecated_arg(
-        name="dst_meta", since="0.8", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
+        name="dst_meta", since="0.9", msg_suffix="img_dst should be `MetaTensor`, so affine can be extracted directly."
     )
     def __call__(
         self,
@@ -415,7 +415,7 @@ class Spacing(InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="image_only", since="0.8")
+    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         pixdim: Union[Sequence[float], float, np.ndarray],
@@ -472,7 +472,7 @@ class Spacing(InvertibleTransform):
             dtype=dtype,
         )
 
-    @deprecated_arg(name="affine", since="0.8", msg_suffix="Not needed, input should be `MetaTensor`.")
+    @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
         data_array: torch.Tensor,
@@ -565,7 +565,7 @@ class Orientation(InvertibleTransform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
-    @deprecated_arg(name="image_only", since="0.8")
+    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
         self,
         axcodes: Optional[str] = None,

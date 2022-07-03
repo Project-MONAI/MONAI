@@ -162,9 +162,9 @@ class SpatialResampled(MapTransform, InvertibleTransform):
 
     backend = SpatialResample.backend
 
-    @deprecated_arg(name="meta_keys", since="0.8")
-    @deprecated_arg(name="meta_key_postfix", since="0.8")
-    @deprecated_arg(name="meta_src_keys", since="0.8")
+    @deprecated_arg(name="meta_keys", since="0.9")
+    @deprecated_arg(name="meta_key_postfix", since="0.9")
+    @deprecated_arg(name="meta_src_keys", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -235,7 +235,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
 
     backend = ResampleToMatch.backend
 
-    @deprecated_arg(name="template_key", since="0.8")
+    @deprecated_arg(name="template_key", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -314,8 +314,8 @@ class Spacingd(MapTransform, InvertibleTransform):
 
     backend = Spacing.backend
 
-    @deprecated_arg(name="meta_keys", since="0.8")
-    @deprecated_arg(name="meta_key_postfix", since="0.8")
+    @deprecated_arg(name="meta_keys", since="0.9")
+    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
@@ -404,8 +404,8 @@ class Orientationd(MapTransform, InvertibleTransform):
 
     backend = Orientation.backend
 
-    @deprecated_arg(name="meta_keys", since="0.8")
-    @deprecated_arg(name="meta_key_postfix", since="0.8")
+    @deprecated_arg(name="meta_keys", since="0.9")
+    @deprecated_arg(name="meta_key_postfix", since="0.9")
     def __init__(
         self,
         keys: KeysCollection,
