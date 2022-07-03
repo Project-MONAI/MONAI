@@ -532,7 +532,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         rotator = Rotate90(self._rand_k, self.spatial_axes)
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=xform)
         return d
@@ -831,7 +831,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             # do the transform
             if do_resampling:
                 d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if do_resampling else {}
                 self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
         return d
@@ -1191,7 +1191,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.flipper(d[key])
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 xform_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=xform_info)
         return d
@@ -1250,7 +1250,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
                 d[key] = self.flipper(d[key], randomize=False)
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=xform)
         return d
@@ -1417,7 +1417,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=rot_info)
         return d
@@ -1584,7 +1584,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                 )
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            if get_track_meta() and isinstance(d[key], MetaTensor):
+            if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=xform)
         return d

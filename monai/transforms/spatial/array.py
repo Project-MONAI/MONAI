@@ -159,7 +159,7 @@ class SpatialResample(InvertibleTransform):
         """
         dtype = img.dtype
         img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        if get_track_meta() and isinstance(img, MetaTensor):
+        if get_track_meta():
             self.update_meta(img, dst_affine)
             self.push_transform(
                 img,
@@ -260,8 +260,8 @@ class SpatialResample(InvertibleTransform):
             )
 
         try:
-            _s = convert_data_type(src_affine_, torch.Tensor, device=torch.device("cpu"))[0]
-            _d = convert_data_type(dst_affine, torch.Tensor, device=torch.device("cpu"))[0]
+            _s = convert_to_tensor(src_affine_, track_meta=False, device=torch.device("cpu"))
+            _d = convert_to_tensor(dst_affine, track_meta=False, device=torch.device("cpu"))
             xform = (
                 torch.linalg.solve(_s, _d) if pytorch_after(1, 8, 0) else torch.solve(_d, _s).solution  # type: ignore
             )
@@ -668,7 +668,7 @@ class Orientation(InvertibleTransform):
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
 
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        if get_track_meta() and isinstance(data_array, MetaTensor):
+        if get_track_meta():
             self.update_meta(data_array, new_affine)
             self.push_transform(data_array, extra_info={"old_affine": affine_np})
         return data_array
@@ -729,7 +729,7 @@ class Flip(InvertibleTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axis)
         out = self.forward_image(img, axes)
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             self.update_meta(out, out.shape, axes)
             self.push_transform(out)
         return out
@@ -872,7 +872,7 @@ class Resize(InvertibleTransform):
             input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             self.update_meta(out, original_sp_size, spatial_size_)
             self.push_transform(
                 out,
@@ -1011,7 +1011,7 @@ class Rotate(InvertibleTransform):
         )
         output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
         out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             self.update_meta(out, transform_t)
             self.push_transform(
                 out,
@@ -1154,13 +1154,13 @@ class Zoom(InvertibleTransform):
         orig_size, z_size = img_t.shape, zoomed.shape
 
         out, *_ = convert_to_dst_type(zoomed, dst=img)
-        if get_track_meta() and isinstance(img, MetaTensor):
+        if get_track_meta():
             self.update_meta(out, orig_size[1:], z_size[1:])
         do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
         if do_pad_crop:
             _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
             out = _pad_crop(out)
-        if get_track_meta() and isinstance(img, MetaTensor):
+        if get_track_meta():
             padcrop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
             self.push_transform(
                 out,
@@ -1237,7 +1237,7 @@ class Rotate90(InvertibleTransform):
         ori_shape = img.shape[1:]
         out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
         out = convert_to_dst_type(out, img)[0]
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             self.update_meta(out, ori_shape, out.shape[1:], axes, self.k)
             self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
         return out
@@ -1315,7 +1315,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             maybe_rot90_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=maybe_rot90_info)
         return out
@@ -1441,7 +1441,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=rot_info)
         return out
@@ -1480,7 +1480,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
             self.randomize(None)
         out = self.flipper(img) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             xform_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=xform_info)
         return out
@@ -1531,7 +1531,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform):
             out = self.flipper(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             xform = self.pop_transform(out, check=False) if self._do_transform else {}
             xform["axes"] = self._axis
             self.push_transform(out, extra_info=xform)
@@ -1661,7 +1661,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 **self.kwargs,
             )(img)
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             z_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=z_info)
         return out  # type: ignore
@@ -2197,8 +2197,8 @@ class Affine(InvertibleTransform):
             return out if self.image_only else (out, affine)
         if not self.norm_coord:
             warnings.warn("customized transform may not work with the metadata operation.")
-        if get_track_meta() and isinstance(img, MetaTensor):
-            out.meta = img.meta
+        if get_track_meta():
+            out.meta = img.meta  # type: ignore
             self.update_meta(out, affine, img_size, sp_size)
             self.push_transform(
                 out, orig_size=img_size, extra_info={"affine": affine, "mode": _mode, "padding_mode": _padding_mode}
@@ -2430,7 +2430,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
             out = self.resampler(img=img, grid=grid, mode=_mode, padding_mode=_padding_mode)
         mat = self.rand_affine_grid.get_transformation_matrix()
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        if get_track_meta() and isinstance(out, MetaTensor):
+        if get_track_meta():
             self.push_transform(
                 out,
                 orig_size=img.shape[1:],
