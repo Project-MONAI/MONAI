@@ -544,7 +544,7 @@ class Invertd(MapTransform):
         self,
         keys: KeysCollection,
         transform: InvertibleTransform,
-        orig_keys: KeysCollection,
+        orig_keys: Optional[KeysCollection] = None,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
@@ -559,7 +559,7 @@ class Invertd(MapTransform):
             keys: the key of expected data in the dict, the inverse of ``transforms`` will be applied on it in-place.
                 It also can be a list of keys, will apply the inverse transform respectively.
             transform: the transform applied to ``orig_key``, its inverse will be applied on ``key``.
-            orig_keys: the key of the original input data in the dict.
+            orig_keys: the key of the original input data in the dict. These keys default to `self.keys` if not set.
                 the transform trace information of ``transforms`` should be stored at ``{orig_keys}_transforms``.
                 It can also be a list of keys, each matches the ``keys``.
             meta_keys: The key to output the inverted metadata dictionary.
@@ -589,7 +589,7 @@ class Invertd(MapTransform):
         if not isinstance(transform, InvertibleTransform):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
-        self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
+        self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys)) if orig_keys is not None else self.keys
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")

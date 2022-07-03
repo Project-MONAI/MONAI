@@ -71,7 +71,7 @@ class TestResampleToMatchd(unittest.TestCase):
         self.assertTrue(any(i != j for i, j in zip(data["im3"].shape, data["im2"].shape)))
         self.assertTrue(any(i != j for i, j in zip(data["im3"].affine.flatten(), data["im2"].affine.flatten())))
         # test the inverse
-        data = Invertd("im3", transforms, "im3")(data)
+        data = Invertd("im3", transforms)(data)
         assert_allclose(data["im2"].shape, data["im3"].shape)
 
 
