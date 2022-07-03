@@ -20,6 +20,7 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter
 from monai.transforms.transform import Transform
@@ -102,6 +103,7 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if sigmoid or self.sigmoid:
             img_t = torch.sigmoid(img_t)
@@ -237,7 +239,7 @@ class AsDiscrete(Transform):
         if isinstance(threshold, bool):
             warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
-
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
@@ -351,7 +353,7 @@ class KeepLargestConnectedComponent(Transform):
             applied_labels = self.applied_labels
         else:
             applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
-
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         if self.independent:
             for i in applied_labels:
@@ -422,13 +424,14 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
+            img = convert_to_tensor(img, track_meta=get_track_meta())
             img_ = convert_to_tensor(img, track_meta=False)
             if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
                 appl_lbls = torch.as_tensor(self.applied_labels, device=img_.device)
                 out = torch.where(torch.isin(img_, appl_lbls), img_, torch.tensor(0.0).to(img_))
                 return convert_to_dst_type(out, dst=img)[0]
-            out = self(img_.detach().cpu().numpy())
-            out, *_ = convert_to_dst_type(out, img)
+            out: NdarrayOrTensor = self(img_.detach().cpu().numpy())  # type: ignore
+            out = convert_to_dst_type(out, img)[0]  # type: ignore
             return out
         return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
@@ -506,8 +509,7 @@ class FillHoles(Transform):
         Returns:
             Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         """
-        if not isinstance(img, (np.ndarray, torch.Tensor)):
-            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_np, *_ = convert_data_type(img, np.ndarray)
         out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
         out, *_ = convert_to_dst_type(out_np, img)
@@ -550,6 +552,7 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
@@ -739,10 +742,10 @@ class ProbNMS(Transform):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
+        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta(), dtype=torch.float)
         if self.sigma != 0:
-            if not isinstance(prob_map, torch.Tensor):
-                prob_map = torch.as_tensor(prob_map, dtype=torch.float)
-            self.filter.to(prob_map.device)
+            if isinstance(prob_map, torch.Tensor):
+                self.filter.to(prob_map.device)
             prob_map = self.filter(prob_map)
 
         prob_map_shape = prob_map.shape

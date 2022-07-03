@@ -81,7 +81,7 @@ class TestActivations(unittest.TestCase):
         result = Activations(**input_param)(img)
 
         def _compare(ret, out, shape):
-            assert_allclose(ret, out, rtol=1e-3)
+            assert_allclose(ret, out, rtol=1e-3, type_test=False)
             self.assertTupleEqual(ret.shape, shape)
 
         if isinstance(result, (list, tuple)):

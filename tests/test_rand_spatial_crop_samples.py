@@ -93,7 +93,7 @@ class TestRandSpatialCropSamples(CropTest):
             for i, (item, expected) in enumerate(zip(result, expected_shape)):
                 self.assertTupleEqual(item.shape, expected)
                 self.assertEqual(item.meta["patch_index"], i)
-            assert_allclose(result[-1], expected_last_item, type_test=False)
+            assert_allclose(result[-1], expected_last_item, type_test="tensor")
 
 
 if __name__ == "__main__":

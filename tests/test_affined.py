@@ -164,7 +164,7 @@ class TestAffined(unittest.TestCase):
         g = Affined(**input_param)
         result = g(input_data)
         test_local_inversion(g, result, input_copy, dict_key="img")
-        assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test=False)
+        assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":

@@ -26,7 +26,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -38,7 +38,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
@@ -77,7 +77,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: bool = True,
+    type_test: Union[bool, str] = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -89,13 +89,22 @@ def assert_allclose(
         actual: Pytorch Tensor or numpy array for comparison.
         desired: Pytorch Tensor or numpy array to compare against.
         type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+            if type_test == "tensor", it checks whether the `actual` is a torch.tensor or metatensor according to
+            `get_track_meta`.
         device_test: whether to test the device property.
         args: extra arguments to pass on to `np.testing.assert_allclose`.
         kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
 
 
     """
-    if type_test:
+    if isinstance(type_test, str) and type_test == "tensor":
+        if get_track_meta():
+            np.testing.assert_equal(isinstance(actual, MetaTensor), True, "must be a MetaTensor")
+        else:
+            np.testing.assert_equal(
+                isinstance(actual, torch.Tensor) and not isinstance(actual, MetaTensor), True, "must be a torch.Tensor"
+            )
+    elif type_test:
         # check both actual and desired are of the same type
         np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
         np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")

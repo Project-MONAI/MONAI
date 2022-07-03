@@ -32,7 +32,7 @@ class TestAsChannelFirst(unittest.TestCase):
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
         expected = moveaxis(test_data, input_param["channel_dim"], 0)
-        assert_allclose(result, expected)
+        assert_allclose(result, expected, type_test="tensor")
 
 
 if __name__ == "__main__":

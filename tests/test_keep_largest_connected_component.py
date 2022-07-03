@@ -350,8 +350,7 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
         result = converter(input_image)
-        self.assertEqual(type(input_image), type(result))
-        assert_allclose(result, expected, type_test=False)
+        assert_allclose(result, expected, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_correct_results_before_after_onehot(self, _, args, input_image, expected):
@@ -373,12 +372,12 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
             img = to_onehot(input_image)
             result2 = KeepLargestConnectedComponent(**args)(img)
             result2 = result2.argmax(0)[None]
-            assert_allclose(result, result2)
+            assert_allclose(result, result2, type_test="tensor")
         # if onehotted, un-onehot and check result stays the same
         else:
             img = input_image.argmax(0)[None]
             result2 = KeepLargestConnectedComponent(**args)(img)
-            assert_allclose(result.argmax(0)[None], result2)
+            assert_allclose(result.argmax(0)[None], result2, type_test="tensor")
 
 
 if __name__ == "__main__":

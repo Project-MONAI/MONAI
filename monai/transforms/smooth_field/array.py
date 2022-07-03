@@ -19,6 +19,7 @@ from torch.nn.functional import grid_sample, interpolate
 
 import monai
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.transform import Randomizable, RandomizableTransform
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
@@ -216,6 +217,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -316,6 +318,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
 
         if randomize:
             self.randomize()
@@ -431,6 +434,7 @@ class RandSmoothDeform(RandomizableTransform):
     def __call__(
         self, img: NdarrayOrTensor, randomize: bool = True, device: Optional[torch.device] = None
     ) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 

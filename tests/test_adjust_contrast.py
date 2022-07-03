@@ -39,7 +39,7 @@ class TestAdjustContrast(NumpyImageTestCase2D):
                 img_min = self.imt.min()
                 img_range = self.imt.max() - img_min
                 expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma) * img_range + img_min
-            assert_allclose(expected, result, rtol=1e-05, type_test=False)
+            assert_allclose(result, expected, rtol=1e-05, type_test="tensor")
 
 
 if __name__ == "__main__":

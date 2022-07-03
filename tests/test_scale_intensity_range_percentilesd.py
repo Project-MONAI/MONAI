@@ -34,7 +34,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
             scaler = ScaleIntensityRangePercentilesd(
                 keys=data.keys(), lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8
             )
-            assert_allclose(p(expected), scaler(data)["img"], rtol=1e-4)
+            assert_allclose(scaler(data)["img"], p(expected), type_test="tensor", rtol=1e-4)
 
     def test_relative_scaling(self):
         img = self.imt
@@ -91,7 +91,7 @@ class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
 
         for p in TEST_NDARRAYS:
             data = {"img": p(img)}
-            assert_allclose(scaler(data)["img"], p(expected), rtol=1e-4)
+            assert_allclose(scaler(data)["img"], p(expected), type_test="tensor", rtol=1e-4)
 
 
 if __name__ == "__main__":

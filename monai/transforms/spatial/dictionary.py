@@ -810,7 +810,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
-            return d
+            out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
         # all the keys share the same random Affine factor
@@ -954,7 +955,8 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
-            return d
+            out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
 
@@ -1090,7 +1092,8 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
-            return d
+            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
 
@@ -1569,7 +1572,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
-            return d
+            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.randomize(None)
 
@@ -1704,11 +1708,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
-            return d
+            out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
-            return d
+            out = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
 
         self.rand_grid_distortion.randomize(d[first_key].shape[1:])  # type: ignore
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):

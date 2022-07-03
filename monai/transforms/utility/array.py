@@ -139,7 +139,8 @@ class AsChannelFirst(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, 0)
+        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, 0), track_meta=get_track_meta())
+        return out
 
 
 class AsChannelLast(Transform):
@@ -168,7 +169,8 @@ class AsChannelLast(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, -1)
+        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, -1), track_meta=get_track_meta())
+        return out
 
 
 class AddChannel(Transform):
@@ -191,7 +193,8 @@ class AddChannel(Transform):
         """
         Apply the transform to `img`.
         """
-        return img[None]
+        out: NdarrayOrTensor = convert_to_tensor(img[None], track_meta=get_track_meta())
+        return out
 
 
 class EnsureChannelFirst(Transform):
@@ -259,7 +262,7 @@ class RepeatChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
-        return repeat_fn(img, self.repeats, 0)  # type: ignore
+        return convert_to_tensor(repeat_fn(img, self.repeats, 0), track_meta=get_track_meta())  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -287,7 +290,8 @@ class RemoveRepeatedChannel(Transform):
         if img.shape[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return img[:: self.repeats, :]
+        out: NdarrayOrTensor = convert_to_tensor(img[:: self.repeats, :], track_meta=get_track_meta())
+        return out
 
 
 class SplitDim(Transform):
@@ -549,9 +553,8 @@ class Transpose(Transform):
         """
         Apply the transform to `img`.
         """
-        if isinstance(img, torch.Tensor):
-            return img.permute(self.indices or tuple(range(img.ndim)[::-1]))
-        return img.transpose(self.indices)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        return img.permute(self.indices or tuple(range(img.ndim)[::-1]))  # type: ignore
 
 
 class SqueezeDim(Transform):
@@ -580,6 +583,7 @@ class SqueezeDim(Transform):
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
             return img.squeeze()
         # for pytorch/numpy unification
@@ -864,6 +868,7 @@ class LabelToMask(Transform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if select_labels is None:
             select_labels = self.select_labels
         else:

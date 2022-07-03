@@ -12,14 +12,12 @@
 import unittest
 from copy import deepcopy
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandKSpaceSpikeNoised
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -57,33 +55,20 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         out2 = t(deepcopy(data))
 
         for k in KEYS:
-            self.assertEqual(type(out1[k]), type(data[k]))
-            if isinstance(out1[k], torch.Tensor):
-                self.assertEqual(out1[k].device, data[k].device)
-                out1[k] = out1[k].cpu()
-                out2[k] = out2[k].cpu()
-            np.testing.assert_allclose(out1[k], out2[k], atol=1e-10)
+            assert_allclose(out1[k], out2[k], atol=1e-10, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_0_prob(self, im_shape, im_type):
         data = self.get_data(im_shape, im_type)
 
         t1 = RandKSpaceSpikeNoised(KEYS, prob=0.0, intensity_range=(13, 15), channel_wise=True)
-
         t2 = RandKSpaceSpikeNoised(KEYS, prob=0.0, intensity_range=(13, 15), channel_wise=True)
         out1 = t1(data)
         out2 = t2(data)
 
         for k in KEYS:
-            self.assertEqual(type(out1[k]), type(data[k]))
-            if isinstance(out1[k], torch.Tensor):
-                self.assertEqual(out1[k].device, data[k].device)
-                out1[k] = out1[k].cpu()
-                out2[k] = out2[k].cpu()
-                data[k] = data[k].cpu()
-
-            np.testing.assert_allclose(data[k], out1[k])
-            np.testing.assert_allclose(data[k], out2[k])
+            assert_allclose(out1[k], data[k], type_test="tensor")
+            assert_allclose(out2[k], data[k], type_test="tensor")
 
 
 if __name__ == "__main__":

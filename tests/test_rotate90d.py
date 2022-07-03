@@ -29,7 +29,7 @@ class TestRotate90d(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected), type_test=False)
+            assert_allclose(rotated[key], p(expected), type_test="tensor")
             set_track_meta(False)
             rotated = rotate({key: im})
             self.assertNotIsInstance(rotated[key], MetaTensor)
@@ -44,7 +44,7 @@ class TestRotate90d(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected), type_test=False)
+            assert_allclose(rotated[key], p(expected), type_test="tensor")
 
     def test_spatial_axes(self):
         key = "test"
@@ -55,7 +55,7 @@ class TestRotate90d(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected), type_test=False)
+            assert_allclose(rotated[key], p(expected), type_test="tensor")
 
     def test_prob_k_spatial_axes(self):
         key = "test"
@@ -66,7 +66,7 @@ class TestRotate90d(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated[key], p(expected), type_test=False)
+            assert_allclose(rotated[key], p(expected), type_test="tensor")
 
     def test_no_key(self):
         key = "unknown"

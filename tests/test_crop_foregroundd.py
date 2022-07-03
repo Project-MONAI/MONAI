@@ -152,7 +152,7 @@ class TestCropForegroundd(unittest.TestCase):
     def test_value(self, argments, input_data, expected_data):
         cropper = CropForegroundd(**argments)
         result = cropper(input_data)
-        assert_allclose(result["img"], expected_data, type_test=False)
+        assert_allclose(result["img"], expected_data, type_test="tensor")
         if "label" in input_data and "img" in input_data:
             self.assertTupleEqual(result["img"].shape, result["label"].shape)
         inv = cropper.inverse(result)

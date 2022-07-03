@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -109,6 +110,7 @@ class RandGaussianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize(img=img, mean=self.mean if mean is None else mean)
 
@@ -187,6 +189,7 @@ class RandRicianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             super().randomize(None)
 
@@ -229,6 +232,7 @@ class ShiftIntensity(Transform):
         Apply the transform to `img`.
         """
 
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         offset = self.offset if offset is None else offset
         out = img + offset
         out, *_ = convert_data_type(data=out, dtype=img.dtype)
@@ -276,6 +280,7 @@ class RandShiftIntensity(RandomizableTransform):
                 can be some image specific value at runtime, like: max(img), etc.
 
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -330,6 +335,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dtype is not None:
             img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
@@ -388,6 +394,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -440,16 +447,18 @@ class ScaleIntensity(Transform):
             ValueError: When ``self.minv=None`` or ``self.maxv=None`` and ``self.factor=None``. Incompatible values.
 
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
         ret: NdarrayOrTensor
         if self.minv is not None or self.maxv is not None:
             if self.channel_wise:
-                out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img]
-                ret = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
+                out = [rescale_array(d, self.minv, self.maxv, dtype=self.dtype) for d in img_t]
+                ret = torch.stack(out)  # type: ignore
             else:
-                ret = rescale_array(img, self.minv, self.maxv, dtype=self.dtype)
+                ret = rescale_array(img_t, self.minv, self.maxv, dtype=self.dtype)
         else:
-            ret = (img * (1 + self.factor)) if self.factor is not None else img
-        ret, *_ = convert_data_type(ret, dtype=self.dtype or img.dtype)
+            ret = (img_t * (1 + self.factor)) if self.factor is not None else img_t
+        ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img_t.dtype)[0]
         return ret
 
 
@@ -492,6 +501,7 @@ class RandScaleIntensity(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -573,6 +583,7 @@ class RandBiasField(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize(img_size=img.shape[1:])
 
@@ -675,6 +686,7 @@ class NormalizeIntensity(Transform):
         """
         Apply the transform to `img`, assuming `img` is a channel-first array if `self.channel_wise` is True,
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         dtype = self.dtype or img.dtype
         if self.channel_wise:
             if self.subtrahend is not None and len(self.subtrahend) != len(img):
@@ -719,6 +731,7 @@ class ThresholdIntensity(Transform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         mask = img > self.threshold if self.above else img < self.threshold
         res = where(mask, img, self.cval)
         res, *_ = convert_data_type(res, dtype=img.dtype)
@@ -764,6 +777,7 @@ class ScaleIntensityRange(Transform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         dtype = self.dtype or img.dtype
         if self.a_max - self.a_min == 0.0:
             warn("Divide by zero (a_min == a_max)", Warning)
@@ -802,6 +816,7 @@ class AdjustContrast(Transform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
@@ -849,6 +864,7 @@ class RandAdjustContrast(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -964,19 +980,21 @@ class ScaleIntensityRangePercentiles(Transform):
             a_min=a_min, a_max=a_max, b_min=b_min, b_max=b_max, clip=self.clip, dtype=self.dtype
         )
         img = scalar(img)
+        img = convert_to_tensor(img, track_meta=False)
         return img
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
         if self.channel_wise:
-            out = [self._normalize(img=d) for d in img]
-            img = torch.stack(out) if isinstance(img, torch.Tensor) else np.stack(out)  # type: ignore
+            img_t = torch.stack([self._normalize(img=d) for d in img_t])  # type: ignore
         else:
-            img = self._normalize(img=img)
+            img_t = self._normalize(img=img_t)
 
-        return img
+        return convert_to_dst_type(img_t, dst=img)[0]
 
 
 class MaskIntensity(Transform):
@@ -1016,6 +1034,7 @@ class MaskIntensity(Transform):
             - ValueError: When ``mask_data`` and ``img`` channels differ and ``mask_data`` is not single channel.
 
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         mask_data = self.mask_data if mask_data is None else mask_data
         if mask_data is None:
             raise ValueError("must provide the mask_data when initializing the transform or at runtime.")
@@ -1066,7 +1085,8 @@ class SavitzkyGolaySmooth(Transform):
             array containing smoothed result.
 
         """
-        self.img_t = convert_to_tensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        self.img_t = convert_to_tensor(img, track_meta=False)
 
         # add one to transform axis because a batch axis will be added at dimension 0
         savgol_filter = SavitzkyGolayFilter(self.window_length, self.order, self.axis + 1, self.mode)
@@ -1108,6 +1128,7 @@ class DetectEnvelope(Transform):
             np.ndarray containing envelope of data in img along the specified axis.
 
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         # add one to transform axis because a batch axis will be added at dimension 0
         hilbert_transform = HilbertTransform(self.axis + 1, self.n)
@@ -1139,6 +1160,7 @@ class GaussianSmooth(Transform):
         self.approx = approx
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         sigma: Union[Sequence[torch.Tensor], torch.Tensor]
         if isinstance(self.sigma, Sequence):
@@ -1195,6 +1217,7 @@ class RandGaussianSmooth(RandomizableTransform):
         self.z = self.R.uniform(low=self.sigma_z[0], high=self.sigma_z[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -1247,6 +1270,7 @@ class GaussianSharpen(Transform):
         self.approx = approx
 
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float32)
 
         gf1, gf2 = (
@@ -1329,6 +1353,7 @@ class RandGaussianSharpen(RandomizableTransform):
         self.a = self.R.uniform(low=self.alpha[0], high=self.alpha[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -1401,6 +1426,7 @@ class RandHistogramShift(RandomizableTransform):
             )
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -1409,14 +1435,14 @@ class RandHistogramShift(RandomizableTransform):
 
         if self.reference_control_points is None or self.floating_control_points is None:
             raise RuntimeError("please call the `randomize()` function first.")
-
-        xp, *_ = convert_to_dst_type(self.reference_control_points, dst=img)
-        yp, *_ = convert_to_dst_type(self.floating_control_points, dst=img)
-        img_min, img_max = img.min(), img.max()
+        img_t = convert_to_tensor(img, track_meta=False)
+        xp, *_ = convert_to_dst_type(self.reference_control_points, dst=img_t)
+        yp, *_ = convert_to_dst_type(self.floating_control_points, dst=img_t)
+        img_min, img_max = img_t.min(), img_t.max()
         reference_control_points_scaled = xp * (img_max - img_min) + img_min
         floating_control_points_scaled = yp * (img_max - img_min) + img_min
-        img = self.interp(img, reference_control_points_scaled, floating_control_points_scaled)
-        return img
+        img_t = self.interp(img_t, reference_control_points_scaled, floating_control_points_scaled)
+        return convert_to_dst_type(img_t, dst=img)[0]
 
 
 class GibbsNoise(Transform, Fourier):
@@ -1449,10 +1475,12 @@ class GibbsNoise(Transform, Fourier):
         self.alpha = alpha
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        n_dims = len(img.shape[1:])
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
+        n_dims = len(img_t.shape[1:])
 
         # FT
-        k = self.shift_fourier(img, n_dims)
+        k = self.shift_fourier(img_t, n_dims)
         # build and apply mask
         k = self._apply_mask(k)
         # map back
@@ -1543,6 +1571,7 @@ class RandGibbsNoise(RandomizableTransform):
         self.sampled_alpha = self.R.uniform(self.alpha[0], self.alpha[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True):
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             # randomize application and possibly alpha
             self.randomize(None)
@@ -1617,6 +1646,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
         Args:
             img: image with dimensions (C, H, W) or (C, H, W, D)
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         # checking that tuples in loc are consistent with img size
         self._check_indices(img)
 
@@ -1759,7 +1789,7 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
             raise RuntimeError(
                 "If intensity_range is a sequence of sequences, then there must be one (low, high) tuple for each channel."
             )
-
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         self.sampled_k_intensity = []
         self.sampled_locs = []
 
@@ -1894,6 +1924,7 @@ class RandCoarseTransform(RandomizableTransform):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize(img.shape[1:])
 
@@ -2055,6 +2086,7 @@ class HistogramNormalize(Transform):
         self.dtype = dtype
 
     def __call__(self, img: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_np, *_ = convert_data_type(img, np.ndarray)
         mask = mask if mask is not None else self.mask
         mask_np: Optional[np.ndarray] = None
@@ -2103,8 +2135,8 @@ class IntensityRemap(RandomizableTransform):
         Args:
             img: image to remap.
         """
-
-        img_ = convert_to_tensor(img)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_ = convert_to_tensor(img, track_meta=False)
         # sample noise
         vals_to_sample = torch.unique(img_).tolist()
         noise = torch.from_numpy(self.R.choice(vals_to_sample, len(vals_to_sample) - 1 + self.kernel_size))
@@ -2159,6 +2191,7 @@ class RandIntensityRemap(RandomizableTransform):
             img: image to remap.
         """
         super().randomize(None)
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if self._do_transform:
             if self.channel_wise:
                 img = torch.stack(
@@ -2245,6 +2278,7 @@ class ForegroundMask(Transform):
         return threshold
 
     def __call__(self, image: NdarrayOrTensor):
+        image = convert_to_tensor(image, track_meta=get_track_meta())
         img_rgb, *_ = convert_data_type(image, np.ndarray)
         if self.invert:
             img_rgb = skimage.util.invert(img_rgb)

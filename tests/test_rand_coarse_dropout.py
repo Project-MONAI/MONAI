@@ -69,7 +69,6 @@ class TestRandCoarseDropout(unittest.TestCase):
             dropout = RandCoarseDropout(**input_param)
             im = p(input_data)
             result = dropout(im)
-            self.assertEqual(type(result), type(im))
         holes = input_param.get("holes")
         max_holes = input_param.get("max_holes")
         spatial_size = fall_back_tuple(input_param.get("spatial_size"), input_data.shape[1:])

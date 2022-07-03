@@ -45,7 +45,7 @@ class TestFlipd(NumpyImageTestCase2D):
             expected = np.stack(expected)
             im = p(self.imt[0])
             result = flip({"img": im})["img"]
-            assert_allclose(result, p(expected), type_test=False)
+            assert_allclose(result, p(expected), type_test="tensor")
             test_local_inversion(flip, {"img": result}, {"img": im}, "img")
 
     @parameterized.expand(TORCH_CASES)

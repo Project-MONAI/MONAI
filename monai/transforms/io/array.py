@@ -42,7 +42,14 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    InterpolateMode,
+    OptionalImportError,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -248,7 +255,7 @@ class LoadImage(Transform):
 
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
-        img_array = img_array.astype(self.dtype, copy=False)
+        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError("`meta_data` must be a dict.")
         # make sure all elements in metadata are little endian

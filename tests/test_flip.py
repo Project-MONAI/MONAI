@@ -45,7 +45,7 @@ class TestFlip(NumpyImageTestCase2D):
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
             result = flip(im)
-            assert_allclose(result, p(expected), type_test=False)
+            assert_allclose(result, p(expected), type_test="tensor")
             test_local_inversion(flip, result, im)
 
     @parameterized.expand(TORCH_CASES)

@@ -17,13 +17,14 @@ import torch
 
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
     RandSmoothFieldAdjustIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple_rep
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, convert_to_tensor, ensure_tuple_rep
 from monai.utils.enums import TransformBackends
 
 __all__ = [
@@ -104,11 +105,11 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
-
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_mode(self.mode[idx % len(self.mode)])
@@ -181,10 +182,11 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_mode(self.mode[idx % len(self.mode)])
@@ -270,10 +272,11 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_field_mode(self.field_mode[idx % len(self.field_mode)])

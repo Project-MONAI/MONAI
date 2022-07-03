@@ -26,7 +26,7 @@ class TestRandAxisFlip(NumpyImageTestCase2D):
             im = p(self.imt[0])
             result = flip(im)
             expected = [np.flip(channel, flip._axis) for channel in self.imt[0]]
-            assert_allclose(result, p(np.stack(expected)), type_test=False)
+            assert_allclose(result, p(np.stack(expected)), type_test="tensor")
             test_local_inversion(flip, result, im)
 
             set_track_meta(False)

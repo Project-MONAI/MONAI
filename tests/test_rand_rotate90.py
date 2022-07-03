@@ -29,7 +29,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
     def test_k(self):
         rotate = RandRotate90(max_k=2)
@@ -46,7 +46,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
     def test_spatial_axes(self):
         rotate = RandRotate90(spatial_axes=(0, 1), prob=1.0)
@@ -57,7 +57,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             self.assertEqual(len(rotated.applied_operations), 1)
             expected = [np.rot90(channel, rotate._rand_k, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
             test_local_inversion(rotate, rotated, im)
 
     def test_prob_k_spatial_axes(self):
@@ -69,7 +69,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test=False)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
 
 if __name__ == "__main__":

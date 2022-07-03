@@ -862,7 +862,7 @@ class Resize(InvertibleTransform):
                 for axis in range(len(spatial_size_)):
                     anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
             anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
-            img_ = anti_aliasing_filter(img_)
+            img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)

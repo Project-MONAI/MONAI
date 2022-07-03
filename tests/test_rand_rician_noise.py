@@ -39,7 +39,6 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
             (self.imt + np.random.normal(mean, _std, size=self.imt.shape)) ** 2
             + np.random.normal(mean, _std, size=self.imt.shape) ** 2
         )
-        self.assertEqual(type(im), type(noised))
         if isinstance(noised, torch.Tensor):
             noised = noised.cpu()
         np.testing.assert_allclose(expected, noised, atol=1e-5)

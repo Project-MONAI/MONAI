@@ -25,7 +25,6 @@ class TestRepeatChannel(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RepeatChannel(**input_param)(input_data)
-        self.assertEqual(type(input_data), type(result))
         self.assertEqual(result.shape, expected_shape)
 
 

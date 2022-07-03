@@ -127,7 +127,7 @@ class TestDetectEnvelope(unittest.TestCase):
     def test_value(self, arguments, image, expected_data, atol):
         for p in TEST_NDARRAYS:
             result = DetectEnvelope(**arguments)(p(image))
-            assert_allclose(result, p(expected_data), atol=atol)
+            assert_allclose(result, p(expected_data), atol=atol, type_test="tensor")
 
     @parameterized.expand(
         [

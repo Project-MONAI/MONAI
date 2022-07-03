@@ -87,7 +87,7 @@ class TestRandGridDistortion(unittest.TestCase):
         g = RandGridDistortion(**input_param)
         g.set_random_state(seed=seed)
         result = g(input_data)
-        assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
+        assert_allclose(result, expected_val, type_test="tensor", rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
