@@ -24,7 +24,7 @@ from monai.utils import optional_import, set_determinism
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 nib, has_nib = optional_import("nibabel")
-TINY_DIFF = 1e-3
+TINY_DIFF = 0.1
 
 keys = ("img", "seg")
 key, key_1 = "MNI152_T1_2mm", "MNI152_T1_2mm_strucseg"

@@ -742,10 +742,10 @@ class ProbNMS(Transform):
         """
         prob_map: the input probabilities map, it must have shape (H[, W, ...]).
         """
-        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta(), dtype=torch.float)
         if self.sigma != 0:
-            if isinstance(prob_map, torch.Tensor):
-                self.filter.to(prob_map.device)
+            if not isinstance(prob_map, torch.Tensor):
+                prob_map = torch.as_tensor(prob_map, dtype=torch.float)
+            self.filter.to(prob_map.device)
             prob_map = self.filter(prob_map)
 
         prob_map_shape = prob_map.shape
