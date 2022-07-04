@@ -1093,7 +1093,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         self.randomize(data)
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
-            ret = deepcopy(d[key])
+            ret = d[key]
             if not isinstance(d[key], MetaTensor):
                 ret = MetaTensor(ret)
             if self._do_transform:

@@ -22,7 +22,7 @@ import torch
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.utils.enums import Method, NumpyPadMode, TraceKeys
+from monai.utils.enums import Method, PytorchPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
 
@@ -62,7 +62,7 @@ class PadListDataCollate(InvertibleTransform):
 
     """
 
-    def __init__(self, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs) -> None:
+    def __init__(self, method: str = Method.SYMMETRIC, mode: str = PytorchPadMode.CONSTANT, **kwargs) -> None:
         self.method = method
         self.mode = mode
         self.kwargs = kwargs

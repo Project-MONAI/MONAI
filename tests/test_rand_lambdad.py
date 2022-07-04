@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
@@ -57,18 +58,18 @@ class TestRandLambdad(unittest.TestCase):
 
         # default prob
         tr = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])
-        ret = tr(data)
+        ret = tr(deepcopy(data))
         self.check(tr, data, ret, expected)
 
         # prob = 0
         tr = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.0)
-        ret = tr(data)
+        ret = tr(deepcopy(data))
         self.check(tr, data, ret, expected=data)
 
         # prob = 0.5
         trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
-        ret = trans(data)
+        ret = trans(deepcopy(data))
         self.check(trans, data, ret, expected=data)
 
 

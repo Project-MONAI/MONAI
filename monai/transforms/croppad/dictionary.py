@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Seque
 import numpy as np
 import torch
 
-from monai.config import IndexSelection, KeysCollection
+from monai.config import IndexSelection, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import (
@@ -119,7 +119,7 @@ class Padd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         padder: Pad,
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -166,7 +166,7 @@ class SpatialPadd(Padd):
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
         method: str = Method.SYMMETRIC,
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -209,7 +209,7 @@ class BorderPadd(Padd):
         self,
         keys: KeysCollection,
         spatial_border: Union[Sequence[int], int],
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -256,7 +256,7 @@ class DivisiblePadd(Padd):
         self,
         keys: KeysCollection,
         k: Union[Sequence[int], int],
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         method: str = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
         **kwargs,
@@ -625,7 +625,7 @@ class CropForegroundd(Cropd):
         margin: Union[Sequence[int], int] = 0,
         allow_smaller: bool = True,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         allow_missing_keys: bool = False,
@@ -1040,7 +1040,7 @@ class ResizeWithPadOrCropd(Padd):
         self,
         keys: KeysCollection,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[Sequence[str], str] = PytorchPadMode.CONSTANT,
+        mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: str = Method.SYMMETRIC,
         **pad_kwargs,

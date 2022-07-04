@@ -21,7 +21,7 @@ from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple
 import numpy as np
 import torch
 
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -66,7 +66,7 @@ from monai.utils import (
     first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import PostFix, TraceKeys
+from monai.utils.enums import PytorchPadMode, TraceKeys
 from monai.utils.module import optional_import
 
 nib, _ = optional_import("nibabel")
@@ -141,9 +141,6 @@ __all__ = [
     "RandGridPatchDict",
 ]
 
-SequenceStr = Union[Sequence[str], str]
-DEFAULT_POST_FIX = PostFix.meta()
-
 
 class SpatialResampled(MapTransform, InvertibleTransform):
     """
@@ -173,7 +170,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = "meta_dict",
         meta_src_keys: Optional[KeysCollection] = "src_affine",
         dst_keys: Optional[KeysCollection] = "dst_affine",
         allow_missing_keys: bool = False,
@@ -196,7 +193,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
-            meta_dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
+            dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
@@ -326,7 +323,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -413,7 +410,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         as_closest_canonical: bool = False,
         labels: Optional[Sequence[Tuple[str, str]]] = (("L", "R"), ("P", "A"), ("I", "S")),
         meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
+        meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -1804,7 +1801,7 @@ class GridPatchd(MapTransform):
         overlap: float = 0.0,
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
-        pad_mode: str = NumpyPadMode.CONSTANT,
+        pad_mode: str = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):
@@ -1887,7 +1884,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         overlap: float = 0.0,
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
-        pad_mode: str = NumpyPadMode.CONSTANT,
+        pad_mode: str = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         **pad_kwargs,
     ):

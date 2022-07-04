@@ -60,7 +60,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -670,7 +670,7 @@ class Orientation(InvertibleTransform):
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
         if get_track_meta():
             self.update_meta(data_array, new_affine)
-            self.push_transform(data_array, extra_info={"old_affine": affine_np})
+            self.push_transform(data_array, extra_info={"original_affine": affine_np})
         return data_array
 
     def update_meta(self, img, new_affine):
@@ -679,7 +679,7 @@ class Orientation(InvertibleTransform):
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         # Create inverse transform
-        orig_affine = transform[TraceKeys.EXTRA_INFO]["old_affine"]
+        orig_affine = transform[TraceKeys.EXTRA_INFO]["original_affine"]
         orig_axcodes = nib.orientations.aff2axcodes(orig_affine)
         inverse_transform = Orientation(axcodes=orig_axcodes, as_closest_canonical=False, labels=self.labels)
         # Apply inverse
@@ -692,8 +692,8 @@ class Orientation(InvertibleTransform):
 class Flip(InvertibleTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
-    Uses ``np.flip``/``torch.flip``. See numpy.flip for additional details:
-    https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html.
+    See `torch.flip` documentation for additional details:
+    https://pytorch.org/docs/stable/generated/torch.flip.html
 
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
@@ -704,7 +704,7 @@ class Flip(InvertibleTransform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
@@ -1211,7 +1211,7 @@ class Rotate90(InvertibleTransform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
         """
@@ -3056,7 +3056,7 @@ class GridPatch(Transform):
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
-        pad_mode: str = NumpyPadMode.CONSTANT,
+        pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.patch_size = ensure_tuple(patch_size)
@@ -3072,8 +3072,8 @@ class GridPatch(Transform):
         """
         Filter the patches and their locations according to a threshold
         Args:
-            image: a numpy.ndarray representing a stack of patches
-            location: a numpy.ndarray representing the stack of location of each patch
+            image_np: a numpy.ndarray representing a stack of patches
+            locations: a numpy.ndarray representing the stack of location of each patch
         """
         if self.threshold is not None:
             n_dims = len(image_np.shape)
@@ -3177,7 +3177,7 @@ class RandGridPatch(GridPatch, RandomizableTransform):
         overlap: Union[Sequence[float], float] = 0.0,
         sort_fn: Optional[str] = None,
         threshold: Optional[float] = None,
-        pad_mode: str = NumpyPadMode.CONSTANT,
+        pad_mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         super().__init__(
