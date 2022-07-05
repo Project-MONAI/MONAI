@@ -3129,7 +3129,7 @@ class GridPatch(Transform):
 
         # Convert to original data type
         # Locations data type should differ from array data type
-        elif isinstance(array, torch.Tensor):
+        if isinstance(array, torch.Tensor):
             location_dtype = torch.int
         elif isinstance(array, np.ndarray):
             location_dtype = np.int
