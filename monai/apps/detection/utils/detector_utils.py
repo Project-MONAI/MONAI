@@ -127,7 +127,7 @@ def pad_images(
         if max(pt_pad_width) == 0:
             # if there is no need to pad
             return input_images, [orig_size] * input_images.shape[0]
-        mode_: str = convert_pad_mode(dst=input_images, mode=mode).value
+        mode_: str = convert_pad_mode(dst=input_images, mode=mode)
         return F.pad(input_images, pt_pad_width, mode=mode_, **kwargs), [orig_size] * input_images.shape[0]
 
     # If input_images: List[Tensor])
@@ -151,7 +151,7 @@ def pad_images(
     # Use `SpatialPad` to match sizes, padding in the end will not affect boxes
     padder = SpatialPad(spatial_size=max_spatial_size, method="end", mode=mode, **kwargs)
     for idx, img in enumerate(input_images):
-        images[idx, ...] = padder(img)  # type: ignore
+        images[idx, ...] = padder(img)
 
     return images, [list(ss) for ss in image_sizes]
 

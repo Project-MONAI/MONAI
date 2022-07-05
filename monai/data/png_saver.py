@@ -42,7 +42,7 @@ class PNGSaver:
         output_postfix: str = "seg",
         output_ext: str = ".png",
         resample: bool = True,
-        mode: Union[InterpolateMode, str] = InterpolateMode.NEAREST,
+        mode: str = InterpolateMode.NEAREST,
         scale: Optional[int] = None,
         data_root_dir: PathLike = "",
         separate_folder: bool = True,

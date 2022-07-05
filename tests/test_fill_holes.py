@@ -192,10 +192,6 @@ VALID_CASES = [
     TEST_CASE_22,
 ]
 
-ITEST_CASE_1 = ["invalid_image_data_type", {}, [[[[1, 1, 1]]]], NotImplementedError]
-
-INVALID_CASES = [ITEST_CASE_1]
-
 
 class TestFillHoles(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
@@ -203,16 +199,7 @@ class TestFillHoles(unittest.TestCase):
         converter = FillHoles(**args)
         for p in TEST_NDARRAYS:
             result = converter(p(clone(input_image)))
-            assert_allclose(result, p(expected))
-
-    @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, input_image, expected_error):
-        with self.assertRaises(expected_error):
-            converter = FillHoles(**args)
-            if isinstance(input_image, torch.Tensor) and torch.cuda.is_available():
-                _ = converter(clone(input_image).cuda())
-            else:
-                _ = converter(clone(input_image))
+            assert_allclose(result, p(expected), type_test=False)
 
 
 if __name__ == "__main__":
