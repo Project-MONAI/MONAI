@@ -250,16 +250,25 @@ class PersistentDataset(Dataset):
         self.set_transform_hash()
 
     def set_transform_hash(self):
-        first_deterministic_transforms = []
+        """Get hashable transforms, and then hash them. Hashable transforms
+        are deterministic transforms that inherit from `Transform`. We stop
+        at the first non-deterministic transform, or first that does not
+        inherit from MONAI's `Transform` class."""
+        hashable_transforms = []
         for _tr in self.transform.flatten().transforms:
-            if isinstance(_tr, Randomizable):
+            if isinstance(_tr, Randomizable) or not isinstance(_tr, Transform):
                 break
-            first_deterministic_transforms.append(_tr)
+            hashable_transforms.append(_tr)
+        # Try to hash. Fall back to a hash of their names
         try:
-            self.transform_hash = self.hash_func(first_deterministic_transforms).decode("utf-8")
+            self.transform_hash = self.hash_func(hashable_transforms)
         except TypeError as te:
             if "is not JSON serializable" in str(te):
-                self.transform_hash = ""
+                names = "".join(hashable_transforms.__class__.__name__)
+                self.transform_hash = self.hash_func(names)
+            else:
+                raise te
+        self.transform_hash = self.transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):
         """

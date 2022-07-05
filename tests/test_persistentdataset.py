@@ -19,7 +19,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
-from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform, Flip, Identity
+from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
 
 TEST_CASE_1 = [
     Compose(
@@ -158,6 +158,7 @@ class TestDataset(unittest.TestCase):
             im2 = PersistentDataset([im], Flip(1), cache_dir=path)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
             assert l2 > 1
+
 
 if __name__ == "__main__":
     unittest.main()
