@@ -314,7 +314,7 @@ def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None, **kwarg
 
     Args:
         a: input data to repeat.
-        repeats: number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis.
+        repeats: number of repetitions for each element, repeats is broadcast to fit the shape of the given axis.
         axis: axis along which to repeat values.
         kwargs: if `a` is PyTorch Tensor, additional args for `torch.repeat_interleave`, more details:
             https://pytorch.org/docs/stable/generated/torch.repeat_interleave.html.

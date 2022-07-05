@@ -19,7 +19,7 @@ from monai.data import Dataset
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ForegroundMask, Randomizable, apply_transform
-from monai.utils import CommonKeys, ProbMapKeys, ensure_tuple_rep
+from monai.utils import CommonKeys, ProbMapKeys, convert_to_dst_type, ensure_tuple_rep
 from monai.utils.enums import WSIPatchKeys
 
 __all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset", "MaskedPatchWSIDataset"]
@@ -381,7 +381,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         wsi, _ = self.wsi_reader.get_data(wsi_obj, level=self.mask_level)
 
         # create the foreground tissue mask and get all indices for non-zero pixels
-        mask = np.squeeze(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi))
+        mask = np.squeeze(convert_to_dst_type(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi), dst=wsi)[0])
         mask_locations = np.vstack(mask.nonzero()).T
 
         # convert mask locations to image locations at level=0

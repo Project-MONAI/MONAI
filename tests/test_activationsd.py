@@ -51,10 +51,10 @@ class TestActivationsd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = Activationsd(**input_param)(test_input)
-        assert_allclose(result["pred"], output["pred"], rtol=1e-3)
+        assert_allclose(result["pred"], output["pred"], rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result["pred"].shape, expected_shape)
         if "label" in result:
-            assert_allclose(result["label"], output["label"], rtol=1e-3)
+            assert_allclose(result["label"], output["label"], rtol=1e-3, type_test="tensor")
             self.assertTupleEqual(result["label"].shape, expected_shape)
 
 

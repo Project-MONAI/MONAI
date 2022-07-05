@@ -205,9 +205,7 @@ class ZoomBox(Transform):
         self.keep_size = keep_size
         self.kwargs = kwargs
 
-    def __call__(
-        self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int, None] = None
-    ) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, boxes: torch.Tensor, src_spatial_size: Union[Sequence[int], int, None] = None):
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -266,9 +264,7 @@ class ResizeBox(Transform):
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
 
-    def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]
-    ) -> NdarrayOrTensor:
+    def __call__(self, boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int]):  # type: ignore
         """
         Args:
             boxes: source bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -316,9 +312,7 @@ class FlipBox(Transform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
-    ) -> NdarrayOrTensor:
+    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]):  # type: ignore
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -489,7 +483,7 @@ class SpatialCropBox(SpatialCrop):
 
     def __call__(  # type: ignore
         self, boxes: NdarrayOrTensor, labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]
-    ) -> Tuple[NdarrayOrTensor, Union[Tuple, NdarrayOrTensor]]:
+    ):
         """
         Args:
             boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
@@ -535,9 +529,7 @@ class RotateBox90(Rotate90):
     def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
         super().__init__(k, spatial_axes)
 
-    def __call__(  # type: ignore
-        self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]
-    ) -> NdarrayOrTensor:
+    def __call__(self, boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int]):  # type: ignore
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
