@@ -942,8 +942,8 @@ class Rotate(InvertibleTransform):
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -1382,8 +1382,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.keep_size = keep_size
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -1982,8 +1982,8 @@ class Resample(Transform):
             ``as_tensor_output`` is deprecated.
 
         """
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.norm_coords = norm_coords
         self.device = device
         self.dtype = dtype
@@ -2158,8 +2158,8 @@ class Affine(InvertibleTransform):
         self.norm_coord = not normalized
         self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype)
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
 
     def __call__(
         self,
@@ -2328,8 +2328,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         self.spatial_size = spatial_size
         self.cache_grid = cache_grid
         self._cached_grid = self._init_identity_cache()
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: str = GridSampleMode(mode)
+        self.padding_mode: str = GridSamplePadMode(padding_mode)
 
     def _init_identity_cache(self):
         """
@@ -2560,8 +2560,8 @@ class Rand2DElastic(RandomizableTransform):
 
         self.device = device
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -2714,8 +2714,8 @@ class Rand3DElastic(RandomizableTransform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.device = device
 
         self.rand_offset: np.ndarray

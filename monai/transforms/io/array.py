@@ -40,16 +40,9 @@ from monai.data.image_reader import (
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    InterpolateMode,
-    OptionalImportError,
-    convert_to_dst_type,
-    ensure_tuple,
-    look_up_option,
-    optional_import,
-)
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -338,8 +331,8 @@ class SaveImage(Transform):
         output_ext: str = ".nii.gz",
         output_dtype: DtypeLike = np.float32,
         resample: bool = True,
-        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = "nearest",
+        padding_mode: str = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         squeeze_end_dims: bool = True,

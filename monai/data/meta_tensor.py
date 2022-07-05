@@ -39,7 +39,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaTensor`.
+          first instance of `MetaTensor` if `a.is_batch` is False
+          (For batched data, the metdata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -48,13 +49,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             from monai.data import MetaTensor
 
             t = torch.tensor([1,2,3])
-            affine = torch.eye(4) * 100
+            affine = torch.as_tensor([[2,0,0,0],
+                                      [0,2,0,0],
+                                      [0,0,2,0],
+                                      [0,0,0,1]], dtype=torch.float64)
             meta = {"some": "info"}
             m = MetaTensor(t, affine=affine, meta=meta)
-            m2 = m+m
+            m2 = m + m
             assert isinstance(m2, MetaTensor)
             assert m2.meta["some"] == "info"
-            assert m2.affine == affine
+            assert torch.all(m2.affine == affine)
 
     Notes:
         - Requires pytorch 1.9 or newer for full compatibility.

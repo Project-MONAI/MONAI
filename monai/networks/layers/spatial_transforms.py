@@ -428,8 +428,8 @@ class AffineTransform(nn.Module):
         self,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         normalized: bool = False,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
         zero_centered: Optional[bool] = None,
@@ -477,8 +477,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
         if zero_centered is not None and self.normalized:
@@ -569,8 +569,8 @@ class AffineTransform(nn.Module):
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode.value,
-            padding_mode=self.padding_mode.value,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
             align_corners=self.align_corners,
         )
         return dst

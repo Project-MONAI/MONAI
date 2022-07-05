@@ -15,7 +15,7 @@ from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.smooth_field.array import (
@@ -68,7 +68,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
+        mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
@@ -146,7 +146,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
+        mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
@@ -227,13 +227,13 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        field_mode: Union[str, Sequence[str]] = InterpolateMode.AREA,
+        field_mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[str, Sequence[str]] = GridSampleMode.NEAREST,
-        grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        grid_mode: SequenceStr = GridSampleMode.NEAREST,
+        grid_padding_mode: str = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         device: Optional[torch.device] = None,
     ):

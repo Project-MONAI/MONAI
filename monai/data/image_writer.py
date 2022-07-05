@@ -206,8 +206,8 @@ class ImageWriter:
         affine: Optional[NdarrayOrTensor] = None,
         target_affine: Optional[NdarrayOrTensor] = None,
         output_spatial_shape: Union[Sequence[int], int, None] = None,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
     ):

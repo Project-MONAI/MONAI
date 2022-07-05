@@ -427,7 +427,7 @@ class TestMetaTensor(unittest.TestCase):
             + "\taffine: 1\n"
             + "\n"
             + "Applied operations\n"
-            + "\n"
+            + "[]\n"
             + "Is batch?: False"
         )
         for s in (s1, s2):

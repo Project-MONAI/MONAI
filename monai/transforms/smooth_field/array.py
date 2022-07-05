@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from torch.nn.functional import grid_sample, interpolate
 
-import monai
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.networks.utils import meshgrid_ij
@@ -110,7 +109,7 @@ class SmoothField(Randomizable):
             self.spatial_size = tuple(spatial_size)
             self.spatial_zoom = tuple(s / f for s, f in zip(self.spatial_size, self.total_rand_size))
 
-    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.mode = mode
 
     def __call__(self, randomize=False) -> torch.Tensor:
@@ -123,7 +122,7 @@ class SmoothField(Randomizable):
             resized_field = interpolate(
                 input=field,
                 scale_factor=self.spatial_zoom,
-                mode=look_up_option(self.mode, InterpolateMode).value,
+                mode=look_up_option(self.mode, InterpolateMode),
                 align_corners=self.align_corners,
                 recompute_scale_factor=False,
             )
@@ -210,7 +209,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
@@ -371,8 +370,8 @@ class RandSmoothDeform(RandomizableTransform):
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[GridSampleMode, str] = GridSampleMode.NEAREST,
-        grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        grid_mode: str = GridSampleMode.NEAREST,
+        grid_padding_mode: str = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         device: Optional[torch.device] = None,
     ):
@@ -425,10 +424,10 @@ class RandSmoothDeform(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_field_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_field_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
-    def set_grid_mode(self, mode: Union[monai.utils.GridSampleMode, str]) -> None:
+    def set_grid_mode(self, mode: str) -> None:
         self.grid_mode = mode
 
     def __call__(
@@ -453,9 +452,9 @@ class RandSmoothDeform(RandomizableTransform):
         out = grid_sample(
             input=img_t,
             grid=dgrid,
-            mode=look_up_option(self.grid_mode, GridSampleMode).value,
+            mode=look_up_option(self.grid_mode, GridSampleMode),
             align_corners=self.grid_align_corners,
-            padding_mode=look_up_option(self.grid_padding_mode, GridSamplePadMode).value,
+            padding_mode=look_up_option(self.grid_padding_mode, GridSamplePadMode),
         )
 
         out_t, *_ = convert_to_dst_type(out.squeeze(0), img)

@@ -34,7 +34,7 @@ from monai.apps.detection.transforms.array import (
     ZoomBox,
 )
 from monai.apps.detection.transforms.box_ops import convert_box_to_mask
-from monai.config import KeysCollection
+from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.utils import orientation_ras_lps
@@ -90,7 +90,6 @@ __all__ = [
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
-ModeSequence = Union[Sequence[str], str]
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
@@ -376,8 +375,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         box_keys: KeysCollection,
         box_ref_image_keys: KeysCollection,
         zoom: Union[Sequence[float], float],
-        mode: ModeSequence = InterpolateMode.AREA,
-        padding_mode: ModeSequence = NumpyPadMode.EDGE,
+        mode: SequenceStr = InterpolateMode.AREA,
+        padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
@@ -518,8 +517,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         prob: float = 0.1,
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
-        mode: ModeSequence = InterpolateMode.AREA,
-        padding_mode: ModeSequence = NumpyPadMode.EDGE,
+        mode: SequenceStr = InterpolateMode.AREA,
+        padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,

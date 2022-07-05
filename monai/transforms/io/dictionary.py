@@ -25,7 +25,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -224,8 +224,8 @@ class SaveImaged(MapTransform):
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = "nearest",
+        padding_mode: str = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
