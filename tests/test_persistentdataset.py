@@ -19,7 +19,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import PersistentDataset, json_hashing
-from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
+from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform, Flip, Identity
 
 TEST_CASE_1 = [
     Compose(
@@ -150,6 +150,14 @@ class TestDataset(unittest.TestCase):
                 self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
                 self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
+    def test_different_transforms(self):
+        shape = (1, 10, 9, 8)
+        im = np.arange(0, np.prod(shape)).reshape(shape)
+        with tempfile.TemporaryDirectory() as path:
+            im1 = PersistentDataset([im], Identity(), cache_dir=path)[0]
+            im2 = PersistentDataset([im], Flip(1), cache_dir=path)[0]
+            l2 = ((im1 - im2) ** 2).sum() ** 0.5
+            assert l2 > 1
 
 if __name__ == "__main__":
     unittest.main()

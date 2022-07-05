@@ -191,9 +191,10 @@ class PersistentDataset(Dataset):
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
 
-        When loading persistent cache content, it can't guarantee the cached data matches current
-        transform chain, so please make sure to use exactly the same non-random transforms and the
-        args as the cache content, otherwise, it may cause unexpected errors.
+        The filenames of the cached files also try to contain the hash of the transforms. In this
+        fashion, `PersistentDataset` should be robust to changes in transforms. This, however, is
+        not guaranteed, so caution should be used when modifying transforms to avoid unexpected
+        errors. If in doubt, it is advisable to clear the cache directory.
 
     """
 
@@ -246,6 +247,19 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
+        self.set_transform_hash()
+
+    def set_transform_hash(self):
+        first_deterministic_transforms = []
+        for _tr in self.transform.flatten().transforms:
+            if isinstance(_tr, Randomizable):
+                break
+            first_deterministic_transforms.append(_tr)
+        try:
+            self.transform_hash = self.hash_func(first_deterministic_transforms).decode("utf-8")
+        except TypeError as te:
+            if "is not JSON serializable" in str(te):
+                self.transform_hash = ""
 
     def set_data(self, data: Sequence):
         """
@@ -325,6 +339,7 @@ class PersistentDataset(Dataset):
         hashfile = None
         if self.cache_dir is not None:
             data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
