@@ -175,7 +175,7 @@ class MetaObj:
 
         out += "\nApplied operations\n"
         if self.applied_operations is not None:
-            out += pprint.pformat(self.applied_operations, indent=2, compact=True, width=120, sort_dicts=False)
+            out += pprint.pformat(self.applied_operations, indent=2, compact=True, width=120)
         else:
             out += "None"
 
