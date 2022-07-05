@@ -161,7 +161,7 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
-            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,

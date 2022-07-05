@@ -1206,8 +1206,8 @@ class Zoom(InvertibleTransform):
 class Rotate90(InvertibleTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
-    See np.rot90 for additional details:
-    https://numpy.org/doc/stable/reference/generated/numpy.rot90.html.
+    See `torch.rot90` for additional details:
+    https://pytorch.org/docs/stable/generated/torch.rot90.html#torch-rot90.
 
     """
 

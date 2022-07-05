@@ -914,7 +914,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform):
             weight_map: weight map used to generate patch samples. The weights must be non-negative.
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
-            randomize: whether to execute random operations, defautl to `True`.
+            randomize: whether to execute random operations, default to `True`.
 
         Returns:
             A list of image patches

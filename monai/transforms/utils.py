@@ -1558,7 +1558,7 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
 
 def convert_to_contiguous(data, **kwargs):
     """
-    Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
+    Check and ensure the numpy array or PyTorch Tensor in data to be contiguous in memory.
 
     Args:
         data: input data to convert, will recursively convert the numpy array or PyTorch Tensor in dict and sequence.

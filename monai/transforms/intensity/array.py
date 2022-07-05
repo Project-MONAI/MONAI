@@ -262,7 +262,7 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
-        self._shfiter = ShiftIntensity(self._offset)
+        self._shifter = ShiftIntensity(self._offset)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
@@ -287,7 +287,7 @@ class RandShiftIntensity(RandomizableTransform):
         if not self._do_transform:
             return img
 
-        return self._shfiter(img, self._offset if factor is None else self._offset * factor)
+        return self._shifter(img, self._offset if factor is None else self._offset * factor)
 
 
 class StdShiftIntensity(Transform):
@@ -743,7 +743,7 @@ class ScaleIntensityRange(Transform):
     Apply specific intensity scaling to the whole numpy array.
     Scaling from [a_min, a_max] to [b_min, b_max] with clip option.
 
-    When `b_min` or `b_max` are `None`, `scacled_array * (b_max - b_min) + b_min` will be skipped.
+    When `b_min` or `b_max` are `None`, `scaled_array * (b_max - b_min) + b_min` will be skipped.
     If `clip=True`, when `b_min`/`b_max` is None, the clipping is not performed on the corresponding edge.
 
     Args:

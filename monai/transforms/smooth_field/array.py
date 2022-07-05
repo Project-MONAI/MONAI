@@ -148,7 +148,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
     edges of the input volume of that width will be mostly unchanged. Contrast is changed by raising input
     values by the power of the smooth field so the range of values given by `gamma` should be chosen with this
     in mind. For example, a minimum value of 0 in `gamma` will produce white areas so this should be avoided.
-    Afte the contrast is adjusted the values of the result are rescaled to the range of the original input.
+    After the contrast is adjusted the values of the result are rescaled to the range of the original input.
 
     Args:
         spatial_size: size of input array's spatial dimensions

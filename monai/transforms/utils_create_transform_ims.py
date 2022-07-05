@@ -721,7 +721,7 @@ if __name__ == "__main__":
 
     create_transform_im(
         RandSmoothDeform,
-        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="bilinear"),
         data,
     )
     create_transform_im(
@@ -732,7 +732,7 @@ if __name__ == "__main__":
             rand_size=(10, 10, 10),
             prob=1.0,
             def_range=0.05,
-            grid_mode="blinear",
+            grid_mode="bilinear",
         ),
         data,
     )
