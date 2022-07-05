@@ -27,7 +27,7 @@ class TestScaleIntensityd(NumpyImageTestCase2D):
             maxa = np.max(self.imt)
             norm = (self.imt - mina) / (maxa - mina)
             expected = (norm * (2.0 - 1.0)) + 1.0
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_factor_scale(self):
         key = "img"
@@ -35,7 +35,7 @@ class TestScaleIntensityd(NumpyImageTestCase2D):
             scaler = ScaleIntensityd(keys=[key], minv=None, maxv=None, factor=0.1)
             result = scaler({key: p(self.imt)})
             expected = (self.imt * (1 + 0.1)).astype(np.float32)
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_channel_wise(self):
         key = "img"
@@ -48,7 +48,7 @@ class TestScaleIntensityd(NumpyImageTestCase2D):
             for i, c in enumerate(data):
                 norm = (c - mina) / (maxa - mina)
                 expected = p((norm * (2.0 - 1.0)) + 1.0)
-                assert_allclose(result[key][i], expected, type_test=False, rtol=1e-7, atol=0)
+                assert_allclose(result[key][i], expected, type_test="tensor", rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":

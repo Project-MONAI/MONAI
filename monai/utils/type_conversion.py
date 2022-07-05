@@ -40,7 +40,7 @@ __all__ = [
 
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
-    return np.empty([], dtype=dtype).dtype  # type: ignore
+    return np.empty([], dtype=dtype).dtype
 
 
 def get_torch_dtype_from_string(dtype: str) -> torch.dtype:
@@ -132,6 +132,7 @@ def convert_to_tensor(
             return tensor.as_tensor()
         return tensor
 
+    dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
     if isinstance(data, np.ndarray):
@@ -331,7 +332,7 @@ def convert_to_dst_type(
     output, _type, _device = convert_data_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
-    if copy_meta and isinstance(output, monai.data.MetaTensor):  # type: ignore
+    if copy_meta and isinstance(output, monai.data.MetaTensor):
         output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
     return output, _type, _device
 

@@ -33,7 +33,6 @@ from monai.transforms import (
     RandRotate,
     RandZoom,
     ScaleIntensity,
-    ToTensor,
     Transpose,
 )
 from monai.utils import set_determinism
@@ -69,15 +68,12 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
             RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
             RandFlip(spatial_axis=0, prob=0.5),
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-            ToTensor(),
         ]
     )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose(
-        [LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity(), ToTensor()]
-    )
-    y_pred_trans = Compose([ToTensor(), Activations(softmax=True)])
-    y_trans = Compose([ToTensor(), AsDiscrete(to_onehot=len(np.unique(train_y)))])
+    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity()])
+    y_pred_trans = Compose([Activations(softmax=True)])
+    y_trans = AsDiscrete(to_onehot=len(np.unique(train_y)))
     auc_metric = ROCAUCMetric()
 
     # create train, val data loaders
@@ -132,7 +128,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 # decollate prediction and label and execute post processing
                 y_pred = [y_pred_trans(i) for i in decollate_batch(y_pred)]
-                y = [y_trans(i) for i in decollate_batch(y)]
+                y = [y_trans(i) for i in decollate_batch(y, detach=False)]
                 # compute AUC
                 auc_metric(y_pred, y)
                 auc_value = auc_metric.aggregate()
@@ -153,7 +149,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
 
 def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
-    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity(), ToTensor()])
+    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 

@@ -60,7 +60,7 @@ class TestRandSpatialCropd(CropTest):
                 input_data = {"img": im_type(input_im)}
                 result = cropper(input_data)["img"]
                 roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.cropper._size]
-                assert_allclose(result, input_im[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
+                assert_allclose(result, input_im[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test="tensor")
 
     @parameterized.expand(TEST_RANDOM_SHAPES)
     def test_random_shape(self, input_param, input_shape, expected_shape):

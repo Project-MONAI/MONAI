@@ -39,7 +39,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaTensor`.
+          first instance of `MetaTensor` if `a.is_batch` is False
+          (For batched data, the metdata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -48,13 +49,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             from monai.data import MetaTensor
 
             t = torch.tensor([1,2,3])
-            affine = torch.eye(4) * 100
+            affine = torch.as_tensor([[2,0,0,0],
+                                      [0,2,0,0],
+                                      [0,0,2,0],
+                                      [0,0,0,1]], dtype=torch.float64)
             meta = {"some": "info"}
             m = MetaTensor(t, affine=affine, meta=meta)
-            m2 = m+m
+            m2 = m + m
             assert isinstance(m2, MetaTensor)
             assert m2.meta["some"] == "info"
-            assert m2.affine == affine
+            assert torch.all(m2.affine == affine)
 
     Notes:
         - Requires pytorch 1.9 or newer for full compatibility.
@@ -184,7 +188,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
-                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())  # type: ignore
+                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
                 ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
                 # the following is not implemented but the network arch may run into this case:
@@ -204,7 +208,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if batch_idx not in (slice(None, None, None), Ellipsis):
+                        if batch_idx not in (slice(None, None, None), Ellipsis, None):
                             # only decollate metadata once
                             if metas is None:
                                 metas = decollate_batch(ret.meta)
@@ -304,7 +308,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        return self.meta.get("affine", self.get_default_affine())  # type: ignore
+        return self.meta.get("affine", self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:

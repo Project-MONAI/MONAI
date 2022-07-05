@@ -19,7 +19,7 @@ import torch
 from ignite.engine import Engine, Events
 from torch.utils.data import DataLoader
 
-from monai.data import ImageDataset, create_test_image_3d, decollate_batch
+from monai.data import ImageDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.networks import eval_mode, predict_segmentation
 from monai.networks.nets import UNet
@@ -29,7 +29,7 @@ from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
-    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
+    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=True)
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(
@@ -47,9 +47,8 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
             return predict_segmentation(seg_probs)
 
     def save_func(engine):
-        meta_data = decollate_batch(engine.state.batch[2])
-        for m, o in zip(meta_data, engine.state.output):
-            saver(o, m)
+        for m in engine.state.output:
+            saver(m)
 
     infer_engine = Engine(_sliding_window_processor)
     infer_engine.add_event_handler(Events.ITERATION_COMPLETED, save_func)
