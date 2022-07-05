@@ -66,6 +66,8 @@ class MetaTensor(MetaObj, torch.Tensor):
           not work if `im` is of type `MetaTensor`. This can be resolved with
           `torch.jit.trace(net, im.as_tensor())`.
         - For pytorch < 1.8, sharing `MetaTensor` instances across processes may not be supported.
+        - For pytorch < 1.9, next(iter(meta_tensor)) returns a torch.Tensor.
+          see: https://github.com/pytorch/pytorch/issues/54457
         - A warning will be raised if in the constructor `affine` is not `None` and
           `meta` already contains the key `affine`.
         - You can query whether the `MetaTensor` is a batch with the `is_batch` attribute.
