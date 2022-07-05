@@ -55,7 +55,7 @@ class TestRandSpatialCrop(CropTest):
                 cropper = RandSpatialCrop(**input_param)
                 result = cropper(im_type(input_data))
                 roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-                assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test=False)
+                assert_allclose(result, input_data[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test="tensor")
 
     @parameterized.expand(TEST_RANDOM_SHAPES)
     def test_random_shape(self, input_param, input_shape, expected_shape):

@@ -14,7 +14,6 @@ import unittest
 import numpy as np
 from parameterized.parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import RandWeightedCrop
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
@@ -164,8 +163,7 @@ class TestRandWeightedCrop(CropTest):
         # if desired ROI is larger than image, check image is unchanged
         if all(s >= i for i, s in zip(img.shape[1:], input_params["spatial_size"])):
             for res in result:
-                self.assertIsInstance(res, MetaTensor)
-                assert_allclose(res, img, type_test=False)
+                assert_allclose(res, img, type_test="tensor")
                 self.assertEqual(len(res.applied_operations), 1)
 
 

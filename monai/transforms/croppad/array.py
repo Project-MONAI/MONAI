@@ -26,7 +26,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
@@ -41,9 +41,20 @@ from monai.transforms.utils import (
     weighted_patch_samples,
 )
 from monai.utils import ImageMetaKey as Key
-from monai.utils import Method, PytorchPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple, look_up_option
-from monai.utils.enums import TraceKeys, TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
+from monai.utils import (
+    Method,
+    PytorchPadMode,
+    TraceKeys,
+    TransformBackends,
+    convert_data_type,
+    convert_to_dst_type,
+    convert_to_tensor,
+    ensure_tuple,
+    ensure_tuple_rep,
+    fall_back_tuple,
+    look_up_option,
+    pytorch_after,
+)
 
 __all__ = [
     "Pad",
@@ -99,6 +110,7 @@ class Pad(InvertibleTransform):
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
         """
         dynamically compute the pad width according to the spatial shape.
+        the output is the amount of padding for all dimensions including the channel.
 
         Args:
             spatial_shape: spatial shape of the original image.
@@ -147,6 +159,7 @@ class Pad(InvertibleTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
@@ -164,7 +177,7 @@ class Pad(InvertibleTransform):
             out = img_t
         if get_track_meta():
             self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
-            self.push_transform(out, extra_info={"padded": to_pad_})
+            self.push_transform(out, orig_size=_orig_size, extra_info={"padded": to_pad_})
         return out
 
     def update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
@@ -176,10 +189,10 @@ class Pad(InvertibleTransform):
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
         padded = transform[TraceKeys.EXTRA_INFO]["padded"]
-        if padded[0][0] != 0 or padded[0][1] != 0:
-            raise NotImplementedError(
-                "Inverse uses SpatialCrop, which hasn't yet been extended to crop channels. Trivial change."
-            )
+        if padded[0][0] > 0 or padded[0][1] > 0:  # slicing the channel dimension
+            s = padded[0][0]
+            e = min(max(padded[0][1], s + 1), len(data))
+            data = data[s : len(data) - e]  # type: ignore
         roi_start = [i[0] for i in padded[1:]]
         roi_end = [i - j[1] for i, j in zip(data.shape[1:], padded[1:])]
         cropper = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
@@ -193,7 +206,7 @@ class SpatialPad(Pad):
 
     Args:
         spatial_size: the spatial size of output data after padding, if a dimension of the input
-            data size is bigger than the pad size, will not pad that dimension.
+            data size is larger than the pad size, will not pad that dimension.
             If its components have non-positive values, the corresponding size of input image will be used
             (no padding). for example: if the spatial size of input data is [30, 30, 30] and
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
@@ -355,7 +368,7 @@ class Crop(InvertibleTransform):
 
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
                 will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
@@ -374,7 +387,12 @@ class Crop(InvertibleTransform):
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
                 roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
                 _zeros = torch.zeros_like(roi_center_t)
-                roi_start_t = torch.maximum(roi_center_t - torch.div(roi_size_t, 2, rounding_mode="floor"), _zeros)
+                half = (
+                    torch.divide(roi_size_t, 2, rounding_mode="floor")
+                    if pytorch_after(1, 8)
+                    else torch.floor_divide(roi_size_t, 2)
+                )
+                roi_start_t = torch.maximum(roi_center_t - half, _zeros)
                 roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
             else:
                 if roi_start is None or roi_end is None:
@@ -404,13 +422,14 @@ class Crop(InvertibleTransform):
         slices = tuple([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
         img_t = img_t[slices]  # type: ignore
         if get_track_meta():
             self.update_meta(tensor=img_t, slices=slices)
             cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
             cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
             cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
-            self.push_transform(img_t, extra_info={"cropped": cropped})
+            self.push_transform(img_t, orig_size=_orig_size, extra_info={"cropped": cropped})
         return img_t
 
     def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):
@@ -432,7 +451,7 @@ class Crop(InvertibleTransform):
 class SpatialCrop(Crop):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
@@ -454,7 +473,7 @@ class SpatialCrop(Crop):
         """
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
                 will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
@@ -477,13 +496,13 @@ class SpatialCrop(Crop):
 class CenterSpatialCrop(Crop):
     """
     Crop at the center of image with specified ROI size.
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -532,14 +551,14 @@ class RandSpatialCrop(Randomizable, Crop):
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
     of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -570,7 +589,7 @@ class RandSpatialCrop(Randomizable, Crop):
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
             if any(i > j for i, j in zip(self._size, max_size)):
-                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
+                raise ValueError(f"min ROI size: {self._size} is larger than max ROI size: {max_size}.")
             self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
@@ -646,21 +665,21 @@ class RandScaleCrop(RandSpatialCrop):
         return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, Transform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
     the minimum size to limit the randomly generated ROI.
     It will return a list of cropped images.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -708,10 +727,12 @@ class RandSpatialCropSamples(Randomizable, Transform):
         cropping doesn't change the channel dim.
         """
         ret = []
+        orig_size = img.shape[1:]
         for i in range(self.num_samples):
             cropped = self.cropper(img)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
+                self.push_transform(cropped, orig_size=orig_size, extra_info=self.pop_transform(cropped, check=False))
             ret.append(cropped)
         return ret
 
@@ -766,7 +787,7 @@ class CropForeground(Crop):
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                than box size, default to `True`. if the margined size is larger than image size, will pad with
                 specified `mode`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
@@ -853,7 +874,7 @@ class CropForeground(Crop):
         return super().inverse(inv)
 
 
-class RandWeightedCrop(Randomizable, Transform):
+class RandWeightedCrop(Randomizable, TraceableTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -893,7 +914,7 @@ class RandWeightedCrop(Randomizable, Transform):
             weight_map: weight map used to generate patch samples. The weights must be non-negative.
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
-            randomize: whether to execute random operations, defautl to `True`.
+            randomize: whether to execute random operations, default to `True`.
 
         Returns:
             A list of image patches
@@ -909,17 +930,19 @@ class RandWeightedCrop(Randomizable, Transform):
             self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         for i, center in enumerate(self.centers):
             cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
+                self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
             results.append(cropped)
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, Transform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -932,7 +955,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
           [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
           [0, 0, 0, 0, 0]]]
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
@@ -940,7 +963,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `label` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -1065,6 +1088,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if randomize:
             self.randomize(label, fg_indices, bg_indices, image)
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1073,11 +1097,12 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
                 results.append(cropped)
         return results
 
 
-class RandCropByLabelClasses(Randomizable, Transform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
@@ -1110,7 +1135,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
          [0, 1, 3],      [1, 2, 1],
          [0, 0, 0]]      [1, 3, 0]]
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
@@ -1118,7 +1143,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `label` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -1210,6 +1235,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if randomize:
             self.randomize(label, indices, image)
         results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
             for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
@@ -1218,6 +1244,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
                 results.append(cropped)
 
         return results
@@ -1273,13 +1300,14 @@ class ResizeWithPadOrCrop(InvertibleTransform):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
+        orig_size = img.shape[1:]
         ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
             pad_info = ret_.applied_operations.pop(-1)
             crop_info = ret_.applied_operations.pop(-1)
-            self.push_transform(ret_, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+            self.push_transform(ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info})
         return ret
 
     def inverse(self, img: MetaTensor) -> MetaTensor:

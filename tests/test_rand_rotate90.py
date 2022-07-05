@@ -12,47 +12,64 @@
 import unittest
 
 import numpy as np
+import torch
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate90
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 
 class TestRandRotate90(NumpyImageTestCase2D):
     def test_default(self):
         rotate = RandRotate90()
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             rotate.set_random_state(123)
-            rotated = rotate(p(self.imt[0]))
+            im = p(self.imt[0])
+            rotated = rotate(im)
+            test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
     def test_k(self):
         rotate = RandRotate90(max_k=2)
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            set_track_meta(False)
+            rotated = rotate(im)
+            self.assertNotIsInstance(rotated, MetaTensor)
+            self.assertIsInstance(rotated, torch.Tensor)
+
+            set_track_meta(True)
             rotate.set_random_state(123)
-            rotated = rotate(p(self.imt[0]))
+            rotated = rotate(im)
+            test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
     def test_spatial_axes(self):
-        rotate = RandRotate90(spatial_axes=(0, 1))
-        for p in TEST_NDARRAYS:
-            rotate.set_random_state(123)
-            rotated = rotate(p(self.imt[0]))
-            expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
+        rotate = RandRotate90(spatial_axes=(0, 1), prob=1.0)
+        for p in TEST_NDARRAYS_ALL:
+            rotate.set_random_state(1234)
+            im = p(self.imt[0])
+            rotated = rotate(im)
+            self.assertEqual(len(rotated.applied_operations), 1)
+            expected = [np.rot90(channel, rotate._rand_k, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
+            test_local_inversion(rotate, rotated, im)
 
     def test_prob_k_spatial_axes(self):
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             rotate.set_random_state(234)
-            rotated = rotate(p(self.imt[0]))
+            im = p(self.imt[0])
+            rotated = rotate(im)
+            test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8)
+            assert_allclose(rotated, p(expected), rtol=1.0e-5, atol=1.0e-8, type_test="tensor")
 
 
 if __name__ == "__main__":
