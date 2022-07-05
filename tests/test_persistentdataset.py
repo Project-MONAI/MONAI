@@ -151,6 +151,10 @@ class TestDataset(unittest.TestCase):
                 self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
     def test_different_transforms(self):
+        """
+        Different instances of `PersistentDataset` with the same cache_dir,
+        same input data, but different transforms should give different results.
+        """
         shape = (1, 10, 9, 8)
         im = np.arange(0, np.prod(shape)).reshape(shape)
         with tempfile.TemporaryDirectory() as path:
