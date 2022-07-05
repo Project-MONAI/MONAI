@@ -74,17 +74,10 @@ TEST_BASIC = [
     ],
     [[None, None], [None, None]],
     [["test"], ["test"]],
+    [np.array([64, 64]), [64, 64]],
     [[], []],
     [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
-
-
-class _ListCompose(Compose):
-    def __call__(self, input_):
-        img, metadata = self.transforms[0](input_)
-        for t in self.transforms[1:]:
-            img = t(img)
-        return img, metadata
 
 
 class TestDeCollate(unittest.TestCase):
@@ -148,7 +141,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImage(image_only=True), t_compose])
+            t_compose = Compose([LoadImage(), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)
@@ -158,7 +151,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = _ListCompose([LoadImage(image_only=False), t_compose])
+            t_compose = Compose([LoadImage(), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)

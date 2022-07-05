@@ -11,20 +11,19 @@
 
 import math
 import random
-from enum import Enum
 from typing import Any, Tuple, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, Randomizable, SpatialPad
-from monai.utils import optional_import
+from monai.utils import StrEnum, optional_import
 
 measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
 
 
-class NuclickKeys(Enum):
+class NuclickKeys(StrEnum):
     """
     Keys for nuclick transforms.
     """
@@ -83,7 +82,7 @@ class ExtractPatchd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        centroid_key: str = NuclickKeys.CENTROID.value,
+        centroid_key: str = NuclickKeys.CENTROID,
         patch_size: Union[Tuple[int, int], int] = 128,
         allow_missing_keys: bool = False,
         **kwargs: Any,
@@ -138,9 +137,9 @@ class SplitLabeld(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        # label: str = NuclickKeys.LABEL.value,
-        others: str = NuclickKeys.OTHERS.value,
-        mask_value: str = NuclickKeys.MASK_VALUE.value,
+        # label: str = NuclickKeys.LABEL,
+        others: str = NuclickKeys.OTHERS,
+        mask_value: str = NuclickKeys.MASK_VALUE,
         min_area: int = 5,
     ):
 
@@ -268,9 +267,9 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
 
     def __init__(
         self,
-        image: str = NuclickKeys.IMAGE.value,
-        label: str = NuclickKeys.LABEL.value,
-        others: str = NuclickKeys.OTHERS.value,
+        image: str = NuclickKeys.IMAGE,
+        label: str = NuclickKeys.LABEL,
+        others: str = NuclickKeys.OTHERS,
         drop_rate: float = 0.5,
         jitter_range: int = 3,
     ):
@@ -338,9 +337,7 @@ class AddClickSignalsd(MapTransform):
         bb_size: single integer size, defines a bounding box like (bb_size, bb_size)
     """
 
-    def __init__(
-        self, image: str = NuclickKeys.IMAGE.value, foreground: str = NuclickKeys.FOREGROUND.value, bb_size: int = 128
-    ):
+    def __init__(self, image: str = NuclickKeys.IMAGE, foreground: str = NuclickKeys.FOREGROUND, bb_size: int = 128):
         self.image = image
         self.foreground = foreground
         self.bb_size = bb_size

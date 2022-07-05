@@ -15,12 +15,12 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import GridDistortiond
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 num_cells = (2, 2)
 distort_steps = [(1.5,) * (1 + n_c) for n_c in num_cells]
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     img = np.indices([6, 6]).astype(np.float32)
     TESTS.append(
         [
@@ -77,8 +77,8 @@ class TestGridDistortiond(unittest.TestCase):
     def test_grid_distortiond(self, input_param, input_data, expected_val_img, expected_val_mask):
         g = GridDistortiond(**input_param)
         result = g(input_data)
-        assert_allclose(result["img"], expected_val_img, rtol=1e-4, atol=1e-4)
-        assert_allclose(result["mask"], expected_val_mask, rtol=1e-4, atol=1e-4)
+        assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
+        assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

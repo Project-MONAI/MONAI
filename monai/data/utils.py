@@ -35,7 +35,6 @@ from monai.utils import (
     BlendMode,
     Method,
     NumpyPadMode,
-    PytorchPadMode,
     TraceKeys,
     convert_data_type,
     convert_to_dst_type,
@@ -248,7 +247,7 @@ def iter_patch(
     start_pos: Sequence[int] = (),
     overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Optional[Union[NumpyPadMode, str]] = NumpyPadMode.WRAP,
+    mode: Optional[str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """
@@ -581,12 +580,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def pad_list_data_collate(
-    batch: Sequence,
-    method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-    **kwargs,
-):
+def pad_list_data_collate(batch: Sequence, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
 
