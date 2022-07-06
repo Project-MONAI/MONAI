@@ -58,9 +58,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         data = []
         for i in range(num_examples):
             im, label = custom_create_test_image_2d()
-            d = {}
-            d["image"] = data_type(im[:, i:])
-            d[PostFix.meta("image")] = {"affine": np.eye(4)}
+            d = {"image": data_type(im[:, i:])}
             if include_label:
                 d["label"] = data_type(label[:, i:])
                 d[PostFix.meta("label")] = {"affine": np.eye(4)}
