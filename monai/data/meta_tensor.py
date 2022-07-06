@@ -315,7 +315,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         Args:
             dtype: dtypes such as np.float32, torch.float, "np.float32", float.
-            device:  the device if `dtype` is a torch data type.
+            device: the device if `dtype` is a torch data type.
             unused_args: additional args (currently unused).
             unused_kwargs: additional kwargs (currently unused).
 
