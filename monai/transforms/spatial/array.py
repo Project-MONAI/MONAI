@@ -3128,16 +3128,9 @@ class GridPatch(Transform):
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
         # Convert to original data type
-        # Locations data type should differ from array data type
-        if isinstance(array, torch.Tensor):
-            location_dtype = torch.int
-        elif isinstance(array, np.ndarray):
-            location_dtype = np.int
-        else:
-            location_dtype = None
         output = list(
             zip(convert_to_dst_type(src=patched_image, dst=array)[0],
-                convert_to_dst_type(src=locations, dst=array, dtype=location_dtype)[0])
+                convert_to_dst_type(src=locations, dst=array, dtype=int)[0])
         )
 
         # Pad the patch list to have the requested number of patches
