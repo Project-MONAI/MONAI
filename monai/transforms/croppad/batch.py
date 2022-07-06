@@ -19,6 +19,7 @@ from typing import Any, Dict, Hashable
 import numpy as np
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
@@ -112,13 +113,18 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d:
-            transform_key = InvertibleTransform.trace_key(key)
-            if transform_key in d:
-                transform = d[transform_key][-1]
-                if not isinstance(transform, Dict):
-                    continue
-                if transform.get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
-                    d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
-                    # remove transform
-                    d[transform_key].pop()
+            transforms = None
+            if isinstance(d[key], MetaTensor):
+                transforms = d[key].applied_operations
+            else:
+                transform_key = InvertibleTransform.trace_key(key)
+                if transform_key in d:
+                    transforms = d[transform_key]
+            if not transforms or not isinstance(transforms[-1], Dict):
+                continue
+            if transforms[-1].get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                xform = transforms.pop()
+                cropping = CenterSpatialCrop(xform.get(TraceKeys.ORIG_SIZE, -1))
+                with cropping.trace_transform(False):
+                    d[key] = cropping(d[key])  # fallback to image size
         return d
