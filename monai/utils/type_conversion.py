@@ -235,7 +235,8 @@ def convert_data_type(
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
-    Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+    Convert to `MetaTensor`, `torch.Tensor` or `np.ndarray` from `MetaTensor`, `torch.Tensor`,
+    `np.ndarray`, `float`, `int`, etc.
 
     Args:
         data: data to be converted
