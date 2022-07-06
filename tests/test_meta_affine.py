@@ -146,7 +146,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
     @parameterized.expand(TEST_CASES_ARRAY)
     def test_linear_consistent(self, xform_cls, input_dict, atol):
         """xform cls testing itk consistency"""
-        img = LoadImage()(FILE_PATH)
+        img = LoadImage(image_only=True, simple_keys=True)(FILE_PATH)
         img = EnsureChannelFirst()(img)
         ref_1 = _create_itk_obj(img[0], img.affine)
         output = self.run_transform(img, xform_cls, input_dict)
@@ -162,7 +162,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
     @parameterized.expand(TEST_CASES_DICT)
     def test_linear_consistent_dict(self, xform_cls, input_dict, atol):
         """xform cls testing itk consistency"""
-        img = LoadImaged(keys)({keys[0]: FILE_PATH, keys[1]: FILE_PATH_1})
+        img = LoadImaged(keys, image_only=True, simple_keys=True)({keys[0]: FILE_PATH, keys[1]: FILE_PATH_1})
         img = EnsureChannelFirstd(keys)(img)
         ref_1 = {k: _create_itk_obj(img[k][0], img[k].affine) for k in keys}
         output = self.run_transform(img, xform_cls, input_dict)

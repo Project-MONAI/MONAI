@@ -363,7 +363,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         )
 
     @staticmethod
-    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
         """
         Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
@@ -382,12 +382,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         if not get_track_meta() or meta is None:
             return img
 
-        # ensure affine is of type `torch.Tensor`
-        if "affine" in meta:
-            meta["affine"] = convert_to_tensor(meta["affine"])
-
         # remove any superfluous metadata.
-        remove_extra_metadata(meta)
+        if simple_keys:
+            # ensure affine is of type `torch.Tensor`
+            if "affine" in meta:
+                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            remove_extra_metadata(meta)  # bc-breaking
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
