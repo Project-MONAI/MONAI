@@ -35,7 +35,7 @@ class TestRandAdjustContrastd(NumpyImageTestCase2D):
                 np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.adjuster.gamma_value) * img_range
                 + img_min
             )
-            assert_allclose(expected, result["img"], rtol=1e-05, type_test=False)
+            assert_allclose(result["img"], expected, rtol=1e-05, type_test="tensor")
 
 
 if __name__ == "__main__":

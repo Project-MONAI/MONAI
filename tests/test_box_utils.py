@@ -164,7 +164,7 @@ class TestCreateBoxList(unittest.TestCase):
 
         # test box_area, box_iou, box_giou, box_pair_giou
         assert_allclose(box_area(result_standard), expected_area, type_test=True, device_test=True, atol=0.0)
-        iou_metrics = (box_iou, box_giou)  # type: ignore
+        iou_metrics = (box_iou, box_giou)
         for p in iou_metrics:
             self_iou = p(boxes1=result_standard[1:2, :], boxes2=result_standard[1:1, :])
             assert_allclose(self_iou, np.array([[]]), type_test=False)

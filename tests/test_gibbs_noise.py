@@ -13,14 +13,13 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import GibbsNoise
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
@@ -51,11 +50,7 @@ class TestGibbsNoise(unittest.TestCase):
         t = GibbsNoise(alpha)
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
-        self.assertEqual(type(out1), type(im))
-        if isinstance(out1, torch.Tensor):
-            self.assertEqual(out1.device, im.device)
-        torch.testing.assert_allclose(out1, out2, rtol=1e-7, atol=0)
-        self.assertIsInstance(out1, type(im))
+        assert_allclose(out1, out2, rtol=1e-7, atol=0, type_test="tensor")
 
     @parameterized.expand(TEST_CASES)
     def test_identity(self, im_shape, input_type):
@@ -63,7 +58,7 @@ class TestGibbsNoise(unittest.TestCase):
         alpha = 0.0
         t = GibbsNoise(alpha)
         out = t(deepcopy(im))
-        torch.testing.assert_allclose(im, out, atol=1e-2, rtol=1e-7)
+        assert_allclose(out, im, atol=1e-2, rtol=1e-7, type_test="tensor")
 
     @parameterized.expand(TEST_CASES)
     def test_alpha_1(self, im_shape, input_type):
@@ -71,7 +66,7 @@ class TestGibbsNoise(unittest.TestCase):
         alpha = 1.0
         t = GibbsNoise(alpha)
         out = t(deepcopy(im))
-        torch.testing.assert_allclose(0 * im, out, rtol=1e-7, atol=0)
+        assert_allclose(out, 0 * im, rtol=1e-7, atol=0, type_test="tensor")
 
 
 if __name__ == "__main__":
