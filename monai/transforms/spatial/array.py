@@ -3129,8 +3129,10 @@ class GridPatch(Transform):
 
         # Convert to original data type
         output = list(
-            zip(convert_to_dst_type(src=patched_image, dst=array)[0],
-                convert_to_dst_type(src=locations, dst=array, dtype=int)[0])
+            zip(
+                convert_to_dst_type(src=patched_image, dst=array)[0],
+                convert_to_dst_type(src=locations, dst=array, dtype=int)[0],
+            )
         )
 
         # Pad the patch list to have the requested number of patches
