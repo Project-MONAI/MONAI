@@ -41,13 +41,7 @@ class TestEnsureTyped(unittest.TestCase):
             test_datas.append(test_datas[-1].cuda())
         for test_data in test_datas:
             for dtype in ("tensor", "numpy"):
-                xform = EnsureTyped(keys="data", data_type=dtype)
-                result = xform({"data": test_data})
-                if isinstance(result, MetaTensor):
-                    self.assertTrue(result.applied_operations)
-                    out = xform.inverse(result)
-                    self.assertFalse(out.applied_operations)
-                result = result["data"]
+                result = EnsureTyped(keys="data", data_type=dtype)({"data": test_data})["data"]
                 self.assertTrue(isinstance(result, torch.Tensor if dtype == "tensor" else np.ndarray))
                 if isinstance(test_data, bool):
                     self.assertFalse(result)

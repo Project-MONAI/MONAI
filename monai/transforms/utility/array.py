@@ -454,7 +454,10 @@ class EnsureType(Transform):
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
-        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
+        if track_meta is None:
+            self.track_meta = get_track_meta()
+        else:
+            self.track_meta = bool(track_meta)
 
     def __call__(self, data: NdarrayOrTensor):
         """

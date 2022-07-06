@@ -15,8 +15,6 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-
-import contextlib
 import re
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
@@ -521,7 +519,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         return d
 
 
-class EnsureTyped(MapTransform, InvertibleTransform):
+class EnsureTyped(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureType`.
 
@@ -560,7 +558,6 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.wrap_sequence = wrap_sequence
         self.converter = EnsureType(
             data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
         )
@@ -569,16 +566,6 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
-            self.push_transform(d, key)
-        return d
-
-    def inverse(self, data):
-        d = deepcopy(dict(data))
-        if not self.wrap_sequence:
-            return d
-        for key in self.key_iterator(d):
-            with contextlib.suppress(Exception):
-                self.pop_transform(d, key)
         return d
 
 
