@@ -12,13 +12,15 @@
 import os
 import warnings
 from contextlib import contextmanager
+from functools import wraps
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
 
+from monai import transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import PostFix, TraceKeys
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -213,6 +215,18 @@ class TraceableTransform(Transform):
         self.tracing = prev
 
 
+def attach_pre_hook(func, hook):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not isinstance(args[0], transforms.MapTransform):
+            return func(*args, **kwargs)
+        inst, data_dict = args
+        data_dict = hook(inst, data_dict)
+        return func(inst, data_dict)
+
+    return wrapper
+
+
 class InvertibleTransform(TraceableTransform):
     """Classes for invertible transforms.
 
@@ -249,6 +263,28 @@ class InvertibleTransform(TraceableTransform):
            ``pop_transform`` is called.
 
     """
+
+    def __new__(cls, *args, **kwargs):
+        cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
+        return super().__new__(cls)
+
+    def comp_update(self, data):
+        if not isinstance(data, dict):
+            return data
+        if not isinstance(self, transforms.MapTransform):
+            return data
+        d = dict(data)
+        for k in self.key_iterator(data):
+            transform_key = transforms.TraceableTransform.trace_key(k)
+            if transform_key in data:
+                if not isinstance(data[k], MetaTensor):
+                    d[k] = MetaTensor(data[k])
+                d[k].applied_operations = data[transform_key]
+                meta_dict_key = PostFix.meta(k)
+                if meta_dict_key in data:
+                    d[k].meta.update(data[meta_dict_key])
+                d.pop(transform_key)
+        return d
 
     def inverse(self, data: Any) -> Any:
         """

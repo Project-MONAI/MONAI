@@ -14,6 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
+from functools import wraps
 from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -21,8 +22,9 @@ import torch
 
 from monai import transforms
 from monai.config import KeysCollection
+from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import PostFix, TransformBackends
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -286,6 +288,15 @@ class RandomizableTransform(Randomizable, Transform):
         self._do_transform = self.R.rand() < self.prob
 
 
+def attach_post_hook(func, hook):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        return hook(args[0], out)
+
+    return wrapper
+
+
 class MapTransform(Transform):
     """
     A subclass of :py:class:`monai.transforms.Transform` with an assumption
@@ -311,6 +322,10 @@ class MapTransform(Transform):
 
     """
 
+    def __new__(cls, *args, **kwargs):
+        cls.__call__ = attach_post_hook(cls.__call__, MapTransform.comp_update)
+        return super().__new__(cls)
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
@@ -319,6 +334,20 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
+
+    def comp_update(self, data):
+        if not isinstance(data, Mapping):
+            return data
+        d = dict(data)
+        for k in data:
+            if isinstance(data[k], MetaTensor):
+                meta_dict_key = PostFix.meta(k)
+                if meta_dict_key in d:
+                    d[meta_dict_key].update(data[k].meta)
+                if data[k].applied_operations:
+                    transform_key = transforms.TraceableTransform.trace_key(k)
+                    d[transform_key] = data[k].applied_operations
+        return d
 
     @abstractmethod
     def __call__(self, data):
