@@ -98,9 +98,12 @@ class TestPadCollation(unittest.TestCase):
         # check collation in forward direction
         for data in loader:
             if t_type == dict:
+                shapes = []
                 decollated_data = decollate_batch(data)
                 for d in decollated_data:
-                    PadListDataCollate.inverse(d)
+                    output = PadListDataCollate.inverse(d)
+                    shapes.append(output["image"].shape)
+                self.assertTrue(len(set(shapes)) > 1)  # inverted shapes must be different because of random xforms
 
 
 if __name__ == "__main__":
