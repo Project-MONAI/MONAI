@@ -239,8 +239,8 @@ def convert_data_type(
 
     Args:
         data: data to be converted
-        output_type: `torch.Tensor` or `np.ndarray` (if `None`, unchanged)
-        device: if output is `torch.Tensor`, select device (if `None`, unchanged)
+        output_type: `monai.data.MetaTensor`, `torch.Tensor`, or `np.ndarray` (if `None`, unchanged)
+        device: if output is `MetaTensor` or `torch.Tensor`, select device (if `None`, unchanged)
         dtype: dtype of output data. Converted to correct library type (e.g.,
             `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
             If left blank, it remains unchanged.
