@@ -189,7 +189,7 @@ class TargetBasedSpatialCropd(Cropd):
             # key is typically just "kspace_masked_ifft" for fastMRI data
             image = d[key]
             roi_size = d["target"].shape[1:]
-            roi_center = tuple([i // 2 for i in image.shape[1:]])
+            roi_center = tuple(i // 2 for i in image.shape[1:])
             cropper = SpatialCrop(roi_center=roi_center, roi_size=roi_size)
             d[key] = cropper(d[key])
         return d
