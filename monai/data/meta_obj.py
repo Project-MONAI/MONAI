@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import itertools
+import pprint
 from copy import deepcopy
 from typing import Any, Iterable
 
@@ -29,7 +30,7 @@ def set_track_meta(val: bool) -> None:
     with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -46,7 +47,7 @@ def get_track_meta() -> bool:
     returned with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -59,8 +60,7 @@ class MetaObj:
     """
     Abstract base class that stores data as well as any extra metadata.
 
-    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
-    inheritance.
+    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple inheritance.
 
     Metadata is stored in the form of a dictionary.
 
@@ -70,7 +70,8 @@ class MetaObj:
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaObj`.
+          first instance of `MetaObj` if `a.is_batch` is False
+          (For batched data, the metdata will be shallow copied for efficiency purposes).
 
     """
 
@@ -174,8 +175,7 @@ class MetaObj:
 
         out += "\nApplied operations\n"
         if self.applied_operations is not None:
-            for i in self.applied_operations:
-                out += f"\t{str(i)}\n"
+            out += pprint.pformat(self.applied_operations, indent=2, compact=True, width=120)
         else:
             out += "None"
 
@@ -196,7 +196,7 @@ class MetaObj:
         self._meta = d
 
     @property
-    def applied_operations(self) -> list:
+    def applied_operations(self) -> list[dict]:
         """Get the applied operations."""
         if hasattr(self, "_applied_operations"):
             return self._applied_operations

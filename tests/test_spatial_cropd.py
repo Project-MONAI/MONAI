@@ -11,56 +11,57 @@
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SpatialCropd
-from tests.utils import TEST_NDARRAYS
+from tests.croppers import CropTest
 
-TESTS = []
-for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            {"keys": ["img"], "roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
-            {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))},
-            (3, 2, 2, 2),
-        ]
-    )
-    TESTS.append(
-        [
-            {"keys": ["img"], "roi_start": [0, 0, 0], "roi_end": [2, 2, 2]},
-            {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))},
-            (3, 2, 2, 2),
-        ]
-    )
-    TESTS.append(
-        [
-            {"keys": ["img"], "roi_start": [0, 0], "roi_end": [2, 2]},
-            {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))},
-            (3, 2, 2, 3),
-        ]
-    )
-    TESTS.append(
-        [
-            {"keys": ["img"], "roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
-            {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))},
-            (3, 2, 2, 2),
-        ]
-    )
-    TESTS.append(
-        [
-            {"keys": ["img"], "roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
-            {"img": p(np.random.randint(0, 2, size=[3, 3, 3, 3]))},
-            (3, 1, 2, 2),
-        ]
-    )
+TESTS = [
+    [
+        {"keys": ["img"], "roi_center": [1, 1], "roi_size": [2, 2]},
+        (1, 3, 3),
+        (1, 2, 2),
+        (slice(None), slice(None, 2), slice(None, 2)),
+    ],
+    [
+        {"keys": ["img"], "roi_center": [1, 1, 1], "roi_size": [2, 2, 2]},
+        (3, 3, 3, 3),
+        (3, 2, 2, 2),
+        (slice(None), slice(None, 2), slice(None, 2), slice(None, 2)),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0, 0], "roi_end": [2, 2, 2]},
+        (3, 3, 3, 3),
+        (3, 2, 2, 2),
+        (slice(None), slice(None, 2), slice(None, 2), slice(None, 2)),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0], "roi_end": [2, 2]},
+        (3, 3, 3, 3),
+        (3, 2, 2, 3),
+        (slice(None), slice(None, 2), slice(None, 2), slice(None)),
+    ],
+    [
+        {"keys": ["img"], "roi_start": [0, 0, 0, 0, 0], "roi_end": [2, 2, 2, 2, 2]},
+        (3, 3, 3, 3),
+        (3, 2, 2, 2),
+        (slice(None), slice(None, 2), slice(None, 2), slice(None, 2)),
+    ],
+    [
+        {"keys": ["img"], "roi_slices": [slice(s, e) for s, e in zip([-1, -2, 0], [None, None, 2])]},
+        (3, 3, 3, 3),
+        (3, 1, 2, 2),
+        (slice(None), slice(-1, None), slice(-2, None), slice(0, 2)),
+    ],
+]
 
 
-class TestSpatialCropd(unittest.TestCase):
+class TestSpatialCropd(CropTest):
+    Cropper = SpatialCropd
+
     @parameterized.expand(TESTS)
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = SpatialCropd(**input_param)(input_data)
-        self.assertTupleEqual(result["img"].shape, expected_shape)
+    def test_shape(self, input_param, input_shape, expected_shape, same_area):
+        self.crop_test(input_param, input_shape, expected_shape, same_area)
 
 
 if __name__ == "__main__":

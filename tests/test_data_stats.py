@@ -14,6 +14,8 @@ import os
 import sys
 import tempfile
 import unittest
+from io import StringIO
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -165,6 +167,14 @@ class TestDataStats(unittest.TestCase):
                 content = f.read()
             if sys.platform != "win32":
                 self.assertEqual(content, expected_print)
+
+    def test_multiple_data_stats(self):
+        with patch("sys.stdout", new=StringIO()) as out:
+            input_data = np.array([[0, 1], [1, 2]])
+            transform = DataStats()
+            _ = DataStats()
+            _ = transform(input_data)
+            print(out.getvalue().strip())
 
 
 if __name__ == "__main__":

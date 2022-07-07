@@ -27,7 +27,8 @@ class TestRandAdjustContrast(NumpyImageTestCase2D):
     def test_correct_results(self, gamma):
         adjuster = RandAdjustContrast(prob=1.0, gamma=gamma)
         for p in TEST_NDARRAYS:
-            result = adjuster(p(self.imt))
+            im = p(self.imt)
+            result = adjuster(im)
             epsilon = 1e-7
             img_min = self.imt.min()
             img_range = self.imt.max() - img_min
@@ -35,7 +36,7 @@ class TestRandAdjustContrast(NumpyImageTestCase2D):
                 np.power(((self.imt - img_min) / float(img_range + epsilon)), adjuster.gamma_value) * img_range
                 + img_min
             )
-            assert_allclose(expected, result, rtol=1e-05, type_test=False)
+            assert_allclose(result, expected, rtol=1e-05, type_test=False)
 
 
 if __name__ == "__main__":

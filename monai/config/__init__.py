@@ -28,5 +28,6 @@ from .type_definitions import (
     NdarrayOrTensor,
     NdarrayTensor,
     PathLike,
+    SequenceStr,
     TensorOrList,
 )

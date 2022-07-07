@@ -87,7 +87,7 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
 
     def test_rand_smooth_field_adjust_contrastd_pad(self):
         input_param, input_data, expected_val = TESTS_CONTRAST[0]
@@ -98,7 +98,7 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
 
     @parameterized.expand(TESTS_INTENSITY)
     def test_rand_smooth_field_adjust_intensityd(self, input_param, input_data, expected_val):
@@ -108,7 +108,7 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
 
     def test_rand_smooth_field_adjust_intensityd_pad(self):
         input_param, input_data, expected_val = TESTS_INTENSITY[0]
@@ -119,7 +119,7 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
 
     @parameterized.expand(TESTS_DEFORM)
     def test_rand_smooth_deformd(self, input_param, input_data, expected_val):
@@ -129,7 +129,7 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
 
     def test_rand_smooth_deformd_pad(self):
         input_param, input_data, expected_val = TESTS_DEFORM[0]
@@ -140,4 +140,8 @@ class TestSmoothField(unittest.TestCase):
         res = g(input_data)
         for key, result in res.items():
             expected = expected_val[key]
-            assert_allclose(result, expected, rtol=_rtol, atol=1e-1)
+            assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
+
+
+if __name__ == "__main__":
+    unittest.main()
