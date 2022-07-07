@@ -13,9 +13,9 @@ import unittest
 
 import numpy as np
 import torch
+from my_mri_array import EquispacedKspaceMask, RandomKspaceMask
 from parameterized import parameterized
 
-from monai.apps.reconstruction.transforms.mri_array import EquispacedKspaceMask, RandomKspaceMask
 from monai.utils.type_conversion import convert_data_type
 
 # test case for apply_mask

@@ -13,6 +13,7 @@
 from typing import Dict, Hashable, Mapping, Optional, Sequence
 
 import numpy as np
+from my_mri_array import EquispacedKspaceMask, RandomKspaceMask
 from numpy import ndarray
 from torch import Tensor
 
@@ -22,8 +23,7 @@ from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.croppad.dictionary import Cropd
 from monai.transforms.intensity.array import NormalizeIntensity
 from monai.transforms.transform import MapTransform
-
-from .monai.apps.reconstruction.transforms.mri_array import EquispacedKspaceMask, RandomKspaceMask
+from monai.utils.type_conversion import convert_to_tensor
 
 
 class RandomKspaceMaskd(MapTransform):
@@ -191,7 +191,7 @@ class TargetBasedSpatialCropd(Cropd):
             roi_size = d["target"].shape[1:]
             roi_center = tuple([i // 2 for i in image.shape[1:]])
             cropper = SpatialCrop(roi_center=roi_center, roi_size=roi_size)
-            d[key] = cropper(d[key])
+            d[key] = convert_to_tensor(cropper(d[key]))
         return d
 
 

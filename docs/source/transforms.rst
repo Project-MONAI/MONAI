@@ -798,14 +798,14 @@ MRI Transforms
 
 `Kspace under-sampling`
 """""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.transforms.mri_array.KspaceMask
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.KspaceMask
     :members:
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.transforms.mri_array.RandomKspaceMask
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.RandomKspaceMask
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.transforms.mri_array.EquispacedKspaceMask
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.EquispacedKspaceMask
     :special-members: __call__
 
 
@@ -1693,28 +1693,28 @@ Smooth Field (Dict)
     :special-members: __call__
 
 
-..
-    `MRI transforms (Dict)`
-     ^^^^^^^^^^^^^^^^^^^^^^^^
 
-    `Kspace under-sampling (Dict)`
-    """"""""""""""""""""""""""""""
+`MRI transforms (Dict)`
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-    .. autoclass:: monai.apps.reconstruction.transforms.mri_dictionary.RandomKspaceMaskd
+`Kspace under-sampling (Dict)`
+""""""""""""""""""""""""""""""
+
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.RandomKspaceMaskd
     :special-members: __icall__
 
-    .. autoclass:: monai.apps.reconstruction.transforms.mri_dictionary.EquispacedKspaceMaskd
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.EquispacedKspaceMaskd
     :special-members: __call__
 
 
-    `TargetBasedSpatialCropd`
-    """""""""""""""""""""""""""
-    .. autoclass:: monai.apps.reconstruction.transforms.mri_dictionary.TargetBasedSpatialCropd
+`TargetBasedSpatialCropd`
+"""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.TargetBasedSpatialCropd
     :special-members: __call__
 
-    `DetailedNormalizeIntensityd`
-    """"""""""""""""""""""""""""""
-    .. autoclass:: monai.apps.reconstruction.transforms.mri_dictionary.DetailedNormalizeIntensityd
+`DetailedNormalizeIntensityd`
+""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.DetailedNormalizeIntensityd
     :special-members: __call__
 
 
