@@ -268,10 +268,10 @@ class InvertibleTransform(TraceableTransform):
     """
 
     def __new__(cls, *args, **kwargs):
-        if not config.USE_METATENSOR and issubclass(cls, monai.transforms.MapTransform):
+        if config.USE_META_DICT and issubclass(cls, monai.transforms.MapTransform):
             # only update MapTransform, MapTransforms may call array transform's inverse
             cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
-        return super().__new__(cls)
+        return TraceableTransform.__new__(cls)
 
     def comp_update(self, data):
         """

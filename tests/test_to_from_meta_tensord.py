@@ -37,14 +37,14 @@ def rand_string(min_len=5, max_len=10):
     return "".join(random.choice(chars) for _ in range(str_size))
 
 
-@unittest.skipIf(not config.USE_METATENSOR, "skipping not latest")
+@unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
     def setUp(self):
-        self.flag = config.USE_METATENSOR
-        config.USE_METATENSOR = True
+        self.flag = config.USE_META_DICT
+        config.USE_META_DICT = False
 
     def tearDown(self):
-        config.USE_METATENSOR = self.flag
+        config.USE_META_DICT = self.flag
 
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
@@ -148,7 +148,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         # TO -> Forward
         t_to_meta = ToMetaTensord(["m1", "m2"])
         d_dict_meta = t_to_meta(d_dict)
-        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"], f"flag: {config.USE_METATENSOR}")
+        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"], f"flag: {config.USE_META_DICT}")
         self.check(d_dict_meta["m3"], m3, ids=True)  # unchanged (except deep copy in inverse)
         self.check(d_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_dict_meta["m1"].meta.items() if k != "affine"}

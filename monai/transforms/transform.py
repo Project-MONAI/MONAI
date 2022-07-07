@@ -324,10 +324,10 @@ class MapTransform(Transform):
 
     """
 
-    def __new__(cls, *args, **kwargs):
-        if not config.USE_METATENSOR:
-            cls.__call__ = attach_post_hook(cls.__call__, MapTransform.comp_update)
-        return super().__new__(cls)
+    def __new__(cls, keys: KeysCollection = None, allow_missing_keys: bool = False, *args, **kwargs):
+        if config.USE_META_DICT:
+            cls.__call__ = attach_post_hook(cls.__call__, MapTransform.comp_update)  # type: ignore
+        return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)

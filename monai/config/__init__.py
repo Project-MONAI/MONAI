@@ -11,7 +11,7 @@
 
 from .deviceconfig import (
     USE_COMPILED,
-    USE_METATENSOR,
+    USE_META_DICT,
     IgniteInfo,
     get_config_values,
     get_gpu_info,

@@ -391,6 +391,22 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+def pickle_operations(data, key=TraceKeys.KEY_SUFFIX, is_encode: bool = True):
+    """applied_operations are dictionaries with varying sizes, converting them to bytes so that we can (de-)collate."""
+    if isinstance(data, Mapping):
+        data, has_items = dict(data), False
+        for k in data:
+            if f"{k}".endswith(TraceKeys.KEY_SUFFIX):
+                if is_encode and not isinstance(data[k], bytes):
+                    data[k] = pickle.dumps(data[k], 0)
+                if not is_encode and isinstance(data[k], bytes):
+                    data[k] = pickle.loads(data[k])
+        return data if has_items else {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
+    return data
+
+
 def collate_meta_tensor(batch):
     """collate a sequence of meta tensor sequences/dictionaries into
     a single batched metatensor or a dictionary of batched metatensor"""
@@ -404,13 +420,7 @@ def collate_meta_tensor(batch):
         collated.is_batch = True
         return collated
     if isinstance(elem_0, Mapping):
-        return {
-            k: [d[k] or TraceKeys.NONE for d in batch]
-            if f"{k}".endswith(TraceKeys.KEY_SUFFIX)  # for compatibility 0.9.0
-            else collate_meta_tensor([d[k] for d in batch])
-            for k in elem_0
-        }
-
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
     # no more recursive search for MetaTensor
     return default_collate(batch)
 
@@ -429,15 +439,13 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
+        data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                if f"{key}".endswith(TraceKeys.KEY_SUFFIX):  # for compatibility 0.9.0
-                    ret[key] = data_for_batch
-                else:
-                    ret[key] = collate_meta_tensor(data_for_batch)
+                ret[key] = collate_meta_tensor(data_for_batch)
         else:
             ret = collate_meta_tensor(data)
         return ret
@@ -448,9 +456,9 @@ def list_data_collate(batch: Sequence):
                 re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
-                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its docs)."
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
+                + "documentation)."
             )
-
         _ = dev_collate(data)
         raise RuntimeError(re_str) from re
     except TypeError as re:
@@ -461,8 +469,8 @@ def list_data_collate(batch: Sequence):
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
+                + "(check its documentation)."
             )
-
         _ = dev_collate(data)
         raise TypeError(re_str) from re
 
@@ -582,7 +590,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             deco[k] = [deepcopy(deco[k]) for _ in range(b)]
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
-        return [dict(zip(deco, item)) for item in _gen]
+        return pickle_operations([dict(zip(deco, item)) for item in _gen])  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
         return [list(item) for item in _gen]
