@@ -12,9 +12,9 @@
 import unittest
 
 import torch
-from mri_utils import complex_abs, convert_to_tensor_complex, rss
 from parameterized import parameterized
 
+from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, rss
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 

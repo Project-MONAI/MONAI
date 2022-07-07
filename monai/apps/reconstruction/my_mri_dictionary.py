@@ -13,10 +13,10 @@
 from typing import Dict, Hashable, Mapping, Optional, Sequence
 
 import numpy as np
-from my_mri_array import EquispacedKspaceMask, RandomKspaceMask
 from numpy import ndarray
 from torch import Tensor
 
+from monai.apps.reconstruction.my_mri_array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialCrop
@@ -140,7 +140,7 @@ class EquispacedKspaceMaskd(MapTransform):
         """
         Args:
             data: is a dictionary containing (key,value) pairs from
-            the loaded dataset
+                the loaded dataset
 
         Returns:
             the new data dictionary
@@ -179,7 +179,7 @@ class TargetBasedSpatialCropd(Cropd):
         """
         Args:
             data: is a dictionary containing (key,value) pairs from
-            the loaded dataset
+                the loaded dataset
 
         Returns:
             the new data dictionary
@@ -239,7 +239,7 @@ class DetailedNormalizeIntensityd(MapTransform):
         """
         Args:
             data: is a dictionary containing (key,value) pairs from
-            the loaded dataset
+                the loaded dataset
 
         Returns:
             the new data dictionary

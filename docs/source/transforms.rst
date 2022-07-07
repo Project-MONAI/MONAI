@@ -804,14 +804,14 @@ MRI Transforms
 
 `Kspace under-sampling`
 """""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.KspaceMask
+.. autoclass:: monai.apps.reconstruction.my_mri_array.KspaceMask
     :members:
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.RandomKspaceMask
+.. autoclass:: monai.apps.reconstruction.my_mri_array.RandomKspaceMask
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_array.EquispacedKspaceMask
+.. autoclass:: monai.apps.reconstruction.my_mri_array.EquispacedKspaceMask
     :special-members: __call__
 
 
@@ -1015,17 +1015,17 @@ Utility
 
 `ConvertToTensorComplex`
 """""""""""""""""""""""""
-.. autofunction:: monai.apps.reconstruction.transforms.mri_utils.convert_to_tensor_complex
+.. autofunction:: monai.apps.reconstruction.mri_utils.convert_to_tensor_complex
 
 
 `ComplexAbs`
 """""""""""""
-.. autofunction:: monai.apps.reconstruction.transforms.mri_utils.complex_abs
+.. autofunction:: monai.apps.reconstruction.mri_utils.complex_abs
 
 
 `RSS`
 """"""
-.. autofunction:: monai.apps.reconstruction.transforms.mri_utils.rss
+.. autofunction:: monai.apps.reconstruction.mri_utils.rss
 
 
 Dictionary Transforms
@@ -1724,21 +1724,21 @@ Smooth Field (Dict)
 `Kspace under-sampling (Dict)`
 """"""""""""""""""""""""""""""
 
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.RandomKspaceMaskd
-    :special-members: __icall__
+.. autoclass:: monai.apps.reconstruction.my_mri_dictionary.RandomKspaceMaskd
+    :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.EquispacedKspaceMaskd
+.. autoclass:: monai.apps.reconstruction.my_mri_dictionary.EquispacedKspaceMaskd
     :special-members: __call__
 
 
 `TargetBasedSpatialCropd`
 """""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.TargetBasedSpatialCropd
+.. autoclass:: monai.apps.reconstruction.my_mri_dictionary.TargetBasedSpatialCropd
     :special-members: __call__
 
 `DetailedNormalizeIntensityd`
 """"""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.transforms.my_mri_dictionary.DetailedNormalizeIntensityd
+.. autoclass:: monai.apps.reconstruction.my_mri_dictionary.DetailedNormalizeIntensityd
     :special-members: __call__
 
 
