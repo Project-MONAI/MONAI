@@ -11,12 +11,10 @@
 
 import unittest
 
-import numpy as np
 import torch
-from mri_array import EquispacedKspaceMask, RandomKspaceMask
-from mri_utils import complex_abs, convert_to_tensor_complex
 from parameterized import parameterized
 
+from monai.apps.reconstruction.transforms.mri_utils import complex_abs, convert_to_tensor_complex, rss
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -34,10 +32,6 @@ TESTSC = []
 for p in TEST_NDARRAYS:
     TESTSC.append((p(im), p(res)))
 
-# test case for apply_mask
-ksp, *_ = convert_data_type(np.ones([50, 50, 2]), torch.Tensor)
-TESTSM = [(ksp,)]
-
 
 class TestMRIUtils(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -51,21 +45,10 @@ class TestMRIUtils(unittest.TestCase):
         result = complex_abs(test_data)
         assert_allclose(result, res_data, type_test=False)
 
-    @parameterized.expand(TESTSM)
-    def test_mask(self, test_data):
-        # random mask
-        masker = RandomKspaceMask(center_fractions=[0.08], accelerations=[4.0], spatial_size=test_data.shape)
-        result = masker(test_data)
-        mask = masker.mask
-        result = result[..., mask.squeeze() == 0, :].sum()
-        self.assertEqual(result.item(), 0)
-
-        # equispaced mask
-        masker = EquispacedKspaceMask(center_fractions=[0.08], accelerations=[4.0], spatial_size=test_data.shape)
-        result = masker(test_data)
-        mask = masker.mask
-        result = result[..., mask.squeeze() == 0, :].sum()
-        self.assertEqual(result.item(), 0)
+    @parameterized.expand(TESTSC)
+    def test_rss(self, test_data, res_data):
+        result = rss(test_data, spatial_dim=1)
+        assert_allclose(result, res_data, type_test=False)
 
 
 if __name__ == "__main__":

@@ -56,6 +56,21 @@ def convert_to_tensor_complex(
             # the following line prints torch.Size([2, 2, 2])
             print(convert_to_tensor_complex(data).shape)
     """
+    # if data is not complex, just turn it into a tensor
+    if isinstance(data, Tensor):
+        if not torch.is_complex(data):
+            converted_data: Tensor = convert_to_tensor(
+                data, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
+            )
+            return converted_data
+    else:
+        if not np.iscomplexobj(data):
+            converted_data = convert_to_tensor(
+                data, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
+            )
+            return converted_data
+
+    # if data is compelx, turn its stacked version into a tensor
     if isinstance(data, torch.Tensor):
         data = torch.stack([data.real, data.imag], dim=-1)
 
@@ -74,7 +89,7 @@ def convert_to_tensor_complex(
         data = convert_to_numpy(data, wrap_sequence=True)
         data = np.stack((data.real, data.imag), axis=-1).tolist()
 
-    converted_data: Tensor = convert_to_tensor(
+    converted_data = convert_to_tensor(
         data, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
     )
     return converted_data
@@ -101,3 +116,26 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
     if x.shape[-1] != 2:
         raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
     return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5
+
+
+def rss(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor:
+    """
+    Compute the root sum of squares of the data (typically done for multi-coil MRI samples)
+
+    Args:
+        x: Input array/tensor
+        spatial_dim: dimension along which rss is applied
+
+    Returns:
+        rss of x along spatial_dim
+
+    Example:
+        .. code-block:: python
+
+            import numpy as np
+            x = np.ones([2,3])
+            # the following line prints array([1.41421356, 1.41421356, 1.41421356])
+            print(rss(x,spatial_dim=0))
+    """
+    rss_x: NdarrayOrTensor = (x**2).sum(spatial_dim) ** 0.5
+    return rss_x
