@@ -341,7 +341,7 @@ class MapTransform(Transform):
         """
         This function is to be called after every `self.__call__(data)`,
         update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
-        for MetaTensor backward compatibility.
+        for MetaTensor backward compatibility 0.9.0.
         """
         if not isinstance(data, Mapping):
             return data

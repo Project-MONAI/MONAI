@@ -404,7 +404,13 @@ def collate_meta_tensor(batch):
         collated.is_batch = True
         return collated
     if isinstance(elem_0, Mapping):
-        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+        return {
+            k: [d[k] or TraceKeys.NONE for d in batch]
+            if (isinstance(k, str) and k.endswith(TraceKeys.KEY_SUFFIX))  # for compatibility 0.9.0
+            else collate_meta_tensor([d[k] for d in batch])
+            for k in elem_0
+        }
+
     # no more recursive search for MetaTensor
     return default_collate(batch)
 

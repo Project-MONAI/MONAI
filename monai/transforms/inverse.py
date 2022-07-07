@@ -274,7 +274,7 @@ class InvertibleTransform(TraceableTransform):
         """
         This function is to be called before every `self.inverse(data)`,
         update each MetaTensor `data[key]` using `data[key_transforms]` and `data[key_meta_dict]`,
-        for MetaTensor backward compatibility.
+        for MetaTensor backward compatibility 0.9.0.
         """
         if not isinstance(data, dict) or not isinstance(self, transforms.MapTransform):
             return data
