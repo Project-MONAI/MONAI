@@ -435,6 +435,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
+            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
 
     """
 
@@ -446,11 +448,13 @@ class EnsureType(Transform):
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -461,10 +465,17 @@ class EnsureType(Transform):
                 if applicable and `wrap_sequence=False`.
 
         """
-        output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        if self.data_type == "tensor":
+            output_type = MetaTensor if self.track_meta else torch.Tensor
+        else:
+            output_type = np.ndarray  # type: ignore
         out: NdarrayOrTensor
         out, *_ = convert_data_type(
-            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
+            data=data,
+            output_type=output_type,  # type: ignore
+            dtype=self.dtype,
+            device=self.device,
+            wrap_sequence=self.wrap_sequence,
         )
         return out
 

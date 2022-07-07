@@ -15,13 +15,15 @@ import warnings
 from copy import deepcopy
 from typing import Any, Sequence
 
+import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
+from monai.utils import look_up_option
 from monai.utils.enums import PostFix
-from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -307,6 +309,33 @@ class MetaTensor(MetaObj, torch.Tensor):
             PostFix.transforms(key): deepcopy(self.applied_operations),
         }
 
+    def astype(self, dtype, device=None, *unused_args, **unused_kwargs):
+        """
+        Cast to ``dtype``, sharing data whenever possible.
+
+        Args:
+            dtype: dtypes such as np.float32, torch.float, "np.float32", float.
+            device: the device if `dtype` is a torch data type.
+            unused_args: additional args (currently unused).
+            unused_kwargs: additional kwargs (currently unused).
+
+        Returns:
+            data array instance
+        """
+        if isinstance(dtype, str):
+            mod_str, *dtype = dtype.split(".", 1)
+            dtype = mod_str if not dtype else dtype[0]
+        else:
+            mod_str = getattr(dtype, "__module__", "torch")
+        mod_str = look_up_option(mod_str, {"torch", "numpy", "np"}, default="numpy")
+        if mod_str == "torch":
+            out_type = torch.Tensor
+        elif mod_str in ("numpy", "np"):
+            out_type = np.ndarray
+        else:
+            out_type = None
+        return convert_data_type(self, output_type=out_type, device=device, dtype=dtype, wrap_sequence=True)[0]
+
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
@@ -334,7 +363,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         )
 
     @staticmethod
-    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
         """
         Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
@@ -353,12 +382,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         if not get_track_meta() or meta is None:
             return img
 
-        # ensure affine is of type `torch.Tensor`
-        if "affine" in meta:
-            meta["affine"] = convert_to_tensor(meta["affine"])
-
         # remove any superfluous metadata.
-        remove_extra_metadata(meta)
+        if simple_keys:
+            # ensure affine is of type `torch.Tensor`
+            if "affine" in meta:
+                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            remove_extra_metadata(meta)  # bc-breaking
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
