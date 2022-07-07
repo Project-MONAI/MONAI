@@ -27,7 +27,7 @@ try:
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
-USE_METATENSOR = os.environ.get("METATENSOR", "0") == "1"  # use MetaTensor new feature, set to False for compatibility
+USE_METATENSOR = os.environ.get("METATENSOR", "1") == "1"  # use MetaTensor new feature, set to False for compatibility
 
 psutil, has_psutil = optional_import("psutil")
 psutil_version = psutil.__version__ if has_psutil else "NOT INSTALLED or UNKNOWN VERSION."
