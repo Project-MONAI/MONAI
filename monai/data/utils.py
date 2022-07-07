@@ -406,7 +406,7 @@ def collate_meta_tensor(batch):
     if isinstance(elem_0, Mapping):
         return {
             k: [d[k] or TraceKeys.NONE for d in batch]
-            if (isinstance(k, str) and k.endswith(TraceKeys.KEY_SUFFIX))  # for compatibility 0.9.0
+            if f"{k}".endswith(TraceKeys.KEY_SUFFIX)  # for compatibility 0.9.0
             else collate_meta_tensor([d[k] for d in batch])
             for k in elem_0
         }
@@ -434,7 +434,10 @@ def list_data_collate(batch: Sequence):
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                ret[key] = collate_meta_tensor(data_for_batch)
+                if f"{key}".endswith(TraceKeys.KEY_SUFFIX):  # for compatibility 0.9.0
+                    ret[key] = data_for_batch
+                else:
+                    ret[key] = collate_meta_tensor(data_for_batch)
         else:
             ret = collate_meta_tensor(data)
         return ret
@@ -445,9 +448,9 @@ def list_data_collate(batch: Sequence):
                 re_str += f"\nCollate error on the key '{key}' of dictionary data."
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create images of different shapes, creating your "
-                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
-                + "documentation)."
+                + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its docs)."
             )
+
         _ = dev_collate(data)
         raise RuntimeError(re_str) from re
     except TypeError as re:
@@ -458,8 +461,8 @@ def list_data_collate(batch: Sequence):
             re_str += (
                 "\n\nMONAI hint: if your transforms intentionally create mixtures of torch Tensor and numpy ndarray, "
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
-                + "(check its documentation)."
             )
+
         _ = dev_collate(data)
         raise TypeError(re_str) from re
 

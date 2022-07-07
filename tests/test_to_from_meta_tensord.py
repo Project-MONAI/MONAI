@@ -37,6 +37,7 @@ def rand_string(min_len=5, max_len=10):
     return "".join(random.choice(chars) for _ in range(str_size))
 
 
+@unittest.skipIf(not config.USE_METATENSOR, "skipping not latest")
 class TestToFromMetaTensord(unittest.TestCase):
     def setUp(self):
         self.flag = config.USE_METATENSOR
