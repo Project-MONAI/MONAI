@@ -153,6 +153,12 @@ PILReader
   :members:
 
 
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastMRIreader.FastMRIReader
+  :members:
+
+
 Image writer
 ------------
 
