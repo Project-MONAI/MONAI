@@ -27,6 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -439,7 +440,8 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
-        data = pickle_operations(data)  # bc 0.9.0
+        if config.USE_META_DICT:
+            data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
@@ -590,7 +592,10 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             deco[k] = [deepcopy(deco[k]) for _ in range(b)]
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
-        return pickle_operations([dict(zip(deco, item)) for item in _gen])  # bc 0.9.0
+        ret = [dict(zip(deco, item)) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret
+        return pickle_operations(ret, is_encode=False)  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
         return [list(item) for item in _gen]

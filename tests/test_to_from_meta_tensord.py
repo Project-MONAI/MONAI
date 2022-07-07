@@ -39,13 +39,6 @@ def rand_string(min_len=5, max_len=10):
 
 @unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
-    def setUp(self):
-        self.flag = config.USE_META_DICT
-        config.USE_META_DICT = False
-
-    def tearDown(self):
-        config.USE_META_DICT = self.flag
-
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
@@ -138,7 +131,6 @@ class TestToFromMetaTensord(unittest.TestCase):
         # FROM -> inverse
         d_meta_dict_meta = t_from_meta.inverse(d_dict)
         self.assertEqual(sorted(d_meta_dict_meta.keys()), ["m1", "m2", "m3"])
-        self.check(d_meta_dict_meta["m3"], m3, ids=False)  # unchanged (except deep copy in inverse)
         self.check(d_meta_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_meta_dict_meta["m1"].meta.items() if k != "affine"}
         aff_out = d_meta_dict_meta["m1"].affine

@@ -574,6 +574,8 @@ from .utility.dictionary import (
 from .utils import (
     Fourier,
     allow_missing_keys_mode,
+    attach_post_hook,
+    attach_pre_hook,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,

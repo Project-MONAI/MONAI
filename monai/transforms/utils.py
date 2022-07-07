@@ -13,6 +13,7 @@ import itertools
 import random
 import warnings
 from contextlib import contextmanager
+from functools import wraps
 from inspect import getmembers, isclass
 from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
@@ -106,6 +107,8 @@ __all__ = [
     "convert_to_contiguous",
     "get_unique_labels",
     "scale_affine",
+    "attach_pre_hook",
+    "attach_post_hook",
 ]
 
 
@@ -1599,6 +1602,27 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
     return affine @ convert_to_dst_type(scale, affine)[0]
 
+def attach_pre_hook(func, hook):
+    """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
 
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(args) < 2:
+            return func(*args, **kwargs)
+        inst, data_dict = args
+        data_dict = hook(inst, data_dict)
+        return func(inst, data_dict)
+
+    return wrapper
+
+def attach_post_hook(func, hook):
+    """adds `hook` after `func` calls using `func`'s return value"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        return hook(args[0], out)
+
+    return wrapper
 if __name__ == "__main__":
     print_transform_backends()

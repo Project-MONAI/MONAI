@@ -165,10 +165,10 @@ class TestOneOf(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                # # check transform was removed, compatibility 0.9.0 removed '_transforms'
-                # self.assertTrue(
-                #     len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
-                # )
+                # check transform was removed
+                self.assertTrue(
+                    len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
+                )
                 # check data is same as original (and different from forward)
                 self.assertEqual(fwd_inv_data[k], data[k])
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])

@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
+from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.data.meta_tensor import MetaTensor
@@ -39,8 +40,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -542,8 +542,8 @@ class Invertd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection,
-        transform: InvertibleTransform,
+        keys: KeysCollection = "",
+        transform: Optional[InvertibleTransform] = None,
         orig_keys: Optional[KeysCollection] = None,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
@@ -656,6 +656,9 @@ class Invertd(MapTransform):
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
+            if config.USE_META_DICT:
+                input_dict[InvertibleTransform.trace_key(orig_key)] = transform_info
+                input_dict[PostFix.meta(orig_key)] = meta_info
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)

@@ -12,13 +12,11 @@
 import os
 import warnings
 from contextlib import contextmanager
-from functools import wraps
 from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
 
-import monai
-from monai import config
+from monai import transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.utils.enums import PostFix, TraceKeys
@@ -216,18 +214,7 @@ class TraceableTransform(Transform):
         self.tracing = prev
 
 
-def attach_pre_hook(func, hook):
-    """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
 
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) < 2:
-            return func(*args, **kwargs)
-        inst, data_dict = args
-        data_dict = hook(inst, data_dict)
-        return func(inst, data_dict)
-
-    return wrapper
 
 
 class InvertibleTransform(TraceableTransform):
@@ -267,32 +254,27 @@ class InvertibleTransform(TraceableTransform):
 
     """
 
-    def __new__(cls, *args, **kwargs):
-        if config.USE_META_DICT and issubclass(cls, monai.transforms.MapTransform):
-            # only update MapTransform, MapTransforms may call array transform's inverse
-            cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
-        return TraceableTransform.__new__(cls)
-
-    def comp_update(self, data):
+    def inverse_update(self, data):
         """
         This function is to be called before every `self.inverse(data)`,
         update each MetaTensor `data[key]` using `data[key_transforms]` and `data[key_meta_dict]`,
         for MetaTensor backward compatibility 0.9.0.
         """
-        if not isinstance(data, dict) or not isinstance(self, monai.transforms.MapTransform):
+        if not isinstance(data, dict) or not isinstance(self, transforms.MapTransform):
             return data
         d = dict(data)
         for k in self.key_iterator(data):
-            transform_key = monai.transforms.TraceableTransform.trace_key(k)
-            if transform_key not in data:
+            transform_key = transforms.TraceableTransform.trace_key(k)
+            if transform_key not in data or not data[transform_key]:
                 continue
             if not isinstance(data[k], MetaTensor):
                 d[k] = MetaTensor(data[k])
-            d[k].applied_operations = data[transform_key]
+            if not d[k].applied_operations:
+                d[k].applied_operations = d[transform_key]
+            d[transform_key] = d[k].applied_operations
             meta_dict_key = PostFix.meta(k)
             if meta_dict_key in data:
-                d[k].meta.update(data[meta_dict_key])
-            d.pop(transform_key)
+                d[meta_dict_key].update(d[k].meta)
         return d
 
     def inverse(self, data: Any) -> Any:
