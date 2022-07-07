@@ -222,9 +222,7 @@ class SwinUNETR(nn.Module):
             res_block=True,
         )
 
-        self.out = UnetOutBlock(
-            spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels
-        )  # type: ignore
+        self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
 
@@ -513,7 +511,7 @@ class SwinTransformerBlock(nn.Module):
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         act_layer: str = "GELU",
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -667,9 +665,7 @@ class PatchMerging(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(
-        self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3
-    ) -> None:  # type: ignore
+    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3) -> None:
         """
         Args:
             dim: number of feature channels.
@@ -779,7 +775,7 @@ class BasicLayer(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         downsample: isinstance = None,  # type: ignore
         use_checkpoint: bool = False,
     ) -> None:
@@ -881,7 +877,7 @@ class SwinTransformer(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,

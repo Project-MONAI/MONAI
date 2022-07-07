@@ -12,7 +12,6 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import NormalizeIntensityd
@@ -57,20 +56,14 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         normalizer = NormalizeIntensityd(keys=[key])
         normalized = normalizer({key: im})[key]
         expected = (self.imt - np.mean(self.imt)) / np.std(self.imt)
-        self.assertEqual(type(im), type(normalized))
-        if isinstance(normalized, torch.Tensor):
-            self.assertEqual(im.device, normalized.device)
-        assert_allclose(normalized, im_type(expected), rtol=1e-3)
+        assert_allclose(normalized, im_type(expected), rtol=1e-3, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_nonzero(self, input_param, input_data, expected_data):
         key = "img"
         normalizer = NormalizeIntensityd(**input_param)
         normalized = normalizer(input_data)[key]
-        self.assertEqual(type(input_data[key]), type(normalized))
-        if isinstance(normalized, torch.Tensor):
-            self.assertEqual(input_data[key].device, normalized.device)
-        assert_allclose(normalized, expected_data)
+        assert_allclose(normalized, expected_data, type_test="tensor")
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_channel_wise(self, im_type):
@@ -78,11 +71,8 @@ class TestNormalizeIntensityd(NumpyImageTestCase2D):
         normalizer = NormalizeIntensityd(keys=key, nonzero=True, channel_wise=True)
         input_data = {key: im_type(np.array([[0.0, 3.0, 0.0, 4.0], [0.0, 4.0, 0.0, 5.0]]))}
         normalized = normalizer(input_data)[key]
-        self.assertEqual(type(input_data[key]), type(normalized))
-        if isinstance(normalized, torch.Tensor):
-            self.assertEqual(input_data[key].device, normalized.device)
         expected = np.array([[0.0, -1.0, 0.0, 1.0], [0.0, -1.0, 0.0, 1.0]])
-        assert_allclose(normalized, im_type(expected))
+        assert_allclose(normalized, im_type(expected), type_test="tensor")
 
 
 if __name__ == "__main__":

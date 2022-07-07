@@ -31,7 +31,7 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
         b1 = next(iter(train_loader))
         b2 = next(iter(train_loader))
 
-        self.assertEqual(len(b1["img_transforms"]), len(b2["img_transforms"]))
+        self.assertEqual(len(b1["img"].applied_operations), len(b2["img"].applied_operations))
 
 
 if __name__ == "__main__":

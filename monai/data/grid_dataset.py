@@ -32,11 +32,7 @@ class PatchIter:
     """
 
     def __init__(
-        self,
-        patch_size: Sequence[int],
-        start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-        **pad_opts: Dict,
+        self, patch_size: Sequence[int], start_pos: Sequence[int] = (), mode: str = NumpyPadMode.WRAP, **pad_opts: Dict
     ):
         """
 
@@ -109,7 +105,7 @@ class PatchIterd:
         keys: KeysCollection,
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        mode: str = NumpyPadMode.WRAP,
         **pad_opts,
     ):
         self.keys = ensure_tuple(keys)

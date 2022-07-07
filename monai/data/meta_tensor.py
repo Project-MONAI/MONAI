@@ -15,13 +15,15 @@ import warnings
 from copy import deepcopy
 from typing import Any, Sequence
 
+import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
+from monai.utils import look_up_option
 from monai.utils.enums import PostFix
-from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -39,7 +41,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaTensor`.
+          first instance of `MetaTensor` if `a.is_batch` is False
+          (For batched data, the metdata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -48,13 +51,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             from monai.data import MetaTensor
 
             t = torch.tensor([1,2,3])
-            affine = torch.eye(4) * 100
+            affine = torch.as_tensor([[2,0,0,0],
+                                      [0,2,0,0],
+                                      [0,0,2,0],
+                                      [0,0,0,1]], dtype=torch.float64)
             meta = {"some": "info"}
             m = MetaTensor(t, affine=affine, meta=meta)
-            m2 = m+m
+            m2 = m + m
             assert isinstance(m2, MetaTensor)
             assert m2.meta["some"] == "info"
-            assert m2.affine == affine
+            assert torch.all(m2.affine == affine)
 
     Notes:
         - Requires pytorch 1.9 or newer for full compatibility.
@@ -62,6 +68,8 @@ class MetaTensor(MetaObj, torch.Tensor):
           not work if `im` is of type `MetaTensor`. This can be resolved with
           `torch.jit.trace(net, im.as_tensor())`.
         - For pytorch < 1.8, sharing `MetaTensor` instances across processes may not be supported.
+        - For pytorch < 1.9, next(iter(meta_tensor)) returns a torch.Tensor.
+          see: https://github.com/pytorch/pytorch/issues/54457
         - A warning will be raised if in the constructor `affine` is not `None` and
           `meta` already contains the key `affine`.
         - You can query whether the `MetaTensor` is a batch with the `is_batch` attribute.
@@ -184,7 +192,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 ret = ret.as_tensor()
             # else, handle the `MetaTensor` metadata.
             else:
-                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())  # type: ignore
+                meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
                 ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
                 # the following is not implemented but the network arch may run into this case:
@@ -204,7 +212,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if batch_idx not in (slice(None, None, None), Ellipsis):
+                        if batch_idx not in (slice(None, None, None), Ellipsis, None):
                             # only decollate metadata once
                             if metas is None:
                                 metas = decollate_batch(ret.meta)
@@ -301,10 +309,37 @@ class MetaTensor(MetaObj, torch.Tensor):
             PostFix.transforms(key): deepcopy(self.applied_operations),
         }
 
+    def astype(self, dtype, device=None, *unused_args, **unused_kwargs):
+        """
+        Cast to ``dtype``, sharing data whenever possible.
+
+        Args:
+            dtype: dtypes such as np.float32, torch.float, "np.float32", float.
+            device: the device if `dtype` is a torch data type.
+            unused_args: additional args (currently unused).
+            unused_kwargs: additional kwargs (currently unused).
+
+        Returns:
+            data array instance
+        """
+        if isinstance(dtype, str):
+            mod_str, *dtype = dtype.split(".", 1)
+            dtype = mod_str if not dtype else dtype[0]
+        else:
+            mod_str = getattr(dtype, "__module__", "torch")
+        mod_str = look_up_option(mod_str, {"torch", "numpy", "np"}, default="numpy")
+        if mod_str == "torch":
+            out_type = torch.Tensor
+        elif mod_str in ("numpy", "np"):
+            out_type = np.ndarray
+        else:
+            out_type = None
+        return convert_data_type(self, output_type=out_type, device=device, dtype=dtype, wrap_sequence=True)[0]
+
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine."""
-        return self.meta.get("affine", self.get_default_affine())  # type: ignore
+        return self.meta.get("affine", self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
@@ -328,7 +363,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         )
 
     @staticmethod
-    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict):
+    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
         """
         Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
@@ -347,12 +382,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         if not get_track_meta() or meta is None:
             return img
 
-        # ensure affine is of type `torch.Tensor`
-        if "affine" in meta:
-            meta["affine"] = convert_to_tensor(meta["affine"])
-
         # remove any superfluous metadata.
-        remove_extra_metadata(meta)
+        if simple_keys:
+            # ensure affine is of type `torch.Tensor`
+            if "affine" in meta:
+                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            remove_extra_metadata(meta)  # bc-breaking
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)

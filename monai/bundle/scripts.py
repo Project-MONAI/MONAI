@@ -53,7 +53,7 @@ def _update_args(args: Optional[Union[str, Dict]] = None, ignore_none: bool = Tr
         kwargs: destination args to update.
 
     """
-    args_: Dict = args if isinstance(args, dict) else {}  # type: ignore
+    args_: Dict = args if isinstance(args, dict) else {}
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
@@ -519,7 +519,7 @@ def verify_net_in_out(
 
     net.eval()
     with torch.no_grad():
-        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)  # type: ignore
+        spatial_shape = _get_fake_spatial_shape(input_spatial_shape, p=p_, n=n_, any=any_)
         test_data = torch.rand(*(1, input_channels, *spatial_shape), dtype=input_dtype, device=device_)
         output = net(test_data)
         if output.shape[1] != output_channels:
