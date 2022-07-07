@@ -21,26 +21,6 @@ from monai.utils import optional_import, require_pkg
 from monai.utils.type_conversion import convert_to_tensor
 
 if TYPE_CHECKING:
-    import itk
-    import nibabel as nib
-    import nrrd
-    from nibabel.nifti1 import Nifti1Image
-    from PIL import Image as PILImage
-
-    has_nrrd = has_itk = has_nib = has_pil = True
-else:
-    itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
-    nib, has_nib = optional_import("nibabel")
-    Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
-    PILImage, has_pil = optional_import("PIL.Image")
-    nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
-
-OpenSlide, _ = optional_import("openslide", name="OpenSlide")
-CuImage, _ = optional_import("cucim", name="CuImage")
-TiffFile, _ = optional_import("tifffile", name="TiffFile")
-
-
-if TYPE_CHECKING:
     import h5py
 
     has_h5py = True
