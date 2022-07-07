@@ -21,6 +21,16 @@ from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
+__all__ = [
+    "RegressionMetric",
+    "MSEMetric",
+    "MAEMetric",
+    "RMSEMetric",
+    "PSNRMetric",
+    "R2Metric",
+    "compute_mean_error_metrics",
+]
+
 
 class RegressionMetric(CumulativeIterationMetric):
     """
@@ -217,6 +227,46 @@ class PSNRMetric(RegressionMetric):
 
         mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         return 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
+
+
+class R2Metric(RegressionMetric):
+    """Compute r2 (r-squared) metric to compare two arrays.
+
+    From https://en.wikipedia.org/wiki/Coefficient_of_determination:
+        The coefficient of determination [R2] can be more (intuitively) informative than
+        MAE, MAPE, MSE, and RMSE in regression analysis evaluation, as the former can
+        be expressed as a percentage, whereas the latter measures have arbitrary ranges.
+
+    Input `y_pred` is compared with ground truth `y`.
+    Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Args:
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
+
+    """
+
+    def __init__(
+        self, reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
+
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> Any:
+        # flatten all but batch dimension
+        y = y.flatten(start_dim=1)
+        x = y_pred.flatten(start_dim=1)
+        n = y.sum(1)
+        xy = x * y
+        sum_xy, sum_x, sum_y = xy.sum(1), x.sum(1), y.sum(1)
+        x2, y2 = x**2, y**2
+        sum_x2, sum_y2 = x2.sum(1), y2.sum(1)
+        numerator = n * sum_xy - sum_x * sum_y
+        denominator = ((n * sum_x2 - sum_x**2) * (n * sum_y2 - sum_y**2)) ** 0.5
+        r = numerator / denominator
+        r2 = r**2
+        return r2.unsqueeze(-1)  # needs shape [B, 1]
 
 
 def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func) -> torch.Tensor:

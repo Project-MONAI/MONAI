@@ -16,7 +16,7 @@ from .generalized_dice import GeneralizedDiceScore, compute_generalized_dice
 from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_distance, compute_percent_hausdorff_distance
 from .meandice import DiceMetric, compute_meandice
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
-from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
+from .regression import MAEMetric, MSEMetric, PSNRMetric, R2Metric, RMSEMetric, compute_mean_error_metrics
 from .rocauc import ROCAUCMetric, compute_roc_auc
 from .surface_dice import SurfaceDiceMetric, compute_surface_dice
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance

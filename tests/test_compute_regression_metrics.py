@@ -16,6 +16,7 @@ import numpy as np
 import torch
 
 from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
+from monai.metrics.regression import R2Metric
 from monai.utils import set_determinism
 
 
@@ -48,7 +49,7 @@ class TestRegressionMetrics(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # regression metrics to check
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0), R2Metric]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -121,7 +122,7 @@ class TestRegressionMetrics(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # regression metrics to check + truth metric function in numpy
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
+        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0), R2Metric]
         basedim = 10
 
         # too small shape
@@ -140,8 +141,8 @@ class TestRegressionMetrics(unittest.TestCase):
     def test_same_input(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
-        results = [0.0, 0.0, 0.0, float("inf")]
+        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0), R2Metric]
+        results = [0.0, 0.0, 0.0, float("inf"), 1.0]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -166,8 +167,8 @@ class TestRegressionMetrics(unittest.TestCase):
     def test_diff_input(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0)]
-        results = [1.0, 1.0, 1.0, 0.0]
+        metrics = [MSEMetric, MAEMetric, RMSEMetric, partial(PSNRMetric, max_val=1.0), R2Metric]
+        results = [1.0, 1.0, 1.0, 0.0, 0.0]
 
         # define variations in batch/base_dims/spatial_dims
         batch_dims = [1, 2, 4, 16]
@@ -179,7 +180,7 @@ class TestRegressionMetrics(unittest.TestCase):
             for spatial in spatial_dims:
                 for base in base_dims:
 
-                    # create random tensors
+                    # create tensors
                     in_tensor_a = torch.zeros((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.ones((batch,) + (base,) * (spatial - 1)).to(device)
 
