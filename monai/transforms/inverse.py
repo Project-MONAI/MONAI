@@ -18,6 +18,7 @@ from typing import Any, Hashable, Mapping, Optional, Tuple
 import torch
 
 import monai
+from monai import config
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.utils.enums import PostFix, TraceKeys
@@ -267,7 +268,7 @@ class InvertibleTransform(TraceableTransform):
     """
 
     def __new__(cls, *args, **kwargs):
-        if not monai.config.deviceconfig.USE_METATENSOR and issubclass(cls, monai.transforms.MapTransform):
+        if not config.USE_METATENSOR and issubclass(cls, monai.transforms.MapTransform):
             # only update MapTransform, MapTransforms may call array transform's inverse
             cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
         return super().__new__(cls)

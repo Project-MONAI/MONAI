@@ -18,14 +18,11 @@ from typing import Optional, Union
 import torch
 from parameterized import parameterized
 
-from monai.config import set_use_metatensor
+from monai import config
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from monai.utils.module import get_torch_version_tuple
 from tests.utils import TEST_DEVICES, assert_allclose
-
-PT_VER_MAJ, PT_VER_MIN = get_torch_version_tuple()
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []
@@ -42,15 +39,16 @@ def rand_string(min_len=5, max_len=10):
 
 class TestToFromMetaTensord(unittest.TestCase):
     def setUp(self):
-        self.flag = set_use_metatensor(True)
+        self.flag = config.USE_METATENSOR
+        config.USE_METATENSOR = True
 
     def tearDown(self):
-        set_use_metatensor(self.flag)
+        config.USE_METATENSOR = self.flag
 
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
-            shape = shape = (1, 10, 8)
+            shape = (1, 10, 8)
         affine = torch.randint(0, 10, (4, 4))
         meta = {"fname": rand_string()}
         t = torch.rand(shape)
@@ -149,7 +147,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         # TO -> Forward
         t_to_meta = ToMetaTensord(["m1", "m2"])
         d_dict_meta = t_to_meta(d_dict)
-        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"])
+        self.assertEqual(sorted(d_dict_meta.keys()), ["m1", "m2", "m3"], f"flag: {config.USE_METATENSOR}")
         self.check(d_dict_meta["m3"], m3, ids=True)  # unchanged (except deep copy in inverse)
         self.check(d_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_dict_meta["m1"].meta.items() if k != "affine"}

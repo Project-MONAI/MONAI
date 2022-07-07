@@ -40,18 +40,9 @@ __all__ = [
     "print_gpu_info",
     "print_debug_info",
     "USE_COMPILED",
-    "IgniteInfo",
-    "set_use_metatensor",
     "USE_METATENSOR",
+    "IgniteInfo",
 ]
-
-
-def set_use_metatensor(flag: bool) -> bool:
-    """whether to use MetaTensor full new feature, set to False for backward compatibility (v0.9.0)."""
-    global USE_METATENSOR
-    original_flag = USE_METATENSOR
-    USE_METATENSOR = flag
-    return original_flag
 
 
 def get_config_values():

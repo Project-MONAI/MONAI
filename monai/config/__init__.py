@@ -21,7 +21,6 @@ from .deviceconfig import (
     print_debug_info,
     print_gpu_info,
     print_system_info,
-    set_use_metatensor,
 )
 from .type_definitions import (
     DtypeLike,
