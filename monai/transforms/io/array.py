@@ -108,9 +108,10 @@ class LoadImage(Transform):
     def __init__(
         self,
         reader=None,
-        image_only: bool = True,
+        image_only: bool = False,
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
+        simple_keys: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -127,6 +128,7 @@ class LoadImage(Transform):
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
+            simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -145,6 +147,7 @@ class LoadImage(Transform):
         self.image_only = image_only
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
+        self.simple_keys = simple_keys
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -255,7 +258,7 @@ class LoadImage(Transform):
         meta_data = switch_endianness(meta_data, "<")
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data)
+        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data, self.simple_keys)
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)
         if self.image_only:
