@@ -220,7 +220,7 @@ def attach_pre_hook(func, hook):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not isinstance(args[0], monai.transforms.MapTransform):
+        if len(args) < 2:
             return func(*args, **kwargs)
         inst, data_dict = args
         data_dict = hook(inst, data_dict)
@@ -267,7 +267,8 @@ class InvertibleTransform(TraceableTransform):
     """
 
     def __new__(cls, *args, **kwargs):
-        if not monai.config.deviceconfig.USE_METATENSOR:
+        if not monai.config.deviceconfig.USE_METATENSOR and issubclass(cls, monai.transforms.MapTransform):
+            # only update MapTransform, MapTransforms may call array transform's inverse
             cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
         return super().__new__(cls)
 

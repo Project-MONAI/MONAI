@@ -101,7 +101,7 @@ def print_config(file=sys.stdout):
     """
     for k, v in get_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
-    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}")
+    print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, METATENSOR = {USE_METATENSOR}")
     print(f"MONAI rev id: {monai.__revision_id__}")
     print(f"MONAI __file__: {monai.__file__}")
 

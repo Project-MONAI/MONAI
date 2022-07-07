@@ -454,7 +454,7 @@ class TestMetaTensor(unittest.TestCase):
             data = _tr(data)
             is_meta = isinstance(_tr, (ToMetaTensord, BorderPadd, DivisiblePadd))
             if is_meta:
-                self.assertEqual(len(data), 1)  # im
+                self.assertEqual(len(data), 2)  # im, im_transforms, compatibility
                 self.assertIsInstance(data[key], MetaTensor)
                 n_applied = len(data[key].applied_operations)
             else:
