@@ -289,6 +289,8 @@ class RandomizableTransform(Randomizable, Transform):
 
 
 def attach_post_hook(func, hook):
+    """adds `hook` after `func` calls using `func`'s return value"""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         out = func(*args, **kwargs)
@@ -336,17 +338,23 @@ class MapTransform(Transform):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
 
     def comp_update(self, data):
+        """
+        This function is to be called after every `self.__call__(data)`,
+        update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
+        for MetaTensor backward compatibility.
+        """
         if not isinstance(data, Mapping):
             return data
         d = dict(data)
         for k in data:
-            if isinstance(data[k], MetaTensor):
-                meta_dict_key = PostFix.meta(k)
-                if meta_dict_key in d:
-                    d[meta_dict_key].update(data[k].meta)
-                if data[k].applied_operations:
-                    transform_key = transforms.TraceableTransform.trace_key(k)
-                    d[transform_key] = data[k].applied_operations
+            if not isinstance(data[k], MetaTensor):
+                continue
+            meta_dict_key = PostFix.meta(k)
+            if meta_dict_key in d:
+                d[meta_dict_key].update(data[k].meta)
+            if data[k].applied_operations:
+                transform_key = transforms.TraceableTransform.trace_key(k)
+                d[transform_key] = data[k].applied_operations
         return d
 
     @abstractmethod
