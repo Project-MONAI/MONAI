@@ -24,17 +24,15 @@ if TYPE_CHECKING:
     import itk
     import nibabel as nib
     import nrrd
-    import pydicom
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
+    has_nrrd = has_itk = has_nib = has_pil = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
-    pydicom, has_pydicom = optional_import("pydicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
