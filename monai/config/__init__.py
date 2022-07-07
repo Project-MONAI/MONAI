@@ -11,6 +11,7 @@
 
 from .deviceconfig import (
     USE_COMPILED,
+    USE_METATENSOR,
     IgniteInfo,
     get_config_values,
     get_gpu_info,
@@ -20,6 +21,7 @@ from .deviceconfig import (
     print_debug_info,
     print_gpu_info,
     print_system_info,
+    set_use_metatensor,
 )
 from .type_definitions import (
     DtypeLike,

@@ -27,6 +27,8 @@ try:
 except (OptionalImportError, ImportError, AttributeError):
     HAS_EXT = USE_COMPILED = False
 
+USE_METATENSOR = os.environ.get("METATENSOR", "0") == "1"  # use MetaTensor new feature, set to False for compatibility
+
 psutil, has_psutil = optional_import("psutil")
 psutil_version = psutil.__version__ if has_psutil else "NOT INSTALLED or UNKNOWN VERSION."
 
@@ -39,7 +41,17 @@ __all__ = [
     "print_debug_info",
     "USE_COMPILED",
     "IgniteInfo",
+    "set_use_metatensor",
+    "USE_METATENSOR",
 ]
+
+
+def set_use_metatensor(flag: bool) -> bool:
+    """whether to use MetaTensor full new feature, set to False for backward compatibility (v0.9.0)."""
+    global USE_METATENSOR
+    original_flag = USE_METATENSOR
+    USE_METATENSOR = flag
+    return original_flag
 
 
 def get_config_values():

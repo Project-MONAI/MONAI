@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Map
 import numpy as np
 import torch
 
+import monai.config.deviceconfig
 from monai import transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
@@ -325,7 +326,8 @@ class MapTransform(Transform):
     """
 
     def __new__(cls, *args, **kwargs):
-        cls.__call__ = attach_post_hook(cls.__call__, MapTransform.comp_update)
+        if not monai.config.deviceconfig.USE_METATENSOR:
+            cls.__call__ = attach_post_hook(cls.__call__, MapTransform.comp_update)
         return super().__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:

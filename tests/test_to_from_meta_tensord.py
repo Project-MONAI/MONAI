@@ -18,6 +18,7 @@ from typing import Optional, Union
 import torch
 from parameterized import parameterized
 
+from monai.config import set_use_metatensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
@@ -40,6 +41,12 @@ def rand_string(min_len=5, max_len=10):
 
 
 class TestToFromMetaTensord(unittest.TestCase):
+    def setUp(self):
+        self.flag = set_use_metatensor(True)
+
+    def tearDown(self):
+        set_use_metatensor(self.flag)
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:

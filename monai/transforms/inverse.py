@@ -17,7 +17,7 @@ from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
 
-from monai import transforms
+import monai
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.utils.enums import PostFix, TraceKeys
@@ -220,7 +220,7 @@ def attach_pre_hook(func, hook):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not isinstance(args[0], transforms.MapTransform):
+        if not isinstance(args[0], monai.transforms.MapTransform):
             return func(*args, **kwargs)
         inst, data_dict = args
         data_dict = hook(inst, data_dict)
@@ -267,7 +267,8 @@ class InvertibleTransform(TraceableTransform):
     """
 
     def __new__(cls, *args, **kwargs):
-        cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
+        if not monai.config.deviceconfig.USE_METATENSOR:
+            cls.inverse = attach_pre_hook(cls.inverse, InvertibleTransform.comp_update)
         return super().__new__(cls)
 
     def comp_update(self, data):
@@ -276,11 +277,11 @@ class InvertibleTransform(TraceableTransform):
         update each MetaTensor `data[key]` using `data[key_transforms]` and `data[key_meta_dict]`,
         for MetaTensor backward compatibility 0.9.0.
         """
-        if not isinstance(data, dict) or not isinstance(self, transforms.MapTransform):
+        if not isinstance(data, dict) or not isinstance(self, monai.transforms.MapTransform):
             return data
         d = dict(data)
         for k in self.key_iterator(data):
-            transform_key = transforms.TraceableTransform.trace_key(k)
+            transform_key = monai.transforms.TraceableTransform.trace_key(k)
             if transform_key not in data:
                 continue
             if not isinstance(data[k], MetaTensor):
