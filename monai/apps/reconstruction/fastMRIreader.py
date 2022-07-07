@@ -17,7 +17,7 @@ from numpy import ndarray
 from monai.config import PathLike
 from monai.data.image_reader import ImageReader
 from monai.data.utils import is_supported_format
-from monai.utils import optional_import, require_pkg
+from monai.utils import require_pkg  # optional_import
 from monai.utils.type_conversion import convert_to_tensor
 
 if TYPE_CHECKING:
@@ -25,7 +25,14 @@ if TYPE_CHECKING:
 
     has_h5py = True
 else:
-    h5py, has_h5py = optional_import("h5py")
+    # h5py, has_h5py = optional_import("h5py")  # ideally should use this
+    import subprocess
+    import sys
+
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "h5py"])
+    import h5py
+
+    has_h5py = True
 
 
 @require_pkg(pkg_name="h5py")
