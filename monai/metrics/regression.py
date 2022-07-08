@@ -29,6 +29,8 @@ class RegressionMetric(CumulativeIterationMetric):
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -89,6 +91,8 @@ class MSEMetric(RegressionMetric):
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -120,6 +124,8 @@ class MAEMetric(RegressionMetric):
 
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
@@ -153,6 +159,8 @@ class RMSEMetric(RegressionMetric):
 
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
@@ -190,6 +198,8 @@ class PSNRMetric(RegressionMetric):
 
     Input `y_pred` is compared with ground truth `y`.
     Both `y_pred` and `y` are expected to be real-valued, where `y_pred` is output from a regression model.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         max_val: The dynamic range of the images/volumes (i.e., the difference between the
