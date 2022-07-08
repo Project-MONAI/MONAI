@@ -70,7 +70,7 @@ def convert_to_tensor_complex(
             )
             return converted_data
 
-    # if data is compelx, turn its stacked version into a tensor
+    # if data is complex, turn its stacked version into a tensor
     if isinstance(data, torch.Tensor):
         data = torch.stack([data.real, data.imag], dim=-1)
 

@@ -11,7 +11,7 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Optional, Sequence
+from typing import Sequence
 
 import numpy as np
 from torch import Tensor
@@ -40,7 +40,6 @@ class KspaceMask(Randomizable, ABC):
         accelerations: Sequence[float],
         spatial_dims: int = 2,
         is_complex: bool = True,
-        seed: Optional[int] = None,
     ):
         """
         Args:
@@ -58,9 +57,6 @@ class KspaceMask(Randomizable, ABC):
                 shape (...,num_coils,H,W,D), sampling is done along D.
             is_complex: if True, then the last dimension will be reserved for
                 real/imaginary parts.
-            seed: Seed for the random number generator. Setting the seed
-                ensures the same mask is generated each time for the same
-                shape.
         """
         if len(center_fractions) != len(accelerations):
             raise ValueError(
@@ -72,7 +68,6 @@ class KspaceMask(Randomizable, ABC):
         self.accelerations = accelerations
         self.spatial_dims = spatial_dims
         self.is_complex = is_complex
-        self.R.seed(seed)
 
     @abstractmethod
     def __call__(self, kspace: NdarrayOrTensor):
@@ -148,7 +143,9 @@ class RandomKspaceMask(KspaceMask, Transform):
                 sampling is done along D.
 
         Returns:
-            The under-sampled kspace
+            A tuple containing
+                (1) the under-sampled kspace
+                (2) absolute value of the inverse fourier of the under-sampled kspace
         """
         kspace_t = convert_to_tensor_complex(kspace)
         spatial_size = kspace_t.shape
@@ -230,7 +227,9 @@ class EquispacedKspaceMask(KspaceMask, Transform):
                 sampling is done along D.
 
         Returns:
-            The under-sampled kspace
+            A tuple containing
+                (1) the under-sampled kspace
+                (2) absolute value of the inverse fourier of the under-sampled kspace
         """
         kspace_t = convert_to_tensor_complex(kspace)
         spatial_size = kspace_t.shape

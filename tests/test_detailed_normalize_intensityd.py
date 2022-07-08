@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.my_mri_dictionary import DetailedNormalizeIntensityd
+from monai.apps.reconstruction.mri_dictionary import DetailedNormalizeIntensityd
 from monai.utils.type_conversion import convert_to_numpy
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 

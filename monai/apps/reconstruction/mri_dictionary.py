@@ -16,17 +16,18 @@ import numpy as np
 from numpy import ndarray
 from torch import Tensor
 
-from monai.apps.reconstruction.my_mri_array import EquispacedKspaceMask, RandomKspaceMask
+from monai.apps.reconstruction.mri_array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.croppad.dictionary import Cropd
 from monai.transforms.intensity.array import NormalizeIntensity
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.utils import FastMRIKeys
 from monai.utils.type_conversion import convert_to_tensor
 
 
-class RandomKspaceMaskd(MapTransform):
+class RandomKspaceMaskd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandomKspaceMask`.
 
@@ -47,8 +48,6 @@ class RandomKspaceMaskd(MapTransform):
             shape (...,num_coils,H,W,D), sampling is done along D.
         is_complex: if True, then the last dimension will be reserved
             for real/imaginary parts.
-        seed: Seed for the random number generator. Setting the seed
-            ensures the same mask is generated each time for the same shape.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -61,17 +60,22 @@ class RandomKspaceMaskd(MapTransform):
         accelerations: Sequence[float],
         spatial_dims: int = 2,
         is_complex: bool = True,
-        seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.masker = RandomKspaceMask(
             center_fractions=center_fractions,
             accelerations=accelerations,
             spatial_dims=spatial_dims,
             is_complex=is_complex,
-            seed=seed,
         )
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandomKspaceMaskd":
+        super().set_random_state(seed, state)
+        self.masker.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
         """
@@ -87,12 +91,12 @@ class RandomKspaceMaskd(MapTransform):
             d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
             d["mask"] = self.masker.mask  # type: ignore
             meta = "_meta_dict"
-            d["target"] = d[key + meta]["reconstruction_rss"]  # type: ignore
-            d["filename"] = d[key + meta]["filename"]  # type: ignore
+            d["target"] = d[key + meta][FastMRIKeys.RECON]  # type: ignore
+            d["filename"] = d[key + meta][FastMRIKeys.FILENAME]  # type: ignore
         return d  # type: ignore
 
 
-class EquispacedKspaceMaskd(MapTransform):
+class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of
     :py:class:`monai.transforms.EquispacedKspaceMask`.
@@ -114,8 +118,6 @@ class EquispacedKspaceMaskd(MapTransform):
             (...,num_coils,H,W,D), sampling is done along D.
         is_complex: if True, then the last dimension will be reserved
             for real/imaginary parts.
-        seed: Seed for the random number generator. Setting the seed
-            ensures the same mask is generated each time for the same shape.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -128,13 +130,19 @@ class EquispacedKspaceMaskd(MapTransform):
         accelerations: Sequence[float],
         spatial_dims: int = 2,
         is_complex: bool = True,
-        seed: Optional[int] = None,
         allow_missing_keys: bool = False,
     ) -> None:
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.masker = EquispacedKspaceMask(
-            center_fractions=center_fractions, accelerations=accelerations, is_complex=is_complex, seed=seed
+            center_fractions=center_fractions, accelerations=accelerations, is_complex=is_complex
         )
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "EquispacedKspaceMaskd":
+        super().set_random_state(seed, state)
+        self.masker.set_random_state(seed, state)
+        return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
         """
@@ -150,8 +158,8 @@ class EquispacedKspaceMaskd(MapTransform):
             d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
             d["mask"] = self.masker.mask  # type: ignore
             meta = "_meta_dict"
-            d["target"] = d[key + meta]["reconstruction_rss"]  # type: ignore
-            d["filename"] = d[key + meta]["filename"]  # type: ignore
+            d["target"] = d[key + meta][FastMRIKeys.RECON]  # type: ignore
+            d["filename"] = d[key + meta][FastMRIKeys.FILENAME]  # type: ignore
         return d  # type: ignore
 
 
@@ -247,13 +255,18 @@ class DetailedNormalizeIntensityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if self.default_normalizer.subtrahend is None:
-                subtrahend = np.array([val.mean() if isinstance(val, ndarray) else val.mean().item() for val in d[key]])
+                subtrahend = np.array(
+                    [val.mean() if isinstance(val, ndarray) else val.float().mean().item() for val in d[key]]
+                )
             else:
                 subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
             if self.default_normalizer.divisor is None:
                 divisor = np.array(
-                    [val.std() if isinstance(val, ndarray) else val.std(unbiased=False).item() for val in d[key]]
+                    [
+                        val.std() if isinstance(val, ndarray) else val.float().std(unbiased=False).item()
+                        for val in d[key]
+                    ]
                 )
             else:
                 divisor = self.default_normalizer.divisor  # type: ignore
