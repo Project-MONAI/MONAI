@@ -16,7 +16,7 @@ from typing import Sequence
 import numpy as np
 from torch import Tensor
 
-from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, rss
+from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, root_sum_of_squares
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.fft_utils import ifftn_centered
 from monai.transforms.transform import Randomizable, Transform
@@ -182,7 +182,9 @@ class RandomKspaceMask(KspaceMask, Transform):
         )
         # combine coil images (it is assumed that the coil dimension is
         # the first dimension before spatial dimensions)
-        masked_kspace_ifft_rss: Tensor = convert_to_tensor(rss(masked_kspace_ifft, spatial_dim=-self.spatial_dims - 1))
+        masked_kspace_ifft_rss: Tensor = convert_to_tensor(
+            root_sum_of_squares(masked_kspace_ifft, spatial_dim=-self.spatial_dims - 1)
+        )
         return masked_kspace, masked_kspace_ifft_rss
 
 
@@ -274,5 +276,7 @@ class EquispacedKspaceMask(KspaceMask, Transform):
         )
         # combine coil images (it is assumed that the coil dimension is
         # the first dimension before spatial dimensions)
-        masked_kspace_ifft_rss: Tensor = convert_to_tensor(rss(masked_kspace_ifft, spatial_dim=-self.spatial_dims - 1))
+        masked_kspace_ifft_rss: Tensor = convert_to_tensor(
+            root_sum_of_squares(masked_kspace_ifft, spatial_dim=-self.spatial_dims - 1)
+        )
         return masked_kspace, masked_kspace_ifft_rss

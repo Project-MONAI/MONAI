@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, rss
+from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, root_sum_of_squares
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -25,7 +25,7 @@ TESTS = [(im_complex, expected_shape)]
 for p in TEST_NDARRAYS:
     TESTS.append((p(im_complex), expected_shape))
 
-# test case for complex_abs
+# test case for complex_abs and root_sum_of_squares
 im = [[3.0, 4.0], [3.0, 4.0]]
 res = [5.0, 5.0]
 TESTSC = []
@@ -47,7 +47,7 @@ class TestMRIUtils(unittest.TestCase):
 
     @parameterized.expand(TESTSC)
     def test_rss(self, test_data, res_data):
-        result = rss(test_data, spatial_dim=1)
+        result = root_sum_of_squares(test_data, spatial_dim=1)
         assert_allclose(result, res_data, type_test=False)
 
 

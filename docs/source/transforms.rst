@@ -1024,7 +1024,7 @@ Utility
 
 `RSS`
 """""
-.. autofunction:: monai.apps.reconstruction.mri_utils.rss
+.. autofunction:: monai.apps.reconstruction.mri_utils.root_sum_of_squares
 
 
 Dictionary Transforms

@@ -118,7 +118,7 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5
 
 
-def rss(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor:
+def root_sum_of_squares(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor:
     """
     Compute the root sum of squares of the data (typically done for multi-coil MRI samples)
 
