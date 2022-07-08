@@ -31,7 +31,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background.
-    
+
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
