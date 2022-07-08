@@ -11,18 +11,16 @@
 
 from typing import Dict, Sequence, Tuple, Union
 
-import h5py
 import numpy as np
 from numpy import ndarray
 
 from monai.config import PathLike
 from monai.data.image_reader import ImageReader
 from monai.data.utils import is_supported_format
-from monai.utils import require_pkg  # optional_import
-from monai.utils import FastMRIKeys
+from monai.utils import FastMRIKeys, optional_import, require_pkg
 from monai.utils.type_conversion import convert_to_tensor
 
-has_h5py = True
+h5py, has_h5py = optional_import("h5py")
 
 
 @require_pkg(pkg_name="h5py")
