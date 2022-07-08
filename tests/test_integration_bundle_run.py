@@ -48,8 +48,14 @@ class TestBundleRun(unittest.TestCase):
     def test_tiny(self):
         config_file = os.path.join(self.data_dir, "tiny_config.json")
         with open(config_file, "w") as f:
-            json.dump({"": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42}}, f)
-        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "--config_file", config_file]
+            json.dump(
+                {
+                    "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42},
+                    "training": "$@trainer.run()",
+                },
+                f,
+            )
+        cmd = ["coverage", "run", "-m", "monai.bundle", "run", "training", "--config_file", config_file]
         subprocess.check_call(cmd)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -81,26 +87,25 @@ class TestBundleRun(unittest.TestCase):
             # test override with the whole overriding file
             json.dump("Dataset", f)
 
-        saver = LoadImage(image_only=True)
-
         if sys.platform == "win32":
             override = "--network $@network_def.to(@device) --dataset#_target_ Dataset"
         else:
             override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
         # test with `monai.bundle` as CLI entry directly
-        cmd = f"-m monai.bundle run evaluator --postprocessing#transforms#2#output_postfix seg {override}"
+        cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
         subprocess.check_call(la + ["--args_file", def_args_file], env=test_env)
-        self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
+        loader = LoadImage(image_only=True)
+        self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
         # here test the script with `google fire` tool as CLI
-        cmd = "-m fire monai.bundle.scripts run --runner_id evaluator"
+        cmd = "-m fire monai.bundle.scripts run --runner_id evaluating"
         cmd += f" --evaluator#amp False {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         subprocess.check_call(la, env=test_env)
-        self.assertTupleEqual(saver(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
+        self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import RandHistogramShift
@@ -48,7 +49,25 @@ class TestRandHistogramShift(unittest.TestCase):
         g = RandHistogramShift(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test=False)
+        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
+
+    def test_interp(self):
+        tr = RandHistogramShift()
+        for array_type in (torch.tensor, np.array):
+            x = array_type([0.0, 4.0, 6.0, 10.0])
+            y = array_type([1.0, -1.0, 3.0, 5.0])
+
+            yi = tr.interp(array_type([0, 2, 4, 8, 10]), x, y)
+            self.assertEqual(yi.shape, (5,))
+            assert_allclose(yi, array_type([1.0, 0.0, -1.0, 4.0, 5.0]))
+
+            yi = tr.interp(array_type([-1, 11, 10.001, -0.001]), x, y)
+            self.assertEqual(yi.shape, (4,))
+            assert_allclose(yi, array_type([1.0, 5.0, 5.0, 1.0]))
+
+            yi = tr.interp(array_type([[-2, 11], [1, 3], [8, 10]]), x, y)
+            self.assertEqual(yi.shape, (3, 2))
+            assert_allclose(yi, array_type([[1.0, 5.0], [0.5, -0.5], [4.0, 5.0]]))
 
 
 if __name__ == "__main__":

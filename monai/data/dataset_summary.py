@@ -18,9 +18,9 @@ import torch
 from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
+from monai.data.utils import affine_to_spacing
 from monai.transforms import concatenate
-from monai.utils import convert_data_type
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_data_type
 
 DEFAULT_POST_FIX = PostFix.meta()
 
@@ -54,12 +54,12 @@ class DatasetSummary:
             dataset: dataset from which to load the data.
             image_key: key name of images (default: ``image``).
             label_key: key name of labels (default: ``label``).
-            meta_key: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_key: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 if None, will try to construct meta_keys by `{image_key}_{meta_key_postfix}`.
-            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the meta data from dict,
-                the meta data is a dictionary object (default: ``meta_dict``).
+            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the metadata from dict,
+                the metadata is a dictionary object (default: ``meta_dict``).
             num_workers: how many subprocesses to use for data loading.
                 ``0`` means that the data will be loaded in the main process (default: ``0``).
             kwargs: other parameters (except `batch_size` and `num_workers`) for DataLoader,
@@ -76,15 +76,15 @@ class DatasetSummary:
 
     def collect_meta_data(self):
         """
-        This function is used to collect the meta data for all images of the dataset.
+        This function is used to collect the metadata for all images of the dataset.
         """
 
         for data in self.data_loader:
             if self.meta_key not in data:
-                raise ValueError(f"To collect meta data for the dataset, key `{self.meta_key}` must exist in `data`.")
+                raise ValueError(f"To collect metadata for the dataset, key `{self.meta_key}` must exist in `data`.")
             self.all_meta_data.append(data[self.meta_key])
 
-    def get_target_spacing(self, spacing_key: str = "pixdim", anisotropic_threshold: int = 3, percentile: float = 10.0):
+    def get_target_spacing(self, spacing_key: str = "affine", anisotropic_threshold: int = 3, percentile: float = 10.0):
         """
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
@@ -93,7 +93,7 @@ class DatasetSummary:
         After loading with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
 
         Args:
-            spacing_key: key of spacing in meta data (default: ``pixdim``).
+            spacing_key: key of the affine used to compute spacing in metadata (default: ``affine``).
             anisotropic_threshold: threshold to decide if the target spacing is anisotropic (default: ``3``).
             percentile: for anisotropic target spacing, use the percentile of all spacings of the anisotropic axis to
                 replace that axis.
@@ -103,7 +103,8 @@ class DatasetSummary:
             self.collect_meta_data()
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
-        all_spacings = concatenate(to_cat=[data[spacing_key][:, 1:4] for data in self.all_meta_data], axis=0)
+        spacings = [affine_to_spacing(data[spacing_key][0], 3)[None] for data in self.all_meta_data]
+        all_spacings = concatenate(to_cat=spacings, axis=0)
         all_spacings, *_ = convert_data_type(data=all_spacings, output_type=np.ndarray, wrap_sequence=True)
 
         target_spacing = np.median(all_spacings, axis=0)

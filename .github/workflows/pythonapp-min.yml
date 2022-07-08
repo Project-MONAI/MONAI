@@ -27,9 +27,9 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: Prepare pip wheel
@@ -43,7 +43,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -51,11 +51,11 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.11.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.12.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.11.0
+        python -m pip install torch==1.12.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -77,9 +77,9 @@ jobs:
         python-version: [3.7, 3.8, 3.9]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
     - name: Prepare pip wheel
@@ -93,7 +93,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -101,7 +101,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.11.0
+        python -m pip install torch==1.12.0
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
@@ -119,12 +119,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: [1.6.0, 1.7.1, 1.8.1, 1.9.1, 1.10.1, latest]
+        pytorch-version: [1.7.1, 1.8.2, 1.9.1, 1.10.2, 1.11.0, latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: Prepare pip wheel
@@ -138,7 +138,7 @@ jobs:
         echo "::set-output name=dir::$(pip cache dir)"
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -148,16 +148,16 @@ jobs:
         # min. requirements
         if [ ${{ matrix.pytorch-version }} == "latest" ]; then
           python -m pip install torch
-        elif [ ${{ matrix.pytorch-version }} == "1.6.0" ]; then
-          python -m pip install torch==1.6.0
         elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
           python -m pip install torch==1.7.1
-        elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
-          python -m pip install torch==1.8.1
+        elif [ ${{ matrix.pytorch-version }} == "1.8.2" ]; then
+          python -m pip install torch==1.8.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cpu
         elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
           python -m pip install torch==1.9.1
-        elif [ ${{ matrix.pytorch-version }} == "1.10.1" ]; then
-          python -m pip install torch==1.10.1
+        elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
+          python -m pip install torch==1.10.2
+        elif [ ${{ matrix.pytorch-version }} == "1.11.0" ]; then
+          python -m pip install torch==1.11.0
         fi
         python -m pip install -r requirements-min.txt
         python -m pip list

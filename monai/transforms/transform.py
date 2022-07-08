@@ -14,7 +14,7 @@ A collection of generic interfaces for MONAI transforms.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Mapping, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -75,7 +75,7 @@ def apply_transform(
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: whether to log the detailed information of data and applied transform when error happened,
             for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly. default to `False`.
+            for other metadata, log the values directly. default to `False`.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -102,7 +102,7 @@ def apply_transform(
                     # log data type, shape, range for array
                     datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
-                    # log data type and value for other meta data
+                    # log data type and value for other metadata
                     datastats(img=data, data_value=True, prefix=prefix)
 
             if isinstance(data, dict):
@@ -348,7 +348,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(self, data: Dict[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
+    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.

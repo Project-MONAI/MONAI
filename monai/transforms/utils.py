@@ -68,7 +68,7 @@ exposure, has_skimage = optional_import("skimage.exposure")
 __all__ = [
     "allow_missing_keys_mode",
     "compute_divisible_spatial_size",
-    "convert_inverse_interp_mode",
+    "convert_applied_interp_mode",
     "copypaste_arrays",
     "create_control_grid",
     "create_grid",
@@ -105,6 +105,7 @@ __all__ = [
     "convert_pad_mode",
     "convert_to_contiguous",
     "get_unique_labels",
+    "scale_affine",
 ]
 
 
@@ -576,7 +577,7 @@ def create_grid(
     dtype: Union[DtypeLike, torch.dtype] = float,
     device: Optional[torch.device] = None,
     backend=TransformBackends.NUMPY,
-):
+) -> NdarrayOrTensor:
     """
     compute a `spatial_size` mesh.
 
@@ -592,9 +593,9 @@ def create_grid(
     _backend = look_up_option(backend, TransformBackends)
     _dtype = dtype or float
     if _backend == TransformBackends.NUMPY:
-        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)
+        return _create_grid_numpy(spatial_size, spacing, homogeneous, _dtype)  # type: ignore
     if _backend == TransformBackends.TORCH:
-        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)
+        return _create_grid_torch(spatial_size, spacing, homogeneous, _dtype, device)  # type: ignore
     raise ValueError(f"backend {backend} is not supported")
 
 
@@ -671,7 +672,7 @@ def create_rotate(
     spatial_dims: int,
     radians: Union[Sequence[float], float],
     device: Optional[torch.device] = None,
-    backend=TransformBackends.NUMPY,
+    backend: str = TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
     create a 2D or 3D rotation matrix
@@ -934,8 +935,8 @@ def generate_spatial_bounding_box(
             min_d = max(min_d, 0)
             max_d = min(max_d, spatial_size[di])
 
-        box_start[di] = min_d.detach().cpu().item() if isinstance(min_d, torch.Tensor) else min_d  # type: ignore
-        box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d  # type: ignore
+        box_start[di] = min_d.detach().cpu().item() if isinstance(min_d, torch.Tensor) else min_d
+        box_end[di] = max_d.detach().cpu().item() if isinstance(max_d, torch.Tensor) else max_d
 
     return box_start, box_end
 
@@ -1185,16 +1186,13 @@ def map_spatial_axes(
 
     """
     if spatial_axes is None:
-        spatial_axes_ = list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
-
-    else:
-        spatial_axes_ = []
-        for a in ensure_tuple(spatial_axes):
-            if channel_first:
-                spatial_axes_.append(a if a < 0 else a + 1)
-            else:
-                spatial_axes_.append(a - 1 if a < 0 else a)
-
+        return list(range(1, img_ndim) if channel_first else range(img_ndim - 1))
+    spatial_axes_ = []
+    for a in ensure_tuple(spatial_axes):
+        if channel_first:
+            spatial_axes_.append(a % img_ndim if a < 0 else a + 1)
+        else:
+            spatial_axes_.append((a - 1) % (img_ndim - 1) if a < 0 else a)
     return spatial_axes_
 
 
@@ -1245,37 +1243,42 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
             t.allow_missing_keys = o_s
 
 
-def convert_inverse_interp_mode(trans_info: List, mode: str = "nearest", align_corners: Optional[bool] = None):
+_interp_modes = list(InterpolateMode) + list(GridSampleMode)
+
+
+def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners: Optional[bool] = None):
     """
-    Change the interpolation mode when inverting spatial transforms, default to "nearest".
-    This function modifies trans_info's `TraceKeys.EXTRA_INFO`.
+    Recursively change the interpolation mode in the applied operation stacks, default to "nearest".
 
     See also: :py:class:`monai.transform.inverse.InvertibleTransform`
 
     Args:
-        trans_info: transforms inverse information list, contains context of every invertible transform.
+        trans_info: applied operation stack, tracking the previously applied invertible transform.
         mode: target interpolation mode to convert, default to "nearest" as it's usually used to save the mode output.
         align_corners: target align corner value in PyTorch interpolation API, need to align with the `mode`.
 
     """
-    interp_modes = [i.value for i in InterpolateMode] + [i.value for i in GridSampleMode]
-
-    # set to string for DataLoader collation
-    align_corners_ = TraceKeys.NONE if align_corners is None else align_corners
-
-    for item in ensure_tuple(trans_info):
-        if TraceKeys.EXTRA_INFO in item:
-            orig_mode = item[TraceKeys.EXTRA_INFO].get("mode", None)
-            if orig_mode is not None:
-                if orig_mode[0] in interp_modes:
-                    item[TraceKeys.EXTRA_INFO]["mode"] = [mode for _ in range(len(mode))]
-                elif orig_mode in interp_modes:
-                    item[TraceKeys.EXTRA_INFO]["mode"] = mode
-            if "align_corners" in item[TraceKeys.EXTRA_INFO]:
-                if issequenceiterable(item[TraceKeys.EXTRA_INFO]["align_corners"]):
-                    item[TraceKeys.EXTRA_INFO]["align_corners"] = [align_corners_ for _ in range(len(mode))]
-                else:
-                    item[TraceKeys.EXTRA_INFO]["align_corners"] = align_corners_
+    if isinstance(trans_info, (list, tuple)):
+        return [convert_applied_interp_mode(x, mode=mode, align_corners=align_corners) for x in trans_info]
+    if not isinstance(trans_info, Mapping):
+        return trans_info
+    trans_info = dict(trans_info)
+    if "mode" in trans_info:
+        current_mode = trans_info["mode"]
+        if current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
+        elif current_mode in _interp_modes:
+            trans_info["mode"] = mode
+    if "align_corners" in trans_info:
+        _align_corners = TraceKeys.NONE if align_corners is None else align_corners
+        current_value = trans_info["align_corners"]
+        trans_info["align_corners"] = (
+            [_align_corners for _ in mode] if issequenceiterable(current_value) else _align_corners
+        )
+    if ("mode" not in trans_info) and ("align_corners" not in trans_info):
+        return {
+            k: convert_applied_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
+        }
     return trans_info
 
 
@@ -1529,7 +1532,7 @@ def print_transform_backends():
     print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
 
 
-def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadMode, str]):
+def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
     """
     Utility to convert padding mode between numpy array and PyTorch Tensor.
 
@@ -1538,7 +1541,6 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
         mode: current padding mode.
 
     """
-    mode = mode.value if isinstance(mode, (NumpyPadMode, PytorchPadMode)) else mode
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"
@@ -1556,7 +1558,7 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Union[NumpyPadMode, PytorchPadM
 
 def convert_to_contiguous(data, **kwargs):
     """
-    Check and ensure the numpy array or PyTorch Tensor in data to be contuguous in memory.
+    Check and ensure the numpy array or PyTorch Tensor in data to be contiguous in memory.
 
     Args:
         data: input data to convert, will recursively convert the numpy array or PyTorch Tensor in dict and sequence.
@@ -1571,6 +1573,31 @@ def convert_to_contiguous(data, **kwargs):
     if isinstance(data, Sequence):
         return [convert_to_contiguous(i, **kwargs) for i in data]
     return data
+
+
+def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+    """
+    Scale the affine matrix according to the new spatial size.
+
+    Args:
+        affine: affine matrix to scale.
+        spatial_size: original spatial size.
+        new_spatial_size: new spatial size.
+        centered: whether the scaling is with respect to
+            the image center (True, default) or corner (False).
+
+    Returns:
+        Scaled affine matrix.
+
+    """
+    if spatial_size == new_spatial_size:
+        return affine
+    r = len(affine) - 1
+    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
+    scale = create_scale(r, s.tolist())
+    if centered:
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
+    return affine @ convert_to_dst_type(scale, affine)[0]
 
 
 if __name__ == "__main__":

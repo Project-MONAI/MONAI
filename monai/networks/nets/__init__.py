@@ -43,6 +43,7 @@ from .efficientnet import (
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
@@ -80,7 +81,8 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
+from .swin_unetr import SwinUNETR
+from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .unet import UNet, Unet
 from .unetr import UNETR

@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.utils.type_conversion import get_equivalent_dtype
+from monai.utils.type_conversion import get_equivalent_dtype, get_numpy_dtype_from_string, get_torch_dtype_from_string
 from tests.utils import TEST_NDARRAYS
 
 DTYPES = [torch.float32, np.float32, np.dtype(np.float32)]
@@ -39,6 +39,16 @@ class TestGetEquivalentDtype(unittest.TestCase):
             for im_dtype in DTYPES:
                 out_dtype = get_equivalent_dtype(n, type(im_dtype))
                 self.assertEqual(out_dtype, n)
+
+    @parameterized.expand([["float", np.float64], ["float32", np.float32], ["float64", np.float64]])
+    def test_from_string(self, dtype_str, expected_np):
+        expected_pt = get_equivalent_dtype(expected_np, torch.Tensor)
+        # numpy
+        dtype = get_numpy_dtype_from_string(dtype_str)
+        self.assertEqual(dtype, expected_np)
+        # torch
+        dtype = get_torch_dtype_from_string(dtype_str)
+        self.assertEqual(dtype, expected_pt)
 
 
 if __name__ == "__main__":
