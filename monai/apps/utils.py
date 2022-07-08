@@ -434,14 +434,10 @@ def match_ref_uid_in_study(study_uid, ref_sop_uid):
         ref_sop_uid: SOPInstanceUID.
 
     """
-    series_list = get_tcia_metadata(
-        query=f"getSeries?StudyInstanceUID={study_uid}",
-        attribute="SeriesInstanceUID",
-    )
+    series_list = get_tcia_metadata(query=f"getSeries?StudyInstanceUID={study_uid}", attribute="SeriesInstanceUID")
     for series_id in series_list:
         sop_id_list = get_tcia_metadata(
-            query=f"getSOPInstanceUIDs?SeriesInstanceUID={series_id}",
-            attribute="SOPInstanceUID",
+            query=f"getSOPInstanceUIDs?SeriesInstanceUID={series_id}", attribute="SOPInstanceUID"
         )
         if ref_sop_uid in sop_id_list:
             return series_id

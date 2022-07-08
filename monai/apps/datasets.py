@@ -496,8 +496,7 @@ class TciaDataset(Randomizable, CacheDataset):
 
         if download:
             seg_series_list = get_tcia_metadata(
-                query=f"getSeries?Collection={collection}&Modality={picked_modality}",
-                attribute="SeriesInstanceUID",
+                query=f"getSeries?Collection={collection}&Modality={picked_modality}", attribute="SeriesInstanceUID"
             )
             if download_len > 0:
                 seg_series_list = seg_series_list[:download_len]
@@ -506,10 +505,7 @@ class TciaDataset(Randomizable, CacheDataset):
             for series_uid in seg_series_list:
                 seg_first_dir = os.path.join(download_dir, "raw", series_uid)
                 download_tcia_series_instance(
-                    series_uid=series_uid,
-                    download_dir=download_dir,
-                    output_dir=seg_first_dir,
-                    check_md5=False,
+                    series_uid=series_uid, download_dir=download_dir, output_dir=seg_first_dir, check_md5=False
                 )
                 dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
                 # achieve series number and patient id from the first dicom file
@@ -549,10 +545,7 @@ class TciaDataset(Randomizable, CacheDataset):
                 if len(ref_uuid_list) == 0:
                     raise ValueError(f"Cannot find the referenced Series Instance UID from SEG series: {series_uid}.")
                 download_tcia_series_instance(
-                    series_uid=ref_uuid_list[0],
-                    download_dir=download_dir,
-                    output_dir=dcm_dir,
-                    check_md5=False,
+                    series_uid=ref_uuid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
                 )
                 if not os.path.exists(seg_dir):
                     shutil.copytree(seg_first_dir, seg_dir)
