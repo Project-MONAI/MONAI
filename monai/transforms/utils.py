@@ -1607,10 +1607,7 @@ def attach_pre_hook(func, hook):
     """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        if len(args) < 2:
-            return func(*args, **kwargs)
-        inst, data_dict = args
+    def wrapper(inst, data_dict):
         data_dict = hook(inst, data_dict)
         return func(inst, data_dict)
 
