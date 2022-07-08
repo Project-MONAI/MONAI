@@ -104,7 +104,7 @@ Metrics
     :members:
 
 `Structural similarity index measure`
---------------------------------------
+-------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`

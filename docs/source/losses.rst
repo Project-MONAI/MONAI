@@ -86,16 +86,16 @@ Registration Losses
 .. autoclass:: LocalNormalizedCrossCorrelationLoss
     :members:
 
-`GlobalMutualInformationLoss`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ `GlobalMutualInformationLoss`
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GlobalMutualInformationLoss
     :members:
 
 Reconstruction Losses
-----------------------
+---------------------
 
 `SSIMLoss`
-~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: monai.losses.ssim_loss.SSIMLoss
     :members:
 
