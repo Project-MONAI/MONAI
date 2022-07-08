@@ -86,8 +86,8 @@ Registration Losses
 .. autoclass:: LocalNormalizedCrossCorrelationLoss
     :members:
 
- `GlobalMutualInformationLoss`
- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`GlobalMutualInformationLoss`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: GlobalMutualInformationLoss
     :members:
 

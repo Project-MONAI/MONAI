@@ -798,7 +798,6 @@ Smooth Field
     :members:
     :special-members: __call__
 
-
 Utility
 ^^^^^^^
 
