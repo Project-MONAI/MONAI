@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Dict, Sequence, Tuple, Union
+import subprocess
+import sys
+from typing import Dict, Sequence, Tuple, Union
 
 import numpy as np
 from numpy import ndarray
@@ -18,17 +20,19 @@ from monai.config import PathLike
 from monai.data.image_reader import ImageReader
 from monai.data.utils import is_supported_format
 from monai.utils import require_pkg  # optional_import
+from monai.utils import FastMRIKeys
 from monai.utils.type_conversion import convert_to_tensor
 
-if TYPE_CHECKING:
-    import h5py
+# h5py should be added to monai requirements so that we can use the following 5 lines
+# if TYPE_CHECKING:
+#    import h5py
 
-    has_h5py = True
-else:
-    # h5py, has_h5py = optional_import("h5py")  # ideally should use this
-    import subprocess
-    import sys
+#    has_h5py = True
+# else:
+# h5py, has_h5py = optional_import("h5py")  # ideally should use this
 
+has_h5py = False
+if has_h5py:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "h5py"])
     import h5py
 
@@ -85,9 +89,9 @@ class FastMRIReader(ImageReader):
             dat: a dictionary loaded from an h5 file
         """
         header = self._get_meta_dict(dat)
-        data: ndarray = np.array(dat["kspace"])
+        data: ndarray = np.array(dat[FastMRIKeys.KSPACE])
         header["mask"] = (
-            convert_to_tensor(np.array(dat["mask"])).unsqueeze(0)[None, ..., None]
+            convert_to_tensor(np.array(dat[FastMRIKeys.MASK])).unsqueeze(0)[None, ..., None]
             if "mask" in dat.keys()
             else np.zeros(data.shape)
         )
@@ -101,10 +105,10 @@ class FastMRIReader(ImageReader):
             dat: a dictionary object loaded from an h5 file.
         """
         return {
-            "filename": dat["filename"],
-            "reconstruction_rss": dat["reconstruction_rss"],
-            "acquisition": dat["acquisition"],
-            "max": dat["max"],
-            "norm": dat["norm"],
-            "patient_id": dat["patient_id"],
+            "filename": dat[FastMRIKeys.FILENAME],
+            "reconstruction_rss": dat[FastMRIKeys.RECON],
+            "acquisition": dat[FastMRIKeys.ACQUISITION],
+            "max": dat[FastMRIKeys.MAX],
+            "norm": dat[FastMRIKeys.NORM],
+            "patient_id": dat[FastMRIKeys.PID],
         }
