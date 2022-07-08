@@ -466,7 +466,7 @@ class TciaDataset(Randomizable, CacheDataset):
         modality_tag: Tuple = (0x0008, 0x0060),
         ref_series_uid_tag: Tuple = (0x0020, 0x000E),
         ref_sop_uid_tag: Tuple = (0x0008, 0x1155),
-        specific_tags: List[Tuple] = [
+        specific_tags: Tuple = (
             (0x0008, 0x1115),
             (0x0008, 0x1140),
             (0x3006, 0x0010),
@@ -475,7 +475,7 @@ class TciaDataset(Randomizable, CacheDataset):
             (0x0010, 0x0020),
             (0x0020, 0x0011),
             (0x0020, 0x0012),
-        ],
+        ),
         seed: int = 0,
         val_frac: float = 0.2,
         cache_num: int = sys.maxsize,
@@ -492,8 +492,8 @@ class TciaDataset(Randomizable, CacheDataset):
         self.val_frac = val_frac
         self.set_random_state(seed=seed)
         download_dir = os.path.join(root_dir, collection)
-        specific_tags.append(modality_tag)
-
+        load_tags = list(specific_tags)
+        load_tags += [modality_tag]
         if download:
             seg_series_list = get_tcia_metadata(
                 query=f"getSeries?Collection={collection}&Modality={picked_modality}", attribute="SeriesInstanceUID"
@@ -510,7 +510,7 @@ class TciaDataset(Randomizable, CacheDataset):
                 dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
                 # achieve series number and patient id from the first dicom file
                 dcm_path = os.path.join(seg_first_dir, dicom_files[0])
-                ds = PydicomReader(stop_before_pixels=True, specific_tags=specific_tags).read(dcm_path)
+                ds = PydicomReader(stop_before_pixels=True, specific_tags=load_tags).read(dcm_path)
                 # (0x0010,0x0020) and (0x0010,0x0010), better to be contained in `specific_tags`
                 patient_id = ds.PatientID if ds.PatientID else ds.PatientName
                 if not patient_id:
@@ -530,7 +530,7 @@ class TciaDataset(Randomizable, CacheDataset):
                 ref_uuid_list = []
                 for dcm_file in dicom_files:
                     dcm_path = os.path.join(seg_first_dir, dcm_file)
-                    ds = PydicomReader(stop_before_pixels=True, specific_tags=specific_tags).read(dcm_path)
+                    ds = PydicomReader(stop_before_pixels=True, specific_tags=load_tags).read(dcm_path)
                     if ds[modality_tag].value == picked_modality:
                         ref_uuid = get_ref_uuid(
                             ds, find_sop=False, ref_series_uid=ref_series_uid_tag, ref_sop_uid=ref_sop_uid_tag
