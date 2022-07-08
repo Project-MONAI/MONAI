@@ -40,6 +40,19 @@ Blocks
 .. autoclass:: MemoryEfficientSwish
     :members:
 
+`FPN`
+~~~~~
+.. autoclass:: ExtraFPNBlock
+    :members:
+.. autoclass:: FeaturePyramidNetwork
+    :members:
+.. autoclass:: LastLevelMaxPool
+    :members:
+.. autoclass:: LastLevelP6P7
+    :members:
+.. autoclass:: BackboneWithFPN
+    :members:
+
 `Mish`
 ~~~~~~
 .. autoclass:: Mish
@@ -219,6 +232,17 @@ Blocks
 ~~~~~~~~~
 .. autoclass:: DVF2DDF
     :members:
+
+
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.networks.blocks.fft_utils_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftn_centered_t
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll
+.. autofunction:: monai.networks.blocks.fft_utils_t.roll_1d
+.. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
+.. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
 Layers
 ------
@@ -483,6 +507,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`SwinUNETR`
+~~~~~~~~~~~
+.. autoclass:: SwinUNETR
+    :members:
+
 `BasicUNet`
 ~~~~~~~~~~~
 .. autoclass:: BasicUNet
@@ -578,11 +607,6 @@ Nets
 `TorchVisionFCModel`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: TorchVisionFCModel
-  :members:
-
-`TorchVisionFullyConvModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: TorchVisionFullyConvModel
   :members:
 
 `MILModel`

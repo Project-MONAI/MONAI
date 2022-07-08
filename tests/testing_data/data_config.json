@@ -34,6 +34,26 @@
             "url": "https://github.com/rcuocolo/PROSTATEx_masks/raw/master/Files/lesions/Images/ADC/ProstateX-0000_ep2d_diff_tra_7.nii.gz",
             "hash_type": "md5",
             "hash_val": "f12a11ad0ebb0b1876e9e010564745d2"
+        },
+        "ref_avg152T1_LR": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_LR_nifti.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "c01a50caa7a563158ecda43d93a1466bfc8aa939bc16b06452ac1089c54661c8"
+        },
+        "ref_avg152T1_RL": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_RL_nifti.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "8a731128dac4de46ccb2cc60d972b98f75a52f21fb63ddb040ca96f0aed8b51a"
+        },
+        "MNI152_T1_2mm": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MNI152_T1_2mm.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "0585cd056bf5ccfb8bf97a5f6a66082d4e7caad525718fc11e40d80a827fcb92"
+        },
+        "MNI152_T1_2mm_strucseg": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MNI152_T1_2mm_strucseg.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "eb4f1e596ca85aadaefc359d409fb9a3e27d733e6def04b996953b7c54bc26d4"
         }
     },
     "models": {
@@ -72,7 +92,7 @@
         "test_meta_file": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
             "hash_type": "md5",
-            "hash_val": "e12813de2c15672a8c8fa8466b3dfc95"
+            "hash_val": "662135097106b71067cd1fc657f8720f"
         }
     }
 }

@@ -14,15 +14,16 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 from copy import deepcopy
-from typing import Any, Dict, Hashable, Union
+from typing import Any, Dict, Hashable
 
 import numpy as np
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
-from monai.utils.enums import Method, NumpyPadMode, TraceKeys
+from monai.utils.enums import Method, PytorchPadMode, TraceKeys
 
 __all__ = ["PadListDataCollate"]
 
@@ -57,20 +58,15 @@ class PadListDataCollate(InvertibleTransform):
     Args:
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
-    def __init__(
-        self,
-        method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-        **np_kwargs,
-    ) -> None:
+    def __init__(self, method: str = Method.SYMMETRIC, mode: str = PytorchPadMode.CONSTANT, **kwargs) -> None:
         self.method = method
         self.mode = mode
-        self.np_kwargs = np_kwargs
+        self.kwargs = kwargs
 
     def __call__(self, batch: Any):
         """
@@ -80,7 +76,8 @@ class PadListDataCollate(InvertibleTransform):
         # data is either list of dicts or list of lists
         is_list_of_dicts = isinstance(batch[0], dict)
         # loop over items inside of each element in a batch
-        for key_or_idx in batch[0].keys() if is_list_of_dicts else range(len(batch[0])):
+        batch_item = tuple(batch[0].keys()) if is_list_of_dicts else range(len(batch[0]))
+        for key_or_idx in batch_item:
             # calculate max size of each dimension
             max_shapes = []
             for elem in batch:
@@ -96,7 +93,7 @@ class PadListDataCollate(InvertibleTransform):
                 continue
 
             # Use `SpatialPad` to match sizes, Default params are central padding, padding with 0's
-            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.np_kwargs)
+            padder = SpatialPad(spatial_size=max_shape, method=self.method, mode=self.mode, **self.kwargs)
             for idx, batch_i in enumerate(batch):
                 orig_size = batch_i[key_or_idx].shape[1:]
                 padded = padder(batch_i[key_or_idx])
@@ -116,13 +113,18 @@ class PadListDataCollate(InvertibleTransform):
 
         d = deepcopy(data)
         for key in d:
-            transform_key = InvertibleTransform.trace_key(key)
-            if transform_key in d:
-                transform = d[transform_key][-1]
-                if not isinstance(transform, Dict):
-                    continue
-                if transform.get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
-                    d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
-                    # remove transform
-                    d[transform_key].pop()
+            transforms = None
+            if isinstance(d[key], MetaTensor):
+                transforms = d[key].applied_operations
+            else:
+                transform_key = InvertibleTransform.trace_key(key)
+                if transform_key in d:
+                    transforms = d[transform_key]
+            if not transforms or not isinstance(transforms[-1], Dict):
+                continue
+            if transforms[-1].get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                xform = transforms.pop()
+                cropping = CenterSpatialCrop(xform.get(TraceKeys.ORIG_SIZE, -1))
+                with cropping.trace_transform(False):
+                    d[key] = cropping(d[key])  # fallback to image size
         return d

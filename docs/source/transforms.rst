@@ -105,6 +105,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`Crop`
+""""""
+.. autoclass:: Crop
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
@@ -446,6 +452,15 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -737,6 +752,25 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
+
+`GridSplit`
+"""""""""""
+.. autoclass:: GridSplit
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -800,6 +834,12 @@ Utility
 `RepeatChannel`
 """""""""""""""
 .. autoclass:: RepeatChannel
+    :members:
+    :special-members: __call__
+
+`SplitDim`
+""""""""""
+.. autoclass:: SplitDim
     :members:
     :special-members: __call__
 
@@ -961,6 +1001,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`Padd`
+""""""
+.. autoclass:: Padd
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
@@ -982,6 +1028,18 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`Cropd`
+"""""""
+.. autoclass:: Cropd
+    :members:
+    :special-members: __call__
+
+`RandCropd`
+"""""""""""
+.. autoclass:: RandCropd
     :members:
     :special-members: __call__
 
@@ -1314,6 +1372,13 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
@@ -1500,6 +1565,25 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
+    :members:
+    :special-members: __call__
+
+`GridSplitd`
+""""""""""""
+.. autoclass:: GridSplitd
+    :members:
+    :special-members: __call__
+
+
 `RandRotate90d`
 """""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotate90d.png
@@ -1635,6 +1719,12 @@ Utility (Dict)
 `RepeatChanneld`
 """"""""""""""""
 .. autoclass:: RepeatChanneld
+    :members:
+    :special-members: __call__
+
+`SplitDimd`
+"""""""""""
+.. autoclass:: SplitDimd
     :members:
     :special-members: __call__
 
@@ -1827,6 +1917,21 @@ Utility (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
     :members:
     :special-members: __call__
 

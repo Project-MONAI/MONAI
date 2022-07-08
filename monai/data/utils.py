@@ -28,12 +28,14 @@ import torch
 from torch.utils.data._utils.collate import default_collate
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
+from monai.data.meta_obj import MetaObj
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
     Method,
     NumpyPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -66,6 +68,7 @@ __all__ = [
     "get_valid_patch_size",
     "is_supported_format",
     "iter_patch",
+    "iter_patch_position",
     "iter_patch_slices",
     "json_hashing",
     "list_data_collate",
@@ -84,6 +87,9 @@ __all__ = [
     "to_affine_nd",
     "worker_init_fn",
     "zoom_affine",
+    "remove_keys",
+    "remove_extra_metadata",
+    "get_extra_metadata_keys",
 ]
 
 # module to be used by `torch.save`
@@ -119,33 +125,37 @@ def get_random_patch(
 
 
 def iter_patch_slices(
-    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
+    padded: bool = True,
 ) -> Generator[Tuple[slice, ...], None, None]:
     """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
-    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
 
     Args:
-        dims: dimensions of array to iterate over
+        image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:
         Tuples of slice objects defining each patch
     """
 
-    # ensure patchSize and startPos are the right length
-    ndim = len(dims)
-    patch_size_ = get_valid_patch_size(dims, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
+    # ensure patch_size has the right length
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
 
-    # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
-
-    # choose patches by applying product to the ranges
-    for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
+    # create slices based on start position of each patch
+    for position in iter_patch_position(
+        image_size=image_size, patch_size=patch_size_, start_pos=start_pos, overlap=overlap, padded=padded
+    ):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
 
 
 def dense_patch_slices(
@@ -188,12 +198,56 @@ def dense_patch_slices(
     return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 
+def iter_patch_position(
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
+    padded: bool = False,
+):
+    """
+    Yield successive tuples of upper left corner of patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
+
+    Args:
+        image_size: dimensions of array to iterate over
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+
+    Yields:
+        Tuples of positions defining the upper left corner of each patch
+    """
+
+    # ensure patchSize and startPos are the right length
+    ndim = len(image_size)
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
+    start_pos = ensure_tuple_size(start_pos, ndim)
+    overlap = ensure_tuple_rep(overlap, ndim)
+
+    # calculate steps, which depends on the amount of overlap
+    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+
+    # calculate the last starting location (depending on the padding)
+    end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
+
+    # collect the ranges to step over each dimension
+    ranges = starmap(range, zip(start_pos, end_pos, steps))
+
+    # choose patches by applying product to the ranges
+    return product(*ranges)
+
+
 def iter_patch(
     arr: np.ndarray,
     patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    mode: Optional[str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """
@@ -205,11 +259,11 @@ def iter_patch(
         arr: array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: One of the listed string values in ``monai.utils.NumpyPadMode`` or ``monai.utils.PytorchPadMode``,
+            or a user supplied function. If None, no wrapping is performed. Defaults to ``"wrap"``.
         pad_opts: padding options, see `numpy.pad`
 
     Yields:
@@ -229,19 +283,28 @@ def iter_patch(
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
+    # set padded flag to false if pad mode is None
+    padded = True if mode else False
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+    if padded:
+        arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        # choose a start position in the padded image
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
 
-    # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        # choose a size to iterate over which is smaller than the actual padded image to prevent producing
+        # patches which are only in the padded regions
+        iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
+    else:
+        arrpad = arr
+        start_pos_padded = start_pos
+        iter_size = arr.shape
 
-    # choose a size to iterate over which is smaller than the actual padded image to prevent producing
-    # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
-
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap, padded=padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        if padded:
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        else:
+            coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
@@ -328,6 +391,24 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -346,9 +427,11 @@ def list_data_collate(batch: Sequence):
             ret = {}
             for k in elem:
                 key = k
-                ret[key] = default_collate([d[key] for d in data])
-            return ret
-        return default_collate(data)
+                data_for_batch = [d[key] for d in data]
+                ret[key] = collate_meta_tensor(data_for_batch)
+        else:
+            ret = collate_meta_tensor(data)
+        return ret
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
@@ -458,7 +541,9 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """
     if batch is None:
         return batch
-    if isinstance(batch, (float, int, str, bytes)):
+    if isinstance(batch, (float, int, str, bytes)) or (
+        type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
+    ):
         return batch
     if isinstance(batch, torch.Tensor):
         if detach:
@@ -466,6 +551,16 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if batch.ndim == 0:
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
+        # if of type MetaObj, decollate the metadata
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, batch.applied_operations):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
@@ -485,12 +580,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def pad_list_data_collate(
-    batch: Sequence,
-    method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-    **np_kwargs,
-):
+def pad_list_data_collate(batch: Sequence, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
 
@@ -507,13 +597,13 @@ def pad_list_data_collate(
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
+    return PadListDataCollate(method=method, mode=mode, **kwargs)(batch)
 
 
 def no_collation(x):
@@ -566,6 +656,8 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     Returns:
         an `r` dimensional vector of spacing.
     """
+    if len(affine.shape) != 2 or affine.shape[0] != affine.shape[1]:
+        raise ValueError(f"affine must be a square matrix, got {affine.shape}.")
     _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
@@ -905,7 +997,7 @@ def compute_importance_map(
     mode = look_up_option(mode, BlendMode)
     device = torch.device(device)
     if mode == BlendMode.CONSTANT:
-        importance_map = torch.ones(patch_size, device=device).float()
+        importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
@@ -918,15 +1010,10 @@ def compute_importance_map(
         importance_map = importance_map.squeeze(0).squeeze(0)
         importance_map = importance_map / torch.max(importance_map)
         importance_map = importance_map.float()
-
-        # importance_map cannot be 0, otherwise we may end up with nans!
-        min_non_zero = importance_map[importance_map != 0].min().item()
-        importance_map = torch.clamp(importance_map, min=min_non_zero)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
-
     return importance_map
 
 
@@ -1305,3 +1392,66 @@ def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
     if isinstance(affine, torch.Tensor):
         return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
     return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore
+
+
+def remove_keys(data: dict, keys: List[str]) -> None:
+    """
+    Remove keys from a dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        data: dictionary to be modified.
+        keys: keys to be deleted from dictionary.
+
+    Returns:
+        `None`
+    """
+    for k in keys:
+        _ = data.pop(k, None)
+
+
+def remove_extra_metadata(meta: dict) -> None:
+    """
+    Remove extra metadata from the dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        meta: dictionary containing metadata to be modified.
+
+    Returns:
+        `None`
+    """
+    keys = get_extra_metadata_keys()
+    remove_keys(data=meta, keys=keys)
+
+
+def get_extra_metadata_keys() -> List[str]:
+    """
+    Get a list of unnecessary keys for metadata that can be removed.
+
+    Returns:
+        List of keys to be removed.
+    """
+    keys = [
+        "srow_x",
+        "srow_y",
+        "srow_z",
+        "quatern_b",
+        "quatern_c",
+        "quatern_d",
+        "qoffset_x",
+        "qoffset_y",
+        "qoffset_z",
+        "dim",
+        "pixdim",
+        *[f"dim[{i}]" for i in range(8)],
+        *[f"pixdim[{i}]" for i in range(8)],
+    ]
+
+    # TODO: it would be good to remove these, but they are currently being used in the
+    # codebase.
+    # keys += [
+    #     "original_affine",
+    #     "spatial_shape",
+    #     "spacing",
+    # ]
+
+    return keys

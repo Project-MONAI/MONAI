@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.transforms import KeepLargestConnectedComponent
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.type_conversion import convert_to_dst_type
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 def to_onehot(x):
@@ -350,10 +350,9 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
         result = converter(input_image)
-        assert_allclose(result, expected, type_test=False)
+        assert_allclose(result, expected, type_test="tensor")
 
     @parameterized.expand(TESTS)
-    @SkipIfBeforePyTorchVersion((1, 7))
     def test_correct_results_before_after_onehot(self, _, args, input_image, expected):
         """
         From torch==1.7, torch.argmax changes its mechanism that if there are multiple maximal values then the
@@ -373,12 +372,12 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
             img = to_onehot(input_image)
             result2 = KeepLargestConnectedComponent(**args)(img)
             result2 = result2.argmax(0)[None]
-            assert_allclose(result, result2)
+            assert_allclose(result, result2, type_test="tensor")
         # if onehotted, un-onehot and check result stays the same
         else:
             img = input_image.argmax(0)[None]
             result2 = KeepLargestConnectedComponent(**args)(img)
-            assert_allclose(result.argmax(0)[None], result2)
+            assert_allclose(result.argmax(0)[None], result2, type_test="tensor")
 
 
 if __name__ == "__main__":

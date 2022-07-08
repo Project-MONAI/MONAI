@@ -85,6 +85,7 @@ from monai.transforms.croppad.dictionary import (
 )
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
@@ -115,6 +116,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.intensity.dictionary import (
     AdjustContrastd,
+    ForegroundMaskd,
     GaussianSharpend,
     GaussianSmoothd,
     GibbsNoised,
@@ -458,7 +460,6 @@ if __name__ == "__main__":
     create_transform_im(RandFlipd, dict(keys=keys, prob=1, spatial_axis=2), data)
     create_transform_im(Flip, dict(spatial_axis=1), data)
     create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
-    create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Orientation, dict(axcodes="RPI", image_only=True), data)
     create_transform_im(Orientationd, dict(keys=keys, axcodes="RPI"), data)
     create_transform_im(
@@ -584,6 +585,8 @@ if __name__ == "__main__":
     create_transform_im(
         MaskIntensityd, dict(keys=CommonKeys.IMAGE, mask_key=CommonKeys.IMAGE, select_fn=lambda x: x > 0.3), data
     )
+    create_transform_im(ForegroundMask, dict(invert=True), data)
+    create_transform_im(ForegroundMaskd, dict(keys=CommonKeys.IMAGE, invert=True), data)
     create_transform_im(GaussianSmooth, dict(sigma=2), data)
     create_transform_im(GaussianSmoothd, dict(keys=CommonKeys.IMAGE, sigma=2), data)
     create_transform_im(RandGaussianSmooth, dict(prob=1.0, sigma_x=(1, 2)), data)
@@ -718,7 +721,7 @@ if __name__ == "__main__":
 
     create_transform_im(
         RandSmoothDeform,
-        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="bilinear"),
         data,
     )
     create_transform_im(
@@ -729,7 +732,7 @@ if __name__ == "__main__":
             rand_size=(10, 10, 10),
             prob=1.0,
             def_range=0.05,
-            grid_mode="blinear",
+            grid_mode="bilinear",
         ),
         data,
     )

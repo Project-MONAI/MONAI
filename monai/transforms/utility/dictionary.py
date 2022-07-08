@@ -24,6 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -49,7 +50,7 @@ from monai.transforms.utility.array import (
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
-    SplitChannel,
+    SplitDim,
     SqueezeDim,
     ToCupy,
     ToDevice,
@@ -61,7 +62,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import convert_to_numpy, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import deprecated, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -150,6 +151,9 @@ __all__ = [
     "SplitChannelD",
     "SplitChannelDict",
     "SplitChanneld",
+    "SplitDimD",
+    "SplitDimDict",
+    "SplitDimd",
     "SqueezeDimD",
     "SqueezeDimDict",
     "SqueezeDimd",
@@ -288,6 +292,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
+    @deprecated_arg(name="meta_keys", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
+    @deprecated_arg(name="meta_key_postfix", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
         self,
         keys: KeysCollection,
@@ -299,14 +305,6 @@ class EnsureChannelFirstd(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
-                for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
-                it can be a sequence of string, map to the `keys`.
-                if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None and `key_{postfix}` was used to store the metadata in `LoadImaged`.
-                So need the key to extract metadata for channel dim information, default is `meta_dict`.
-                For example, for data with key `image`, metadata by default is in `image_meta_dict`.
             strict_check: whether to raise an error when the meta information is insufficient.
 
         """
@@ -315,10 +313,10 @@ class EnsureChannelFirstd(MapTransform):
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
-    def __call__(self, data) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d[meta_key or f"{key}_{meta_key_postfix}"])
+            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
         return d
 
 
@@ -372,19 +370,14 @@ class RemoveRepeatedChanneld(MapTransform):
         return d
 
 
-class SplitChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be split into same count of data.
-    """
-
-    backend = SplitChannel.backend
-
+class SplitDimd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
         output_postfixes: Optional[Sequence[str]] = None,
-        channel_dim: int = 0,
+        dim: int = 0,
+        keepdim: bool = True,
+        update_meta: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -395,27 +388,53 @@ class SplitChanneld(MapTransform):
                 for example: if the key of input data is `pred` and split 2 classes, the output
                 data keys will be: pred_(output_postfixes[0]), pred_(output_postfixes[1])
                 if None, using the index number: `pred_0`, `pred_1`, ... `pred_N`.
-            channel_dim: which dimension of input image is the channel, default to 0.
+            dim: which dimension of input image is the channel, default to 0.
+            keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
+                dimension will be squeezed.
+            update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
+                reflect the cropped image
             allow_missing_keys: don't raise exception if key is missing.
-
         """
         super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
-        self.splitter = SplitChannel(channel_dim=channel_dim)
+        self.splitter = SplitDim(dim, keepdim, update_meta)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
             if len(postfixes) != len(rets):
-                raise AssertionError("count of split results must match output_postfixes.")
+                raise ValueError(f"count of splits must match output_postfixes, {len(postfixes)} != {len(rets)}.")
             for i, r in enumerate(rets):
                 split_key = f"{key}_{postfixes[i]}"
                 if split_key in d:
                     raise RuntimeError(f"input data already contains key {split_key}.")
                 d[split_key] = r
         return d
+
+
+@deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
+class SplitChanneld(SplitDimd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
+    All the input specified by `keys` should be split into same count of data.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_postfixes: Optional[Sequence[str]] = None,
+        channel_dim: int = 0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(
+            keys,
+            output_postfixes=output_postfixes,
+            dim=channel_dim,
+            update_meta=False,  # for backwards compatibility
+            allow_missing_keys=allow_missing_keys,
+        )
 
 
 class CastToTyped(MapTransform):
@@ -500,7 +519,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         return d
 
 
-class EnsureTyped(MapTransform, InvertibleTransform):
+class EnsureTyped(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureType`.
 
@@ -522,6 +541,7 @@ class EnsureTyped(MapTransform, InvertibleTransform):
         dtype: Union[DtypeLike, torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -533,26 +553,19 @@ class EnsureTyped(MapTransform, InvertibleTransform):
             device: for Tensor data type, specify the target device.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+            track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
+                If False, the output data type will be `torch.Tensor`. Default to the return value of `get_track_meta`.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = EnsureType(data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence)
+        self.converter = EnsureType(
+            data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
+        )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key)
             d[key] = self.converter(d[key])
-        return d
-
-    def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
-        d = deepcopy(dict(data))
-        for key in self.key_iterator(d):
-            # FIXME: currently, only convert tensor data to numpy array or scalar number,
-            # need to also invert numpy array but it's not easy to determine the previous data type
-            d[key] = convert_to_numpy(d[key])
-            # Remove the applied transform
-            self.pop_transform(d, key)
         return d
 
 
@@ -975,6 +988,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         print(lambd(input_data)['label'].shape)
         (4, 2, 2)
 
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -1007,29 +1021,20 @@ class Lambdad(MapTransform, InvertibleTransform):
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
         self._lambd = Lambda()
 
-    def _transform(self, data: Any, func: Callable):
-        return self._lambd(data, func=func)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
-            ret = self._transform(data=d[key], func=func)
+            ret = self._lambd(img=d[key], func=func)
             if overwrite:
                 d[key] = ret
-            self.push_transform(d, key)
         return d
-
-    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func)
 
     def inverse(self, data):
         d = deepcopy(dict(data))
-        for key, inv_func, overwrite in self.key_iterator(d, self.inv_func, self.overwrite):
-            transform = self.get_most_recent_transform(d, key)
-            ret = self._inverse_transform(transform_info=transform, data=d[key], func=inv_func)
+        for key, overwrite in self.key_iterator(d, self.overwrite):
+            ret = self._lambd.inverse(data=d[key])
             if overwrite:
                 d[key] = ret
-            self.pop_transform(d, key)
         return d
 
 
@@ -1078,15 +1083,33 @@ class RandLambdad(Lambdad, RandomizableTransform):
         )
         RandomizableTransform.__init__(self=self, prob=prob, do_transform=True)
 
-    def _transform(self, data: Any, func: Callable):
-        return self._lambd(data, func=func) if self._do_transform else data
-
     def __call__(self, data):
         self.randomize(data)
-        return super().__call__(data)
+        d = dict(data)
+        for key, func, overwrite in self.key_iterator(d, self.func, self.overwrite):
+            ret = d[key]
+            if not isinstance(ret, MetaTensor):
+                ret = MetaTensor(ret)
+            if self._do_transform:
+                ret = self._lambd(ret, func=func)
+                self.push_transform(ret, extra_info={"lambda_info": self._lambd.pop_transform(ret)})
+            else:
+                self.push_transform(ret)
+            if overwrite:
+                d[key] = ret
+        return d
 
-    def _inverse_transform(self, transform_info: Dict, data: Any, func: Callable):
-        return self._lambd(data, func=func) if transform_info[TraceKeys.DO_TRANSFORM] else data
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = deepcopy(dict(data))
+        for key, overwrite in self.key_iterator(d, self.overwrite):
+            if isinstance(d[key], MetaTensor):
+                tr = self.pop_transform(d[key])
+                if tr[TraceKeys.DO_TRANSFORM]:
+                    d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["lambda_info"])  # type: ignore
+                    ret = self._lambd.inverse(d[key])
+                    if overwrite:
+                        d[key] = ret
+        return d
 
 
 class LabelToMaskd(MapTransform):
@@ -1222,7 +1245,7 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
@@ -1420,7 +1443,7 @@ class MapLabelValued(MapTransform):
 class IntensityStatsd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.IntensityStats`.
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1432,21 +1455,21 @@ class IntensityStatsd(MapTransform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         mask_keys: if not None, specify the mask array for the image to extract only the interested area to compute
             statistics, mask must have the same shape as the image.
             it should be a sequence of strings or None, map to the `keys`.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
-        meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+        meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
             used to store the computed statistics to the meta dict.
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            the meta data is a dictionary object which contains: filename, original_shape, etc.
+            the metadata is a dictionary object which contains: filename, original_shape, etc.
             it can be a sequence of string, map to the `keys`.
             if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-            to the key data, default is `meta_dict`, the meta data is a dictionary object.
+        meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+            to the key data, default is `meta_dict`, the metadata is a dictionary object.
             used to store the computed statistics to the meta dict.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -1637,6 +1660,7 @@ EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
+SplitDimD = SplitDimDict = SplitDimd
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 EnsureTypeD = EnsureTypeDict = EnsureTyped

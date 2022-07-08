@@ -15,7 +15,13 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    is_binary_tensor,
+)
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -42,7 +48,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             percentile of the Hausdorff Distance rather than the maximum result will be achieved.
             Defaults to ``None``.
         directed: whether to calculate directed Hausdorff distance. Defaults to ``False``.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
@@ -80,12 +86,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            warnings.warn("y should be a binarized tensor.")
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
+
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")
@@ -99,9 +102,14 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
+
+        Args:
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         """
         data = self.get_buffer()
@@ -109,7 +117,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, self.reduction)
+        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
 

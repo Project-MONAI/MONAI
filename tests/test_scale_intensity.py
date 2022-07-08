@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+from parameterized import parameterized
 
 from monai.transforms import ScaleIntensity
 from monai.transforms.utils import rescale_array
@@ -19,29 +20,30 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-    def test_range_scale(self):
-        for p in TEST_NDARRAYS:
-            scaler = ScaleIntensity(minv=1.0, maxv=2.0)
-            result = scaler(p(self.imt))
-            mina = self.imt.min()
-            maxa = self.imt.max()
-            norm = (self.imt - mina) / (maxa - mina)
-            expected = p((norm * (2.0 - 1.0)) + 1.0)
-            assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_range_scale(self, p):
+        scaler = ScaleIntensity(minv=1.0, maxv=2.0)
+        im = p(self.imt)
+        result = scaler(im)
+        mina = self.imt.min()
+        maxa = self.imt.max()
+        norm = (self.imt - mina) / (maxa - mina)
+        expected = p((norm * (2.0 - 1.0)) + 1.0)
+        assert_allclose(result, expected, type_test="tensor", rtol=1e-7, atol=0)
 
     def test_factor_scale(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=None, maxv=None, factor=0.1)
             result = scaler(p(self.imt))
             expected = p((self.imt * (1 + 0.1)).astype(np.float32))
-            assert_allclose(result, p(expected), rtol=1e-7, atol=0)
+            assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
 
     def test_max_none(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensity(minv=0.0, maxv=None, factor=0.1)
             result = scaler(p(self.imt))
             expected = rescale_array(p(self.imt), minv=0.0, maxv=None)
-            assert_allclose(result, expected, rtol=1e-3, atol=1e-3)
+            assert_allclose(result, expected, type_test="tensor", rtol=1e-3, atol=1e-3)
 
     def test_int(self):
         """integers should be handled by converting them to floats first."""
@@ -53,7 +55,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             maxa = _imt.max()
             norm = (_imt - mina) / (maxa - mina)
             expected = p((norm * (2.0 - 1.0)) + 1.0)
-            assert_allclose(result, expected, type_test=False, rtol=1e-7, atol=0)
+            assert_allclose(result, expected, type_test="tensor", rtol=1e-7, atol=0)
 
     def test_channel_wise(self):
         for p in TEST_NDARRAYS:
@@ -65,7 +67,7 @@ class TestScaleIntensity(NumpyImageTestCase2D):
             for i, c in enumerate(data):
                 norm = (c - mina) / (maxa - mina)
                 expected = p((norm * (2.0 - 1.0)) + 1.0)
-                assert_allclose(result[i], expected, type_test=False, rtol=1e-7, atol=0)
+                assert_allclose(result[i], expected, type_test="tensor", rtol=1e-7, atol=0)
 
 
 if __name__ == "__main__":

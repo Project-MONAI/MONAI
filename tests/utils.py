@@ -26,7 +26,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -38,6 +38,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
@@ -76,7 +77,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: bool = True,
+    type_test: Union[bool, str] = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -88,13 +89,22 @@ def assert_allclose(
         actual: Pytorch Tensor or numpy array for comparison.
         desired: Pytorch Tensor or numpy array to compare against.
         type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+            if type_test == "tensor", it checks whether the `actual` is a torch.tensor or metatensor according to
+            `get_track_meta`.
         device_test: whether to test the device property.
         args: extra arguments to pass on to `np.testing.assert_allclose`.
         kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
 
 
     """
-    if type_test:
+    if isinstance(type_test, str) and type_test == "tensor":
+        if get_track_meta():
+            np.testing.assert_equal(isinstance(actual, MetaTensor), True, "must be a MetaTensor")
+        else:
+            np.testing.assert_equal(
+                isinstance(actual, torch.Tensor) and not isinstance(actual, MetaTensor), True, "must be a torch.Tensor"
+            )
+    elif type_test:
         # check both actual and desired are of the same type
         np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
         np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
@@ -102,8 +112,8 @@ def assert_allclose(
     if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
         if device_test:
             np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
-        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
-        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+        actual = actual.detach().cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.detach().cpu().numpy() if isinstance(desired, torch.Tensor) else desired
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
@@ -586,13 +596,11 @@ _original_funcs = {}
 
 def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
-    global _original_funcs
     _original_funcs[obj.__name__] = obj
 
 
 def _del_original_func(obj):
     """pop the original function from cache."""
-    global _original_funcs
     _original_funcs.pop(obj.__name__, None)
     if torch.cuda.is_available():  # clean up the cached function
         torch.cuda.synchronize()
@@ -709,10 +717,39 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
+    """test that invertible_xform can bring to_invert back to im"""
+    im_item = im if dict_key is None else im[dict_key]
+    if not isinstance(im_item, MetaTensor):
+        return
+    im_inv = invertible_xform.inverse(to_invert)
+    if dict_key:
+        im_inv = im_inv[dict_key]
+        im = im[dict_key]
+    np.testing.assert_array_equal(im_inv.applied_operations, [])
+    assert_allclose(im_inv.shape, im.shape)
+    assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+
+
+TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)
+
+DEFAULT_TEST_AFFINE = torch.tensor(
+    [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+)
+_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
+TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+# alias for branch tests
+TEST_NDARRAYS_ALL = TEST_NDARRAYS
+
+
+TEST_DEVICES = [[torch.device("cpu")]]
+if torch.cuda.is_available():
+    TEST_DEVICES.append([torch.device("cuda")])
 
 
 if __name__ == "__main__":

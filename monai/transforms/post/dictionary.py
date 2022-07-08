@@ -23,6 +23,7 @@ import torch
 
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
@@ -37,8 +38,8 @@ from monai.transforms.post.array import (
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
-from monai.transforms.utils import allow_missing_keys_mode, convert_inverse_interp_mode
-from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
+from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
 __all__ = [
@@ -160,7 +161,7 @@ class AsDiscreted(MapTransform):
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
-            threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold value.
+            threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold value.
                 defaults to ``None``. it also can be a sequence, each element corresponds to a key in ``keys``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
@@ -543,7 +544,7 @@ class Invertd(MapTransform):
         self,
         keys: KeysCollection,
         transform: InvertibleTransform,
-        orig_keys: KeysCollection,
+        orig_keys: Optional[KeysCollection] = None,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
@@ -558,20 +559,20 @@ class Invertd(MapTransform):
             keys: the key of expected data in the dict, the inverse of ``transforms`` will be applied on it in-place.
                 It also can be a list of keys, will apply the inverse transform respectively.
             transform: the transform applied to ``orig_key``, its inverse will be applied on ``key``.
-            orig_keys: the key of the original input data in the dict.
+            orig_keys: the key of the original input data in the dict. These keys default to `self.keys` if not set.
                 the transform trace information of ``transforms`` should be stored at ``{orig_keys}_transforms``.
                 It can also be a list of keys, each matches the ``keys``.
-            meta_keys: The key to output the inverted meta data dictionary.
-                The meta data is a dictionary optionally containing: filename, original_shape.
+            meta_keys: The key to output the inverted metadata dictionary.
+                The metadata is a dictionary optionally containing: filename, original_shape.
                 It can be a sequence of strings, maps to ``keys``.
-                If None, will try to create a meta data dict with the default key: `{key}_{meta_key_postfix}`.
-            orig_meta_keys: the key of the meta data of original input data.
-                The meta data is a dictionary optionally containing: filename, original_shape.
+                If None, will try to create a metadata dict with the default key: `{key}_{meta_key_postfix}`.
+            orig_meta_keys: the key of the metadata of original input data.
+                The metadata is a dictionary optionally containing: filename, original_shape.
                 It can be a sequence of strings, maps to the `keys`.
-                If None, will try to create a meta data dict with the default key: `{orig_key}_{meta_key_postfix}`.
-                This meta data dict will also be included in the inverted dict, stored in `meta_keys`.
+                If None, will try to create a metadata dict with the default key: `{orig_key}_{meta_key_postfix}`.
+                This metadata dict will also be included in the inverted dict, stored in `meta_keys`.
             meta_key_postfix: if `orig_meta_keys` is None, use `{orig_key}_{meta_key_postfix}` to fetch the
-                meta data from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`. Default: ``"meta_dict"``.
+                metadata from dict, if `meta_keys` is None, use `{key}_{meta_key_postfix}`. Default: ``"meta_dict"``.
             nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
                 default to `True`. If `False`, use the same interpolation mode as the original transform.
                 It also can be a list of bool, each matches to the `keys` data.
@@ -588,7 +589,7 @@ class Invertd(MapTransform):
         if not isinstance(transform, InvertibleTransform):
             raise ValueError("transform is not invertible, can't invert transform for the data.")
         self.transform = transform
-        self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys))
+        self.orig_keys = ensure_tuple_rep(orig_keys, len(self.keys)) if orig_keys is not None else self.keys
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
@@ -623,44 +624,59 @@ class Invertd(MapTransform):
             self.device,
             self.post_func,
         ):
-            transform_key = InvertibleTransform.trace_key(orig_key)
-            if transform_key not in d:
-                warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
-                continue
+            if isinstance(d[key], MetaTensor):
+                if orig_key not in d:
+                    warnings.warn(f"transform info of `{orig_key}` is not available in MetaTensor {key}.")
+                    continue
+            else:
+                transform_key = InvertibleTransform.trace_key(orig_key)
+                if transform_key not in d:
+                    warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
+                    continue
 
-            transform_info = d[transform_key]
+            if orig_key in d and isinstance(d[orig_key], MetaTensor):
+                transform_info = d[orig_key].applied_operations
+                meta_info = d[orig_key].meta
+            else:
+                transform_info = d[InvertibleTransform.trace_key(orig_key)]
+                meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
             if nearest_interp:
-                transform_info = convert_inverse_interp_mode(
+                transform_info = convert_applied_interp_mode(
                     trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
                 )
 
-            input = d[key]
-            if isinstance(input, torch.Tensor):
-                input = input.detach()
+            inputs = d[key]
+            if isinstance(inputs, torch.Tensor):
+                inputs = inputs.detach()
+
+            if not isinstance(inputs, MetaTensor):
+                inputs = convert_to_tensor(inputs, track_meta=True)
+            inputs.applied_operations = transform_info
+            inputs.meta = meta_info
 
             # construct the input dict data
-            input_dict = {orig_key: input, transform_key: transform_info}
-            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
-            if orig_meta_key in d:
-                input_dict[orig_meta_key] = d[orig_meta_key]
+            input_dict = {orig_key: inputs}
 
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)
 
             # save the inverted data
-            d[key] = post_func(self._totensor(inverted[orig_key]).to(device) if to_tensor else inverted[orig_key])
+            if to_tensor and not isinstance(inverted[orig_key], MetaTensor):
+                inverted_data = self._totensor(inverted[orig_key])
+            else:
+                inverted_data = inverted[orig_key]
+            d[key] = post_func(inverted_data.to(device))
 
             # save the inverted meta dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
-
         return d
 
 
 class SaveClassificationd(MapTransform):
     """
-    Save the classification results and meta data into CSV file or other storage.
+    Save the classification results and metadata into CSV file or other storage.
 
     """
 
@@ -681,16 +697,16 @@ class SaveClassificationd(MapTransform):
         Args:
             keys: keys of the corresponding items to model output, this transform only supports 1 key.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
                 will extract the filename of input image to save classification results.
             meta_key_postfix: `key_{postfix}` was used to store the metadata in `LoadImaged`.
                 so need the key to extract the metadata of input image, like filename, etc. default is `meta_dict`.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 this arg only works when `meta_keys=None`. if no corresponding metadata, set to `None`.
             saver: the saver instance to save classification results, if None, create a CSVSaver internally.
                 the saver must provide `save(data, meta_data)` and `finalize()` APIs.

@@ -11,7 +11,7 @@
 3. [Validating the install](#validating-the-install)
 4. [MONAI version string](#monai-version-string)
 5. [From DockerHub](#from-dockerhub)
-6. [Installing the recommended dependencies](#Installing-the-recommended-dependencies)
+6. [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
 ---
 
@@ -50,7 +50,7 @@ python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 
 ## From conda-forge
 
-To install the [current milestone release](https://pypi.org/project/monai/):
+To install the [current milestone release](https://anaconda.org/conda-forge/monai):
 ```bash
 conda install -c conda-forge monai
 ```
@@ -190,9 +190,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

@@ -18,30 +18,48 @@ from ignite.engine import Engine
 from parameterized import parameterized
 from torch.utils.data import DataLoader
 
-from monai.apps.pathology.handlers import ProbMapProducer
 from monai.data.dataset import Dataset
 from monai.engines import Evaluator
-from monai.handlers import ValidationHandler
+from monai.handlers import ProbMapProducer, ValidationHandler
+from monai.utils.enums import ProbMapKeys
 
 TEST_CASE_0 = ["temp_image_inference_output_1", 2]
 TEST_CASE_1 = ["temp_image_inference_output_2", 9]
-TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
+TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
     def __init__(self, name, size):
         super().__init__(
             data=[
-                {"name": name, "mask_shape": (size, size), "mask_locations": [[i, i] for i in range(size)], "level": 0}
+                {
+                    "image": name,
+                    ProbMapKeys.COUNT.value: size,
+                    ProbMapKeys.SIZE.value: np.array([size, size]),
+                    ProbMapKeys.LOCATION.value: np.array([i, i]),
+                }
+                for i in range(size)
             ]
         )
-        self.len = size
-
-    def __len__(self):
-        return self.len
+        self.image_data = [
+            {
+                ProbMapKeys.NAME.value: name,
+                ProbMapKeys.COUNT.value: size,
+                ProbMapKeys.SIZE.value: np.array([size, size]),
+            }
+        ]
 
     def __getitem__(self, index):
-        return {"name": self.data[0]["name"], "mask_location": self.data[0]["mask_locations"][index], "pred": index + 1}
+        return {
+            "image": np.zeros((3, 2, 2)),
+            ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],
+            "metadata": {
+                ProbMapKeys.NAME.value: self.data[index]["image"],
+                ProbMapKeys.SIZE.value: self.data[index][ProbMapKeys.SIZE.value],
+                ProbMapKeys.LOCATION.value: self.data[index][ProbMapKeys.LOCATION.value],
+            },
+            "pred": index + 1,
+        }
 
 
 class TestEvaluator(Evaluator):

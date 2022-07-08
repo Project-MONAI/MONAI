@@ -17,8 +17,8 @@ import numpy as np
 import torch
 from torch.nn.functional import grid_sample, interpolate
 
-import monai
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.transform import Randomizable, RandomizableTransform
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
@@ -61,7 +61,7 @@ class SmoothField(Randomizable):
         high: float = 1.0,
         channels: int = 1,
         spatial_size: Optional[Sequence[int]] = None,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         device: Optional[torch.device] = None,
     ):
@@ -109,7 +109,7 @@ class SmoothField(Randomizable):
             self.spatial_size = tuple(spatial_size)
             self.spatial_zoom = tuple(s / f for s, f in zip(self.spatial_size, self.total_rand_size))
 
-    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.mode = mode
 
     def __call__(self, randomize=False) -> torch.Tensor:
@@ -119,10 +119,10 @@ class SmoothField(Randomizable):
         field = self.field.clone()
 
         if self.spatial_zoom is not None:
-            resized_field = interpolate(  # type: ignore
+            resized_field = interpolate(
                 input=field,
                 scale_factor=self.spatial_zoom,
-                mode=look_up_option(self.mode, InterpolateMode).value,
+                mode=look_up_option(self.mode, InterpolateMode),
                 align_corners=self.align_corners,
                 recompute_scale_factor=False,
             )
@@ -147,7 +147,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
     edges of the input volume of that width will be mostly unchanged. Contrast is changed by raising input
     values by the power of the smooth field so the range of values given by `gamma` should be chosen with this
     in mind. For example, a minimum value of 0 in `gamma` will produce white areas so this should be avoided.
-    Afte the contrast is adjusted the values of the result are rescaled to the range of the original input.
+    After the contrast is adjusted the values of the result are rescaled to the range of the original input.
 
     Args:
         spatial_size: size of input array's spatial dimensions
@@ -167,7 +167,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
@@ -209,13 +209,14 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -267,7 +268,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
@@ -309,13 +310,14 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_mode(self, mode: Union[InterpolateMode, str]) -> None:
+    def set_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
         Apply the transform to `img`, if `randomize` randomizing the smooth field otherwise reusing the previous.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
 
         if randomize:
             self.randomize()
@@ -363,13 +365,13 @@ class RandSmoothDeform(RandomizableTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        field_mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        field_mode: str = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[GridSampleMode, str] = GridSampleMode.NEAREST,
-        grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        grid_mode: str = GridSampleMode.NEAREST,
+        grid_padding_mode: str = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         device: Optional[torch.device] = None,
     ):
@@ -422,15 +424,16 @@ class RandSmoothDeform(RandomizableTransform):
         if self._do_transform:
             self.sfield.randomize()
 
-    def set_field_mode(self, mode: Union[monai.utils.InterpolateMode, str]) -> None:
+    def set_field_mode(self, mode: str) -> None:
         self.sfield.set_mode(mode)
 
-    def set_grid_mode(self, mode: Union[monai.utils.GridSampleMode, str]) -> None:
+    def set_grid_mode(self, mode: str) -> None:
         self.grid_mode = mode
 
     def __call__(
         self, img: NdarrayOrTensor, randomize: bool = True, device: Optional[torch.device] = None
     ) -> NdarrayOrTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
             self.randomize()
 
@@ -449,9 +452,9 @@ class RandSmoothDeform(RandomizableTransform):
         out = grid_sample(
             input=img_t,
             grid=dgrid,
-            mode=look_up_option(self.grid_mode, GridSampleMode).value,
+            mode=look_up_option(self.grid_mode, GridSampleMode),
             align_corners=self.grid_align_corners,
-            padding_mode=look_up_option(self.grid_padding_mode, GridSamplePadMode).value,
+            padding_mode=look_up_option(self.grid_padding_mode, GridSamplePadMode),
         )
 
         out_t, *_ = convert_to_dst_type(out.squeeze(0), img)
