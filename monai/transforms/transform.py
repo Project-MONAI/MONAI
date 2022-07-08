@@ -315,7 +315,7 @@ class MapTransform(Transform):
     def __new__(cls, *args, **kwargs):
         if config.USE_META_DICT:
             cls.__call__ = transforms.attach_post_hook(cls.__call__, MapTransform.call_update)  # type: ignore
-            if issubclass(cls, transforms.InvertibleTransform):
+            if hasattr(cls, "inverse"):
                 cls.inverse = transforms.attach_pre_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
         return Transform.__new__(cls)
 
