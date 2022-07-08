@@ -148,47 +148,6 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
     return True
 
 
-def get_tcia_metadata(query: str, attribute: Optional[str] = None):
-    """
-    Achieve metadata of a public The Cancer Imaging Archive (TCIA) dataset.
-
-    This function makes use of The National Biomedical Imaging Archive (NBIA) REST APIs to access the metadata
-    of objects in the TCIA database.
-    Please refer to the following link for more details:
-    https://wiki.cancerimagingarchive.net/display/Public/NBIA+Search+REST+API+Guide
-
-    This function relys on `requests` package.
-
-    Args:
-        query: queries used to achieve the corresponding metadata. A query is consisted with query name and
-            query parameters. The format is like: <query name>?<parameter 1>&<parameter 2>.
-            For example: "getSeries?Collection=C4KC-KiTS&Modality=SEG"
-            Please refer to the section of Image Metadata APIs in the link mentioned
-            above for more details.
-        attribute: Achieved metadata may contain multiple attributes, if specifying an attribute name, other attributes
-            will be ignored.
-
-    """
-
-    if has_requests:
-        baseurl = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
-        full_url = baseurl + query
-        resp = requests_get(full_url)
-        resp.raise_for_status()
-    else:
-        raise ValueError("requests package is necessary, please install it.")
-    metadata_list: List = []
-    if len(resp.text) == 0:
-        return metadata_list
-    for d in resp.json():
-        if attribute is not None and attribute in d:
-            metadata_list.append(d[attribute])
-        else:
-            metadata_list.append(d)
-
-    return metadata_list
-
-
 def download_url(
     url: str,
     filepath: PathLike = "",
@@ -356,12 +315,54 @@ def download_and_extract(
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
 
 
+def get_tcia_metadata(query: str, attribute: Optional[str] = None):
+    """
+    Achieve metadata of a public The Cancer Imaging Archive (TCIA) dataset.
+
+    This function makes use of The National Biomedical Imaging Archive (NBIA) REST APIs to access the metadata
+    of objects in the TCIA database.
+    Please refer to the following link for more details:
+    https://wiki.cancerimagingarchive.net/display/Public/NBIA+Search+REST+API+Guide
+
+    This function relys on `requests` package.
+
+    Args:
+        query: queries used to achieve the corresponding metadata. A query is consisted with query name and
+            query parameters. The format is like: <query name>?<parameter 1>&<parameter 2>.
+            For example: "getSeries?Collection=C4KC-KiTS&Modality=SEG"
+            Please refer to the section of Image Metadata APIs in the link mentioned
+            above for more details.
+        attribute: Achieved metadata may contain multiple attributes, if specifying an attribute name, other attributes
+            will be ignored.
+
+    """
+
+    if has_requests:
+        baseurl = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
+        full_url = baseurl + query
+        resp = requests_get(full_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("requests package is necessary, please install it.")
+    metadata_list: List = []
+    if len(resp.text) == 0:
+        return metadata_list
+    for d in resp.json():
+        if attribute is not None and attribute in d:
+            metadata_list.append(d[attribute])
+        else:
+            metadata_list.append(d)
+
+    return metadata_list
+
+
 def download_tcia_series_instance(
     series_uid: str,
     download_dir: PathLike,
     output_dir: PathLike,
     check_md5: bool = False,
     hashes_filename: str = "md5hashes.csv",
+    progress: bool = True,
 ):
     """
     Download a dicom series from a public The Cancer Imaging Archive (TCIA) dataset.
@@ -376,6 +377,7 @@ def download_tcia_series_instance(
         check_md5: whether to download the MD5 hash values as well. If True, will check hash values for all images in
             the downloaded dicom series.
         hashes_filename: file that contains hashes.
+        progress: whether to display progress bar.
 
     """
     query_name = "getImageWithMD5Hash" if check_md5 else "getImage"
@@ -386,6 +388,7 @@ def download_tcia_series_instance(
         url=download_url,
         filepath=os.path.join(download_dir, f"{series_uid}.zip"),
         output_dir=output_dir,
+        progress=progress,
     )
     if check_md5:
         if not has_pandas:
@@ -393,3 +396,53 @@ def download_tcia_series_instance(
         hashes_df = pd.read_csv(os.path.join(output_dir, hashes_filename))
         for dcm, md5hash in hashes_df.values:
             check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
+
+
+def get_ref_uuid(ds, find_sop: bool = False, ref_series_uid=(0x0020, 0x000E), ref_sop_uid=(0x0008, 0x1155)):
+    """
+    Achieve the referenced UID from the referenced Series Sequence for the input pydicom dataset object.
+    The referenced UID could be Series Instance UID or SOP Instance UID. The UID will be detected from
+    the data element of the input object. If the data element is a sequence, each dataset within the sequence
+    will be detected iteratively. The first detected UID will be returned.
+
+    Args:
+        ds: a pydicom dataset object.
+        find_sop: whether to achieve the referenced SOP Instance UID.
+        ref_series_uid: tag of the referenced Series Instance UID.
+        ref_sop_uid: tag of the referenced SOP Instance UID.
+
+    """
+    ref_uid = ref_series_uid if find_sop is False else ref_sop_uid
+    output = ""
+
+    for elem in ds:
+        if elem.VR == "SQ":
+            for item in elem:
+                output = get_ref_uuid(item, find_sop)
+        if elem.tag == ref_uid:
+            return elem.value
+
+    return output
+
+
+def match_ref_uid_in_study(study_uid, ref_sop_uid):
+    """
+    Match the SeriesInstanceUID from all series in a study according to the input SOPInstanceUID.
+
+    Args:
+        study_uid: StudyInstanceUID.
+        ref_sop_uid: SOPInstanceUID.
+
+    """
+    series_list = get_tcia_metadata(
+        query=f"getSeries?StudyInstanceUID={study_uid}",
+        attribute="SeriesInstanceUID",
+    )
+    for series_id in series_list:
+        sop_id_list = get_tcia_metadata(
+            query=f"getSOPInstanceUIDs?SeriesInstanceUID={series_id}",
+            attribute="SOPInstanceUID",
+        )
+        if ref_sop_uid in sop_id_list:
+            return series_id
+    return ""
