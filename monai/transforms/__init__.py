@@ -609,6 +609,7 @@ from .utils import (
     rescale_array_int_max,
     rescale_instance_array,
     resize_center,
+    sync_meta_info,
     weighted_patch_samples,
     zero_margins,
 )

@@ -395,14 +395,14 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
 def pickle_operations(data, key=TraceKeys.KEY_SUFFIX, is_encode: bool = True):
     """applied_operations are dictionaries with varying sizes, converting them to bytes so that we can (de-)collate."""
     if isinstance(data, Mapping):
-        data, has_items = dict(data), False
+        data = dict(data)
         for k in data:
             if f"{k}".endswith(TraceKeys.KEY_SUFFIX):
                 if is_encode and not isinstance(data[k], bytes):
                     data[k] = pickle.dumps(data[k], 0)
                 if not is_encode and isinstance(data[k], bytes):
                     data[k] = pickle.loads(data[k])
-        return data if has_items else {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
+        return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
     elif isinstance(data, (list, tuple)):
         return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
     return data

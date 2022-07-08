@@ -23,7 +23,7 @@ from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
-from monai.utils.enums import PostFix, TransformBackends
+from monai.utils.enums import TransformBackends
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -340,12 +340,7 @@ class MapTransform(Transform):
         for k in data:
             if not isinstance(data[k], MetaTensor):
                 continue
-            meta_dict_key = PostFix.meta(k)
-            if meta_dict_key not in d:
-                d[meta_dict_key] = data[k].meta
-            d[meta_dict_key].update(data[k].meta)
-            if data[k].applied_operations:
-                d[transforms.TraceableTransform.trace_key(k)] = data[k].applied_operations
+            d = transforms.sync_meta_info(k, data, t=not isinstance(self, transforms.InvertD))
         return d
 
     @abstractmethod

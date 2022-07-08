@@ -19,7 +19,7 @@ import torch
 from monai import transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
-from monai.utils.enums import PostFix, TraceKeys
+from monai.utils.enums import TraceKeys
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -264,14 +264,7 @@ class InvertibleTransform(TraceableTransform):
             transform_key = transforms.TraceableTransform.trace_key(k)
             if transform_key not in data or not data[transform_key]:
                 continue
-            if not isinstance(data[k], MetaTensor):
-                d[k] = MetaTensor(data[k])
-            if not d[k].applied_operations:
-                d[k].applied_operations = d[transform_key]
-            d[transform_key] = d[k].applied_operations
-            meta_dict_key = PostFix.meta(k)
-            if meta_dict_key in data:
-                d[meta_dict_key].update(d[k].meta)
+            d = transforms.sync_meta_info(k, data, t=False)
         return d
 
     def inverse(self, data: Any) -> Any:

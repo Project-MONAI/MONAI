@@ -43,6 +43,7 @@ from monai.utils import (
     GridSampleMode,
     InterpolateMode,
     NumpyPadMode,
+    PostFix,
     PytorchPadMode,
     TraceKeys,
     deprecated_arg,
@@ -109,6 +110,7 @@ __all__ = [
     "scale_affine",
     "attach_pre_hook",
     "attach_post_hook",
+    "sync_meta_info",
 ]
 
 
@@ -1607,9 +1609,9 @@ def attach_pre_hook(func, hook):
     """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
 
     @wraps(func)
-    def wrapper(inst, data_dict):
-        data_dict = hook(inst, data_dict)
-        return func(inst, data_dict)
+    def wrapper(inst, data):
+        data = hook(inst, data)
+        return func(inst, data)
 
     return wrapper
 
@@ -1618,11 +1620,46 @@ def attach_post_hook(func, hook):
     """adds `hook` after `func` calls using `func`'s return value"""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        out = func(*args, **kwargs)
-        return hook(args[0], out)
+    def wrapper(inst, data):
+        out = func(inst, data)
+        return hook(inst, out)
 
     return wrapper
+
+
+def sync_meta_info(key, data_dict, t: bool = True):
+    """given the key, sync up between metatensor `data_dict[key]` and meta_dict `data_dict[key_transforms/meta_dict]`.
+    t=True: more applied_operations is the output, t=False: less applied_operations is the output."""
+    if not isinstance(data_dict, Mapping):
+        return data_dict
+    d = dict(data_dict)
+
+    # update meta dicts
+    meta_dict_key = PostFix.meta(key)
+    if meta_dict_key not in d:
+        d[meta_dict_key] = monai.data.MetaTensor.get_default_meta()
+    if not isinstance(d[key], monai.data.MetaTensor):
+        d[key] = monai.data.MetaTensor(data_dict[key])
+        d[key].meta = d[meta_dict_key]
+    d[meta_dict_key].update(d[key].meta)  # prefer metatensor's data
+
+    # update xform info
+    xform_key = monai.transforms.TraceableTransform.trace_key(key)
+    if xform_key not in d:
+        d[xform_key] = monai.data.MetaTensor.get_default_applied_operations()
+    from_meta, from_dict = d[key].applied_operations, d[xform_key]
+    if not from_meta:  # avoid []
+        d[key].applied_operations = d[xform_key] = from_dict
+        return d
+    if not from_dict:
+        d[key].applied_operations = d[xform_key] = from_meta
+        return d
+    if t:  # larger transform info stack is used as the result
+        ref = from_meta if len(from_meta) > len(from_dict) else from_dict
+    else:  # smaller transform info stack is used as the result
+        ref = from_dict if len(from_meta) > len(from_dict) else from_meta
+    d[key].applied_operations = d[xform_key] = ref
+    return d
 
 
 if __name__ == "__main__":
