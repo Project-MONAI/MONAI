@@ -9,10 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import subprocess
-import sys
 from typing import Dict, Sequence, Tuple, Union
 
+import h5py
 import numpy as np
 from numpy import ndarray
 
@@ -23,20 +22,7 @@ from monai.utils import require_pkg  # optional_import
 from monai.utils import FastMRIKeys
 from monai.utils.type_conversion import convert_to_tensor
 
-# h5py should be added to monai requirements so that we can use the following 5 lines
-# if TYPE_CHECKING:
-#    import h5py
-
-#    has_h5py = True
-# else:
-# h5py, has_h5py = optional_import("h5py")  # ideally should use this
-
-has_h5py = False
-if has_h5py:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "h5py"])
-    import h5py
-
-    has_h5py = True
+has_h5py = True
 
 
 @require_pkg(pkg_name="h5py")
