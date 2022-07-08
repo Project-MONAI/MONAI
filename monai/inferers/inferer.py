@@ -189,7 +189,7 @@ class SlidingWindowInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
-        return sliding_window_inference(  # type: ignore
+        return sliding_window_inference(
             inputs,
             self.roi_size,
             self.sw_batch_size,

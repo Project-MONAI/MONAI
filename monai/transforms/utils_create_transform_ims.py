@@ -460,7 +460,6 @@ if __name__ == "__main__":
     create_transform_im(RandFlipd, dict(keys=keys, prob=1, spatial_axis=2), data)
     create_transform_im(Flip, dict(spatial_axis=1), data)
     create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
-    create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Orientation, dict(axcodes="RPI", image_only=True), data)
     create_transform_im(Orientationd, dict(keys=keys, axcodes="RPI"), data)
     create_transform_im(
@@ -722,7 +721,7 @@ if __name__ == "__main__":
 
     create_transform_im(
         RandSmoothDeform,
-        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="bilinear"),
         data,
     )
     create_transform_im(
@@ -733,7 +732,7 @@ if __name__ == "__main__":
             rand_size=(10, 10, 10),
             prob=1.0,
             def_range=0.05,
-            grid_mode="blinear",
+            grid_mode="bilinear",
         ),
         data,
     )

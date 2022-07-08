@@ -12,7 +12,6 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import LabelToMask
@@ -61,10 +60,7 @@ class TestLabelToMask(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = LabelToMask(**argments)(image)
-        self.assertEqual(type(result), type(image))
-        if isinstance(result, torch.Tensor):
-            self.assertEqual(result.device, image.device)
-        assert_allclose(result, expected_data, type_test=False)
+        assert_allclose(result, expected_data, type_test="tensor")
 
 
 if __name__ == "__main__":

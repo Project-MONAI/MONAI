@@ -83,7 +83,7 @@ class TestGaussianSharpend(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, argments, image, expected_data):
         result = GaussianSharpend(**argments)(image)
-        assert_allclose(result["img"], expected_data, rtol=1e-4, type_test=False)
+        assert_allclose(result["img"], expected_data, rtol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":
