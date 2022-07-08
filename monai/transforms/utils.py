@@ -1602,6 +1602,7 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
     return affine @ convert_to_dst_type(scale, affine)[0]
 
+
 def attach_pre_hook(func, hook):
     """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
 
@@ -1615,6 +1616,7 @@ def attach_pre_hook(func, hook):
 
     return wrapper
 
+
 def attach_post_hook(func, hook):
     """adds `hook` after `func` calls using `func`'s return value"""
 
@@ -1624,5 +1626,7 @@ def attach_post_hook(func, hook):
         return hook(args[0], out)
 
     return wrapper
+
+
 if __name__ == "__main__":
     print_transform_backends()

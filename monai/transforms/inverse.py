@@ -214,9 +214,6 @@ class TraceableTransform(Transform):
         self.tracing = prev
 
 
-
-
-
 class InvertibleTransform(TraceableTransform):
     """Classes for invertible transforms.
 
