@@ -598,7 +598,10 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         return pickle_operations(ret, is_encode=False)  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
-        return [list(item) for item in _gen]
+        ret_list = [list(item) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret_list
+        return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 

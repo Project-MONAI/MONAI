@@ -1629,7 +1629,7 @@ def attach_post_hook(func, hook):
 
 def sync_meta_info(key, data_dict, t: bool = True):
     """given the key, sync up between metatensor `data_dict[key]` and meta_dict `data_dict[key_transforms/meta_dict]`.
-    t=True: more applied_operations is the output, t=False: less applied_operations is the output."""
+    t=True: the one with more applied_operations in metatensor vs meta_dict is the output, False: less is the output."""
     if not isinstance(data_dict, Mapping):
         return data_dict
     d = dict(data_dict)

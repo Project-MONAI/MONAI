@@ -334,14 +334,20 @@ class MapTransform(Transform):
         update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
         for MetaTensor backward compatibility 0.9.0.
         """
-        if not isinstance(data, Mapping):
+        if not isinstance(data, (list, tuple, Mapping)):
             return data
-        d = dict(data)
-        for k in data:
-            if not isinstance(data[k], MetaTensor):
-                continue
-            d = transforms.sync_meta_info(k, data, t=not isinstance(self, transforms.InvertD))
-        return d
+        is_dict = False
+        if isinstance(data, Mapping):
+            data, is_dict = [data], True
+        if not data or not isinstance(data[0], Mapping):
+            return data[0] if is_dict else data
+        list_d = [dict(x) for x in data]  # list of dict for crop samples
+        for idx, dict_i in enumerate(list_d):
+            for k in dict_i:
+                if not isinstance(dict_i[k], MetaTensor):
+                    continue
+                list_d[idx] = transforms.sync_meta_info(k, dict_i, t=not isinstance(self, transforms.InvertD))
+        return list_d[0] if is_dict else list_d
 
     @abstractmethod
     def __call__(self, data):
