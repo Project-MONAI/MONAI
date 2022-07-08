@@ -14,46 +14,45 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import Compose, RandSpatialCropSamplesd, ToTensord
-from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from monai.transforms import Compose, DivisiblePadd, RandSpatialCropSamplesd
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
     {"img": np.arange(81).reshape(3, 3, 3, 3), "seg": np.arange(81, 0, -1).reshape(3, 3, 3, 3)},
-    [(3, 3, 3, 2), (3, 2, 2, 2), (3, 3, 3, 2), (3, 3, 2, 2)],
+    [(3, 2, 2, 2), (3, 2, 3, 3), (3, 2, 3, 2), (3, 2, 3, 2)],
     {
         "img": np.array(
             [
-                [[[0, 1], [3, 4]], [[9, 10], [12, 13]], [[18, 19], [21, 22]]],
-                [[[27, 28], [30, 31]], [[36, 37], [39, 40]], [[45, 46], [48, 49]]],
-                [[[54, 55], [57, 58]], [[63, 64], [66, 67]], [[72, 73], [75, 76]]],
+                [[[1, 2], [4, 5], [7, 8]], [[10, 11], [13, 14], [16, 17]]],
+                [[[28, 29], [31, 32], [34, 35]], [[37, 38], [40, 41], [43, 44]]],
+                [[[55, 56], [58, 59], [61, 62]], [[64, 65], [67, 68], [70, 71]]],
             ]
         ),
         "seg": np.array(
             [
-                [[[81, 80], [78, 77]], [[72, 71], [69, 68]], [[63, 62], [60, 59]]],
-                [[[54, 53], [51, 50]], [[45, 44], [42, 41]], [[36, 35], [33, 32]]],
-                [[[27, 26], [24, 23]], [[18, 17], [15, 14]], [[9, 8], [6, 5]]],
+                [[[80, 79], [77, 76], [74, 73]], [[71, 70], [68, 67], [65, 64]]],
+                [[[53, 52], [50, 49], [47, 46]], [[44, 43], [41, 40], [38, 37]]],
+                [[[26, 25], [23, 22], [20, 19]], [[17, 16], [14, 13], [11, 10]]],
             ]
         ),
     },
 ]
 
 TEST_CASE_2 = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASE_2.append(
         [
             {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False},
             {"img": p(np.arange(81).reshape(3, 3, 3, 3)), "seg": p(np.arange(81, 0, -1).reshape(3, 3, 3, 3))},
             [
+                (3, 2, 2, 3),
+                (3, 2, 2, 3),
                 (3, 3, 3, 3),
                 (3, 2, 3, 3),
-                (3, 2, 2, 3),
+                (3, 3, 3, 3),
                 (3, 2, 3, 3),
-                (3, 3, 3, 3),
-                (3, 3, 3, 3),
-                (3, 2, 2, 3),
+                (3, 2, 3, 3),
                 (3, 3, 2, 3),
             ],
             {
@@ -90,10 +89,10 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
             self.assertTupleEqual(item["img"].shape, expected)
             self.assertTupleEqual(item["seg"].shape, expected)
         for i, item in enumerate(result):
-            self.assertEqual(item[PostFix.meta("img")]["patch_index"], i)
-            self.assertEqual(item[PostFix.meta("seg")]["patch_index"], i)
-        assert_allclose(item["img"], expected_last["img"], type_test=True)
-        assert_allclose(item["seg"], expected_last["seg"], type_test=True)
+            self.assertEqual(item["img"].meta["patch_index"], i)
+            self.assertEqual(item["seg"].meta["patch_index"], i)
+        assert_allclose(item["img"], expected_last["img"], type_test=False)
+        assert_allclose(item["seg"], expected_last["seg"], type_test=False)
 
     def test_deep_copy(self):
         data = {"img": np.ones((1, 10, 11, 12))}
@@ -101,11 +100,11 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         sampler = RandSpatialCropSamplesd(
             keys=["img"], roi_size=(3, 3, 3), num_samples=num_samples, random_center=True, random_size=False
         )
-        transform = Compose([ToTensord(keys="img"), sampler])
+        transform = Compose([DivisiblePadd(keys="img", k=5), sampler])
         samples = transform(data)
         self.assertEqual(len(samples), num_samples)
         for sample in samples:
-            self.assertEqual(len(sample["img_transforms"]), len(transform))
+            self.assertEqual(len(sample["img"].applied_operations), len(transform))
 
 
 if __name__ == "__main__":

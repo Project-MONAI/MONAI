@@ -65,7 +65,15 @@ class TestSENET(unittest.TestCase):
 class TestPretrainedSENET(unittest.TestCase):
     def setUp(self):
         self.original_urls = se_mod.SE_NET_MODELS.copy()
-        if test_is_quick():
+        replace_url = test_is_quick()
+        if not replace_url:
+            try:
+                SEResNet50(pretrained=True, spatial_dims=2, in_channels=3, num_classes=2)
+            except OSError as rt_e:
+                print(rt_e)
+                if "certificate" in str(rt_e):  # [SSL: CERTIFICATE_VERIFY_FAILED]
+                    replace_url = True
+        if replace_url:
             testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
             testing_data_urls = {
                 "senet154": {

@@ -13,180 +13,227 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data.meta_obj import set_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientation, create_rotate, create_translate
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for device in TEST_DEVICES:
     TESTS.append(
         [
-            p,
             {"axcodes": "RAS"},
-            np.arange(12).reshape((2, 1, 2, 3)),
-            {"affine": np.eye(4)},
-            np.arange(12).reshape((2, 1, 2, 3)),
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.eye(4),
+            torch.arange(12).reshape((2, 1, 2, 3)),
             "RAS",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "ALS"},
-            np.arange(12).reshape((2, 1, 2, 3)),
-            {"affine": np.diag([-1, -1, 1, 1])},
-            np.array([[[[3, 4, 5]], [[0, 1, 2]]], [[[9, 10, 11]], [[6, 7, 8]]]]),
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(np.diag([-1, -1, 1, 1])),
+            torch.tensor([[[[3, 4, 5]], [[0, 1, 2]]], [[[9, 10, 11]], [[6, 7, 8]]]]),
             "ALS",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "RAS"},
-            np.arange(12).reshape((2, 1, 2, 3)),
-            {"affine": np.diag([-1, -1, 1, 1])},
-            np.array([[[[3, 4, 5], [0, 1, 2]]], [[[9, 10, 11], [6, 7, 8]]]]),
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(np.diag([-1, -1, 1, 1])),
+            torch.tensor([[[[3, 4, 5], [0, 1, 2]]], [[[9, 10, 11], [6, 7, 8]]]]),
             "RAS",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "AL"},
-            np.arange(6).reshape((2, 1, 3)),
-            {"affine": np.eye(3)},
-            np.array([[[0], [1], [2]], [[3], [4], [5]]]),
+            torch.arange(6).reshape((2, 1, 3)),
+            torch.eye(3),
+            torch.tensor([[[0], [1], [2]], [[3], [4], [5]]]),
             "AL",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "L"},
-            np.arange(6).reshape((2, 3)),
-            {"affine": np.eye(2)},
-            np.array([[2, 1, 0], [5, 4, 3]]),
+            torch.arange(6).reshape((2, 3)),
+            torch.eye(2),
+            torch.tensor([[2, 1, 0], [5, 4, 3]]),
             "L",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "L"},
-            np.arange(6).reshape((2, 3)),
-            {"affine": np.eye(2)},
-            np.array([[2, 1, 0], [5, 4, 3]]),
+            torch.arange(6).reshape((2, 3)),
+            torch.eye(2),
+            torch.tensor([[2, 1, 0], [5, 4, 3]]),
             "L",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "L"},
-            np.arange(6).reshape((2, 3)),
-            {"affine": np.diag([-1, 1])},
-            np.arange(6).reshape((2, 3)),
+            torch.arange(6).reshape((2, 3)),
+            torch.as_tensor(np.diag([-1, 1])),
+            torch.arange(6).reshape((2, 3)),
             "L",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "LPS"},
-            np.arange(12).reshape((2, 1, 2, 3)),
-            {
-                "affine": create_translate(3, (10, 20, 30))
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(
+                create_translate(3, (10, 20, 30))
                 @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
                 @ np.diag([-1, 1, 1, 1])
-            },
-            np.array([[[[2, 5]], [[1, 4]], [[0, 3]]], [[[8, 11]], [[7, 10]], [[6, 9]]]]),
+            ),
+            torch.tensor([[[[2, 5]], [[1, 4]], [[0, 3]]], [[[8, 11]], [[7, 10]], [[6, 9]]]]),
             "LPS",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"as_closest_canonical": True},
-            np.arange(12).reshape((2, 1, 2, 3)),
-            {
-                "affine": create_translate(3, (10, 20, 30))
+            torch.arange(12).reshape((2, 1, 2, 3)),
+            torch.as_tensor(
+                create_translate(3, (10, 20, 30))
                 @ create_rotate(3, (np.pi / 2, np.pi / 2, np.pi / 4))
                 @ np.diag([-1, 1, 1, 1])
-            },
-            np.array([[[[0, 3]], [[1, 4]], [[2, 5]]], [[[6, 9]], [[7, 10]], [[8, 11]]]]),
+            ),
+            torch.tensor([[[[0, 3]], [[1, 4]], [[2, 5]]], [[[6, 9]], [[7, 10]], [[8, 11]]]]),
             "RAS",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"as_closest_canonical": True},
-            np.arange(6).reshape((1, 2, 3)),
-            {"affine": create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])},
-            np.array([[[3, 0], [4, 1], [5, 2]]]),
+            torch.arange(6).reshape((1, 2, 3)),
+            torch.as_tensor(create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])),
+            torch.tensor([[[3, 0], [4, 1], [5, 2]]]),
             "RA",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "LP"},
-            np.arange(6).reshape((1, 2, 3)),
-            {"affine": create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])},
-            np.array([[[2, 5], [1, 4], [0, 3]]]),
+            torch.arange(6).reshape((1, 2, 3)),
+            torch.as_tensor(create_translate(2, (10, 20)) @ create_rotate(2, (np.pi / 3)) @ np.diag([-1, -0.2, 1])),
+            torch.tensor([[[2, 5], [1, 4], [0, 3]]]),
             "LP",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"axcodes": "LPID", "labels": tuple(zip("LPIC", "RASD"))},
-            np.zeros((1, 2, 3, 4, 5)),
-            {"affine": np.diag([-1, -0.2, -1, 1, 1])},
-            np.zeros((1, 2, 3, 4, 5)),
+            torch.zeros((1, 2, 3, 4, 5)),
+            torch.as_tensor(np.diag([-1, -0.2, -1, 1, 1])),
+            torch.zeros((1, 2, 3, 4, 5)),
             "LPID",
+            *device,
         ]
     )
     TESTS.append(
         [
-            p,
             {"as_closest_canonical": True, "labels": tuple(zip("LPIC", "RASD"))},
-            np.zeros((1, 2, 3, 4, 5)),
-            {"affine": np.diag([-1, -0.2, -1, 1, 1])},
-            np.zeros((1, 2, 3, 4, 5)),
+            torch.zeros((1, 2, 3, 4, 5)),
+            torch.as_tensor(np.diag([-1, -0.2, -1, 1, 1])),
+            torch.zeros((1, 2, 3, 4, 5)),
             "RASD",
+            *device,
         ]
     )
+
+TESTS_TORCH = []
+for track_meta in (False, True):
+    for device in TEST_DEVICES:
+        TESTS_TORCH.append([{"axcodes": "LPS"}, torch.zeros((1, 3, 4, 5)), track_meta, *device])
 
 
 ILL_CASES = [
-    # no axcodes or as_cloest_canonical
-    [{}, np.arange(6).reshape((2, 3)), "L"],
     # too short axcodes
-    [{"axcodes": "RA"}, np.arange(12).reshape((2, 1, 2, 3)), {"affine": np.eye(4)}],
+    [{"axcodes": "RA"}, torch.arange(12).reshape((2, 1, 2, 3)), torch.eye(4)]
 ]
 
 
 class TestOrientationCase(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_ornt(self, in_type, init_param, img, data_param, expected_data, expected_code):
-        img = in_type(img)
+    def test_ornt_meta(
+        self,
+        init_param,
+        img: torch.Tensor,
+        affine: torch.Tensor,
+        expected_data: torch.Tensor,
+        expected_code: str,
+        device,
+    ):
+        img = MetaTensor(img, affine=affine).to(device)
         ornt = Orientation(**init_param)
-        res = ornt(img, **data_param)
-        if not isinstance(res, tuple):
-            assert_allclose(res, in_type(expected_data))
-            return
-        assert_allclose(res[0], in_type(expected_data))
-        original_affine = data_param["affine"]
-        np.testing.assert_allclose(original_affine, res[1])
-        new_code = nib.orientations.aff2axcodes(res[2], labels=ornt.labels)
+        res: MetaTensor = ornt(img)
+        assert_allclose(res, expected_data.to(device))
+        new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)
         self.assertEqual("".join(new_code), expected_code)
 
+    @parameterized.expand(TESTS_TORCH)
+    def test_ornt_torch(self, init_param, img: torch.Tensor, track_meta: bool, device):
+        set_track_meta(track_meta)
+        ornt = Orientation(**init_param)
+
+        img = img.to(device)
+        expected_data = img.clone()
+        expected_code = ornt.axcodes
+
+        res = ornt(img)
+        assert_allclose(res, expected_data)
+        if track_meta:
+            self.assertIsInstance(res, MetaTensor)
+            new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)
+            self.assertEqual("".join(new_code), expected_code)
+        else:
+            self.assertIsInstance(res, torch.Tensor)
+            self.assertNotIsInstance(res, MetaTensor)
+
     @parameterized.expand(ILL_CASES)
-    def test_bad_params(self, init_param, img, data_param):
+    def test_bad_params(self, init_param, img: torch.Tensor, affine: torch.Tensor):
+        img = MetaTensor(img, affine=affine)
         with self.assertRaises(ValueError):
-            Orientation(**init_param)(img, **data_param)
+            Orientation(**init_param)(img)
+
+    @parameterized.expand(TEST_DEVICES)
+    def test_inverse(self, device):
+        img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
+        affine = torch.tensor(
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device=device
+        )
+        meta = {"fname": "somewhere"}
+        img = MetaTensor(img_t, affine=affine, meta=meta)
+        tr = Orientation("LPS")
+        # check that image and affine have changed
+        img = tr(img)
+        self.assertNotEqual(img.shape, img_t.shape)
+        self.assertGreater((affine - img.affine).max(), 0.5)
+        # check that with inverse, image affine are back to how they were
+        img = tr.inverse(img)
+        self.assertEqual(img.shape, img_t.shape)
+        self.assertLess((affine - img.affine).max(), 1e-2)
 
 
 if __name__ == "__main__":

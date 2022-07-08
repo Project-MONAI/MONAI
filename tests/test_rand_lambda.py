@@ -10,11 +10,15 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
+from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Randomizable
 from monai.transforms.utility.array import RandLambda
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 class RandTest(Randomizable):
@@ -27,26 +31,56 @@ class RandTest(Randomizable):
 
     def __call__(self, data):
         self.randomize()
-        return data + self._a
+        return deepcopy(data) + self._a
 
 
 class TestRandLambda(unittest.TestCase):
-    def test_rand_lambdad_identity(self):
-        img = np.zeros((10, 10))
+    def check(self, tr: RandLambda, img, img_orig_type, out, expected=None):
+        # input shouldn't change
+        self.assertIsInstance(img, img_orig_type)
+        if isinstance(img, MetaTensor):
+            self.assertEqual(len(img.applied_operations), 0)
+        # output data matches expected
+        assert_allclose(expected, out, type_test=False)
+        # output type is MetaTensor with 1 appended operation
+        self.assertIsInstance(out, MetaTensor)
+        self.assertEqual(len(out.applied_operations), 1)
+
+        # inverse
+        inv = tr.inverse(out)
+        # after inverse, input image remains unchanged
+        self.assertIsInstance(img, img_orig_type)
+        if isinstance(img, MetaTensor):
+            self.assertEqual(len(img.applied_operations), 0)
+        # after inverse, output is MetaTensor with 0 applied operations
+        self.assertIsInstance(inv, MetaTensor)
+        self.assertEqual(len(inv.applied_operations), 0)
+
+    @parameterized.expand([[p] for p in TEST_NDARRAYS])
+    def test_rand_lambdad_identity(self, t):
+        img = t(np.zeros((10, 10)))
+        img_t = type(img)
 
         test_func = RandTest()
         test_func.set_random_state(seed=134)
         expected = test_func(img)
         test_func.set_random_state(seed=134)
-        ret = RandLambda(func=test_func)(img)
-        np.testing.assert_allclose(expected, ret)
-        ret = RandLambda(func=test_func, prob=0.0)(img)
-        np.testing.assert_allclose(img, ret)
 
+        # default prob
+        tr = RandLambda(func=test_func)
+        ret = tr(img)
+        self.check(tr, img, img_t, ret, expected)
+
+        # prob = 0
+        tr = RandLambda(func=test_func, prob=0.0)
+        ret = tr(img)
+        self.check(tr, img, img_t, ret, expected=img)
+
+        # prob = 0.5
         trans = RandLambda(func=test_func, prob=0.5)
         trans.set_random_state(seed=123)
         ret = trans(img)
-        np.testing.assert_allclose(img, ret)
+        self.check(trans, img, img_t, ret, expected=img)
 
 
 if __name__ == "__main__":
