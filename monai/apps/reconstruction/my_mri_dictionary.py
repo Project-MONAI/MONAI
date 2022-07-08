@@ -252,7 +252,9 @@ class DetailedNormalizeIntensityd(MapTransform):
                 subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
             if self.default_normalizer.divisor is None:
-                divisor = np.array([val.std() if isinstance(val, ndarray) else val.std().item() for val in d[key]])
+                divisor = np.array(
+                    [val.std() if isinstance(val, ndarray) else val.std(unbiased=False).item() for val in d[key]]
+                )
             else:
                 divisor = self.default_normalizer.divisor  # type: ignore
 
