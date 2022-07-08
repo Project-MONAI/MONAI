@@ -9,6 +9,7 @@ TEST_CASE_1:
   - _target_: LoadImageD
     keys: "@input_keys"
     ensure_channel_first: True
+    image_only: True
   - _target_: ToDeviced
     keys: "@input_keys"
     device: "@test_device"
@@ -40,6 +41,7 @@ TEST_CASE_2:
   - _target_: LoadImaged
     keys: "@input_keys"
     ensure_channel_first: False
+    image_only: True
   - _target_: ToDeviced
     keys: "@input_keys"
     device: "@test_device"
@@ -99,6 +101,7 @@ TEST_CASE_3:
   - _target_: LoadImageD
     keys: "@input_keys"
     ensure_channel_first: True
+    image_only: True
   - _target_: CenterScaleCropD
     keys: "@input_keys"
     roi_scale: 0.98
