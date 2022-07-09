@@ -146,4 +146,4 @@ def compute_meaniou(
 
     if ignore_empty is True:
         return torch.where(y_o > 0, (intersection) / union, torch.tensor(float("nan"), device=y_o.device))
-    return torch.where(denominator > 0, (intersection) / union, torch.tensor(1.0, device=y_o.device))
+    return torch.where(union > 0, (intersection) / union, torch.tensor(1.0, device=y_o.device))
