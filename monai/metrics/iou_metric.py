@@ -19,7 +19,7 @@ from monai.utils import MetricReduction
 from .metric import CumulativeIterationMetric
 
 
-class IOUMetric(CumulativeIterationMetric):
+class IoUMetric(CumulativeIterationMetric):
     """
     Compute average IOU score between two tensors. It can support both multi-classes and multi-labels tasks.
     Input `y_pred` is compared with ground truth `y`.
