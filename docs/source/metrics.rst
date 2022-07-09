@@ -38,13 +38,13 @@ Metrics
 
 .. autoclass:: DiceMetric
     :members:
-    
+
 `Mean IoU`
 -----------
 .. autofunction:: compute_meaniou
 
 .. autoclass:: IoUMetric
-    :members:    
+    :members:
 
 `Generalized Dice Score`
 ------------------------
