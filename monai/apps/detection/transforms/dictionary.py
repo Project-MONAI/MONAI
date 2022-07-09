@@ -43,7 +43,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
 
@@ -1174,9 +1174,8 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        spatial_dims = len(d[self.image_keys[0]].shape) - 1
         image_size = d[self.image_keys[0]].shape[1:]
-        self.spatial_size = ensure_tuple_rep(self.spatial_size_, spatial_dims)
+        self.spatial_size = fall_back_tuple(self.spatial_size_, image_size)
 
         # randomly sample crop centers
         boxes = d[self.box_keys]
