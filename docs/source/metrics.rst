@@ -39,6 +39,13 @@ Metrics
 .. autoclass:: DiceMetric
     :members:
 
+ `IOU Score`
+-----------
+.. autofunction:: compute_iou
+
+.. autoclass:: IOUMetric
+    :members:
+
 `Generalized Dice Score`
 ------------------------
 .. autofunction:: compute_generalized_dice
