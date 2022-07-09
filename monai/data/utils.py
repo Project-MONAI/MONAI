@@ -393,11 +393,18 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
 
 
 def pickle_operations(data, key=TraceKeys.KEY_SUFFIX, is_encode: bool = True):
-    """applied_operations are dictionaries with varying sizes, converting them to bytes so that we can (de-)collate."""
+    """
+    Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
+
+    Args:
+        data: a list or dictionary with substructures to be pickled/unpickled.
+        key: the key suffix indicating the target substructures, defaults to "_transforms".
+        is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
+    """
     if isinstance(data, Mapping):
         data = dict(data)
         for k in data:
-            if f"{k}".endswith(TraceKeys.KEY_SUFFIX):
+            if f"{k}".endswith(key):
                 if is_encode and not isinstance(data[k], bytes):
                     data[k] = pickle.dumps(data[k], 0)
                 if not is_encode and isinstance(data[k], bytes):

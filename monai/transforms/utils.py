@@ -108,8 +108,7 @@ __all__ = [
     "convert_to_contiguous",
     "get_unique_labels",
     "scale_affine",
-    "attach_pre_hook",
-    "attach_post_hook",
+    "attach_hook",
     "sync_meta_info",
 ]
 
@@ -1605,31 +1604,32 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
     return affine @ convert_to_dst_type(scale, affine)[0]
 
 
-def attach_pre_hook(func, hook):
-    """adds `hook` before `func` calls, `func` will use the returned data dict from `hook` as the input."""
+def attach_hook(func, hook, mode="pre"):
+    """
+    Adds `hook` before or after a `func` call. If mode is "pre", the wrapper will call hook then func.
+    If the mode is "post", the wrapper will call func then hook.
+    """
+    supported = {"pre", "post"}
+    if look_up_option(mode, supported) == "pre":
+        _hook = hook
+        _func = func
+    else:
+        _hook = func
+        _func = hook
 
     @wraps(func)
     def wrapper(inst, data):
-        data = hook(inst, data)
-        return func(inst, data)
-
-    return wrapper
-
-
-def attach_post_hook(func, hook):
-    """adds `hook` after `func` calls using `func`'s return value"""
-
-    @wraps(func)
-    def wrapper(inst, data):
-        out = func(inst, data)
-        return hook(inst, out)
+        data = _hook(inst, data)
+        return _func(inst, data)
 
     return wrapper
 
 
 def sync_meta_info(key, data_dict, t: bool = True):
-    """given the key, sync up between metatensor `data_dict[key]` and meta_dict `data_dict[key_transforms/meta_dict]`.
-    t=True: the one with more applied_operations in metatensor vs meta_dict is the output, False: less is the output."""
+    """
+    Given the key, sync up between metatensor `data_dict[key]` and meta_dict `data_dict[key_transforms/meta_dict]`.
+    t=True: the one with more applied_operations in metatensor vs meta_dict is the output, False: less is the output.
+    """
     if not isinstance(data_dict, Mapping):
         return data_dict
     d = dict(data_dict)

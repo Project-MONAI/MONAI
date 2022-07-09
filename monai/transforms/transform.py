@@ -314,10 +314,12 @@ class MapTransform(Transform):
 
     def __new__(cls, *args, **kwargs):
         if config.USE_META_DICT:
-            cls.__call__ = transforms.attach_post_hook(cls.__call__, MapTransform.call_update)
+            # call_update after MapTransform.__call__
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")
 
             if hasattr(cls, "inverse"):
-                cls.inverse = transforms.attach_pre_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
+                # inverse_update before InvertibleTransform.inverse
+                cls.inverse = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
