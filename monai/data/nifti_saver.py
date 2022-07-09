@@ -45,8 +45,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
@@ -99,8 +99,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: str = GridSampleMode(mode)
+        self.padding_mode: str = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
         self.output_dtype = output_dtype

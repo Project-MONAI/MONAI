@@ -21,6 +21,7 @@ import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
     ForegroundMask,
@@ -55,7 +56,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix
 
@@ -197,11 +198,15 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random noise
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.rand_gaussian_noise.randomize(d[first_key])  # type: ignore
@@ -272,6 +277,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         for key in self.key_iterator(d):
@@ -398,6 +405,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift factor
@@ -494,6 +503,8 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift factor
@@ -588,6 +599,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random scale factor
@@ -641,11 +654,15 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random bias factor
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])  # type: ignore
@@ -833,6 +850,8 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random gamma value
@@ -1046,6 +1065,8 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random sigma
@@ -1161,6 +1182,8 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random sigma1, sigma2, etc.
@@ -1209,6 +1232,8 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift params
@@ -1270,6 +1295,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random noise params
@@ -1454,6 +1481,8 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         for key in self.key_iterator(d):
@@ -1530,11 +1559,15 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.dropper.randomize(d[first_key].shape[1:])
@@ -1599,11 +1632,15 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.shuffle.randomize(d[first_key].shape[1:])

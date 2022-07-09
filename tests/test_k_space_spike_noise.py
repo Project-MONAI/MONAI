@@ -53,9 +53,7 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
         out1 = t(deepcopy(im))
         out2 = t(deepcopy(im))
 
-        self.assertEqual(type(im), type(out1))
         if isinstance(out1, torch.Tensor):
-            self.assertEqual(im.device, out1.device)
             out1 = out1.cpu()
             out2 = out2.cpu()
 
@@ -69,9 +67,7 @@ class TestKSpaceSpikeNoise(unittest.TestCase):
         t = KSpaceSpikeNoise(loc, k_intensity)
         out = t(im)
 
-        self.assertEqual(type(im), type(out))
         if isinstance(out, torch.Tensor):
-            self.assertEqual(im.device, out.device)
             out = out.cpu()
 
         if k_intensity is not None:

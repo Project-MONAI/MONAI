@@ -76,12 +76,12 @@ TEST_CASE_6 = [
 
 
 class TestActivations(unittest.TestCase):
-    @parameterized.expand(TEST_CASES[:3])
+    @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = Activations(**input_param)(img)
 
         def _compare(ret, out, shape):
-            assert_allclose(ret, out, rtol=1e-3)
+            assert_allclose(ret, out, rtol=1e-3, type_test=False)
             self.assertTupleEqual(ret.shape, shape)
 
         if isinstance(result, (list, tuple)):
