@@ -40,7 +40,7 @@ Metrics
     :members:
 
 `Mean IoU`
------------
+----------
 .. autofunction:: compute_meaniou
 
 .. autoclass:: IoUMetric
