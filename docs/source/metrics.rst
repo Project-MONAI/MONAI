@@ -43,7 +43,7 @@ Metrics
 ----------
 .. autofunction:: compute_meaniou
 
-.. autoclass:: IoUMetric
+.. autoclass:: MeanIoU
     :members:
 
 `Generalized Dice Score`
