@@ -83,7 +83,7 @@ class TestInvert(unittest.TestCase):
         original_name = original.meta["filename_or_obj"]
         self.assertEqual(reverted_name, original_name)
         print("invert diff", reverted.size - n_good)
-        self.assertTrue((reverted.size - n_good) < 50000, f"diff. {reverted.size - n_good}")
+        self.assertTrue((reverted.size - n_good) < 300000, f"diff. {reverted.size - n_good}")
         set_determinism(seed=None)
 
 
