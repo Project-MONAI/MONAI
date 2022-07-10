@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import IoUMetric, compute_meaniou
+from monai.metrics import MeanIoU, compute_meaniou
 
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
@@ -194,7 +194,7 @@ class TestComputeMeanIoU(unittest.TestCase):
         result = compute_meaniou(**input_data)
         self.assertTrue(np.allclose(np.isnan(result.cpu().numpy()), expected_value))
 
-    # IoUMetric class tests
+    # MeanIoU class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
 
@@ -202,7 +202,7 @@ class TestComputeMeanIoU(unittest.TestCase):
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
-        iou_metric = IoUMetric(**input_data)
+        iou_metric = MeanIoU(**input_data)
         iou_metric(**vals)
         result = iou_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
@@ -210,7 +210,7 @@ class TestComputeMeanIoU(unittest.TestCase):
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
     def test_nans_class(self, params, input_data, expected_value):
 
-        iou_metric = IoUMetric(**params)
+        iou_metric = MeanIoU(**params)
         iou_metric(**input_data)
         result, _ = iou_metric.aggregate()
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
