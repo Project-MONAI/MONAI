@@ -198,7 +198,7 @@ class TestComputeMeanIoU(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
 
-        # same test as for compute_iou
+        # same test as for compute_meaniou
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
