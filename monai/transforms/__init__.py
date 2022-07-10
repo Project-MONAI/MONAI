@@ -257,6 +257,7 @@ from .post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
+    Invert,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,

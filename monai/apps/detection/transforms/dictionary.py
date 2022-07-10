@@ -136,7 +136,7 @@ class ConvertBoxModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             src_mode, dst_mode = tr[TraceKeys.EXTRA_INFO]["src"], tr[TraceKeys.EXTRA_INFO]["dst"]
@@ -191,7 +191,7 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             original_mode = tr[TraceKeys.EXTRA_INFO]["mode"]
@@ -280,7 +280,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             affine = transform["extra_info"]["affine"]
@@ -594,7 +594,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -675,7 +675,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -752,7 +752,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1274,7 +1274,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1360,7 +1360,7 @@ class RandRotateBox90d(RandRotate90d):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         if self._rand_k % 4 == 0:
             return d
 

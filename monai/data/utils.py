@@ -91,6 +91,7 @@ __all__ = [
     "remove_keys",
     "remove_extra_metadata",
     "get_extra_metadata_keys",
+    "PICKLE_KEY_SUFFIX",
 ]
 
 # module to be used by `torch.save`
@@ -392,13 +393,16 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
-def pickle_operations(data, key=TraceKeys.KEY_SUFFIX, is_encode: bool = True):
+PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
+
+
+def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
     """
     Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
 
     Args:
         data: a list or dictionary with substructures to be pickled/unpickled.
-        key: the key suffix indicating the target substructures, defaults to "_transforms".
+        key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
         is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
     """
     if isinstance(data, Mapping):

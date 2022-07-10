@@ -542,8 +542,8 @@ class Invertd(MapTransform):
 
     def __init__(
         self,
-        keys: KeysCollection = "",
-        transform: Optional[InvertibleTransform] = None,
+        keys: KeysCollection,
+        transform: InvertibleTransform,
         orig_keys: Optional[KeysCollection] = None,
         meta_keys: Optional[KeysCollection] = None,
         orig_meta_keys: Optional[KeysCollection] = None,

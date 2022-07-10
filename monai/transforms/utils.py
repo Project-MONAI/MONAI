@@ -1611,11 +1611,9 @@ def attach_hook(func, hook, mode="pre"):
     """
     supported = {"pre", "post"}
     if look_up_option(mode, supported) == "pre":
-        _hook = hook
-        _func = func
+        _hook, _func = hook, func
     else:
-        _hook = func
-        _func = hook
+        _hook, _func = func, hook
 
     @wraps(func)
     def wrapper(inst, data):

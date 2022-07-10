@@ -21,10 +21,17 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
-from monai.transforms.utils import fill_holes, get_largest_connected_component_mask, get_unique_labels
+from monai.transforms.utils import (
+    convert_applied_interp_mode,
+    fill_holes,
+    get_largest_connected_component_mask,
+    get_unique_labels,
+)
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import (
     TransformBackends,
@@ -46,6 +53,7 @@ __all__ = [
     "MeanEnsemble",
     "ProbNMS",
     "VoteEnsemble",
+    "Invert",
 ]
 
 
@@ -765,3 +773,45 @@ class ProbNMS(Transform):
             prob_map[slices] = 0
 
         return outputs
+
+
+class Invert(Transform):
+    """
+    Utility transform to automatically invert the previously applied transforms.
+    """
+
+    def __init__(
+        self,
+        transform: Optional[InvertibleTransform] = None,
+        nearest_interp: Union[bool, Sequence[bool]] = True,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
+        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+    ) -> None:
+        """
+        Args:
+            transform: the previously applied transform.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
+            device: move the inverted results to a target device before `post_func`, default to "cpu".
+            post_func: postprocessing for the inverted MetaTensor, should be a callable function.
+        """
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
+        self.transform = transform
+        self.nearest_interp = nearest_interp
+        self.device = device
+        self.post_func = post_func
+
+    def __call__(self, data):
+        if not isinstance(data, MetaTensor):
+            return data
+
+        if self.nearest_interp:
+            data.applied_operations = convert_applied_interp_mode(
+                trans_info=data.applied_operations, mode="nearest", align_corners=None
+            )
+
+        data = data.detach()
+        inverted = self.transform.inverse(data)
+        inverted = self.post_func(inverted.to(self.device))
+        return inverted
