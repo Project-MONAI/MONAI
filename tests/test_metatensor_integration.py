@@ -16,6 +16,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
+from monai import config as monai_config
 from monai.bundle import ConfigParser
 from monai.data import CacheDataset, DataLoader, MetaTensor, decollate_batch
 from monai.data.utils import TraceKeys
@@ -54,7 +55,7 @@ class TestMetaTensorIntegration(unittest.TestCase):
         config = ConfigParser()
         config.read_config(TEST_CASES)
         config["input_keys"] = keys
-        test_case = config.get_parsed_content(id=case_id, instantiate=True)  # transform instance
+        test_case = config.get_parsed_content(id=case_id, instantiate=True, lazy=False)  # transform instance
 
         dataset = CacheDataset(self.files, transform=test_case)
         loader = DataLoader(dataset, batch_size=3, shuffle=True)
@@ -65,7 +66,10 @@ class TestMetaTensorIntegration(unittest.TestCase):
 
         # test forward patches
         loaded = out[0]
-        self.assertEqual(len(loaded), len(keys))
+        if not monai_config.USE_META_DICT:
+            self.assertEqual(len(loaded), len(keys))
+        else:
+            self.assertNotEqual(len(loaded), len(keys))
         img, seg = loaded[keys[0]], loaded[keys[1]]
         expected = config.get_parsed_content(id=f"{case_id}_answer", instantiate=True)  # expected results
         self.assertEqual(expected["load_shape"], list(x[keys[0]].shape))
