@@ -221,7 +221,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.sp_transform.inverse(d[key])
         return d
@@ -289,7 +289,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resampler.inverse(d[key])
         return d
@@ -384,7 +384,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.spacing_transform.inverse(d[key])
         return d
@@ -440,7 +440,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.ornt_transform.inverse(d[key])
         return d
@@ -473,7 +473,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
         return d
@@ -595,7 +595,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resizer.inverse(d[key])
         return d
@@ -696,7 +696,7 @@ class Affined(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.affine.inverse(d[key])
         return d
@@ -1143,7 +1143,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.flipper.inverse(d[key])
         return d
@@ -1197,7 +1197,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if not xform[TraceKeys.DO_TRANSFORM]:
@@ -1325,7 +1325,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
         return d
@@ -1423,7 +1423,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if xform[TraceKeys.DO_TRANSFORM]:
@@ -1491,7 +1491,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.zoomer.inverse(d[key])
         return d
@@ -1591,7 +1591,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if xform[TraceKeys.DO_TRANSFORM]:
