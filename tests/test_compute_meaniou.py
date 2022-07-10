@@ -44,7 +44,7 @@ TEST_CASE_2 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
         ),
         "include_background": False,
     },
-    [[0.3333, 0.0000],[0.5000, 0.5000]],
+    [[0.3333, 0.0000], [0.5000, 0.5000]],
 ]
 
 # should return Nan for all labels=0 case and skip for MeanIoU
