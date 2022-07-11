@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional
+from typing import Dict
 
 from monai.fl.utils.constants import WeightType
 
@@ -22,12 +22,7 @@ class ExchangeObject(dict):
     """
 
     def __init__(
-        self,
-        weights=None,
-        optim=None,
-        metrics: Optional[Dict] = None,
-        weight_type: Optional[Dict] = None,
-        statistics: Optional[Dict] = None,
+        self, weights=None, optim=None, metrics: Dict = None, weight_type: Dict = None, statistics: Dict = None
     ):
         super().__init__()
         self.weights = weights
@@ -65,16 +60,20 @@ class ExchangeObject(dict):
     @weight_type.setter
     def weight_type(self, weight_type):
         if weight_type is not None:
-            if weight_type not in [WeightType.WEIGHTS, WeightType.WEIGHT_DIFF]:
+            if weight_type not in [WeightType.WEIGHTS, WeightType.WEIGHT_DIFF]:  # TODO: get all WeightType options?
                 raise ValueError(f"Expected weight type to be either {WeightType.WEIGHTS} or {WeightType.WEIGHT_DIFF}")
         self._weight_type = weight_type
 
+    # TODO: add self validation functions?
     def is_valid_weights(self):
         if not self.weights:
+            # raise ValueError(f"ExchangeObject doesn't contain a model")
             return False
         if not self.weight_type:
+            # raise ValueError(f"ExchangeObject doesn't set weight type")
             return False
         return True
 
+    # TODO: implement better summary function?
     def summary(self):
         return dir(self)

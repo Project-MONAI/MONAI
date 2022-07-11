@@ -20,27 +20,27 @@ class ClientAlgo(abc.ABC):
     To define a new algo script, subclass this class and implement the
     following abstract methods:
 
-        - #Algo.train()
-        - #Algo.get_weights()
-        - #Algo.evaluate()
+    - #Algo.train()
+    - #Algo.get_weights()
+    - #Algo.predict()
 
     initialize() and finalize() can be optionally be implemented to help with lifecycle management of the object.
     """
 
-    def initialize(self, extra=None):
+    def initialize(self, extra={}):
         """call to initialize the ClientAlgo class"""
         pass
 
-    def finalize(self, extra=None):
+    def finalize(self, extra={}):
         """call to finalize the ClientAlgo class"""
         pass
 
-    def abort(self, extra=None):
-        """call to abort the ClientAlgo training or evaluation"""
+    def abort(self, extra={}):
+        """call to abort the ClientAlgo training or prediction"""
         pass
 
     @abc.abstractmethod
-    def train(self, data: ExchangeObject, extra=None) -> None:
+    def train(self, data: ExchangeObject, extra={}) -> None:
         """
         objective: train network and produce new network from train data.
         # Arguments
@@ -49,31 +49,30 @@ class ClientAlgo(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_weights(self, extra=None) -> ExchangeObject:
+    def get_weights(self, extra={}) -> ExchangeObject:
         """
         objective: get current local weights or weight differences
 
         # Returns
         ExchangeObject: current local weights or weight differences.
 
-        # Example returns ExchangeObject, e.g.::
-
-            ExchangeObject(
-                weights = self.trainer.network.state_dict(),
-                optim = None,  # could be self.optimizer.state_dict()
-                weight_type = WeightType.WEIGHTS
-            )
+        # Example returns ExchangeObject, e.g.:
+        ExchangeObject(
+            weights = self.trainer.network.state_dict(),
+            optim = None,  # could be self.optimizer.state_dict()
+            weight_type = WeightType.WEIGHTS
+        )
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def evaluate(self, data: ExchangeObject, extra=None) -> ExchangeObject:
+    def predict(self, data: ExchangeObject, extra={}) -> ExchangeObject:
         """
-        objective: get evaluation metrics on test data.
+        objective: get predictions from test data.
         # Arguments
-        data: ExchangeObject with network weights to use for evaluation
+        data: ExchangeObject with network weights to use for prediction
 
         # Returns
-        metrics: ExchangeObject with evaluation metrics.
+        predictions: predictions ExchangeObject.
         """
         raise NotImplementedError
