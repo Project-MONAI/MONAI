@@ -27,6 +27,8 @@ class ROCAUCMetric(CumulativeIterationMetric):
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
     The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
