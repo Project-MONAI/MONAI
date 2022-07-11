@@ -798,9 +798,6 @@ Smooth Field
     :members:
     :special-members: __call__
 
-
-
-
 Utility
 ^^^^^^^
 
@@ -996,7 +993,6 @@ Utility
 .. autoclass:: AddCoordinateChannels
     :members:
     :special-members: __call__
-
 
 
 Dictionary Transforms
@@ -1686,9 +1682,6 @@ Smooth Field (Dict)
 .. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
-
-
-
 
 Utility (Dict)
 ^^^^^^^^^^^^^^

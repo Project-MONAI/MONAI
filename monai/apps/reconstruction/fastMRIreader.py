@@ -26,7 +26,18 @@ h5py, has_h5py = optional_import("h5py")
 @require_pkg(pkg_name="h5py")
 class FastMRIReader(ImageReader):
     """
-    Load fastMRI files with '.h5' suffix.
+    Load fastMRI files with '.h5' suffix. fastMRI files, when loaded with "h5py",
+    are HDF5 dictionary-like datasets. The keys are:
+
+    - kspace: contains the fully-sampled kspace
+    - reconstruction_rss: contains the root sume of squares of ifft of kspace
+
+    It also has several attributes with the following keys:
+
+    - acquisition (str): acquisition mode of the data
+    - max (float): dynamic range of the data
+    - norm (float): norm of the kspace
+    - patient_id (str): the patient's id whose measurements were recorded
     """
 
     def __init__(self):
