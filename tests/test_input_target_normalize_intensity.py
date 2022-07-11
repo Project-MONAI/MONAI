@@ -38,6 +38,17 @@ for p in TEST_NDARRAYS_NO_META_TENSOR:
         ]
     )
 
+    TESTS.append(
+        [
+            {"keys": ["kspace_masked_ifft"], "channel_wise": False},
+            {"kspace_masked_ifft": p(np.array([[-2.0, 0.0, 2.0]])), "target": p(np.array([[1.0, 2.0, 3.0]]))},
+            p(np.array([[-1.225, 0.0, 1.225]])),  # normalized input
+            p(np.array([[0.612, 1.225, 1.837]])),  # normalized target
+            0.0,  # mean
+            1.633,  # std
+        ]
+    )
+
 
 class TestDetailedNormalizeIntensityd(unittest.TestCase):
     @parameterized.expand(TESTS)
