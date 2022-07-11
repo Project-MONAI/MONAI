@@ -43,7 +43,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
 
@@ -136,7 +136,7 @@ class ConvertBoxModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             src_mode, dst_mode = tr[TraceKeys.EXTRA_INFO]["src"], tr[TraceKeys.EXTRA_INFO]["dst"]
@@ -191,7 +191,7 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             original_mode = tr[TraceKeys.EXTRA_INFO]["mode"]
@@ -280,7 +280,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             affine = transform["extra_info"]["affine"]
@@ -594,7 +594,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -675,7 +675,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -752,7 +752,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1174,9 +1174,8 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        spatial_dims = len(d[self.image_keys[0]].shape) - 1
         image_size = d[self.image_keys[0]].shape[1:]
-        self.spatial_size = ensure_tuple_rep(self.spatial_size_, spatial_dims)
+        self.spatial_size = fall_back_tuple(self.spatial_size_, image_size)
 
         # randomly sample crop centers
         boxes = d[self.box_keys]
@@ -1274,7 +1273,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1360,7 +1359,7 @@ class RandRotateBox90d(RandRotate90d):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         if self._rand_k % 4 == 0:
             return d
 
