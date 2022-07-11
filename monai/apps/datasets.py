@@ -393,10 +393,6 @@ class TciaDataset(Randomizable, CacheDataset):
     """
     The Dataset to automatically download the data from a public The Cancer Imaging Archive (TCIA) dataset
     and generate items for training, validation or test.
-    The downloading is divided into two steps:
-    1. download all series with `picked_modality`.
-    2. for each series, get the referenced Series Instance UID from its referenced sequence, and
-        and use it to download the series.
 
     This class is based on :py:class:`monai.data.CacheDataset` to accelerate the training process.
 
@@ -490,10 +486,16 @@ class TciaDataset(Randomizable, CacheDataset):
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
+        self.picked_modality = picked_modality
+        self.modality_tag = modality_tag
+        self.ref_series_uid_tag = ref_series_uid_tag
+        self.ref_sop_uid_tag = ref_sop_uid_tag
+
         self.set_random_state(seed=seed)
         download_dir = os.path.join(root_dir, collection)
         load_tags = list(specific_tags)
         load_tags += [modality_tag]
+        self.load_tags = load_tags
         if download:
             seg_series_list = get_tcia_metadata(
                 query=f"getSeries?Collection={collection}&Modality={picked_modality}", attribute="SeriesInstanceUID"
@@ -503,52 +505,7 @@ class TciaDataset(Randomizable, CacheDataset):
             if len(seg_series_list) == 0:
                 raise ValueError(f"Cannot find data with collection: {collection} picked_modality: {picked_modality}")
             for series_uid in seg_series_list:
-                seg_first_dir = os.path.join(download_dir, "raw", series_uid)
-                download_tcia_series_instance(
-                    series_uid=series_uid, download_dir=download_dir, output_dir=seg_first_dir, check_md5=False
-                )
-                dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
-                # achieve series number and patient id from the first dicom file
-                dcm_path = os.path.join(seg_first_dir, dicom_files[0])
-                ds = PydicomReader(stop_before_pixels=True, specific_tags=load_tags).read(dcm_path)
-                # (0x0010,0x0020) and (0x0010,0x0010), better to be contained in `specific_tags`
-                patient_id = ds.PatientID if ds.PatientID else ds.PatientName
-                if not patient_id:
-                    warnings.warn(f"unable to find patient name of dicom file: {dcm_path}, use 'patient' instead.")
-                    patient_id = "patient"
-                # (0x0020,0x0011) and (0x0020,0x0012), better to be contained in `specific_tags`
-                series_num = ds.SeriesNumber if ds.SeriesNumber else ds.AcquisitionNumber
-                if not series_num:
-                    print(f"unable to find series number of dicom file: {dcm_path}, use '0' instead.")
-                    series_num = 0
-
-                series_num = str(series_num)
-                seg_dir = os.path.join(download_dir, patient_id, series_num, "masks")
-                dcm_dir = os.path.join(download_dir, patient_id, series_num, "images")
-
-                # get ref uuid
-                ref_uuid_list = []
-                for dcm_file in dicom_files:
-                    dcm_path = os.path.join(seg_first_dir, dcm_file)
-                    ds = PydicomReader(stop_before_pixels=True, specific_tags=load_tags).read(dcm_path)
-                    if ds[modality_tag].value == picked_modality:
-                        ref_uuid = get_ref_uuid(
-                            ds, find_sop=False, ref_series_uid=ref_series_uid_tag, ref_sop_uid=ref_sop_uid_tag
-                        )
-                        if ref_uuid == "":
-                            ref_sop_uid = get_ref_uuid(
-                                ds, find_sop=True, ref_series_uid=ref_series_uid_tag, ref_sop_uid=ref_sop_uid_tag
-                            )
-                            ref_uuid = match_ref_uid_in_study(ds.StudyInstanceUID, ref_sop_uid)
-                        if ref_uuid != "":
-                            ref_uuid_list.append(ref_uuid)
-                if len(ref_uuid_list) == 0:
-                    raise ValueError(f"Cannot find the referenced Series Instance UID from SEG series: {series_uid}.")
-                download_tcia_series_instance(
-                    series_uid=ref_uuid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
-                )
-                if not os.path.exists(seg_dir):
-                    shutil.copytree(seg_first_dir, seg_dir)
+                self._download_series_reference_data(series_uid, download_dir)
 
         if not os.path.exists(download_dir):
             raise RuntimeError(f"Cannot find dataset directory: {download_dir}.")
@@ -580,6 +537,62 @@ class TciaDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
+    def _download_series_reference_data(self, series_uid: str, download_dir: str):
+        """
+        First of all, download a series from TCIA according to `series_uid`.
+        Then find all referenced series and download.
+        """
+        seg_first_dir = os.path.join(download_dir, "raw", series_uid)
+        download_tcia_series_instance(
+            series_uid=series_uid, download_dir=download_dir, output_dir=seg_first_dir, check_md5=False
+        )
+        dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
+        # achieve series number and patient id from the first dicom file
+        dcm_path = os.path.join(seg_first_dir, dicom_files[0])
+        ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)
+        # (0x0010,0x0020) and (0x0010,0x0010), better to be contained in `specific_tags`
+        patient_id = ds.PatientID if ds.PatientID else ds.PatientName
+        if not patient_id:
+            warnings.warn(f"unable to find patient name of dicom file: {dcm_path}, use 'patient' instead.")
+            patient_id = "patient"
+        # (0x0020,0x0011) and (0x0020,0x0012), better to be contained in `specific_tags`
+        series_num = ds.SeriesNumber if ds.SeriesNumber else ds.AcquisitionNumber
+        if not series_num:
+            warnings.warn(f"unable to find series number of dicom file: {dcm_path}, use '0' instead.")
+            series_num = 0
+
+        series_num = str(series_num)
+        seg_dir = os.path.join(download_dir, patient_id, series_num, self.picked_modality)
+        dcm_dir = os.path.join(download_dir, patient_id, series_num, "IMAGE")
+
+        # get ref uuid
+        ref_uuid_list = []
+        for dcm_file in dicom_files:
+            dcm_path = os.path.join(seg_first_dir, dcm_file)
+            ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)
+            if ds[self.modality_tag].value == self.picked_modality:
+                ref_uuid = get_ref_uuid(
+                    ds, find_sop=False, ref_series_uid_tag=self.ref_series_uid_tag, ref_sop_uid_tag=self.ref_sop_uid_tag
+                )
+                if ref_uuid == "":
+                    ref_sop_uid = get_ref_uuid(
+                        ds,
+                        find_sop=True,
+                        ref_series_uid_tag=self.ref_series_uid_tag,
+                        ref_sop_uid_tag=self.ref_sop_uid_tag,
+                    )
+                    ref_uuid = match_ref_uid_in_study(ds.StudyInstanceUID, ref_sop_uid)
+                if ref_uuid != "":
+                    ref_uuid_list.append(ref_uuid)
+        if len(ref_uuid_list) == 0:
+            warnings.warn(f"Cannot find the referenced Series Instance UID from series: {series_uid}.")
+        else:
+            download_tcia_series_instance(
+                series_uid=ref_uuid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
+            )
+        if not os.path.exists(seg_dir):
+            shutil.copytree(seg_first_dir, seg_dir)
+
     def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
         # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
@@ -588,9 +601,12 @@ class TciaDataset(Randomizable, CacheDataset):
         for patient_id in patient_list:
             series_list = [f.name for f in os.scandir(os.path.join(dataset_dir, patient_id)) if f.is_dir()]
             for series_num in series_list:
-                image_path = os.path.join(dataset_dir, patient_id, series_num, "images")
-                mask_path = os.path.join(dataset_dir, patient_id, series_num, "masks")
-                datalist.append({"image": image_path, "mask": mask_path})
+                image_path = os.path.join(dataset_dir, patient_id, series_num, "IMAGE")
+                mask_path = os.path.join(dataset_dir, patient_id, series_num, self.picked_modality)
+                if os.path.exists(image_path):
+                    datalist.append({"image": image_path, self.picked_modality: mask_path})
+                else:
+                    datalist.append({self.picked_modality: mask_path})
 
         return self._split_datalist(datalist)
 
