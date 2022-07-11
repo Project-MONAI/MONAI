@@ -1733,8 +1733,8 @@ Smooth Field (Dict)
 .. autoclass:: monai.apps.reconstruction.dictionary.TargetBasedSpatialCropd
     :special-members: __call__
 
-`DetailedNormalizeIntensityd`
-"""""""""""""""""""""""""""""
+`InputTargetNormalizeIntensityd`
+""""""""""""""""""""""""""""""""
 .. autoclass:: monai.apps.reconstruction.dictionary.InputTargetNormalizeIntensityd
     :special-members: __call__
 

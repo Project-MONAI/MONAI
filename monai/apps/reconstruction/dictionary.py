@@ -209,7 +209,7 @@ class InputTargetNormalizeIntensityd(MapTransform):
     :py:class:`monai.transforms.NormalizeIntensity`.
     This is similar to :py:class:`monai.transforms.NormalizeIntensityd`
     but is different since (1) it automatically normalizes the target based
-    on the data, and (2) it also returns mean and std after normalization. The
+    on the input data, and (2) it also returns mean and std after normalization. The
     first dimension is reserved for channel (e.g., could be num_slices).
     The rest of the dimensions should be spatial. So the shape is (C,H,W,D)
     for 3D samples.
@@ -226,6 +226,11 @@ class InputTargetNormalizeIntensityd(MapTransform):
         dtype: output data type, if None, same as input image. defaults
             to float32.
         allow_missing_keys: don't raise exception if key is missing.
+
+    Note:
+        "target" (which holds the ground-truth image) is a required key, no need
+        to pass it as one of the "keys". Once the input is normalized, "target"
+        will be normalized according to the mean-std of the input.
     """
 
     backend = NormalizeIntensity.backend
@@ -245,12 +250,18 @@ class InputTargetNormalizeIntensityd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         """
+        this will normalize the input first, and then according to its mean-std,
+        it will normalize the target.
+
         Args:
             data: is a dictionary containing (key,value) pairs from
                 the loaded dataset
 
         Returns:
             the new data dictionary
+
+        Note:
+            "target" is a required key in the data which holds the groun-truth image..
         """
         d = dict(data)
         for key in self.key_iterator(d):
