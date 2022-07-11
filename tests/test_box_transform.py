@@ -16,7 +16,12 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.detection.transforms.box_ops import convert_mask_to_box
-from monai.apps.detection.transforms.dictionary import BoxToMaskd, ConvertBoxModed, MaskToBoxd
+from monai.apps.detection.transforms.dictionary import (
+    BoxToMaskd,
+    ConvertBoxModed,
+    MaskToBoxd,
+    RandCropBoxByPosNegLabeld,
+)
 from monai.transforms import CastToTyped
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -286,6 +291,24 @@ class TestBoxTransform(unittest.TestCase):
             # data_back = invert_transform_rotate(rotate_result)
             # assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             # assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
+
+    def test_crop_shape(self):
+        tt = RandCropBoxByPosNegLabeld(
+            image_keys=["image"],
+            box_keys="box",
+            label_keys="label",
+            spatial_size=[10, 7, -1],
+            whole_box=True,
+            num_samples=1,
+            pos=1,
+            neg=0,
+        )
+        iii = {
+            "image": torch.rand(1, 10, 8, 7),
+            "box": torch.tensor(((1.0, 2.0, 3.0, 4.0, 5.0, 6.0),)),
+            "label": torch.tensor((1,)).long(),
+        }
+        self.assertEqual(tt(iii)[0]["image"].shape, (1, 10, 7, 7))
 
 
 if __name__ == "__main__":
