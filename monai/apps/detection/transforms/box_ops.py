@@ -162,7 +162,7 @@ def flip_boxes(
     boxes: NdarrayOrTensor,
     spatial_size: Union[Sequence[int], int],
     flip_axes: Optional[Union[Sequence[int], int]] = None,
-) -> NdarrayOrTensor:
+):
     """
     Flip boxes when the corresponding image is flipped
 
@@ -188,7 +188,7 @@ def flip_boxes(
     if isinstance(boxes, torch.Tensor):
         _flip_boxes = boxes.clone()
     else:
-        _flip_boxes = deepcopy(boxes)
+        _flip_boxes = deepcopy(boxes)  # type: ignore
 
     for axis in flip_axes:
         _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
@@ -353,7 +353,7 @@ def select_labels(
     return tuple(labels_select_list)
 
 
-def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrTensor:
+def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int):
     """
     Interchange two axes of boxes.
 
@@ -367,7 +367,11 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrT
 
     """
     spatial_dims: int = get_spatial_dims(boxes=boxes)
-    boxes_swap: NdarrayOrTensor = boxes.clone()
+
+    if isinstance(boxes, torch.Tensor):
+        boxes_swap = boxes.clone()
+    else:
+        boxes_swap = deepcopy(boxes)  # type: ignore
     boxes_swap[:, [axis1, axis2]] = boxes_swap[:, [axis2, axis1]]  # type: ignore
     boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[  # type: ignore
         :, [spatial_dims + axis2, spatial_dims + axis1]
@@ -377,7 +381,7 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrT
 
 def rot90_boxes(
     boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int], k: int = 1, axes: Tuple[int, int] = (0, 1)
-) -> NdarrayOrTensor:
+):
     """
     Rotate boxes by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.
