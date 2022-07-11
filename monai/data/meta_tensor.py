@@ -280,6 +280,27 @@ class MetaTensor(MetaObj, torch.Tensor):
         ret = MetaTensor.update_meta(ret, func, args, kwargs)
         return ret[0] if unpack else ret
 
+    def __array_function__(self, func, types, args, kwargs):
+        """for numpy Interoperability"""
+        if not func.__module__.startswith("numpy"):
+            return NotImplemented
+        if not any(issubclass(t, MetaTensor) for t in types):
+            # Defer to any other subclasses that implement __array_function__
+            return NotImplemented
+        _args = list(
+            convert_data_type(x, output_type=np.ndarray, wrap_sequence=False)[0]
+            if isinstance(x, (MetaTensor, tuple, list))
+            else x
+            for x in args
+        )
+        _kwargs = {
+            k: convert_data_type(v, output_type=np.ndarray, wrap_sequence=False)[0]
+            if isinstance(v, (MetaTensor, tuple, list))
+            else v
+            for k, v in kwargs.items()
+        }
+        return func(*_args, **_kwargs)
+
     def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=self.device, dtype=dtype)
 

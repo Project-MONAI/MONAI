@@ -520,6 +520,17 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(obj, MetaTensor)
         assert_allclose(obj.as_tensor(), t)
 
+    @parameterized.expand(TESTS)
+    def test_array_function(self, device, _dtype):
+        a = np.random.RandomState().randn(100, 100)
+        b = MetaTensor(a, device=device)
+        assert_allclose(np.sum(a), np.sum(b))
+        assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
+        assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
+        c = MetaTensor([1.0, 2.0, 3.0])
+        assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
+        assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
+
 
 if __name__ == "__main__":
     unittest.main()
