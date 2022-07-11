@@ -25,6 +25,7 @@ import torch
 import torch.multiprocessing
 from parameterized import parameterized
 
+from monai import config
 from monai.data import DataLoader, Dataset
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -454,7 +455,7 @@ class TestMetaTensor(unittest.TestCase):
             data = _tr(data)
             is_meta = isinstance(_tr, (ToMetaTensord, BorderPadd, DivisiblePadd))
             if is_meta:
-                self.assertEqual(len(data), 1)  # im
+                self.assertEqual(len(data), 1 if not config.USE_META_DICT else 2)  # im, im_transforms, compatibility
                 self.assertIsInstance(data[key], MetaTensor)
                 n_applied = len(data[key].applied_operations)
             else:

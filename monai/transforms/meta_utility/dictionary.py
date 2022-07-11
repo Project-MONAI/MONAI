@@ -15,7 +15,6 @@ These can be used to make backwards compatible code.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import deepcopy
 from typing import Dict, Hashable, Mapping
 
 from monai.config.type_definitions import NdarrayOrTensor
@@ -53,7 +52,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             # check transform
             _ = self.get_most_recent_transform(d, key)
@@ -90,7 +89,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             # check transform
             _ = self.get_most_recent_transform(d, key)
