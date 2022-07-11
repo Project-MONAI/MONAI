@@ -804,14 +804,14 @@ MRI Transforms
 
 `Kspace under-sampling`
 """""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.mri_array.KspaceMask
+.. autoclass:: monai.apps.reconstruction.array.KspaceMask
     :members:
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.mri_array.RandomKspaceMask
+.. autoclass:: monai.apps.reconstruction.array.RandomKspaceMask
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.mri_array.EquispacedKspaceMask
+.. autoclass:: monai.apps.reconstruction.array.EquispacedKspaceMask
     :special-members: __call__
 
 
@@ -1721,21 +1721,21 @@ Smooth Field (Dict)
 
 `Kspace under-sampling (Dict)`
 """"""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.mri_dictionary.RandomKspaceMaskd
+.. autoclass:: monai.apps.reconstruction.dictionary.RandomKspaceMaskd
     :special-members: __call__
 
-.. autoclass:: monai.apps.reconstruction.mri_dictionary.EquispacedKspaceMaskd
+.. autoclass:: monai.apps.reconstruction.dictionary.EquispacedKspaceMaskd
     :special-members: __call__
 
 
 `TargetBasedSpatialCropd`
 """""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.mri_dictionary.TargetBasedSpatialCropd
+.. autoclass:: monai.apps.reconstruction.dictionary.TargetBasedSpatialCropd
     :special-members: __call__
 
 `DetailedNormalizeIntensityd`
 """""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.mri_dictionary.InputTargetNormalizeIntensityd
+.. autoclass:: monai.apps.reconstruction.dictionary.InputTargetNormalizeIntensityd
     :special-members: __call__
 
 

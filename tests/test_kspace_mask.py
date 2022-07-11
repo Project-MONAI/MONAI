@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.reconstruction.mri_array import EquispacedKspaceMask, RandomKspaceMask
+from monai.apps.reconstruction.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.utils.type_conversion import convert_data_type
 
 # test case for apply_mask
