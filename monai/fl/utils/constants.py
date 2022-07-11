@@ -10,25 +10,25 @@
 # limitations under the License.
 
 
-class WeightType(object):
+class WeightType:
     WEIGHTS = "fl_weights_full"
     WEIGHT_DIFF = "fl_weight_diff"
 
 
-class ExtraItems(object):
+class ExtraItems:
     ABORT = "fl_abort"
     MODEL_NAME = "fl_model_name"
     CLIENT_NAME = "fl_client_name"
 
 
-class FlPhase(object):
+class FlPhase:
     IDLE = "fl_idle"
     TRAIN = "fl_train"
     PREDICT = "fl_predict"
     GET_WEIGHTS = "fl_get_weights"
 
 
-class FlStatistics(object):
+class FlStatistics:
     # TODO: currently uses hardcoded strings from. Might move to MONAI core?
     #  https://github.com/Project-MONAI/MONAI/blob/df4a7d72e1d231b898f88d92cf981721c49ceaeb/monai/engines/trainer.py#L60
     TOTAL_EPOCHS = "total_epochs"
