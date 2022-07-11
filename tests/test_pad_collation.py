@@ -103,6 +103,7 @@ class TestPadCollation(unittest.TestCase):
                 for d in decollated_data:
                     output = PadListDataCollate.inverse(d)
                     shapes.append(output["image"].shape)
+                    self.assertTrue(len(output["image"].applied_operations), len(dataset.transform.transforms))
                 self.assertTrue(len(set(shapes)) > 1)  # inverted shapes must be different because of random xforms
 
 
