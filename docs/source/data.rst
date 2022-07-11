@@ -275,8 +275,6 @@ N-Dim Fourier Transform
 .. autofunction:: monai.data.fft_utils.ifftn_centered
 
 
-
-
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj

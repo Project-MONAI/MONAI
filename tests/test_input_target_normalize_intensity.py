@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.mri_dictionary import DetailedNormalizeIntensityd
+from monai.apps.reconstruction.mri_dictionary import InputTargetNormalizeIntensityd
 from monai.utils.type_conversion import convert_to_numpy
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
@@ -43,7 +43,7 @@ class TestDetailedNormalizeIntensityd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_target_mean_std(self, args, data, normalized_data, normalized_target, mean, std):
         dtype = data[args["keys"][0]].dtype
-        normalizer = DetailedNormalizeIntensityd(keys=args["keys"], channel_wise=args["channel_wise"], dtype=dtype)
+        normalizer = InputTargetNormalizeIntensityd(keys=args["keys"], channel_wise=args["channel_wise"], dtype=dtype)
         res_data = normalizer(data)
 
         img = np.round(convert_to_numpy(res_data[args["keys"][0]]), 3)

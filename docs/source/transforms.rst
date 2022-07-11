@@ -1735,7 +1735,7 @@ Smooth Field (Dict)
 
 `DetailedNormalizeIntensityd`
 """""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.mri_dictionary.DetailedNormalizeIntensityd
+.. autoclass:: monai.apps.reconstruction.mri_dictionary.InputTargetNormalizeIntensityd
     :special-members: __call__
 
 

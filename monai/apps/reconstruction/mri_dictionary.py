@@ -203,7 +203,7 @@ class TargetBasedSpatialCropd(Cropd):
         return d
 
 
-class DetailedNormalizeIntensityd(MapTransform):
+class InputTargetNormalizeIntensityd(MapTransform):
     """
     Dictionary-based wrapper of
     :py:class:`monai.transforms.NormalizeIntensity`.
@@ -254,13 +254,16 @@ class DetailedNormalizeIntensityd(MapTransform):
         """
         d = dict(data)
         for key in self.key_iterator(d):
+            # compute mean of each slice in the input for mean-std normalization
             if self.default_normalizer.subtrahend is None:
                 subtrahend = np.array(
                     [val.mean() if isinstance(val, ndarray) else val.float().mean().item() for val in d[key]]
                 )
+            # users can define default values instead of mean
             else:
                 subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
+            # compute std of each slice in the input for mean-std normalization
             if self.default_normalizer.divisor is None:
                 divisor = np.array(
                     [
@@ -269,8 +272,10 @@ class DetailedNormalizeIntensityd(MapTransform):
                     ]
                 )
             else:
+                # users can define default values instead of std
                 divisor = self.default_normalizer.divisor  # type: ignore
 
+            # this creates a new normalizer instance for each sample
             normalizer = NormalizeIntensity(
                 subtrahend,
                 divisor,
@@ -279,7 +284,7 @@ class DetailedNormalizeIntensityd(MapTransform):
                 self.default_normalizer.dtype,
             )
             d[key] = normalizer(d[key])
-            d["target"] = normalizer(d["target"])
+            d["target"] = normalizer(d["target"])  # target is normalized according to input
             d["mean"] = subtrahend
             d["std"] = divisor
         return d
