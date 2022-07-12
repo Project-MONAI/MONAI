@@ -12,6 +12,7 @@
 import unittest
 from unittest.case import skipUnless
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -23,25 +24,32 @@ from tests.utils import TEST_NDARRAYS
 
 plt, has_matplotlib = optional_import("matplotlib.pyplot")
 
+
+def get_alpha(img):
+    return 0.5 * np.arange(img.size).reshape(img.shape) / img.size
+
+
 TESTS = []
 for p in TEST_NDARRAYS:
-    image, label = create_test_image_2d(100, 101)
+    image, label = create_test_image_2d(100, 101, channel_dim=0)
     TESTS.append((p(image), p(label)))
+    TESTS.append((p(image), p(label), p(get_alpha(image))))
 
-    image, label = create_test_image_3d(100, 101, 102)
+    image, label = create_test_image_3d(100, 101, 102, channel_dim=0)
     TESTS.append((p(image), p(label)))
+    TESTS.append((p(image), p(label), p(get_alpha(image))))
 
 
 @skipUnless(has_matplotlib, "Matplotlib required")
 class TestBlendImages(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_blend(self, image, label):
-        blended = blend_images(image[None], label[None])
+    def test_blend(self, image, label, alpha=0.5):
+        blended = blend_images(image, label, alpha)
         self.assertEqual(type(image), type(blended))
         if isinstance(blended, torch.Tensor):
             self.assertEqual(blended.device, image.device)
             blended = blended.cpu().numpy()
-        self.assertEqual((3,) + image.shape, blended.shape)
+        self.assertEqual((3,) + image[0].shape, blended.shape)
 
         blended = moveaxis(blended, 0, -1)  # move RGB component to end
         if blended.ndim > 3:
