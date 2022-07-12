@@ -163,28 +163,39 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
         return d  # type: ignore
 
 
-class TargetBasedSpatialCropd(Cropd):
+class ReferenceBasedSpatialCropd(Cropd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
-    This is similar to :py:class:`monai.transforms.SpatialCropd` but is
-    different since it crops the data based on the "Target" spatial size.
-    So for every new sample, the roi_center and roi_size will be different.
-    The first dimension is reserved for channel (e.g., could be num_slices).
-    The rest of the dimensions should be spatial. So the shape is (C,H,W,D)
-    for 3D samples.
+    This is similar to :py:class:`monai.transforms.SpatialCropd` which is a
+    general purpose cropper to produce sub-volume region of interest (ROI).
+    Their difference is that this transform does cropping according to a reference image.
+
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
+        ref_key: key of the item to be used to crop items of "keys"
         allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        In an image reconstruction task, let keys=["image"] and ref_key=["target"].
+        Also, let data be the data dictionary. Then, ReferenceBasedSpatialCropd
+        center-crops data["image"] based on the spatial size of data["target"] by
+        calling :py:class:`monai.transforms.SpatialCrop`.
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(self, keys: KeysCollection, ref_key: str, allow_missing_keys: bool = False) -> None:
 
         super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys)  # type: ignore
+        self.ref_key = ref_key
 
     def __call__(self, data: Mapping[Hashable, Tensor]) -> Dict[Hashable, Tensor]:
         """
+        This transform can support to crop ND spatial (channel-first) data.
+        It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D
+        data point where C is the number of slices)
+
         Args:
             data: is a dictionary containing (key,value) pairs from
                 the loaded dataset
@@ -193,31 +204,31 @@ class TargetBasedSpatialCropd(Cropd):
             the new data dictionary
         """
         d = dict(data)
+
+        # compute roi_size according to self.ref_key
+        roi_size = d[self.ref_key].shape[1:]  # first dimension is not spatial (could be channel)
+
+        # crop keys
         for key in self.key_iterator(d):
-            # key is typically just "kspace_masked_ifft" for fastMRI data
             image = d[key]
-            roi_size = d["target"].shape[1:]
             roi_center = tuple(i // 2 for i in image.shape[1:])
             cropper = SpatialCrop(roi_center=roi_center, roi_size=roi_size)
             d[key] = convert_to_tensor(cropper(d[key]))
         return d
 
 
-class InputTargetNormalizeIntensityd(MapTransform):
+class ReferenceBasedNormalizeIntensityd(MapTransform):
     """
     Dictionary-based wrapper of
     :py:class:`monai.transforms.NormalizeIntensity`.
     This is similar to :py:class:`monai.transforms.NormalizeIntensityd`
-    but is different since (1) it automatically normalizes the target (see
-    "gt_key" in the parameters below for a definition for target) based
-    on the input data, and (2) it also returns mean and std after normalization. The
-    first dimension is reserved for channel (e.g., could be num_slices).
-    The rest of the dimensions should be spatial. So the shape is (C,H,W,D)
-    for 3D samples.
+    and can normalize non-zero values or the entire image. The difference
+    is that this transform does normalization according to a reference image.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
+        ref_key: key of the item to be used to normalize items of "keys"
         subtrahend: the amount to subtract by (usually the mean)
         divisor: the amount to divide by (usually the standard deviation)
         nonzero: whether only normalize non-zero values.
@@ -226,10 +237,13 @@ class InputTargetNormalizeIntensityd(MapTransform):
             to False.
         dtype: output data type, if None, same as input image. defaults
             to float32.
-        gt_key: denotes the target to be normalized based on input
-            statistics. It is typically set to "target" which denotes
-            the ground-truth data.
         allow_missing_keys: don't raise exception if key is missing.
+
+    Example:
+        In an image reconstruction task, let keys=["image", "target"] and ref_key=["image"].
+        Also, let data be the data dictionary. Then, ReferenceBasedNormalizeIntensityd
+        normalizes data["target"] and data["image"] based on the mean-std of data["image"] by
+        calling :py:class:`monai.transforms.NormalizeIntensity`.
     """
 
     backend = NormalizeIntensity.backend
@@ -237,27 +251,23 @@ class InputTargetNormalizeIntensityd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        ref_key: str,
         subtrahend: Optional[NdarrayOrTensor] = None,
         divisor: Optional[NdarrayOrTensor] = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
-        gt_key: str = "target",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.default_normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
-        self.gt_key = gt_key
+        self.ref_key = ref_key
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         """
-        This will normalize the input first, and then according to its mean-std,
-        it will normalize the target. The target is denoted by self.gt_key whose default
-        is "target" denoting the ground-truth data.
-
-        The first dimension of input is reserved for channel (e.g., could be num_slices).
-        The rest of the dimensions should be spatial. So for example, the shape is (C,H,W,D)
-        for 3D samples.
+        This transform can support to normalize ND spatial (channel-first) data.
+        It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D
+        data point where C is the number of slices)
 
         Args:
             data: is a dictionary containing (key,value) pairs from
@@ -267,60 +277,69 @@ class InputTargetNormalizeIntensityd(MapTransform):
             the new data dictionary
         """
         d = dict(data)
-        for key in self.key_iterator(d):
-            if self.default_normalizer.channel_wise:
-                # perform channel-wise normalization
-                # compute mean of each channel (or slice) in the input for mean-std normalization
-                # subtrahend will have the same shape as input, for example (C,W,D) for a 2D data (or a pseudo-3D data)
-                if self.default_normalizer.subtrahend is None:
-                    subtrahend = np.array(
-                        [val.mean() if isinstance(val, ndarray) else val.float().mean().item() for val in d[key]]
-                    )
-                # users can define default values instead of mean
-                else:
-                    subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
-                # compute std of each channel (or slice) in the input for mean-std normalization
-                # will have the same shape as subtrahend
-                if self.default_normalizer.divisor is None:
-                    divisor = np.array(
-                        [
-                            val.std() if isinstance(val, ndarray) else val.float().std(unbiased=False).item()
-                            for val in d[key]
-                        ]
-                    )
-                else:
-                    # users can define default values instead of std
-                    divisor = self.default_normalizer.divisor  # type: ignore
+        # prepare the normalizer based on self.ref_key
+        if self.default_normalizer.channel_wise:
+            # perform channel-wise normalization
+            # compute mean of each channel in the input for mean-std normalization
+            # subtrahend will have the same shape as image, for example (C,W,D) for a 2D data
+            if self.default_normalizer.subtrahend is None:
+                subtrahend = np.array(
+                    [val.mean() if isinstance(val, ndarray) else val.float().mean().item() for val in d[self.ref_key]]
+                )
+            # users can define default values instead of mean
             else:
-                # perform ordinary normalization (not channel-wise)
-                # subtrahend will be a scalar and is the mean of d[key], unless user specifies another value
-                if self.default_normalizer.subtrahend is None:
-                    subtrahend = d[key].mean() if isinstance(d[key], ndarray) else d[key].float().mean().item()  # type: ignore
-                # users can define default values instead of mean
-                else:
-                    subtrahend = self.default_normalizer.subtrahend  # type: ignore
+                subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
-                # divisor will be a scalar and is the std of d[key], unless user specifies another value
-                if self.default_normalizer.divisor is None:
-                    if isinstance(d[key], ndarray):
-                        divisor = d[key].std()  # type: ignore
-                    else:
-                        divisor = d[key].float().std(unbiased=False).item()  # type: ignore
+            # compute std of each channel in the input for mean-std normalization
+            # will have the same shape as subtrahend
+            if self.default_normalizer.divisor is None:
+                divisor = np.array(
+                    [
+                        val.std() if isinstance(val, ndarray) else val.float().std(unbiased=False).item()
+                        for val in d[self.ref_key]
+                    ]
+                )
+            else:
+                # users can define default values instead of std
+                divisor = self.default_normalizer.divisor  # type: ignore
+        else:
+            # perform ordinary normalization (not channel-wise)
+            # subtrahend will be a scalar and is the mean of d[self.ref_key], unless user specifies another value
+            if self.default_normalizer.subtrahend is None:
+                if isinstance(d[self.ref_key], ndarray):
+                    subtrahend = d[self.ref_key].mean()  # type: ignore
                 else:
-                    # users can define default values instead of std
-                    divisor = self.default_normalizer.divisor  # type: ignore
+                    subtrahend = d[self.ref_key].float().mean().item()  # type: ignore
+            # users can define default values instead of mean
+            else:
+                subtrahend = self.default_normalizer.subtrahend  # type: ignore
 
-            # this creates a new normalizer instance for each sample
-            normalizer = NormalizeIntensity(
-                subtrahend,
-                divisor,
-                self.default_normalizer.nonzero,
-                self.default_normalizer.channel_wise,
-                self.default_normalizer.dtype,
-            )
+            # divisor will be a scalar and is the std of d[self.ref_key], unless user specifies another value
+            if self.default_normalizer.divisor is None:
+                if isinstance(d[self.ref_key], ndarray):
+                    divisor = d[self.ref_key].std()  # type: ignore
+                else:
+                    divisor = d[self.ref_key].float().std(unbiased=False).item()  # type: ignore
+            else:
+                # users can define default values instead of std
+                divisor = self.default_normalizer.divisor  # type: ignore
+
+        # this creates a new normalizer instance based on self.ref_key
+        normalizer = NormalizeIntensity(
+            subtrahend,
+            divisor,
+            self.default_normalizer.nonzero,
+            self.default_normalizer.channel_wise,
+            self.default_normalizer.dtype,
+        )
+
+        # save mean and std
+        d["mean"] = subtrahend
+        d["std"] = divisor
+
+        # perform normalization
+        for key in self.key_iterator(d):
             d[key] = normalizer(d[key])
-            d[self.gt_key] = normalizer(d[self.gt_key])  # target is normalized according to input
-            d["mean"] = subtrahend
-            d["std"] = divisor
+
         return d

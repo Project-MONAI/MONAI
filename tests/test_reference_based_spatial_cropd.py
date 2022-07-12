@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.dictionary import TargetBasedSpatialCropd
+from monai.apps.reconstruction.dictionary import ReferenceBasedSpatialCropd
 from tests.utils import TEST_NDARRAYS
 
 # see test_spatial_cropd for typical tests (like roi_start,
@@ -28,7 +28,7 @@ for p in TEST_NDARRAYS:
     # 2D
     TESTS.append(
         [
-            {"keys": ["kspace_masked_ifft"]},
+            {"keys": ["kspace_masked_ifft"], "ref_key": "target"},
             {"kspace_masked_ifft": p(np.ones([10, 20, 20])), "target": p(np.ones([5, 8, 8]))},
             (8, 8),  # expected shape
         ]
@@ -37,7 +37,7 @@ for p in TEST_NDARRAYS:
     # 3D
     TESTS.append(
         [
-            {"keys": ["kspace_masked_ifft"]},
+            {"keys": ["kspace_masked_ifft"], "ref_key": "target"},
             {"kspace_masked_ifft": p(np.ones([10, 20, 20, 16])), "target": p(np.ones([5, 8, 8, 6]))},
             (8, 8, 6),  # expected shape
         ]
@@ -47,7 +47,7 @@ for p in TEST_NDARRAYS:
 class TestTargetBasedSpatialCropd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_shape(self, args, data, expected_shape):
-        cropper = TargetBasedSpatialCropd(keys=args["keys"])
+        cropper = ReferenceBasedSpatialCropd(keys=args["keys"], ref_key=args["ref_key"])
         res_data = cropper(data)
         self.assertTupleEqual(res_data[args["keys"][0]].shape[1:], expected_shape)
 

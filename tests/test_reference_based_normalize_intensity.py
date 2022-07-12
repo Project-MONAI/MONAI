@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.dictionary import InputTargetNormalizeIntensityd
+from monai.apps.reconstruction.dictionary import ReferenceBasedNormalizeIntensityd
 from monai.utils.type_conversion import convert_to_numpy
 from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
@@ -29,7 +29,7 @@ TESTS = []
 for p in TEST_NDARRAYS_NO_META_TENSOR:
     TESTS.append(
         [
-            {"keys": ["kspace_masked_ifft"], "channel_wise": True},
+            {"keys": ["kspace_masked_ifft", "target"], "ref_key": "kspace_masked_ifft", "channel_wise": True},
             {"kspace_masked_ifft": p(np.array([[-2.0, 0.0, 2.0]])), "target": p(np.array([[1.0, 2.0, 3.0]]))},
             p(np.array([[-1.225, 0.0, 1.225]])),  # normalized input
             p(np.array([[0.612, 1.225, 1.837]])),  # normalized target
@@ -40,7 +40,7 @@ for p in TEST_NDARRAYS_NO_META_TENSOR:
 
     TESTS.append(
         [
-            {"keys": ["kspace_masked_ifft"], "channel_wise": False},
+            {"keys": ["kspace_masked_ifft", "target"], "ref_key": "kspace_masked_ifft", "channel_wise": False},
             {"kspace_masked_ifft": p(np.array([[-2.0, 0.0, 2.0]])), "target": p(np.array([[1.0, 2.0, 3.0]]))},
             p(np.array([[-1.225, 0.0, 1.225]])),  # normalized input
             p(np.array([[0.612, 1.225, 1.837]])),  # normalized target
@@ -54,13 +54,15 @@ class TestDetailedNormalizeIntensityd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_target_mean_std(self, args, data, normalized_data, normalized_target, mean, std):
         dtype = data[args["keys"][0]].dtype
-        normalizer = InputTargetNormalizeIntensityd(keys=args["keys"], channel_wise=args["channel_wise"], dtype=dtype)
+        normalizer = ReferenceBasedNormalizeIntensityd(
+            keys=args["keys"], ref_key=args["ref_key"], channel_wise=args["channel_wise"], dtype=dtype
+        )
         res_data = normalizer(data)
 
         img = np.round(convert_to_numpy(res_data[args["keys"][0]]), 3)
         normalized_data = np.round(convert_to_numpy(normalized_data), 3)
 
-        target = np.round(convert_to_numpy(res_data["target"]), 3)
+        target = np.round(convert_to_numpy(res_data[args["keys"][1]]), 3)
         normalized_target = np.round(convert_to_numpy(normalized_target), 3)
 
         assert_allclose(img, normalized_data)

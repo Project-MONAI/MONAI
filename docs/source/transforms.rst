@@ -1728,14 +1728,14 @@ Smooth Field (Dict)
     :special-members: __call__
 
 
-`TargetBasedSpatialCropd`
-"""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.dictionary.TargetBasedSpatialCropd
+`ReferenceBasedSpatialCropd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.dictionary.ReferenceBasedSpatialCropd
     :special-members: __call__
 
-`InputTargetNormalizeIntensityd`
-""""""""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.dictionary.InputTargetNormalizeIntensityd
+`ReferenceBasedNormalizeIntensityd`
+"""""""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.dictionary.ReferenceBasedNormalizeIntensityd
     :special-members: __call__
 
 
