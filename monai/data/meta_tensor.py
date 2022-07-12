@@ -282,23 +282,19 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def __array_function__(self, func, types, args, kwargs):
         """for numpy Interoperability"""
-        if not func.__module__.startswith("numpy"):
+        try:
+            if not func.__module__.startswith("numpy"):
+                return NotImplemented
+        except AttributeError:
             return NotImplemented
-        if not any(issubclass(t, MetaTensor) for t in types):
-            # Defer to any other subclasses that implement __array_function__
-            return NotImplemented
-        _args = list(
-            convert_data_type(x, output_type=np.ndarray, wrap_sequence=False)[0]
-            if isinstance(x, (MetaTensor, tuple, list))
-            else x
-            for x in args
-        )
-        _kwargs = {
-            k: convert_data_type(v, output_type=np.ndarray, wrap_sequence=False)[0]
-            if isinstance(v, (MetaTensor, tuple, list))
-            else v
-            for k, v in kwargs.items()
-        }
+
+        def _convert(x):
+            if isinstance(x, (MetaTensor, torch.Tensor, tuple, list)):
+                return convert_data_type(x, output_type=np.ndarray, wrap_sequence=False)[0]
+            return x
+
+        _args = list(map(_convert, args))
+        _kwargs = {k: _convert(v) for k, v in kwargs.items()}
         return func(*_args, **_kwargs)
 
     def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
