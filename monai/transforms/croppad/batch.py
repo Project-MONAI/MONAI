@@ -99,6 +99,7 @@ class PadListDataCollate(InvertibleTransform):
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list
+                # padder transform info is re-added with self.push_transform to ensure one info dict per transform.
                 if is_list_of_dicts:
                     self.push_transform(
                         batch[idx],
