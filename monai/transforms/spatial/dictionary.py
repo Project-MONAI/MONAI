@@ -274,7 +274,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.resampler = ResampleToMatch()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
