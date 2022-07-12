@@ -307,9 +307,16 @@ class MetaTensor(MetaObj, torch.Tensor):
                 return NotImplemented
         except AttributeError:
             return NotImplemented
+        if method != "__call__":
+            return NotImplemented
         _inputs = map(MetaTensor._convert, inputs)
         _kwargs = {k: MetaTensor._convert(v) for k, v in kwargs.items()}
-        return getattr(ufunc, method)(*_inputs, **_kwargs)
+        if "out" in _kwargs:
+            return NotImplemented  # not supported
+        try:
+            return getattr(ufunc, method)(*_inputs, **_kwargs)
+        except AttributeError:
+            return NotImplemented
 
     def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=self.device, dtype=dtype)
