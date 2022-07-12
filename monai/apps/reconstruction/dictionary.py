@@ -56,6 +56,7 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        meta_key: str,
         center_fractions: Sequence[float],
         accelerations: Sequence[float],
         spatial_dims: int = 2,
@@ -69,6 +70,7 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
             spatial_dims=spatial_dims,
             is_complex=is_complex,
         )
+        self.meta_key = meta_key
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -87,12 +89,11 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
             the new data dictionary
         """
         d = dict(data)
+        d["target"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.RECON]  # type: ignore
+        d["filename"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.FILENAME]  # type: ignore
         for key in self.key_iterator(d):  # key is typically just "kspace"
             d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
             d["mask"] = self.masker.mask  # type: ignore
-            meta = "_meta_dict"
-            d["target"] = d[key + meta][FastMRIKeys.RECON]  # type: ignore
-            d["filename"] = d[key + meta][FastMRIKeys.FILENAME]  # type: ignore
         return d  # type: ignore
 
 
@@ -126,6 +127,7 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        meta_key: str,
         center_fractions: Sequence[float],
         accelerations: Sequence[float],
         spatial_dims: int = 2,
@@ -136,6 +138,7 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
         self.masker = EquispacedKspaceMask(
             center_fractions=center_fractions, accelerations=accelerations, is_complex=is_complex
         )
+        self.meta_key = meta_key
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -154,12 +157,11 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
             the new data dictionary
         """
         d = dict(data)
+        d["target"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.RECON]  # type: ignore
+        d["filename"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.FILENAME]  # type: ignore
         for key in self.key_iterator(d):  # key is typically just "kspace"
             d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
             d["mask"] = self.masker.mask  # type: ignore
-            meta = "_meta_dict"
-            d["target"] = d[key + meta][FastMRIKeys.RECON]  # type: ignore
-            d["filename"] = d[key + meta][FastMRIKeys.FILENAME]  # type: ignore
         return d  # type: ignore
 
 
