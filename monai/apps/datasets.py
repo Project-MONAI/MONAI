@@ -562,8 +562,8 @@ class TciaDataset(Randomizable, CacheDataset):
             series_num = 0
 
         series_num = str(series_num)
-        seg_dir = os.path.join(download_dir, patient_id, series_num, self.picked_modality)
-        dcm_dir = os.path.join(download_dir, patient_id, series_num, "IMAGE")
+        seg_dir = os.path.join(download_dir, patient_id, series_num, self.picked_modality.lower())
+        dcm_dir = os.path.join(download_dir, patient_id, series_num, "image")
 
         # get ref uuid
         ref_uuid_list = []
@@ -601,12 +601,14 @@ class TciaDataset(Randomizable, CacheDataset):
         for patient_id in patient_list:
             series_list = [f.name for f in os.scandir(os.path.join(dataset_dir, patient_id)) if f.is_dir()]
             for series_num in series_list:
-                image_path = os.path.join(dataset_dir, patient_id, series_num, "IMAGE")
-                mask_path = os.path.join(dataset_dir, patient_id, series_num, self.picked_modality)
+                seg_key = self.picked_modality.lower()
+                image_path = os.path.join(dataset_dir, patient_id, series_num, "image")
+                mask_path = os.path.join(dataset_dir, patient_id, series_num, seg_key)
+
                 if os.path.exists(image_path):
-                    datalist.append({"image": image_path, self.picked_modality: mask_path})
+                    datalist.append({"image": image_path, seg_key: mask_path})
                 else:
-                    datalist.append({self.picked_modality: mask_path})
+                    datalist.append({seg_key: mask_path})
 
         return self._split_datalist(datalist)
 

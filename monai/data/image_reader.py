@@ -38,13 +38,14 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
+    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = has_highdicom = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
     pydicom, has_pydicom = optional_import("pydicom")
+    highdicom, has_highdicom = optional_import("highdicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -373,15 +374,19 @@ class ITKReader(ImageReader):
 
 
 @require_pkg(pkg_name="pydicom")
+@require_pkg(pkg_name="highdicom")
 class PydicomReader(ImageReader):
     """
     Load medical images based on Pydicom library.
     All the supported image formats can be found at:
     https://dicom.nema.org/medical/dicom/current/output/chtml/part10/chapter_7.html
 
+    For dicom data with modality "SEG", Highdicom will be used.
+
     This class refers to:
     https://nipy.org/nibabel/dicom/dicom_orientation.html#dicom-affine-formula
     https://github.com/pydicom/contrib-pydicom/blob/master/input-output/pydicom_series.py
+    https://highdicom.readthedocs.io/en/latest/usage.html#parsing-segmentation-seg-images
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
@@ -392,6 +397,9 @@ class PydicomReader(ImageReader):
             otherwise the affine matrix remains in the Dicom convention.
         swap_ij: whether to swap the first two spatial axes. Default to ``True``, so that the outputs
             are consistent with the other readers.
+        prune_metadata: whether to prune the saved information in metadata. This argument is used for
+            `get_data` function. If True, only items that are related to the affine matrix will be saved.
+            Default to ``True``.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
@@ -401,13 +409,19 @@ class PydicomReader(ImageReader):
     """
 
     def __init__(
-        self, channel_dim: Optional[int] = None, affine_lps_to_ras: bool = True, swap_ij: bool = True, **kwargs
+        self,
+        channel_dim: Optional[int] = None,
+        affine_lps_to_ras: bool = True,
+        swap_ij: bool = True,
+        prune_metadata: bool = True,
+        **kwargs,
     ):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
+        self.prune_metadata = prune_metadata
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -418,7 +432,7 @@ class PydicomReader(ImageReader):
                 if a list of files, verify all the suffixes.
 
         """
-        return has_pydicom
+        return has_pydicom and has_highdicom
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
@@ -448,9 +462,10 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in glob.glob(os.path.join(name, "**"))]
+                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in glob.glob(os.path.join(name, "*.dcm"))]
                 img_.append(slices if len(slices) > 1 else slices[0])
-                self.has_series = True
+                if len(slices) > 1:
+                    self.has_series = True
             else:
                 ds = pydicom.dcmread(fp=name, **kwargs_)
                 img_.append(ds)
@@ -481,7 +496,7 @@ class PydicomReader(ImageReader):
                 slices.append(slc_ds)
             else:
                 warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber)
+        slices = sorted(slices, key=lambda s: s.InstanceNumber, reverse=True)
 
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
@@ -532,8 +547,13 @@ class PydicomReader(ImageReader):
         When loading a list of files (dicom file, or stacked dicom series), they are stacked together at a new
         dimension as the first dimension, and the metadata of the first image is used to represent the output metadata.
 
-        To use this function, all pydicom dataset objects should contain: `pixel_array`, `PixelSpacing`,
-        `ImagePositionPatient` and `ImageOrientationPatient`.
+        To use this function, all pydicom dataset objects (if not segmentation data) should contain:
+        `pixel_array`, `PixelSpacing`, `ImagePositionPatient` and `ImageOrientationPatient`.
+
+        For segmentation data, we assume that the input is not a dicom series, and the object should contain
+        `SegmentSequence` in order to identify it.
+        In addition, tags (5200, 9229) and (5200, 9230) are required to achieve
+        `PixelSpacing`, `ImageOrientationPatient` and `ImagePositionPatient`.
 
         Args:
             data: a pydicom dataset object, or a list of pydicom dataset objects, or a list of list of
@@ -556,10 +576,12 @@ class PydicomReader(ImageReader):
             if not isinstance(data, List):
                 data = [data]
             for d in data:
-                data_array = self._get_array_data(d)
-                metadata = self._get_meta_dict(d)
-                metadata["spatial_shape"] = data_array.shape
-                metadata["spacing"] = np.asarray(metadata.get("00280030", {}).get("Value", (1.0, 1.0, 1.0)))
+                if hasattr(d, "SegmentSequence"):
+                    data_array, metadata = self._get_seg_data(d)
+                else:
+                    data_array = self._get_array_data(d)
+                    metadata = self._get_meta_dict(d)
+                    metadata["spatial_shape"] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
         img_array: List[np.ndarray] = []
@@ -582,6 +604,7 @@ class PydicomReader(ImageReader):
             else:
                 metadata["original_channel_dim"] = self.channel_dim
             metadata["spacing"] = affine_to_spacing(metadata["original_affine"], r=len(metadata["spatial_shape"]))
+
             _copy_compatible_dict(metadata, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -594,19 +617,23 @@ class PydicomReader(ImageReader):
             img: a Pydicom dataset object.
 
         """
-        if not hasattr(img, "ImagePositionPatient"):
-            raise ValueError(f"dicom data: {img.filename} does not have ImagePositionPatient.")
-        if not hasattr(img, "ImageOrientationPatient"):
-            raise ValueError(f"dicom data: {img.filename} does not have ImageOrientationPatient.")
 
-        meta_dict = img.to_json_dict()
-        # remove Pixel Data "7FE00008" or "7FE00009" or "7FE00010"
-        # remove Data Set Trailing Padding "FFFCFFFC"
+        metadata = img.to_json_dict()
+
+        if self.prune_metadata:
+            prune_metadata = {}
+            for key in ["00200037", "00200032", "52009229", "52009230"]:
+                if key in metadata.keys():
+                    prune_metadata[key] = metadata[key]
+            return prune_metadata
+
+        # always remove Pixel Data "7FE00008" or "7FE00009" or "7FE00010"
+        # always remove Data Set Trailing Padding "FFFCFFFC"
         for key in ["7FE00008", "7FE00009", "7FE00010", "FFFCFFFC"]:
-            if key in meta_dict.keys():
-                meta_dict.pop(key)
+            if key in metadata.keys():
+                metadata.pop(key)
 
-        return meta_dict  # type: ignore
+        return metadata  # type: ignore
 
     def _get_affine(self, metadata: Dict, lps_to_ras: bool = True):
         """
@@ -649,6 +676,68 @@ class PydicomReader(ImageReader):
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
         return affine
+
+    def _get_seg_data(self, img):
+        """
+        Get the array data and metadata of the segmentation image.
+
+        Aegs:
+            img: a Pydicom dataset object that has attribute "SegmentSequence".
+
+        """
+
+        metadata = self._get_meta_dict(img)
+        metadata["labels"] = {}
+
+        try:
+            all_segs = []
+            for frames, _, description in highdicom.seg.utils.iter_segments(img):
+                all_segs.append(np.transpose(frames, [1, 2, 0]))
+                metadata["labels"][str(description.SegmentNumber)] = description.SegmentDescription
+            if len(all_segs) == 1:
+                all_segs = np.expand_dims(all_segs, axis=-1).astype(np.uint8)
+            else:
+                all_segs = np.stack(all_segs, axis=-1).astype(np.uint8)
+            metadata["spatial_shape"] = all_segs.shape[:-1]
+        except Exception as e:
+            raise NotImplementedError(f"Highdicom cannot read dicom seg data: {img.filename}.") from e
+
+        if "52009229" in metadata.keys():
+            shared_func_group_seq = metadata["52009229"]["Value"][0]
+
+            # get `ImageOrientationPatient`
+            if "00209116" in shared_func_group_seq.keys():
+                plane_orient_seq = shared_func_group_seq["00209116"]["Value"][0]
+                if "00200037" in plane_orient_seq.keys():
+                    metadata["00200037"] = plane_orient_seq["00200037"]
+
+            # get `PixelSpacing`
+            if "00289110" in shared_func_group_seq.keys():
+                pixel_measure_seq = shared_func_group_seq["00289110"]["Value"][0]
+
+                if "00280030" in pixel_measure_seq.keys():
+                    pixel_spacing = pixel_measure_seq["00280030"]["Value"]
+                    metadata["spacing"] = pixel_spacing
+                    if "00180050" in pixel_measure_seq.keys():
+                        metadata["spacing"] += pixel_measure_seq["00180050"]["Value"]
+
+            if self.prune_metadata:
+                metadata.pop("52009229")
+
+        # get `ImagePositionPatient`
+        if "52009230" in metadata.keys():
+            first_frame_func_group_seq = metadata["52009230"]["Value"][0]
+            if "00209113" in first_frame_func_group_seq.keys():
+                plane_position_seq = first_frame_func_group_seq["00209113"]["Value"][0]
+                if "00200032" in plane_position_seq.keys():
+                    metadata["00200032"] = plane_position_seq["00200032"]
+                    metadata["lastImagePositionPatient"] = metadata["52009230"]["Value"][-1]["00209113"]["Value"][0][
+                        "00200032"
+                    ]["Value"]
+            if self.prune_metadata:
+                metadata.pop("52009230")
+
+        return all_segs, metadata
 
     def _get_array_data(self, img):
         """
