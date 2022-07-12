@@ -530,6 +530,7 @@ class TestMetaTensor(unittest.TestCase):
         c = MetaTensor([1.0, 2.0, 3.0])
         assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
         assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
+        assert_allclose(c > np.asarray([1.0, 1.0, 1.0]), np.asarray([False, True, True]))
 
 
 if __name__ == "__main__":
