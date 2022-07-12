@@ -31,6 +31,8 @@ class MeanIoU(CumulativeIterationMetric):
     background.
     `y_pred` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to skip IoU computation on the first channel of
             the predicted output. Defaults to ``True``.
