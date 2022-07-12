@@ -298,7 +298,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         return func(*_args, **_kwargs)
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        """for numpy interoperability, so that we can compute ``MetaTensor([1.0]) >= np.asarray([1.0])``."""
+        """
+        For numpy interoperability, so that we can compute ``MetaTensor([1.0]) >= np.asarray([1.0])``.
+        This is for pytorch > 1.8.
+        """
         try:
             if not type(ufunc).__module__.startswith("numpy"):
                 return NotImplemented
