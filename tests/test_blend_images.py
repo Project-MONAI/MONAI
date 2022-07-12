@@ -32,18 +32,18 @@ def get_alpha(img):
 TESTS = []
 for p in TEST_NDARRAYS:
     image, label = create_test_image_2d(100, 101, channel_dim=0)
-    TESTS.append((p(image), p(label)))
+    TESTS.append((p(image), p(label), 0.5))
     TESTS.append((p(image), p(label), p(get_alpha(image))))
 
     image, label = create_test_image_3d(100, 101, 102, channel_dim=0)
-    TESTS.append((p(image), p(label)))
+    TESTS.append((p(image), p(label), 0.5))
     TESTS.append((p(image), p(label), p(get_alpha(image))))
 
 
 @skipUnless(has_matplotlib, "Matplotlib required")
 class TestBlendImages(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_blend(self, image, label, alpha=0.5):
+    def test_blend(self, image, label, alpha):
         blended = blend_images(image, label, alpha)
         self.assertEqual(type(image), type(blended))
         if isinstance(blended, torch.Tensor):
