@@ -85,9 +85,9 @@ class FastMRIReader(ImageReader):
         """
         header = self._get_meta_dict(dat)
         data: ndarray = np.array(dat[FastMRIKeys.KSPACE])
-        header["mask"] = (
+        header[FastMRIKeys.MASK] = (
             convert_to_tensor(np.array(dat[FastMRIKeys.MASK])).unsqueeze(0)[None, ..., None]
-            if "mask" in dat.keys()
+            if FastMRIKeys.MASK in dat.keys()
             else np.zeros(data.shape)
         )
         return data, header
@@ -99,11 +99,4 @@ class FastMRIReader(ImageReader):
         Args:
             dat: a dictionary object loaded from an h5 file.
         """
-        return {
-            "filename": dat[FastMRIKeys.FILENAME],
-            "reconstruction_rss": dat[FastMRIKeys.RECON],
-            "acquisition": dat[FastMRIKeys.ACQUISITION],
-            "max": dat[FastMRIKeys.MAX],
-            "norm": dat[FastMRIKeys.NORM],
-            "patient_id": dat[FastMRIKeys.PID],
-        }
+        return {k.value: dat[k.value] for k in FastMRIKeys if k.value in dat}
