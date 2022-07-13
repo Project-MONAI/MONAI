@@ -434,7 +434,9 @@ def verify_metadata(
         validate(instance=metadata, schema=schema, **_args)
     except ValidationError as e:  # pylint: disable=E0712
         # as the error message is very long, only extract the key information
-        raise ValueError(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
+        raise ValueError(
+            re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`."
+        ) from e
     logger.info("metadata is verified with no error.")
 
 
