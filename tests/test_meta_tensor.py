@@ -521,6 +521,22 @@ class TestMetaTensor(unittest.TestCase):
         assert_allclose(obj.as_tensor(), t)
 
     @parameterized.expand(TESTS)
+    def test_array_function(self, device="cpu", dtype=float):
+        a = np.random.RandomState().randn(100, 100)
+        b = MetaTensor(a, device=device)
+        assert_allclose(np.sum(a), np.sum(b))
+        assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
+        assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
+        c = MetaTensor([1.0, 2.0, 3.0], device=device, dtype=dtype)
+        assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
+        assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
+        if pytorch_after(1, 8, 1):
+            assert_allclose(c > np.asarray([1.0, 1.0, 1.0]), np.asarray([False, True, True]))
+            assert_allclose(
+                c > torch.as_tensor([1.0, 1.0, 1.0], device=device), torch.as_tensor([False, True, True], device=device)
+            )
+
+    @parameterized.expand(TESTS)
     def test_numpy(self, device=None, dtype=None):
         """device, dtype"""
         t = MetaTensor([0.0], device=device, dtype=dtype)
