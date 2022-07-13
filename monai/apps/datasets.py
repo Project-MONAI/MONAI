@@ -468,14 +468,14 @@ class TciaDataset(Randomizable, CacheDataset):
         ref_series_uid_tag: Tuple = (0x0020, 0x000E),
         ref_sop_uid_tag: Tuple = (0x0008, 0x1155),
         specific_tags: Tuple = (
-            (0x0008, 0x1115),
-            (0x0008, 0x1140),
-            (0x3006, 0x0010),
-            (0x0020, 0x000D),
-            (0x0010, 0x0010),
-            (0x0010, 0x0020),
-            (0x0020, 0x0011),
-            (0x0020, 0x0012),
+            (0x0008, 0x1115),  # Referenced Series Sequence
+            (0x0008, 0x1140),  # Referenced Image Sequence
+            (0x3006, 0x0010),  # Referenced Frame of Reference Sequence
+            (0x0020, 0x000D),  # Study Instance UID
+            (0x0010, 0x0010),  # Patient's Name
+            (0x0010, 0x0020),  # Patient ID
+            (0x0020, 0x0011),  # Series Number
+            (0x0020, 0x0012),  # Acquisition Number
         ),
         seed: int = 0,
         val_frac: float = 0.2,
