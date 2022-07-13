@@ -299,9 +299,6 @@ class MetaTensor(MetaObj, torch.Tensor):
             dtype: output dtype.
             *_args: currently unused parameters.
             **_kwargs: currently unused parameters.
-
-        Returns:
-
         """
         return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
 
@@ -320,16 +317,16 @@ class MetaTensor(MetaObj, torch.Tensor):
             *_args: currently unused parameters.
             **_kwargs:  currently unused parameters.
         """
-        src = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
         return self.copy_(src, non_blocking=non_blocking)
 
     @property
-    def array(self) -> np.ndarray:
+    def array(self):
         """
         Returns a numpy array of self, the array and self shares the same underlying storage.
         Changes to self tensor will be reflected in the ndarray and vice versa.
         """
-        return self.get_array()  # type: ignore
+        return self.get_array()
 
     @array.setter
     def array(self, src) -> None:
