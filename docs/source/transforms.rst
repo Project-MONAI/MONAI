@@ -997,11 +997,11 @@ Utility
 
 `ConvertToTensorComplex`
 """"""""""""""""""""""""
-.. autofunction:: monai.apps.reconstruction.mri_utils.convert_to_tensor_complex
+.. autofunction:: monai.apps.reconstruction.complex_utils.convert_to_tensor_complex
 
 `ComplexAbs`
 """"""""""""
-.. autofunction:: monai.apps.reconstruction.mri_utils.complex_abs
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_abs
 
 `RootSumOfSquares`
 """"""""""""""""""
@@ -1009,11 +1009,11 @@ Utility
 
 `ComplexMul`
 """"""""""""
-.. autofunction:: monai.apps.reconstruction.mri_utils.complex_mul
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_mul
 
 `ComplexConj`
 """""""""""""
-.. autofunction:: monai.apps.reconstruction.mri_utils.complex_conj
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
 Dictionary Transforms
 ---------------------
