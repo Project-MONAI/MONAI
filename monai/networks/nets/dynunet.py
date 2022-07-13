@@ -110,7 +110,6 @@ class DynUNet(nn.Module):
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the final feature map
             (from `output_block`), but also the feature maps that come from the intermediate up sample layers.
-            In evaluation mode, the forward function will output only the final feature map.
             In order to unify the return type (the restriction of TorchScript), all intermediate
             feature maps are interpolated into the same size as the final feature map and stacked together
             (with a new dimension in the first axis)into one single tensor.

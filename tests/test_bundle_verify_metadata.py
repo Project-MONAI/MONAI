@@ -56,10 +56,7 @@ class TestVerifyMetaData(unittest.TestCase):
                 json.dump(meta_dict, f)
 
             with self.assertRaises(ValueError):
-                verify_metadata(
-                    meta_file=metafile,
-                    filepath=filepath,
-                )
+                verify_metadata(meta_file=metafile, filepath=filepath)
 
 
 if __name__ == "__main__":
