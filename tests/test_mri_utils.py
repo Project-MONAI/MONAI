@@ -39,16 +39,16 @@ for p in TEST_NDARRAYS:
     TESTSC.append((p(im), p(res)))
 
 # test case for complex_mul
-x = [[1, 2], [3, 4]]
-y = [[1, 1], [1, 1]]
-res = [[-1, 3], [-1, 7]]
+x = [[1.0, 2.0], [3.0, 4.0]]
+y = [[1.0, 1.0], [1.0, 1.0]]
+res = [[-1.0, 3.0], [-1.0, 7.0]]  # type: ignore
 TESTSM = []
 for p in TEST_NDARRAYS:
     TESTSM.append((p(x), p(y), p(res)))
 
 # test case for complex_conj
-im = [[1, 2], [3, 4]]
-res = [[1, -2], [3, -4]]
+im = [[1.0, 2.0], [3.0, 4.0]]
+res = [[1.0, -2.0], [3.0, -4.0]]  # type: ignore
 TESTSJ = []
 for p in TEST_NDARRAYS:
     TESTSJ.append((p(im), p(res)))
