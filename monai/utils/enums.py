@@ -40,7 +40,6 @@ __all__ = [
     "TransformBackends",
     "BoxModeName",
     "GridPatchSort",
-    "FastMRIKeys",
 ]
 
 
@@ -414,16 +413,3 @@ class WSIPatchKeys(StrEnum):
     SIZE = "patch_size"
     COUNT = "num_patches"
     PATH = "path"
-
-
-class FastMRIKeys(StrEnum):
-    """
-    The keys to be used for extracting data from the fastMRI dataset
-    """
-
-    FILENAME = "filename"
-    RECON = "reconstruction_rss"
-    ACQUISITION = "acquisition"
-    MAX = "max"
-    NORM = "norm"
-    PID = "patient_id"
