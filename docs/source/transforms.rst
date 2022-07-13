@@ -798,23 +798,6 @@ Smooth Field
     :members:
     :special-members: __call__
 
-
-MRI Transforms
-^^^^^^^^^^^^^^
-
-`Kspace under-sampling`
-"""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.array.KspaceMask
-    :members:
-    :special-members: __call__
-
-.. autoclass:: monai.apps.reconstruction.array.RandomKspaceMask
-    :special-members: __call__
-
-.. autoclass:: monai.apps.reconstruction.array.EquispacedKspaceMask
-    :special-members: __call__
-
-
 Utility
 ^^^^^^^
 
@@ -1719,30 +1702,6 @@ Smooth Field (Dict)
 .. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
-
-
-`MRI transforms (Dict)`
-^^^^^^^^^^^^^^^^^^^^^^^
-
-`Kspace under-sampling (Dict)`
-""""""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.dictionary.RandomKspaceMaskd
-    :special-members: __call__
-
-.. autoclass:: monai.apps.reconstruction.dictionary.EquispacedKspaceMaskd
-    :special-members: __call__
-
-
-`ReferenceBasedSpatialCropd`
-""""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.dictionary.ReferenceBasedSpatialCropd
-    :special-members: __call__
-
-`ReferenceBasedNormalizeIntensityd`
-"""""""""""""""""""""""""""""""""""
-.. autoclass:: monai.apps.reconstruction.dictionary.ReferenceBasedNormalizeIntensityd
-    :special-members: __call__
-
 
 Utility (Dict)
 ^^^^^^^^^^^^^^
