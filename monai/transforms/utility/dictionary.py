@@ -508,7 +508,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             # Create inverse transform
             inverse_transform = ToNumpy()
@@ -683,7 +683,7 @@ class Transposed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
@@ -1030,7 +1030,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data):
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             ret = self._lambd.inverse(data=d[key])
             if overwrite:
@@ -1100,7 +1100,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             if isinstance(d[key], MetaTensor):
                 tr = self.pop_transform(d[key])

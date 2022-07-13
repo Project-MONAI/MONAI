@@ -16,11 +16,11 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import warnings
-from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import torch
 
+from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.data.meta_tensor import MetaTensor
@@ -39,8 +39,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -634,15 +633,16 @@ class Invertd(MapTransform):
                     warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                     continue
 
+            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             if orig_key in d and isinstance(d[orig_key], MetaTensor):
                 transform_info = d[orig_key].applied_operations
                 meta_info = d[orig_key].meta
             else:
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
-                meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
+                meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
@@ -656,7 +656,9 @@ class Invertd(MapTransform):
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
-
+            if config.USE_META_DICT:
+                input_dict[InvertibleTransform.trace_key(orig_key)] = transform_info
+                input_dict[PostFix.meta(orig_key)] = meta_info
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)
 
@@ -665,8 +667,9 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
+                if config.USE_META_DICT and InvertibleTransform.trace_key(orig_key) in d:
+                    d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
             d[key] = post_func(inverted_data.to(device))
-
             # save the inverted meta dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
