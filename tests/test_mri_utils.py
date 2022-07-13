@@ -11,11 +11,9 @@
 
 import unittest
 
-import torch
 from parameterized import parameterized
 
 from monai.apps.reconstruction.mri_utils import root_sum_of_squares
-from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 # root_sum_of_squares
