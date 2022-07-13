@@ -462,7 +462,9 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in glob.glob(os.path.join(name, "*.dcm"))]
+                series_slcs = glob.glob(os.path.join(name, "*"))
+                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
+                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
@@ -496,7 +498,7 @@ class PydicomReader(ImageReader):
                 slices.append(slc_ds)
             else:
                 warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber, reverse=True)
+        slices = sorted(slices, key=lambda s: s.InstanceNumber)
 
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
@@ -691,11 +693,11 @@ class PydicomReader(ImageReader):
 
         try:
             all_segs = []
-            for frames, _, description in highdicom.seg.utils.iter_segments(img):
+            for i, (frames, _, description) in enumerate(highdicom.seg.utils.iter_segments(img)):
                 all_segs.append(np.transpose(frames, [1, 2, 0]))
-                metadata["labels"][str(description.SegmentNumber)] = description.SegmentDescription
+                metadata["labels"][str(i)] = description.SegmentDescription
             if len(all_segs) == 1:
-                all_segs = np.expand_dims(all_segs, axis=-1).astype(np.uint8)
+                all_segs = np.expand_dims(all_segs[0], axis=-1).astype(np.uint8)
             else:
                 all_segs = np.stack(all_segs, axis=-1).astype(np.uint8)
             metadata["spatial_shape"] = all_segs.shape[:-1]

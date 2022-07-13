@@ -394,6 +394,11 @@ class TciaDataset(Randomizable, CacheDataset):
     The Dataset to automatically download the data from a public The Cancer Imaging Archive (TCIA) dataset
     and generate items for training, validation or test.
 
+    The Highdicom library is used to load dicom data with modality "SEG", but only a part of collections are
+    supoorted, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
+    and "PROSTATEx". Therefore, if "seg" is included in `keys` of the `LoadImaged` transform and loading some
+    other collections, errors may be raised.
+
     This class is based on :py:class:`monai.data.CacheDataset` to accelerate the training process.
 
     Args:
@@ -421,7 +426,7 @@ class TciaDataset(Randomizable, CacheDataset):
             note to set same seed for `training` and `validation` sections.
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        cache_rate: percentage of cached data in total, default is 1.0 (cache all).
+        cache_rate: percentage of cached data in total, default is 0.0 (no cache).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_workers: the number of worker threads to use.
             If num_workers is None then the number returned by os.cpu_count() is used.
