@@ -313,8 +313,8 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         Args:
             src: the source tensor to copy from.
-            non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously with respect
-                to the host. For other cases, this argument has no effect.
+            non_blocking: if True and this copy is between CPU and GPU, the copy may occur
+                asynchronously with respect to the host. For other cases, this argument has no effect.
             *_args: currently unused parameters.
             **_kwargs:  currently unused parameters.
         """
@@ -324,8 +324,9 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def array(self):
         """
-        Returns a numpy array of self, the array and self shares the same underlying storage.
-        Changes to self tensor will be reflected in the ndarray and vice versa.
+        Returns a numpy array of self, the array and self shares the same underlying storage if self is on cpu.
+        If self is on other devices, the array will be moved to cpu.
+        When sharing the storage, changes to self tensor will be reflected in the ndarray and vice versa.
         """
         return self.get_array()
 
