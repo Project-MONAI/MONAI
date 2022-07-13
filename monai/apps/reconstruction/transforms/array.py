@@ -16,7 +16,8 @@ from typing import Sequence
 import numpy as np
 from torch import Tensor
 
-from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, root_sum_of_squares
+from monai.apps.reconstruction.complex_utils import complex_abs, convert_to_tensor_complex
+from monai.apps.reconstruction.mri_utils import root_sum_of_squares
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.fft_utils import ifftn_centered
 from monai.transforms.transform import Randomizable, Transform

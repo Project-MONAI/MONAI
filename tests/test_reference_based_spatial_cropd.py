@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.dictionary import ReferenceBasedSpatialCropd
+from monai.apps.reconstruction.transforms.dictionary import ReferenceBasedSpatialCropd
 from tests.utils import TEST_NDARRAYS
 
 # see test_spatial_cropd for typical tests (like roi_start,

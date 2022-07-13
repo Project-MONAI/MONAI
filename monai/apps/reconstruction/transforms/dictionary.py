@@ -16,7 +16,7 @@ import numpy as np
 from numpy import ndarray
 from torch import Tensor
 
-from monai.apps.reconstruction.array import EquispacedKspaceMask, RandomKspaceMask
+from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialCrop
