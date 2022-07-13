@@ -139,3 +139,64 @@ def root_sum_of_squares(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor
     """
     rss_x: NdarrayOrTensor = (x**2).sum(spatial_dim) ** 0.5
     return rss_x
+
+
+def complex_mul(x: NdarrayOrTensor, y: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute complex-valued multiplication. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
+
+    Args:
+        x: Input array/tensor with 2 channels in the last dimension representing real and imaginary parts.
+        y: Input array/tensor with 2 channels in the last dimension representing real and imaginary parts.
+
+    Returns:
+        Complex multiplication of x and y
+
+    Example:
+        .. code-block:: python
+
+            import numpy as np
+            x = np.array([[1,2],[3,4]])
+            y = np.array([[1,1],[1,1]])
+            # the following line prints array([[-1,  3], [-1,  7]])
+            print(complex_mul(x,y))
+    """
+    if x.shape[-1] != 2 or y.shape[-1] != 2:
+        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]} and y.shape[-1] is {y.shape[-1]}.")
+
+    re = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
+    im = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
+
+    if isinstance(x, Tensor):
+        return torch.stack((re, im), dim=-1)  # type: ignore
+    else:
+        mult: np.ndarray = np.stack((re, im), axis=-1)
+        return mult
+
+
+def complex_conj(x: NdarrayOrTensor) -> NdarrayOrTensor:
+    """
+    Compute complex conjugate of a tensor. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
+
+    Args:
+        x: Input array/tensor with 2 channels in the last dimension representing real and imaginary parts.
+
+    Returns:
+        Complex conjugate of x
+
+    Example:
+        .. code-block:: python
+
+            import numpy as np
+            x = np.array([[1,2],[3,4]])
+            # the following line prints array([[ 1, -2], [ 3, -4]])
+            print(complex_conj(x))
+    """
+    if x.shape[-1] != 2:
+        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]}.")
+
+    if isinstance(x, Tensor):
+        return torch.stack((x[..., 0], -x[..., 1]), dim=-1)
+    else:
+        np_conj: np.ndarray = np.stack((x[..., 0], -x[..., 1]), axis=-1)
+        return np_conj

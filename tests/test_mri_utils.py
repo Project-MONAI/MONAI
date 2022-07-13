@@ -14,7 +14,13 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.reconstruction.mri_utils import complex_abs, convert_to_tensor_complex, root_sum_of_squares
+from monai.apps.reconstruction.mri_utils import (
+    complex_abs,
+    complex_conj,
+    complex_mul,
+    convert_to_tensor_complex,
+    root_sum_of_squares,
+)
 from monai.utils.type_conversion import convert_data_type
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
@@ -32,6 +38,21 @@ TESTSC = []
 for p in TEST_NDARRAYS:
     TESTSC.append((p(im), p(res)))
 
+# test case for complex_mul
+x = [[1, 2], [3, 4]]
+y = [[1, 1], [1, 1]]
+res = [[-1, 3], [-1, 7]]
+TESTSM = []
+for p in TEST_NDARRAYS:
+    TESTSM.append((p(x), p(y), p(res)))
+
+# test case for complex_conj
+im = [[1, 2], [3, 4]]
+res = [[1, -2], [3, -4]]
+TESTSJ = []
+for p in TEST_NDARRAYS:
+    TESTSJ.append((p(im), p(res)))
+
 
 class TestMRIUtils(unittest.TestCase):
     @parameterized.expand(TESTS)
@@ -48,6 +69,16 @@ class TestMRIUtils(unittest.TestCase):
     @parameterized.expand(TESTSC)
     def test_rss(self, test_data, res_data):
         result = root_sum_of_squares(test_data, spatial_dim=1)
+        assert_allclose(result, res_data, type_test=False)
+
+    @parameterized.expand(TESTSM)
+    def test_complex_mul(self, test_x, test_y, res_data):
+        result = complex_mul(test_x, test_y)
+        assert_allclose(result, res_data, type_test=False)
+
+    @parameterized.expand(TESTSJ)
+    def test_complex_conj(self, test_data, res_data):
+        result = complex_conj(test_data)
         assert_allclose(result, res_data, type_test=False)
 
 
