@@ -296,7 +296,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
 
         Args:
-            dtype: output dtype.
+            output_type: output type, see also: :py:func:`monai.utils.convert_data_type`.
+            dtype: dtype of the output array.
             *_args: currently unused parameters.
             **_kwargs: currently unused parameters.
         """
