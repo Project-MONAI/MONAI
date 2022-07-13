@@ -520,6 +520,21 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(obj, MetaTensor)
         assert_allclose(obj.as_tensor(), t)
 
+    # @parameterized.expand(TESTS)
+    def test_numpy(self, device=None, dtype=None):
+        t = MetaTensor([0.0], device=device, dtype=dtype)
+        self.assertIsInstance(t, MetaTensor)
+        assert_allclose(t.array, np.asarray([0.0]))
+        t.array = np.asarray([1.0])
+        self.check_meta(t, MetaTensor([1.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([1.0]))
+        t.array = [2.0]
+        self.check_meta(t, MetaTensor([2.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([2.0]))
+        t.array[0] = 3.0
+        self.check_meta(t, MetaTensor([3.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([3.0]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -290,6 +290,52 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return self.as_subclass(torch.Tensor)  # type: ignore
 
+    def get_array(self, output_type=np.ndarray, dtype=None, *_args, **_kwargs):
+        """
+        Returns a new array in `ouptut_type`, the array shares the same underlying storage when the output is a
+        numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
+
+        Args:
+            dtype: output dtype.
+            *_args: currently unused parameters.
+            **_kwargs: currently unused parameters.
+
+        Returns:
+
+        """
+        return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
+
+    def set_array(self, src, non_blocking=False, *_args, **_kwargs):
+        """
+        Copies the elements from src into self tensor and returns self.
+        The src tensor must be broadcastable with the self tensor.
+        It may be of a different data type or reside on a different device.
+
+        See also: `https://pytorch.org/docs/stable/generated/torch.Tensor.copy_.html`
+
+        Args:
+            src: the source tensor to copy from.
+            non_blocking: if True and this copy is between CPU and GPU, the copy may occur asynchronously with respect
+                to the host. For other cases, this argument has no effect.
+            *_args: currently unused parameters.
+            **_kwargs:  currently unused parameters.
+        """
+        src = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        return self.copy_(src, non_blocking=non_blocking)
+
+    @property
+    def array(self) -> np.ndarray:
+        """
+        Returns a numpy array of self, the array and self shares the same underlying storage.
+        Changes to self tensor will be reflected in the ndarray and vice versa.
+        """
+        return self.get_array()  # type: ignore
+
+    @array.setter
+    def array(self, src) -> None:
+        """A default setter using `self.set_array`"""
+        self.set_array(src)
+
     def as_dict(self, key: str) -> dict:
         """
         Get the object as a dictionary for backwards compatibility.

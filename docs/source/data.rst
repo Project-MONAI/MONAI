@@ -284,6 +284,7 @@ MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
    :members:
+   :inherited-members: MetaObj
 
 
 
