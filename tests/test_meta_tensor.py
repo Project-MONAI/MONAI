@@ -521,7 +521,7 @@ class TestMetaTensor(unittest.TestCase):
         assert_allclose(obj.as_tensor(), t)
 
     @parameterized.expand(TESTS)
-    def test_numpy(self, device=torch.device("cuda"), dtype=None):
+    def test_numpy(self, device=None, dtype=None):
         """device, dtype"""
         t = MetaTensor([0.0], device=device, dtype=dtype)
         self.assertIsInstance(t, MetaTensor)
