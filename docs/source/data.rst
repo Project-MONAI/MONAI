@@ -155,7 +155,7 @@ PILReader
 
 FastMRIReader
 ~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.fastMRIreader.FastMRIReader
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
   :members:
 
 

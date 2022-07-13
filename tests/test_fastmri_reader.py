@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.reconstruction.fastMRIreader import FastMRIReader
+from monai.apps.reconstruction.fastmri_reader import FastMRIReader
 from tests.utils import assert_allclose
 
 TEST_CASE1 = [
