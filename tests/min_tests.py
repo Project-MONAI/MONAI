@@ -98,6 +98,7 @@ def run_testsuit():
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
+        "test_invert",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",

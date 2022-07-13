@@ -25,6 +25,7 @@ import torch
 import torch.multiprocessing
 from parameterized import parameterized
 
+from monai import config
 from monai.data import DataLoader, Dataset
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
@@ -454,7 +455,7 @@ class TestMetaTensor(unittest.TestCase):
             data = _tr(data)
             is_meta = isinstance(_tr, (ToMetaTensord, BorderPadd, DivisiblePadd))
             if is_meta:
-                self.assertEqual(len(data), 1)  # im
+                self.assertEqual(len(data), 1 if not config.USE_META_DICT else 2)  # im, im_transforms, compatibility
                 self.assertIsInstance(data[key], MetaTensor)
                 n_applied = len(data[key].applied_operations)
             else:
@@ -518,6 +519,22 @@ class TestMetaTensor(unittest.TestCase):
         obj = ForkingPickler.loads(buf.getvalue())
         self.assertIsInstance(obj, MetaTensor)
         assert_allclose(obj.as_tensor(), t)
+
+    @parameterized.expand(TESTS)
+    def test_array_function(self, device="cpu", dtype=float):
+        a = np.random.RandomState().randn(100, 100)
+        b = MetaTensor(a, device=device)
+        assert_allclose(np.sum(a), np.sum(b))
+        assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
+        assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
+        c = MetaTensor([1.0, 2.0, 3.0], device=device, dtype=dtype)
+        assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
+        assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
+        if pytorch_after(1, 8, 1):
+            assert_allclose(c > np.asarray([1.0, 1.0, 1.0]), np.asarray([False, True, True]))
+            assert_allclose(
+                c > torch.as_tensor([1.0, 1.0, 1.0], device=device), torch.as_tensor([False, True, True], device=device)
+            )
 
 
 if __name__ == "__main__":
