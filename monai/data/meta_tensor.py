@@ -105,10 +105,21 @@ class MetaTensor(MetaObj, torch.Tensor):
         **_kwargs,
     ) -> None:
         """
-        If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
-        Else, use the default value. Similar for the affine, except this could come from
-        four places.
-        Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+        Args:
+            x: initial array for the MetaTensor. Can be a list, tuple, NumPy ndarray, scalar, and other types.
+            affine: optional 4x4 array.
+            meta: dictionary of metadata.
+            applied_operations: list of previously applied operations on the MetaTensor,
+                the list is typically maintained by `monai.transforms.TraceableTransform`.
+                See also: :py:class:`monai.transforms.TraceableTransform`
+            _args: additional args (currently not in use in this constructor).
+            _kwargs: additional kwargs (currently not in use in this constructor).
+
+        Note:
+            If a `meta` dictionary is given, use it. Else, if `meta` exists in the input tensor `x`, use it.
+            Else, use the default value. Similar for the affine, except this could come from
+            four places, priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+
         """
         super().__init__()
         # set meta
@@ -336,8 +347,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         Args:
             output_type: output type, see also: :py:func:`monai.utils.convert_data_type`.
             dtype: dtype of the output array.
-            *_args: currently unused parameters.
-            **_kwargs: currently unused parameters.
+            _args: currently unused parameters.
+            _kwargs: currently unused parameters.
         """
         return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
 
@@ -353,8 +364,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             src: the source tensor to copy from.
             non_blocking: if True and this copy is between CPU and GPU, the copy may occur
                 asynchronously with respect to the host. For other cases, this argument has no effect.
-            *_args: currently unused parameters.
-            **_kwargs:  currently unused parameters.
+            _args: currently unused parameters.
+            _kwargs:  currently unused parameters.
         """
         src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
         return self.copy_(src, non_blocking=non_blocking)
@@ -362,15 +373,15 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def array(self):
         """
-        Returns a numpy array of self, the array and self shares the same underlying storage if self is on cpu.
-        If self is on other devices, the array will be moved to cpu.
-        When sharing the storage, changes to self tensor will be reflected in the ndarray and vice versa.
+        Returns a numpy array of ``self``. The array and ``self`` shares the same underlying storage if self is on cpu.
+        Changes to ``self`` (it's a subclass of torch.Tensor) will be reflected in the ndarray and vice versa.
+        If ``self`` is not on cpu, the call will move the array to cpu and then the storage is not shared.
         """
         return self.get_array()
 
     @array.setter
     def array(self, src) -> None:
-        """A default setter using `self.set_array`"""
+        """A default setter using ``self.set_array()``"""
         self.set_array(src)
 
     def as_dict(self, key: str) -> dict:
@@ -379,12 +390,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         This method makes a copy of the objects.
 
         Args:
-            key: Base key to store main data. The key for the metadata will be
-                determined using `PostFix.meta`.
+            key: Base key to store main data. The key for the metadata will be determined using `PostFix.meta`.
 
         Return:
-            A dictionary consisting of two keys, the main data (stored under `key`) and
-                the metadata.
+            A dictionary consisting of two keys, the main data (stored under `key`) and the metadata.
         """
         return {
             key: self.as_tensor().clone().detach(),
@@ -392,15 +401,15 @@ class MetaTensor(MetaObj, torch.Tensor):
             PostFix.transforms(key): deepcopy(self.applied_operations),
         }
 
-    def astype(self, dtype, device=None, *unused_args, **unused_kwargs):
+    def astype(self, dtype, device=None, *_args, **_kwargs):
         """
         Cast to ``dtype``, sharing data whenever possible.
 
         Args:
             dtype: dtypes such as np.float32, torch.float, "np.float32", float.
             device: the device if `dtype` is a torch data type.
-            unused_args: additional args (currently unused).
-            unused_kwargs: additional kwargs (currently unused).
+            _args: additional args (currently unused).
+            _kwargs: additional kwargs (currently unused).
 
         Returns:
             data array instance
