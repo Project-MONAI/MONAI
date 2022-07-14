@@ -30,3 +30,4 @@ fire
 jsonschema
 pynrrd
 pydicom
+h5py
