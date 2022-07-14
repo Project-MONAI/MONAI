@@ -185,7 +185,7 @@ class MetaObj:
 
     @property
     def meta(self) -> dict:
-        """Get the meta."""
+        """Get the meta. Defaults to ``{}``."""
         return self._meta if hasattr(self, "_meta") else MetaObj.get_default_meta()
 
     @meta.setter
@@ -197,7 +197,7 @@ class MetaObj:
 
     @property
     def applied_operations(self) -> list[dict]:
-        """Get the applied operations."""
+        """Get the applied operations. Defaults to ``[]``."""
         if hasattr(self, "_applied_operations"):
             return self._applied_operations
         return MetaObj.get_default_applied_operations()

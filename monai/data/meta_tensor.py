@@ -378,6 +378,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         Returns a numpy array of ``self``. The array and ``self`` shares the same underlying storage if self is on cpu.
         Changes to ``self`` (it's a subclass of torch.Tensor) will be reflected in the ndarray and vice versa.
         If ``self`` is not on cpu, the call will move the array to cpu and then the storage is not shared.
+
+        :getter: see also: :py:func:`MetaTensor.get_array()`
+        :setter: see also: :py:func:`MetaTensor.set_array()`
         """
         return self.get_array()
 
@@ -438,7 +441,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @property
     def affine(self) -> torch.Tensor:
-        """Get the affine."""
+        """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
         return self.meta.get("affine", self.get_default_affine())
 
     @affine.setter
