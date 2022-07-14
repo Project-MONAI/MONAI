@@ -180,6 +180,8 @@ class TestMetaTensor(unittest.TestCase):
         # clone
         a = m.clone()
         self.check(a, m, ids=False)
+        a = MetaTensor([[]], device=device, dtype=dtype)
+        self.check(a, deepcopy(a), ids=False)
 
     @parameterized.expand(TESTS)
     def test_add(self, device, dtype):
@@ -535,6 +537,23 @@ class TestMetaTensor(unittest.TestCase):
             assert_allclose(
                 c > torch.as_tensor([1.0, 1.0, 1.0], device=device), torch.as_tensor([False, True, True], device=device)
             )
+
+    @parameterized.expand(TESTS)
+    def test_numpy(self, device=None, dtype=None):
+        """device, dtype"""
+        t = MetaTensor([0.0], device=device, dtype=dtype)
+        self.assertIsInstance(t, MetaTensor)
+        assert_allclose(t.array, np.asarray([0.0]))
+        t.array = np.asarray([1.0])
+        self.check_meta(t, MetaTensor([1.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([1.0]))
+        t.array = [2.0]
+        self.check_meta(t, MetaTensor([2.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([2.0]))
+        if not t.is_cuda:
+            t.array[0] = torch.as_tensor(3.0, device=device, dtype=dtype)
+            self.check_meta(t, MetaTensor([3.0]))
+            assert_allclose(t.as_tensor(), torch.as_tensor([3.0]))
 
 
 if __name__ == "__main__":
