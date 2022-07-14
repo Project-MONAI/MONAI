@@ -16,7 +16,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import warnings
-from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import torch
@@ -643,7 +642,7 @@ class Invertd(MapTransform):
                 meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
