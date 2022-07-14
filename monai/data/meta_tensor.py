@@ -465,6 +465,13 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
 
+    def clone(self):
+        if self.data_ptr() == 0:
+            new_inst = MetaTensor(self.as_tensor().clone())
+            new_inst.__dict__ = deepcopy(self.__dict__)
+            return new_inst
+        return super().clone()
+
     @staticmethod
     def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
         """

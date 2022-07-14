@@ -180,6 +180,8 @@ class TestMetaTensor(unittest.TestCase):
         # clone
         a = m.clone()
         self.check(a, m, ids=False)
+        a = MetaTensor([[]], device=device, dtype=dtype)
+        self.check(a, deepcopy(a), ids=False)
 
     @parameterized.expand(TESTS)
     def test_add(self, device, dtype):
