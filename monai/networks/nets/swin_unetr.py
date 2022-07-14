@@ -782,7 +782,7 @@ class BasicLayer(nn.Module):
         """
         Args:
             dim: number of feature channels.
-            depths: number of layers in each stage.
+            depth: number of layers in each stage.
             num_heads: number of attention heads.
             window_size: local window size.
             drop_path: stochastic depth rate.
