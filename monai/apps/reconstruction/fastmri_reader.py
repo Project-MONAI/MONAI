@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from typing import Dict, Sequence, Tuple, Union
 
 import numpy as np
@@ -69,7 +70,7 @@ class FastMRIReader(ImageReader):
             dat = dict(
                 [(key, f[key][()]) for key in f]
                 + [(key, f.attrs[key]) for key in f.attrs]
-                + [("filename", str(data).split("/")[-1])]
+                + [(FastMRIKeys.FILENAME, os.path.basename(data))]  # type: ignore
             )
         f.close()
 
