@@ -192,7 +192,7 @@ def blend_images(
     if image.shape[1:] != label.shape[1:]:
         raise ValueError("image and label should have matching spatial sizes.")
     if isinstance(alpha, (np.ndarray, torch.Tensor)):
-        if image.shape[1:] != alpha.shape[1:]:
+        if image.shape[1:] != alpha.shape[1:]:  # pytype: disable=attribute-error,invalid-directive
 
             raise ValueError("if alpha is image, size should match input image and label.")
 
@@ -221,7 +221,7 @@ def blend_images(
         w_label = np.full_like(label, alpha)
     if transparent_background:
         # where label == 0 (background), set label alpha to 0
-        w_label[label == 0] = 0  # pytype: disable=attribute-error
+        w_label[label == 0] = 0  # pytype: disable=unsupported-operands
 
     w_image = 1 - w_label
     return w_image * image + w_label * label_rgb

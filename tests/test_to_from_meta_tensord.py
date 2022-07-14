@@ -136,6 +136,8 @@ class TestToFromMetaTensord(unittest.TestCase):
         # FROM -> inverse
         d_meta_dict_meta = t_from_meta.inverse(d_dict)
         self.assertEqual(sorted(d_meta_dict_meta.keys()), ["m1", "m2", "m3"])
+        if data_type == "numpy":
+            m1, m1_aff = m1.cpu(), m1_aff.cpu()
         self.check(d_meta_dict_meta["m1"], m1, ids=False)
         meta_out = {k: v for k, v in d_meta_dict_meta["m1"].meta.items() if k != "affine"}
         aff_out = d_meta_dict_meta["m1"].affine
