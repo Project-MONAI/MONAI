@@ -421,6 +421,8 @@ class FastMRIKeys(StrEnum):
     The keys to be used for extracting data from the fastMRI dataset
     """
 
+    KSPACE = "kspace"
+    MASK = "mask"
     FILENAME = "filename"
     RECON = "reconstruction_rss"
     ACQUISITION = "acquisition"
