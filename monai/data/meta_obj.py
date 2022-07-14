@@ -71,7 +71,7 @@ class MetaObj:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
           first instance of `MetaObj` if `a.is_batch` is False
-          (For batched data, the metdata will be shallow copied for efficiency purposes).
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     """
 

@@ -188,7 +188,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             the input type was not `MetaTensor`, then no modifications will have been
             made. If global parameters have been set to false (e.g.,
             `not get_track_meta()`), then any `MetaTensor` will be converted to
-            `torch.Tensor`. Else, metadata will be propogated as necessary (see
+            `torch.Tensor`. Else, metadata will be propagated as necessary (see
             :py:func:`MetaTensor._copy_meta`).
         """
         out = []
@@ -341,12 +341,14 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def get_array(self, output_type=np.ndarray, dtype=None, *_args, **_kwargs):
         """
-        Returns a new array in `ouptut_type`, the array shares the same underlying storage when the output is a
+        Returns a new array in `output_type`, the array shares the same underlying storage when the output is a
         numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
 
         Args:
             output_type: output type, see also: :py:func:`monai.utils.convert_data_type`.
-            dtype: dtype of the output array.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
             _args: currently unused parameters.
             _kwargs: currently unused parameters.
         """
@@ -384,21 +386,27 @@ class MetaTensor(MetaObj, torch.Tensor):
         """A default setter using ``self.set_array()``"""
         self.set_array(src)
 
-    def as_dict(self, key: str) -> dict:
+    def as_dict(self, key: str, output_type=torch.Tensor, dtype=None) -> dict:
         """
         Get the object as a dictionary for backwards compatibility.
-        This method makes a copy of the objects.
+        This method does not make a deep copy of the objects.
 
         Args:
-            key: Base key to store main data. The key for the metadata will be determined using `PostFix.meta`.
+            key: Base key to store main data. The key for the metadata will be determined using `PostFix`.
+            output_type: `torch.Tensor` or `np.ndarray` for the main data.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
 
         Return:
-            A dictionary consisting of two keys, the main data (stored under `key`) and the metadata.
+            A dictionary consisting of three keys, the main data (stored under `key`) and the metadata.
         """
+        if output_type not in (torch.Tensor, np.ndarray):
+            raise ValueError(f"output_type must be torch.Tensor or np.ndarray, got {output_type}.")
         return {
-            key: self.as_tensor().clone().detach(),
-            PostFix.meta(key): deepcopy(self.meta),
-            PostFix.transforms(key): deepcopy(self.applied_operations),
+            key: self.get_array(output_type=output_type, dtype=dtype),
+            PostFix.meta(key): self.meta,
+            PostFix.transforms(key): self.applied_operations,
         }
 
     def astype(self, dtype, device=None, *_args, **_kwargs):
@@ -463,6 +471,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
             meta: Metadata dictionary.
+            simple_keys: whether to keep only a simple subset of metadata keys.
 
         Returns:
             By default, a `MetaTensor` is returned.
