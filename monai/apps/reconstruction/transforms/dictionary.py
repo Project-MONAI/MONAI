@@ -16,7 +16,7 @@ import numpy as np
 from numpy import ndarray
 from torch import Tensor
 
-from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
+from monai.apps.reconstruction.mri_array import KspaceMask, EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialCrop
@@ -27,9 +27,109 @@ from monai.utils import FastMRIKeys
 from monai.utils.type_conversion import convert_to_tensor
 
 
-class RandomKspaceMaskd(RandomizableTransform, MapTransform):
+class ExtractDataKeyFromMetaKeyd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.RandomKspaceMask`.
+    Moves keys from meta to data. It is useful when a dataset of paired samples
+    is loaded and certain keys should be moved from meta to data.
+    
+    Args:
+        keys: keys to be transferred from meta to data
+        meta_key: the meta key where all the meta-data is stored
+        allow_missing_keys: don't raise exception if key is missing
+        
+    Example:
+        When the fastMRI dataset is loaded, "kspace" is stored in the data dictionary,
+        but the ground-truth image with the key "reconstruction_rss" is stored in the meta data.
+        In this case, ExtractDataKeyFromMetaKeyd moves "reconstruction_rss" to data.
+    """
+    
+    def __init__(
+        self,
+        keys: KeysCollection,
+        meta_key: str,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        self.meta_key = meta_key
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
+        """
+        Args:
+            data: is a dictionary containing (key,value) pairs from the
+                loaded dataset
+
+        Returns:
+            the new data dictionary
+        """
+        d = dict(data)
+        for key in self.keys:
+            if key in d[self.meta_key]:
+                d[key] = d[self.meta_key][key]
+            elif not self.allow_missing_keys:
+                raise KeyError(
+                    f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the meta data"
+                    " and allow_missing_keys==False."
+                )
+        return d
+
+
+class KspaceMaskd(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.KspaceMask`.
+    This is a base class for under-sampling mask transforms
+
+    Args:
+        center_fractions: Fraction of low-frequency columns to be retained.
+            If multiple values are provided, then one of these numbers is
+            chosen uniformly each time.
+        accelerations: Amount of under-sampling. This should have the
+            same length as center_fractions. If multiple values are provided,
+            then one of these is chosen uniformly each time.
+        spatial_dims: Number of spatial dims (e.g., it's 2 for a 2D data; it's
+            also 2 for psuedo-3D datasets like the fastMRI dataset).
+            The last spatial dim is selected for sampling. For the fastMRI
+            dataset, k-space has the form (...,num_slices,num_coils,H,W)
+            and sampling is done along W. For a general 3D data with the
+            shape (...,num_coils,H,W,D), sampling is done along D.
+        is_complex: if True, then the last dimension will be reserved
+            for real/imaginary parts.
+    """
+
+    backend = KspaceMask.backend
+
+    def __init__(
+        self,
+        center_fractions: Sequence[float],
+        accelerations: Sequence[float],
+        spatial_dims: int = 2,
+        is_complex: bool = True,
+    ) -> None:
+        self.masker = KspaceMask(
+            center_fractions=center_fractions,
+            accelerations=accelerations,
+            spatial_dims=spatial_dims,
+            is_complex=is_complex,
+        )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
+        """
+        Args:
+            data: is a dictionary containing (key,value) pairs from the
+                loaded dataset
+
+        Returns:
+            the new data dictionary
+        """
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
+            d[FastMRIKeys.MASK] = self.masker.mask  # type: ignore
+        return d  # type: ignore
+
+
+class RandomKspaceMaskd(KspaceMaskd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.apps.reconstruction.transforms.array.RandomKspacemask`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -56,7 +156,6 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        meta_key: str,
         center_fractions: Sequence[float],
         accelerations: Sequence[float],
         spatial_dims: int = 2,
@@ -70,7 +169,6 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
             spatial_dims=spatial_dims,
             is_complex=is_complex,
         )
-        self.meta_key = meta_key
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -79,28 +177,11 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
         self.masker.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
-        """
-        Args:
-            data: is a dictionary containing (key,value) pairs from the
-                loaded dataset
 
-        Returns:
-            the new data dictionary
-        """
-        d = dict(data)
-        d["target"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.RECON]  # type: ignore
-        d["filename"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.FILENAME]  # type: ignore
-        for key in self.key_iterator(d):  # key is typically just "kspace"
-            d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
-            d["mask"] = self.masker.mask  # type: ignore
-        return d  # type: ignore
-
-
-class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
+class EquispacedKspaceMaskd(KspaceMaskd):
     """
     Dictionary-based wrapper of
-    :py:class:`monai.transforms.EquispacedKspaceMask`.
+    :py:class:`monai.apps.reconstruction.transforms.array.EquispacedKspacemask`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -127,7 +208,6 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        meta_key: str,
         center_fractions: Sequence[float],
         accelerations: Sequence[float],
         spatial_dims: int = 2,
@@ -136,9 +216,11 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.masker = EquispacedKspaceMask(
-            center_fractions=center_fractions, accelerations=accelerations, is_complex=is_complex
+            center_fractions=center_fractions,
+            accelerations=accelerations,
+            spatial_dims=spatial_dims,
+            is_complex=is_complex,
         )
-        self.meta_key = meta_key
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -146,23 +228,6 @@ class EquispacedKspaceMaskd(RandomizableTransform, MapTransform):
         super().set_random_state(seed, state)
         self.masker.set_random_state(seed, state)
         return self
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
-        """
-        Args:
-            data: is a dictionary containing (key,value) pairs from
-                the loaded dataset
-
-        Returns:
-            the new data dictionary
-        """
-        d = dict(data)
-        d["target"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.RECON]  # type: ignore
-        d["filename"] = d[self.meta_key + "_meta_dict"][FastMRIKeys.FILENAME]  # type: ignore
-        for key in self.key_iterator(d):  # key is typically just "kspace"
-            d[key + "_masked"], d[key + "_masked_ifft"] = self.masker(d[key])
-            d["mask"] = self.masker.mask  # type: ignore
-        return d  # type: ignore
 
 
 class ReferenceBasedSpatialCropd(Cropd):

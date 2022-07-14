@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Sequence
 
 import numpy as np
@@ -20,12 +20,12 @@ from monai.apps.reconstruction.complex_utils import complex_abs, convert_to_tens
 from monai.apps.reconstruction.mri_utils import root_sum_of_squares
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.fft_utils import ifftn_centered
-from monai.transforms.transform import Randomizable, Transform
+from monai.transforms.transform import RandomizableTransform
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_to_tensor
 
 
-class KspaceMask(Randomizable, ABC):
+class KspaceMask(RandomizableTransform):
     """
     A basic class for under-sampling mask setup. It provides common
     features for under-sampling mask generators.
@@ -75,7 +75,8 @@ class KspaceMask(Randomizable, ABC):
         """
         This is an extra instance to allow for defining new mask generators.
         For creating other mask transforms, define a new class and simply
-        override __call__. See an example of this in 'RandomMaskFunc.'
+        override __call__. See an example of this in
+        :py:class:`monai.apps.reconstruction.transforms.array.RandomKspacemask`.
 
         Args:
             kspace: The input k-space data. The shape is (...,num_coils,H,W,2)
@@ -102,7 +103,7 @@ class KspaceMask(Randomizable, ABC):
         return center_fraction, acceleration
 
 
-class RandomKspaceMask(KspaceMask, Transform):
+class RandomKspaceMask(KspaceMask):
     """
     This k-space mask transform under-samples the k-space according to a
     random sampling pattern. Precisely, it uniformly selects a subset of
@@ -191,7 +192,7 @@ class RandomKspaceMask(KspaceMask, Transform):
         return masked_kspace, masked_kspace_ifft_rss
 
 
-class EquispacedKspaceMask(KspaceMask, Transform):
+class EquispacedKspaceMask(KspaceMask):
     """
     This k-space mask transform under-samples the k-space according to an
     equi-distant sampling pattern. Precisely, it selects an equi-distant
