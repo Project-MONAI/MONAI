@@ -72,7 +72,7 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.apps.reconstruction.transforms.array.RandomKspacemask`.
     Other mask transforms can inherit from this class, for example:
-    :py:class:`monai.apps.reconstruction.transforms.dictionary.EquispacedKspacemaskd`.
+    :py:class:`monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -139,7 +139,7 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
 class EquispacedKspaceMaskd(RandomKspaceMaskd):
     """
     Dictionary-based wrapper of
-    :py:class:`monai.apps.reconstruction.transforms.array.EquispacedKspacemask`.
+    :py:class:`monai.apps.reconstruction.transforms.array.EquispacedKspaceMask`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
