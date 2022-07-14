@@ -1712,6 +1712,10 @@ Smooth Field (Dict)
 .. autoclass:: monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd
     :special-members: __call__
 
+`ExtractDataKeyFromMetaKeyd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ExtractDataKeyFromMetaKeyd
+    :special-members: __call__
 
 `ReferenceBasedSpatialCropd`
 """"""""""""""""""""""""""""
