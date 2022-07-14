@@ -58,7 +58,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.as_tensor_output = (d == "tensor" for d in ensure_tuple_rep(data_type, len(self.keys)))
+        self.as_tensor_output = tuple(d == "tensor" for d in ensure_tuple_rep(data_type, len(self.keys)))
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

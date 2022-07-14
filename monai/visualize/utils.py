@@ -221,7 +221,7 @@ def blend_images(
         w_label = np.full_like(label, alpha)
     if transparent_background:
         # where label == 0 (background), set label alpha to 0
-        w_label[label == 0] = 0
+        w_label[label == 0] = 0  # pytype: disable=attribute-error
 
     w_image = 1 - w_label
     return w_image * image + w_label * label_rgb
