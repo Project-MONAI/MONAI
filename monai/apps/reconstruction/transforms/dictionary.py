@@ -43,16 +43,7 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
         In this case, ExtractDataKeyFromMetaKeyd moves "reconstruction_rss" to data.
     """
 
-<<<<<<< HEAD
     def __init__(self, keys: KeysCollection, meta_key: str, allow_missing_keys: bool = False) -> None:
-=======
-    def __init__(
-        self,
-        keys: KeysCollection,
-        meta_key: str,
-        allow_missing_keys: bool = False,
-    ) -> None:
->>>>>>> ca28635d5ec2d2445623da3a966306435dba9506
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.meta_key = meta_key
 
