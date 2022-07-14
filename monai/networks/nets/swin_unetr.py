@@ -689,7 +689,7 @@ class PatchMerging(nn.Module):
             b, d, h, w, c = x_shape
             pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
             if pad_input:
-                x = F.pad(x, (0, 0, 0, d % 2, 0, w % 2, 0, h % 2))
+                x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
             x0 = x[:, 0::2, 0::2, 0::2, :]
             x1 = x[:, 1::2, 0::2, 0::2, :]
             x2 = x[:, 0::2, 1::2, 0::2, :]
