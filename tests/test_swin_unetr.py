@@ -26,9 +26,9 @@ for attn_drop_rate in [0.4]:
     for in_channels in [1]:
         for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
             for out_channels in [2]:
-                for feature_size in [12]:
-                    for norm_name in ["instance"]:
-                        for img_size in ((64, 32, 192), (96, 32)):
+                for img_size in ((64, 32, 192), (96, 32)):
+                    for feature_size in [12]:
+                        for norm_name in ["instance"]:
                             test_case = [
                                 {
                                     "spatial_dims": len(img_size),
