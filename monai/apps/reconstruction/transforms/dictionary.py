@@ -31,18 +31,18 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
     """
     Moves keys from meta to data. It is useful when a dataset of paired samples
     is loaded and certain keys should be moved from meta to data.
-    
+
     Args:
         keys: keys to be transferred from meta to data
         meta_key: the meta key where all the meta-data is stored
         allow_missing_keys: don't raise exception if key is missing
-        
+
     Example:
         When the fastMRI dataset is loaded, "kspace" is stored in the data dictionary,
         but the ground-truth image with the key "reconstruction_rss" is stored in the meta data.
         In this case, ExtractDataKeyFromMetaKeyd moves "reconstruction_rss" to data.
     """
-    
+
     def __init__(
         self,
         keys: KeysCollection,
