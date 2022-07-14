@@ -58,7 +58,7 @@ class TestHighResNet(DistTestCase):
         input_param, input_shape, expected_shape = TEST_CASE_1
         net = HighResNet(**input_param)
         test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
+        test_script_save(net, test_data, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
