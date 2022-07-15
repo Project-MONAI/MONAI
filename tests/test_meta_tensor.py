@@ -107,7 +107,6 @@ class TestMetaTensor(unittest.TestCase):
         # check meta and affine are equal and affine is on correct device
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
             self.check_meta(orig, out)
-            self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
                 self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
@@ -166,7 +165,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_affine_device(self):
         m, _ = self.get_im()  # device="cuda")
         m.affine = torch.eye(4)
-        self.assertEqual(m.device, m.affine.device)
+        self.assertTrue("cpu" in str(m.affine.device))
 
     @parameterized.expand(TESTS)
     def test_copy(self, device, dtype):
