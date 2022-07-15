@@ -22,7 +22,7 @@ from monai.networks.blocks.fft_utils_t import ifftn_centered_t
 
 class SensitivityModel(nn.Module):
     """
-    This class uses :py:class:`monai.networks.nets.normunet` to learn
+    This class uses :py:class:`monai.apps.reconstruction.networks.nets.normunet` to learn
     coil sensitivity maps for multi-coil MRI reconstruction. Learning is done on the center of
     the under-sampled kspace (that region is fully sampled).
 
