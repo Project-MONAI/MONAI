@@ -400,6 +400,8 @@ class PydicomReader(ImageReader):
         prune_metadata: whether to prune the saved information in metadata. This argument is used for
             `get_data` function. If True, only items that are related to the affine matrix will be saved.
             Default to ``True``.
+        labels: the labels of the dicom data. If provided, when calling the `_get_seg_data` function,
+            labels will be refered from it.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
@@ -414,6 +416,7 @@ class PydicomReader(ImageReader):
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
+        labels: Optional[bool] = None,
         **kwargs,
     ):
         super().__init__()
@@ -422,6 +425,7 @@ class PydicomReader(ImageReader):
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
+        self.labels = labels
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -689,18 +693,26 @@ class PydicomReader(ImageReader):
         """
 
         metadata = self._get_meta_dict(img)
-        metadata["labels"] = {}
+        n_classes = len(img.SegmentSequence)
+        spatial_shape = list(img.pixel_array.shape)
+        spatial_shape[0] = spatial_shape[0] // n_classes
 
+        if self.labels is not None:
+            metadata["labels"] = self.labels
+            all_segs = np.zeros([*spatial_shape, len(self.labels)])
+        else:
+            metadata["labels"] = {}
+            all_segs = np.zeros([*spatial_shape, n_classes])
         try:
-            all_segs = []
             for i, (frames, _, description) in enumerate(highdicom.seg.utils.iter_segments(img)):
-                all_segs.append(np.transpose(frames, [1, 2, 0]))
-                metadata["labels"][str(i)] = description.SegmentDescription
-            if len(all_segs) == 1:
-                all_segs = np.expand_dims(all_segs[0], axis=-1).astype(np.uint8)
-            else:
-                all_segs = np.stack(all_segs, axis=-1).astype(np.uint8)
-            metadata["spatial_shape"] = all_segs.shape[:-1]
+                class_name = description.SegmentDescription
+                if class_name not in metadata["labels"].keys():
+                    metadata["labels"][class_name] = i
+                class_num = metadata["labels"][class_name]
+                all_segs[..., class_num] = frames
+
+            all_segs = all_segs.transpose([1, 2, 0, 3])
+            metadata["spatial_shape"] = all_segs.shape[1:]
         except Exception as e:
             raise NotImplementedError(f"Highdicom cannot read dicom seg data: {img.filename}.") from e
 

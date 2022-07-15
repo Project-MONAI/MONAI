@@ -89,7 +89,6 @@ class TestTciaDataset(unittest.TestCase):
                 val_frac=val_frac,
             )
         except RuntimeError as e:
-            print(str(e))
             self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 

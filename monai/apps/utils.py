@@ -38,7 +38,18 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-__all__ = ["check_hash", "download_url", "extractall", "download_and_extract", "get_logger", "SUPPORTED_HASH_TYPES"]
+__all__ = [
+    "check_hash",
+    "download_url",
+    "extractall",
+    "download_and_extract",
+    "get_logger",
+    "SUPPORTED_HASH_TYPES",
+    "get_tcia_metadata",
+    "download_tcia_series_instance",
+    "get_tcia_ref_uid",
+    "match_tcia_ref_uid_in_study",
+]
 
 DEFAULT_FMT = "%(asctime)s - %(levelname)s - %(message)s"
 SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hashlib.sha256, "sha512": hashlib.sha512}
@@ -398,7 +409,7 @@ def download_tcia_series_instance(
             check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
 
 
-def get_ref_uuid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x000E), ref_sop_uid_tag=(0x0008, 0x1155)):
+def get_tcia_ref_uid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x000E), ref_sop_uid_tag=(0x0008, 0x1155)):
     """
     Achieve the referenced UID from the referenced Series Sequence for the input pydicom dataset object.
     The referenced UID could be Series Instance UID or SOP Instance UID. The UID will be detected from
@@ -418,14 +429,14 @@ def get_ref_uuid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x000E)
     for elem in ds:
         if elem.VR == "SQ":
             for item in elem:
-                output = get_ref_uuid(item, find_sop)
+                output = get_tcia_ref_uid(item, find_sop)
         if elem.tag == ref_uid_tag:
             return elem.value
 
     return output
 
 
-def match_ref_uid_in_study(study_uid, ref_sop_uid):
+def match_tcia_ref_uid_in_study(study_uid, ref_sop_uid):
     """
     Match the SeriesInstanceUID from all series in a study according to the input SOPInstanceUID.
 

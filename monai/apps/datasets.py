@@ -21,9 +21,9 @@ import numpy as np
 from monai.apps.utils import (
     download_and_extract,
     download_tcia_series_instance,
-    get_ref_uuid,
     get_tcia_metadata,
-    match_ref_uid_in_study,
+    get_tcia_ref_uid,
+    match_tcia_ref_uid_in_study,
 )
 from monai.config.type_definitions import PathLike
 from monai.data import (
@@ -37,7 +37,7 @@ from monai.data import (
 from monai.transforms import LoadImaged, Randomizable
 from monai.utils import ensure_tuple
 
-__all__ = ["MedNISTDataset", "DecathlonDataset", "CrossValidation"]
+__all__ = ["MedNISTDataset", "DecathlonDataset", "CrossValidation", "TciaDataset"]
 
 
 class MedNISTDataset(Randomizable, CacheDataset):
@@ -403,12 +403,17 @@ class TciaDataset(Randomizable, CacheDataset):
 
     Args:
         root_dir: user's local directory for caching and loading the TCIA dataset.
-        collection: a TCIA dataset is defined as a collection. Please check the following list to browse
+        collection: name of a TCIA collection.
+            a TCIA dataset is defined as a collection. Please check the following list to browse
             the collection list (only public collections can be downloaded):
             https://www.cancerimagingarchive.net/collections/
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
+            If not specified, `LoadImaged(reader="PydicomReader", keys=["image"])` will be used as the default
+            transform. In addition, we suggest to set the argument `labels` of `PydicomReader` if segmentations
+            are needed to be loaded. The original labels for each dicom series may be different, using this argument
+            is able to unify the format of labels.
         download: whether to download and extract the dataset, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
@@ -442,16 +447,24 @@ class TciaDataset(Randomizable, CacheDataset):
 
     Example::
 
-        # collection is "C4KC-KiTS", picked_modality is "SEG"
-        data = TciaDataset(
-            root_dir="./", collection="C4KC-KiTS", section="validation", seed=12345, download=True
-        )
         # collection is "Pancreatic-CT-CBCT-SEG", picked_modality is "RTSTRUCT"
         data = TciaDataset(
             root_dir="./", collection="Pancreatic-CT-CBCT-SEG", picked_modality="RTSTRUCT", download=True
         )
 
-        print(data[0]["image"])
+        # collection is "C4KC-KiTS", picked_modality is "SEG", and load both images and segmentations
+        transform = Compose(
+            [
+                LoadImaged(reader="PydicomReader", keys=["image", "seg"]),
+                EnsureChannelFirstd(keys=["image", "seg"]),
+                ResampleToMatchd(keys="image", key_dst="seg"),
+            ]
+        )
+        data = TciaDataset(
+            root_dir="./", collection="C4KC-KiTS", section="validation", seed=12345, download=True
+        )
+
+        print(data[0]["seg"].shape)
 
     """
 
@@ -489,6 +502,7 @@ class TciaDataset(Randomizable, CacheDataset):
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
             raise ValueError("Root directory root_dir must be a directory.")
+
         self.section = section
         self.val_frac = val_frac
         self.picked_modality = picked_modality
@@ -571,29 +585,29 @@ class TciaDataset(Randomizable, CacheDataset):
         dcm_dir = os.path.join(download_dir, patient_id, series_num, "image")
 
         # get ref uuid
-        ref_uuid_list = []
+        ref_uid_list = []
         for dcm_file in dicom_files:
             dcm_path = os.path.join(seg_first_dir, dcm_file)
             ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)
             if ds[self.modality_tag].value == self.picked_modality:
-                ref_uuid = get_ref_uuid(
+                ref_uid = get_tcia_ref_uid(
                     ds, find_sop=False, ref_series_uid_tag=self.ref_series_uid_tag, ref_sop_uid_tag=self.ref_sop_uid_tag
                 )
-                if ref_uuid == "":
-                    ref_sop_uid = get_ref_uuid(
+                if ref_uid == "":
+                    ref_sop_uid = get_tcia_ref_uid(
                         ds,
                         find_sop=True,
                         ref_series_uid_tag=self.ref_series_uid_tag,
                         ref_sop_uid_tag=self.ref_sop_uid_tag,
                     )
-                    ref_uuid = match_ref_uid_in_study(ds.StudyInstanceUID, ref_sop_uid)
-                if ref_uuid != "":
-                    ref_uuid_list.append(ref_uuid)
-        if len(ref_uuid_list) == 0:
+                    ref_uid = match_tcia_ref_uid_in_study(ds.StudyInstanceUID, ref_sop_uid)
+                if ref_uid != "":
+                    ref_uid_list.append(ref_uid)
+        if len(ref_uid_list) == 0:
             warnings.warn(f"Cannot find the referenced Series Instance UID from series: {series_uid}.")
         else:
             download_tcia_series_instance(
-                series_uid=ref_uuid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
+                series_uid=ref_uid_list[0], download_dir=download_dir, output_dir=dcm_dir, check_md5=False
             )
         if not os.path.exists(seg_dir):
             shutil.copytree(seg_first_dir, seg_dir)
