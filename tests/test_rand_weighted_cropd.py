@@ -150,6 +150,8 @@ class TestRandWeightedCrop(unittest.TestCase):
         crop.set_random_state(10)
         result = crop(input_data)
         self.assertTrue(len(result) == init_params["num_samples"])
+        _len = len(tuple(input_data.keys()))
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
 
 
 if __name__ == "__main__":
