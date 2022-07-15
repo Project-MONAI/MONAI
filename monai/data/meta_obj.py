@@ -140,6 +140,9 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
 
         """
+        if self._is_batch:
+            self.__dict__ = next(iter(input_objs)).__dict__  # shallow copy for performance
+            return
         self._copy_attr(
             ["meta", "applied_operations"],
             input_objs,
