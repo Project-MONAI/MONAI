@@ -94,7 +94,9 @@ class SSIMLoss(nn.Module):
                 )
             losses = torch.stack(
                 [
-                    SSIMLoss()(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range)
+                    SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
+                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range
+                    )
                     for i in range(x.shape[1])
                 ]
             )
