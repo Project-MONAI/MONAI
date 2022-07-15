@@ -23,7 +23,7 @@ class ComplexUnet(nn.Module):
     """
     This variant of U-Net handles complex-value input/output. It can be
     used as a model to learn sensitivity maps in multi-coil MRI data. It is
-    built based on :py:class:`monai.networks.nets.BasicUnet`.
+    built based on :py:class:`monai.networks.nets.BasicUNet`.
     It also applies default normalization to the input which makes it more stable to train.
 
     The data being a (complex) 2-channel tensor is a requirement for using this model.
@@ -52,7 +52,7 @@ class ComplexUnet(nn.Module):
         upsample: str = "deconv",
     ):
         super().__init__()
-        self.unet = monai.networks.nets.basic_unet.BasicUnet(
+        self.unet = monai.networks.nets.basic_unet.BasicUNet(
             spatial_dims=spatial_dims,
             in_channels=2,
             out_channels=2,
