@@ -29,7 +29,7 @@ class VarNetBlock(nn.Module):
     """
 
     def __init__(self, model):
-        super(VarNetBlock, self).__init__()
+        super().__init__()
         self.model = model
         self.dc_weight = nn.Parameter(torch.ones(1))
         self.register_buffer("zeros", torch.zeros(1, 1, 1, 1, 1))
