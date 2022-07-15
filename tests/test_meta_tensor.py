@@ -513,6 +513,7 @@ class TestMetaTensor(unittest.TestCase):
         """multiprocessing sharing with 'device' and 'dtype'"""
         buf = io.BytesIO()
         t = MetaTensor([0.0, 0.0], device=device, dtype=dtype)
+        t.is_batch = True
         if t.is_cuda:
             with self.assertRaises(NotImplementedError):
                 ForkingPickler(buf).dump(t)
@@ -521,6 +522,7 @@ class TestMetaTensor(unittest.TestCase):
         obj = ForkingPickler.loads(buf.getvalue())
         self.assertIsInstance(obj, MetaTensor)
         assert_allclose(obj.as_tensor(), t)
+        assert_allclose(obj.is_batch, True)
 
     @parameterized.expand(TESTS)
     def test_array_function(self, device="cpu", dtype=float):
