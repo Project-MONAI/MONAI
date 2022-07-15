@@ -88,10 +88,16 @@ class SSIMLoss(nn.Module):
         """
         if x.shape[1] > 1:  # handling multiple channels (C>1)
             if x.shape[1] != y.shape[1]:
-                raise ValueError(f"x and y should have the same number of channels,"
-                "but x has {x.shape[1]} channels and y has {y.shape[1]} channels.")
-            losses = torch.stack([SSIMLoss()(x[:,i,...].unsqueeze(1),y[:,i,...].unsqueeze(1), data_range)
-                for i in range(x.shape[1])])
+                raise ValueError(
+                    f"x and y should have the same number of channels, "
+                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
+                )
+            losses = torch.stack(
+                [
+                    SSIMLoss()(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1), data_range)
+                    for i in range(x.shape[1])
+                ]
+            )
             channel_wise_loss: torch.Tensor = losses.mean()
             return channel_wise_loss
 
