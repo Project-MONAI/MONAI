@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.networks.nets.varnet import VariationalNetworkModel
 from monai.networks import eval_mode
-from tests.utils import test_script_save
 
 
 # hyper-parameters object
@@ -62,14 +61,14 @@ class TestVarNet(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_script(self,hparams, input_shape, expected_shape):
         net = VariationalNetworkModel(hparams)
-        
+
         mask_shape = [1 for _ in input_shape]
         mask_shape[-2] = input_shape[-2]
         mask = torch.zeros(mask_shape)
         mask[..., mask_shape[-2]//2-5:mask_shape[-2]//2+5, :] = 1
-        
+
         test_data = torch.randn(input_shape)
-        
+
         test_script_save(net, [test_data.type(torch.FloatTensor), mask.type(torch.ByteTensor)])
     """
 
