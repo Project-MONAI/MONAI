@@ -126,8 +126,8 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         result = RandCropByLabelClassesd(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0]["img"].shape, expected_shape)
-        _len = len(tuple(input_data.keys()))
-        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
+        _len = len(tuple(input_data.keys())) - 1  # except for the indices_key
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys())[:-1])
 
 
 if __name__ == "__main__":

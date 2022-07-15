@@ -861,11 +861,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         self.randomize(label, fg_indices, bg_indices, image)
 
         # initialize returned list with shallow copy to preserve key ordering
-        ret: List = [dict(data) for _ in range(self.cropper.num_samples)]
+        ret: List = [dict(d) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(d.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(data[key])
+                ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
             for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
@@ -999,11 +999,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         self.randomize(label, indices, image)
 
         # initialize returned list with shallow copy to preserve key ordering
-        ret: List = [dict(data) for _ in range(self.cropper.num_samples)]
+        ret: List = [dict(d) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
-            for key in set(data.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(data[key])
+            for key in set(d.keys()).difference(set(self.keys)):
+                ret[i][key] = deepcopy(d[key])
 
         for key in self.key_iterator(d):
             for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
