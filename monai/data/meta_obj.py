@@ -141,7 +141,7 @@ class MetaObj:
 
         """
         if self.is_batch:
-            self.__dict__ = next(iter(input_objs)).__dict__  # shallow copy for performance
+            self.__dict__ = dict(next(iter(input_objs)).__dict__)  # shallow copy for performance
             return
         self._copy_attr(
             ["meta", "applied_operations"],
