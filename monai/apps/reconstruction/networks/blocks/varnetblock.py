@@ -25,12 +25,12 @@ class VarNetBlock(nn.Module):
     Modified and adopted from: https://github.com/facebookresearch/fastMRI
 
     Args:
-        model: the model used for refinement (typically a U-Net but can be any standard deep learning model)
+        refinement_model: the model used for refinement (typically a U-Net but can be any standard deep learning model)
     """
 
-    def __init__(self, model):
+    def __init__(self, refinement_model):
         super().__init__()
-        self.model = model
+        self.model = refinement_model
         self.dc_weight = nn.Parameter(torch.ones(1))
         self.register_buffer("zeros", torch.zeros(1, 1, 1, 1, 1))
 

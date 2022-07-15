@@ -640,18 +640,13 @@ Nets
 
 `NormUnet`
 ~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.networks.nets.normunet.NormUnet
+.. autoclass:: monai.apps.reconstruction.networks.nets.complex_unet.ComplexUnet
    :members:
 
 `SensitivityModel`
 ~~~~~~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.networks.nets.sensitivitymodel.SensitivityModel
+.. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
    :members:
-
-`VariationalNetworkModel`
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
-  :members:
 
 Utilities
 ---------

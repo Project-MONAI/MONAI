@@ -10,9 +10,8 @@
 # limitations under the License.
 
 import math
-from typing import Sequence
+from typing import Sequence, Union
 
-import numpy as np
 import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
@@ -20,7 +19,7 @@ from torch.nn import functional as F
 import monai
 
 
-class NormUnet(nn.Module):
+class ComplexUnet(nn.Module):
     """
     This variant of U-Net handles complex-value input/output. It can be
     used as a model to learn sensitivity maps in multi-coil MRI data. It is
@@ -32,13 +31,37 @@ class NormUnet(nn.Module):
     Modified and adopted from: https://github.com/facebookresearch/fastMRI
 
     Args:
-        chans: number of U-Net channels
+        spatial_dims: number of spatial dimensions.
+        features: six integers as numbers of features. denotes number of channels in each layer.
+        act: activation type and arguments. Defaults to LeakyReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        bias: whether to have a bias term in convolution blocks. Defaults to True.
+        dropout: dropout ratio. Defaults to 0.0.
+        upsample: upsampling mode, available options are
+            ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
     """
 
-    def __init__(self, chans: int):
+    def __init__(
+        self,
+        spatial_dims: int = 2,
+        features: Sequence[int] = (32, 32, 64, 128, 256, 32),
+        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        bias: bool = True,
+        dropout: Union[float, tuple] = 0.0,
+        upsample: str = "deconv",
+    ):
         super().__init__()
-        self.unet = monai.networks.nets.BasicUnet(
-            spatial_dims=2, in_channels=2, out_channels=2, features=list(np.array([1, 1, 2, 4, 8, 8]) * chans)
+        self.unet = monai.networks.nets.basic_unet.BasicUnet(
+            spatial_dims=spatial_dims,
+            in_channels=2,
+            out_channels=2,
+            features=features,
+            act=act,
+            norm=norm,
+            bias=bias,
+            dropout=dropout,
+            upsample=upsample,
         )
 
     def complex_to_chan_dim(self, x: Tensor) -> Tensor:
@@ -72,7 +95,7 @@ class NormUnet(nn.Module):
         c = c2 // 2
         return x.view(b, 2, c, h, w).permute(0, 2, 3, 4, 1)
 
-    def norm(self, x: Tensor) -> Sequence:
+    def normalize(self, x: Tensor) -> Sequence:
         """
         Performs group mean-std normalization. To see what "group" means, mean of
         an input of shape (B,C,H,W) will be (B,).
@@ -94,7 +117,7 @@ class NormUnet(nn.Module):
         x = x.view(b, c, h, w)
         return (x - mean) / std, mean, std
 
-    def reverse_norm(self, x: Tensor, mean: float, std: float) -> Tensor:
+    def reverse_normalize(self, x: Tensor, mean: float, std: float) -> Tensor:
         """
         Reverses the normalization done by norm
 
@@ -139,10 +162,10 @@ class NormUnet(nn.Module):
             output of shape (B,C,H,W,2)
         """
         x = self.complex_to_chan_dim(x)
-        x, mean, std = self.norm(x)
+        x, mean, std = self.normalize(x)
         x, pad_sizes = self.pad(x)
         x = self.unet(x)
         x = self.reverse_pad(x, *pad_sizes)
-        x = self.reverse_norm(x, mean, std)
+        x = self.reverse_normalize(x, mean, std)
         x = self.chan_complex_to_last_dim(x)
         return x

@@ -9,20 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
+from typing import Sequence, Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
 from monai.apps.reconstruction.mri_utils import root_sum_of_squares
-from monai.apps.reconstruction.networks.nets.normunet import NormUnet
+from monai.apps.reconstruction.networks.nets.complex_unet import ComplexUnet
 from monai.networks.blocks.fft_utils_t import ifftn_centered_t
 
 
-class SensitivityModel(nn.Module):
+class CoilSensitivityModel(nn.Module):
     """
-    This class uses :py:class:`monai.apps.reconstruction.networks.nets.normunet` to learn
+    This class uses :py:class:`monai.apps.reconstruction.networks.nets.complex_unet` to learn
     coil sensitivity maps for multi-coil MRI reconstruction. Learning is done on the center of
     the under-sampled kspace (that region is fully sampled).
 
@@ -31,12 +31,36 @@ class SensitivityModel(nn.Module):
     Modified and adopted from: https://github.com/facebookresearch/fastMRI
 
     Args:
-        chans: number of U-Net channels
+        spatial_dims: number of spatial dimensions.
+        features: six integers as numbers of features. denotes number of channels in each layer.
+        act: activation type and arguments. Defaults to LeakyReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        bias: whether to have a bias term in convolution blocks. Defaults to True.
+        dropout: dropout ratio. Defaults to 0.0.
+        upsample: upsampling mode, available options are
+            ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
     """
 
-    def __init__(self, chans: int):
+    def __init__(
+        self,
+        spatial_dims: int = 2,
+        features: Sequence[int] = (32, 32, 64, 128, 256, 32),
+        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        bias: bool = True,
+        dropout: Union[float, tuple] = 0.0,
+        upsample: str = "deconv",
+    ):
         super().__init__()
-        self.norm_unet = NormUnet(chans)
+        self.unet = ComplexUnet(
+            spatial_dims=spatial_dims,
+            features=features,
+            act=act,
+            norm=norm,
+            bias=bias,
+            dropout=dropout,
+            upsample=upsample,
+        )
 
     def chans_to_batch_dim(self, x: Tensor) -> Sequence:
         """
@@ -76,6 +100,9 @@ class SensitivityModel(nn.Module):
             Extracts the size of the fully-sampled part of the kspace. Note that when a kspace
             is under-sampled, a part of its center is fully sampled. That part is used for
             sensitivity map computation.
+
+            Args:
+                mask: the under-sampling mask
             """
             left = right = mask.shape[-2] // 2
             while mask[..., right, :]:
@@ -96,7 +123,7 @@ class SensitivityModel(nn.Module):
         x = ifftn_centered_t(x, spatial_dims=2)
 
         x, b = self.chans_to_batch_dim(x)
-        x = self.norm_unet(x)
+        x = self.unet(x)
         x = self.batch_chans_to_chan_dim(x, b)
         x = self.divide_root_sum_of_squares(x)
         return x
