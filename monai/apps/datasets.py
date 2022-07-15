@@ -411,7 +411,7 @@ class TciaDataset(Randomizable, CacheDataset):
         transform: transforms to execute operations on input data.
             for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
             If not specified, `LoadImaged(reader="PydicomReader", keys=["image"])` will be used as the default
-            transform. In addition, we suggest to set the argument `labels` of `PydicomReader` if segmentations
+            transform. In addition, we suggest to set the argument `labels` for `PydicomReader` if segmentations
             are needed to be loaded. The original labels for each dicom series may be different, using this argument
             is able to unify the format of labels.
         download: whether to download and extract the dataset, default is False.

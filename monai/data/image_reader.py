@@ -712,7 +712,7 @@ class PydicomReader(ImageReader):
                 all_segs[..., class_num] = frames
 
             all_segs = all_segs.transpose([1, 2, 0, 3])
-            metadata["spatial_shape"] = all_segs.shape[1:]
+            metadata["spatial_shape"] = all_segs.shape[:-1]
         except Exception as e:
             raise NotImplementedError(f"Highdicom cannot read dicom seg data: {img.filename}.") from e
 
