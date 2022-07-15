@@ -172,7 +172,7 @@ class ResNet(nn.Module):
     @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
-        block: Type[Union[ResNetBlock, ResNetBottleneck]],
+        block: Union[Type[Union[ResNetBlock, ResNetBottleneck]], str],
         layers: List[int],
         block_inplanes: List[int],
         spatial_dims: int = 3,
@@ -191,6 +191,14 @@ class ResNet(nn.Module):
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes == 400:
             num_classes = n_classes
+
+        if isinstance(block, str):
+            if block == "basic":
+                block = ResNetBlock
+            elif block == "bottleneck":
+                block = ResNetBottleneck
+            else:
+                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
 
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
         norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
