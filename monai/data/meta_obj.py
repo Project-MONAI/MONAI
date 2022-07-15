@@ -14,7 +14,11 @@ from __future__ import annotations
 import itertools
 import pprint
 from copy import deepcopy
+from enum import Enum
 from typing import Any, Iterable
+
+import numpy as np
+import torch
 
 from monai.utils.enums import TraceKeys
 
@@ -122,7 +126,7 @@ class MetaObj:
         found = [False] * len(attributes)
         for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
             if not found[idx] and hasattr(i, a):
-                setattr(self, a, deepcopy(getattr(i, a)) if deep_copy else getattr(i, a))
+                setattr(self, a, MetaObj.copy_items(getattr(i, a)) if deep_copy else getattr(i, a))
                 found[idx] = True
             if all(found):
                 return
@@ -130,6 +134,21 @@ class MetaObj:
             if not f:
                 setattr(self, a, d() if callable(defaults) else d)
         return
+
+    @staticmethod
+    def copy_items(data):
+        """deepcopying items"""
+        if isinstance(data, (int, float, str, bool, Enum)):
+            return data
+        if isinstance(data, np.ndarray):
+            return np.array(data, copy=True)
+        if isinstance(data, torch.Tensor):
+            return data.detach().clone()
+        if isinstance(data, (list, tuple)):
+            return type(data)(MetaObj.copy_items(x) for x in data)
+        if isinstance(data, dict):
+            return {k: MetaObj.copy_items(v) for k, v in data.items()}
+        return deepcopy(data)
 
     def _copy_meta(self, input_objs, deep_copy=False) -> None:
         """

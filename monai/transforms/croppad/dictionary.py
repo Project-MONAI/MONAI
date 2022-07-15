@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.croppad.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -23,7 +22,7 @@ import torch
 
 from monai.config import IndexSelection, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.transforms.croppad.array import (
     BorderPad,
     BoundingRect,
@@ -591,7 +590,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform):
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(data[key])
+                ret[i][key] = MetaObj.copy_items(data[key])
 
         # for each key we reset the random state to ensure crops are the same
         self.randomize()
@@ -739,7 +738,7 @@ class RandWeightedCropd(Randomizable, MapTransform):
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(data.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(data[key])
+                ret[i][key] = MetaObj.copy_items(data[key])
 
         self.randomize(weight_map=data[self.w_key])
         for key in self.key_iterator(data):
@@ -865,7 +864,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform):
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(d.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(d[key])
+                ret[i][key] = MetaObj.copy_items(d[key])
 
         for key in self.key_iterator(d):
             for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
@@ -1003,7 +1002,7 @@ class RandCropByLabelClassesd(Randomizable, MapTransform):
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
             for key in set(d.keys()).difference(set(self.keys)):
-                ret[i][key] = deepcopy(d[key])
+                ret[i][key] = MetaObj.copy_items(d[key])
 
         for key in self.key_iterator(d):
             for i, im in enumerate(self.cropper(d[key], label=label, randomize=False)):
