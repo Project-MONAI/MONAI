@@ -52,8 +52,8 @@ class SSIMLoss(nn.Module):
     def forward(self, x: torch.Tensor, y: torch.Tensor, data_range: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
-                A fastMRI sample should use the 2D format with C being the number of slices.
+            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D and pseudo-3D data,
+                and (B,C,W,H,D) for 3D data,
             y: second sample (e.g., the reconstructed image). It has similar shape as x.
             data_range: dynamic range of the data
 
@@ -64,12 +64,37 @@ class SSIMLoss(nn.Module):
             .. code-block:: python
 
                 import torch
+
+                # 2D data
                 x = torch.ones([1,1,10,10])/2
                 y = torch.ones([1,1,10,10])/2
                 data_range = x.max().unsqueeze(0)
                 # the following line should print 1.0 (or 0.9999)
                 print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+
+                # pseudo-3D data
+                x = torch.ones([1,5,10,10])/2  # 5 could represent number of slices
+                y = torch.ones([1,5,10,10])/2
+                data_range = x.max().unsqueeze(0)
+                # the following line should print 1.0 (or 0.9999)
+                print(1-SSIMLoss(spatial_dims=2)(x,y,data_range))
+
+                # 3D data
+                x = torch.ones([1,1,10,10,10])/2
+                y = torch.ones([1,1,10,10,10])/2
+                data_range = x.max().unsqueeze(0)
+                # the following line should print 1.0 (or 0.9999)
+                print(1-SSIMLoss(spatial_dims=3)(x,y,data_range))
         """
+        if x.shape[1] > 1:  # handling multiple channels (C>1)
+            if x.shape[1] != y.shape[1]:
+                raise ValueError(f"x and y should have the same number of channels,"
+                "but x has {x.shape[1]} channels and y has {y.shape[1]} channels.")
+            losses = torch.stack([SSIMLoss()(x[:,i,...].unsqueeze(1),y[:,i,...].unsqueeze(1), data_range)
+                for i in range(x.shape[1])])
+            channel_wise_loss: torch.Tensor = losses.mean()
+            return channel_wise_loss
+
         data_range = data_range[(None,) * (self.spatial_dims + 2)]
         # determine whether to work with 2D convolution or 3D
         conv = getattr(F, f"conv{self.spatial_dims}d")
