@@ -11,17 +11,16 @@
 
 from __future__ import annotations
 
-import time, pickle
 import itertools
 import pprint
 from copy import deepcopy
-from enum import Enum
 from typing import Any, Iterable
 
 import numpy as np
 import torch
 
 from monai.utils.enums import TraceKeys
+from monai.utils.misc import first
 
 _TRACK_META = True
 
@@ -104,52 +103,18 @@ class MetaObj:
             elif isinstance(a, MetaObj):
                 yield a
 
-    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
-        """
-        Copy attributes from the first in a list of `MetaObj`. In the case of
-        `torch.add(a, b)`, both `a` and `b` could be `MetaObj` or something else, so
-        check them all. Copy the first to `self`.
-
-        We also perform a deep copy of the data if desired.
-
-        Args:
-            attributes: a sequence of strings corresponding to attributes to be copied (e.g., `['meta']`).
-            input_objs: an iterable of `MetaObj` instances. We'll copy the attribute from the first one
-                that contains that particular attribute.
-            defaults: If none of `input_objs` have the attribute that we're
-                interested in, then use this default value/function (e.g., `lambda: {}`.)
-                the defaults must be the same length as `attributes`.
-            deep_copy: whether to deep copy the corresponding attribute.
-
-        Returns:
-            Returns `None`, but `self` should be updated to have the copied attribute.
-        """
-        found = [False] * len(attributes)
-        for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
-            if not found[idx] and hasattr(i, a):
-                attr = getattr(i, a)
-                setattr(self, a, MetaObj.copy_items(attr)) if deep_copy else attr
-                found[idx] = True
-            if all(found):
-                return
-        for a, f, d in zip(attributes, found, defaults):
-            if not f:
-                setattr(self, a, d() if callable(defaults) else d)
-        return
+    def _copy_attr(self, attributes: list[str], input_objs) -> None:
+        """Copy attributes from the first in a list of `MetaObj`."""
+        f = first(input_objs).__dict__
+        self.__dict__.update({a: MetaObj.copy_items(f[a]) for a in attributes if a in f})
 
     @staticmethod
     def copy_items(data):
         """deepcopying items"""
-        if isinstance(data, (int, float, str, bool, Enum)):
-            return data
-        if isinstance(data, np.ndarray):
+        if isinstance(data, (list, dict, np.ndarray)):
             return data.copy()
         if isinstance(data, torch.Tensor):
             return data.detach().clone()
-        if isinstance(data, (list, tuple)):
-            return type(data)(MetaObj.copy_items(x) for x in data)
-        if isinstance(data, dict):
-            return {k: MetaObj.copy_items(v) for k, v in data.items()}
         return deepcopy(data)
 
     def _copy_meta(self, input_objs, deep_copy=False) -> None:
@@ -161,15 +126,10 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
 
         """
-        if self.is_batch:
-            self.__dict__ = dict(next(iter(input_objs)).__dict__)  # shallow copy for performance
+        if not deep_copy:
+            self.__dict__ = dict(first(input_objs).__dict__)  # shallow copy for performance
             return
-        self._copy_attr(
-            ["meta", "applied_operations"],
-            input_objs,
-            [MetaObj.get_default_meta(), MetaObj.get_default_applied_operations()],
-            deep_copy,
-        )
+        self._copy_attr(["_meta", "_applied_operations"], input_objs)
 
     @staticmethod
     def get_default_meta() -> dict:
