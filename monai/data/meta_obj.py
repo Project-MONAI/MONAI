@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import time, pickle
 import itertools
 import pprint
 from copy import deepcopy
@@ -126,7 +127,8 @@ class MetaObj:
         found = [False] * len(attributes)
         for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
             if not found[idx] and hasattr(i, a):
-                setattr(self, a, MetaObj.copy_items(getattr(i, a)) if deep_copy else getattr(i, a))
+                attr = getattr(i, a)
+                setattr(self, a, MetaObj.copy_items(attr)) if deep_copy else attr
                 found[idx] = True
             if all(found):
                 return
@@ -141,7 +143,7 @@ class MetaObj:
         if isinstance(data, (int, float, str, bool, Enum)):
             return data
         if isinstance(data, np.ndarray):
-            return np.array(data, copy=True)
+            return data.copy()
         if isinstance(data, torch.Tensor):
             return data.detach().clone()
         if isinstance(data, (list, tuple)):
