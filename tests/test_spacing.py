@@ -263,7 +263,7 @@ class TestSpacingCase(unittest.TestCase):
     def test_inverse(self, device):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
         affine = torch.tensor(
-            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device=device
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
         )
         meta = {"fname": "somewhere"}
         img = MetaTensor(img_t, affine=affine, meta=meta)
