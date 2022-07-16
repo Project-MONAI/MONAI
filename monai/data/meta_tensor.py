@@ -151,14 +151,6 @@ class MetaTensor(MetaObj, torch.Tensor):
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.meta = deepcopy(self.meta)
             self.applied_operations = deepcopy(self.applied_operations)
-        self.affine = self.affine.to(self.device)
-
-    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
-        super()._copy_attr(attributes, input_objs, defaults, deep_copy)
-        for a in attributes:
-            val = getattr(self, a)
-            if isinstance(val, torch.Tensor):
-                setattr(self, a, val.to(self.device))
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -204,8 +196,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             # else, handle the `MetaTensor` metadata.
             else:
                 meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
-                ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
+                ret._copy_meta(meta_args, deep_copy=not is_batch)
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
@@ -253,7 +245,6 @@ class MetaTensor(MetaObj, torch.Tensor):
                             ret.meta = metas[idx]
                             ret.is_batch = False
 
-                ret.affine = ret.affine.to(ret.device)
             out.append(ret)
         # if the input was a tuple, then return it as a tuple
         return tuple(out) if isinstance(rets, tuple) else out
@@ -330,7 +321,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             return NotImplemented
 
     def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
-        return torch.eye(4, device=self.device, dtype=dtype)
+        return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
         """
@@ -447,7 +438,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = torch.as_tensor(d, device=self.device)
+        self.meta["affine"] = torch.as_tensor(d, device=torch.device("cpu"))
 
     @property
     def pixdim(self):
