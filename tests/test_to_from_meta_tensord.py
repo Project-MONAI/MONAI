@@ -93,7 +93,6 @@ class TestToFromMetaTensord(unittest.TestCase):
             del out_meta_no_affine["affine"]
             self.assertEqual(orig_meta_no_affine, out_meta_no_affine)
             assert_allclose(out.affine, orig.affine)
-            self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
                 self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
