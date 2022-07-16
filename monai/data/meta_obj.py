@@ -127,7 +127,7 @@ class MetaObj:
 
         """
         if not deep_copy:
-            self.__dict__ = dict(first(input_objs).__dict__)  # shallow copy for performance
+            self.__dict__ = first(input_objs, default=self).__dict__.copy()  # shallow copy for performance
         else:
             self._copy_attr(["_meta", "_applied_operations"], input_objs)
 
