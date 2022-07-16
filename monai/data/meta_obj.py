@@ -105,7 +105,7 @@ class MetaObj:
 
     def _copy_attr(self, attributes: list[str], input_objs) -> None:
         """Copy attributes from the first in a list of `MetaObj`."""
-        f = first(input_objs).__dict__
+        f = first(input_objs, default=self).__dict__
         self.__dict__.update({a: MetaObj.copy_items(f[a]) for a in attributes if a in f})
 
     @staticmethod
@@ -128,8 +128,8 @@ class MetaObj:
         """
         if not deep_copy:
             self.__dict__ = dict(first(input_objs).__dict__)  # shallow copy for performance
-            return
-        self._copy_attr(["_meta", "_applied_operations"], input_objs)
+        else:
+            self._copy_attr(["_meta", "_applied_operations"], input_objs)
 
     @staticmethod
     def get_default_meta() -> dict:
