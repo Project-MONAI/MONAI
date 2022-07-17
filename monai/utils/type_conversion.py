@@ -333,7 +333,7 @@ def convert_to_dst_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):
-        output.__dict__.update({k: monai.data.MetaObj.copy_items(v) for k, v in dst.__dict__.items()})
+        output.copy_meta_from(dst)
     return output, _type, _device
 
 

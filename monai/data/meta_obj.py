@@ -103,33 +103,30 @@ class MetaObj:
             elif isinstance(a, MetaObj):
                 yield a
 
-    def _copy_attr(self, attributes: list[str], input_objs) -> None:
-        """Copy attributes from the first in a list of `MetaObj`."""
-        f = first(input_objs, default=self).__dict__
-        self.__dict__.update({a: MetaObj.copy_items(f[a]) for a in attributes if a in f})
-
     @staticmethod
     def copy_items(data):
-        """deepcopying items"""
+        """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
         if isinstance(data, (list, dict, np.ndarray)):
             return data.copy()
         if isinstance(data, torch.Tensor):
             return data.detach().clone()
         return deepcopy(data)
 
-    def _copy_meta(self, input_objs, deep_copy=False) -> None:
+    def copy_meta_from(self, input_objs, copy_attr=True) -> None:
         """
-        Copy metadata from an iterable of `MetaObj` instances. For a given attribute, we copy the
-        adjunct data from the first element in the list containing that attribute.
+        Copy metadata from a `MetaObj` or an iterable of `MetaObj` instances.
 
         Args:
             input_objs: list of `MetaObj` to copy data from.
-
+            copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
+                note that if the attribute is a nested list or dict, only a shallow copy will be done.
         """
-        if not deep_copy:
-            self.__dict__ = first(input_objs, default=self).__dict__.copy()  # shallow copy for performance
+        first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
+        first_meta = first_meta.__dict__
+        if not copy_attr:
+            self.__dict__ = first_meta.copy()  # shallow copy for performance
         else:
-            self._copy_attr(["_meta", "_applied_operations"], input_objs)
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in first_meta})
 
     @staticmethod
     def get_default_meta() -> dict:

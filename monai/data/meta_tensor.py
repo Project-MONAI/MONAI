@@ -126,7 +126,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if meta is not None:
             self.meta = meta
         elif isinstance(x, MetaObj):
-            self.__dict__.update({k: MetaObj.copy_items(v) for k, v in x.__dict__.items()})
+            self.copy_meta_from(x)
         # set the affine
         if affine is not None:
             if "affine" in self.meta:
@@ -145,7 +145,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
-            self.__dict__ = {k: MetaObj.copy_items(v) for k, v in self.__dict__.items()}
+            self.copy_meta_from(self)
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -192,7 +192,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             else:
                 meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
                 ret.is_batch = is_batch
-                ret._copy_meta(meta_args, deep_copy=not is_batch)
+                ret.copy_meta_from(meta_args, copy_attr=not is_batch)
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
