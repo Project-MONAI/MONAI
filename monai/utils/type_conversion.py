@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -334,7 +333,7 @@ def convert_to_dst_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):
-        output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
+        output.__dict__.update({k: monai.data.MetaObj.copy_items(v) for k, v in dst.__dict__.items()})
     return output, _type, _device
 
 
