@@ -16,7 +16,14 @@ import torch.nn as nn
 
 import monai
 from monai.networks import to_norm_affine
-from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 _C, _ = optional_import("monai._C")
 
@@ -118,7 +125,7 @@ def grid_pull(
     out: torch.Tensor
     out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(out, meta=input.meta, applied_operations=input.applied_operations)
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 
@@ -222,7 +229,7 @@ def grid_push(
 
     out: torch.Tensor = _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(out, meta=input.meta, applied_operations=input.applied_operations)
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 
@@ -321,7 +328,7 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
     out: torch.Tensor = _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(out, meta=input.meta, applied_operations=input.applied_operations)
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 
@@ -419,7 +426,7 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 
     out: torch.Tensor = _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
     if isinstance(input, monai.data.MetaTensor):
-        out = monai.data.MetaTensor(out, meta=input.meta, applied_operations=input.applied_operations)
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 

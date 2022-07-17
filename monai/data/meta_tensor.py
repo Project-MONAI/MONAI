@@ -126,7 +126,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if meta is not None:
             self.meta = meta
         elif isinstance(x, MetaObj):
-            self.meta = x.meta
+            self.__dict__.update({k: MetaObj.copy_items(v) for k, v in x.__dict__.items()})
         # set the affine
         if affine is not None:
             if "affine" in self.meta:
@@ -135,22 +135,17 @@ class MetaTensor(MetaObj, torch.Tensor):
         elif "affine" in self.meta:
             # by using the setter function, we ensure it is converted to torch.Tensor if not already
             self.affine = self.meta["affine"]
-        elif isinstance(x, MetaTensor):
-            self.affine = x.affine
         else:
             self.affine = self.get_default_affine()
         # applied_operations
         if applied_operations is not None:
             self.applied_operations = applied_operations
-        elif isinstance(x, MetaTensor):
-            self.applied_operations = x.applied_operations
         else:
             self.applied_operations = MetaObj.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
-            self.meta = deepcopy(self.meta)
-            self.applied_operations = deepcopy(self.applied_operations)
+            self.__dict__ = {k: MetaObj.copy_items(v) for k, v in self.__dict__.items()}
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
