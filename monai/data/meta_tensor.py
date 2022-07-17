@@ -323,7 +323,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return self.as_subclass(torch.Tensor)  # type: ignore
 
-    def get_array(self, output_type=np.ndarray, dtype=None, *_args, **_kwargs):
+    def get_array(self, output_type=np.ndarray, dtype=None, device=None, *_args, **_kwargs):
         """
         Returns a new array in `output_type`, the array shares the same underlying storage when the output is a
         numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
@@ -333,10 +333,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             dtype: dtype of output data. Converted to correct library type (e.g.,
                 `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
                 If left blank, it remains unchanged.
+            device: if the output is a `torch.Tensor`, select device (if `None`, unchanged).
             _args: currently unused parameters.
             _kwargs: currently unused parameters.
         """
-        return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
+        return convert_data_type(self, output_type=output_type, dtype=dtype, device=device, wrap_sequence=True)[0]
 
     def set_array(self, src, non_blocking=False, *_args, **_kwargs):
         """
@@ -421,7 +422,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             out_type = np.ndarray
         else:
             out_type = None
-        return convert_data_type(self, output_type=out_type, device=device, dtype=dtype, wrap_sequence=True)[0]
+        return self.get_array(output_type=out_type, dtype=dtype, device=device)
 
     @property
     def affine(self) -> torch.Tensor:
@@ -436,6 +437,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def pixdim(self):
         """Get the spacing"""
+        if self.is_batch:
+            return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
