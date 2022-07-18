@@ -69,6 +69,7 @@ exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
     "allow_missing_keys_mode",
+    "check_boundaries",
     "compute_divisible_spatial_size",
     "convert_applied_interp_mode",
     "copypaste_arrays",
@@ -1658,6 +1659,44 @@ def sync_meta_info(key, data_dict, t: bool = True):
         ref = from_dict if len(from_meta) > len(from_dict) else from_meta
     d[key].applied_operations = d[xform_key] = ref
     return d
+
+
+def check_boundaries(boundaries) -> None:
+    """
+    Check boundaries for Signal transforms
+    """
+    if not (
+        isinstance(boundaries, Sequence) and len(boundaries) == 2 and all(isinstance(i, float) for i in boundaries)
+    ):
+        raise ValueError("Incompatible values: boundaries needs to be a list of float.")
+
+
+def paste_slices(tup):
+    """
+    given a tuple (pos,w,max_w), return a tuple of slices
+    """
+    pos, w, max_w = tup
+    max_w = max_w.shape[len(max_w.shape) - 1]
+    orig_min = max(pos, 0)
+    orig_max = min(pos + w, max_w)
+    block_min = -min(pos, 0)
+    block_max = max_w - max(pos + w, max_w)
+    block_max = block_max if block_max != 0 else None
+    return slice(orig_min, orig_max), slice(block_min, block_max)
+
+
+def paste(orig, block, loc):
+    """
+    given a location (loc) and an original array (orig), paste a block array into it
+    """
+    loc_zip = zip(loc, block.shape, orig)
+    orig_slices, block_slices = zip(*map(paste_slices, loc_zip))
+
+    orig[:, orig_slices[0]] = block[block_slices[0]]
+
+    if orig.shape[0] == 1:
+        orig = orig.squeeze()
+    return orig
 
 
 if __name__ == "__main__":

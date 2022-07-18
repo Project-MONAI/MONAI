@@ -41,21 +41,5 @@ class TestSignalRandDrop(unittest.TestCase):
         self.assertEqual(composite_sig.shape[1], sig.shape[1])
         self.assertAlmostEqual(y.all(), y2.all())
 
-    @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, frequency, quality_factor, sampling_freq):
-        self.assertIsInstance(SignalRemoveFrequency(frequency, quality_factor, sampling_freq), SignalRemoveFrequency)
-        sig = np.load(TEST_SIGNAL)[0, :]
-        t = len(sig) / sampling_freq
-        composite_sig = sig + np.sin(2 * np.pi * frequency * t)
-        freqremove = SignalRemoveFrequency(frequency, quality_factor, sampling_freq)
-        freqremovesignal = freqremove(composite_sig)
-        y = np.fft.fft(composite_sig) / len(composite_sig)
-        y = y[: len(composite_sig) // 2]
-        y2 = np.fft.fft(freqremovesignal) / len(freqremovesignal)
-        y2 = y2[: len(freqremovesignal) // 2]
-        self.assertEqual(len(composite_sig), len(sig))
-        self.assertAlmostEqual(y.all(), y2.all())
-
-
 if __name__ == "__main__":
     unittest.main()

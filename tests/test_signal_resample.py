@@ -21,7 +21,7 @@ from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [("interpolation", 500, 250), ("polynomial", 500, 250), ("fourier", 500, 250)]
+VALID_CASES = [("interpolation", 500.0, 250.0), ("polynomial", 500.0, 250.0), ("fourier", 500.0, 250.0)]
 
 
 @skipUnless(has_scipy, "scipy required")
@@ -35,17 +35,6 @@ class TestSignalResample(unittest.TestCase):
         resampled = SignalResample(method, current_sample_rate, target_sample_rate)
         resampledsignal = resampled(sig)
         self.assertEqual(resampledsignal.shape[1], sig.shape[1] / 2)
-
-    @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, method, current_sample_rate, target_sample_rate):
-        self.assertIsInstance(SignalResample(method, current_sample_rate, target_sample_rate), SignalResample)
-        self.assertGreaterEqual(current_sample_rate, target_sample_rate)
-        self.assertIn(method, ["interpolation", "polynomial", "fourier"])
-        sig = np.load(TEST_SIGNAL)[0, :]
-        resampled = SignalResample(method, current_sample_rate, target_sample_rate)
-        resampledsignal = resampled(sig)
-        self.assertEqual(resampledsignal.shape[1], len(sig) / 2)
-
 
 if __name__ == "__main__":
     unittest.main()

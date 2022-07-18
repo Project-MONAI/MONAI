@@ -28,14 +28,5 @@ class TestSignalRandDrop(unittest.TestCase):
         fillemptysignal = fillempty(sig)
         self.assertTrue(not np.isnan(fillemptysignal.any()))
 
-    def test_correct_parameters_mono_channels(self):
-        self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
-        sig = np.load(TEST_SIGNAL)
-        sig[:, 123] = np.NAN
-        fillempty = SignalFillEmpty(replacement=0.0)
-        fillemptysignal = fillempty(sig)
-        self.assertTrue(not np.isnan(fillemptysignal.any()))
-
-
 if __name__ == "__main__":
     unittest.main()

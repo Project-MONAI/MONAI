@@ -306,7 +306,6 @@ from .post.dictionary import (
 from .signal.array import (
     SignalContinousWavelet,
     SignalFillEmpty,
-    SignalNormalize,
     SignalRandAddGaussianNoise,
     SignalRandAddSine,
     SignalRandAddSinePartial,
@@ -318,8 +317,6 @@ from .signal.array import (
     SignalRemoveFrequency,
     SignalResample,
     SignalShortTimeFourier,
-    SignalStandardize,
-    SignalZeroPad,
 )
 from .smooth_field.array import (
     RandSmoothDeform,

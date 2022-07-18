@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddGaussianNoise
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [([0, 0.02],)]
+VALID_CASES = [([0.0, 0.02],)]
 
 
 class TestSignalRandDrop(unittest.TestCase):
@@ -29,15 +29,6 @@ class TestSignalRandDrop(unittest.TestCase):
         gaussian = SignalRandAddGaussianNoise(boundaries)
         gaussiansignal = gaussian(sig)
         self.assertEqual(gaussiansignal.shape[1], sig.shape[1])
-
-    @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, boundaries):
-        self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
-        sig = np.load(TEST_SIGNAL)[0, :]
-        gaussian = SignalRandAddGaussianNoise(boundaries)
-        gaussiansignal = gaussian(sig)
-        self.assertEqual(gaussiansignal.shape[1], len(sig))
-
 
 if __name__ == "__main__":
     unittest.main()

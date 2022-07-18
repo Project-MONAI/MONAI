@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSine
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
-VALID_CASES = [([0, 1], [0, 0.5]), ([0, 1], [0.01, 0.1])]
+VALID_CASES = [([0.0, 1.0], [0.0, 0.5]), ([0.0, 1.0], [0.01, 0.1])]
 
 
 class TestSignalRandDrop(unittest.TestCase):
@@ -29,15 +29,6 @@ class TestSignalRandDrop(unittest.TestCase):
         sine = SignalRandAddSine(boundaries, freqs)
         sinesignal = sine(sig)
         self.assertEqual(sinesignal.shape[1], sig.shape[1])
-
-    @parameterized.expand(VALID_CASES)
-    def test_correct_parameters_mono_channels(self, boundaries, freqs):
-        self.assertIsInstance(SignalRandAddSine(boundaries, freqs), SignalRandAddSine)
-        sig = np.load(TEST_SIGNAL)[0, :]
-        sine = SignalRandAddSine(boundaries, freqs)
-        sinesignal = sine(sig)
-        self.assertEqual(sinesignal.shape[1], len(sig))
-
 
 if __name__ == "__main__":
     unittest.main()
