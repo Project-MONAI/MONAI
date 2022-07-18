@@ -12,8 +12,13 @@
 from __future__ import annotations
 
 import itertools
+import pprint
 from copy import deepcopy
+from enum import Enum
 from typing import Any, Iterable
+
+import numpy as np
+import torch
 
 from monai.utils.enums import TraceKeys
 
@@ -29,7 +34,7 @@ def set_track_meta(val: bool) -> None:
     with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -46,7 +51,7 @@ def get_track_meta() -> bool:
     returned with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -59,8 +64,7 @@ class MetaObj:
     """
     Abstract base class that stores data as well as any extra metadata.
 
-    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
-    inheritance.
+    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple inheritance.
 
     Metadata is stored in the form of a dictionary.
 
@@ -70,7 +74,8 @@ class MetaObj:
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaObj`.
+          first instance of `MetaObj` if `a.is_batch` is False
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     """
 
@@ -121,7 +126,7 @@ class MetaObj:
         found = [False] * len(attributes)
         for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
             if not found[idx] and hasattr(i, a):
-                setattr(self, a, deepcopy(getattr(i, a)) if deep_copy else getattr(i, a))
+                setattr(self, a, MetaObj.copy_items(getattr(i, a)) if deep_copy else getattr(i, a))
                 found[idx] = True
             if all(found):
                 return
@@ -129,6 +134,21 @@ class MetaObj:
             if not f:
                 setattr(self, a, d() if callable(defaults) else d)
         return
+
+    @staticmethod
+    def copy_items(data):
+        """deepcopying items"""
+        if isinstance(data, (int, float, str, bool, Enum)):
+            return data
+        if isinstance(data, np.ndarray):
+            return np.array(data, copy=True)
+        if isinstance(data, torch.Tensor):
+            return data.detach().clone()
+        if isinstance(data, (list, tuple)):
+            return type(data)(MetaObj.copy_items(x) for x in data)
+        if isinstance(data, dict):
+            return {k: MetaObj.copy_items(v) for k, v in data.items()}
+        return deepcopy(data)
 
     def _copy_meta(self, input_objs, deep_copy=False) -> None:
         """
@@ -139,6 +159,9 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
 
         """
+        if self.is_batch:
+            self.__dict__ = dict(next(iter(input_objs)).__dict__)  # shallow copy for performance
+            return
         self._copy_attr(
             ["meta", "applied_operations"],
             input_objs,
@@ -174,8 +197,7 @@ class MetaObj:
 
         out += "\nApplied operations\n"
         if self.applied_operations is not None:
-            for i in self.applied_operations:
-                out += f"\t{str(i)}\n"
+            out += pprint.pformat(self.applied_operations, indent=2, compact=True, width=120)
         else:
             out += "None"
 
@@ -185,7 +207,7 @@ class MetaObj:
 
     @property
     def meta(self) -> dict:
-        """Get the meta."""
+        """Get the meta. Defaults to ``{}``."""
         return self._meta if hasattr(self, "_meta") else MetaObj.get_default_meta()
 
     @meta.setter
@@ -196,8 +218,8 @@ class MetaObj:
         self._meta = d
 
     @property
-    def applied_operations(self) -> list:
-        """Get the applied operations."""
+    def applied_operations(self) -> list[dict]:
+        """Get the applied operations. Defaults to ``[]``."""
         if hasattr(self, "_applied_operations"):
             return self._applied_operations
         return MetaObj.get_default_applied_operations()

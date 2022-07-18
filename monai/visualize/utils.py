@@ -9,14 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
+import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import SpatialPad
 from monai.transforms.utils import rescale_array
-from monai.transforms.utils_pytorch_numpy_unification import repeat, where
+from monai.transforms.utils_pytorch_numpy_unification import repeat
 from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
@@ -157,7 +158,12 @@ def matshow3d(
 
 
 def blend_images(
-    image: NdarrayOrTensor, label: NdarrayOrTensor, alpha: float = 0.5, cmap: str = "hsv", rescale_arrays: bool = True
+    image: NdarrayOrTensor,
+    label: NdarrayOrTensor,
+    alpha: Union[float, NdarrayOrTensor] = 0.5,
+    cmap: str = "hsv",
+    rescale_arrays: bool = True,
+    transparent_background: bool = True,
 ):
     """
     Blend an image and a label. Both should have the shape CHW[D].
@@ -167,18 +173,29 @@ def blend_images(
     Args:
         image: the input image to blend with label data.
         label: the input label to blend with image data.
-        alpha: when blending image and label, `alpha` is the weight for the image region mapping to `label != 0`,
-            and `1 - alpha` is the weight for the label region that `label != 0`, default to `0.5`.
+        alpha: this specifies the weighting given to the label, where 0 is completely
+            transparent and 1 is completely opaque. This can be given as either a
+            single value or an array/tensor that is the same size as the input image.
         cmap: specify colormap in the matplotlib, default to `hsv`, for more details, please refer to:
             https://matplotlib.org/2.0.2/users/colormaps.html.
         rescale_arrays: whether to rescale the array to [0, 1] first, default to `True`.
+        transparent_background: if true, any zeros in the label field will not be colored.
+
+    .. image:: ../../docs/images/blend_images.png
 
     """
 
     if label.shape[0] != 1:
-        raise ValueError("Label should have 1 channel")
+        raise ValueError("Label should have 1 channel.")
     if image.shape[0] not in (1, 3):
-        raise ValueError("Image should have 1 or 3 channels")
+        raise ValueError("Image should have 1 or 3 channels.")
+    if image.shape[1:] != label.shape[1:]:
+        raise ValueError("image and label should have matching spatial sizes.")
+    if isinstance(alpha, (np.ndarray, torch.Tensor)):
+        if image.shape[1:] != alpha.shape[1:]:  # pytype: disable=attribute-error,invalid-directive
+
+            raise ValueError("if alpha is image, size should match input image and label.")
+
     # rescale arrays to [0, 1] if desired
     if rescale_arrays:
         image = rescale_array(image)
@@ -196,6 +213,15 @@ def blend_images(
         return label_rgb
 
     label_rgb = get_label_rgb(cmap, label)
-    w_image = where(label == 0, 1.0, alpha)
-    w_label = where(label == 0, 0.0, 1 - alpha)
+    if isinstance(alpha, (torch.Tensor, np.ndarray)):
+        w_label = alpha
+    elif isinstance(label, torch.Tensor):
+        w_label = torch.full_like(label, alpha)
+    else:
+        w_label = np.full_like(label, alpha)
+    if transparent_background:
+        # where label == 0 (background), set label alpha to 0
+        w_label[label == 0] = 0  # pytype: disable=unsupported-operands
+
+    w_image = 1 - w_label
     return w_image * image + w_label * label_rgb

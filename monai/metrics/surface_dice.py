@@ -30,6 +30,8 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
 
     The class- and batch sample-wise NSD values can be aggregated with the function `aggregate`.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         class_thresholds: List of class-specific thresholds.
             The thresholds relate to the acceptable amount of deviation in the segmentation boundary in pixels.

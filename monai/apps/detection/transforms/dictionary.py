@@ -34,7 +34,7 @@ from monai.apps.detection.transforms.array import (
     ZoomBox,
 )
 from monai.apps.detection.transforms.box_ops import convert_box_to_mask
-from monai.config import KeysCollection
+from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.utils import orientation_ras_lps
@@ -43,7 +43,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, NumpyPadMode, PytorchPadMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type
 
@@ -90,8 +90,6 @@ __all__ = [
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
-InterpolateModeSequence = Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str]
-PadModeSequence = Union[Sequence[Union[NumpyPadMode, PytorchPadMode, str]], NumpyPadMode, PytorchPadMode, str]
 
 
 class ConvertBoxModed(MapTransform, InvertibleTransform):
@@ -138,7 +136,7 @@ class ConvertBoxModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             src_mode, dst_mode = tr[TraceKeys.EXTRA_INFO]["src"], tr[TraceKeys.EXTRA_INFO]["dst"]
@@ -193,7 +191,7 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
             original_mode = tr[TraceKeys.EXTRA_INFO]["mode"]
@@ -282,7 +280,7 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             affine = transform["extra_info"]["affine"]
@@ -377,8 +375,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         box_keys: KeysCollection,
         box_ref_image_keys: KeysCollection,
         zoom: Union[Sequence[float], float],
-        mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        mode: SequenceStr = InterpolateMode.AREA,
+        padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
@@ -395,7 +393,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
         self.keep_size = keep_size
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
 
         # zoom box
@@ -431,7 +429,7 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = deepcopy(dict(data))
 
         for key in self.key_iterator(d):
@@ -453,7 +451,8 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
                     align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                 )
                 # Size might be out by 1 voxel so pad
-                d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                d[key] = SpatialPad(orig_shape, mode="edge")(d[key])
 
             # zoom boxes
             if key_type == "box_key":
@@ -518,8 +517,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         prob: float = 0.1,
         min_zoom: Union[Sequence[float], float] = 0.9,
         max_zoom: Union[Sequence[float], float] = 1.1,
-        mode: InterpolateModeSequence = InterpolateMode.AREA,
-        padding_mode: PadModeSequence = NumpyPadMode.EDGE,
+        mode: SequenceStr = InterpolateMode.AREA,
+        padding_mode: SequenceStr = NumpyPadMode.EDGE,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
         keep_size: bool = True,
         allow_missing_keys: bool = False,
@@ -544,7 +543,7 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.rand_zoom.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         first_key: Union[Hashable, List] = self.first_key(d)
         if first_key == []:
@@ -594,8 +593,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
 
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -616,7 +615,8 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                         align_corners=None if align_corners == TraceKeys.NONE else align_corners,
                     )
                     # Size might be out by 1 voxel so pad
-                    d[key] = SpatialPad(transform[TraceKeys.EXTRA_INFO]["original_shape"], mode="edge")(d[key])
+                    orig_shape = transform[TraceKeys.EXTRA_INFO]["original_shape"]
+                    d[key] = SpatialPad(orig_shape, mode="edge")(d[key])
 
                 # zoom boxes
                 if key_type == "box_key":
@@ -661,7 +661,7 @@ class FlipBoxd(MapTransform, InvertibleTransform):
         self.flipper = Flip(spatial_axis=spatial_axis)
         self.box_flipper = FlipBox(spatial_axis=self.flipper.spatial_axis)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
 
         for key in self.image_keys:
@@ -674,8 +674,8 @@ class FlipBoxd(MapTransform, InvertibleTransform):
             self.push_transform(d, box_key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -735,7 +735,7 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.flipper.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.randomize(None)
 
@@ -751,8 +751,8 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
             self.push_transform(d, box_key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1172,11 +1172,10 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             self.allow_smaller,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict[Hashable, NdarrayOrTensor]]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
         d = dict(data)
-        spatial_dims = len(d[self.image_keys[0]].shape) - 1
         image_size = d[self.image_keys[0]].shape[1:]
-        self.spatial_size = ensure_tuple_rep(self.spatial_size_, spatial_dims)
+        self.spatial_size = fall_back_tuple(self.spatial_size_, image_size)
 
         # randomly sample crop centers
         boxes = d[self.box_keys]
@@ -1190,7 +1189,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             raise ValueError("no available ROI centers to crop.")
 
         # initialize returned list with shallow copy to preserve key ordering
-        results: List[Dict[Hashable, NdarrayOrTensor]] = [dict(d) for _ in range(self.num_samples)]
+        results: List[Dict[Hashable, torch.Tensor]] = [dict(d) for _ in range(self.num_samples)]
 
         # crop images and boxes for each center.
         for i, center in enumerate(self.centers):
@@ -1255,7 +1254,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         self.img_rotator = Rotate90(k, spatial_axes)
         self.box_rotator = RotateBox90(k, spatial_axes)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         d = dict(data)
         for key, box_ref_image_key in zip(self.box_keys, self.box_ref_image_keys):
             spatial_size = list(d[box_ref_image_key].shape[1:])
@@ -1273,8 +1272,8 @@ class RotateBox90d(MapTransform, InvertibleTransform):
             self.push_transform(d, key, extra_info={"type": "image_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
 
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -1327,7 +1326,7 @@ class RandRotateBox90d(RandRotate90d):
         super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
         self.randomize()
         d = dict(data)
 
@@ -1359,8 +1358,8 @@ class RandRotateBox90d(RandRotate90d):
                 self.push_transform(d, key, extra_info={"rand_k": self._rand_k, "type": "image_key"})
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+        d = dict(data)
         if self._rand_k % 4 == 0:
             return d
 
