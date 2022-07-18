@@ -30,5 +30,6 @@ class TestSignalRandDrop(unittest.TestCase):
         partialsinesignal = partialsine(sig)
         self.assertEqual(partialsinesignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

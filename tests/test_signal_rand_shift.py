@@ -34,5 +34,6 @@ class TestSignalRandShift(unittest.TestCase):
         shiftedsignal = shifted(sig)
         self.assertEqual(shiftedsignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -36,5 +36,6 @@ class TestSignalResample(unittest.TestCase):
         resampledsignal = resampled(sig)
         self.assertEqual(resampledsignal.shape[1], sig.shape[1] / 2)
 
+
 if __name__ == "__main__":
     unittest.main()

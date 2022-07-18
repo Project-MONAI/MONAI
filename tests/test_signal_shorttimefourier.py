@@ -22,7 +22,7 @@ from monai.utils import optional_import
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [(500, 256, 128)]
-EXPECTED_RESULTS = [(6, 129, 14),]
+EXPECTED_RESULTS = [(6, 129, 14)]
 
 
 @skipUnless(has_scipy, "scipy required")
@@ -34,6 +34,7 @@ class TestSignalRandDrop(unittest.TestCase):
         stft = SignalShortTimeFourier(frequency, nperseg, noverlap)
         stftsignal = stft(sig)
         self.assertEqual(stftsignal.shape, EXPECTED_RESULTS[0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,5 +30,6 @@ class TestSignalRandDrop(unittest.TestCase):
         gaussiansignal = gaussian(sig)
         self.assertEqual(gaussiansignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

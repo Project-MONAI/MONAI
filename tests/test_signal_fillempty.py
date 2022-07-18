@@ -28,5 +28,6 @@ class TestSignalRandDrop(unittest.TestCase):
         fillemptysignal = fillempty(sig)
         self.assertTrue(not np.isnan(fillemptysignal.any()))
 
+
 if __name__ == "__main__":
     unittest.main()

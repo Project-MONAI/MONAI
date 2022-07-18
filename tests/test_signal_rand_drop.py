@@ -30,5 +30,6 @@ class TestSignalRandDrop(unittest.TestCase):
         dropedsignal = droped(sig)
         self.assertEqual(dropedsignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

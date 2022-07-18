@@ -626,24 +626,6 @@ Signal
     :members:
     :special-members: __call__
 
-`SignalNormalize`
-"""""""""""""""""
-.. autoclass:: SignalNormalize
-    :members:
-    :special-members: __call__
-
-`SignalStandardize`
-"""""""""""""""""""
-.. autoclass:: SignalStandardize
-    :members:
-    :special-members: __call__
-
-`SignalZeroPad`
-"""""""""""""""
-.. autoclass:: SignalZeroPad
-    :members:
-    :special-members: __call__
-
 `SignalFillEmpty`
 """""""""""""""""
 .. autoclass:: SignalFillEmpty

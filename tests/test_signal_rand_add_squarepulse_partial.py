@@ -36,5 +36,6 @@ class TestSignalRandDrop(unittest.TestCase):
         partialsquaresignal = partialsquare(sig)
         self.assertEqual(partialsquaresignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

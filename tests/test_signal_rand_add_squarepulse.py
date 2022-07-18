@@ -34,5 +34,6 @@ class TestSignalRandDrop(unittest.TestCase):
         squaredsignal = squared(sig)
         self.assertEqual(squaredsignal.shape[1], sig.shape[1])
 
+
 if __name__ == "__main__":
     unittest.main()

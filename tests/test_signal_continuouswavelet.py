@@ -22,7 +22,7 @@ from monai.utils import optional_import
 _, has_pywt = optional_import("pywt")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [("mexh", 150, 500)]
-EXPECTED_RESULTS = [(6, 150, 2000),]
+EXPECTED_RESULTS = [(6, 150, 2000)]
 
 
 @skipUnless(has_pywt, "pywt required")
@@ -34,6 +34,7 @@ class TestSignalRandDrop(unittest.TestCase):
         cwt = SignalContinousWavelet(type, length, frequency)
         cwtsignal = cwt(sig)
         self.assertEqual(cwtsignal.shape, EXPECTED_RESULTS[0])
+
 
 if __name__ == "__main__":
     unittest.main()

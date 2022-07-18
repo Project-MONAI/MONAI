@@ -20,6 +20,7 @@ from monai.transforms import SignalRandScale
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [([-1.0, 1.0],), ([0.01, 0.1],)]
 
+
 class TestSignalRandScale(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
@@ -28,6 +29,7 @@ class TestSignalRandScale(unittest.TestCase):
         scaled = SignalRandScale(boundaries)
         scaledsignal = scaled(sig)
         self.assertEqual(scaledsignal.shape[1], sig.shape[1])
+
 
 if __name__ == "__main__":
     unittest.main()

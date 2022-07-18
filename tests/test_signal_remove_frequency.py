@@ -41,5 +41,6 @@ class TestSignalRandDrop(unittest.TestCase):
         self.assertEqual(composite_sig.shape[1], sig.shape[1])
         self.assertAlmostEqual(y.all(), y2.all())
 
+
 if __name__ == "__main__":
     unittest.main()
