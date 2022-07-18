@@ -350,7 +350,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             _kwargs:  currently unused parameters.
         """
         src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
-        return self.copy_(src, non_blocking=non_blocking)
+        try:
+            return self.copy_(src, non_blocking=non_blocking)
+        except RuntimeError:  # skip the shape checking
+            self.data = src
+            return self
 
     @property
     def array(self):
