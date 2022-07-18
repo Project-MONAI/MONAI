@@ -16,7 +16,6 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import re
-from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -24,7 +23,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -916,11 +915,7 @@ class CopyItemsd(MapTransform):
             for key, new_key in self.key_iterator(d, self.names[i * key_len : (i + 1) * key_len]):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
-                val = d[key]
-                if isinstance(val, torch.Tensor):
-                    d[new_key] = val.detach().clone()
-                else:
-                    d[new_key] = deepcopy(val)
+                d[new_key] = MetaObj.copy_items(d[key])
         return d
 
 
