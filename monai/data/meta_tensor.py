@@ -126,7 +126,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if meta is not None:
             self.meta = meta
         elif isinstance(x, MetaObj):
-            self.copy_meta_from(x)
+            self.__dict__ = deepcopy(x.__dict__)
         # set the affine
         if affine is not None:
             if "affine" in self.meta:
@@ -452,11 +452,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         )
 
     def clone(self):
-        if self.data_ptr() == 0:
-            new_inst = MetaTensor(self.as_tensor().clone())
-            new_inst.__dict__ = deepcopy(self.__dict__)
-            return new_inst
-        return super().clone()
+        """returns a copy of the MetaTensor instance."""
+        new_inst = MetaTensor(self.as_tensor().clone())
+        new_inst.__dict__ = deepcopy(self.__dict__)
+        return new_inst
 
     @staticmethod
     def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
