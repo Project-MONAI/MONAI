@@ -38,12 +38,7 @@ TCIA_LABEL_DICT: Dict[str, Dict[str, int]] = {
         "GTV-1vis-4": 8,
         "GTV-1vis-5": 9,
     },
-    "QIN-PROSTATE-Repeatability": {
-        "NormalROI_PZ_1": 0,
-        "TumorROI_PZ_1": 1,
-        "PeripheralZone": 2,
-        "WholeGland": 3,
-    },
+    "QIN-PROSTATE-Repeatability": {"NormalROI_PZ_1": 0, "TumorROI_PZ_1": 1, "PeripheralZone": 2, "WholeGland": 3},
     "PROSTATEx": {
         "Prostate": 0,
         "Peripheral zone of prostate": 1,
