@@ -400,8 +400,9 @@ class PydicomReader(ImageReader):
         prune_metadata: whether to prune the saved information in metadata. This argument is used for
             `get_data` function. If True, only items that are related to the affine matrix will be saved.
             Default to ``True``.
-        labels: the labels of the dicom data. If provided, when calling the `_get_seg_data` function,
-            labels will be refered from it.
+        label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
+            Keys of the dict are the classes, and values are the corresponding class number. For example:
+            for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
@@ -416,7 +417,7 @@ class PydicomReader(ImageReader):
         affine_lps_to_ras: bool = True,
         swap_ij: bool = True,
         prune_metadata: bool = True,
-        labels: Optional[bool] = None,
+        label_dict: Optional[Dict] = None,
         **kwargs,
     ):
         super().__init__()
@@ -425,7 +426,7 @@ class PydicomReader(ImageReader):
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
-        self.labels = labels
+        self.label_dict = label_dict
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -697,9 +698,9 @@ class PydicomReader(ImageReader):
         spatial_shape = list(img.pixel_array.shape)
         spatial_shape[0] = spatial_shape[0] // n_classes
 
-        if self.labels is not None:
-            metadata["labels"] = self.labels
-            all_segs = np.zeros([*spatial_shape, len(self.labels)])
+        if self.label_dict is not None:
+            metadata["labels"] = self.label_dict
+            all_segs = np.zeros([*spatial_shape, len(self.label_dict)])
         else:
             metadata["labels"] = {}
             all_segs = np.zeros([*spatial_shape, n_classes])
