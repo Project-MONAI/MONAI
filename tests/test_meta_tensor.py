@@ -424,7 +424,7 @@ class TestMetaTensor(unittest.TestCase):
         s2 = t.__repr__()
         expected_out = (
             "tensor([1.])\n"
-            + "MetaData\n"
+            + "Metadata\n"
             + "\tfname: filename\n"
             + "\taffine: 1\n"
             + "\n"
