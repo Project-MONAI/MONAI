@@ -397,7 +397,12 @@ class TciaDataset(Randomizable, CacheDataset):
     The Highdicom library is used to load dicom data with modality "SEG", but only a part of collections are
     supoorted, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
     and "PROSTATEx". Therefore, if "seg" is included in `keys` of the `LoadImaged` transform and loading some
-    other collections, errors may be raised.
+    other collections, errors may be raised. For supported collections, the original "SEG" information may not
+    always be consistent for each dicom file. Therefore, to avoid creating different format of labels, please use
+    the `label_dict` argument of `PydicomReader` when calling the `LoadImaged` transform. The prepared label dicts
+    of collections that are mentioned above is also saved in: `monai.apps.tcia.label_desc`. You can also refer
+    to the second example bellow.
+
 
     This class is based on :py:class:`monai.data.CacheDataset` to accelerate the training process.
 
@@ -419,7 +424,7 @@ class TciaDataset(Randomizable, CacheDataset):
             user can manually copy tar file or dataset folder to the root directory.
         download_len: number of series that will be downloaded, the value should be larger than 0 or -1, where -1 means
             all series will be downloaded. Default is -1.
-        picked_modality: modality that is used to do the first step download. Default is "SEG".
+        seg_type: modality type of segmentation that is used to do the first step download. Default is "SEG".
         modality_tag: tag of modality. Default is (0x0008, 0x0060).
         ref_series_uid_tag: tag of referenced Series Instance UID. Default is (0x0020, 0x000e).
         ref_sop_uid_tag: tag of referenced SOP Instance UID. Default is (0x0008, 0x1155).
@@ -447,15 +452,16 @@ class TciaDataset(Randomizable, CacheDataset):
 
     Example::
 
-        # collection is "Pancreatic-CT-CBCT-SEG", picked_modality is "RTSTRUCT"
+        # collection is "Pancreatic-CT-CBCT-SEG", seg_type is "RTSTRUCT"
         data = TciaDataset(
-            root_dir="./", collection="Pancreatic-CT-CBCT-SEG", picked_modality="RTSTRUCT", download=True
+            root_dir="./", collection="Pancreatic-CT-CBCT-SEG", seg_type="RTSTRUCT", download=True
         )
 
-        # collection is "C4KC-KiTS", picked_modality is "SEG", and load both images and segmentations
+        # collection is "C4KC-KiTS", seg_type is "SEG", and load both images and segmentations
+        from monai.apps import TCIA_LABEL_DICT
         transform = Compose(
             [
-                LoadImaged(reader="PydicomReader", keys=["image", "seg"]),
+                LoadImaged(reader="PydicomReader", keys=["image", "seg"], label_dict=TCIA_LABEL_DICT["C4KC-KiTS"]),
                 EnsureChannelFirstd(keys=["image", "seg"]),
                 ResampleToMatchd(keys="image", key_dst="seg"),
             ]
@@ -476,7 +482,7 @@ class TciaDataset(Randomizable, CacheDataset):
         transform: Union[Sequence[Callable], Callable] = (),
         download: bool = False,
         download_len: int = -1,
-        picked_modality: str = "SEG",
+        seg_type: str = "SEG",
         modality_tag: Tuple = (0x0008, 0x0060),
         ref_series_uid_tag: Tuple = (0x0020, 0x000E),
         ref_sop_uid_tag: Tuple = (0x0008, 0x1155),
@@ -505,7 +511,7 @@ class TciaDataset(Randomizable, CacheDataset):
 
         self.section = section
         self.val_frac = val_frac
-        self.picked_modality = picked_modality
+        self.seg_type = seg_type
         self.modality_tag = modality_tag
         self.ref_series_uid_tag = ref_series_uid_tag
         self.ref_sop_uid_tag = ref_sop_uid_tag
@@ -517,12 +523,12 @@ class TciaDataset(Randomizable, CacheDataset):
         self.load_tags = load_tags
         if download:
             seg_series_list = get_tcia_metadata(
-                query=f"getSeries?Collection={collection}&Modality={picked_modality}", attribute="SeriesInstanceUID"
+                query=f"getSeries?Collection={collection}&Modality={seg_type}", attribute="SeriesInstanceUID"
             )
             if download_len > 0:
                 seg_series_list = seg_series_list[:download_len]
             if len(seg_series_list) == 0:
-                raise ValueError(f"Cannot find data with collection: {collection} picked_modality: {picked_modality}")
+                raise ValueError(f"Cannot find data with collection: {collection} seg_type: {seg_type}")
             for series_uid in seg_series_list:
                 self._download_series_reference_data(series_uid, download_dir)
 
@@ -581,7 +587,7 @@ class TciaDataset(Randomizable, CacheDataset):
             series_num = 0
 
         series_num = str(series_num)
-        seg_dir = os.path.join(download_dir, patient_id, series_num, self.picked_modality.lower())
+        seg_dir = os.path.join(download_dir, patient_id, series_num, self.seg_type.lower())
         dcm_dir = os.path.join(download_dir, patient_id, series_num, "image")
 
         # get ref uuid
@@ -589,7 +595,7 @@ class TciaDataset(Randomizable, CacheDataset):
         for dcm_file in dicom_files:
             dcm_path = os.path.join(seg_first_dir, dcm_file)
             ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)
-            if ds[self.modality_tag].value == self.picked_modality:
+            if ds[self.modality_tag].value == self.seg_type:
                 ref_uid = get_tcia_ref_uid(
                     ds, find_sop=False, ref_series_uid_tag=self.ref_series_uid_tag, ref_sop_uid_tag=self.ref_sop_uid_tag
                 )
@@ -620,7 +626,7 @@ class TciaDataset(Randomizable, CacheDataset):
         for patient_id in patient_list:
             series_list = [f.name for f in os.scandir(os.path.join(dataset_dir, patient_id)) if f.is_dir()]
             for series_num in series_list:
-                seg_key = self.picked_modality.lower()
+                seg_key = self.seg_type.lower()
                 image_path = os.path.join(dataset_dir, patient_id, series_num, "image")
                 mask_path = os.path.join(dataset_dir, patient_id, series_num, seg_key)
 
