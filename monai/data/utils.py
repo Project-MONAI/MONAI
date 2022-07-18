@@ -588,7 +588,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if isinstance(batch, MetaObj):
             for t, m in zip(out_list, decollate_batch(batch.meta)):
                 if isinstance(t, MetaObj):
-                    t.meta = deepcopy(m)
+                    t.meta = m
                     t.is_batch = False
             for t, m in zip(out_list, batch.applied_operations):
                 if isinstance(t, MetaObj):
