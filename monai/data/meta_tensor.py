@@ -215,20 +215,13 @@ class MetaTensor(MetaObj, torch.Tensor):
                         # if using e.g., `batch[:, -1]` or `batch[..., -1]`, then the
                         # first element will be `slice(None, None, None)` and `Ellipsis`,
                         # respectively. Don't need to do anything with the metadata.
-                        if batch_idx not in (slice(None, None, None), Ellipsis, None):
-                            # only decollate metadata once
-                            if metas is None:
-                                metas = decollate_batch(ret.meta)
-                            meta = metas[batch_idx]
-                            # if using e.g., `batch[0:2]`, then `is_batch` should still be
-                            # `True`. Also re-collate the remaining elements.
-                            if isinstance(meta, list):
-                                ret.meta = list_data_collate(meta)
-                            # if using e.g., `batch[0]` or `batch[0, 1]`, then return single
-                            # element from batch, and set `is_batch` to `False`.
-                            else:
-                                ret.meta = meta
-                                ret.is_batch = False
+                        if batch_idx not in (slice(None, None, None), Ellipsis, None) and idx == 0:
+                            ret_meta = decollate_batch(args[0], detach=False)[batch_idx]
+                            if isinstance(ret_meta, list):  # e.g. batch[0:2], re-collate
+                                ret_meta = list_data_collate(ret_meta)
+                            else:  # e.g. `batch[0]` or `batch[0, 1]`, batch index is an integer
+                                ret_meta.is_batch = False
+                            ret.__dict__ = ret_meta.__dict__.copy()
                     # `unbind` is used for `next(iter(batch))`. Also for `decollate_batch`.
                     # But we only want to split the batch if the `unbind` is along the 0th
                     # dimension.
@@ -241,8 +234,8 @@ class MetaTensor(MetaObj, torch.Tensor):
                             dim = 0
                         if dim == 0:
                             if metas is None:
-                                metas = decollate_batch(ret.meta)
-                            ret.meta = metas[idx]
+                                metas = decollate_batch(args[0], detach=False)
+                            ret.__dict__ = metas[idx].__dict__.copy()
                             ret.is_batch = False
 
             out.append(ret)
@@ -330,7 +323,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return self.as_subclass(torch.Tensor)  # type: ignore
 
-    def get_array(self, output_type=np.ndarray, dtype=None, *_args, **_kwargs):
+    def get_array(self, output_type=np.ndarray, dtype=None, device=None, *_args, **_kwargs):
         """
         Returns a new array in `output_type`, the array shares the same underlying storage when the output is a
         numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
@@ -340,10 +333,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             dtype: dtype of output data. Converted to correct library type (e.g.,
                 `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
                 If left blank, it remains unchanged.
+            device: if the output is a `torch.Tensor`, select device (if `None`, unchanged).
             _args: currently unused parameters.
             _kwargs: currently unused parameters.
         """
-        return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
+        return convert_data_type(self, output_type=output_type, dtype=dtype, device=device, wrap_sequence=True)[0]
 
     def set_array(self, src, non_blocking=False, *_args, **_kwargs):
         """
@@ -428,7 +422,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             out_type = np.ndarray
         else:
             out_type = None
-        return convert_data_type(self, output_type=out_type, device=device, dtype=dtype, wrap_sequence=True)[0]
+        return self.get_array(output_type=out_type, dtype=dtype, device=device)
 
     @property
     def affine(self) -> torch.Tensor:
@@ -443,6 +437,8 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def pixdim(self):
         """Get the spacing"""
+        if self.is_batch:
+            return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
