@@ -44,7 +44,6 @@ __all__ = [
     "SignalRandAddGaussianNoise",
     "SignalRandAddSinePartial",
     "SignalRandAddSquarePulsePartial",
-    "SignalZeroPad",
     "SignalFillEmpty",
     "SignalRemoveFrequency",
     "SignalShortTimeFourier",
@@ -411,7 +410,7 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
 
 class SignalFillEmpty(Transform):
     """
-    replace empty part of a signal
+    replace empty part of a signal (NaN)
     """
 
     backend = [TransformBackends.NUMPY]
