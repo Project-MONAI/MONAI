@@ -126,7 +126,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if meta is not None:
             self.meta = meta
         elif isinstance(x, MetaObj):
-            self.meta = x.meta
+            self.__dict__ = deepcopy(x.__dict__)
         # set the affine
         if affine is not None:
             if "affine" in self.meta:
@@ -135,22 +135,17 @@ class MetaTensor(MetaObj, torch.Tensor):
         elif "affine" in self.meta:
             # by using the setter function, we ensure it is converted to torch.Tensor if not already
             self.affine = self.meta["affine"]
-        elif isinstance(x, MetaTensor):
-            self.affine = x.affine
         else:
             self.affine = self.get_default_affine()
         # applied_operations
         if applied_operations is not None:
             self.applied_operations = applied_operations
-        elif isinstance(x, MetaTensor):
-            self.applied_operations = x.applied_operations
         else:
             self.applied_operations = MetaObj.get_default_applied_operations()
 
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
-            self.meta = deepcopy(self.meta)
-            self.applied_operations = deepcopy(self.applied_operations)
+            self.copy_meta_from(self)
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -197,7 +192,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             else:
                 meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
                 ret.is_batch = is_batch
-                ret._copy_meta(meta_args, deep_copy=not is_batch)
+                ret.copy_meta_from(meta_args, copy_attr=not is_batch)
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
@@ -355,7 +350,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             _kwargs:  currently unused parameters.
         """
         src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
-        return self.copy_(src, non_blocking=non_blocking)
+        try:
+            return self.copy_(src, non_blocking=non_blocking)
+        except RuntimeError:  # skip the shape checking
+            self.data = src
+            return self
 
     @property
     def array(self):
@@ -453,11 +452,10 @@ class MetaTensor(MetaObj, torch.Tensor):
         )
 
     def clone(self):
-        if self.data_ptr() == 0:
-            new_inst = MetaTensor(self.as_tensor().clone())
-            new_inst.__dict__ = deepcopy(self.__dict__)
-            return new_inst
-        return super().clone()
+        """returns a copy of the MetaTensor instance."""
+        new_inst = MetaTensor(self.as_tensor().clone())
+        new_inst.__dict__ = deepcopy(self.__dict__)
+        return new_inst
 
     @staticmethod
     def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
