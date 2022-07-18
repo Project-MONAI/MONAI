@@ -592,7 +592,7 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
                     t.is_batch = False
             for t, m in zip(out_list, batch.applied_operations):
                 if isinstance(t, MetaObj):
-                    t.applied_operations = deepcopy(m)
+                    t.applied_operations = m
                     t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
