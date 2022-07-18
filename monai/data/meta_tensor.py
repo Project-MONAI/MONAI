@@ -105,10 +105,21 @@ class MetaTensor(MetaObj, torch.Tensor):
         **_kwargs,
     ) -> None:
         """
-        If `meta` is given, use it. Else, if `meta` exists in the input tensor, use it.
-        Else, use the default value. Similar for the affine, except this could come from
-        four places.
-        Priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+        Args:
+            x: initial array for the MetaTensor. Can be a list, tuple, NumPy ndarray, scalar, and other types.
+            affine: optional 4x4 array.
+            meta: dictionary of metadata.
+            applied_operations: list of previously applied operations on the MetaTensor,
+                the list is typically maintained by `monai.transforms.TraceableTransform`.
+                See also: :py:class:`monai.transforms.TraceableTransform`
+            _args: additional args (currently not in use in this constructor).
+            _kwargs: additional kwargs (currently not in use in this constructor).
+
+        Note:
+            If a `meta` dictionary is given, use it. Else, if `meta` exists in the input tensor `x`, use it.
+            Else, use the default value. Similar for the affine, except this could come from
+            four places, priority: `affine`, `meta["affine"]`, `x.affine`, `get_default_affine`.
+
         """
         super().__init__()
         # set meta
@@ -140,14 +151,6 @@ class MetaTensor(MetaObj, torch.Tensor):
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.meta = deepcopy(self.meta)
             self.applied_operations = deepcopy(self.applied_operations)
-        self.affine = self.affine.to(self.device)
-
-    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
-        super()._copy_attr(attributes, input_objs, defaults, deep_copy)
-        for a in attributes:
-            val = getattr(self, a)
-            if isinstance(val, torch.Tensor):
-                setattr(self, a, val.to(self.device))
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -177,7 +180,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             the input type was not `MetaTensor`, then no modifications will have been
             made. If global parameters have been set to false (e.g.,
             `not get_track_meta()`), then any `MetaTensor` will be converted to
-            `torch.Tensor`. Else, metadata will be propogated as necessary (see
+            `torch.Tensor`. Else, metadata will be propagated as necessary (see
             :py:func:`MetaTensor._copy_meta`).
         """
         out = []
@@ -193,8 +196,8 @@ class MetaTensor(MetaObj, torch.Tensor):
             # else, handle the `MetaTensor` metadata.
             else:
                 meta_args = MetaObj.flatten_meta_objs(args, kwargs.values())
-                ret._copy_meta(meta_args, deep_copy=not is_batch)
                 ret.is_batch = is_batch
+                ret._copy_meta(meta_args, deep_copy=not is_batch)
                 # the following is not implemented but the network arch may run into this case:
                 # if func == torch.cat and any(m.is_batch if hasattr(m, "is_batch") else False for m in meta_args):
                 #     raise NotImplementedError("torch.cat is not implemented for batch of MetaTensors.")
@@ -242,7 +245,6 @@ class MetaTensor(MetaObj, torch.Tensor):
                             ret.meta = metas[idx]
                             ret.is_batch = False
 
-                ret.affine = ret.affine.to(ret.device)
             out.append(ret)
         # if the input was a tuple, then return it as a tuple
         return tuple(out) if isinstance(rets, tuple) else out
@@ -319,7 +321,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             return NotImplemented
 
     def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
-        return torch.eye(4, device=self.device, dtype=dtype)
+        return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
         """
@@ -328,34 +330,88 @@ class MetaTensor(MetaObj, torch.Tensor):
         """
         return self.as_subclass(torch.Tensor)  # type: ignore
 
-    def as_dict(self, key: str) -> dict:
+    def get_array(self, output_type=np.ndarray, dtype=None, *_args, **_kwargs):
         """
-        Get the object as a dictionary for backwards compatibility.
-        This method makes a copy of the objects.
+        Returns a new array in `output_type`, the array shares the same underlying storage when the output is a
+        numpy array. Changes to self tensor will be reflected in the ndarray and vice versa.
 
         Args:
-            key: Base key to store main data. The key for the metadata will be
-                determined using `PostFix.meta`.
+            output_type: output type, see also: :py:func:`monai.utils.convert_data_type`.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
+            _args: currently unused parameters.
+            _kwargs: currently unused parameters.
+        """
+        return convert_data_type(self, output_type=output_type, dtype=dtype, wrap_sequence=True)[0]
+
+    def set_array(self, src, non_blocking=False, *_args, **_kwargs):
+        """
+        Copies the elements from src into self tensor and returns self.
+        The src tensor must be broadcastable with the self tensor.
+        It may be of a different data type or reside on a different device.
+
+        See also: `https://pytorch.org/docs/stable/generated/torch.Tensor.copy_.html`
+
+        Args:
+            src: the source tensor to copy from.
+            non_blocking: if True and this copy is between CPU and GPU, the copy may occur
+                asynchronously with respect to the host. For other cases, this argument has no effect.
+            _args: currently unused parameters.
+            _kwargs:  currently unused parameters.
+        """
+        src: torch.Tensor = convert_to_tensor(src, track_meta=False, wrap_sequence=True)
+        return self.copy_(src, non_blocking=non_blocking)
+
+    @property
+    def array(self):
+        """
+        Returns a numpy array of ``self``. The array and ``self`` shares the same underlying storage if self is on cpu.
+        Changes to ``self`` (it's a subclass of torch.Tensor) will be reflected in the ndarray and vice versa.
+        If ``self`` is not on cpu, the call will move the array to cpu and then the storage is not shared.
+
+        :getter: see also: :py:func:`MetaTensor.get_array()`
+        :setter: see also: :py:func:`MetaTensor.set_array()`
+        """
+        return self.get_array()
+
+    @array.setter
+    def array(self, src) -> None:
+        """A default setter using ``self.set_array()``"""
+        self.set_array(src)
+
+    def as_dict(self, key: str, output_type=torch.Tensor, dtype=None) -> dict:
+        """
+        Get the object as a dictionary for backwards compatibility.
+        This method does not make a deep copy of the objects.
+
+        Args:
+            key: Base key to store main data. The key for the metadata will be determined using `PostFix`.
+            output_type: `torch.Tensor` or `np.ndarray` for the main data.
+            dtype: dtype of output data. Converted to correct library type (e.g.,
+                `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
+                If left blank, it remains unchanged.
 
         Return:
-            A dictionary consisting of two keys, the main data (stored under `key`) and
-                the metadata.
+            A dictionary consisting of three keys, the main data (stored under `key`) and the metadata.
         """
+        if output_type not in (torch.Tensor, np.ndarray):
+            raise ValueError(f"output_type must be torch.Tensor or np.ndarray, got {output_type}.")
         return {
-            key: self.as_tensor().clone().detach(),
-            PostFix.meta(key): deepcopy(self.meta),
-            PostFix.transforms(key): deepcopy(self.applied_operations),
+            key: self.get_array(output_type=output_type, dtype=dtype),
+            PostFix.meta(key): self.meta,
+            PostFix.transforms(key): self.applied_operations,
         }
 
-    def astype(self, dtype, device=None, *unused_args, **unused_kwargs):
+    def astype(self, dtype, device=None, *_args, **_kwargs):
         """
         Cast to ``dtype``, sharing data whenever possible.
 
         Args:
             dtype: dtypes such as np.float32, torch.float, "np.float32", float.
             device: the device if `dtype` is a torch data type.
-            unused_args: additional args (currently unused).
-            unused_kwargs: additional kwargs (currently unused).
+            _args: additional args (currently unused).
+            _kwargs: additional kwargs (currently unused).
 
         Returns:
             data array instance
@@ -376,13 +432,13 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @property
     def affine(self) -> torch.Tensor:
-        """Get the affine."""
+        """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
         return self.meta.get("affine", self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = torch.as_tensor(d, device=self.device)
+        self.meta["affine"] = torch.as_tensor(d, device=torch.device("cpu"))
 
     @property
     def pixdim(self):
@@ -400,6 +456,13 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.as_tensor().new_empty(size=size, dtype=dtype, device=device, requires_grad=requires_grad)
         )
 
+    def clone(self):
+        if self.data_ptr() == 0:
+            new_inst = MetaTensor(self.as_tensor().clone())
+            new_inst.__dict__ = deepcopy(self.__dict__)
+            return new_inst
+        return super().clone()
+
     @staticmethod
     def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
         """
@@ -409,6 +472,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         Args:
             im: Input image (`np.ndarray` or `torch.Tensor`)
             meta: Metadata dictionary.
+            simple_keys: whether to keep only a simple subset of metadata keys.
 
         Returns:
             By default, a `MetaTensor` is returned.

@@ -14,7 +14,11 @@ from __future__ import annotations
 import itertools
 import pprint
 from copy import deepcopy
+from enum import Enum
 from typing import Any, Iterable
+
+import numpy as np
+import torch
 
 from monai.utils.enums import TraceKeys
 
@@ -71,7 +75,7 @@ class MetaObj:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
           first instance of `MetaObj` if `a.is_batch` is False
-          (For batched data, the metdata will be shallow copied for efficiency purposes).
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     """
 
@@ -122,7 +126,7 @@ class MetaObj:
         found = [False] * len(attributes)
         for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
             if not found[idx] and hasattr(i, a):
-                setattr(self, a, deepcopy(getattr(i, a)) if deep_copy else getattr(i, a))
+                setattr(self, a, MetaObj.copy_items(getattr(i, a)) if deep_copy else getattr(i, a))
                 found[idx] = True
             if all(found):
                 return
@@ -130,6 +134,21 @@ class MetaObj:
             if not f:
                 setattr(self, a, d() if callable(defaults) else d)
         return
+
+    @staticmethod
+    def copy_items(data):
+        """deepcopying items"""
+        if isinstance(data, (int, float, str, bool, Enum)):
+            return data
+        if isinstance(data, np.ndarray):
+            return np.array(data, copy=True)
+        if isinstance(data, torch.Tensor):
+            return data.detach().clone()
+        if isinstance(data, (list, tuple)):
+            return type(data)(MetaObj.copy_items(x) for x in data)
+        if isinstance(data, dict):
+            return {k: MetaObj.copy_items(v) for k, v in data.items()}
+        return deepcopy(data)
 
     def _copy_meta(self, input_objs, deep_copy=False) -> None:
         """
@@ -140,6 +159,9 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
 
         """
+        if self.is_batch:
+            self.__dict__ = dict(next(iter(input_objs)).__dict__)  # shallow copy for performance
+            return
         self._copy_attr(
             ["meta", "applied_operations"],
             input_objs,
@@ -185,7 +207,7 @@ class MetaObj:
 
     @property
     def meta(self) -> dict:
-        """Get the meta."""
+        """Get the meta. Defaults to ``{}``."""
         return self._meta if hasattr(self, "_meta") else MetaObj.get_default_meta()
 
     @meta.setter
@@ -197,7 +219,7 @@ class MetaObj:
 
     @property
     def applied_operations(self) -> list[dict]:
-        """Get the applied operations."""
+        """Get the applied operations. Defaults to ``[]``."""
         if hasattr(self, "_applied_operations"):
             return self._applied_operations
         return MetaObj.get_default_applied_operations()

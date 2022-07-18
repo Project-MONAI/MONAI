@@ -284,12 +284,14 @@ N-Dim Fourier Transform
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj
-    :members:
+  :members:
 
 MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
-   :members:
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
 
 
 
