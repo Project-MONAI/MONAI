@@ -85,6 +85,8 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         xform = RandSpatialCropSamplesd(**input_param)
         xform.set_random_state(1234)
         result = xform(input_data)
+        _len = len(tuple(input_data.keys()))
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
         for item, expected in zip(result, expected_shape):
             self.assertTupleEqual(item["img"].shape, expected)
             self.assertTupleEqual(item["seg"].shape, expected)

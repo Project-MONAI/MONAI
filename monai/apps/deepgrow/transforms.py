@@ -52,7 +52,7 @@ class FindAllValidSlicesd(Transform):
 
     def __call__(self, data):
         d: Dict = dict(data)
-        label = d[self.label]
+        label = d[self.label].numpy() if isinstance(data[self.label], torch.Tensor) else data[self.label]
         if label.shape[0] != 1:
             raise ValueError(f"Only supports single channel labels, got label shape {label.shape}!")
 
@@ -208,6 +208,10 @@ class AddGuidanceSignald(Transform):
 
     def _apply(self, image, guidance):
         signal = self._get_signal(image, guidance)
+
+        if isinstance(image, torch.Tensor):
+            image = image.detach().cpu().numpy()
+
         image = image[0 : 0 + self.number_intensity_ch, ...]
         return np.concatenate([image, signal], axis=0)
 
