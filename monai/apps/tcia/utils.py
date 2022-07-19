@@ -90,7 +90,7 @@ def download_tcia_series_instance(
     query_name = "getImageWithMD5Hash" if check_md5 else "getImage"
     download_url = f"{BASE_URL}{query_name}?SeriesInstanceUID={series_uid}"
 
-    monai.apps.download_and_extract(
+    monai.apps.utils.download_and_extract(
         url=download_url,
         filepath=os.path.join(download_dir, f"{series_uid}.zip"),
         output_dir=output_dir,
@@ -101,7 +101,7 @@ def download_tcia_series_instance(
             raise ValueError("pandas package is necessary, please install it.")
         hashes_df = pd.read_csv(os.path.join(output_dir, hashes_filename))
         for dcm, md5hash in hashes_df.values:
-            monai.apps.check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
+            monai.apps.utils.check_hash(filepath=os.path.join(output_dir, dcm), val=md5hash, hash_type="md5")
 
 
 def get_tcia_ref_uid(ds, find_sop: bool = False, ref_series_uid_tag=(0x0020, 0x000E), ref_sop_uid_tag=(0x0008, 0x1155)):
