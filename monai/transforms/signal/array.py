@@ -13,7 +13,7 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import List, Optional, Sequence
+from typing import Any, List, Optional, Sequence
 
 import numpy as np
 
@@ -167,7 +167,7 @@ class SignalRandAddSine(RandomizableTransform):
         self.boundaries = boundaries
         self.frequencies = frequencies
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: input 1 dimension signal to which sinusoidal signal will be added
@@ -204,7 +204,7 @@ class SignalRandAddSquarePulse(RandomizableTransform):
         self.boundaries = boundaries
         self.frequencies = frequencies
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: input 1 dimension signal to which square pulse will be added
@@ -278,7 +278,7 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Optional[List[float]] = None) -> None:
+    def __init__(self, boundaries: Sequence[float] = (0.01, 0.1)) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the signal magnitude,
@@ -288,7 +288,7 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
         check_boundaries(boundaries)
         self.boundaries = boundaries
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: input 1 dimension signal to which gaussian noise will be added
@@ -359,7 +359,7 @@ class SignalFillEmpty(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, replacement: Optional[float] = 0.0) -> None:
+    def __init__(self, replacement: float = 0.0) -> None:
         """
         Args:
             replacement: value to replace nan items in signal
@@ -367,7 +367,7 @@ class SignalFillEmpty(Transform):
         super().__init__()
         self.replacement = replacement
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: signal to be filled
@@ -401,7 +401,7 @@ class SignalRemoveFrequency(Transform):
         self.quality_factor = quality_factor
         self.sampling_freq = sampling_freq
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: signal to be frequency removed
@@ -463,7 +463,7 @@ class SignalContinousWavelet(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, type: str = "mexh", length: Optional[int] = None, frequency: Optional[int] = None) -> None:
+    def __init__(self, type: str = "mexh", length: float = 125.0, frequency: float = 500.0) -> None:
         """
         Args:
             type: mother wavelet type.
@@ -477,7 +477,7 @@ class SignalContinousWavelet(Transform):
         self.length = length
         self.type = type
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: np.ndarray) -> Any:
         """
         Args:
             signal: signal for which to generate continuous wavelet transform
