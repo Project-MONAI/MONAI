@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
+from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import min_version, optional_import
@@ -71,7 +72,24 @@ class DiscardAddGuidanced(MapTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             if key == "image":
-                d[key] = self._apply(d[key])
+                image = d[key]
+                tmp_image = self._apply(image)
+                d[key] = (
+                    MetaTensor(
+                        tmp_image,
+                        affine=image.affine,
+                        applied_operations=image.applied_operations,
+                        meta={
+                            "spatial_shape": image.meta.get("spatial_shape"),
+                            "pixdim": image.meta.get("pixdim"),
+                            "affine": image.meta.get("affine"),
+                            "original_affine": image.meta.get("original_affine"),
+                            "original_channel_dim": image.meta.get("original_channel_dim"),
+                        },
+                    )
+                    if isinstance(image, MetaTensor)
+                    else tmp_image
+                )
             else:
                 print("This transform only applies to the image")
         return d
@@ -239,7 +257,22 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                     # Getting signal based on guidance
                     signal = self._get_signal(image, guidance[key_label])
                     tmp_image = np.concatenate([tmp_image, signal], axis=0)
-                d[key] = tmp_image
+                    d[key] = (
+                        MetaTensor(
+                            tmp_image,
+                            affine=image.affine,
+                            applied_operations=image.applied_operations,
+                            meta={
+                                "spatial_shape": image.meta.get("spatial_shape"),
+                                "pixdim": image.meta.get("pixdim"),
+                                "affine": image.meta.get("affine"),
+                                "original_affine": image.meta.get("original_affine"),
+                                "original_channel_dim": image.meta.get("original_channel_dim"),
+                            },
+                        )
+                        if isinstance(image, MetaTensor)
+                        else tmp_image
+                    )
                 return d
             else:
                 print("This transform only applies to image key")
