@@ -63,7 +63,7 @@ class SignalRandShift(RandomizableTransform):
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
             filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details :
                 https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
-            boundaries: list defining lower and upper boundaries for the signal shift, example : ``[-1.0, 1.0]``
+            boundaries: list defining lower and upper boundaries for the signal shift, default : ``[-1.0, 1.0]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -92,10 +92,10 @@ class SignalRandScale(RandomizableTransform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Optional[List[float]] = None) -> None:
+    def __init__(self, boundaries: Sequence[float] = (-1.0, 1.0)) -> None:
         """
         Args:
-            boundaries: list defining lower and upper boundaries for the signal scaling, example : ``[-1.0, 1.0]``
+            boundaries: list defining lower and upper boundaries for the signal scaling, default : ``[-1.0, 1.0]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -120,11 +120,11 @@ class SignalRandDrop(RandomizableTransform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Optional[List[float]] = None) -> None:
+    def __init__(self, boundaries: Sequence[float] = (0.0, 1.0)) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the signal drop,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+            lower and upper values need to be positive default : ``[0.0, 1.0]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -154,13 +154,13 @@ class SignalRandAddSine(RandomizableTransform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Optional[List[float]] = None, frequencies: Optional[List[float]] = None) -> None:
+    def __init__(self, boundaries: Sequence[float] = (0.1, 0.3), frequencies: Sequence[float] = (0.001, 0.02)) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the sinusoidal magnitude,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive ,default : ``[0.1, 0.3]``
             frequencies: list defining lower and upper frequencies for sinusoidal
-            signal generation example : ``[0.001, 0.02]``
+                signal generation ,default : ``[0.001, 0.02]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -191,13 +191,13 @@ class SignalRandAddSquarePulse(RandomizableTransform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Optional[List[float]] = None, frequencies: Optional[List[float]] = None) -> None:
+    def __init__(self, boundaries: Sequence[float] = (0.01, 0.2), frequencies: Sequence[float] = (0.001, 0.02)) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the square pulse magnitude,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive , default : ``[0.01, 0.2]``
             frequencies: list defining lower and upper frequencies for the square pulse
-            signal generation example : ``[0.001, 0.02]``
+                signal generation , default : ``[0.001, 0.02]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -230,17 +230,18 @@ class SignalRandAddSinePartial(RandomizableTransform):
 
     def __init__(
         self,
-        boundaries: Optional[List[float]] = None,
-        frequencies: Optional[List[float]] = None,
-        fraction: Optional[List[float]] = None,
+        boundaries: Sequence[float] = (0.1, 0.3),
+        frequencies: Sequence[float] = (0.001, 0.02),
+        fraction: Sequence[float] = (0.01, 0.2),
     ) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the sinusoidal magnitude,
-                lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive , default : ``[0.1, 0.3]``
             frequencies: list defining lower and upper frequencies for sinusoidal
-                signal generation example : ``[0.001, 0.02]``
+                signal generation , default : ``[0.001, 0.02]``
             fraction: list defining lower and upper boundaries for partial signal generation
+                default : ``[0.01, 0.2]``
         """
         super().__init__()
         check_boundaries(boundaries)
@@ -311,17 +312,18 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
 
     def __init__(
         self,
-        boundaries: Optional[List[float]] = None,
-        frequencies: Optional[List[float]] = None,
-        fraction: Optional[List[float]] = None,
+        boundaries: Sequence[float] = (0.01, 0.2),
+        frequencies: Sequence[float] = (0.001, 0.02),
+        fraction: Sequence[float] = (0.01, 0.2),
     ) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the square pulse magnitude,
-                lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive , default : ``[0.01, 0.2]``
             frequencies: list defining lower and upper frequencies for square pulse
                 signal generation example : ``[0.001, 0.02]``
             fraction: list defining lower and upper boundaries for partial square pulse generation
+                default: ``[0.01, 0.2]``
         """
         super().__init__()
         check_boundaries(boundaries)
