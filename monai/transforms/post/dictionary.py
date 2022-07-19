@@ -16,6 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import warnings
+from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
 import torch
@@ -651,8 +652,8 @@ class Invertd(MapTransform):
 
             if not isinstance(inputs, MetaTensor):
                 inputs = convert_to_tensor(inputs, track_meta=True)
-            inputs.applied_operations = transform_info
-            inputs.meta = meta_info
+            inputs.applied_operations = deepcopy(transform_info)
+            inputs.meta = deepcopy(meta_info)
 
             # construct the input dict data
             input_dict = {orig_key: inputs}

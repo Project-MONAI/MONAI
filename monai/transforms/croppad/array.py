@@ -124,7 +124,7 @@ class Pad(InvertibleTransform):
         mode = convert_pad_mode(dst=img_np, mode=mode).value
         out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
         if isinstance(img, MetaTensor):
-            out = MetaTensor(out, meta=img.meta, applied_operations=img.applied_operations)
+            out = convert_to_dst_type(out, dst=img)[0]
         return out
 
     @staticmethod
