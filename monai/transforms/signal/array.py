@@ -38,7 +38,6 @@ __all__ = [
     "SignalRandDrop",
     "SignalRandScale",
     "SignalRandShift",
-    "SignalResample",
     "SignalRandAddSine",
     "SignalRandAddSquarePulse",
     "SignalRandAddGaussianNoise",
@@ -49,61 +48,6 @@ __all__ = [
     "SignalShortTimeFourier",
     "SignalContinousWavelet",
 ]
-
-
-class SignalResample(Transform):
-    """
-    Resample signal to the target sampling rate.
-    """
-
-    backend = [TransformBackends.NUMPY]
-
-    def __init__(
-        self,
-        method: str = "interpolation",
-        current_sample_rate: Optional[float] = None,
-        target_sample_rate: Optional[float] = None,
-    ) -> None:
-        """
-        Args:
-            method: which method to be used to resample the signal, default is interpolation.
-            Available options : {``"interpolation"``, ``"polynomial"``, ``"fourier"``}
-            current_sample_rate: initial sampling rate of the signal
-            target_sample_rate: target signal sample rate
-        """
-        if method is None and method not in ["interpolation", "polynomial", "fourier"]:
-            raise ValueError("Incompatible values: method needs to be either interpolation, polynomial or fourier.")
-        if current_sample_rate < target_sample_rate:
-            raise ValueError(
-                "Incompatible target_sampling_rate: target_sampling_rate must be lower current_sampling_rate."
-            )
-        self.method = method
-        self.current_sample_rate = current_sample_rate
-        self.target_sample_rate = target_sample_rate
-
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
-        """
-        Args:
-            signal: input 1 dimension signal to be resampled
-        """
-
-        inputs_channels = signal.shape[0]
-
-        target_length = int(np.round(signal.shape[1] * self.target_sample_rate / self.current_sample_rate))
-
-        if self.method == "interpolation":
-            signal = np.stack([zoom(signal[i, :], target_length / signal.shape[1]) for i in range(inputs_channels)])
-
-        elif self.method == "polynomial":
-            signal = np.stack(
-                [resample_poly(signal[i, :], target_length, signal.shape[1]) for i in range(inputs_channels)]
-            )
-
-        elif self.method == "fourier":
-            signal = np.stack([fft(signal[i, :], target_length) for i in range(inputs_channels)])
-
-        return signal
-
 
 class SignalRandShift(RandomizableTransform):
     """

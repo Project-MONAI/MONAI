@@ -315,7 +315,6 @@ from .signal.array import (
     SignalRandScale,
     SignalRandShift,
     SignalRemoveFrequency,
-    SignalResample,
     SignalShortTimeFourier,
 )
 from .smooth_field.array import (

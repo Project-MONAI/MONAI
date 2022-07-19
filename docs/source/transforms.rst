@@ -572,12 +572,6 @@ Post-processing
 Signal
 ^^^^^^^
 
-`SignalResample`
-""""""""""""""""
-.. autoclass:: SignalResample
-    :members:
-    :special-members: __call__
-
 `SignalRandDrop`
 """"""""""""""""
 .. autoclass:: SignalRandDrop
