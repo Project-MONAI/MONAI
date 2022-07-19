@@ -13,7 +13,7 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from typing import Any, List, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 import numpy as np
 
