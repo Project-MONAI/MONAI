@@ -22,9 +22,6 @@ from monai.transforms.utils import check_boundaries, paste
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
 
-zoom, has_zoom = optional_import("scipy.ndimage", name="zoom")
-resample_poly, has_resample_poly = optional_import("scipy.signal", name="resample_poly")
-fft, has_resample_fft = optional_import("scipy.signal", name="resample")
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 square, has_square = optional_import("scipy.signal", name="square")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
@@ -49,6 +46,7 @@ __all__ = [
     "SignalContinousWavelet",
 ]
 
+
 class SignalRandShift(RandomizableTransform):
     """
     Apply a random shift on a signal
@@ -62,9 +60,9 @@ class SignalRandShift(RandomizableTransform):
         """
         Args:
             mode: define how the extension of the input array is done beyond its boundaries, see for more details :
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
             filling: value to fill past edges of input if mode is ‘constant’. Default is 0.0. see for mode details :
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
+                https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html.
             boundaries: list defining lower and upper boundaries for the signal shift, example : ``[-1.0, 1.0]``
         """
         super().__init__()
@@ -239,9 +237,9 @@ class SignalRandAddSinePartial(RandomizableTransform):
         """
         Args:
             boundaries: list defining lower and upper boundaries for the sinusoidal magnitude,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive example : ``[0.2, 0.6]``
             frequencies: list defining lower and upper frequencies for sinusoidal
-            signal generation example : ``[0.001, 0.02]``
+                signal generation example : ``[0.001, 0.02]``
             fraction: list defining lower and upper boundaries for partial signal generation
         """
         super().__init__()
@@ -320,9 +318,9 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
         """
         Args:
             boundaries: list defining lower and upper boundaries for the square pulse magnitude,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+                lower and upper values need to be positive example : ``[0.2, 0.6]``
             frequencies: list defining lower and upper frequencies for square pulse
-            signal generation example : ``[0.001, 0.02]``
+                signal generation example : ``[0.001, 0.02]``
             fraction: list defining lower and upper boundaries for partial square pulse generation
         """
         super().__init__()
@@ -393,7 +391,7 @@ class SignalRemoveFrequency(Transform):
         Args:
             frequency: frequency to be removed from the signal
             quality_factor: quality factor for notch filter
-            see : https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirnotch.html
+                see : https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.iirnotch.html
             sampling_freq: sampling frequency of the input signal
         """
         super().__init__()
@@ -467,7 +465,7 @@ class SignalContinousWavelet(Transform):
         """
         Args:
             type: mother wavelet type.
-            Available options are: {``"mexh"``, ``"morl"``, ``"cmorB-C"``, , ``"gausP"``}
+                Available options are: {``"mexh"``, ``"morl"``, ``"cmorB-C"``, , ``"gausP"``}
             see : https://pywavelets.readthedocs.io/en/latest/ref/cwt.html
             length: expected length
             frequency: signal frequency
