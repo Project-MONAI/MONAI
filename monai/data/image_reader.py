@@ -15,7 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -38,14 +38,13 @@ if TYPE_CHECKING:
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = has_highdicom = True
+    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")
     pydicom, has_pydicom = optional_import("pydicom")
-    highdicom, has_highdicom = optional_import("highdicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
 
 OpenSlide, _ = optional_import("openslide", name="OpenSlide")
@@ -374,14 +373,16 @@ class ITKReader(ImageReader):
 
 
 @require_pkg(pkg_name="pydicom")
-@require_pkg(pkg_name="highdicom")
 class PydicomReader(ImageReader):
     """
     Load medical images based on Pydicom library.
     All the supported image formats can be found at:
     https://dicom.nema.org/medical/dicom/current/output/chtml/part10/chapter_7.html
 
-    For dicom data with modality "SEG", Highdicom will be used.
+    PydicomReader is also able to load segmentations, if a dicom file contains tag: `SegmentSequence`, the reader
+    will consider it as segmentation data, and to load it successfully, `PerFrameFunctionalGroupsSequence` is required
+    for dicom file, and for each frame of dicom file, `SegmentIdentificationSequence` is required.
+    This method refers to the Highdicom library.
 
     This class refers to:
     https://nipy.org/nibabel/dicom/dicom_orientation.html#dicom-affine-formula
@@ -437,7 +438,7 @@ class PydicomReader(ImageReader):
                 if a list of files, verify all the suffixes.
 
         """
-        return has_pydicom and has_highdicom
+        return has_pydicom
 
     def read(self, data: Union[Sequence[PathLike], PathLike], **kwargs):
         """
@@ -684,6 +685,38 @@ class PydicomReader(ImageReader):
             affine = orientation_ras_lps(affine)
         return affine
 
+    def _get_frame_data(self, img) -> Iterator:
+        """
+        yield frames and description from the segmentation image.
+        This function refers to Highdicom:
+        https://github.com/herrmannlab/highdicom/blob/master/src/highdicom/seg/utils.py
+
+        Aegs:
+            img: a Pydicom dataset object that has attribute "SegmentSequence".
+
+        """
+
+        if not hasattr(img, "PerFrameFunctionalGroupsSequence"):
+            raise NotImplementedError(
+                f"To read dicom seg: {img.filename}, 'PerFrameFunctionalGroupsSequence' is required."
+            )
+
+        frame_seg_nums = []
+        for f in img.PerFrameFunctionalGroupsSequence:
+            if not hasattr(f, "SegmentIdentificationSequence"):
+                raise NotImplementedError(
+                    f"To read dicom seg: {img.filename}, 'SegmentIdentificationSequence' is required for each frame."
+                )
+            frame_seg_nums.append(int(f.SegmentIdentificationSequence[0].ReferencedSegmentNumber))
+
+        frame_seg_nums_arr = np.array(frame_seg_nums)
+
+        seg_descriptions = {int(f.SegmentNumber): f for f in img.SegmentSequence}
+
+        for i in np.unique(frame_seg_nums_arr):
+            indices = np.where(frame_seg_nums_arr == i)[0]
+            yield (img.pixel_array[indices, ...], seg_descriptions[i])
+
     def _get_seg_data(self, img):
         """
         Get the array data and metadata of the segmentation image.
@@ -704,18 +737,16 @@ class PydicomReader(ImageReader):
         else:
             metadata["labels"] = {}
             all_segs = np.zeros([*spatial_shape, n_classes])
-        try:
-            for i, (frames, _, description) in enumerate(highdicom.seg.utils.iter_segments(img)):
-                class_name = description.SegmentDescription
-                if class_name not in metadata["labels"].keys():
-                    metadata["labels"][class_name] = i
-                class_num = metadata["labels"][class_name]
-                all_segs[..., class_num] = frames
 
-            all_segs = all_segs.transpose([1, 2, 0, 3])
-            metadata["spatial_shape"] = all_segs.shape[:-1]
-        except Exception as e:
-            raise NotImplementedError(f"Highdicom cannot read dicom seg data: {img.filename}.") from e
+        for i, (frames, description) in enumerate(self._get_frame_data(img)):
+            class_name = description.SegmentDescription
+            if class_name not in metadata["labels"].keys():
+                metadata["labels"][class_name] = i
+            class_num = metadata["labels"][class_name]
+            all_segs[..., class_num] = frames
+
+        all_segs = all_segs.transpose([1, 2, 0, 3])
+        metadata["spatial_shape"] = all_segs.shape[:-1]
 
         if "52009229" in metadata.keys():
             shared_func_group_seq = metadata["52009229"]["Value"][0]
