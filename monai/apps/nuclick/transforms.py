@@ -14,7 +14,6 @@ import random
 from typing import Any, Tuple, Union
 
 import numpy as np
-import torch
 
 from monai.config import KeysCollection
 from monai.data import MetaTensor
