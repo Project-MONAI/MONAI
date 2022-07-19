@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
+from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import min_version, optional_import
@@ -71,7 +72,11 @@ class DiscardAddGuidanced(MapTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             if key == "image":
-                d[key] = self._apply(d[key])
+                tmp_image = self._apply(d[key])
+                if isinstance(d[key], MetaTensor):
+                    d[key].array = tmp_image
+                else:
+                    d[key] = tmp_image
             else:
                 print("This transform only applies to the image")
         return d
@@ -239,7 +244,10 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                     # Getting signal based on guidance
                     signal = self._get_signal(image, guidance[key_label])
                     tmp_image = np.concatenate([tmp_image, signal], axis=0)
-                d[key] = tmp_image
+                    if isinstance(d[key], MetaTensor):
+                        d[key].array = tmp_image
+                    else:
+                        d[key] = tmp_image
                 return d
             else:
                 print("This transform only applies to image key")
