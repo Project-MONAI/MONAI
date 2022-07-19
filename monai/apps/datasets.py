@@ -400,7 +400,7 @@ class TciaDataset(Randomizable, CacheDataset):
     other collections, errors may be raised. For supported collections, the original "SEG" information may not
     always be consistent for each dicom file. Therefore, to avoid creating different format of labels, please use
     the `label_dict` argument of `PydicomReader` when calling the `LoadImaged` transform. The prepared label dicts
-    of collections that are mentioned above is also saved in: `monai.apps.tcia.label_desc`. You can also refer
+    of collections that are mentioned above is also saved in: `monai.apps.tcia.TCIA_LABEL_DICT`. You can also refer
     to the second example bellow.
 
 

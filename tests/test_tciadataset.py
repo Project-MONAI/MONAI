@@ -14,6 +14,7 @@ import shutil
 import unittest
 
 from monai.apps import TciaDataset
+from monai.apps.tcia import TCIA_LABEL_DICT
 from monai.data import MetaTensor
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
@@ -23,24 +24,25 @@ class TestTciaDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        download_len = 1
+        val_frac = 1.0
+        collection = "QIN-PROSTATE-Repeatability"
+
         transform = Compose(
             [
-                LoadImaged(keys=["image", "seg"], reader="PydicomReader"),
+                LoadImaged(keys=["image", "seg"], reader="PydicomReader", label_dict=TCIA_LABEL_DICT[collection]),
                 AddChanneld(keys="image"),
                 ScaleIntensityd(keys="image"),
             ]
         )
-        download_len = 2
-        val_frac = 0.5
-        collection = "C4KC-KiTS"
 
         def _test_dataset(dataset):
             self.assertEqual(len(dataset), int(download_len * val_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("seg" in dataset[0])
             self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
-            self.assertTupleEqual(dataset[0]["image"].shape, (1, 512, 512, 61))
-            self.assertTupleEqual(dataset[0]["seg"].shape, (512, 512, 61, 2))
+            self.assertTupleEqual(dataset[0]["image"].shape, (1, 256, 256, 24))
+            self.assertTupleEqual(dataset[0]["seg"].shape, (256, 256, 24, 4))
 
         with skip_if_downloading_fails():
             data = TciaDataset(
@@ -64,19 +66,23 @@ class TestTciaDataset(unittest.TestCase):
             val_frac=val_frac,
         )
         _test_dataset(data)
-        self.assertTrue(data[0]["image"].meta["filename_or_obj"].endswith("C4KC-KiTS/KiTS-00007/300/image"))
-        self.assertTrue(data[0]["seg"].meta["filename_or_obj"].endswith("C4KC-KiTS/KiTS-00007/300/seg"))
+        self.assertTrue(
+            data[0]["image"].meta["filename_or_obj"].endswith("QIN-PROSTATE-Repeatability/PCAMPMRI-00015/1901/image")
+        )
+        self.assertTrue(
+            data[0]["seg"].meta["filename_or_obj"].endswith("QIN-PROSTATE-Repeatability/PCAMPMRI-00015/1901/seg")
+        )
         # test validation without transforms
         data = TciaDataset(
             root_dir=testing_dir, collection=collection, section="validation", download=False, val_frac=val_frac
         )
-        self.assertTupleEqual(data[0]["image"].shape, (512, 512, 61))
+        self.assertTupleEqual(data[0]["image"].shape, (256, 256, 24))
         self.assertEqual(len(data), int(download_len * val_frac))
         data = TciaDataset(
             root_dir=testing_dir, collection=collection, section="validation", download=False, val_frac=val_frac
         )
-        self.assertTupleEqual(data[0]["image"].shape, (512, 512, 61))
-        self.assertEqual(len(data), int(download_len - download_len * val_frac))
+        self.assertTupleEqual(data[0]["image"].shape, (256, 256, 24))
+        self.assertEqual(len(data), download_len)
 
         shutil.rmtree(os.path.join(testing_dir, collection))
         try:
