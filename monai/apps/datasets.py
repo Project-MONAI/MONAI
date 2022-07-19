@@ -18,13 +18,13 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.apps.utils import (
-    download_and_extract,
+from monai.apps.tcia import (
     download_tcia_series_instance,
     get_tcia_metadata,
     get_tcia_ref_uid,
     match_tcia_ref_uid_in_study,
 )
+from monai.apps.utils import download_and_extract
 from monai.config.type_definitions import PathLike
 from monai.data import (
     CacheDataset,
@@ -458,7 +458,7 @@ class TciaDataset(Randomizable, CacheDataset):
         )
 
         # collection is "C4KC-KiTS", seg_type is "SEG", and load both images and segmentations
-        from monai.apps import TCIA_LABEL_DICT
+        from monai.apps.tcia import TCIA_LABEL_DICT
         transform = Compose(
             [
                 LoadImaged(reader="PydicomReader", keys=["image", "seg"], label_dict=TCIA_LABEL_DICT["C4KC-KiTS"]),
@@ -609,7 +609,7 @@ class TciaDataset(Randomizable, CacheDataset):
                     ref_uid = match_tcia_ref_uid_in_study(ds.StudyInstanceUID, ref_sop_uid)
                 if ref_uid != "":
                     ref_uid_list.append(ref_uid)
-        if len(ref_uid_list) == 0:
+        if not ref_uid_list:
             warnings.warn(f"Cannot find the referenced Series Instance UID from series: {series_uid}.")
         else:
             download_tcia_series_instance(
