@@ -16,6 +16,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
 import re
+from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -915,7 +916,8 @@ class CopyItemsd(MapTransform):
             for key, new_key in self.key_iterator(d, self.names[i * key_len : (i + 1) * key_len]):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
-                d[new_key] = MetaObj.copy_items(d[key])
+                val = d[key]
+                d[new_key] = MetaObj.copy_items(val) if isinstance(val, (torch.Tensor, np.ndarray)) else deepcopy(val)
         return d
 
 

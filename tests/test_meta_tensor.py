@@ -108,7 +108,6 @@ class TestMetaTensor(unittest.TestCase):
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
             self.check_meta(orig, out)
             if check_ids:
-                self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
 
     @parameterized.expand(TESTS)
@@ -427,7 +426,7 @@ class TestMetaTensor(unittest.TestCase):
         s2 = t.__repr__()
         expected_out = (
             "tensor([1.])\n"
-            + "MetaData\n"
+            + "Metadata\n"
             + "\tfname: filename\n"
             + "\taffine: 1\n"
             + "\n"
