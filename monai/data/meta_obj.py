@@ -14,13 +14,13 @@ from __future__ import annotations
 import itertools
 import pprint
 from copy import deepcopy
-from enum import Enum
 from typing import Any, Iterable
 
 import numpy as np
 import torch
 
 from monai.utils.enums import TraceKeys
+from monai.utils.misc import first
 
 _TRACK_META = True
 
@@ -103,71 +103,30 @@ class MetaObj:
             elif isinstance(a, MetaObj):
                 yield a
 
-    def _copy_attr(self, attributes: list[str], input_objs, defaults: list, deep_copy: bool) -> None:
-        """
-        Copy attributes from the first in a list of `MetaObj`. In the case of
-        `torch.add(a, b)`, both `a` and `b` could be `MetaObj` or something else, so
-        check them all. Copy the first to `self`.
-
-        We also perform a deep copy of the data if desired.
-
-        Args:
-            attributes: a sequence of strings corresponding to attributes to be copied (e.g., `['meta']`).
-            input_objs: an iterable of `MetaObj` instances. We'll copy the attribute from the first one
-                that contains that particular attribute.
-            defaults: If none of `input_objs` have the attribute that we're
-                interested in, then use this default value/function (e.g., `lambda: {}`.)
-                the defaults must be the same length as `attributes`.
-            deep_copy: whether to deep copy the corresponding attribute.
-
-        Returns:
-            Returns `None`, but `self` should be updated to have the copied attribute.
-        """
-        found = [False] * len(attributes)
-        for i, (idx, a) in itertools.product(input_objs, enumerate(attributes)):
-            if not found[idx] and hasattr(i, a):
-                setattr(self, a, MetaObj.copy_items(getattr(i, a)) if deep_copy else getattr(i, a))
-                found[idx] = True
-            if all(found):
-                return
-        for a, f, d in zip(attributes, found, defaults):
-            if not f:
-                setattr(self, a, d() if callable(defaults) else d)
-        return
-
     @staticmethod
     def copy_items(data):
-        """deepcopying items"""
-        if isinstance(data, (int, float, str, bool, Enum)):
-            return data
-        if isinstance(data, np.ndarray):
-            return np.array(data, copy=True)
+        """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
+        if isinstance(data, (list, dict, np.ndarray)):
+            return data.copy()
         if isinstance(data, torch.Tensor):
             return data.detach().clone()
-        if isinstance(data, (list, tuple)):
-            return type(data)(MetaObj.copy_items(x) for x in data)
-        if isinstance(data, dict):
-            return {k: MetaObj.copy_items(v) for k, v in data.items()}
         return deepcopy(data)
 
-    def _copy_meta(self, input_objs, deep_copy=False) -> None:
+    def copy_meta_from(self, input_objs, copy_attr=True) -> None:
         """
-        Copy metadata from an iterable of `MetaObj` instances. For a given attribute, we copy the
-        adjunct data from the first element in the list containing that attribute.
+        Copy metadata from a `MetaObj` or an iterable of `MetaObj` instances.
 
         Args:
             input_objs: list of `MetaObj` to copy data from.
-
+            copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
+                note that if the attribute is a nested list or dict, only a shallow copy will be done.
         """
-        if self.is_batch:
-            self.__dict__ = dict(next(iter(input_objs)).__dict__)  # shallow copy for performance
-            return
-        self._copy_attr(
-            ["meta", "applied_operations"],
-            input_objs,
-            [MetaObj.get_default_meta(), MetaObj.get_default_applied_operations()],
-            deep_copy,
-        )
+        first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
+        first_meta = first_meta.__dict__
+        if not copy_attr:
+            self.__dict__ = first_meta.copy()  # shallow copy for performance
+        else:
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in first_meta})
 
     @staticmethod
     def get_default_meta() -> dict:
@@ -189,7 +148,7 @@ class MetaObj:
 
     def __repr__(self) -> str:
         """String representation of class."""
-        out: str = "\nMetaData\n"
+        out: str = "\nMetadata\n"
         if self.meta is not None:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:
