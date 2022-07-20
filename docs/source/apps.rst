@@ -15,6 +15,9 @@ Applications
 .. autoclass:: DecathlonDataset
     :members:
 
+.. autoclass:: TciaDataset
+    :members:
+
 .. autoclass:: CrossValidation
     :members:
 

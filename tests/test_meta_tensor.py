@@ -108,7 +108,6 @@ class TestMetaTensor(unittest.TestCase):
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
             self.check_meta(orig, out)
             if check_ids:
-                self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
 
     @parameterized.expand(TESTS)
@@ -365,6 +364,7 @@ class TestMetaTensor(unittest.TestCase):
         # `is_batch==False`, should have first metadata and subset of first image.
         d = data[0, 0]
         self.check(d, ims[0][0], ids=False)
+        self.assertEqual(d.applied_operations, ims[0][0].applied_operations)
 
         # `is_batch==True`, should have all metadata and subset of all images.
         d = data[:, 0]
@@ -389,6 +389,7 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(len(d), len(ims))
         for _d, _im in zip(d, ims):
             self.check(_d, _im, ids=False)
+            self.assertEqual(_d.applied_operations, _im.applied_operations)
 
         # `is_batch==True`, tuple split along non-batch dim. Should have all metadata.
         d = data.unbind(-1)
@@ -425,7 +426,7 @@ class TestMetaTensor(unittest.TestCase):
         s2 = t.__repr__()
         expected_out = (
             "tensor([1.])\n"
-            + "MetaData\n"
+            + "Metadata\n"
             + "\tfname: filename\n"
             + "\taffine: 1\n"
             + "\n"
