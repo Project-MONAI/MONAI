@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from itertools import chain
 from typing import List, Optional
 
@@ -18,6 +19,7 @@ import torch
 from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import concatenate
 from monai.utils import PostFix, convert_data_type
@@ -30,9 +32,9 @@ class DatasetSummary:
     This class provides a way to calculate a reasonable output voxel spacing according to
     the input dataset. The achieved values can used to resample the input in 3d segmentation tasks
     (like using as the `pixdim` parameter in `monai.transforms.Spacingd`).
-    In addition, it also supports to count the mean, std, min and max intensities of the input,
+    In addition, it also supports to compute the mean, std, min and max intensities of the input,
     and these statistics are helpful for image normalization
-    (like using in `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
+    (as parameters of `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
 
     The algorithm for calculation refers to:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
@@ -58,6 +60,7 @@ class DatasetSummary:
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
                 the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 if None, will try to construct meta_keys by `{image_key}_{meta_key_postfix}`.
+                This is not required if `data[image_key]` is a MetaTensor.
             meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the metadata from dict,
                 the metadata is a dictionary object (default: ``meta_dict``).
             num_workers: how many subprocesses to use for data loading.
@@ -80,17 +83,19 @@ class DatasetSummary:
         """
 
         for data in self.data_loader:
-            if self.meta_key not in data:
-                raise ValueError(f"To collect metadata for the dataset, key `{self.meta_key}` must exist in `data`.")
-            self.all_meta_data.append(data[self.meta_key])
+            if isinstance(data[self.image_key], MetaTensor):
+                meta_dict = data[self.image_key].meta
+            elif self.meta_key in data:
+                meta_dict = data[self.meta_key]
+            else:
+                warnings.warn(f"To collect metadata for the dataset, `{self.meta_key}` or `data.meta` must exist.")
+            self.all_meta_data.append(meta_dict)
 
     def get_target_spacing(self, spacing_key: str = "affine", anisotropic_threshold: int = 3, percentile: float = 10.0):
         """
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
-        So far, this function only supports NIFTI images which store spacings in headers with key "pixdim".
-        After loading with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
 
         Args:
             spacing_key: key of the affine used to compute spacing in metadata (default: ``affine``).
