@@ -427,7 +427,7 @@ class ToTensor(Transform):
         if isinstance(img, MetaTensor):
             img.applied_operations = []  # drops tracking info
         return convert_to_tensor(
-            img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence, track_meta=self.track_meta,
+            img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence, track_meta=self.track_meta
         )
 
 
