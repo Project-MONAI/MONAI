@@ -130,8 +130,8 @@ class ConvertBoxModed(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key, extra_info={"src": self.converter.src_mode, "dst": self.converter.dst_mode})
             d[key] = self.converter(d[key])
+            self.push_transform(d, key, extra_info={"src": self.converter.src_mode, "dst": self.converter.dst_mode})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -185,8 +185,8 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            self.push_transform(d, key, extra_info={"mode": self.converter.mode})
             d[key] = self.converter(d[key])
+            self.push_transform(d, key, extra_info={"mode": self.converter.mode})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -279,8 +279,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         affine, inv_affine_t = self.extract_affine(data)  # type: ignore
 
         for key in self.key_iterator(d):
-            self.push_transform(d, key, extra_info={"affine": affine})
             d[key] = self.converter_to_image_coordinate(d[key], affine=inv_affine_t)
+            self.push_transform(d, key, extra_info={"affine": affine})
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -336,8 +336,8 @@ class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
         affine, inv_affine_t = self.extract_affine(data)  # type: ignore
 
         for key in self.key_iterator(d):
-            self.push_transform(d, key, extra_info={"affine": inv_affine_t})
             d[key] = self.converter_to_world_coordinate(d[key], affine=affine)
+            self.push_transform(d, key, extra_info={"affine": inv_affine_t})
         return d
 
 
@@ -405,13 +405,13 @@ class ZoomBoxd(MapTransform, InvertibleTransform):
             src_spatial_size = d[box_ref_image_key].shape[1:]
             dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.zoomer.zoom, src_spatial_size)]  # type: ignore
             self.zoomer.zoom = [ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)]
+            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
+                d[box_key], src_spatial_size=src_spatial_size
+            )
             self.push_transform(
                 d,
                 box_key,
                 extra_info={"zoom": self.zoomer.zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
-            )
-            d[box_key] = ZoomBox(zoom=self.zoomer.zoom, keep_size=self.keep_size)(
-                d[box_key], src_spatial_size=src_spatial_size
             )
 
         # zoom image
@@ -538,13 +538,13 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
                 dst_spatial_size = [int(round(z * ss)) for z, ss in zip(self.rand_zoom._zoom, src_spatial_size)]
                 self.rand_zoom._zoom = [ds / float(ss) for ss, ds in zip(src_spatial_size, dst_spatial_size)]
 
+                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
+                    d[box_key], src_spatial_size=src_spatial_size
+                )
                 self.push_transform(
                     d,
                     box_key,
                     extra_info={"zoom": self.rand_zoom._zoom, "src_spatial_size": src_spatial_size, "type": "box_key"},
-                )
-                d[box_key] = ZoomBox(zoom=self.rand_zoom._zoom, keep_size=self.keep_size)(
-                    d[box_key], src_spatial_size=src_spatial_size
                 )
 
         # zoom image, copied from monai.transforms.spatial.dictionary.RandZoomd

@@ -155,6 +155,8 @@ class TestBoxTransform(unittest.TestCase):
                 keys=["boxes"], transform=transform_convert_mode, orig_keys=["boxes"]
             )
             data_back = invert_transform_convert_mode(convert_result)
+            if "boxes_transforms" in data_back:  # if the transform is tracked in dict:
+                self.assertEqual(data_back["boxes_transforms"], [])  # it should be updated
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
 
             # test ZoomBoxd
@@ -162,11 +164,13 @@ class TestBoxTransform(unittest.TestCase):
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=False
             )
             zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
             assert_allclose(zoom_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_zoom = Invertd(
                 keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_zoom(zoom_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
@@ -174,6 +178,7 @@ class TestBoxTransform(unittest.TestCase):
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", zoom=[0.5, 3, 1.5], keep_size=True
             )
             zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
             assert_allclose(
                 zoom_result["boxes"], expected_zoom_keepsize_result, type_test=True, device_test=True, atol=1e-3
             )
@@ -189,10 +194,12 @@ class TestBoxTransform(unittest.TestCase):
                 keep_size=False,
             )
             zoom_result = transform_zoom(data)
+            self.assertEqual(len(zoom_result["image"].applied_operations), 1)
             invert_transform_zoom = Invertd(
                 keys=["image", "boxes"], transform=transform_zoom, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_zoom(zoom_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
@@ -205,9 +212,13 @@ class TestBoxTransform(unittest.TestCase):
 
             data["image"] = MetaTensor(data["image"], meta={"affine": torch.diag(1.0 / torch.Tensor([0.5, 3, 1.5, 1]))})
             affine_result = transform_affine(data)
+            if "boxes_transforms" in affine_result:
+                self.assertEqual(len(affine_result["boxes_transforms"]), 1)
             assert_allclose(affine_result["boxes"], expected_zoom_result, type_test=True, device_test=True, atol=0.01)
             invert_transform_affine = Invertd(keys=["boxes"], transform=transform_affine, orig_keys=["boxes"])
             data_back = invert_transform_affine(affine_result)
+            if "boxes_transforms" in data_back:
+                self.assertEqual(data_back["boxes_transforms"], [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=0.01)
             invert_transform_affine = AffineBoxToWorldCoordinated(box_keys="boxes", box_ref_image_keys="image")
             data_back = invert_transform_affine(affine_result)
@@ -218,11 +229,15 @@ class TestBoxTransform(unittest.TestCase):
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", spatial_axis=[0, 1, 2]
             )
             flip_result = transform_flip(data)
+            if "boxes_transforms" in flip_result:
+                self.assertEqual(len(flip_result["boxes_transforms"]), 1)
             assert_allclose(flip_result["boxes"], expected_flip_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_flip = Invertd(
                 keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_flip(flip_result)
+            if "boxes_transforms" in data_back:
+                self.assertEqual(data_back["boxes_transforms"], [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
@@ -236,10 +251,14 @@ class TestBoxTransform(unittest.TestCase):
                     spatial_axis=spatial_axis,
                 )
                 flip_result = transform_flip(data)
+                if "boxes_transforms" in flip_result:
+                    self.assertEqual(len(flip_result["boxes_transforms"]), 1)
                 invert_transform_flip = Invertd(
                     keys=["image", "boxes"], transform=transform_flip, orig_keys=["image", "boxes"]
                 )
                 data_back = invert_transform_flip(flip_result)
+                if "boxes_transforms" in data_back:
+                    self.assertEqual(data_back["boxes_transforms"], [])
                 assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
                 assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
@@ -285,11 +304,13 @@ class TestBoxTransform(unittest.TestCase):
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", k=1, spatial_axes=[0, 1]
             )
             rotate_result = transform_rotate(data)
+            self.assertEqual(len(rotate_result["image"].applied_operations), 1)
             assert_allclose(rotate_result["boxes"], expected_rotate_result, type_test=True, device_test=True, atol=1e-3)
             invert_transform_rotate = Invertd(
                 keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_rotate(rotate_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
@@ -297,10 +318,12 @@ class TestBoxTransform(unittest.TestCase):
                 image_keys="image", box_keys="boxes", box_ref_image_keys="image", prob=1.0, max_k=3, spatial_axes=[0, 1]
             )
             rotate_result = transform_rotate(data)
+            self.assertEqual(len(rotate_result["image"].applied_operations), 1)
             invert_transform_rotate = Invertd(
                 keys=["image", "boxes"], transform=transform_rotate, orig_keys=["image", "boxes"]
             )
             data_back = invert_transform_rotate(rotate_result)
+            self.assertEqual(data_back["image"].applied_operations, [])
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["image"], data["image"], type_test=False, device_test=False, atol=1e-3)
 
