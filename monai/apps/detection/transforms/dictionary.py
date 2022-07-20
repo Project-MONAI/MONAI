@@ -182,14 +182,14 @@ class ConvertBoxToStandardModed(MapTransform, InvertibleTransform):
         super().__init__(box_keys, allow_missing_keys)
         self.converter = ConvertBoxToStandardMode(mode=mode)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"mode": self.converter.mode})
             d[key] = self.converter(d[key])
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             tr = self.get_most_recent_transform(d, key)
@@ -273,17 +273,17 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
         inv_affine_t = torch.inverse(affine_t.to(COMPUTE_DTYPE))
         return affine, inv_affine_t
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
 
-        affine, inv_affine_t = self.extract_affine(data)
+        affine, inv_affine_t = self.extract_affine(data)  # type: ignore
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": affine})
             d[key] = self.converter_to_image_coordinate(d[key], affine=inv_affine_t)
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
@@ -333,7 +333,7 @@ class AffineBoxToWorldCoordinated(AffineBoxToImageCoordinated):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
 
-        affine, inv_affine_t = self.extract_affine(data)
+        affine, inv_affine_t = self.extract_affine(data)  # type: ignore
 
         for key in self.key_iterator(d):
             self.push_transform(d, key, extra_info={"affine": inv_affine_t})
