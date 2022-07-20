@@ -469,8 +469,8 @@ class SignalContinousWavelet(Transform):
             type: mother wavelet type.
                 Available options are: {``"mexh"``, ``"morl"``, ``"cmorB-C"``, , ``"gausP"``}
             see : https://pywavelets.readthedocs.io/en/latest/ref/cwt.html
-            length: expected length
-            frequency: signal frequency
+            length: expected length, default ``125.0``
+            frequency: signal frequency, default ``500.0``
         """
         super().__init__()
         self.frequency = frequency
