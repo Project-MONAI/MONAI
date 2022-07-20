@@ -378,8 +378,8 @@ class SignalFillEmpty(Transform):
         Args:
             signal: signal to be filled
         """
-        signal = convert_to_tensor(signal)
-        return torch.nan_to_num(signal, nan=self.replacement)
+        signal = torch.nan_to_num(convert_to_tensor(signal), nan=self.replacement)
+        return signal
 
 
 class SignalRemoveFrequency(Transform):
