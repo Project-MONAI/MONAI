@@ -24,7 +24,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaObj, MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
@@ -508,7 +508,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             # Create inverse transform
             inverse_transform = ToNumpy()
@@ -683,7 +683,7 @@ class Transposed(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             transform = self.get_most_recent_transform(d, key)
             # Create inverse transform
@@ -917,10 +917,7 @@ class CopyItemsd(MapTransform):
                 if new_key in d:
                     raise KeyError(f"Key {new_key} already exists in data.")
                 val = d[key]
-                if isinstance(val, torch.Tensor):
-                    d[new_key] = val.detach().clone()
-                else:
-                    d[new_key] = deepcopy(val)
+                d[new_key] = MetaObj.copy_items(val) if isinstance(val, (torch.Tensor, np.ndarray)) else deepcopy(val)
         return d
 
 
@@ -1030,7 +1027,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data):
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             ret = self._lambd.inverse(data=d[key])
             if overwrite:
@@ -1100,7 +1097,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key, overwrite in self.key_iterator(d, self.overwrite):
             if isinstance(d[key], MetaTensor):
                 tr = self.pop_transform(d[key])
