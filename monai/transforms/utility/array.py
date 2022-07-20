@@ -113,6 +113,7 @@ class Identity(Transform):
 
 
 class AsChannelFirst(Transform):
+    warnings.warn('recommend to use `EnsureChannelFirst` to ensure that the channel is in the first dimension')
     """
     Change the channel dimension of the image to the first dimension.
 
@@ -174,6 +175,7 @@ class AsChannelLast(Transform):
 
 
 class AddChannel(Transform):
+    warnings.warn('recommend to use `EnsureChannelFirst` to ensure that the channel is in the first dimension')
     """
     Adds a 1-length channel dimension to the input image.
 
