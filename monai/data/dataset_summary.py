@@ -20,9 +20,9 @@ from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import affine_to_spacing, decollate_batch
+from monai.data.utils import affine_to_spacing
 from monai.transforms import concatenate
-from monai.utils import PostFix, convert_data_type
+from monai.utils import PostFix, convert_data_type, convert_to_tensor
 
 DEFAULT_POST_FIX = PostFix.meta()
 
@@ -83,7 +83,6 @@ class DatasetSummary:
         """
 
         for data in self.data_loader:
-            data = decollate_batch(data)[0]  # batch_size=1
             if isinstance(data[self.image_key], MetaTensor):
                 meta_dict = data[self.image_key].meta
             elif self.meta_key in data:
@@ -97,7 +96,8 @@ class DatasetSummary:
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
-        The spacing is computed from affine_to_spacing(data[spacing_key][0], 3)
+        The spacing is computed from `affine_to_spacing(data[spacing_key][0], 3)` if `data[spacing_key]` is a matrix,
+        otherwise, the `data[spacing_key]` must be a vector of pixdim values.
 
         Args:
             spacing_key: key of the affine used to compute spacing in metadata (default: ``affine``).
@@ -110,7 +110,15 @@ class DatasetSummary:
             self.collect_meta_data()
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
-        spacings = [affine_to_spacing(data[spacing_key], 3)[None] for data in self.all_meta_data]
+        spacings = []
+        for data in self.all_meta_data:
+            spacing_vals = convert_to_tensor(data[spacing_key][0], track_meta=False, wrap_sequence=True)
+            if spacing_vals.ndim == 1:  # vector
+                spacings.append(spacing_vals[:3][None])
+            elif spacing_vals.ndim == 2:  # matrix
+                spacings.append(affine_to_spacing(spacing_vals, 3)[None])
+            else:
+                raise ValueError("data[spacing_key] must be a vector or a matrix.")
         all_spacings = concatenate(to_cat=spacings, axis=0)
         all_spacings, *_ = convert_data_type(data=all_spacings, output_type=np.ndarray, wrap_sequence=True)
 
