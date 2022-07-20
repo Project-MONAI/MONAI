@@ -100,9 +100,10 @@ class ViT(nn.Module):
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
-            self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes))
             if post_activation == "Tanh":
-                self.classification_head.append(nn.Tanh())
+                self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+            else:
+                self.classification_head = nn.Linear(hidden_size, num_classes)  # type: ignore
 
     def forward(self, x):
         x = self.patch_embedding(x)
