@@ -31,11 +31,12 @@ class FastMRIReader(ImageReader):
     are HDF5 dictionary-like datasets. The keys are:
 
     - kspace: contains the fully-sampled kspace
-    - reconstruction_rss: contains the root sume of squares of ifft of kspace
+    - reconstruction_rss: contains the root sum of squares of ifft of kspace. This
+        is the ground-truth image.
 
     It also has several attributes with the following keys:
 
-    - acquisition (str): acquisition mode of the data
+    - acquisition (str): acquisition mode of the data (e.g., AXT2 denotes T2 brain MRI scans)
     - max (float): dynamic range of the data
     - norm (float): norm of the kspace
     - patient_id (str): the patient's id whose measurements were recorded
