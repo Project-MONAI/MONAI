@@ -1699,5 +1699,27 @@ def paste(orig, block, loc):
     return orig
 
 
+def squarepulse(sig, duty: float = 0.5):
+    """
+    compute squarepulse using pytorch
+    equivalent to numpy implementation from
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.square.html
+    """
+    t, w = torch.tensor(sig), torch.tensor(duty)
+    w = torch.tensor(w + (t - t))
+    t = torch.tensor(t + (w - w))
+
+    y = torch.zeros(t.shape)
+
+    mask1 = (w > 1) | (w < 0)
+
+    tmod = torch.remainder(t, 2 * torch.pi)
+    mask2 = (~mask1) & (tmod < w * 2 * torch.pi)
+    y[mask2] = 1
+    mask3 = (~mask1) & (~mask2)
+    y[mask3] = -1
+    return y
+
+
 if __name__ == "__main__":
     print_transform_backends()

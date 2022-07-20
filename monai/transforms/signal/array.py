@@ -16,14 +16,16 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 from typing import Any, Optional, Sequence
 
 import numpy as np
+import torch
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import check_boundaries, paste
+from monai.transforms.utils import check_boundaries, paste, squarepulse
 from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
-square, has_square = optional_import("scipy.signal", name="square")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
 filtfilt, has_filtfilt = optional_import("scipy.signal", name="filtfilt")
 spectrogram, has_spectrogram = optional_import("scipy.signal", name="spectrogram")
@@ -52,7 +54,7 @@ class SignalRandShift(RandomizableTransform):
     Apply a random shift on a signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
         self, mode: Optional[str] = "wrap", filling: Optional[float] = 0.0, boundaries: Sequence[float] = (-1.0, 1.0)
@@ -71,7 +73,7 @@ class SignalRandShift(RandomizableTransform):
         self.mode = mode
         self.boundaries = boundaries
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to be shifted
@@ -80,8 +82,8 @@ class SignalRandShift(RandomizableTransform):
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
         length = signal.shape[1]
         shift_idx = round(self.magnitude * length)
-        signal = shift(input=signal, mode=self.mode, shift=shift_idx, cval=self.filling)
-
+        sig = convert_data_type(signal, np.ndarray)[0]
+        signal = convert_to_tensor(shift(input=sig, mode=self.mode, shift=shift_idx, cval=self.filling))
         return signal
 
 
@@ -90,7 +92,7 @@ class SignalRandScale(RandomizableTransform):
     Apply a random rescaling on a signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, boundaries: Sequence[float] = (-1.0, 1.0)) -> None:
         """
@@ -101,14 +103,14 @@ class SignalRandScale(RandomizableTransform):
         check_boundaries(boundaries)
         self.boundaries = boundaries
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to be scaled
         """
         self.randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
-        signal = self.magnitude * signal
+        signal = convert_to_tensor(self.magnitude * signal)
 
         return signal
 
@@ -118,7 +120,7 @@ class SignalRandDrop(RandomizableTransform):
     Randomly drop a portion of a signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, boundaries: Sequence[float] = (0.0, 1.0)) -> None:
         """
@@ -130,7 +132,7 @@ class SignalRandDrop(RandomizableTransform):
         check_boundaries(boundaries)
         self.boundaries = boundaries
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to be dropped
@@ -139,10 +141,10 @@ class SignalRandDrop(RandomizableTransform):
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
 
         length = signal.shape[len(signal.shape) - 1]
-
-        mask = np.zeros(round(self.magnitude * length))
-        loc = np.random.choice(range(length))
-        signal = paste(signal, mask, (loc,))
+        mask = torch.zeros(round(self.magnitude * length))
+        trange = torch.arange(length)
+        loc = trange[torch.randint(0, trange.size(0), (1,))]
+        signal = convert_to_tensor(paste(signal, mask, (loc,)))
 
         return signal
 
@@ -152,7 +154,7 @@ class SignalRandAddSine(RandomizableTransform):
     Add a random sinusoidal signal to the input signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, boundaries: Sequence[float] = (0.1, 0.3), frequencies: Sequence[float] = (0.001, 0.02)) -> None:
         """
@@ -167,7 +169,7 @@ class SignalRandAddSine(RandomizableTransform):
         self.boundaries = boundaries
         self.frequencies = frequencies
 
-    def __call__(self, signal: np.ndarray) -> Any:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to which sinusoidal signal will be added
@@ -179,9 +181,11 @@ class SignalRandAddSine(RandomizableTransform):
         length = signal.shape[1]
 
         time = np.arange(0, length, 1)
-        sine = self.magnitude * np.sin(self.freqs * time)
+        data = convert_to_tensor(self.freqs * time)
+        sine = self.magnitude * torch.sin(data)
+        signal = convert_to_tensor(signal) + sine
 
-        return signal + sine
+        return signal
 
 
 class SignalRandAddSquarePulse(RandomizableTransform):
@@ -189,7 +193,7 @@ class SignalRandAddSquarePulse(RandomizableTransform):
     Add a random square pulse signal to the input signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, boundaries: Sequence[float] = (0.01, 0.2), frequencies: Sequence[float] = (0.001, 0.02)) -> None:
         """
@@ -204,7 +208,7 @@ class SignalRandAddSquarePulse(RandomizableTransform):
         self.boundaries = boundaries
         self.frequencies = frequencies
 
-    def __call__(self, signal: np.ndarray) -> Any:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to which square pulse will be added
@@ -216,9 +220,10 @@ class SignalRandAddSquarePulse(RandomizableTransform):
         length = signal.shape[1]
 
         time = np.arange(0, length, 1)
-        squaredpulse = self.magnitude * square(self.freqs * time)
+        squaredpulse = self.magnitude * squarepulse(self.freqs * time)
+        signal = convert_to_tensor(signal) + squaredpulse
 
-        return signal + squaredpulse
+        return signal
 
 
 class SignalRandAddSinePartial(RandomizableTransform):
@@ -226,7 +231,7 @@ class SignalRandAddSinePartial(RandomizableTransform):
     Add a random partial sinusoidal signal to the input signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -249,7 +254,7 @@ class SignalRandAddSinePartial(RandomizableTransform):
         self.frequencies = frequencies
         self.fraction = fraction
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to which a partial sinusoidal signal
@@ -263,7 +268,8 @@ class SignalRandAddSinePartial(RandomizableTransform):
         length = signal.shape[len(signal.shape) - 1]
 
         time_partial = np.arange(0, round(self.fracs * length), 1)
-        sine_partial = self.magnitude * np.sin(self.freqs * time_partial)
+        data = convert_to_tensor(self.freqs * time_partial)
+        sine_partial = self.magnitude * torch.sin(data)
 
         loc = np.random.choice(range(length))
         signal = paste(signal, sine_partial, (loc,))
@@ -276,19 +282,19 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
     Add a random gaussian noise to the input signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, boundaries: Sequence[float] = (0.01, 0.1)) -> None:
+    def __init__(self, boundaries: Sequence[float] = (0.001, 0.02)) -> None:
         """
         Args:
             boundaries: list defining lower and upper boundaries for the signal magnitude,
-            lower and upper values need to be positive example : ``[0.2, 0.6]``
+                default : ``[0.001,0.02]``
         """
         super().__init__()
         check_boundaries(boundaries)
         self.boundaries = boundaries
 
-    def __call__(self, signal: np.ndarray) -> Any:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to which gaussian noise will be added
@@ -296,9 +302,9 @@ class SignalRandAddGaussianNoise(RandomizableTransform):
         self.randomize(None)
         self.magnitude = self.R.uniform(low=self.boundaries[0], high=self.boundaries[1])
         length = signal.shape[1]
-        gaussiannoise = self.magnitude * np.random.normal(size=length)
+        gaussiannoise = self.magnitude * torch.randn(length)
 
-        signal = signal + gaussiannoise
+        signal = convert_to_tensor(signal) + gaussiannoise
 
         return signal
 
@@ -308,7 +314,7 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
     Add a random partial square pulse to a signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -331,7 +337,7 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
         self.frequencies = frequencies
         self.fraction = fraction
 
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: input 1 dimension signal to which a partial square pulse will be added
@@ -344,7 +350,7 @@ class SignalRandAddSquarePulsePartial(RandomizableTransform):
         length = signal.shape[len(signal.shape) - 1]
 
         time_partial = np.arange(0, round(self.fracs * length), 1)
-        squaredpulse_partial = self.magnitude * square(self.freqs * time_partial)
+        squaredpulse_partial = self.magnitude * squarepulse(self.freqs * time_partial)
 
         loc = np.random.choice(range(length))
         signal = paste(signal, squaredpulse_partial, (loc,))
@@ -357,7 +363,7 @@ class SignalFillEmpty(Transform):
     replace empty part of a signal (NaN)
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(self, replacement: float = 0.0) -> None:
         """
@@ -367,13 +373,13 @@ class SignalFillEmpty(Transform):
         super().__init__()
         self.replacement = replacement
 
-    def __call__(self, signal: np.ndarray) -> Any:
+    def __call__(self, signal: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             signal: signal to be filled
         """
-
-        return np.nan_to_num(signal, nan=self.replacement)
+        signal = convert_to_tensor(signal)
+        return torch.nan_to_num(signal, nan=self.replacement)
 
 
 class SignalRemoveFrequency(Transform):
