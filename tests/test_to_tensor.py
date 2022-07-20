@@ -40,7 +40,7 @@ class TestToTensor(unittest.TestCase):
 
     @parameterized.expand(TESTS_SINGLE)
     def test_single_input(self, test_data):
-        result = ToTensor()(test_data)
+        result = ToTensor(track_meta=False)(test_data)
         self.assertTrue(isinstance(result, torch.Tensor))
         assert_allclose(result, test_data, type_test=False)
         self.assertEqual(result.ndim, 0)
