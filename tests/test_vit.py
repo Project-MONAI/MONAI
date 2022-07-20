@@ -51,7 +51,7 @@ for dropout_rate in [0.6]:
                                                 if nd == 2:
                                                     test_case[0]["spatial_dims"] = 2  # type: ignore
                                                     if classification:
-                                                        test_case[0]["acti"] = False  # type: ignore
+                                                        test_case[0]["post_activation"] = False  # type: ignore
                                                 if test_case[0]["classification"]:  # type: ignore
                                                     test_case[2] = (2, test_case[0]["num_classes"])  # type: ignore
                                                 TEST_CASE_Vit.append(test_case)
