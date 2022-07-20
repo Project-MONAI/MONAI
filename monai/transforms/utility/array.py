@@ -332,7 +332,7 @@ class SplitDim(Transform):
                 outputs[idx] = item.squeeze(self.dim)
             if self.update_meta and isinstance(img, MetaTensor):
                 if not isinstance(item, MetaTensor):
-                    item = MetaTensor(item, meta=deepcopy(img.meta))
+                    item = MetaTensor(item, meta=img.meta)
                 if self.dim == 0:  # don't update affine if channel dim
                     continue
                 ndim = len(item.affine)

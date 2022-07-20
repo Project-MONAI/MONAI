@@ -21,6 +21,7 @@ from .enums import (
     ChannelMatching,
     CommonKeys,
     DiceCEReduction,
+    FastMRIKeys,
     ForwardMode,
     GridPatchSort,
     GridSampleMode,

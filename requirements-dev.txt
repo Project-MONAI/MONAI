@@ -50,3 +50,4 @@ jsonschema
 pynrrd
 pre-commit
 pydicom
+h5py

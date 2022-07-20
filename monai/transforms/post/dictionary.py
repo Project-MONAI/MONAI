@@ -643,7 +643,7 @@ class Invertd(MapTransform):
                 meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
@@ -652,8 +652,8 @@ class Invertd(MapTransform):
 
             if not isinstance(inputs, MetaTensor):
                 inputs = convert_to_tensor(inputs, track_meta=True)
-            inputs.applied_operations = transform_info
-            inputs.meta = meta_info
+            inputs.applied_operations = deepcopy(transform_info)
+            inputs.meta = deepcopy(meta_info)
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
