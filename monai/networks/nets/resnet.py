@@ -153,7 +153,6 @@ class ResNet(nn.Module):
             ResNet block class or str.
             for Basic: ResNetBlock or 'basic'
             for Bottleneck: ResNetBottleneck or 'bottleneck'
-        Options are 'basic' and 'bottleneck'.
         layers: how many layers to use.
         block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
         spatial_dims: number of spatial dimensions of the input image.
