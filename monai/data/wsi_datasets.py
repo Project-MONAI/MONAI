@@ -255,7 +255,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
+        self.data: list
         self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
@@ -365,7 +365,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
+        self.data: list
         self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
