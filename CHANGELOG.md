@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.9.1] - 2022-07-22
+### Added
+* Support of `monai.data.MetaTensor` as core data structure across the modules
+* `monai.apps.TciaDataset` APIs for The Cancer Imaging Archive (TCIA) datasets, including a pydicom-backend reader
+* Initial release of components for MRI reconstruction in `monai.apps.reconstruction`, including various FFT utilities
+* New metrics and losses, including mean IoU and structural similarity index
+* `monai.utils.StrEnum` class to simplify Enum-based type annotations
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.06-py3` from `nvcr.io/nvidia/pytorch:22.04-py3`
+* Optionally depend on PyTorch-Ignite v0.4.9 instead of v0.4.8
+### Fixed
+* Fixed issue of not skipping post activations in `Convolution` when input arguments are None
+* Fixed issue of ignoring dropout arguments in `DynUNet`
+* Fixed issue of hard-coded non-linear function in ViT classification head
+* Fixed issue of in-memory config overriding with `monai.bundle.ConfigParser.update`
+* 2D SwinUNETR incompatible shapes
+* Fixed issue with `monai.bundle.verify_metadata` not raising exceptions
+* Fixed issue with `monai.transforms.GridPatch` returns inconsistent type location when padding
+* Wrong generalized Dice score metric when denominator is 0 but prediction is non-empty
+* Docker image build error due to NGC CLI upgrade
+* Optional default value when parsing id unavailable in a ConfigParser instance
+
 ## [0.9.0] - 2022-06-08
 ### Added
 * `monai.bundle` primary module with a `ConfigParser` and command-line interfaces for configuration-based workflows
@@ -534,7 +556,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
