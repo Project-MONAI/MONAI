@@ -152,7 +152,7 @@ class ResNet(nn.Module):
         block: which ResNet block to use, either Basic or Bottleneck.
             ResNet block class or str.
             for Basic: ResNetBlock or 'basic'
-            for SE-Bottleneck: ResNetBottleneck or 'bottleneck'
+            for Bottleneck: ResNetBottleneck or 'bottleneck'
         Options are 'basic' and 'bottleneck'.
         layers: how many layers to use.
         block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
