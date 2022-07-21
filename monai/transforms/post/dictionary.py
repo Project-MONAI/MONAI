@@ -668,10 +668,11 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-                if config.USE_META_DICT and InvertibleTransform.trace_key(orig_key) in d:
-                    d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
             d[key] = post_func(inverted_data.to(device))
-            # save the inverted meta dict
+            # save the invertd applied_operations if it's in the source dict
+            if InvertibleTransform.trace_key(orig_key) in d:
+                d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
+            # save the inverted meta dict if it's in the source dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
