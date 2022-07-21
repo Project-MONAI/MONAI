@@ -16,7 +16,8 @@ from unittest import skipUnless
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.data import MaskedPatchWSIDataset
+from monai.data import Dataset, MaskedPatchWSIDataset
+from monai.transforms import Lambdad
 from monai.utils import ProbMapKeys, WSIPatchKeys, optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
 
@@ -48,7 +49,12 @@ TEST_CASE_0 = [
 ]
 
 TEST_CASE_1 = [
-    {"data": ({"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (2, 2)},), "mask_level": 8},
+    {
+        "data": Dataset([{"image": FILE_PATH}], transform=Lambdad(keys="image", func=lambda x: x[:])),
+        "mask_level": 8,
+        "patch_level": 8,
+        "patch_size": (2, 2),
+    },
     {
         "num_patches": 4256,
         "wsi_size": [32914, 46000],
