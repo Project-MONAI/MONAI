@@ -112,7 +112,7 @@ class Identity(Transform):
         return img
 
 
-@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and  monai.transforms.EnsureChannelFirst instead.")
+@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
 class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.
