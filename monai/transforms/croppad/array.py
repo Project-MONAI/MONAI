@@ -85,7 +85,7 @@ class Pad(InvertibleTransform):
     in which case `np.pad` will be used.
 
     Args:
-        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+        to_pad: the amount to pad in each dimension (including the channel) [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
         mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
@@ -125,9 +125,6 @@ class Pad(InvertibleTransform):
         if mode == "constant" and "value" in kwargs:
             val = kwargs.pop("value")
             kwargs["constant_values"] = val
-        pad_width = list(pad_width)
-        while len(pad_width) < len(img_np.shape):
-            pad_width.append((0, 0))
         out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
         if isinstance(img, MetaTensor):
             out = convert_to_dst_type(out, dst=img)[0]
@@ -169,6 +166,9 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
+            to_pad_ = list(to_pad_)
+            if len(to_pad_) < len(img_t.shape):
+                to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
             if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
