@@ -1078,7 +1078,7 @@ class Zoom(InvertibleTransform):
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
             The mode to pad data after zooming.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -1126,7 +1126,7 @@ class Zoom(InvertibleTransform):
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                One of the listed string values or a user supplied function. Defaults to ``"edge"``.
                 The mode to pad data after zooming.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html

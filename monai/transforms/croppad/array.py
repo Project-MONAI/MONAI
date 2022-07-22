@@ -87,10 +87,10 @@ class Pad(InvertibleTransform):
     Args:
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
@@ -141,9 +141,9 @@ class Pad(InvertibleTransform):
             img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
             to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
                 default to `self.to_pad`.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
