@@ -22,7 +22,7 @@ class TestPadMode(unittest.TestCase):
     def test_pad(self):
         expected_shapes = {3: (1, 15, 10), 4: (1, 10, 6, 7)}
         for t in (float, int, np.uint8, np.int16, np.float32, bool):
-            for d in ("cuda:0", "cpu"):
+            for d in ("cuda:0", "cpu") if torch.cuda.is_available() else ("cpu",):
                 for s in ((1, 10, 10), (1, 5, 6, 7)):
                     for m in list(PytorchPadMode) + list(NumpyPadMode):
                         a = torch.rand(s)

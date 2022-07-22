@@ -163,14 +163,14 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
-            if mode_ in ["linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"]:
+            if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
                 mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
                 try:
                     _pad = (
                         self._pt_pad
-                        if mode_ in ("reflect", "replicate")
+                        if mode_ in {"reflect", "replicate"}
                         and img_t.dtype not in (torch.int16, torch.int64, torch.bool, torch.uint8)
                         else self._np_pad
                     )
