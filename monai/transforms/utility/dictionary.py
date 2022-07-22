@@ -300,7 +300,7 @@ class EnsureChannelFirstd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
-        allow_missing_keys: bool = False
+        allow_missing_keys: bool = False,
     ) -> None:
         """
         Args:
