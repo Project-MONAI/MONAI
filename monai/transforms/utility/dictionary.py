@@ -485,6 +485,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -495,10 +496,13 @@ class ToTensord(MapTransform, InvertibleTransform):
             device: specify the target device to put the Tensor data.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+            track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
+                if `None`, use the return value of ``get_track_meta``.
             allow_missing_keys: don't raise exception if key is missing.
+
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

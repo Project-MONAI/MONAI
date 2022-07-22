@@ -402,18 +402,25 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
+            if `None`, use the return value of ``get_track_meta``.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = True
+        self,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
+        track_meta: Optional[bool] = False,
     ) -> None:
         super().__init__()
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, img: NdarrayOrTensor):
         """
@@ -421,7 +428,9 @@ class ToTensor(Transform):
         """
         if isinstance(img, MetaTensor):
             img.applied_operations = []  # drops tracking info
-        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
+        return convert_to_tensor(
+            img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence, track_meta=self.track_meta
+        )
 
 
 class EnsureType(Transform):
