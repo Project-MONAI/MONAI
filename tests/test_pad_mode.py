@@ -26,7 +26,7 @@ class TestPadMode(unittest.TestCase):
                 for s in ((1, 10, 10), (1, 5, 6, 7)):
                     for m in list(PytorchPadMode) + list(NumpyPadMode):
                         a = torch.rand(s)
-                        to_pad = [(0, 0), (2, 3), (0, 0)] if len(s) == 3 else [(0, 0), (2, 3), (0, 0), (0, 0)]
+                        to_pad = [(0, 0), (2, 3)] if len(s) == 3 else [(0, 0), (2, 3), (0, 0), (0, 0)]
                         out = Pad(to_pad=to_pad, mode=m)(CastToType(dtype=t)(a).to(d))
                         self.assertEqual(out.shape, expected_shapes[len(s)])
 
