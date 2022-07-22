@@ -122,6 +122,9 @@ class Pad(InvertibleTransform):
     def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
+        if mode == "constant" and "value" in kwargs:
+            val = kwargs.pop("value")
+            kwargs["constant_values"] = val
         out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
         if isinstance(img, MetaTensor):
             out = convert_to_dst_type(out, dst=img)[0]
