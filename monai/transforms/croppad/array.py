@@ -185,7 +185,7 @@ class Pad(InvertibleTransform):
                     if "supported" in str(err) or "unexpected keyword" in str(err) or "implemented" in str(err):
                         out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
                     else:
-                        raise err
+                        raise ValueError(f"{mode_}, {kwargs_}, {img_t.dtype}, {img_t.device}") from err
         else:
             out = img_t
         if get_track_meta():

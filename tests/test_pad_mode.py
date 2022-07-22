@@ -16,8 +16,10 @@ import torch
 
 from monai.transforms import CastToType, Pad
 from monai.utils import NumpyPadMode, PytorchPadMode
+from tests.utils import SkipIfBeforePyTorchVersion
 
 
+@SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestPadMode(unittest.TestCase):
     def test_pad(self):
         expected_shapes = {3: (1, 15, 10), 4: (1, 10, 6, 7)}
