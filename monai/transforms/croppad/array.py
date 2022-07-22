@@ -171,7 +171,7 @@ class Pad(InvertibleTransform):
                     _pad = (
                         self._pt_pad
                         if mode_ in {"reflect", "replicate"}
-                        and img_t.dtype not in (torch.int16, torch.int64, torch.bool, torch.uint8)
+                        and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
                         else self._np_pad
                     )
                     out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
