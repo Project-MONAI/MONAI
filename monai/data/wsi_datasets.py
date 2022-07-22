@@ -214,7 +214,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         **kwargs,
     ):
         super().__init__(
-            data=data,
+            data=[],
             patch_size=patch_size,
             patch_level=patch_level,
             transform=transform,
@@ -255,8 +255,8 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
-        self.image_data = data
+        self.data: list
+        self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
@@ -352,7 +352,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         **kwargs,
     ):
         super().__init__(
-            data=data,
+            data=[],
             patch_size=patch_size,
             patch_level=patch_level,
             transform=transform,
@@ -365,8 +365,8 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
-        self.image_data = data
+        self.data: list
+        self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
