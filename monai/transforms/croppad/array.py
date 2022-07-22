@@ -122,9 +122,8 @@ class Pad(InvertibleTransform):
     def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
-        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
-        if isinstance(img, MetaTensor):
-            out = convert_to_dst_type(out, dst=img)[0]
+        out = np.pad(img, pad_width, mode=mode, **kwargs)
+        out = convert_to_dst_type(out, dst=img)[0]
         return out
 
     @staticmethod
@@ -163,16 +162,24 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
-            if mode in ["linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"]:
+            if mode_ in ["linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"]:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
+                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
                 try:
-                    mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
-                    out = self._pt_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                    _pad = (
+                        self._pt_pad
+                        if mode_ in ("reflect", "replicate")
+                        and img_t.dtype not in (torch.int16, torch.int64, torch.bool, torch.uint8)
+                        else self._np_pad
+                    )
+                    out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
                 # but if mode or args don't exist in pytorch, use numpy instead
-                except (ValueError, TypeError) as err:
-                    if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
+                except (ValueError, TypeError, NotImplementedError, RuntimeError) as err:
+                    if "supported" in str(err) or "unexpected keyword" in str(err) or "implemented" in str(err):
                         out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                    else:
+                        raise err
         else:
             out = img_t
         if get_track_meta():
