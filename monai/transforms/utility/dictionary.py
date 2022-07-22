@@ -929,7 +929,8 @@ class CopyItemsd(MapTransform):
 class ConcatItemsd(MapTransform):
     """
     Concatenate specified items from data dictionary together on the first dim to construct a big array.
-    Expect all the items are numpy array or PyTorch Tensor.
+    Expect all the items are numpy array or PyTorch Tensor or MetaTensor.
+    Return the first input's meta information when items are MetaTensor.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -951,7 +952,7 @@ class ConcatItemsd(MapTransform):
         """
         Raises:
             TypeError: When items in ``data`` differ in type.
-            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor, MetaTensor]``.
 
         """
         d = dict(data)
@@ -969,10 +970,12 @@ class ConcatItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
-        elif data_type is torch.Tensor:
+        elif issubclass(data_type, torch.Tensor):  # type: ignore
             d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
         else:
-            raise TypeError(f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor).")
+            raise TypeError(
+                f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
+            )
         return d
 
 
