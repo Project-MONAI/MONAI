@@ -20,7 +20,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import ensure_tuple, fall_back_tuple
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 for device in TEST_DEVICES:
@@ -223,8 +223,8 @@ for device in TEST_DEVICES:
 
 TESTS_TORCH = []
 for track_meta in (False, True):
-    for device in TEST_DEVICES:
-        TESTS_TORCH.append([[1.2, 1.3, 0.9], torch.zeros((1, 3, 4, 5)), track_meta, *device])
+    for p in TEST_NDARRAYS_ALL:
+        TESTS_TORCH.append([[1.2, 1.3, 0.9], p(torch.zeros((1, 3, 4, 5))), track_meta])
 
 
 class TestSpacingCase(unittest.TestCase):
@@ -244,10 +244,9 @@ class TestSpacingCase(unittest.TestCase):
         assert_allclose(fall_back_tuple(init_pixdim, norm), norm, type_test=False)
 
     @parameterized.expand(TESTS_TORCH)
-    def test_spacing_torch(self, pixdim, img: torch.Tensor, track_meta: bool, device):
+    def test_spacing_torch(self, pixdim, img, track_meta: bool):
         set_track_meta(track_meta)
         tr = Spacing(pixdim=pixdim)
-        img = img.to(device)
         res = tr(img)
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
@@ -258,6 +257,7 @@ class TestSpacingCase(unittest.TestCase):
             self.assertIsInstance(res, torch.Tensor)
             self.assertNotIsInstance(res, MetaTensor)
             self.assertNotEqual(img.shape, res.shape)
+        set_track_meta(True)
 
     @parameterized.expand(TEST_DEVICES)
     def test_inverse(self, device):
