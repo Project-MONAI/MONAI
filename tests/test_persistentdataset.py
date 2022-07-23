@@ -158,8 +158,8 @@ class TestDataset(unittest.TestCase):
         shape = (1, 10, 9, 8)
         im = np.arange(0, np.prod(shape)).reshape(shape)
         with tempfile.TemporaryDirectory() as path:
-            im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=True)[0]
-            im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=True)[0]
+            im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=json_hashing)[0]
+            im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
             self.assertTrue(l2 > 1)
 
