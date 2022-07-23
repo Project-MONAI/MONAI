@@ -23,15 +23,15 @@ from monai.data import ArrayDataset
 from monai.transforms import AddChannel, Compose, LoadImage, RandAdjustContrast, RandGaussianNoise, Spacing
 
 TEST_CASE_1 = [
-    Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]),
-    Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
 
 TEST_CASE_2 = [
-    Compose([LoadImage(), AddChannel(), RandAdjustContrast(prob=1.0)]),
-    Compose([LoadImage(), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
@@ -48,13 +48,13 @@ class TestCompose(Compose):
 
 
 TEST_CASE_3 = [
-    TestCompose([LoadImage(), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
-    TestCompose([LoadImage(), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(image_only=True), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose([LoadImage(image_only=True), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
     (0, 2),
     (1, 64, 64, 33),
 ]
 
-TEST_CASE_4 = [Compose([LoadImage(), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
+TEST_CASE_4 = [Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
 
 
 class TestArrayDataset(unittest.TestCase):

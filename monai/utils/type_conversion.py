@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -172,7 +171,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
     if isinstance(data, torch.Tensor):
-        data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
+        data = np.asarray(data.detach().to(device="cpu").numpy(), dtype=get_equivalent_dtype(dtype, np.ndarray))
     elif has_cp and isinstance(data, cp_ndarray):
         data = cp.asnumpy(data).astype(dtype, copy=False)
     elif isinstance(data, (np.ndarray, float, int, bool)):
@@ -235,12 +234,13 @@ def convert_data_type(
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
-    Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+    Convert to `MetaTensor`, `torch.Tensor` or `np.ndarray` from `MetaTensor`, `torch.Tensor`,
+    `np.ndarray`, `float`, `int`, etc.
 
     Args:
         data: data to be converted
-        output_type: `torch.Tensor` or `np.ndarray` (if `None`, unchanged)
-        device: if output is `torch.Tensor`, select device (if `None`, unchanged)
+        output_type: `monai.data.MetaTensor`, `torch.Tensor`, or `np.ndarray` (if `None`, unchanged)
+        device: if output is `MetaTensor` or `torch.Tensor`, select device (if `None`, unchanged)
         dtype: dtype of output data. Converted to correct library type (e.g.,
             `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
             If left blank, it remains unchanged.
@@ -333,7 +333,7 @@ def convert_to_dst_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):
-        output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
+        output.copy_meta_from(dst)
     return output, _type, _device
 
 

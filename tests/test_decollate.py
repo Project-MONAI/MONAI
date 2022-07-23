@@ -101,7 +101,8 @@ class TestDeCollate(unittest.TestCase):
                 # Transform ids won't match for windows with multiprocessing, so don't check values
                 if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
-                self.check_match(v1, v2)
+                if not (isinstance(k1, str) and k1.endswith("_transforms")):
+                    self.check_match(v1, v2)  # transform stack not necessarily match
         elif isinstance(in1, (list, tuple)):
             for l1, l2 in zip(in1, in2):
                 self.check_match(l1, l2)
@@ -131,7 +132,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImaged("image"), t_compose])
+            t_compose = Compose([LoadImaged("image", image_only=True), t_compose])
 
         dataset = CacheDataset(self.data_dict, t_compose, progress=False)
         self.check_decollate(dataset=dataset)
@@ -141,7 +142,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImage(), t_compose])
+            t_compose = Compose([LoadImage(image_only=True), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)
@@ -151,7 +152,7 @@ class TestDeCollate(unittest.TestCase):
         t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImage(), t_compose])
+            t_compose = Compose([LoadImage(image_only=True), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)

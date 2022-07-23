@@ -13,12 +13,12 @@ A collection of "vanilla" transforms for crop and pad operations acting on batch
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
-from copy import deepcopy
-from typing import Any, Dict, Hashable
+from typing import Any, Dict, Hashable, Mapping
 
 import numpy as np
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import list_data_collate
 from monai.transforms.croppad.array import CenterSpatialCrop, SpatialPad
 from monai.transforms.inverse import InvertibleTransform
@@ -99,26 +99,37 @@ class PadListDataCollate(InvertibleTransform):
                 batch = replace_element(padded, batch, idx, key_or_idx)
 
                 # If we have a dictionary of data, append to list
+                # padder transform info is re-added with self.push_transform to ensure one info dict per transform.
                 if is_list_of_dicts:
-                    self.push_transform(batch[idx], key_or_idx, orig_size=orig_size)
+                    self.push_transform(
+                        batch[idx],
+                        key_or_idx,
+                        orig_size=orig_size,
+                        extra_info=self.pop_transform(batch[idx], key_or_idx, check=False),
+                    )
 
         # After padding, use default list collator
         return list_data_collate(batch)
 
     @staticmethod
     def inverse(data: dict) -> Dict[Hashable, np.ndarray]:
-        if not isinstance(data, dict):
+        if not isinstance(data, Mapping):
             raise RuntimeError("Inverse can only currently be applied on dictionaries.")
 
-        d = deepcopy(data)
+        d = dict(data)
         for key in d:
-            transform_key = InvertibleTransform.trace_key(key)
-            if transform_key in d:
-                transform = d[transform_key][-1]
-                if not isinstance(transform, Dict):
-                    continue
-                if transform.get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
-                    d[key] = CenterSpatialCrop(transform.get("orig_size", -1))(d[key])  # fallback to image size
-                    # remove transform
-                    d[transform_key].pop()
+            transforms = None
+            if isinstance(d[key], MetaTensor):
+                transforms = d[key].applied_operations
+            else:
+                transform_key = InvertibleTransform.trace_key(key)
+                if transform_key in d:
+                    transforms = d[transform_key]
+            if not transforms or not isinstance(transforms[-1], Dict):
+                continue
+            if transforms[-1].get(TraceKeys.CLASS_NAME) == PadListDataCollate.__name__:
+                xform = transforms.pop()
+                cropping = CenterSpatialCrop(xform.get(TraceKeys.ORIG_SIZE, -1))
+                with cropping.trace_transform(False):
+                    d[key] = cropping(d[key])  # fallback to image size
         return d

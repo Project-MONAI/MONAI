@@ -350,7 +350,7 @@ def window_reverse(windows, window_size, dims):
 
     elif len(dims) == 3:
         b, h, w = dims
-        x = windows.view(b, h // window_size[0], w // window_size[0], window_size[0], window_size[1], -1)
+        x = windows.view(b, h // window_size[0], w // window_size[1], window_size[0], window_size[1], -1)
         x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(b, h, w, -1)
     return x
 
@@ -570,8 +570,8 @@ class SwinTransformerBlock(nn.Module):
             b, h, w, c = x.shape
             window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
             pad_l = pad_t = 0
-            pad_r = (window_size[0] - h % window_size[0]) % window_size[0]
-            pad_b = (window_size[1] - w % window_size[1]) % window_size[1]
+            pad_b = (window_size[0] - h % window_size[0]) % window_size[0]
+            pad_r = (window_size[1] - w % window_size[1]) % window_size[1]
             x = F.pad(x, (0, 0, pad_l, pad_r, pad_t, pad_b))
             _, hp, wp, _ = x.shape
             dims = [b, hp, wp]
@@ -689,7 +689,7 @@ class PatchMerging(nn.Module):
             b, d, h, w, c = x_shape
             pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
             if pad_input:
-                x = F.pad(x, (0, 0, 0, d % 2, 0, w % 2, 0, h % 2))
+                x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
             x0 = x[:, 0::2, 0::2, 0::2, :]
             x1 = x[:, 1::2, 0::2, 0::2, :]
             x2 = x[:, 0::2, 1::2, 0::2, :]
@@ -782,7 +782,7 @@ class BasicLayer(nn.Module):
         """
         Args:
             dim: number of feature channels.
-            depths: number of layers in each stage.
+            depth: number of layers in each stage.
             num_heads: number of attention heads.
             window_size: local window size.
             drop_path: stochastic depth rate.
