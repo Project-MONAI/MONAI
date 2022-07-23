@@ -30,7 +30,7 @@ from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
-from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
+from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, json_hashing, pickle_hashing
 from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
@@ -206,6 +206,7 @@ class PersistentDataset(Dataset):
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
+        hash_transform: bool = False,
     ) -> None:
         """
         Args:
@@ -233,6 +234,8 @@ class PersistentDataset(Dataset):
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            hash_transform: whether to include the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to False.
 
         """
         if not isinstance(transform, Compose):
@@ -247,7 +250,9 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
-        self.set_transform_hash()
+        self.transform_hash = ""
+        if hash_transform:
+            self.set_transform_hash()
 
     def set_transform_hash(self):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -261,13 +266,12 @@ class PersistentDataset(Dataset):
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
         try:
-            self.transform_hash = self.hash_func(hashable_transforms)
+            self.transform_hash = json_hashing(hashable_transforms)
         except TypeError as te:
-            if "is not JSON serializable" in str(te):
-                names = "".join(hashable_transforms.__class__.__name__)
-                self.transform_hash = self.hash_func(names)
-            else:
+            if "is not JSON serializable" not in str(te):
                 raise te
+            names = "".join(tr.__class__.__name__ for tr in hashable_transforms)
+            self.transform_hash = json_hashing(names)
         self.transform_hash = self.transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):

@@ -77,7 +77,7 @@ class TestDataset(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, transform, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
             nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
@@ -158,10 +158,10 @@ class TestDataset(unittest.TestCase):
         shape = (1, 10, 9, 8)
         im = np.arange(0, np.prod(shape)).reshape(shape)
         with tempfile.TemporaryDirectory() as path:
-            im1 = PersistentDataset([im], Identity(), cache_dir=path)[0]
-            im2 = PersistentDataset([im], Flip(1), cache_dir=path)[0]
+            im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=True)[0]
+            im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=True)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
-            assert l2 > 1
+            self.assertTrue(l2 > 1)
 
 
 if __name__ == "__main__":
