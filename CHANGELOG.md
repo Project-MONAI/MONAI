@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [0.9.1] - 2022-07-22
 ### Added
 * Support of `monai.data.MetaTensor` as core data structure across the modules
+* Support of `inverse` in array-based transforms
 * `monai.apps.TciaDataset` APIs for The Cancer Imaging Archive (TCIA) datasets, including a pydicom-backend reader
 * Initial release of components for MRI reconstruction in `monai.apps.reconstruction`, including various FFT utilities
 * New metrics and losses, including mean IoU and structural similarity index
@@ -27,6 +28,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Wrong generalized Dice score metric when denominator is 0 but prediction is non-empty
 * Docker image build error due to NGC CLI upgrade
 * Optional default value when parsing id unavailable in a ConfigParser instance
+* Immutable data input for the patch-based WSI datasets
+### Deprecated
+* `*_transforms` and `*_meta_dict` fields in dictionary-based transforms in favor of MetaTensor
+* `meta_keys`, `meta_key_postfix`, `src_affine` arguments in various transforms, in favor of MetaTensor
+* `AsChannelFirst` and `AddChannel`, in favor of `EnsureChannelFirst` transform
 
 ## [0.9.0] - 2022-06-08
 ### Added

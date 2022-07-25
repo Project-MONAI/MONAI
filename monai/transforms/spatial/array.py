@@ -2192,8 +2192,6 @@ class Affine(InvertibleTransform):
         out = self.resampler(img, grid=grid, mode=_mode, padding_mode=_padding_mode)
         if not isinstance(out, MetaTensor):
             return out if self.image_only else (out, affine)
-        if not self.norm_coord:
-            warnings.warn("customized transform may not work with the metadata operation.")
         if get_track_meta():
             out.meta = img.meta  # type: ignore
             self.update_meta(out, affine, img_size, sp_size)
