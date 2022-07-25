@@ -512,9 +512,6 @@ class Spacing(InvertibleTransform):
             data_array (resampled into `self.pixdim`), original affine, current affine.
 
         """
-        # if the input isn't MetaTensor, create MetaTensor with the default info.
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
         original_spatial_shape = data_array.shape[1:]
         sr = len(original_spatial_shape)
         if sr <= 0:
@@ -617,8 +614,6 @@ class Orientation(InvertibleTransform):
                 `torch.Tensor`.
 
         """
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
@@ -654,6 +649,9 @@ class Orientation(InvertibleTransform):
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
 
+        # convert to MetaTensor if necessary
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
+
         spatial_ornt[:, 0] += 1  # skip channel dim
         spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
@@ -667,7 +665,6 @@ class Orientation(InvertibleTransform):
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
 
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
         if get_track_meta():
             self.update_meta(data_array, new_affine)
             self.push_transform(data_array, extra_info={"original_affine": affine_np})
@@ -1078,7 +1075,7 @@ class Zoom(InvertibleTransform):
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
             The mode to pad data after zooming.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -1126,7 +1123,7 @@ class Zoom(InvertibleTransform):
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                One of the listed string values or a user supplied function. Defaults to ``"edge"``.
                 The mode to pad data after zooming.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html

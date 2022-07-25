@@ -970,7 +970,7 @@ class ConcatItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
-        elif data_type is torch.Tensor:
+        elif issubclass(data_type, torch.Tensor):  # type: ignore
             d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
         elif isinstance(d[key], MetaTensor):
             d[self.name] = torch.cat(output, dim=self.dim)
