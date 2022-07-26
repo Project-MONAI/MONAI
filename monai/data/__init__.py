@@ -106,6 +106,7 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
+from .video_dataset import CameraDataset, VideoFileDataset
 from .wsi_datasets import MaskedPatchWSIDataset, PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, WSIReader
 
