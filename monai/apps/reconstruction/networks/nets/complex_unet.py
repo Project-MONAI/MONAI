@@ -16,7 +16,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
 
-import monai
+from monai.networks.nets.basic_unet import BasicUNet
 
 
 class ComplexUnet(nn.Module):
@@ -52,7 +52,7 @@ class ComplexUnet(nn.Module):
         upsample: str = "deconv",
     ):
         super().__init__()
-        self.unet = monai.networks.nets.basic_unet.BasicUNet(
+        self.unet = BasicUNet(
             spatial_dims=spatial_dims,
             in_channels=2,
             out_channels=2,
@@ -91,7 +91,8 @@ class ComplexUnet(nn.Module):
             output of shape (B,C,H,W,2)
         """
         b, c2, h, w = x.shape  # c2 means c*2
-        assert c2 % 2 == 0
+        if c2 % 2 != 0:
+            raise ValueError(f"channel dimension should be even but ({x.shape[1]}) is odd.")
         c = c2 // 2
         return x.view(b, 2, c, h, w).permute(0, 2, 3, 4, 1)
 
