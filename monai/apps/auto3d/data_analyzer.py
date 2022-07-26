@@ -15,16 +15,10 @@ Step 1 of the AutoML pipeline. The dataset is analysized with this script.
 
 import argparse
 import copy
-import multiprocessing
-import os
-import pdb
 import sys
 import time
 from functools import partial
-from itertools import count
-from multiprocessing import Pool
 
-import nibabel as nib
 import numpy as np
 import yaml
 from scipy.ndimage.measurements import label as scipy_label
@@ -439,7 +433,7 @@ class DataAnalyzer:
 
     def save_yaml(self, results):
         def float_representer(dumper, value):
-            text = "{0:.4f}".format(value)
+            text = f"{value:.4f}"
             return dumper.represent_scalar("tag:yaml.org,2002:float", text)
 
         yaml.add_representer(float, float_representer)
