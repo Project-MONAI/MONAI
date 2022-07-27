@@ -2989,7 +2989,10 @@ class GridSplit(Transform):
         # Flatten the first two dimensions
         strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
         # Make a list of contiguous patches
-        patches = [np.ascontiguousarray(p) for p in strided_image]
+        if isinstance(image, torch.Tensor):
+            patches = [p.contiguous() for p in strided_image]
+        elif isinstance(image, np.ndarray):
+            patches = [np.ascontiguousarray(p) for p in strided_image]
 
         return patches
 
