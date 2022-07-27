@@ -31,7 +31,15 @@ from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
+from monai.transforms import (
+    Compose,
+    Randomizable,
+    ThreadUnsafe,
+    Transform,
+    apply_transform,
+    convert_to_contiguous,
+    reset_ops_id,
+)
 from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -304,6 +312,7 @@ class PersistentDataset(Dataset):
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item_transformed = apply_transform(_xform, item_transformed)
+        reset_ops_id(item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -466,6 +475,7 @@ class CacheNTransDataset(PersistentDataset):
                 break
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item_transformed = apply_transform(_xform, item_transformed)
+        reset_ops_id(item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
