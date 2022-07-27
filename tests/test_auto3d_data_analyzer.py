@@ -12,12 +12,14 @@
 import unittest
 from os import makedirs, path, remove, rmdir
 
+import torch
 import nibabel as nib
 import numpy as np
 
 from monai.apps.auto3d.data_analyzer import DataAnalyzer
 from monai.data import create_test_image_3d
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class TestDataAnalyzer(unittest.TestCase):
     def test_data_analyzer(self):
@@ -59,7 +61,7 @@ class TestDataAnalyzer(unittest.TestCase):
                 cleanup_list.append(label_fpath)
 
         yaml_fpath = path.join(tmp_dir, analyzer_output)
-        analyser = DataAnalyzer(source_datalist, tmp_dir, output_yaml=yaml_fpath)
+        analyser = DataAnalyzer(source_datalist, tmp_dir, output_yaml=yaml_fpath, device=device)
         analyser_results = analyser.get_all_case_stats()
         cleanup_list.append(yaml_fpath)
 
