@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.8
+pytorch-ignite==0.4.9
 gdown>=4.4.0
 scipy
 itk>=5.2
@@ -49,3 +49,5 @@ fire
 jsonschema
 pynrrd
 pre-commit
+pydicom
+h5py

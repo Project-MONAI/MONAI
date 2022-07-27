@@ -11,8 +11,16 @@
 
 from __future__ import annotations
 
+import itertools
+import pprint
 from copy import deepcopy
-from typing import Any, Callable, Sequence
+from typing import Any, Iterable
+
+import numpy as np
+import torch
+
+from monai.utils.enums import TraceKeys
+from monai.utils.misc import first
 
 _TRACK_META = True
 
@@ -26,7 +34,7 @@ def set_track_meta(val: bool) -> None:
     with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -43,7 +51,7 @@ def get_track_meta() -> bool:
     returned with empty metadata.
 
     If `set_track_meta` is `False`, then standard data objects will be returned (e.g.,
-    `torch.Tensor` and `np.ndarray`) as opposed to our enhanced objects.
+    `torch.Tensor` and `np.ndarray`) as opposed to MONAI's enhanced objects.
 
     By default, this is `True`, and most users will want to leave it this way. However,
     if you are experiencing any problems regarding metadata, and aren't interested in
@@ -56,8 +64,7 @@ class MetaObj:
     """
     Abstract base class that stores data as well as any extra metadata.
 
-    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple
-    inheritance.
+    This allows for subclassing `torch.Tensor` and `np.ndarray` through multiple inheritance.
 
     Metadata is stored in the form of a dictionary.
 
@@ -67,82 +74,62 @@ class MetaObj:
     Copying of information:
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
-          first instance of `MetaObj`.
+          first instance of `MetaObj` if `a.is_batch` is False
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     """
 
     def __init__(self):
-        self._meta: dict = self.get_default_meta()
+        self._meta: dict = MetaObj.get_default_meta()
+        self._applied_operations: list = MetaObj.get_default_applied_operations()
         self._is_batch: bool = False
 
     @staticmethod
-    def flatten_meta_objs(args: Sequence[Any]) -> list[MetaObj]:
+    def flatten_meta_objs(*args: Iterable):
         """
-        Recursively flatten input and return all instances of `MetaObj` as a single
-        list. This means that for both `torch.add(a, b)`, `torch.stack([a, b])` (and
+        Recursively flatten input and yield all instances of `MetaObj`.
+        This means that for both `torch.add(a, b)`, `torch.stack([a, b])` (and
         their numpy equivalents), we return `[a, b]` if both `a` and `b` are of type
         `MetaObj`.
 
         Args:
-            args: Sequence of inputs to be flattened.
+            args: Iterables of inputs to be flattened.
         Returns:
             list of nested `MetaObj` from input.
         """
-        out = []
-        for a in args:
+        for a in itertools.chain(*args):
             if isinstance(a, (list, tuple)):
-                out += MetaObj.flatten_meta_objs(a)
+                yield from MetaObj.flatten_meta_objs(a)
             elif isinstance(a, MetaObj):
-                out.append(a)
-        return out
+                yield a
 
-    def _copy_attr(self, attribute: str, input_objs: list[MetaObj], default_fn: Callable, deep_copy: bool) -> None:
+    @staticmethod
+    def copy_items(data):
+        """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
+        if isinstance(data, (list, dict, np.ndarray)):
+            return data.copy()
+        if isinstance(data, torch.Tensor):
+            return data.detach().clone()
+        return deepcopy(data)
+
+    def copy_meta_from(self, input_objs, copy_attr=True) -> None:
         """
-        Copy an attribute from the first in a list of `MetaObj`. In the case of
-        `torch.add(a, b)`, both `a` and `b` could be `MetaObj` or something else, so
-        check them all. Copy the first to `self`.
-
-        We also perform a deep copy of the data if desired.
-
-        Args:
-            attribute: string corresponding to attribute to be copied (e.g., `meta`).
-            input_objs: List of `MetaObj`. We'll copy the attribute from the first one
-                that contains that particular attribute.
-            default_fn: If none of `input_objs` have the attribute that we're
-                interested in, then use this default function (e.g., `lambda: {}`.)
-            deep_copy: Should the attribute be deep copied? See `_copy_meta`.
-
-        Returns:
-            Returns `None`, but `self` should be updated to have the copied attribute.
-        """
-        attributes = [getattr(i, attribute) for i in input_objs if hasattr(i, attribute)]
-        if len(attributes) > 0:
-            val = attributes[0]
-            if deep_copy:
-                val = deepcopy(val)
-            setattr(self, attribute, val)
-        else:
-            setattr(self, attribute, default_fn())
-
-    def _copy_meta(self, input_objs: list[MetaObj]) -> None:
-        """
-        Copy metadata from a list of `MetaObj`. For a given attribute, we copy the
-        adjunct data from the first element in the list containing that attribute.
-
-        If there has been a change in `id` (e.g., `a=b+c`), then deepcopy. Else (e.g.,
-        `a+=1`), then don't.
+        Copy metadata from a `MetaObj` or an iterable of `MetaObj` instances.
 
         Args:
             input_objs: list of `MetaObj` to copy data from.
-
+            copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
+                note that if the attribute is a nested list or dict, only a shallow copy will be done.
         """
-        id_in = id(input_objs[0]) if len(input_objs) > 0 else None
-        deep_copy = id(self) != id_in
-        self._copy_attr("meta", input_objs, self.get_default_meta, deep_copy)
-        self._copy_attr("applied_operations", input_objs, self.get_default_applied_operations, deep_copy)
-        self.is_batch = input_objs[0].is_batch if len(input_objs) > 0 else False
+        first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
+        first_meta = first_meta.__dict__
+        if not copy_attr:
+            self.__dict__ = first_meta.copy()  # shallow copy for performance
+        else:
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in first_meta})
 
-    def get_default_meta(self) -> dict:
+    @staticmethod
+    def get_default_meta() -> dict:
         """Get the default meta.
 
         Returns:
@@ -150,7 +137,8 @@ class MetaObj:
         """
         return {}
 
-    def get_default_applied_operations(self) -> list:
+    @staticmethod
+    def get_default_applied_operations() -> list:
         """Get the default applied operations.
 
         Returns:
@@ -160,7 +148,7 @@ class MetaObj:
 
     def __repr__(self) -> str:
         """String representation of class."""
-        out: str = "\nMetaData\n"
+        out: str = "\nMetadata\n"
         if self.meta is not None:
             out += "".join(f"\t{k}: {v}\n" for k, v in self.meta.items())
         else:
@@ -168,8 +156,7 @@ class MetaObj:
 
         out += "\nApplied operations\n"
         if self.applied_operations is not None:
-            for i in self.applied_operations:
-                out += f"\t{str(i)}\n"
+            out += pprint.pformat(self.applied_operations, indent=2, compact=True, width=120)
         else:
             out += "None"
 
@@ -179,22 +166,30 @@ class MetaObj:
 
     @property
     def meta(self) -> dict:
-        """Get the meta."""
-        return self._meta
+        """Get the meta. Defaults to ``{}``."""
+        return self._meta if hasattr(self, "_meta") else MetaObj.get_default_meta()
 
     @meta.setter
-    def meta(self, d: dict) -> None:
+    def meta(self, d) -> None:
         """Set the meta."""
+        if d == TraceKeys.NONE:
+            self._meta = MetaObj.get_default_meta()
         self._meta = d
 
     @property
-    def applied_operations(self) -> list:
-        """Get the applied operations."""
-        return self._applied_operations
+    def applied_operations(self) -> list[dict]:
+        """Get the applied operations. Defaults to ``[]``."""
+        if hasattr(self, "_applied_operations"):
+            return self._applied_operations
+        return MetaObj.get_default_applied_operations()
 
     @applied_operations.setter
-    def applied_operations(self, t: list) -> None:
+    def applied_operations(self, t) -> None:
         """Set the applied operations."""
+        if t == TraceKeys.NONE:
+            # received no operations when decollating a batch
+            self._applied_operations = MetaObj.get_default_applied_operations()
+            return
         self._applied_operations = t
 
     def push_applied_operation(self, t: Any) -> None:
@@ -206,7 +201,7 @@ class MetaObj:
     @property
     def is_batch(self) -> bool:
         """Return whether object is part of batch or not."""
-        return self._is_batch
+        return self._is_batch if hasattr(self, "_is_batch") else False
 
     @is_batch.setter
     def is_batch(self, val: bool) -> None:

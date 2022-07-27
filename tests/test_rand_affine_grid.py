@@ -16,12 +16,12 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandAffineGrid
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
 
 _rtol = 1e-1 if is_tf32_env() else 1e-4
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append([{"device": device}, {"grid": p(torch.ones((3, 3, 3)))}, p(np.ones((3, 3, 3)))])
         TESTS.append(

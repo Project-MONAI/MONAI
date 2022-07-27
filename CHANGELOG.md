@@ -6,6 +6,85 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [0.9.1] - 2022-07-22
+### Added
+* Support of `monai.data.MetaTensor` as core data structure across the modules
+* Support of `inverse` in array-based transforms
+* `monai.apps.TciaDataset` APIs for The Cancer Imaging Archive (TCIA) datasets, including a pydicom-backend reader
+* Initial release of components for MRI reconstruction in `monai.apps.reconstruction`, including various FFT utilities
+* New metrics and losses, including mean IoU and structural similarity index
+* `monai.utils.StrEnum` class to simplify Enum-based type annotations
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.06-py3` from `nvcr.io/nvidia/pytorch:22.04-py3`
+* Optionally depend on PyTorch-Ignite v0.4.9 instead of v0.4.8
+### Fixed
+* Fixed issue of not skipping post activations in `Convolution` when input arguments are None
+* Fixed issue of ignoring dropout arguments in `DynUNet`
+* Fixed issue of hard-coded non-linear function in ViT classification head
+* Fixed issue of in-memory config overriding with `monai.bundle.ConfigParser.update`
+* 2D SwinUNETR incompatible shapes
+* Fixed issue with `monai.bundle.verify_metadata` not raising exceptions
+* Fixed issue with `monai.transforms.GridPatch` returns inconsistent type location when padding
+* Wrong generalized Dice score metric when denominator is 0 but prediction is non-empty
+* Docker image build error due to NGC CLI upgrade
+* Optional default value when parsing id unavailable in a ConfigParser instance
+* Immutable data input for the patch-based WSI datasets
+### Deprecated
+* `*_transforms` and `*_meta_dict` fields in dictionary-based transforms in favor of MetaTensor
+* `meta_keys`, `meta_key_postfix`, `src_affine` arguments in various transforms, in favor of MetaTensor
+* `AsChannelFirst` and `AddChannel`, in favor of `EnsureChannelFirst` transform
+
+## [0.9.0] - 2022-06-08
+### Added
+* `monai.bundle` primary module with a `ConfigParser` and command-line interfaces for configuration-based workflows
+* Initial release of MONAI bundle specification
+* Initial release of volumetric image detection modules including bounding boxes handling, RetinaNet-based architectures
+* API preview `monai.data.MetaTensor`
+* Unified `monai.data.image_writer` to support flexible IO backends including an ITK writer
+* Various new network blocks and architectures including `SwinUNETR`
+* DeepEdit interactive training/validation workflow
+* NuClick interactive segmentation transforms
+* Patch-based readers and datasets for whole-slide imaging
+* New losses and metrics including `SurfaceDiceMetric`, `GeneralizedDiceFocalLoss`
+* New pre-processing transforms including `RandIntensityRemap`, `SpatialResample`
+* Multi-output and slice-based inference for `SlidingWindowInferer`
+* `NrrdReader` for NRRD file support
+* Torchscript utilities to save models with meta information
+* Gradient-based visualization module `SmoothGrad`
+* Automatic regular source code scanning for common vulnerabilities and coding errors
+
+### Changed
+* Simplified `TestTimeAugmentation` using de-collate and invertible transforms APIs
+* Refactoring `monai.apps.pathology` modules into `monai.handlers` and `monai.transforms`
+* Flexible activation and normalization layers for `TopologySearch` and `DiNTS`
+* Anisotropic first layers for 3D resnet
+* Flexible ordering of activation, normalization in `UNet`
+* Enhanced performance of connected-components analysis using Cupy
+* `INSTANCE_NVFUSER` for enhanced performance in 3D instance norm
+* Support of string representation of dtype in `convert_data_type`
+* Added new options `iteration_log`, `iteration_log` to the logging handlers
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.04-py3` from `nvcr.io/nvidia/pytorch:21.10-py3`
+* `collate_fn` generates more data-related debugging info with `dev_collate`
+
+### Fixed
+* Unified the spellings of "meta data", "metadata", "meta-data" to "metadata"
+* Various inaccurate error messages when input data are in invalid shapes
+* Issue of computing symmetric distances in `compute_average_surface_distance`
+* Unnecessary layer  `self.conv3` in `UnetResBlock`
+* Issue of torchscript compatibility for `ViT` and self-attention blocks
+* Issue of hidden layers in `UNETR`
+* `allow_smaller` in spatial cropping transforms
+* Antialiasing in `Resize`
+* Issue of bending energy loss value at different resolutions
+* `kwargs_read_csv` in `CSVDataset`
+* In-place modification in `Metric` reduction
+* `wrap_array` for `ensure_tuple`
+* Contribution guide for introducing new third-party dependencies
+
+### Removed
+* Deprecated `nifti_writer`, `png_writer` in favor of `monai.data.image_writer`
+* Support for PyTorch 1.6
+
 ## [0.8.1] - 2022-02-16
 ### Added
 * Support of `matshow3d` with given `channel_dim`
@@ -483,7 +562,9 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...HEAD
+[0.9.1]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...0.9.1
+[0.9.0]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
 [0.8.0]: https://github.com/Project-MONAI/MONAI/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/Project-MONAI/MONAI/compare/0.6.0...0.7.0

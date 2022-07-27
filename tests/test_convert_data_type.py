@@ -16,17 +16,18 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS: List[Tuple] = []
-for in_type in TEST_NDARRAYS + (int, float):
-    for out_type in TEST_NDARRAYS:
+for in_type in TEST_NDARRAYS_ALL + (int, float):
+    for out_type in TEST_NDARRAYS_ALL:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0))))  # type: ignore
 
 TESTS_LIST: List[Tuple] = []
-for in_type in TEST_NDARRAYS + (int, float):
-    for out_type in TEST_NDARRAYS:
+for in_type in TEST_NDARRAYS_ALL + (int, float):
+    for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(
             ([in_type(np.array(1.0)), in_type(np.array(1.0))], out_type(np.array([1.0, 1.0])), True)  # type: ignore
         )
@@ -83,14 +84,17 @@ class TestConvertDataSame(unittest.TestCase):
         self.assertEqual(type(in_image), orig_type)
         if isinstance(in_image, torch.Tensor):
             self.assertEqual(in_image.device, orig_device)
+
         # check output is desired type
-        if isinstance(im_out, torch.Tensor):
+        if isinstance(im_out, MetaTensor):
+            output_type = MetaTensor
+        elif isinstance(im_out, torch.Tensor):
             output_type = torch.Tensor
         else:
             output_type = np.ndarray
         self.assertEqual(type(converted_im), output_type)
         # check dtype is unchanged
-        if isinstance(in_type, (np.ndarray, torch.Tensor)):
+        if isinstance(in_type, (np.ndarray, torch.Tensor, MetaTensor)):
             self.assertEqual(converted_im.dtype, im_out.dtype)
 
 

@@ -20,7 +20,7 @@ import traceback
 import warnings
 from pathlib import Path
 from pydoc import locate
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 
 import numpy as np
 import torch
@@ -28,12 +28,21 @@ import torch
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
 from monai.data.folder_layout import FolderLayout
-from monai.data.image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader
+from monai.data.image_reader import (
+    ImageReader,
+    ITKReader,
+    NibabelReader,
+    NrrdReader,
+    NumpyReader,
+    PILReader,
+    PydicomReader,
+)
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import InterpolateMode, OptionalImportError, ensure_tuple, look_up_option, optional_import
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -42,6 +51,7 @@ nrrd, _ = optional_import("nrrd")
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
 SUPPORTED_READERS = {
+    "pydicomreader": PydicomReader,
     "itkreader": ITKReader,
     "nrrdreader": NrrdReader,
     "numpyreader": NumpyReader,
@@ -101,6 +111,7 @@ class LoadImage(Transform):
         image_only: bool = False,
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
+        simple_keys: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -110,20 +121,21 @@ class LoadImage(Transform):
                 - if `reader` is None, a default set of `SUPPORTED_READERS` will be used.
                 - if `reader` is a string, it's treated as a class name or dotted path
                 (such as ``"monai.data.ITKReader"``), the supported built-in reader classes are
-                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``.
+                ``"ITKReader"``, ``"NibabelReader"``, ``"NumpyReader"``, ``"PydicomReader"``.
                 a reader instance will be constructed with the `*args` and `**kwargs` parameters.
                 - if `reader` is a reader class/instance, it will be registered to this loader accordingly.
-            image_only: if True return only the image volume, otherwise return image data array and header dict.
+            image_only: if True return only the image MetaTensor, otherwise return image and header dict.
             dtype: if not None convert the loaded image to this data type.
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
+            simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
         Note:
 
-            - The transform returns an image data array if `image_only` is True,
-              or a tuple of two elements containing the data array, and the metadata in a dictionary format otherwise.
+            - The transform returns a MetaTensor, unless `set_track_meta(False)` has been used, in which case, a
+              `torch.Tensor` will be returned.
             - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
               readers. This might introduce overheads when handling the exceptions of trying the incompatible loaders.
               In this case, it is therefore recommended setting the most appropriate reader as
@@ -135,6 +147,7 @@ class LoadImage(Transform):
         self.image_only = image_only
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
+        self.simple_keys = simple_keys
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -238,19 +251,19 @@ class LoadImage(Transform):
 
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
-        img_array = img_array.astype(self.dtype, copy=False)
+        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError("`meta_data` must be a dict.")
         # make sure all elements in metadata are little endian
         meta_data = switch_endianness(meta_data, "<")
-        if self.ensure_channel_first:
-            img_array = EnsureChannelFirst()(img_array, meta_data)
 
-        if self.image_only:
-            return img_array
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-
-        return img_array, meta_data
+        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data, self.simple_keys)
+        if self.ensure_channel_first:
+            img = EnsureChannelFirst()(img)
+        if self.image_only:
+            return img
+        return img, img.meta  # for compatibility purpose
 
 
 class SaveImage(Transform):
@@ -321,8 +334,8 @@ class SaveImage(Transform):
         output_ext: str = ".nii.gz",
         output_dtype: DtypeLike = np.float32,
         resample: bool = True,
-        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = "nearest",
+        padding_mode: str = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         squeeze_end_dims: bool = True,
@@ -330,7 +343,7 @@ class SaveImage(Transform):
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[image_writer.ImageWriter, str, None] = None,
+        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
         channel_dim: Optional[int] = 0,
     ) -> None:
         self.folder_layout = FolderLayout(
@@ -349,7 +362,7 @@ class SaveImage(Transform):
                 writer_ = locate(f"{writer}")  # search dotted path
             if writer_ is None:
                 raise ValueError(f"writer {writer} not found")
-            writer = writer_  # type: ignore
+            writer = writer_
         self.writers = image_writer.resolve_writer(self.output_ext) if writer is None else (writer,)
         self.writer_obj = None
 
@@ -391,6 +404,7 @@ class SaveImage(Transform):
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
             meta_data: key-value pairs of metadata corresponding to the data.
         """
+        meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         subject = meta_data[Key.FILENAME_OR_OBJ] if meta_data else str(self._data_index)
         patch_index = meta_data.get(Key.PATCH_INDEX, None) if meta_data else None
         filename = self.folder_layout.filename(subject=f"{subject}", idx=patch_index)

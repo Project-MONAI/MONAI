@@ -23,11 +23,15 @@ from torch.nn.functional import pad as pad_pt
 
 from monai.config import IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import get_random_patch, get_valid_patch_size
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.transform import Randomizable, Transform
 from monai.transforms.utils import (
     compute_divisible_spatial_size,
     convert_pad_mode,
+    create_translate,
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
@@ -36,24 +40,28 @@ from monai.transforms.utils import (
     map_classes_to_indices,
     weighted_patch_samples,
 )
-from monai.transforms.utils_pytorch_numpy_unification import floor_divide, maximum
+from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     Method,
-    NumpyPadMode,
     PytorchPadMode,
+    TraceKeys,
+    TransformBackends,
+    convert_data_type,
+    convert_to_dst_type,
+    convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
     look_up_option,
+    pytorch_after,
 )
-from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
     "Pad",
     "SpatialPad",
     "BorderPad",
     "DivisiblePad",
+    "Crop",
     "SpatialCrop",
     "CenterSpatialCrop",
     "CenterScaleCrop",
@@ -69,81 +77,150 @@ __all__ = [
 ]
 
 
-class Pad(Transform):
+class Pad(InvertibleTransform):
     """
     Perform padding for a given an amount of padding in each dimension.
-    If input is `torch.Tensor`, `torch.nn.functional.pad` will be used, otherwise, `np.pad` will be used.
+
+    `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
+    in which case `np.pad` will be used.
 
     Args:
-        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+        to_pad: the amount to pad in each dimension (including the channel) [(low_H, high_H), (low_W, high_W), ...].
+            if None, must provide in the `__call__` at runtime.
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        to_pad: List[Tuple[int, int]],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        **kwargs,
+        self, to_pad: Optional[List[Tuple[int, int]]] = None, mode: str = PytorchPadMode.CONSTANT, **kwargs
     ) -> None:
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
 
-    @staticmethod
-    def _np_pad(img: np.ndarray, all_pad_width, mode, **kwargs) -> np.ndarray:
-        return np.pad(img, all_pad_width, mode=mode, **kwargs)  # type: ignore
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        """
+        dynamically compute the pad width according to the spatial shape.
+        the output is the amount of padding for all dimensions including the channel.
+
+        Args:
+            spatial_shape: spatial shape of the original image.
+
+        """
+        raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     @staticmethod
-    def _pt_pad(img: torch.Tensor, all_pad_width, mode, **kwargs) -> torch.Tensor:
-        pt_pad_width = [val for sublist in all_pad_width[1:] for val in sublist[::-1]][::-1]
+    def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+        img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
+        mode = convert_pad_mode(dst=img_np, mode=mode).value
+        if mode == "constant" and "value" in kwargs:
+            val = kwargs.pop("value")
+            kwargs["constant_values"] = val
+        out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
+        if isinstance(img, MetaTensor):
+            out = convert_to_dst_type(out, dst=img)[0]
+        return out
+
+    @staticmethod
+    def _pt_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
+        pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
         # torch.pad expects `[B, C, H, W, [D]]` shape
         return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **kwargs).squeeze(0)
 
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+    def __call__(  # type: ignore
+        self, img: torch.Tensor, to_pad: Optional[List[Tuple[int, int]]] = None, mode: Optional[str] = None, **kwargs
+    ) -> torch.Tensor:
         """
         Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"`` or ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to `self.mode`.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
+            to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+                default to `self.to_pad`.
+            mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        if not np.asarray(self.to_pad).any():
-            # all zeros, skip padding
-            return img
-        mode = convert_pad_mode(dst=img, mode=mode or self.mode).value
-        pad = self._pt_pad if isinstance(img, torch.Tensor) else self._np_pad
-        return pad(img, self.to_pad, mode, **self.kwargs)  # type: ignore
+        to_pad_ = self.to_pad if to_pad is None else to_pad
+        if to_pad_ is None:
+            to_pad_ = self.compute_pad_width(img.shape[1:])
+        mode_ = self.mode if mode is None else mode
+        kwargs_ = dict(self.kwargs)
+        kwargs_.update(kwargs)
+
+        img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
+
+        # all zeros, skip padding
+        if np.asarray(to_pad_).any():
+            to_pad_ = list(to_pad_)
+            if len(to_pad_) < len(img_t.shape):
+                to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
+            if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
+                out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+            else:
+                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
+                try:
+                    _pad = (
+                        self._pt_pad
+                        if mode_ in {"reflect", "replicate"}
+                        and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+                        else self._np_pad
+                    )
+                    out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                except (ValueError, TypeError, RuntimeError) as err:
+                    if "supported" in str(err) or "unexpected keyword" in str(err) or "implemented" in str(err):
+                        out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                    else:
+                        raise ValueError(f"{mode_}, {kwargs_}, {img_t.dtype}, {img_t.device}") from err
+        else:
+            out = img_t
+        if get_track_meta():
+            self.update_meta(tensor=out, to_pad=to_pad_)  # type: ignore
+            self.push_transform(out, orig_size=_orig_size, extra_info={"padded": to_pad_})
+        return out
+
+    def update_meta(self, tensor: MetaTensor, to_pad: List[Tuple[int, int]]):
+        spatial_rank = max(len(tensor.affine) - 1, 1)
+        to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
+        mat = create_translate(spatial_rank, to_shift)
+        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+
+    def inverse(self, data: MetaTensor) -> MetaTensor:
+        transform = self.pop_transform(data)
+        padded = transform[TraceKeys.EXTRA_INFO]["padded"]
+        if padded[0][0] > 0 or padded[0][1] > 0:  # slicing the channel dimension
+            s = padded[0][0]
+            e = min(max(padded[0][1], s + 1), len(data))
+            data = data[s : len(data) - e]  # type: ignore
+        roi_start = [i[0] for i in padded[1:]]
+        roi_end = [i - j[1] for i, j in zip(data.shape[1:], padded[1:])]
+        cropper = SpatialCrop(roi_start=roi_start, roi_end=roi_end)
+        with cropper.trace_transform(False):
+            return cropper(data)  # type: ignore
 
 
-class SpatialPad(Transform):
+class SpatialPad(Pad):
     """
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
-    If input is `torch.Tensor` and mode is `constant`, `torch.nn.functional.pad` will be used.
-    Otherwise, `np.pad` will be used (input converted to `np.ndarray` if necessary).
-
-    Uses np.pad so in practice, a mode needs to be provided. See numpy.lib.arraypad.pad
-    for additional details.
-
     Args:
         spatial_size: the spatial size of output data after padding, if a dimension of the input
-            data size is bigger than the pad size, will not pad that dimension.
+            data size is larger than the pad size, will not pad that dimension.
             If its components have non-positive values, the corresponding size of input image will be used
             (no padding). for example: if the spatial size of input data is [30, 30, 30] and
             `spatial_size=[32, 25, -1]`, the spatial size of output data will be [32, 30, 30].
@@ -160,56 +237,37 @@ class SpatialPad(Transform):
 
     """
 
-    backend = Pad.backend
-
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        method: Union[Method, str] = Method.SYMMETRIC,
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
+        method: str = Method.SYMMETRIC,
+        mode: str = PytorchPadMode.CONSTANT,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
         self.method: Method = look_up_option(method, Method)
-        self.mode = mode
-        self.kwargs = kwargs
+        super().__init__(mode=mode, **kwargs)
 
-    def _determine_data_pad_width(self, data_shape: Sequence[int]) -> List[Tuple[int, int]]:
-        spatial_size = fall_back_tuple(self.spatial_size, data_shape)
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        """
+        dynamically compute the pad width according to the spatial shape.
+
+        Args:
+            spatial_shape: spatial shape of the original image.
+
+        """
+        spatial_size = fall_back_tuple(self.spatial_size, spatial_shape)
         if self.method == Method.SYMMETRIC:
             pad_width = []
             for i, sp_i in enumerate(spatial_size):
-                width = max(sp_i - data_shape[i], 0)
+                width = max(sp_i - spatial_shape[i], 0)
                 pad_width.append((width // 2, width - (width // 2)))
-            return pad_width
-        return [(0, max(sp_i - data_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
-
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-
-        """
-        data_pad_width = self._determine_data_pad_width(img.shape[1:])
-        all_pad_width = [(0, 0)] + data_pad_width
-        if not np.asarray(all_pad_width).any():
-            # all zeros, skip padding
-            return img
-
-        padder = Pad(to_pad=all_pad_width, mode=mode or self.mode, **self.kwargs)
-        return padder(img)
+        else:
+            pad_width = [(0, max(sp_i - spatial_shape[i], 0)) for i, sp_i in enumerate(spatial_size)]
+        return [(0, 0)] + pad_width
 
 
-class BorderPad(Transform):
+class BorderPad(Pad):
     """
     Pad the input data by adding specified borders to every dimension.
 
@@ -235,39 +293,13 @@ class BorderPad(Transform):
 
     """
 
-    backend = Pad.backend
-
     def __init__(
-        self,
-        spatial_border: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        **kwargs,
+        self, spatial_border: Union[Sequence[int], int], mode: str = PytorchPadMode.CONSTANT, **kwargs
     ) -> None:
         self.spatial_border = spatial_border
-        self.mode = mode
-        self.kwargs = kwargs
+        super().__init__(mode=mode, **kwargs)
 
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
-        """
-        Args:
-            img: data to be transformed, assuming `img` is channel-first and
-                padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-
-        Raises:
-            ValueError: When ``self.spatial_border`` does not contain ints.
-            ValueError: When ``self.spatial_border`` length is not one of
-                [1, len(spatial_shape), 2*len(spatial_shape)].
-
-        """
-        spatial_shape = img.shape[1:]
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
         spatial_border = ensure_tuple(self.spatial_border)
         if not all(isinstance(b, int) for b in spatial_border):
             raise ValueError(f"self.spatial_border must contain only ints, got {spatial_border}.")
@@ -284,13 +316,10 @@ class BorderPad(Transform):
                 f"Unsupported spatial_border length: {len(spatial_border)}, available options are "
                 f"[1, len(spatial_shape)={len(spatial_shape)}, 2*len(spatial_shape)={2*len(spatial_shape)}]."
             )
-
-        all_pad_width = [(0, 0)] + data_pad_width
-        padder = Pad(all_pad_width, mode or self.mode, **self.kwargs)
-        return padder(img)
+        return [(0, 0)] + data_pad_width
 
 
-class DivisiblePad(Transform):
+class DivisiblePad(Pad):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     """
@@ -300,8 +329,8 @@ class DivisiblePad(Transform):
     def __init__(
         self,
         k: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        method: Union[Method, str] = Method.SYMMETRIC,
+        mode: str = PytorchPadMode.CONSTANT,
+        method: str = Method.SYMMETRIC,
         **kwargs,
     ) -> None:
         """
@@ -323,35 +352,120 @@ class DivisiblePad(Transform):
         See also :py:class:`monai.transforms.SpatialPad`
         """
         self.k = k
-        self.mode: NumpyPadMode = NumpyPadMode(mode)
         self.method: Method = Method(method)
-        self.kwargs = kwargs
+        super().__init__(mode=mode, **kwargs)
 
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+    def compute_pad_width(self, spatial_shape: Sequence[int]) -> List[Tuple[int, int]]:
+        new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
+        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method)
+        return spatial_pad.compute_pad_width(spatial_shape)
+
+
+class Crop(InvertibleTransform):
+    """
+    Perform crop operation on the input image.
+
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    @staticmethod
+    def compute_slices(
+        roi_center: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_size: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_start: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_end: Union[Sequence[int], NdarrayOrTensor, None] = None,
+        roi_slices: Optional[Sequence[slice]] = None,
+    ):
         """
+        Compute the crop slices based on specified `center & size` or `start & end`.
+
         Args:
-            img: data to be transformed, assuming `img` is channel-first
-                and padding doesn't apply to the channel dim.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to `self.mode`.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            roi_center: voxel coordinates for center of the crop ROI.
+            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
+                will not crop that dimension of the image.
+            roi_start: voxel coordinates for start of the crop ROI.
+            roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
+                use the end coordinate of image.
+            roi_slices: list of slices for each of the spatial dimensions.
 
         """
-        new_size = compute_divisible_spatial_size(spatial_shape=img.shape[1:], k=self.k)
-        spatial_pad = SpatialPad(spatial_size=new_size, method=self.method, mode=mode or self.mode, **self.kwargs)
+        roi_start_t: torch.Tensor
 
-        return spatial_pad(img)
+        if roi_slices:
+            if not all(s.step is None or s.step == 1 for s in roi_slices):
+                raise ValueError("only slice steps of 1/None are currently supported")
+            return list(roi_slices)
+        else:
+            if roi_center is not None and roi_size is not None:
+                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
+                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
+                _zeros = torch.zeros_like(roi_center_t)
+                half = (
+                    torch.divide(roi_size_t, 2, rounding_mode="floor")
+                    if pytorch_after(1, 8)
+                    else torch.floor_divide(roi_size_t, 2)
+                )
+                roi_start_t = torch.maximum(roi_center_t - half, _zeros)
+                roi_end_t = torch.maximum(roi_start_t + roi_size_t, roi_start_t)
+            else:
+                if roi_start is None or roi_end is None:
+                    raise ValueError("please specify either roi_center, roi_size or roi_start, roi_end.")
+                roi_start_t = convert_to_tensor(data=roi_start, dtype=torch.int16, wrap_sequence=True)
+                roi_start_t = torch.maximum(roi_start_t, torch.zeros_like(roi_start_t))
+                roi_end_t = convert_to_tensor(data=roi_end, dtype=torch.int16, wrap_sequence=True)
+                roi_end_t = torch.maximum(roi_end_t, roi_start_t)
+            # convert to slices (accounting for 1d)
+            if roi_start_t.numel() == 1:
+                return [slice(int(roi_start_t.item()), int(roi_end_t.item()))]
+            else:
+                return [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
+
+    def __call__(self, img: torch.Tensor, slices: Tuple[slice, ...]) -> torch.Tensor:  # type: ignore
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+
+        """
+        orig_size = img.shape[1:]
+        slices_ = list(slices)
+        sd = len(img.shape[1:])  # spatial dims
+        if len(slices_) < sd:
+            slices_ += [slice(None)] * (sd - len(slices_))
+        # Add in the channel (no cropping)
+        slices = tuple([slice(None)] + slices_[:sd])
+
+        img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
+        _orig_size = img_t.shape[1:]
+        img_t = img_t[slices]  # type: ignore
+        if get_track_meta():
+            self.update_meta(tensor=img_t, slices=slices)
+            cropped_from_start = np.asarray([s.indices(o)[0] for s, o in zip(slices[1:], orig_size)])
+            cropped_from_end = np.asarray(orig_size) - img_t.shape[1:] - cropped_from_start
+            cropped = list(chain(*zip(cropped_from_start.tolist(), cropped_from_end.tolist())))
+            self.push_transform(img_t, orig_size=_orig_size, extra_info={"cropped": cropped})
+        return img_t
+
+    def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):
+        spatial_rank = max(len(tensor.affine) - 1, 1)
+        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
+        mat = create_translate(spatial_rank, to_shift)
+        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+
+    def inverse(self, img: MetaTensor) -> MetaTensor:
+        transform = self.pop_transform(img)
+        cropped = transform[TraceKeys.EXTRA_INFO]["cropped"]
+        # the amount we pad is equal to the amount we cropped in each direction
+        inverse_transform = BorderPad(cropped)
+        # Apply inverse transform
+        with inverse_transform.trace_transform(False):
+            return inverse_transform(img)  # type: ignore
 
 
-class SpatialCrop(Transform):
+class SpatialCrop(Crop):
     """
     General purpose cropper to produce sub-volume region of interest (ROI).
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
     It can support to crop ND spatial (channel-first) data.
@@ -361,8 +475,6 @@ class SpatialCrop(Transform):
         - a spatial center and size
         - the start and end coordinates of the ROI
     """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -375,85 +487,59 @@ class SpatialCrop(Transform):
         """
         Args:
             roi_center: voxel coordinates for center of the crop ROI.
-            roi_size: size of the crop ROI, if a dimension of ROI size is bigger than image size,
+            roi_size: size of the crop ROI, if a dimension of ROI size is larger than image size,
                 will not crop that dimension of the image.
             roi_start: voxel coordinates for start of the crop ROI.
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
         """
-        roi_start_torch: torch.Tensor
+        self.slices = self.compute_slices(
+            roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
+        )
 
-        if roi_slices:
-            if not all(s.step is None or s.step == 1 for s in roi_slices):
-                raise ValueError("Only slice steps of 1/None are currently supported")
-            self.slices = list(roi_slices)
-        else:
-            if roi_center is not None and roi_size is not None:
-                roi_center, *_ = convert_data_type(
-                    data=roi_center, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
-                )
-                roi_size, *_ = convert_to_dst_type(src=roi_size, dst=roi_center, wrap_sequence=True)
-                _zeros = torch.zeros_like(roi_center)
-                roi_start_torch = maximum(roi_center - floor_divide(roi_size, 2), _zeros)  # type: ignore
-                roi_end_torch = maximum(roi_start_torch + roi_size, roi_start_torch)
-            else:
-                if roi_start is None or roi_end is None:
-                    raise ValueError("Please specify either roi_center, roi_size or roi_start, roi_end.")
-                roi_start_torch, *_ = convert_data_type(
-                    data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
-                )
-                roi_start_torch = maximum(roi_start_torch, torch.zeros_like(roi_start_torch))  # type: ignore
-                roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
-                roi_end_torch = maximum(roi_end_torch, roi_start_torch)
-            # convert to slices (accounting for 1d)
-            if roi_start_torch.numel() == 1:
-                self.slices = [slice(int(roi_start_torch.item()), int(roi_end_torch.item()))]
-            else:
-                self.slices = [slice(int(s), int(e)) for s, e in zip(roi_start_torch.tolist(), roi_end_torch.tolist())]
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
-        sd = min(len(self.slices), len(img.shape[1:]))  # spatial dims
-        slices = [slice(None)] + self.slices[:sd]
-        return img[tuple(slices)]
+        return super().__call__(img=img, slices=self.slices)
 
 
-class CenterSpatialCrop(Transform):
+class CenterSpatialCrop(Crop):
     """
     Crop at the center of image with specified ROI size.
-    If a dimension of the expected ROI size is bigger than the input image size, will not crop that dimension.
+    If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
     """
 
-    backend = SpatialCrop.backend
-
     def __init__(self, roi_size: Union[Sequence[int], int]) -> None:
         self.roi_size = roi_size
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def compute_slices(self, spatial_size: Sequence[int]):  # type: ignore
+        roi_size = fall_back_tuple(self.roi_size, spatial_size)
+        roi_center = [i // 2 for i in spatial_size]
+        return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
-        roi_size = fall_back_tuple(self.roi_size, img.shape[1:])
-        center = [i // 2 for i in img.shape[1:]]
-        cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
-        return cropper(img)
+        return super().__call__(img=img, slices=self.compute_slices(img.shape[1:]))
 
 
-class CenterScaleCrop(Transform):
+class CenterScaleCrop(Crop):
     """
     Crop at the center of image with specified scale of ROI size.
 
@@ -463,32 +549,30 @@ class CenterScaleCrop(Transform):
 
     """
 
-    backend = CenterSpatialCrop.backend
-
     def __init__(self, roi_scale: Union[Sequence[float], float]):
         self.roi_scale = roi_scale
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore
         img_size = img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        sp_crop = CenterSpatialCrop(roi_size=roi_size)
-        return sp_crop(img=img)
+        cropper = CenterSpatialCrop(roi_size=roi_size)
+        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
 
 
-class RandSpatialCrop(Randomizable, Transform):
+class RandSpatialCrop(Randomizable, Crop):
     """
     Crop image with random size or specific size ROI. It can crop at a random position as center
     or at the image center. And allows to set the minimum and maximum size to limit the randomly generated ROI.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
     of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -499,8 +583,6 @@ class RandSpatialCrop(Randomizable, Transform):
         random_size: crop with random size or specific size ROI.
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
     """
-
-    backend = CenterSpatialCrop.backend
 
     def __init__(
         self,
@@ -514,31 +596,33 @@ class RandSpatialCrop(Randomizable, Transform):
         self.random_center = random_center
         self.random_size = random_size
         self._size: Optional[Sequence[int]] = None
-        self._slices: Optional[Tuple[slice, ...]] = None
+        self._slices: Tuple[slice, ...]
 
     def randomize(self, img_size: Sequence[int]) -> None:
         self._size = fall_back_tuple(self.roi_size, img_size)
         if self.random_size:
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
             if any(i > j for i, j in zip(self._size, max_size)):
-                raise ValueError(f"min ROI size: {self._size} is bigger than max ROI size: {max_size}.")
+                raise ValueError(f"min ROI size: {self._size} is larger than max ROI size: {max_size}.")
             self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = (slice(None),) + get_random_patch(img_size, valid_size, self.R)
+            self._slices = get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
+
         """
-        self.randomize(img.shape[1:])
+        if randomize:
+            self.randomize(img.shape[1:])
         if self._size is None:
             raise RuntimeError("self._size not specified.")
         if self.random_center:
-            return img[self._slices]
+            return super().__call__(img=img, slices=self._slices)
         cropper = CenterSpatialCrop(self._size)
-        return cropper(img)
+        return super().__call__(img=img, slices=cropper.compute_slices(img.shape[1:]))
 
 
 class RandScaleCrop(RandSpatialCrop):
@@ -573,36 +657,43 @@ class RandScaleCrop(RandSpatialCrop):
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`, assuming `img` is channel-first and
-        slicing doesn't apply to the channel dim.
-        """
-        img_size = img.shape[1:]
+    def get_max_roi_size(self, img_size):
         ndim = len(img_size)
         self.roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
         if self.max_roi_scale is not None:
             self.max_roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.max_roi_scale, ndim), img_size)]
         else:
             self.max_roi_size = None
-        return super().__call__(img=img)
+
+    def randomize(self, img_size: Sequence[int]) -> None:
+        self.get_max_roi_size(img_size)
+        super().randomize(img_size)
+
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:  # type: ignore
+        """
+        Apply the transform to `img`, assuming `img` is channel-first and
+        slicing doesn't apply to the channel dim.
+
+        """
+        self.get_max_roi_size(img.shape[1:])
+        return super().__call__(img=img, randomize=randomize)
 
 
-class RandSpatialCropSamples(Randomizable, Transform):
+class RandSpatialCropSamples(Randomizable, TraceableTransform):
     """
     Crop image with random size or specific size ROI to generate a list of N samples.
     It can crop at a random position as center or at the image center. And allows to set
     the minimum size to limit the randomly generated ROI.
     It will return a list of cropped images.
 
-    Note: even `random_size=False`, if a dimension of the expected ROI size is bigger than the input image size,
+    Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
             if `random_size` is False, it specifies the expected ROI size to crop. e.g. [224, 224, 128]
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -644,15 +735,23 @@ class RandSpatialCropSamples(Randomizable, Transform):
     def randomize(self, data: Optional[Any] = None) -> None:
         pass
 
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
-        return [self.cropper(img) for _ in range(self.num_samples)]
+        ret = []
+        orig_size = img.shape[1:]
+        for i in range(self.num_samples):
+            cropped = self.cropper(img)
+            if get_track_meta():
+                cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
+                self.push_transform(cropped, orig_size=orig_size, extra_info=self.pop_transform(cropped, check=False))
+            ret.append(cropped)
+        return ret
 
 
-class CropForeground(Transform):
+class CropForeground(Crop):
     """
     Crop an image using a bounding box. The bounding box is generated by selecting foreground using select_fn
     at channels channel_indices. margin is added in each spatial dimension of the bounding box.
@@ -684,8 +783,6 @@ class CropForeground(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
     def __init__(
         self,
         select_fn: Callable = is_positive,
@@ -694,7 +791,7 @@ class CropForeground(Transform):
         allow_smaller: bool = True,
         return_coords: bool = False,
         k_divisible: Union[Sequence[int], int] = 1,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = NumpyPadMode.CONSTANT,
+        mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ) -> None:
         """
@@ -704,7 +801,7 @@ class CropForeground(Transform):
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is bigger than image size, will pad with
+                than box size, default to `True`. if the margined size is larger than image size, will pad with
                 specified `mode`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
@@ -725,10 +822,9 @@ class CropForeground(Transform):
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
-        self.pad_kwargs = pad_kwargs
+        self.padder = Pad(mode=mode, **pad_kwargs)
 
-    def compute_bounding_box(self, img: NdarrayOrTensor):
+    def compute_bounding_box(self, img: torch.Tensor):
         """
         Compute the start points and end points of bounding box to crop.
         And adjust bounding box coords to be divisible by `k`.
@@ -748,36 +844,51 @@ class CropForeground(Transform):
         return box_start_, box_end_
 
     def crop_pad(
-        self,
-        img: NdarrayOrTensor,
-        box_start: np.ndarray,
-        box_end: np.ndarray,
-        mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+        self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: Optional[str] = None, **pad_kwargs
     ):
         """
         Crop and pad based on the bounding box.
 
         """
-        cropped = SpatialCrop(roi_start=box_start, roi_end=box_end)(img)
+        slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
+        cropped = super().__call__(img=img, slices=slices)
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(box_end - np.asarray(img.shape[1:]), 0)
         pad = list(chain(*zip(pad_to_start.tolist(), pad_to_end.tolist())))
-        return BorderPad(spatial_border=pad, mode=mode or self.mode, **self.pad_kwargs)(cropped)
+        pad_width = BorderPad(spatial_border=pad).compute_pad_width(cropped.shape[1:])
+        ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
+        # combine the traced cropping and padding into one transformation
+        # by taking the padded info and placing it in a key inside the crop info.
+        if get_track_meta():
+            ret_: MetaTensor = ret  # type: ignore
+            app_op = ret_.applied_operations.pop(-1)
+            ret_.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = app_op
+        return ret
 
-    def __call__(self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None):
+    def __call__(self, img: torch.Tensor, mode: Optional[str] = None, **pad_kwargs):  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end, mode)
+        cropped = self.crop_pad(img, box_start, box_end, mode, **pad_kwargs)
 
         if self.return_coords:
             return cropped, box_start, box_end
         return cropped
 
+    def inverse(self, img: MetaTensor) -> MetaTensor:
+        transform = self.get_most_recent_transform(img)
+        # we moved the padding info in the forward, so put it back for the inverse
+        pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
+        img.applied_operations.append(pad_info)
+        # first inverse the padder
+        inv = self.padder.inverse(img)
+        # and then inverse the cropper (self)
+        return super().inverse(inv)
 
-class RandWeightedCrop(Randomizable, Transform):
+
+class RandWeightedCrop(Randomizable, TraceableTransform):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
@@ -808,13 +919,16 @@ class RandWeightedCrop(Randomizable, Transform):
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    def __call__(self, img: NdarrayOrTensor, weight_map: Optional[NdarrayOrTensor] = None) -> List[NdarrayOrTensor]:
+    def __call__(
+        self, img: torch.Tensor, weight_map: Optional[NdarrayOrTensor] = None, randomize: bool = True
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input image to sample patches from. assuming `img` is a channel-first array.
             weight_map: weight map used to generate patch samples. The weights must be non-negative.
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
+            randomize: whether to execute random operations, default to `True`.
 
         Returns:
             A list of image patches
@@ -826,16 +940,23 @@ class RandWeightedCrop(Randomizable, Transform):
         if img.shape[1:] != weight_map.shape[1:]:
             raise ValueError(f"image and weight map spatial shape mismatch: {img.shape[1:]} vs {weight_map.shape[1:]}.")
 
-        self.randomize(weight_map)
+        if randomize:
+            self.randomize(weight_map)
         _spatial_size = fall_back_tuple(self.spatial_size, weight_map.shape[1:])
-        results: List[NdarrayOrTensor] = []
-        for center in self.centers:
-            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            results.append(cropper(img))
+        results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
+        for i, center in enumerate(self.centers):
+            cropped = SpatialCrop(roi_center=center, roi_size=_spatial_size)(img)
+            if get_track_meta():
+                ret_: MetaTensor = cropped  # type: ignore
+                ret_.meta[Key.PATCH_INDEX] = i
+                ret_.meta["crop_center"] = center
+                self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+            results.append(cropped)
         return results
 
 
-class RandCropByPosNegLabel(Randomizable, Transform):
+class RandCropByPosNegLabel(Randomizable, TraceableTransform):
     """
     Crop random fixed sized regions with the center being a foreground or background voxel
     based on the Pos Neg Ratio.
@@ -848,7 +969,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
           [0, 0, 0, 0, 0],             [0, 0, 0]]      [0, 0, 0]]
           [0, 0, 0, 0, 0]]]
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
@@ -856,7 +977,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `label` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -890,16 +1011,16 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialCrop.backend
 
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        label: Optional[NdarrayOrTensor] = None,
+        label: Optional[torch.Tensor] = None,
         pos: float = 1.0,
         neg: float = 1.0,
         num_samples: int = 1,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
         image_threshold: float = 0.0,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
@@ -922,10 +1043,10 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def randomize(
         self,
-        label: NdarrayOrTensor,
+        label: torch.Tensor,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
     ) -> None:
         if fg_indices is None or bg_indices is None:
             if self.fg_indices is not None and self.bg_indices is not None:
@@ -949,12 +1070,13 @@ class RandCropByPosNegLabel(Randomizable, Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        img: torch.Tensor,
+        label: Optional[torch.Tensor] = None,
+        image: Optional[torch.Tensor] = None,
         fg_indices: Optional[NdarrayOrTensor] = None,
         bg_indices: Optional[NdarrayOrTensor] = None,
-    ) -> List[NdarrayOrTensor]:
+        randomize: bool = True,
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input data to crop samples from based on the pos/neg ratio of `label` and `image`.
@@ -967,6 +1089,7 @@ class RandCropByPosNegLabel(Randomizable, Transform):
                 need to provide `fg_indices` and `bg_indices` together.
             bg_indices: background indices to randomly select crop centers,
                 need to provide `fg_indices` and `bg_indices` together.
+            randomize: whether to execute the random operations, default to `True`.
 
         """
         if label is None:
@@ -976,18 +1099,24 @@ class RandCropByPosNegLabel(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, fg_indices, bg_indices, image)
-        results: List[NdarrayOrTensor] = []
+        if randomize:
+            self.randomize(label, fg_indices, bg_indices, image)
+        results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
-            for center in self.centers:
+            for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
-                results.append(cropper(img))
-
+                cropped = SpatialCrop(roi_center=center, roi_size=roi_size)(img)
+                if get_track_meta():
+                    ret_: MetaTensor = cropped  # type: ignore
+                    ret_.meta[Key.PATCH_INDEX] = i
+                    ret_.meta["crop_center"] = center
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                results.append(cropped)
         return results
 
 
-class RandCropByLabelClasses(Randomizable, Transform):
+class RandCropByLabelClasses(Randomizable, TraceableTransform):
     """
     Crop random fixed sized regions with the center being a class based on the specified ratios of every class.
     The label data can be One-Hot format array or Argmax data. And will return a list of arrays for all the
@@ -1020,7 +1149,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
          [0, 1, 3],      [1, 2, 1],
          [0, 0, 0]]      [1, 3, 0]]
 
-    If a dimension of the expected spatial size is bigger than the input image size,
+    If a dimension of the expected spatial size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than expected size, and the cropped
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
@@ -1028,7 +1157,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
-            if a dimension of ROI size is bigger than image size, will not crop that dimension of the image.
+            if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             if its components have non-positive values, the corresponding size of `label` will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `spatial_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
@@ -1051,16 +1180,16 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = SpatialCrop.backend
 
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
         ratios: Optional[List[Union[float, int]]] = None,
-        label: Optional[NdarrayOrTensor] = None,
+        label: Optional[torch.Tensor] = None,
         num_classes: Optional[int] = None,
         num_samples: int = 1,
-        image: Optional[NdarrayOrTensor] = None,
+        image: Optional[torch.Tensor] = None,
         image_threshold: float = 0.0,
         indices: Optional[List[NdarrayOrTensor]] = None,
         allow_smaller: bool = False,
@@ -1077,10 +1206,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
         self.allow_smaller = allow_smaller
 
     def randomize(
-        self,
-        label: NdarrayOrTensor,
-        indices: Optional[List[NdarrayOrTensor]] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        self, label: torch.Tensor, indices: Optional[List[NdarrayOrTensor]] = None, image: Optional[torch.Tensor] = None
     ) -> None:
         indices_: Sequence[NdarrayOrTensor]
         if indices is None:
@@ -1096,11 +1222,12 @@ class RandCropByLabelClasses(Randomizable, Transform):
 
     def __call__(
         self,
-        img: NdarrayOrTensor,
-        label: Optional[NdarrayOrTensor] = None,
-        image: Optional[NdarrayOrTensor] = None,
+        img: torch.Tensor,
+        label: Optional[torch.Tensor] = None,
+        image: Optional[torch.Tensor] = None,
         indices: Optional[List[NdarrayOrTensor]] = None,
-    ) -> List[NdarrayOrTensor]:
+        randomize: bool = True,
+    ) -> List[torch.Tensor]:
         """
         Args:
             img: input data to crop samples from based on the ratios of every class, assumes `img` is a
@@ -1109,6 +1236,7 @@ class RandCropByLabelClasses(Randomizable, Transform):
             image: optional image data to help select valid area, can be same as `img` or another image array.
                 use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
             indices: list of indices for every class in the image, used to randomly select crop centers.
+            randomize: whether to execute the random operations, default to `True`.
 
         """
         if label is None:
@@ -1118,18 +1246,25 @@ class RandCropByLabelClasses(Randomizable, Transform):
         if image is None:
             image = self.image
 
-        self.randomize(label, indices, image)
-        results: List[NdarrayOrTensor] = []
+        if randomize:
+            self.randomize(label, indices, image)
+        results: List[torch.Tensor] = []
+        orig_size = img.shape[1:]
         if self.centers is not None:
-            for center in self.centers:
+            for i, center in enumerate(self.centers):
                 roi_size = fall_back_tuple(self.spatial_size, default=label.shape[1:])
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
-                results.append(cropper(img))
+                cropped = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)(img)
+                if get_track_meta():
+                    ret_: MetaTensor = cropped  # type: ignore
+                    ret_.meta[Key.PATCH_INDEX] = i
+                    ret_.meta["crop_center"] = center
+                    self.push_transform(ret_, orig_size=orig_size, extra_info=self.pop_transform(ret_, check=False))
+                results.append(cropped)
 
         return results
 
 
-class ResizeWithPadOrCrop(Transform):
+class ResizeWithPadOrCrop(InvertibleTransform):
     """
     Resize an image to a target spatial size by either centrally cropping the image or
     padding it evenly with a user-specified mode.
@@ -1139,14 +1274,14 @@ class ResizeWithPadOrCrop(Transform):
     Args:
         spatial_size: the spatial size of output data after padding or crop.
             If has non-positive values, the corresponding size of input image will be used (no padding).
+        method: {``"symmetric"``, ``"end"``}
+            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        method: {``"symmetric"``, ``"end"``}
-            Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -1157,16 +1292,14 @@ class ResizeWithPadOrCrop(Transform):
     def __init__(
         self,
         spatial_size: Union[Sequence[int], int],
-        mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-        method: Union[Method, str] = Method.SYMMETRIC,
+        method: str = Method.SYMMETRIC,
+        mode: str = PytorchPadMode.CONSTANT,
         **pad_kwargs,
     ):
         self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
         self.cropper = CenterSpatialCrop(roi_size=spatial_size)
 
-    def __call__(
-        self, img: NdarrayOrTensor, mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None
-    ) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, mode: Optional[str] = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
@@ -1177,8 +1310,34 @@ class ResizeWithPadOrCrop(Transform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
+
         """
-        return self.padder(self.cropper(img), mode=mode)
+        orig_size = img.shape[1:]
+        ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
+        # remove the individual info and combine
+        if get_track_meta():
+            ret_: MetaTensor = ret  # type: ignore
+            pad_info = ret_.applied_operations.pop(-1)
+            crop_info = ret_.applied_operations.pop(-1)
+            self.push_transform(ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info})
+        return ret
+
+    def inverse(self, img: MetaTensor) -> MetaTensor:
+        transform = self.pop_transform(img)
+        return self.inverse_transform(img, transform)
+
+    def inverse_transform(self, img: MetaTensor, transform) -> MetaTensor:
+        # we joined the cropping and padding, so put them back before calling the inverse
+        crop_info = transform[TraceKeys.EXTRA_INFO].pop("crop_info")
+        pad_info = transform[TraceKeys.EXTRA_INFO].pop("pad_info")
+        img.applied_operations.append(crop_info)
+        img.applied_operations.append(pad_info)
+        # first inverse the padder
+        inv = self.padder.inverse(img)
+        # and then inverse the cropper (self)
+        return self.cropper.inverse(inv)
 
 
 class BoundingRect(Transform):

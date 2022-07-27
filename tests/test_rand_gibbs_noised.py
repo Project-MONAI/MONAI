@@ -20,7 +20,7 @@ from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoised
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
@@ -65,8 +65,7 @@ class TestRandGibbsNoised(unittest.TestCase):
         t.set_random_state(42)
         out2 = t(deepcopy(data))
         for k in KEYS:
-            torch.testing.assert_allclose(out1[k], out2[k], rtol=1e-7, atol=0)
-            self.assertIsInstance(out1[k], type(data[k]))
+            assert_allclose(out1[k], out2[k], rtol=1e-7, atol=0, type_test="tensor")
 
     @parameterized.expand(TEST_CASES)
     def test_identity(self, im_shape, input_type):
@@ -75,11 +74,7 @@ class TestRandGibbsNoised(unittest.TestCase):
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         out = t(deepcopy(data))
         for k in KEYS:
-            self.assertEqual(type(out[k]), type(data[k]))
-            if isinstance(out[k], torch.Tensor):
-                self.assertEqual(out[k].device, data[k].device)
-                out[k], data[k] = out[k].cpu(), data[k].cpu()
-            np.testing.assert_allclose(data[k], out[k], atol=1e-2)
+            assert_allclose(out[k], data[k], atol=1e-2, type_test="tensor")
 
     @parameterized.expand(TEST_CASES)
     def test_alpha_1(self, im_shape, input_type):
@@ -88,11 +83,7 @@ class TestRandGibbsNoised(unittest.TestCase):
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         out = t(deepcopy(data))
         for k in KEYS:
-            self.assertEqual(type(out[k]), type(data[k]))
-            if isinstance(out[k], torch.Tensor):
-                self.assertEqual(out[k].device, data[k].device)
-                out[k], data[k] = out[k].cpu(), data[k].cpu()
-            np.testing.assert_allclose(0.0 * data[k], out[k], atol=1e-2)
+            assert_allclose(out[k], 0.0 * data[k], atol=1e-2, type_test="tensor")
 
     @parameterized.expand(TEST_CASES)
     def test_dict_matches(self, im_shape, input_type):

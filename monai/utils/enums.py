@@ -16,6 +16,7 @@ from typing import Optional
 from monai.utils.deprecate_utils import deprecated
 
 __all__ = [
+    "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
     "InterpolateMode",
@@ -39,10 +40,36 @@ __all__ = [
     "TransformBackends",
     "BoxModeName",
     "GridPatchSort",
+    "FastMRIKeys",
 ]
 
 
-class NumpyPadMode(Enum):
+class StrEnum(str, Enum):
+    """
+    Enum subclass that converts its value to a string.
+
+    .. code-block:: python
+
+        from monai.utils import StrEnum
+
+        class Example(StrEnum):
+            MODE_A = "A"
+            MODE_B = "B"
+
+        assert (list(Example) == ["A", "B"])
+        assert Example.MODE_A == "A"
+        assert str(Example.MODE_A) == "A"
+        assert monai.utils.look_up_option("A", Example) == "A"
+    """
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return self.value
+
+
+class NumpyPadMode(StrEnum):
     """
     See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
@@ -60,7 +87,7 @@ class NumpyPadMode(Enum):
     EMPTY = "empty"
 
 
-class GridSampleMode(Enum):
+class GridSampleMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
@@ -78,7 +105,7 @@ class GridSampleMode(Enum):
     BICUBIC = "bicubic"
 
 
-class InterpolateMode(Enum):
+class InterpolateMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
     """
@@ -92,7 +119,7 @@ class InterpolateMode(Enum):
     AREA = "area"
 
 
-class UpsampleMode(Enum):
+class UpsampleMode(StrEnum):
     """
     See also: :py:class:`monai.networks.blocks.UpSample`
     """
@@ -102,7 +129,7 @@ class UpsampleMode(Enum):
     PIXELSHUFFLE = "pixelshuffle"
 
 
-class BlendMode(Enum):
+class BlendMode(StrEnum):
     """
     See also: :py:class:`monai.data.utils.compute_importance_map`
     """
@@ -111,7 +138,7 @@ class BlendMode(Enum):
     GAUSSIAN = "gaussian"
 
 
-class PytorchPadMode(Enum):
+class PytorchPadMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     """
@@ -122,7 +149,7 @@ class PytorchPadMode(Enum):
     CIRCULAR = "circular"
 
 
-class GridSamplePadMode(Enum):
+class GridSamplePadMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
     """
@@ -132,7 +159,7 @@ class GridSamplePadMode(Enum):
     REFLECTION = "reflection"
 
 
-class Average(Enum):
+class Average(StrEnum):
     """
     See also: :py:class:`monai.metrics.rocauc.compute_roc_auc`
     """
@@ -143,7 +170,7 @@ class Average(Enum):
     NONE = "none"
 
 
-class MetricReduction(Enum):
+class MetricReduction(StrEnum):
     """
     See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
@@ -157,7 +184,7 @@ class MetricReduction(Enum):
     SUM_CHANNEL = "sum_channel"
 
 
-class LossReduction(Enum):
+class LossReduction(StrEnum):
     """
     See also:
         - :py:class:`monai.losses.dice.DiceLoss`
@@ -171,7 +198,7 @@ class LossReduction(Enum):
     SUM = "sum"
 
 
-class DiceCEReduction(Enum):
+class DiceCEReduction(StrEnum):
     """
     See also:
         - :py:class:`monai.losses.dice.DiceCELoss`
@@ -181,7 +208,7 @@ class DiceCEReduction(Enum):
     SUM = "sum"
 
 
-class Weight(Enum):
+class Weight(StrEnum):
     """
     See also: :py:class:`monai.losses.dice.GeneralizedDiceLoss`
     """
@@ -191,7 +218,7 @@ class Weight(Enum):
     UNIFORM = "uniform"
 
 
-class ChannelMatching(Enum):
+class ChannelMatching(StrEnum):
     """
     See also: :py:class:`monai.networks.nets.HighResBlock`
     """
@@ -200,7 +227,7 @@ class ChannelMatching(Enum):
     PROJECT = "project"
 
 
-class SkipMode(Enum):
+class SkipMode(StrEnum):
     """
     See also: :py:class:`monai.networks.layers.SkipConnection`
     """
@@ -210,7 +237,7 @@ class SkipMode(Enum):
     MUL = "mul"
 
 
-class Method(Enum):
+class Method(StrEnum):
     """
     See also: :py:class:`monai.transforms.croppad.array.SpatialPad`
     """
@@ -219,7 +246,7 @@ class Method(Enum):
     END = "end"
 
 
-class ForwardMode(Enum):
+class ForwardMode(StrEnum):
     """
     See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
     """
@@ -228,7 +255,7 @@ class ForwardMode(Enum):
     EVAL = "eval"
 
 
-class TraceKeys:
+class TraceKeys(StrEnum):
     """Extra metadata keys used for traceable transforms."""
 
     CLASS_NAME: str = "class"
@@ -259,7 +286,7 @@ class InverseKeys:
     NONE = "none"
 
 
-class CommonKeys:
+class CommonKeys(StrEnum):
     """
     A set of common keys for dictionary based supervised training process.
     `IMAGE` is the input image data.
@@ -277,7 +304,7 @@ class CommonKeys:
     METADATA = "metadata"
 
 
-class PostFix:
+class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
@@ -297,7 +324,7 @@ class PostFix:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
-class TransformBackends(Enum):
+class TransformBackends(StrEnum):
     """
     Transform backends.
     """
@@ -306,7 +333,7 @@ class TransformBackends(Enum):
     NUMPY = "numpy"
 
 
-class JITMetadataKeys(Enum):
+class JITMetadataKeys(StrEnum):
     """
     Keys stored in the metadata file for saved Torchscript models. Some of these are generated by the routines
     and others are optionally provided by users.
@@ -318,7 +345,7 @@ class JITMetadataKeys(Enum):
     DESCRIPTION = "description"
 
 
-class BoxModeName(Enum):
+class BoxModeName(StrEnum):
     """
     Box mode names.
     """
@@ -334,7 +361,7 @@ class BoxModeName(Enum):
     CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
 
 
-class ProbMapKeys(str, Enum):
+class ProbMapKeys(StrEnum):
     """
     The keys to be used for generating the probability maps from patches
     """
@@ -345,7 +372,7 @@ class ProbMapKeys(str, Enum):
     NAME = "name"
 
 
-class GridPatchSort(str, Enum):
+class GridPatchSort(StrEnum):
     """
     The sorting method for the generated patches in `GridPatch`
     """
@@ -377,7 +404,7 @@ class GridPatchSort(str, Enum):
             )
 
 
-class WSIPatchKeys(str, Enum):
+class WSIPatchKeys(StrEnum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """
@@ -387,3 +414,18 @@ class WSIPatchKeys(str, Enum):
     SIZE = "patch_size"
     COUNT = "num_patches"
     PATH = "path"
+
+
+class FastMRIKeys(StrEnum):
+    """
+    The keys to be used for extracting data from the fastMRI dataset
+    """
+
+    KSPACE = "kspace"
+    MASK = "mask"
+    FILENAME = "filename"
+    RECON = "reconstruction_rss"
+    ACQUISITION = "acquisition"
+    MAX = "max"
+    NORM = "norm"
+    PID = "patient_id"

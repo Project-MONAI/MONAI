@@ -46,6 +46,8 @@ dependencies:
   - fire
   - jsonschema
   - pynrrd
+  - pydicom
+  - h5py
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1

@@ -32,6 +32,8 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
     background.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to skip metric computation on the first channel of
             the predicted output. Defaults to True.
@@ -318,7 +320,7 @@ def check_confusion_matrix_metric_name(metric_name: str):
         return "mcc"
     if metric_name in ["fowlkes_mallows_index", "fm"]:
         return "fm"
-    if metric_name in ["informedness", "bookmaker_informedness", "bm"]:
+    if metric_name in ["informedness", "bookmaker_informedness", "bm", "youden_index", "youden"]:
         return "bm"
     if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"

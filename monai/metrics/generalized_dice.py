@@ -29,6 +29,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     The inputs `y_pred` and `y` are expected to be one-hot, binarized channel-first
     or batch-first tensors, i.e., CHW[D] or BCHW[D].
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background (bool, optional): whether to include the background class (assumed to be in channel 0), in the
             score computation. Defaults to True.
@@ -169,9 +171,15 @@ def compute_generalized_dice(
     numer = 2.0 * (intersection * w).sum(dim=1)
     denom = (denominator * w).sum(dim=1)
 
-    # Compute the score. Where the denominator (and numerator) is 0, score is 1
+    # Compute the score
     generalized_dice_score = numer / denom
-    generalized_dice_score[denom == 0] = 1
 
-    # Compute the final score, replacing nans (where denominator is 0)
+    # Handle zero deivision. Where denom == 0 and the prediction volume is 0, score is 1.
+    # Where denom == 0 but the prediction volume is not 0, score is 0
+    y_pred_o = y_pred_o.sum(dim=-1)
+    denom_zeros = denom == 0
+    generalized_dice_score[denom_zeros] = torch.where(
+        (y_pred_o == 0)[denom_zeros], torch.tensor(1.0), torch.tensor(0.0)
+    )
+
     return generalized_dice_score

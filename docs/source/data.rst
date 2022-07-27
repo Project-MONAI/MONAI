@@ -153,6 +153,12 @@ PILReader
   :members:
 
 
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
+
 Image writer
 ------------
 
@@ -268,16 +274,24 @@ TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
 
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.fft_utils
+.. autofunction:: monai.data.fft_utils.fftn_centered
+.. autofunction:: monai.data.fft_utils.ifftn_centered
+
 
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj
-    :members:
+  :members:
 
 MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
-   :members:
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
 
 
 

@@ -110,7 +110,8 @@ class BoxMode(ABC):
             .. code-block:: python
 
                 boxes = torch.ones(10,6)
-                boxmode.boxes_to_corners(boxes) will return a 6-element tuple, each element is a 10x1 tensor
+                boxmode = BoxMode()
+                boxmode.boxes_to_corners(boxes) # will return a 6-element tuple, each element is a 10x1 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -130,7 +131,8 @@ class BoxMode(ABC):
             .. code-block:: python
 
                 corners = (torch.ones(10,1), torch.ones(10,1), torch.ones(10,1), torch.ones(10,1))
-                boxmode.corners_to_boxes(corners) will return a 10x4 tensor
+                boxmode = BoxMode()
+                boxmode.corners_to_boxes(corners) # will return a 10x4 tensor
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -516,9 +518,9 @@ def convert_box_mode(
             boxes = torch.ones(10,4)
             # The following three lines are equivalent
             # They convert boxes with format [xmin, ymin, xmax, ymax] to [xcenter, ycenter, xsize, ysize].
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode="ccwh")
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
-            box_convert_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode="ccwh")
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode)
+            convert_box_mode(boxes=boxes, src_mode="xyxy", dst_mode=monai.data.box_utils.CenterSizeMode())
     """
     src_boxmode = get_boxmode(src_mode)
     dst_boxmode = get_boxmode(dst_mode)
@@ -570,8 +572,8 @@ def convert_box_to_standard_mode(
             boxes = torch.ones(10,6)
             # The following two lines are equivalent
             # They convert boxes with format [xmin, xmax, ymin, ymax, zmin, zmax] to [xmin, ymin, zmin, xmax, ymax, zmax]
-            box_convert_standard_mode(boxes=boxes, mode="xxyyzz")
-            box_convert_mode(boxes=boxes, src_mode="xxyyzz", dst_mode="xyzxyz")
+            convert_box_to_standard_mode(boxes=boxes, mode="xxyyzz")
+            convert_box_mode(boxes=boxes, src_mode="xxyyzz", dst_mode="xyzxyz")
     """
     return convert_box_mode(boxes=boxes, src_mode=mode, dst_mode=StandardMode())
 
@@ -619,7 +621,7 @@ def centers_in_boxes(centers: NdarrayOrTensor, boxes: NdarrayOrTensor, eps: floa
         min_center_to_border: np.ndarray = np.stack(center_to_border, axis=1).min(axis=1)
         return min_center_to_border > eps  # array[bool]
 
-    return torch.stack(center_to_border, dim=1).to(COMPUTE_DTYPE).min(dim=1)[0] > eps  # Tensor[bool]
+    return torch.stack(center_to_border, dim=1).to(COMPUTE_DTYPE).min(dim=1)[0] > eps  # type: ignore
 
 
 def boxes_center_distance(
@@ -957,25 +959,25 @@ def spatial_crop_boxes(
         - ``keep``, it indicates whether each box in ``boxes`` are kept when ``remove_empty=True``.
     """
 
-    roi_start_torch, *_ = convert_data_type(
-        data=roi_start, output_type=torch.Tensor, dtype=torch.int16, wrap_sequence=True
-    )
-    roi_end_torch, *_ = convert_to_dst_type(src=roi_end, dst=roi_start_torch, wrap_sequence=True)
-    roi_end_torch = torch.maximum(roi_end_torch, roi_start_torch)
-
     # convert numpy to tensor if needed
-    boxes_t, *_ = convert_data_type(deepcopy(boxes), torch.Tensor)
+    boxes_t = convert_data_type(boxes, torch.Tensor)[0].clone()
 
     # convert to float32 since torch.clamp_ does not support float16
     boxes_t = boxes_t.to(dtype=COMPUTE_DTYPE)
 
+    roi_start_t = convert_to_dst_type(src=roi_start, dst=boxes_t, wrap_sequence=True)[0].to(torch.int16)
+    roi_end_t = convert_to_dst_type(src=roi_end, dst=boxes_t, wrap_sequence=True)[0].to(torch.int16)
+    roi_end_t = torch.maximum(roi_end_t, roi_start_t)
+
     # makes sure the bounding boxes are within the patch
     spatial_dims = get_spatial_dims(boxes=boxes, spatial_size=roi_end)
     for axis in range(0, spatial_dims):
-        boxes_t[:, axis].clamp_(min=roi_start_torch[axis], max=roi_end_torch[axis] - TO_REMOVE)
-        boxes_t[:, axis + spatial_dims].clamp_(min=roi_start_torch[axis], max=roi_end_torch[axis] - TO_REMOVE)
-        boxes_t[:, axis] -= roi_start_torch[axis]
-        boxes_t[:, axis + spatial_dims] -= roi_start_torch[axis]
+        boxes_t[:, axis] = boxes_t[:, axis].clamp(min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE)
+        boxes_t[:, axis + spatial_dims] = boxes_t[:, axis + spatial_dims].clamp(
+            min=roi_start_t[axis], max=roi_end_t[axis] - TO_REMOVE
+        )
+        boxes_t[:, axis] -= roi_start_t[axis]
+        boxes_t[:, axis + spatial_dims] -= roi_start_t[axis]
 
     # remove the boxes that are actually empty
     if remove_empty:
@@ -1034,8 +1036,12 @@ def non_max_suppression(
         Indexes of ``boxes`` that are kept after NMS.
 
     Example:
-        keep = non_max_suppression(boxes, scores, num_thresh=0.1)
-        boxes_after_nms = boxes[keep]
+        .. code-block:: python
+
+            boxes = torch.ones(10,6)
+            scores = torch.ones(10)
+            keep = non_max_suppression(boxes, scores, num_thresh=0.1)
+            boxes_after_nms = boxes[keep]
     """
 
     # returns empty array if boxes is empty

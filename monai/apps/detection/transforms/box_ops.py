@@ -99,7 +99,7 @@ def apply_affine_to_boxes(boxes: NdarrayOrTensor, affine: NdarrayOrTensor) -> Nd
     return boxes_affine
 
 
-def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]) -> NdarrayOrTensor:
+def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]):
     """
     Zoom boxes
 
@@ -128,7 +128,7 @@ def zoom_boxes(boxes: NdarrayOrTensor, zoom: Union[Sequence[float], float]) -> N
 
 def resize_boxes(
     boxes: NdarrayOrTensor, src_spatial_size: Union[Sequence[int], int], dst_spatial_size: Union[Sequence[int], int]
-) -> NdarrayOrTensor:
+):
     """
     Resize boxes when the corresponding image is resized
 
@@ -162,7 +162,7 @@ def flip_boxes(
     boxes: NdarrayOrTensor,
     spatial_size: Union[Sequence[int], int],
     flip_axes: Optional[Union[Sequence[int], int]] = None,
-) -> NdarrayOrTensor:
+):
     """
     Flip boxes when the corresponding image is flipped
 
@@ -185,7 +185,11 @@ def flip_boxes(
     flip_axes = ensure_tuple(flip_axes)
 
     # flip box
-    _flip_boxes = deepcopy(boxes)
+    if isinstance(boxes, torch.Tensor):
+        _flip_boxes = boxes.clone()
+    else:
+        _flip_boxes = deepcopy(boxes)  # type: ignore
+
     for axis in flip_axes:
         _flip_boxes[:, axis + spatial_dims] = spatial_size[axis] - boxes[:, axis] - TO_REMOVE
         _flip_boxes[:, axis] = spatial_size[axis] - boxes[:, axis + spatial_dims] - TO_REMOVE
@@ -224,7 +228,7 @@ def convert_box_to_mask(
     spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
 
     # if no box, return empty mask
-    if len(labels) == 0:
+    if labels.shape[0] == 0:
         boxes_mask_np = np.ones((1,) + spatial_size, dtype=np.int16) * np.int16(bg_label)
         boxes_mask, *_ = convert_to_dst_type(src=boxes_mask_np, dst=boxes, dtype=torch.int16)
         return boxes_mask
@@ -249,11 +253,11 @@ def convert_box_to_mask(
         box_size = [boxes_np[b, axis + spatial_dims] - boxes_np[b, axis] for axis in range(spatial_dims)]
         if ellipse_mask:
             # initialize a square/cube mask
-            max_box_size = max(box_size)
+            max_box_size = max(box_size)  # max of box w/h/d
             radius = max_box_size / 2.0
             center = (max_box_size - 1) / 2.0
             boxes_only_mask = np.ones([max_box_size] * spatial_dims, dtype=np.int16) * np.int16(bg_label)
-            # apply label intensity to circle/ball foreground
+            # apply label intensity to generate circle/ball foreground
             ranges = tuple(slice(0, max_box_size) for _ in range(spatial_dims))
             dist_from_center = sum((grid - center) ** 2 for grid in np.ogrid[ranges])
             boxes_only_mask[dist_from_center <= radius**2] = np.int16(labels_np[b])
@@ -262,7 +266,7 @@ def convert_box_to_mask(
             boxes_only_mask = resizer(boxes_only_mask[None])[0]  # type: ignore
         else:
             # generate a rect mask
-            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])  # type: ignore
+            boxes_only_mask = np.ones(box_size, dtype=np.int16) * np.int16(labels_np[b])
         # apply to global mask
         slicing = [b]
         slicing.extend(slice(boxes_np[b, d], boxes_np[b, d + spatial_dims]) for d in range(spatial_dims))  # type:ignore
@@ -305,11 +309,11 @@ def convert_mask_to_box(
             boxes_b.append(min(fd_i))  # top left corner
         for fd_i in fg_indices:
             boxes_b.append(max(fd_i) + 1 - TO_REMOVE)  # bottom right corner
-        if spatial_dims == 2:
-            labels_list.append(boxes_mask_np[b, boxes_b[0], boxes_b[1]])
-        if spatial_dims == 3:
-            labels_list.append(boxes_mask_np[b, boxes_b[0], boxes_b[1], boxes_b[2]])
         boxes_list.append(boxes_b)
+        if spatial_dims == 2:
+            labels_list.append(boxes_mask_np[b, fg_indices[0][0], fg_indices[1][0]])
+        if spatial_dims == 3:
+            labels_list.append(boxes_mask_np[b, fg_indices[0][0], fg_indices[1][0], fg_indices[2][0]])
 
     if len(boxes_list) == 0:
         boxes_np, labels_np = np.zeros([0, 2 * spatial_dims]), np.zeros([0])
@@ -334,7 +338,7 @@ def select_labels(
     Return:
         selected labels, does not share memory with original labels.
     """
-    labels_tuple = ensure_tuple(labels, True)  # type: ignore
+    labels_tuple = ensure_tuple(labels, True)
 
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
@@ -349,7 +353,7 @@ def select_labels(
     return tuple(labels_select_list)
 
 
-def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrTensor:
+def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int):
     """
     Interchange two axes of boxes.
 
@@ -363,7 +367,11 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrT
 
     """
     spatial_dims: int = get_spatial_dims(boxes=boxes)
-    boxes_swap: NdarrayOrTensor = deepcopy(boxes)
+
+    if isinstance(boxes, torch.Tensor):
+        boxes_swap = boxes.clone()
+    else:
+        boxes_swap = deepcopy(boxes)  # type: ignore
     boxes_swap[:, [axis1, axis2]] = boxes_swap[:, [axis2, axis1]]  # type: ignore
     boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[  # type: ignore
         :, [spatial_dims + axis2, spatial_dims + axis1]
@@ -373,7 +381,7 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int) -> NdarrayOrT
 
 def rot90_boxes(
     boxes: NdarrayOrTensor, spatial_size: Union[Sequence[int], int], k: int = 1, axes: Tuple[int, int] = (0, 1)
-) -> NdarrayOrTensor:
+):
     """
     Rotate boxes by 90 degrees in the plane specified by axes.
     Rotation direction is from the first towards the second axis.

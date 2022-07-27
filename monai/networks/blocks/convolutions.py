@@ -159,19 +159,22 @@ class Convolution(nn.Sequential):
 
         self.add_module("conv", conv)
 
-        if not conv_only:
-            self.add_module(
-                "adn",
-                ADN(
-                    ordering=adn_ordering,
-                    in_channels=out_channels,
-                    act=act,
-                    norm=norm,
-                    norm_dim=self.dimensions,
-                    dropout=dropout,
-                    dropout_dim=dropout_dim,
-                ),
-            )
+        if conv_only:
+            return
+        if act is None and norm is None and dropout is None:
+            return
+        self.add_module(
+            "adn",
+            ADN(
+                ordering=adn_ordering,
+                in_channels=out_channels,
+                act=act,
+                norm=norm,
+                norm_dim=self.dimensions,
+                dropout=dropout,
+                dropout_dim=dropout_dim,
+            ),
+        )
 
 
 class ResidualUnit(nn.Module):

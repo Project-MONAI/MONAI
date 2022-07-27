@@ -178,10 +178,26 @@ class ConfigParser:
 
     def set(self, config: Any, id: str = ""):
         """
-        Set config by ``id``. See also :py:meth:`__setitem__`.
+        Set config by ``id``.
+
+        Args:
+            config: config to set at location ``id``.
+            id: id to specify the expected position. See also :py:meth:`__setitem__`.
 
         """
         self[id] = config
+
+    def update(self, pairs: Dict[str, Any]):
+        """
+        Set the ``id`` and the corresponding config content in pairs, see also :py:meth:`__setitem__`.
+        For example, ``parser.update({"train#epoch": 100, "train#lr": 0.02})``
+
+        Args:
+            pairs: dictionary of `id` and config pairs.
+
+        """
+        for k, v in pairs.items():
+            self[k] = v
 
     def __contains__(self, id: Union[str, int]) -> bool:
         """
@@ -226,7 +242,8 @@ class ConfigParser:
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
                 Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
                 ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
-                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`).
+                ``eval_expr`` (whether to evaluate the `ConfigExpression`, default to `True`), ``default``
+                (the default config item if the `id` is not in the config content).
 
         """
         if not self.ref_resolver.is_resolved():
