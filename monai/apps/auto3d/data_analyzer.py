@@ -15,42 +15,44 @@ Step 1 of the AutoML pipeline. The dataset is analysized with this script.
 
 import argparse
 import copy
+import logging
 import sys
 import time
+import warnings
 from functools import partial
+from typing import Dict, Union
 
 import numpy as np
+import torch
 import yaml
 from scipy.ndimage.measurements import label as scipy_label
 from tqdm import tqdm
 
 import monai
+from monai import data, transforms
+from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
 
 sys.path.append(".")
 
-import logging
-
-import torch
-
-from monai import data, transforms
-
 logger = logging.getLogger("global")
 logger.addHandler(logging.StreamHandler())
-
-from typing import Dict, Union
-
-from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
 
 __all__ = ["DataAnalyzer"]
 
 
 class DataAnalyzer:
-    """Data analyzer for a dataset
+    """
+    The DataAnalyzer automatically analyzes a given medical image datasets and reports out the statistics.
+
     Args:
-        dataset: A instance of class inhereted from DataSet class
-        output_yaml: output yaml file path
-        functions: define which stats to calculate, you can define
-                   your own function and add it here.
+        datalist: a Python dictionary storing group, fold, and other information of the medical
+            image dataset, or a string to the JSON file storing the dictionary
+        dataroot: user's local directory containing the datasets
+        output_yaml: path to save the analysis result
+        average: whether to average the statistical value across different image modalities
+        do_ccp: todo,
+        device: a string specifying hardware (CUDA/CPU) utilized for the operations
+            worker: number of workers to use for parallel processing
 
     Class method overview:
         Hardcoded functions:
@@ -102,12 +104,6 @@ class DataAnalyzer:
         device: str = "cuda",
         worker: int = 2,
     ):
-        """
-        Args:
-
-        Note:
-
-        """
         self.output_yaml = output_yaml
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
@@ -196,7 +192,7 @@ class DataAnalyzer:
 
     def _get_case_image_stats(self):
         ###############################################################
-        # Generate case_stats
+        """Generate case_stats"""
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
@@ -220,7 +216,7 @@ class DataAnalyzer:
 
     def _get_case_image_stats_summary(self):
         ###############################################################
-        # Update gather_summary
+        """Update gather_summary"""
         # this dictionary describes how to gather values in the summary
         case_stats_summary = {
             "image_stats": {
@@ -235,7 +231,7 @@ class DataAnalyzer:
 
     def _get_case_foreground_image_stats(self):
         ###############################################################
-        # Generate case_stats
+        """Generate case_stats"""
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
@@ -261,7 +257,7 @@ class DataAnalyzer:
 
     def _get_label_stats(self):
         ###############################################################
-        # Generate case_stats
+        """Generate case_stats"""
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
@@ -307,7 +303,7 @@ class DataAnalyzer:
         return case_stats
 
     def _get_label_stats_summary(self):
-        # get unique_label
+        """Get unique_label"""
         case_stats_summary = {
             "label_stats": {
                 "labels": self.label_union,
@@ -329,8 +325,10 @@ class DataAnalyzer:
         self.gather_summary.update(case_stats_summary)
 
     def _pixelpercent_summary(self, x):
-        """Define the summary function for the pixel percentage over the whole dataset
+        """
+        Define the summary function for the pixel percentage over the whole dataset
         x: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels
+
         """
         percent_summary = {}
         for _ in x:
@@ -342,9 +340,11 @@ class DataAnalyzer:
         return percent_summary
 
     def _intensity_summary(self, x, average=False):
-        """Define the summary function for a stats over the whole dataset
+        """
+        Define the summary function for a stats over the whole dataset
         x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
         average: if True, average the values over all the images (modalities)
+
         """
         result = {}
         for key in x[0][0].keys():
@@ -354,14 +354,18 @@ class DataAnalyzer:
             axis = (0,) if not average else None
             try:
                 value = self.operations_summary[key](value, axis=axis)
-            except:
-                logger.debug("operation summary definetion must accept axis input like np.mean")
+            except SyntaxWarning:
+                logger.debug("operation summary definition must accept axis input like np.mean")
+                warnings.warn("operation summary definition must accept axis input like np.mean")
+                pass
             result[key] = np.array(value).tolist()
         return result
 
     def _stats_opt_summary(self, data, average=False, is_label=False):
-        """Wraps _stats_opt for a list of data from all cases. Does not guarantee correct output
+        """
+        Wraps _stats_opt for a list of data from all cases. Does not guarantee correct output
         for custimized stats structure. Check the following input structures.
+
         Args:
             data: [case_stats, case_stats, ...].
                 For images,
@@ -408,9 +412,10 @@ class DataAnalyzer:
             # torch.quantile may fail with large input, if failed, use numpy version
             try:
                 _result = ops(data).data.cpu().numpy().tolist()
-            except:
-                # logger.info(f'torch {name} version has failed, using np version.')
+            except UserWarning as e:
+                warnings.warn(f"torch {name} version has failed, using np version.")
                 _result = self.operations_np[name](data.cpu().numpy()).tolist()
+                pass
             # post process the data
             mappingkeys = self.operations_mappingkey.get(name, None)
             if mappingkeys is not None:
@@ -420,11 +425,12 @@ class DataAnalyzer:
         return result
 
     def _get_foreground_image(self, image, label=None):
-        """Update select_fn if the foreground is defined differently.
-        return image foreground without using label
         """
-        select_fn = lambda x: x > 0
-        crop_foreground = monai.transforms.CropForeground(select_fn=select_fn)
+        Update select_fn if the foreground is defined differently.
+        return image foreground without using label
+
+        """
+        crop_foreground = monai.transforms.CropForeground(select_fn=lambda x: x > 0)
         return crop_foreground(image)
 
     def _get_foreground_label(self, image, label):
@@ -460,11 +466,13 @@ class DataAnalyzer:
         return case_stats
 
     def _get_case_summary(self):
-        """Function to combine case stats. The stats for each case is stored in self.result['stats_by_cases'].
+        """
+        Function to combine case stats. The stats for each case is stored in self.result['stats_by_cases'].
         Each case stats is a dictionary. The function first get all the leaf-keys of self.gather_summary.
         self.gather_summary is a dictionary of the same structure with the final summary yaml
         output (self.results['stats_summary']), because it is updated by case_stats_summary.
         The operations is retrived by recursive_getvalue and the combined value is calculated.
+
         """
         # initialize gather_summary
         [func() for func in self.functions_summary]

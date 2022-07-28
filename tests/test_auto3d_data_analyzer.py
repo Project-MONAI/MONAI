@@ -26,20 +26,17 @@ n_workers = 0 if sys.platform in ("win32", "darwin") else 2
 
 class TestDataAnalyzer(unittest.TestCase):
     def test_data_analyzer(self):
-        source_datalist = dict(
+        source_datalist = {
+            "testing",
+            [{"image": "val_001.fake.nii.gz"}],
+            "training",
             [
-                ("testing", [{"image": "val_001.fake.nii.gz"}]),
-                (
-                    "training",
-                    [
-                        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-                        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-                        {"fold": 1, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-                        {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-                    ],
-                ),
-            ]
-        )
+                {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
+                {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
+                {"fold": 1, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
+                {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
+            ],
+        }
 
         # Generate datasets
         tmp_dir = "tests/testing_data/auto3d_tmp"
