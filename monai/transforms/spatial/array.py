@@ -389,7 +389,7 @@ class ResampleToMatch(SpatialResample):
             RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
-            Resampled input image, Metadata
+            Resampled input tensor or MetaTensor.
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
@@ -508,7 +508,7 @@ class Spacing(InvertibleTransform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original affine, current affine.
+            data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
         original_spatial_shape = data_array.shape[1:]
