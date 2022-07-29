@@ -233,11 +233,6 @@ Blocks
 .. autoclass:: DVF2DDF
     :members:
 
-`VarNetBlock`
-~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
-    :members:
-
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
@@ -638,14 +633,9 @@ Nets
 .. autoclass:: TopologySearch
   :members:
 
-`NormUnet`
-~~~~~~~~~~
+`ComplexUnet`
+~~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.complex_unet.ComplexUnet
-   :members:
-
-`SensitivityModel`
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
    :members:
 
 Utilities
