@@ -161,6 +161,7 @@ class TestLoadImage(unittest.TestCase):
             result = LoadImage(image_only=True, **input_param)(filenames)
             ext = "".join(Path(name).suffixes)
             self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image" + ext))
+            self.assertEqual(result.meta["space"], "RAS")
             assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
