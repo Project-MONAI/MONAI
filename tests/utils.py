@@ -17,6 +17,7 @@ import json
 import operator
 import os
 import queue
+import ssl
 import sys
 import tempfile
 import time
@@ -123,6 +124,9 @@ def skip_if_downloading_fails():
         yield
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except RuntimeError as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
