@@ -9,6 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
+from typing import Sequence
+
 from monai.config.type_definitions import NdarrayOrTensor
 
 
@@ -33,3 +36,18 @@ def root_sum_of_squares(x: NdarrayOrTensor, spatial_dim: int) -> NdarrayOrTensor
     """
     rss_x: NdarrayOrTensor = (x**2).sum(spatial_dim) ** 0.5
     return rss_x
+
+
+def floor_ceil(n: float) -> Sequence:
+    """
+    Returns floor and ceil of the input
+
+    Args:
+        n: input number
+
+    Returns:
+        A tuple containing:
+            (1) floor(n)
+            (2) ceil(n)
+    """
+    return math.floor(n), math.ceil(n)

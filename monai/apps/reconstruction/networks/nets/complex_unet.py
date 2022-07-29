@@ -9,15 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from typing import Sequence, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch.nn import functional as F
 
+from monai.apps.reconstruction.networks.nets.utils import (
+    complex_normalize,
+    inverse_complex_normalize,
+    pad,
+    reshape_channel_complex_to_last_dim,
+    reshape_complex_to_channel_dim,
+)
 from monai.networks.nets.basic_unet import BasicUNet
-from monai.apps.reconstruction.networks.nets.utils import complex_to_channel_dim, complex_normalize, pad, reverse_pad, reverse_complex_normalize, channel_complex_to_last_dim
 
 
 class ComplexUnet(nn.Module):
@@ -73,11 +77,11 @@ class ComplexUnet(nn.Module):
         Returns:
             output of shape (B,C,H,W,2) for 2D data or (B,C,H,W,D,2) for 3D data
         """
-        x = complex_to_channel_dim(x)
+        x = reshape_complex_to_channel_dim(x)
         x, mean, std = complex_normalize(x)
-        x, pad_sizes = pad(x)
+        x, padder = pad(x)
         x = self.unet(x)
-        x = reverse_pad(x, pad_sizes)
-        x = reverse_complex_normalize(x, mean, std)
-        x = channel_complex_to_last_dim(x)
+        x = padder.inverse(x)
+        x = inverse_complex_normalize(x, mean, std)
+        x = reshape_channel_complex_to_last_dim(x)
         return x

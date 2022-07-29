@@ -12,16 +12,15 @@
 This script contains utility functions for developing new networks/blocks in PyTorch.
 """
 
-import math
 from typing import Sequence
 
 from torch import Tensor
-from torch.nn import functional as F
 
-from monai.utils.type_conversion import convert_to_tensor
+from monai.apps.reconstruction.mri_utils import floor_ceil
+from monai.transforms import SpatialPad
 
 
-def complex_to_channel_dim(self, x: Tensor) -> Tensor:
+def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:  # type: ignore
     """
     Swaps the complex dimension with the channel dimension so that the network treats real/imaginary
     parts as two separate channels.
@@ -44,7 +43,7 @@ def complex_to_channel_dim(self, x: Tensor) -> Tensor:
         return x.permute(0, 5, 1, 2, 3, 4).contiguous().view(b, 2 * c, h, w, d)
 
 
-def channel_complex_to_last_dim(self, x: Tensor) -> Tensor:
+def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:  # type: ignore
     """
     Swaps the complex dimension with the channel dimension so that the network output has 2 as its last dimension
 
@@ -68,11 +67,10 @@ def channel_complex_to_last_dim(self, x: Tensor) -> Tensor:
         return x.view(b, 2, c, h, w, d).permute(0, 2, 3, 4, 5, 1)
 
 
-def complex_normalize(self, x: Tensor) -> Sequence:
+def complex_normalize(x: Tensor) -> Sequence:  # type: ignore
     """
-    Performs group mean-std normalization for complex data. Normalization is done for each batch member
-    and each part (real and imaginary parts), separately. To see what "group" means, mean of
-    an input of shape (B,C,H,W) will be (B,).
+    Performs layer mean-std normalization for complex data. Normalization is done for each batch member
+    along each part (part refers to real and imaginary parts), separately.
 
     Args:
         x: input of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
@@ -95,12 +93,18 @@ def complex_normalize(self, x: Tensor) -> Sequence:
         b, c, h, w, d = x.shape
         x = x.contiguous().view(b, 2, c // 2 * h * w * d)
         mean = x.mean(dim=2).view(b, 2, 1, 1, 1, 1).expand(b, 2, c // 2, 1, 1, 1).contiguous().view(b, c, 1, 1, 1)
-        std = x.std(dim=2, unbiased=False).view(b, 2, 1, 1, 1, 1).expand(b, 2, c // 2, 1, 1, 1).contiguous().view(b, c, 1, 1, 1)
+        std = (
+            x.std(dim=2, unbiased=False)
+            .view(b, 2, 1, 1, 1, 1)
+            .expand(b, 2, c // 2, 1, 1, 1)
+            .contiguous()
+            .view(b, c, 1, 1, 1)
+        )
         x = x.view(b, c, h, w, d)
         return (x - mean) / std, mean, std
 
 
-def reverse_complex_normalize(self, x: Tensor, mean: float, std: float) -> Tensor:
+def inverse_complex_normalize(x: Tensor, mean: float, std: float) -> Tensor:  # type: ignore
     """
     Reverses the normalization done by complex_normalize
 
@@ -115,24 +119,10 @@ def reverse_complex_normalize(self, x: Tensor, mean: float, std: float) -> Tenso
     return x * std + mean
 
 
-def floor_ceil(n: float) -> Sequence:
+def pad(x: Tensor) -> Sequence:  # type: ignore
     """
-    Returns floor and ceil of the input
-
-    Args:
-        n: input number
-
-    Returns:
-        A tuple containing:
-            (1) floor(n)
-            (2) ceil(n)
-    """
-    return math.floor(n), math.ceil(n)
-
-
-def pad(self, x: Tensor) -> Sequence:
-    """
-    Pad input to feed into the network
+    Pad input to feed into the network. This function pads to the nearest even integer by
+    by adding at most 4 powers of 2 (this is equivalent to do OR with 15 (1111)).
 
     Args:
         x: input of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
@@ -140,44 +130,51 @@ def pad(self, x: Tensor) -> Sequence:
     Returns:
         A tuple containing
             (1) padded input
-            (2) pad sizes (in order to reverse padding if needed)
+            (2) padder which has the capability to reverse padding later if needed
+
+    Example:
+        .. code-block:: python
+
+            import torch
+
+            # 2D data
+            x = torch.ones([3,2,50,70])
+            x_pad,padder = pad(x)
+            # the following line should print (3, 2, 64, 80)
+            print(x_pad.shape)
+            # the following line should print (3, 2, 50, 70)
+            print(padder.inverse(x_pad).shape)
+
+            # 3D data
+            x = torch.ones([3,2,50,70,80])
+            x_pad,padder = pad(x)
+            # the following line should print (3, 2, 64, 80, 80)
+            print(x_pad.shape)
+            # the following line should print (3, 2, 50, 70, 80)
+            print(padder.inverse(x_pad).shape)
     """
     if len(x.shape) == 4:  # this is 2D
         b, c, h, w = x.shape
-        w_mult = ((w - 1) | 15) + 1
+        w_mult = ((w - 1) | 15) + 1  # OR with 15 makes sure padding is even by adding at most 4 powers of 2 (15 = 1111)
         h_mult = ((h - 1) | 15) + 1
         w_pad = floor_ceil((w_mult - w) / 2)
         h_pad = floor_ceil((h_mult - h) / 2)
-        x = F.pad(x, w_pad + h_pad)  # type: ignore
-        return x, (h_pad, w_pad, h_mult, w_mult)
+        padder = SpatialPad(spatial_size=[-1, -1, h_mult, w_mult])
+        x = padder(
+            x, to_pad=[(0, 0), (0, 0)] + [h_pad] + [w_pad]  # type: ignore
+        )  # 0 is for batch and channel dimensions which are not padded
+        return x, padder
 
     elif len(x.shape) == 5:  # this is 3D
         b, c, h, w, d = x.shape
-        w_mult = ((w - 1) | 15) + 1
+        w_mult = ((w - 1) | 15) + 1  # OR with 15 makes sure padding is even by adding at most 4 powers of 2 (15 = 1111)
         h_mult = ((h - 1) | 15) + 1
         d_mult = ((d - 1) | 15) + 1
         w_pad = floor_ceil((w_mult - w) / 2)
         h_pad = floor_ceil((h_mult - h) / 2)
         d_pad = floor_ceil((d_mult - d) / 2)
-        x = F.pad(x, w_pad + h_pad + d_pad)
-        return x, (h_pad, w_pad, d_pad, h_mult, w_mult, d_mult)
-
-
-def reverse_pad(self, x: Tensor, pad_sizes: Sequence) -> Tensor:
-    """
-    De-pad network output to match its original shape
-
-    Args:
-        x: input of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
-        pad_sizes: padding values
-
-    Returns:
-        de-padded input
-    """
-    if len(x.shape) == 4:  # this is 2D
-        h_pad, w_pad, h_mult, w_mult = pad_sizes
-        return x[..., h_pad[0] : h_mult - h_pad[1], w_pad[0] : w_mult - w_pad[1]]
-
-    if len(x.shape) == 5:  # this is 3D
-        h_pad, w_pad, d_pad, h_mult, w_mult, d_mult = pad_sizes
-        return x[..., h_pad[0] : h_mult - h_pad[1], w_pad[0] : w_mult - w_pad[1], d_pad[0] : d_mult - d_pad[1]]
+        padder = SpatialPad(spatial_size=[-1, -1, h_mult, w_mult, d_mult])
+        x = padder(
+            x, to_pad=[(0, 0), (0, 0)] + [h_pad] + [w_pad] + [d_pad]  # type: ignore
+        )  # 0 is for batch and channel dimensions which are not padded
+        return x, padder

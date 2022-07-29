@@ -233,6 +233,7 @@ Blocks
 .. autoclass:: DVF2DDF
     :members:
 
+
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
@@ -641,4 +642,7 @@ Nets
 Utilities
 ---------
 .. automodule:: monai.networks.utils
+  :members:
+
+.. automodule:: monai.apps.reconstruction.networks.nets.utils
   :members:
