@@ -23,34 +23,26 @@ from tests.utils import download_url_or_skip_test, testing_data_config
 cv2, has_cv2 = optional_import("cv2")
 
 if has_cv2:
-    CAPTURE_DEVICES = CameraDataset.get_possible_devices()
+    NUM_CAPTURE_DEVICES = CameraDataset.get_num_devices()
 
-TRANSFORMS = mt.Compose(
-    [
-        mt.AsChannelFirst(),
-        mt.Lambda(lambda x: torch.flip(x, [0])),  # BGR -> RGB
-        mt.DivisiblePad(16),
-        mt.ScaleIntensity(),
-        mt.CastToType(torch.float32),
-    ]
-)
+TRANSFORMS = mt.Compose([mt.AsChannelFirst(), mt.DivisiblePad(16), mt.ScaleIntensity(), mt.CastToType(torch.float32)])
 
 
 class TestCameraDataset(unittest.TestCase):
     @unittest.skipUnless(has_cv2, "OpenCV required.")
-    @unittest.skipIf(len(CAPTURE_DEVICES) == 0, "At least one capture device required.")
+    @unittest.skipIf(NUM_CAPTURE_DEVICES == 0, "At least one capture device required.")
     def test_camera_dataset(self):
         num_frames = 10
-        ds = CameraDataset(CAPTURE_DEVICES[0], TRANSFORMS, num_frames)
-        frames = [i for i in ds]
+        ds = CameraDataset(0, TRANSFORMS, num_frames)
+        frames = list(ds)
         self.assertEqual(len(frames), num_frames)
         for f in frames:
             self.assertTupleEqual(f.shape, frames[0].shape)
 
     @unittest.skipUnless(has_cv2, "OpenCV required.")
-    @unittest.skipIf(len(CAPTURE_DEVICES) == 0, "At least one capture device required.")
+    @unittest.skipIf(NUM_CAPTURE_DEVICES == 0, "At least one capture device required.")
     def test_device_out_of_range(self):
-        capture_device = CAPTURE_DEVICES[-1] + 1
+        capture_device = NUM_CAPTURE_DEVICES + 1
         with self.assertRaises(RuntimeError):
             _ = CameraDataset(capture_device, TRANSFORMS, 0)
 
@@ -60,7 +52,7 @@ class TestCameraDataset(unittest.TestCase):
             _ = CameraDataset(0, TRANSFORMS, 0)
 
 
-class TestVideoDataset(unittest.TestCase):
+class TestVideoFileDataset(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
@@ -73,16 +65,16 @@ class TestVideoDataset(unittest.TestCase):
             hash_type=config.get("hash_type", "sha256"),
         )
 
-
-class TestVideoFileDataset(TestVideoDataset):
     @unittest.skipUnless(has_cv2, "OpenCV required.")
     def test_video_file_dataset(self):
-        for num_frames in (10, None):
+        for num_frames in (None,):
             ds = VideoFileDataset(self.filepath, TRANSFORMS, num_frames)
-            frames = [i for i in ds]
-            total_num_frames = ds.get_num_frames()
             known_num_frames_in_vid = 23
+            self.assertEqual(len(ds), num_frames or known_num_frames_in_vid)
+            total_num_frames = ds.get_num_frames()
             self.assertEqual(total_num_frames, known_num_frames_in_vid)
+
+            frames = list(ds)
             self.assertEqual(len(frames), num_frames or total_num_frames)
             for f in frames:
                 self.assertTupleEqual(f.shape, frames[0].shape)

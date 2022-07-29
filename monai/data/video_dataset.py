@@ -10,44 +10,24 @@
 # limitations under the License.
 
 import os
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
-from torch.utils.data import IterableDataset
+import numpy as np
+from torch.utils.data import Dataset, IterableDataset
 
+from monai.transforms.transform import apply_transform
 from monai.utils.module import optional_import
 
 cv2, has_cv2 = optional_import("cv2")
 
-__all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
+__all__ = ["VideoFileDataset", "CameraDataset"]
 
 
-class VideoDataset(IterableDataset):
-    """
-    Abstract base class for video datasets. This combines videos from file and video
-    from a capture device (e.g., a webcam).
-
-    This class and inherited classes require OpenCV to be installed.
-
-    Args:
-        video_source: filename or index referring to capture device.
-        transforms: transforms to be applied to each frame.
-        max_num_frames: Max number of frames to iterate across. If `None` is passed,
-            then the dataset will iterate until the end of the file or infinitely if
-            a capture device is used.
-
-    Raises:
-        RuntimeError: OpenCV not installed.
-    """
-
-    def __init__(
-        self, video_source: Union[str, int], transforms: Callable, max_num_frames: Optional[int] = None
-    ) -> None:
-        if not has_cv2:
-            raise RuntimeError("OpenCV not installed.")
-
-        self.max_num_frames = max_num_frames
-        self.transforms = transforms
+class VideoDataset:
+    def __init__(self, video_source, transform, max_num_frames):
         self.cap = self.open_video(video_source)
+        self.transform = transform
+        self.max_num_frames = max_num_frames
 
     @staticmethod
     def open_video(video_source: Union[str, int]):
@@ -57,6 +37,8 @@ class VideoDataset(IterableDataset):
         Args:
             video_source: filename or index referring to capture device.
         """
+        if not has_cv2:
+            raise RuntimeError("OpenCV not installed.")
         if isinstance(video_source, str) and not os.path.isfile(video_source):
             raise RuntimeError("Video file does not exist: " + video_source)
         cap = cv2.VideoCapture(video_source)
@@ -64,30 +46,18 @@ class VideoDataset(IterableDataset):
             raise RuntimeError(f"Failed to open video: {video_source}")
         return cap
 
-    def get_next_frame(self) -> Any:
-        """
-        Get the next frame from the capture device. Apply transforms and return.
-
-        Raises:
-            RuntimeError: failed to read a frame.
-        """
+    def get_frame(self):
         ret, frame = self.cap.read()
         if not ret:
-            raise RuntimeError(f"Failed to read frame {frame}")
-        return self.transforms(frame)
-
-    def __iter__(self):
-        frame_count = 0
-        while True:
-            frame = self.get_next_frame()
-            frame_count += 1
-            yield frame
-            if self.max_num_frames is not None:
-                if frame_count == self.max_num_frames:
-                    break
+            raise RuntimeError("Failed to read frame.")
+        # channel to front
+        frame = np.moveaxis(frame, -1, 0)
+        # BGR -> RGB
+        frame = np.flip(frame, 0)
+        return apply_transform(self.transform, frame) if self.transform is not None else frame
 
 
-class VideoFileDataset(VideoDataset):
+class VideoFileDataset(Dataset, VideoDataset):
     """
     Video dataset from file.
 
@@ -95,7 +65,7 @@ class VideoFileDataset(VideoDataset):
 
     Args:
         video_source: filename of video.
-        transforms: transforms to be applied to each frame.
+        transform: transform to be applied to each frame.
         max_num_frames: Max number of frames to iterate across. If `None` is passed,
             then the dataset will iterate until the end of the file.
 
@@ -103,11 +73,15 @@ class VideoFileDataset(VideoDataset):
         RuntimeError: OpenCV not installed.
     """
 
-    def __init__(self, video_source: str, transforms: Callable, max_num_frames: Optional[int] = None) -> None:
-        super().__init__(video_source, transforms, max_num_frames)
+    def __init__(
+        self, video_source: str, transform: Optional[Callable] = None, max_num_frames: Optional[int] = None
+    ) -> None:
+        VideoDataset.__init__(self, video_source, transform, max_num_frames)
         num_frames = self.get_num_frames()
         if max_num_frames is None or num_frames < max_num_frames:
             self.max_num_frames = num_frames
+        else:
+            self.max_num_frames = max_num_frames
 
     def get_num_frames(self) -> int:
         """
@@ -121,8 +95,20 @@ class VideoFileDataset(VideoDataset):
             raise RuntimeError("0 frames found")
         return num_frames
 
+    def __len__(self):
+        return self.max_num_frames
 
-class CameraDataset(VideoDataset):
+    def __getitem__(self, index: int):
+        """
+        Fetch single data item from index.
+        """
+        if index >= self.max_num_frames:
+            raise IndexError
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, index)
+        return self.get_frame()
+
+
+class CameraDataset(IterableDataset, VideoDataset):
     """
     Video dataset from a capture device (e.g., webcam).
 
@@ -130,8 +116,8 @@ class CameraDataset(VideoDataset):
 
     Args:
         video_source: index of capture device.
-            `get_possible_devices` can be used to determine possible devices.
-        transforms: transforms to be applied to each frame.
+            `get_num_devices` can be used to determine possible devices.
+        transform: transform to be applied to each frame.
         max_num_frames: Max number of frames to iterate across. If `None` is passed,
             then the dataset will iterate infinitely.
 
@@ -139,20 +125,36 @@ class CameraDataset(VideoDataset):
         RuntimeError: OpenCV not installed.
     """
 
-    def __init__(self, stream_device: int, transforms: Callable, max_num_frames: Optional[int] = None) -> None:
-        super().__init__(stream_device, transforms, max_num_frames)
-
     @staticmethod
-    def get_possible_devices() -> List[int]:
-        """Get a list of possible devices detected by OpenCV that can be used for capture."""
-        index = 0
-        arr = []
+    def get_num_devices() -> int:
+        """Get number of possible devices detected by OpenCV that can be used for capture."""
+        num_devices = 0
         while True:
-            cap = cv2.VideoCapture(index)
+            cap = cv2.VideoCapture(num_devices)
             if not cap.read()[0]:
                 break
-            else:
-                arr.append(index)
+            num_devices += 1
             cap.release()
-            index += 1
-        return arr
+        return num_devices
+
+    def get_next_frame(self) -> Any:
+        """
+        Get the next frame from the capture device. Apply transform and return.
+
+        Raises:
+            RuntimeError: failed to read a frame.
+        """
+        ret, frame = self.cap.read()
+        if not ret:
+            raise RuntimeError(f"Failed to read frame {frame}")
+        return apply_transform(self.transform, frame) if self.transform is not None else frame
+
+    def __iter__(self):
+        frame_count = 0
+        while True:
+            frame = self.get_next_frame()
+            frame_count += 1
+            yield frame
+            if self.max_num_frames is not None:
+                if frame_count == self.max_num_frames:
+                    break
