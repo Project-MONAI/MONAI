@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -708,26 +709,16 @@ class PatchMergingV2(nn.Module):
             pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
-            x0 = x[:, 0::2, 0::2, 0::2, :]
-            x1 = x[:, 1::2, 0::2, 0::2, :]
-            x2 = x[:, 0::2, 1::2, 0::2, :]
-            x3 = x[:, 0::2, 0::2, 1::2, :]
-            x4 = x[:, 1::2, 0::2, 1::2, :]
-            x5 = x[:, 1::2, 1::2, 0::2, :]
-            x6 = x[:, 0::2, 1::2, 1::2, :]
-            x7 = x[:, 1::2, 1::2, 1::2, :]
-            x = torch.cat([x0, x1, x2, x3, x4, x5, x6, x7], -1)
+            x = torch.cat(
+                [x[:, i::2, j::2, k::2, :] for i, j, k in itertools.product(range(2), range(2), range(2))], -1
+            )
 
         elif len(x_shape) == 4:
             b, h, w, c = x_shape
             pad_input = (h % 2 == 1) or (w % 2 == 1)
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2))
-            x0 = x[:, 0::2, 0::2, :]
-            x1 = x[:, 1::2, 0::2, :]
-            x2 = x[:, 0::2, 1::2, :]
-            x3 = x[:, 1::2, 1::2, :]
-            x = torch.cat([x0, x1, x2, x3], -1)
+            x = torch.cat([x[:, i::2, j::2, :] for i, j in itertools.product(range(2), range(2))], -1)
 
         x = self.norm(x)
         x = self.reduction(x)
