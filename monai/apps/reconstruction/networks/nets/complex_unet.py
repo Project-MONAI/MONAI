@@ -9,12 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
 from typing import Sequence, Union
 
 import torch.nn as nn
 from torch import Tensor
-from torch.nn import functional as F
 
 from monai.networks.nets.basic_unet import BasicUNet
 from monai.apps.reconstruction.networks.nets.utils import complex_to_channel_dim, complex_normalize, pad, reverse_pad, reverse_complex_normalize, channel_complex_to_last_dim

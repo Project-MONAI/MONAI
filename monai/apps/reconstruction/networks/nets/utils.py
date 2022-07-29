@@ -18,7 +18,6 @@ from typing import Sequence
 from torch import Tensor
 from torch.nn import functional as F
 
-from monai.utils.type_conversion import convert_to_tensor
 
 
 def complex_to_channel_dim(self, x: Tensor) -> Tensor:
