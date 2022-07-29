@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoised
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -91,7 +91,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
         t = KSpaceSpikeNoised(KEYS, loc, k_intensity)
         out = t(deepcopy(data))
-        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
+        assert_allclose(out[KEYS[0]], out[KEYS[1]], type_test=False)
 
 
 if __name__ == "__main__":
