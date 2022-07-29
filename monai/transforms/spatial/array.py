@@ -15,11 +15,10 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -390,7 +389,7 @@ class ResampleToMatch(SpatialResample):
             RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
-            Resampled input image, Metadata
+            Resampled input tensor or MetaTensor.
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
@@ -509,7 +508,7 @@ class Spacing(InvertibleTransform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original affine, current affine.
+            data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
         original_spatial_shape = data_array.shape[1:]
@@ -2970,30 +2969,30 @@ class GridSplit(Transform):
 
         split_size, steps = self._get_params(image.shape[1:], input_size)
         patches: List[NdarrayOrTensor]
+        as_strided_func: Callable
         if isinstance(image, torch.Tensor):
-            unfolded_image = (
-                image.unfold(1, split_size[0], steps[0])
-                .unfold(2, split_size[1], steps[1])
-                .flatten(1, 2)
-                .transpose(0, 1)
-            )
-            # Make a list of contiguous patches
-            patches = [p.contiguous() for p in unfolded_image]
+            as_strided_func = torch.as_strided
+            c_stride, x_stride, y_stride = image.stride()  # type: ignore
         elif isinstance(image, np.ndarray):
-            x_step, y_step = steps
+            as_strided_func = np.lib.stride_tricks.as_strided
             c_stride, x_stride, y_stride = image.strides
-            n_channels = image.shape[0]
-            strided_image = as_strided(
-                image,
-                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
-                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-            )
-            # Flatten the first two dimensions
-            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
-            # Make a list of contiguous patches
-            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        x_step, y_step = steps
+        n_channels = image.shape[0]
+        strided_image = as_strided_func(
+            image,
+            (*self.grid, n_channels, split_size[0], split_size[1]),
+            (x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+        )
+        # Flatten the first two dimensions
+        strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+        # Make a list of contiguous patches
+        if isinstance(image, torch.Tensor):
+            patches = [p.contiguous() for p in strided_image]
+        elif isinstance(image, np.ndarray):
+            patches = [np.ascontiguousarray(p) for p in strided_image]
 
         return patches
 

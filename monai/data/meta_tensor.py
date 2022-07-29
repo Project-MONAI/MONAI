@@ -22,7 +22,7 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import PostFix
+from monai.utils.enums import MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = ["MetaTensor"]
@@ -129,12 +129,12 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.__dict__ = deepcopy(x.__dict__)
         # set the affine
         if affine is not None:
-            if "affine" in self.meta:
+            if MetaKeys.AFFINE in self.meta:
                 warnings.warn("Setting affine, but the applied meta contains an affine. This will be overwritten.")
             self.affine = affine
-        elif "affine" in self.meta:
+        elif MetaKeys.AFFINE in self.meta:
             # by using the setter function, we ensure it is converted to torch.Tensor if not already
-            self.affine = self.meta["affine"]
+            self.affine = self.meta[MetaKeys.AFFINE]
         else:
             self.affine = self.get_default_affine()
         # applied_operations
@@ -146,6 +146,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.copy_meta_from(self)
+
+        if MetaKeys.SPACE not in self.meta:
+            self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -426,12 +429,12 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
-        return self.meta.get("affine", self.get_default_affine())
+        return self.meta.get(MetaKeys.AFFINE, self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = torch.as_tensor(d, device=torch.device("cpu"))
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
 
     @property
     def pixdim(self):
@@ -481,8 +484,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         # remove any superfluous metadata.
         if simple_keys:
             # ensure affine is of type `torch.Tensor`
-            if "affine" in meta:
-                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            if MetaKeys.AFFINE in meta:
+                meta[MetaKeys.AFFINE] = convert_to_tensor(meta[MetaKeys.AFFINE])  # bc-breaking
             remove_extra_metadata(meta)  # bc-breaking
 
         # return the `MetaTensor`

@@ -177,6 +177,7 @@ class TestLoadImagedMeta(unittest.TestCase):
                 self.assertIsInstance(r, MetaTensor)
                 self.assertTrue(hasattr(r, "affine"))
                 self.assertIsInstance(r.affine, torch.Tensor)
+                self.assertEqual(r.meta["space"], "RAS")
             else:
                 self.assertIsInstance(r, torch.Tensor)
                 self.assertNotIsInstance(r, MetaTensor)
