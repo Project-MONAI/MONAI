@@ -41,6 +41,8 @@ __all__ = [
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
+    "SpaceKeys",
+    "MetaKeys",
 ]
 
 
@@ -429,3 +431,25 @@ class FastMRIKeys(StrEnum):
     MAX = "max"
     NORM = "norm"
     PID = "patient_id"
+
+
+class SpaceKeys(StrEnum):
+    """
+    The coordinate system keys, for example, Nifti1 uses Right-Anterior-Superior or "RAS",
+    DICOM (0020,0032) uses Left-Posterior-Superior or "LPS". This type does not distinguish spatial 1/2/3D.
+    """
+
+    RAS = "RAS"
+    LPS = "LPS"
+
+
+class MetaKeys(StrEnum):
+    """
+    Typical keys for MetaObj.meta
+    """
+
+    AFFINE = "affine"  # MetaTensor.affine
+    ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
+    SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
+    SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"

@@ -429,6 +429,7 @@ class TestMetaTensor(unittest.TestCase):
             + "Metadata\n"
             + "\tfname: filename\n"
             + "\taffine: 1\n"
+            + "\tspace: RAS\n"
             + "\n"
             + "Applied operations\n"
             + "[]\n"

@@ -36,9 +36,9 @@ class TestDataset(Dataset):
                     "image": name,
                     ProbMapKeys.COUNT.value: size,
                     ProbMapKeys.SIZE.value: np.array([size, size]),
-                    ProbMapKeys.LOCATION.value: np.array([i, i]),
+                    ProbMapKeys.LOCATION.value: np.array([i, i + 1]),
                 }
-                for i in range(size)
+                for i in range(size - 1)
             ]
         )
         self.image_data = [
@@ -94,7 +94,8 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         engine.run(data_loader)
 
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
-        self.assertListEqual(np.diag(prob_map).astype(int).tolist(), list(range(1, size + 1)))
+        self.assertListEqual(np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size - 1)])
+        self.assertListEqual(prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size - 1)])
 
 
 if __name__ == "__main__":
