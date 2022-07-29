@@ -718,7 +718,7 @@ class PatchMergingV2(nn.Module):
             pad_input = (h % 2 == 1) or (w % 2 == 1)
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2))
-            x = torch.cat([x[:, i::2, j::2, :] for i, j in itertools.product(range(2), range(2))], -1)
+            x = torch.cat([x[:, j::2, i::2, :] for i, j in itertools.product(range(2), range(2))], -1)
 
         x = self.norm(x)
         x = self.reduction(x)
