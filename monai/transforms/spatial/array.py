@@ -515,14 +515,12 @@ class Spacing(InvertibleTransform):
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
-        input_affine: NdarrayOrTensor
+        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
         if affine is not None:
-            warnings.warn("`affine` argument is deprecated, please use the affine of MetaTensor in data_array.")
-            input_affine = affine
-        elif isinstance(data_array, MetaTensor):
-            input_affine = data_array.affine
-        else:
+            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
+        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
+        if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
             input_affine = np.eye(sr + 1, dtype=np.float64)
