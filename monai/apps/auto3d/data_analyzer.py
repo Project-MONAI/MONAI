@@ -129,9 +129,10 @@ class DataAnalyzer:
         self.DO_CONNECTED_COMP = do_ccp
         self.device = device
         # gather all summary function for combining case stats
-        self.gather_summary = {}
+        self.gather_summary: Dict[str, Dict] = {}
         self._hardcode_functions()
         self._hardcode_operations()
+        print(self.gather_summary)
 
     def _hardcode_functions(self):
         """Register functions for calculating stats."""
@@ -412,7 +413,7 @@ class DataAnalyzer:
             # torch.quantile may fail with large input, if failed, use numpy version
             try:
                 _result = ops(data).data.cpu().numpy().tolist()
-            except UserWarning as e:
+            except Exception:
                 warnings.warn(f"torch {name} version has failed, using np version.")
                 _result = self.operations_np[name](data.cpu().numpy()).tolist()
                 pass

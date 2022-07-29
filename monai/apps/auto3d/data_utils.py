@@ -56,7 +56,7 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
     return tr, val
 
 
-def recursive_getvalue(dicts: Dict, keys: Union[str, List]) -> None:
+def recursive_getvalue(dicts: Dict, keys: Union[str, List]) -> Any:
     """
     Recursively get value through the chain of provided key.
 
@@ -91,7 +91,7 @@ def recursive_setvalue(keys: Union[str, List], value: Any, dicts: Dict) -> None:
     if len(keys) == 1:
         dicts[keys[0]] = value
     else:
-        return recursive_setvalue(keys[1:], value, dicts[keys[0]])
+        recursive_setvalue(keys[1:], value, dicts[keys[0]])
 
 
 def recursive_getkey(dicts: Dict) -> List:
