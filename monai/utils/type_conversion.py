@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -100,7 +99,7 @@ def get_dtype(data: Any):
 def convert_to_tensor(
     data,
     dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
 ):
@@ -334,7 +333,7 @@ def convert_to_dst_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
     if copy_meta and isinstance(output, monai.data.MetaTensor):
-        output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
+        output.copy_meta_from(dst)
     return output, _type, _device
 
 

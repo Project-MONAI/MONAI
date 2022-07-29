@@ -17,6 +17,7 @@ import json
 import operator
 import os
 import queue
+import ssl
 import sys
 import tempfile
 import time
@@ -123,6 +124,9 @@ def skip_if_downloading_fails():
         yield
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except RuntimeError as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -722,19 +726,20 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     im_item = im if dict_key is None else im[dict_key]
     if not isinstance(im_item, MetaTensor):
         return
+    im_ref = copy.deepcopy(im)
     im_inv = invertible_xform.inverse(to_invert)
     if dict_key:
         im_inv = im_inv[dict_key]
-        im = im[dict_key]
+        im_ref = im_ref[dict_key]
     np.testing.assert_array_equal(im_inv.applied_operations, [])
-    assert_allclose(im_inv.shape, im.shape)
-    assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+    assert_allclose(im_inv.shape, im_ref.shape)
+    assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
 
 
-TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)
+TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)
+    TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]

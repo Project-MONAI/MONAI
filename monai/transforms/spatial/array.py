@@ -15,11 +15,10 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -390,7 +389,7 @@ class ResampleToMatch(SpatialResample):
             RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
-            Resampled input image, Metadata
+            Resampled input tensor or MetaTensor.
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
@@ -509,12 +508,9 @@ class Spacing(InvertibleTransform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original affine, current affine.
+            data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
-        # if the input isn't MetaTensor, create MetaTensor with the default info.
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
         original_spatial_shape = data_array.shape[1:]
         sr = len(original_spatial_shape)
         if sr <= 0:
@@ -617,8 +613,6 @@ class Orientation(InvertibleTransform):
                 `torch.Tensor`.
 
         """
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-
         spatial_shape = data_array.shape[1:]
         sr = len(spatial_shape)
         if sr <= 0:
@@ -654,6 +648,9 @@ class Orientation(InvertibleTransform):
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
         new_affine = affine_ @ nib.orientations.inv_ornt_aff(spatial_ornt, spatial_shape)
 
+        # convert to MetaTensor if necessary
+        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
+
         spatial_ornt[:, 0] += 1  # skip channel dim
         spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
@@ -667,7 +664,6 @@ class Orientation(InvertibleTransform):
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
 
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
         if get_track_meta():
             self.update_meta(data_array, new_affine)
             self.push_transform(data_array, extra_info={"original_affine": affine_np})
@@ -1078,7 +1074,7 @@ class Zoom(InvertibleTransform):
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
             The mode to pad data after zooming.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -1126,7 +1122,7 @@ class Zoom(InvertibleTransform):
             padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
                 available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                One of the listed string values or a user supplied function. Defaults to ``"edge"``.
                 The mode to pad data after zooming.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -2195,8 +2191,6 @@ class Affine(InvertibleTransform):
         out = self.resampler(img, grid=grid, mode=_mode, padding_mode=_padding_mode)
         if not isinstance(out, MetaTensor):
             return out if self.image_only else (out, affine)
-        if not self.norm_coord:
-            warnings.warn("customized transform may not work with the metadata operation.")
         if get_track_meta():
             out.meta = img.meta  # type: ignore
             self.update_meta(out, affine, img_size, sp_size)
@@ -2975,30 +2969,30 @@ class GridSplit(Transform):
 
         split_size, steps = self._get_params(image.shape[1:], input_size)
         patches: List[NdarrayOrTensor]
+        as_strided_func: Callable
         if isinstance(image, torch.Tensor):
-            unfolded_image = (
-                image.unfold(1, split_size[0], steps[0])
-                .unfold(2, split_size[1], steps[1])
-                .flatten(1, 2)
-                .transpose(0, 1)
-            )
-            # Make a list of contiguous patches
-            patches = [p.contiguous() for p in unfolded_image]
+            as_strided_func = torch.as_strided
+            c_stride, x_stride, y_stride = image.stride()  # type: ignore
         elif isinstance(image, np.ndarray):
-            x_step, y_step = steps
+            as_strided_func = np.lib.stride_tricks.as_strided
             c_stride, x_stride, y_stride = image.strides
-            n_channels = image.shape[0]
-            strided_image = as_strided(
-                image,
-                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
-                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-            )
-            # Flatten the first two dimensions
-            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
-            # Make a list of contiguous patches
-            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        x_step, y_step = steps
+        n_channels = image.shape[0]
+        strided_image = as_strided_func(
+            image,
+            (*self.grid, n_channels, split_size[0], split_size[1]),
+            (x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+        )
+        # Flatten the first two dimensions
+        strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+        # Make a list of contiguous patches
+        if isinstance(image, torch.Tensor):
+            patches = [p.contiguous() for p in strided_image]
+        elif isinstance(image, np.ndarray):
+            patches = [np.ascontiguousarray(p) for p in strided_image]
 
         return patches
 
