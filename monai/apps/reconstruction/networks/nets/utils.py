@@ -101,7 +101,7 @@ def complex_normalize(x: Tensor) -> Sequence:  # type: ignore
             .view(b, c, 1, 1, 1)
         )
         x = x.view(b, c, h, w, d)
-        return (x - mean) / std, mean, std
+        return (x - mean) / std, mean, std  # type: ignore
 
 
 def inverse_complex_normalize(x: Tensor, mean: float, std: float) -> Tensor:  # type: ignore
@@ -177,4 +177,4 @@ def pad(x: Tensor) -> Sequence:  # type: ignore
         x = padder(
             x, to_pad=[(0, 0), (0, 0)] + [h_pad] + [w_pad] + [d_pad]  # type: ignore
         )  # 0 is for batch and channel dimensions which are not padded
-        return x, padder
+        return x, padder  # type: ignore
