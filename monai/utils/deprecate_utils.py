@@ -31,7 +31,7 @@ def warn_deprecated(obj, msg, warning_category=FutureWarning):
     """
     Issue the warning message `msg`.
     """
-    warnings.warn(msg, category=warning_category, stacklevel=2)
+    warnings.warn(f"{obj}: {msg}", category=warning_category, stacklevel=2)
 
 
 def deprecated(
@@ -89,7 +89,7 @@ def deprecated(
         is_func = isinstance(obj, FunctionType)
         call_obj = obj if is_func else obj.__init__
 
-        msg_prefix = f"{'Function' if is_func else 'Class'} `{obj.__name__}`"
+        msg_prefix = f"{'Function' if is_func else 'Class'} `{obj.__qualname__}`"
 
         if is_removed:
             msg_infix = f"was removed in version {removed}."
@@ -178,7 +178,7 @@ def deprecated_arg(
         is_removed = removed is not None and version_leq(removed, version_val)
 
     def _decorator(func):
-        argname = f"{func.__name__}_{name}"
+        argname = f"{func.__module__} {func.__qualname__}:{name}"
 
         msg_prefix = f"Argument `{name}`"
 
