@@ -69,6 +69,7 @@ class TestVideoFileDataset(unittest.TestCase):
     def test_video_file_dataset(self):
         for num_frames in (None,):
             ds = VideoFileDataset(self.filepath, TRANSFORMS, num_frames)
+            self.assertEqual(ds.get_fps(), 2.0)
             known_num_frames_in_vid = 23
             self.assertEqual(len(ds), num_frames or known_num_frames_in_vid)
             total_num_frames = ds.get_num_frames()

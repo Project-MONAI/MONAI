@@ -56,6 +56,10 @@ class VideoDataset:
         frame = np.flip(frame, 0)
         return apply_transform(self.transform, frame) if self.transform is not None else frame
 
+    def get_fps(self):
+        """Get the FPS of the capture device."""
+        return self.cap.get(cv2.CAP_PROP_FPS)
+
 
 class VideoFileDataset(Dataset, VideoDataset):
     """
