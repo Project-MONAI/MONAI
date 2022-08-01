@@ -21,7 +21,6 @@ dependencies:
   - flake8>=3.8.1
   - flake8-bugbear
   - flake8-comprehensions
-  - flake8-pyi
   - pylint
   - mccabe
   - pep8-naming
