@@ -104,21 +104,6 @@ def complex_normalize(x: Tensor) -> Sequence:  # type: ignore
         return (x - mean) / std, mean, std  # type: ignore
 
 
-def inverse_complex_normalize(x: Tensor, mean: float, std: float) -> Tensor:  # type: ignore
-    """
-    Reverses the normalization done by complex_normalize
-
-    Args:
-        x: input of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
-        mean: mean before normalization
-        std: std before normalization
-
-    Returns:
-        denormalized output of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
-    """
-    return x * std + mean
-
-
 def pad(x: Tensor) -> Sequence:  # type: ignore
     """
     Pad input to feed into the network. This function pads to the nearest even integer by

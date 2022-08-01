@@ -16,7 +16,6 @@ from torch import Tensor
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
-    inverse_complex_normalize,
     pad,
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
@@ -82,6 +81,6 @@ class ComplexUnet(nn.Module):
         x, padder = pad(x)
         x = self.unet(x)
         x = padder.inverse(x)
-        x = inverse_complex_normalize(x, mean, std)
+        x = x * std + mean
         x = reshape_channel_complex_to_last_dim(x)
         return x

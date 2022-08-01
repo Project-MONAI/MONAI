@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
-    inverse_complex_normalize,
     pad,
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
@@ -47,7 +46,7 @@ class TestReconNetUtils(unittest.TestCase):
     @parameterized.expand(TEST_NORMALIZE)
     def test_complex_normalize(self, test_data):
         result, mean, std = complex_normalize(test_data)
-        result = inverse_complex_normalize(result, mean, std)
+        result = result * std + mean
         self.assertTrue((((result - test_data) ** 2).mean() ** 0.5).item() < 1e-5)
 
     @parameterized.expand(TEST_PAD)
