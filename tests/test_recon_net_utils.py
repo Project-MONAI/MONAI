@@ -19,7 +19,6 @@ from monai.apps.reconstruction.networks.nets.utils import (
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
 )
-from tests.utils import assert_allclose
 
 # no need for checking devices, these functions don't change device format
 # reshape test case
