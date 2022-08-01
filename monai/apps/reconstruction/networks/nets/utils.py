@@ -16,9 +16,6 @@ from typing import Sequence
 
 from torch import Tensor
 
-from monai.apps.reconstruction.mri_utils import floor_ceil
-from monai.transforms import SpatialPad
-
 
 def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:  # type: ignore
     """
@@ -102,64 +99,3 @@ def complex_normalize(x: Tensor) -> Sequence:  # type: ignore
         )
         x = x.view(b, c, h, w, d)
         return (x - mean) / std, mean, std  # type: ignore
-
-
-def pad(x: Tensor) -> Sequence:  # type: ignore
-    """
-    Pad input to feed into the network. This function pads to the nearest even integer by
-    by adding at most 4 powers of 2 (this is equivalent to do OR with 15 (1111)).
-
-    Args:
-        x: input of shape (B,C,H,W) for 2D data or (B,C,H,W,D) for 3D data
-
-    Returns:
-        A tuple containing
-            (1) padded input
-            (2) padder which has the capability to reverse padding later if needed
-
-    Example:
-        .. code-block:: python
-
-            import torch
-
-            # 2D data
-            x = torch.ones([3,2,50,70])
-            x_pad,padder = pad(x)
-            # the following line should print (3, 2, 64, 80)
-            print(x_pad.shape)
-            # the following line should print (3, 2, 50, 70)
-            print(padder.inverse(x_pad).shape)
-
-            # 3D data
-            x = torch.ones([3,2,50,70,80])
-            x_pad,padder = pad(x)
-            # the following line should print (3, 2, 64, 80, 80)
-            print(x_pad.shape)
-            # the following line should print (3, 2, 50, 70, 80)
-            print(padder.inverse(x_pad).shape)
-    """
-    if len(x.shape) == 4:  # this is 2D
-        b, c, h, w = x.shape
-        w_mult = ((w - 1) | 15) + 1  # OR with 15 makes sure padding is even by adding at most 4 powers of 2 (15 = 1111)
-        h_mult = ((h - 1) | 15) + 1
-        w_pad = floor_ceil((w_mult - w) / 2)
-        h_pad = floor_ceil((h_mult - h) / 2)
-        padder = SpatialPad(spatial_size=[-1, -1, h_mult, w_mult])
-        x = padder(
-            x, to_pad=[(0, 0), (0, 0)] + [h_pad] + [w_pad]  # type: ignore
-        )  # 0 is for batch and channel dimensions which are not padded
-        return x, padder
-
-    elif len(x.shape) == 5:  # this is 3D
-        b, c, h, w, d = x.shape
-        w_mult = ((w - 1) | 15) + 1  # OR with 15 makes sure padding is even by adding at most 4 powers of 2 (15 = 1111)
-        h_mult = ((h - 1) | 15) + 1
-        d_mult = ((d - 1) | 15) + 1
-        w_pad = floor_ceil((w_mult - w) / 2)
-        h_pad = floor_ceil((h_mult - h) / 2)
-        d_pad = floor_ceil((d_mult - d) / 2)
-        padder = SpatialPad(spatial_size=[-1, -1, h_mult, w_mult, d_mult])
-        x = padder(
-            x, to_pad=[(0, 0), (0, 0)] + [h_pad] + [w_pad] + [d_pad]  # type: ignore
-        )  # 0 is for batch and channel dimensions which are not padded
-        return x, padder  # type: ignore

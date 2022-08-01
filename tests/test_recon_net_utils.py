@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
-    pad,
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
 )
@@ -31,10 +30,6 @@ TEST_RESHAPE = [(im_2d,), (im_3d,)]
 im_2d, im_3d = torch.randint(0, 3, [3, 4, 50, 70]).float(), torch.randint(0, 3, [3, 4, 50, 70, 80]).float()
 TEST_NORMALIZE = [(im_2d,), (im_3d,)]
 
-# pad test case
-im_2d, im_3d = torch.ones([3, 4, 50, 70]), torch.ones([3, 4, 50, 70, 80])
-TEST_PAD = [(im_2d,), (im_3d,)]
-
 
 class TestReconNetUtils(unittest.TestCase):
     @parameterized.expand(TEST_RESHAPE)
@@ -48,12 +43,6 @@ class TestReconNetUtils(unittest.TestCase):
         result, mean, std = complex_normalize(test_data)
         result = result * std + mean
         self.assertTrue((((result - test_data) ** 2).mean() ** 0.5).item() < 1e-5)
-
-    @parameterized.expand(TEST_PAD)
-    def test_pad(self, test_data):
-        result, padder = pad(test_data)
-        result = padder.inverse(result)
-        assert_allclose(result, test_data)
 
 
 if __name__ == "__main__":

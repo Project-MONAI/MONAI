@@ -11,16 +11,17 @@
 
 from typing import Sequence, Union
 
+import torch
 import torch.nn as nn
 from torch import Tensor
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
-    pad,
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
 )
 from monai.networks.nets.basic_unet import BasicUNet
+from monai.transforms import DivisiblePad
 
 
 class ComplexUnet(nn.Module):
@@ -43,6 +44,8 @@ class ComplexUnet(nn.Module):
         dropout: dropout ratio. Defaults to 0.0.
         upsample: upsampling mode, available options are
             ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
+        pad_factor: an integer denoting the number which each padded dimension will be divisible to.
+            For example, 16 means each dimension will be divisible by 16 after padding
     """
 
     def __init__(
@@ -54,6 +57,7 @@ class ComplexUnet(nn.Module):
         bias: bool = True,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        pad_factor: int = 16,
     ):
         super().__init__()
         self.unet = BasicUNet(
@@ -67,6 +71,7 @@ class ComplexUnet(nn.Module):
             dropout=dropout,
             upsample=upsample,
         )
+        self.pad_factor = pad_factor
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -78,9 +83,14 @@ class ComplexUnet(nn.Module):
         """
         x = reshape_complex_to_channel_dim(x)
         x, mean, std = complex_normalize(x)
-        x, padder = pad(x)
+        # pad input
+        padder = DivisiblePad(k=self.pad_factor)
+        x = torch.stack([padder(xi) for xi in x])
+
         x = self.unet(x)
-        x = padder.inverse(x)
+        # inverse padding
+        x = torch.stack([padder.inverse(xi) for xi in x])
+
         x = x * std + mean
         x = reshape_channel_complex_to_last_dim(x)
         return x
