@@ -215,6 +215,7 @@ class PersistentDataset(Dataset):
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
         hash_transform: Optional[Callable[..., bytes]] = None,
+        reset_ops_id: bool = True,
     ) -> None:
         """
         Args:
@@ -245,6 +246,10 @@ class PersistentDataset(Dataset):
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
 
         """
         if not isinstance(transform, Compose):
@@ -262,6 +267,7 @@ class PersistentDataset(Dataset):
         self.transform_hash = ""
         if hash_transform is not None:
             self.set_transform_hash(hash_transform)
+        self.reset_ops_id = reset_ops_id
 
     def set_transform_hash(self, hash_xform_func):
         """Get hashable transforms, and then hash them. Hashable transforms
@@ -312,7 +318,8 @@ class PersistentDataset(Dataset):
             # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
             _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
             item_transformed = apply_transform(_xform, item_transformed)
-        reset_ops_id(item_transformed)
+        if self.reset_ops_id:
+            reset_ops_id(item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -354,9 +361,8 @@ class PersistentDataset(Dataset):
 
         Warning:
             The current implementation does not encode transform information as part of the
-            hashing mechanism used for generating cache names.  If the transforms applied are
-            changed in any way, the objects in the cache dir will be invalid.  The hash for the
-            cache is ONLY dependant on the input filename paths.
+            hashing mechanism used for generating cache names when `hash_transform` is None.
+            If the transforms applied are changed in any way, the objects in the cache dir will be invalid.
 
         """
         hashfile = None
@@ -418,6 +424,8 @@ class CacheNTransDataset(PersistentDataset):
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
+        hash_transform: Optional[Callable[..., bytes]] = None,
+        reset_ops_id: bool = True,
     ) -> None:
         """
         Args:
@@ -446,6 +454,13 @@ class CacheNTransDataset(PersistentDataset):
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
 
         """
         super().__init__(
@@ -455,6 +470,8 @@ class CacheNTransDataset(PersistentDataset):
             hash_func=hash_func,
             pickle_module=pickle_module,
             pickle_protocol=pickle_protocol,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
         )
         self.cache_n_trans = cache_n_trans
 
@@ -521,6 +538,8 @@ class LMDBDataset(PersistentDataset):
         db_name: str = "monai_cache",
         progress: bool = True,
         pickle_protocol=pickle.HIGHEST_PROTOCOL,
+        hash_transform: Optional[Callable[..., bytes]] = None,
+        reset_ops_id: bool = True,
         lmdb_kwargs: Optional[dict] = None,
     ) -> None:
         """
@@ -540,11 +559,24 @@ class LMDBDataset(PersistentDataset):
             progress: whether to display a progress bar.
             pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
                 https://docs.python.org/3/library/pickle.html#pickle-protocols
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
         super().__init__(
-            data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, pickle_protocol=pickle_protocol
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            pickle_protocol=pickle_protocol,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
         )
         self.progress = progress
         if not self.cache_dir:
