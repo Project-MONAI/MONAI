@@ -200,7 +200,7 @@ class FlexibleUNet(nn.Module):
         decoder_channels: Tuple = (256, 128, 64, 32, 16),
         spatial_dims: int = 2,
     ) -> None:
-        super(FlexibleUNet, self).__init__()
+        super().__init__()
 
         if backbone not in efficientnet_feature_channel:
             raise ValueError(
