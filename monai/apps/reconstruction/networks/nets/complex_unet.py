@@ -81,16 +81,19 @@ class ComplexUnet(nn.Module):
         Returns:
             output of shape (B,C,H,W,2) for 2D data or (B,C,H,W,D,2) for 3D data
         """
-        x = reshape_complex_to_channel_dim(x)
-        x, mean, std = complex_normalize(x)
+        # suppose the input is 2D, the comment in front of each operator below shows the shape after that operator
+        x = reshape_complex_to_channel_dim(x)  # x will be of shape (B,C*2,H,W)
+        x, mean, std = complex_normalize(x)  # x will be of shape (B,C*2,H,W)
         # pad input
         padder = DivisiblePad(k=self.pad_factor)
-        x = torch.stack([padder(xi) for xi in x])
+        x = torch.stack(
+            [padder(xi) for xi in x]
+        )  # x will be of shape (B,C*2,H',W') where H' and W' are for after padding
 
         x = self.unet(x)
         # inverse padding
-        x = torch.stack([padder.inverse(xi) for xi in x])
+        x = torch.stack([padder.inverse(xi) for xi in x])  # x will be of shape (B,C*2,H,W)
 
         x = x * std + mean
-        x = reshape_channel_complex_to_last_dim(x)
+        x = reshape_channel_complex_to_last_dim(x)  # x will be of shape (B,C,H,W,2)
         return x
