@@ -389,7 +389,7 @@ class ResampleToMatch(SpatialResample):
             RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
-            Resampled input image, Metadata
+            Resampled input tensor or MetaTensor.
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
@@ -508,22 +508,23 @@ class Spacing(InvertibleTransform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original affine, current affine.
+            data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
         original_spatial_shape = data_array.shape[1:]
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
+        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
-        affine_np: np.ndarray
-        if isinstance(data_array, MetaTensor):
-            affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine_np)
-        else:
+        if affine is not None:
+            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
+        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
+        if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
-            affine_ = np.eye(sr + 1, dtype=np.float64)
+            input_affine = np.eye(sr + 1, dtype=np.float64)
+        affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
