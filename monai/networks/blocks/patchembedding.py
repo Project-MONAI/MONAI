@@ -180,7 +180,7 @@ class PatchEmbed(nn.Module):
                 x = F.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - d % self.patch_size[0]))
 
         elif len(x_shape) == 4:
-            _, _, h, w = x.size()
+            _, _, h, w = x_shape
             if w % self.patch_size[1] != 0:
                 x = F.pad(x, (0, self.patch_size[1] - w % self.patch_size[1]))
             if h % self.patch_size[0] != 0:

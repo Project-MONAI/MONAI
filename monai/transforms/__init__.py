@@ -257,6 +257,7 @@ from .post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
+    Invert,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
@@ -574,6 +575,7 @@ from .utility.dictionary import (
 from .utils import (
     Fourier,
     allow_missing_keys_mode,
+    attach_hook,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
@@ -606,7 +608,9 @@ from .utils import (
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
+    reset_ops_id,
     resize_center,
+    sync_meta_info,
     weighted_patch_samples,
     zero_margins,
 )

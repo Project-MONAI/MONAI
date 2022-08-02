@@ -39,6 +39,13 @@ Metrics
 .. autoclass:: DiceMetric
     :members:
 
+`Mean IoU`
+----------
+.. autofunction:: compute_meaniou
+
+.. autoclass:: MeanIoU
+    :members:
+
 `Generalized Dice Score`
 ------------------------
 .. autofunction:: compute_generalized_dice
@@ -102,6 +109,10 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`
 --------------------
