@@ -15,9 +15,10 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.utils import list_data_collate
 from monai.inferers import SlidingWindowInferer, sliding_window_inference
 from monai.utils import optional_import
-from tests.utils import skip_if_no_cuda
+from tests.utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda
 
 _, has_tqdm = optional_import("tqdm")
 
@@ -68,9 +69,11 @@ class TestSlidingWindowInference(unittest.TestCase):
         np.testing.assert_string_equal(device.type, result.device.type)
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
-    def test_default_device(self):
+    @parameterized.expand([[x] for x in TEST_TORCH_AND_META_TENSORS])
+    def test_default_device(self, data_type):
         device = "cuda" if torch.cuda.is_available() else "cpu:0"
-        inputs = torch.ones((1, 3, 16, 15, 7)).to(device=device)
+        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device=device)
+        inputs = list_data_collate([inputs])  # make a proper batch
         roi_shape = (4, 10, 7)
         sw_batch_size = 10
 
@@ -82,9 +85,11 @@ class TestSlidingWindowInference(unittest.TestCase):
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
+    @parameterized.expand([[x] for x in TEST_TORCH_AND_META_TENSORS])
     @skip_if_no_cuda
-    def test_sw_device(self):
-        inputs = torch.ones((1, 3, 16, 15, 7)).to(device="cpu")
+    def test_sw_device(self, data_type):
+        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device="cpu")
+        inputs = list_data_collate([inputs])  # make a proper batch
         roi_shape = (4, 10, 7)
         sw_batch_size = 10
 

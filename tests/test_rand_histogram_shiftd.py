@@ -64,10 +64,10 @@ class TestRandHistogramShiftD(unittest.TestCase):
         g = RandHistogramShiftd(**input_param)
         g.set_random_state(123)
         res = g(input_data)
-        for key in res:
+        for key in ("img",):
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=1e-4, atol=1e-4, type_test=False)
+            assert_allclose(result, expected, rtol=1e-4, atol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":

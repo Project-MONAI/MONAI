@@ -34,8 +34,6 @@ preprocessing:
   - _target_: RandRotated
     _disabled_: true
     keys: image
-  - _target_: EnsureTyped
-    keys: image
 dataset:
   _target_: need override
   data: "@_meta_#datalist"
@@ -65,7 +63,6 @@ postprocessing:
     argmax: true
   - _target_: SaveImaged
     keys: pred
-    meta_keys: image_meta_dict
     output_dir: "@_meta_#output_dir"
   - _target_: Lambdad
     keys: pred
