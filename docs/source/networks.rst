@@ -634,7 +634,15 @@ Nets
 .. autoclass:: TopologySearch
   :members:
 
+`ComplexUnet`
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.complex_unet.ComplexUnet
+   :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
+  :members:
+
+.. automodule:: monai.apps.reconstruction.networks.nets.utils
   :members:
