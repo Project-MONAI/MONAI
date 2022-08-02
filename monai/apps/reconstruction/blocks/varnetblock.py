@@ -74,7 +74,7 @@ class VarNetBlock(nn.Module):
             applies data consistency
 
             Args:
-                x: kspace (B,num_coils,H,W,2) with the last dimension being 2 (for real/imaginary parts)
+                x: kspace (B,num_coils,H,W,2) with the last dimension being 2 (for real/imaginary parts).
             """
             return torch.where(mask, x - ref_kspace, self.zeros) * self.dc_weight  # type: ignore
 
