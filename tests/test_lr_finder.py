@@ -69,9 +69,9 @@ class TestLRFinder(unittest.TestCase):
                 section="validation",
                 val_frac=0.001,
                 download=True,
-                num_workers=10,
+                num_workers=2,
             )
-        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
+        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
         model = DenseNet(

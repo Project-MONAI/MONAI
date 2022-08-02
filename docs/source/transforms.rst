@@ -105,6 +105,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`Crop`
+""""""
+.. autoclass:: Crop
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
@@ -792,6 +798,23 @@ Smooth Field
     :members:
     :special-members: __call__
 
+
+MRI Transforms
+^^^^^^^^^^^^^^
+
+`Kspace under-sampling`
+"""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.array.KspaceMask
+    :members:
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.RandomKspaceMask
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.EquispacedKspaceMask
+    :special-members: __call__
+
+
 Utility
 ^^^^^^^
 
@@ -995,6 +1018,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`Padd`
+""""""
+.. autoclass:: Padd
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
@@ -1016,6 +1045,18 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`Cropd`
+"""""""
+.. autoclass:: Cropd
+    :members:
+    :special-members: __call__
+
+`RandCropd`
+"""""""""""
+.. autoclass:: RandCropd
     :members:
     :special-members: __call__
 
@@ -1658,6 +1699,34 @@ Smooth Field (Dict)
 .. autoclass:: RandSmoothDeformd
     :members:
     :special-members: __call__
+
+
+`MRI transforms (Dict)`
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`Kspace under-sampling (Dict)`
+""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.RandomKspaceMaskd
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd
+    :special-members: __call__
+
+`ExtractDataKeyFromMetaKeyd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ExtractDataKeyFromMetaKeyd
+    :special-members: __call__
+
+`ReferenceBasedSpatialCropd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedSpatialCropd
+    :special-members: __call__
+
+`ReferenceBasedNormalizeIntensityd`
+"""""""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
 
 Utility (Dict)
 ^^^^^^^^^^^^^^

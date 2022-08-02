@@ -33,8 +33,9 @@ class TestPytorchNumpyUnification(unittest.TestCase):
         for size in (1, 100):
             q = np.random.randint(0, 100, size=size)
             results = []
-            for p in TEST_NDARRAYS:
-                arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(np.float32))
+            for idx, p in enumerate(TEST_NDARRAYS):
+                dtype = [np.float32, float][idx % 2]
+                arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(dtype))
                 results.append(percentile(arr, q))
                 assert_allclose(results[0], results[-1], type_test=False, atol=1e-4, rtol=1e-4)
 

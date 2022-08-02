@@ -30,6 +30,7 @@ class TestSplitDim(unittest.TestCase):
         for dim in range(arr.ndim):
             out = SplitDim(dim, keepdim)(arr)
             self.assertIsInstance(out, (list, tuple))
+            self.assertEqual(type(out[0]), type(arr))
             self.assertEqual(len(out), arr.shape[dim])
             expected_ndim = arr.ndim if keepdim else arr.ndim - 1
             self.assertEqual(out[0].ndim, expected_ndim)

@@ -27,6 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -35,7 +36,6 @@ from monai.utils import (
     BlendMode,
     Method,
     NumpyPadMode,
-    PytorchPadMode,
     TraceKeys,
     convert_data_type,
     convert_to_dst_type,
@@ -91,6 +91,7 @@ __all__ = [
     "remove_keys",
     "remove_extra_metadata",
     "get_extra_metadata_keys",
+    "PICKLE_KEY_SUFFIX",
 ]
 
 # module to be used by `torch.save`
@@ -248,7 +249,7 @@ def iter_patch(
     start_pos: Sequence[int] = (),
     overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Optional[Union[NumpyPadMode, str]] = NumpyPadMode.WRAP,
+    mode: Optional[str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """
@@ -392,6 +393,32 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
+
+
+def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
+    """
+    Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
+
+    Args:
+        data: a list or dictionary with substructures to be pickled/unpickled.
+        key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
+        is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
+    """
+    if isinstance(data, Mapping):
+        data = dict(data)
+        for k in data:
+            if f"{k}".endswith(key):
+                if is_encode and not isinstance(data[k], bytes):
+                    data[k] = pickle.dumps(data[k], 0)
+                if not is_encode and isinstance(data[k], bytes):
+                    data[k] = pickle.loads(data[k])
+        return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
+    return data
+
+
 def collate_meta_tensor(batch):
     """collate a sequence of meta tensor sequences/dictionaries into
     a single batched metatensor or a dictionary of batched metatensor"""
@@ -406,6 +433,9 @@ def collate_meta_tensor(batch):
         return collated
     if isinstance(elem_0, Mapping):
         return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    if isinstance(elem_0, (tuple, list)):
+        return [collate_meta_tensor([d[i] for d in batch]) for i in range(len(elem_0))]
+
     # no more recursive search for MetaTensor
     return default_collate(batch)
 
@@ -424,6 +454,8 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
+        if config.USE_META_DICT:
+            data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
@@ -574,19 +606,20 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             deco[k] = [deepcopy(deco[k]) for _ in range(b)]
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
-        return [dict(zip(deco, item)) for item in _gen]
+        ret = [dict(zip(deco, item)) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret
+        return pickle_operations(ret, is_encode=False)  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
-        return [list(item) for item in _gen]
+        ret_list = [list(item) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret_list
+        return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def pad_list_data_collate(
-    batch: Sequence,
-    method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.CONSTANT,
-    **kwargs,
-):
+def pad_list_data_collate(batch: Sequence, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
 

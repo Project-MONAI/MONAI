@@ -16,12 +16,14 @@ import tempfile
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
-from monai.utils import OptionalImportError
+from monai.utils import MetaKeys, OptionalImportError
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
@@ -41,25 +43,26 @@ class TestLoadSaveNifti(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(
-                p(test_data),
-                {
-                    "filename_or_obj": f"{filepath}.png",
-                    "affine": np.eye(4),
-                    "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
-                },
-            )
+            meta_dict = {
+                "filename_or_obj": f"{filepath}.png",
+                "affine": np.eye(4),
+                "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+            }
+            test_data = MetaTensor(p(test_data), meta=meta_dict)
+            self.assertEqual(test_data.meta[MetaKeys.SPACE], "RAS")
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
-            loader = LoadImage(reader=reader, squeeze_non_spatial_dims=True)
-            data, meta = loader(saved_path)
+            loader = LoadImage(image_only=True, reader=reader, squeeze_non_spatial_dims=True)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
                 _test_data = test_data[0]
             if resample:
                 _test_data = moveaxis(_test_data, 0, 1)
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
     def test_2d(self, reader, writer):
@@ -95,16 +98,18 @@ class TestLoadSavePNG(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(p(test_data), {"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            test_data = MetaTensor(p(test_data), meta={"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
-            loader = LoadImage(reader=reader)
-            data, meta = loader(saved_path)
+            loader = LoadImage(image_only=True, reader=reader)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
                 _test_data = test_data[0]
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([PILReader, ITKReader], [PILWriter, ITKWriter]))
     def test_2d(self, reader, writer):
@@ -148,11 +153,14 @@ class TestLoadSaveNrrd(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(p(test_data), {"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape})
+            test_data = MetaTensor(
+                p(test_data), meta={"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape}
+            )
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
-            loader = LoadImage(reader=reader)
-            data, meta = loader(saved_path)
-            assert_allclose(data, test_data)
+            loader = LoadImage(image_only=True, reader=reader)
+            data = loader(saved_path)
+            assert_allclose(data, torch.as_tensor(test_data))
 
     @parameterized.expand(itertools.product([NrrdReader, ITKReader], [ITKWriter, ITKWriter]))
     def test_2d(self, reader, writer):

@@ -15,8 +15,9 @@ from typing import Dict, List
 
 import numpy as np
 
-from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
+from monai.transforms import AsChannelFirstd, Compose, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
 from monai.utils import GridSampleMode
+from monai.utils.enums import PostFix
 
 
 def create_dataset(
@@ -128,6 +129,8 @@ def _default_transforms(image_key, label_key, pixdim):
             AsChannelFirstd(keys=keys),
             Orientationd(keys=keys, axcodes="RAS"),
             Spacingd(keys=keys, pixdim=pixdim, mode=mode),
+            FromMetaTensord(keys=keys),
+            ToNumpyd(keys=keys + [PostFix.meta(k) for k in keys]),
         ]
     )
 
