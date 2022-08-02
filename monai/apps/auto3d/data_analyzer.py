@@ -24,13 +24,16 @@ from typing import Dict, Union
 
 import numpy as np
 import torch
-import yaml
-from scipy.ndimage.measurements import label as scipy_label
-from tqdm import tqdm
+
 
 import monai
 from monai import data, transforms
 from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
+from monai.utils import min_version, optional_import
+
+yaml, _ = optional_import("yaml")
+tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+measure, _ = optional_import("scipy.ndimage.measurements")
 
 sys.path.append(".")
 
@@ -286,7 +289,7 @@ class DataAnalyzer:
                 label_dict["ncomponents"] = None
                 # find all connected components and their bounding shape
                 structure = np.ones(np.ones(len(ndas_l.shape), dtype=np.int32) * 3, dtype=np.int32)
-                labeled, ncomponents = scipy_label(mask_index.data.cpu().numpy(), structure)
+                labeled, ncomponents = measure.label(mask_index.data.cpu().numpy(), structure)
                 label_dict.update({"ncomponents": ncomponents})
                 for ncomp in range(1, ncomponents + 1):
                     comp_idx = np.argwhere(labeled == ncomp)
@@ -492,7 +495,10 @@ class DataAnalyzer:
         start = time.time()
         self.results = {"stats_summary": {}, "stats_by_cases": []}
         s = start
-        for batch_data in tqdm(self.dataset):
+        if not has_tqdm:
+            warnings.warn("tqdm is not installed. not displaying the caching progress.")
+
+        for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
             images_file = batch_data[0]["image_meta_dict"]["filename_or_obj"]
             label_file = batch_data[0]["label_meta_dict"]["filename_or_obj"]
             logger.debug(f"Load data spent {time.time() - s}")
