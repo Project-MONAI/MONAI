@@ -16,7 +16,9 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
+    reshape_batch_channel_to_channel_dim,
     reshape_channel_complex_to_last_dim,
+    reshape_channel_to_batch_dim,
     reshape_complex_to_channel_dim,
 )
 
@@ -35,6 +37,10 @@ class TestReconNetUtils(unittest.TestCase):
     def test_reshape_channel_complex(self, test_data):
         result = reshape_complex_to_channel_dim(test_data)
         result = reshape_channel_complex_to_last_dim(result)
+        self.assertEqual(result.shape, test_data.shape)
+
+        result, batch_size = reshape_channel_to_batch_dim(test_data)
+        result = reshape_batch_channel_to_channel_dim(result, batch_size)
         self.assertEqual(result.shape, test_data.shape)
 
     @parameterized.expand(TEST_NORMALIZE)
