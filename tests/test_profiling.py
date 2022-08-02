@@ -18,8 +18,10 @@ import torch
 from tests.utils import SkipIfNoModule
 
 import monai.transforms as mt
+from monai.engines import SupervisedTrainer
 from monai.utils import optional_import
-from monai.utils.profiling import ProfileResult, WorkflowProfiler
+from monai.utils.enums import CommonKeys
+from monai.utils.profiling import ProfileResult, WorkflowProfiler, ProfileHandler
 from io import StringIO
 
 pd, _ = optional_import("pandas")
@@ -148,3 +150,30 @@ class TestWorkflowProfiler(unittest.TestCase):
         wp.dump_csv(sio)
         self.assertGreater(sio.tell(),0)
     
+    @SkipIfNoModule("ignite")
+    def test_handler(self):
+        from ignite.engine import Events
+        
+        net=torch.nn.Conv2d(1,1,3,padding=1)
+        im=torch.rand(1,1,16,16)
+        
+        with WorkflowProfiler(None) as wp:
+            trainer=SupervisedTrainer(
+                device=torch.device("cpu"),
+                max_epochs=2,
+                train_data_loader=[{CommonKeys.IMAGE:im,CommonKeys.LABEL:im}]*3,
+                epoch_length=3,
+                network=net,
+                optimizer=torch.optim.Adam(net.parameters()),
+                loss_function=torch.nn.L1Loss(),
+            )
+            
+            epoch_h=ProfileHandler("Epoch",wp, Events.EPOCH_STARTED, Events.EPOCH_COMPLETED).attach(trainer)
+
+            trainer.run()
+            
+        results = wp.get_results()
+        
+        self.assertSequenceEqual(set(results), {"Epoch"})
+        self.assertEqual(len(results["Epoch"]), 2)
+        

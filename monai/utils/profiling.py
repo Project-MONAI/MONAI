@@ -35,6 +35,7 @@ __all__ = [
     "torch_profiler_time_end_to_end",
     "PerfContext",
     "WorkflowProfiler",
+    "ProfileHandler",
     "select_transform_call",
 ]
 
@@ -314,15 +315,7 @@ class WorkflowProfiler:
 
         def _outer(func):
             _name = func.__name__ if name is None else name
-
             return self.profile_ctx(_name)(func)
-            # @wraps(func)
-            # def _wrapper(*args, **kwargs):
-            #     caller = getframeinfo(stack()[1][0])
-            #     with self.profile_ctx(_name, caller):
-            #         return func(*args, **kwargs)
-
-            return _wrapper
 
         return _outer
 
@@ -343,7 +336,6 @@ class WorkflowProfiler:
                         # don't put result when StopIteration is hit
                         self._put_result(name, diff, caller.filename, caller.lineno)
                         yield item
-
                     except StopIteration:
                         do_iter = False
         
@@ -390,3 +382,36 @@ class WorkflowProfiler:
         for rlist in all_results:
             for r in rlist:
                 writer.writerow(r._asdict())
+
+                
+class ProfileHandler:
+    """
+    Handler for Ignite Engine classes which measures the time from a start event ton an end event. This can be used to
+    profile epoch, iteration, and other events as defined in `ignite.engine.Events`. This class should be used only
+    within the context of a profiler object.
+    
+    Args:
+        name: name of event to profile
+        profiler: instance of WorkflowProfiler used by the handler, should be within the context of this object
+        start_event: item in `ignite.engine.Events` stating event at which to start timing
+        end_event: item in `ignite.engine.Events` stating event at which to stop timing
+    """
+    def __init__(self,name:str, profiler:WorkflowProfiler, start_event, end_event):
+        self.name=name
+        self.profiler=profiler
+        self.start_event=start_event
+        self.end_event=end_event
+        self.ctx=None
+        
+    def attach(self, engine):
+        engine.add_event_handler(self.start_event, self.start)
+        engine.add_event_handler(self.end_event, self.end)
+        return self
+        
+    def start(self, engine):
+        self.ctx=self.profiler.profile_ctx(self.name)
+        self.ctx.__enter__()
+        
+    def end(self, engine):
+        self.ctx.__exit__(None, None, None)
+        self.ctx=None
