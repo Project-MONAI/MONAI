@@ -71,6 +71,7 @@ from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .torchscript_utils import load_net_with_metadata, save_net_with_metadata
 from .utils import (
+    PICKLE_KEY_SUFFIX,
     affine_to_spacing,
     compute_importance_map,
     compute_shape_offset,
@@ -112,22 +113,17 @@ with contextlib.suppress(BaseException):
     from multiprocessing.reduction import ForkingPickler
 
     def _rebuild_meta(cls, storage, metadata):
-        storage_offset, size, stride, meta_obj, applied_operations = metadata
-        t = cls([], meta=meta_obj, applied_operations=applied_operations, dtype=storage.dtype, device=storage.device)
+        storage_offset, size, stride, meta_dict = metadata
+        t = cls([], dtype=storage.dtype, device=storage.device)
         t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
+        t.__dict__ = meta_dict
         return t
 
     def reduce_meta_tensor(meta_tensor):
         storage = meta_tensor.storage()
         if storage.is_cuda:
             raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
-        metadata = (
-            meta_tensor.storage_offset(),
-            meta_tensor.size(),
-            meta_tensor.stride(),
-            meta_tensor.meta,
-            meta_tensor.applied_operations,
-        )
+        metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.__dict__)
         return _rebuild_meta, (type(meta_tensor), storage, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)

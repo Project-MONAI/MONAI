@@ -25,7 +25,7 @@ from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple, ensure_tuple_rep
+from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -74,6 +74,7 @@ class LoadImaged(MapTransform):
         overwriting: bool = False,
         image_only: bool = False,
         ensure_channel_first: bool = False,
+        simple_keys: bool = False,
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -103,12 +104,13 @@ class LoadImaged(MapTransform):
                 dictionary containing image data array and header dict per input key.
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
+            simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, *args, **kwargs)
+        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, simple_keys, *args, **kwargs)
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
@@ -130,8 +132,6 @@ class LoadImaged(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             data = self._loader(d[key], reader)
             if self._loader.image_only:
-                if not isinstance(data, np.ndarray):
-                    raise ValueError("loader must return a numpy array (because image_only=True was used).")
                 d[key] = data
             else:
                 if not isinstance(data, (tuple, list)):
@@ -226,8 +226,8 @@ class SaveImaged(MapTransform):
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: Union[GridSampleMode, InterpolateMode, str] = "nearest",
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = "nearest",
+        padding_mode: str = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
@@ -268,7 +268,7 @@ class SaveImaged(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             if meta_key is None and meta_key_postfix is not None:
                 meta_key = f"{key}_{meta_key_postfix}"
-            meta_data = d[meta_key] if meta_key is not None else None
+            meta_data = d.get(meta_key) if meta_key is not None else None
             self.saver(img=d[key], meta_data=meta_data)
         return d
 
