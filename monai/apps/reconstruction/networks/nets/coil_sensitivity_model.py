@@ -113,21 +113,22 @@ class CoilSensitivityModel(nn.Module):
             mask: the under-sampling mask with shape (1,1,1,W,1) for 2D data or (1,1,1,1,D,1) for 3D data.
 
         Returns:
-            predicted coil sensitivity maps with shape (B,C,H,W,2) or (B,C,H,W,D,2) for 3D data.
+            predicted coil sensitivity maps with shape (B,C,H,W,2) for 2D data or (B,C,H,W,D,2) for 3D data.
         """
         left, right = self.get_fully_sampled_region(mask)
         num_low_freqs = right - left  # size of the fully-sampled center
-        pad = (mask.shape[-2] - num_low_freqs + 1) // 2
 
         # take out the fully-sampled region and set the rest of the data to zero
         x = torch.zeros_like(masked_kspace)
-        x[..., pad : pad + num_low_freqs] = masked_kspace[..., pad : pad + num_low_freqs]
+        start = (mask.shape[-2] - num_low_freqs + 1) // 2  # this marks the start of center extraction
+        x[..., start : start + num_low_freqs] = masked_kspace[..., start : start + num_low_freqs]
 
         # apply inverse fourier to the extracted fully-sampled data
         x = ifftn_centered_t(x, spatial_dims=self.spatial_dims)
 
-        x, b = reshape_channel_to_batch_dim(x)  # shape will be (B*C,1,...)
+        x, b = reshape_channel_to_batch_dim(x)  # shape of x will be (B*C,1,...)
         x = self.conv_net(x)
         x = reshape_batch_channel_to_channel_dim(x, b)  # shape will be (B,C,...)
+        # normalize the maps
         x /= root_sum_of_squares(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)  # type: ignore
         return x

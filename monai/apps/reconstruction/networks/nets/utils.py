@@ -73,7 +73,7 @@ def reshape_channel_to_batch_dim(x: Tensor) -> Sequence:
 
     Returns:
         A tuple containing:
-            (1) output of of shape (B*C,1,...)
+            (1) output of shape (B*C,1,...)
             (2) batch size
     """
     b, c, *other = x.shape
