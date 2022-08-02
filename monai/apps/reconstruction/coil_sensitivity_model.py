@@ -62,7 +62,7 @@ class CoilSensitivityModel(nn.Module):
             upsample=upsample,
         )
 
-    def chans_to_batch_dim(self, x: Tensor) -> Sequence:
+    def reshape_channel_to_batch_dim(self, x: Tensor) -> Sequence:
         """
         Combines batch and channel dimensions. For example, x with shape(B,C,...)
         will be of shape (B*C,1,...)
@@ -70,7 +70,7 @@ class CoilSensitivityModel(nn.Module):
         b, c, *other = x.shape
         return x.contiguous().view(b * c, 1, *other), b
 
-    def batch_chans_to_chan_dim(self, x: Tensor, batch_size: int) -> Tensor:
+    def reshape_batch_channel_to_channel_dim(self, x: Tensor, batch_size: int) -> Tensor:
         """
         Detaches batch and channel dimensions. For example, x with shape(B*C,1,...)
         will be of shape (B,C,...)
@@ -122,8 +122,8 @@ class CoilSensitivityModel(nn.Module):
 
         x = ifftn_centered_t(x, spatial_dims=2)
 
-        x, b = self.chans_to_batch_dim(x)
+        x, b = self.reshape_channel_to_batch_dim(x)
         x = self.unet(x)
-        x = self.batch_chans_to_chan_dim(x, b)
+        x = self.reshape_batch_channel_to_channel_dim(x, b)
         x = self.divide_root_sum_of_squares(x)
         return x
