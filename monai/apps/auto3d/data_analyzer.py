@@ -25,7 +25,6 @@ from typing import Dict, Union
 import numpy as np
 import torch
 
-
 import monai
 from monai import data, transforms
 from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
