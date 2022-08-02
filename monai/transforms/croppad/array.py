@@ -398,8 +398,8 @@ class Crop(InvertibleTransform):
             return list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
-                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
+                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
+                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
                 _zeros = torch.zeros_like(roi_center_t)
                 half = (
                     torch.divide(roi_size_t, 2, rounding_mode="floor")
