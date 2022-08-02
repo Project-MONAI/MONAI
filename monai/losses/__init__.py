@@ -12,6 +12,7 @@
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss
 from .dice import (
+    BoundaryEnhancementLoss,
     Dice,
     DiceCELoss,
     DiceFocalLoss,
