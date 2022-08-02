@@ -12,7 +12,6 @@
 This script contains utility functions for developing new blocks in PyTorch.
 """
 
-from typing import Sequence
 
 from torch import Tensor
 
