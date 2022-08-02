@@ -90,7 +90,14 @@ from .module import (
     version_leq,
 )
 from .nvtx import Range
-from .profiling import PerfContext, torch_profiler_full, torch_profiler_time_cpu_gpu, torch_profiler_time_end_to_end
+from .profiling import (
+    PerfContext,
+    WorkflowProfiler,
+    select_transform_call,
+    torch_profiler_full,
+    torch_profiler_time_cpu_gpu,
+    torch_profiler_time_end_to_end,
+)
 from .state_cacher import StateCacher
 from .type_conversion import (
     convert_data_type,
