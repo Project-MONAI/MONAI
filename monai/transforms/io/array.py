@@ -112,6 +112,8 @@ class LoadImage(Transform):
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
+        pattern: Optional[str] = None,
+        sep: str = ".",
         *args,
         **kwargs,
     ) -> None:
@@ -129,6 +131,10 @@ class LoadImage(Transform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
+            pattern: combined with `sep`, a regular expression used to match and delete keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            sep: combined with `pattern`, used to match and prune keys in the metadata (nested dictionary).
+                default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -148,6 +154,8 @@ class LoadImage(Transform):
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
         self.simple_keys = simple_keys
+        self.pattern = pattern
+        self.sep = sep
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -258,7 +266,9 @@ class LoadImage(Transform):
         meta_data = switch_endianness(meta_data, "<")
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
-        img = MetaTensor.ensure_torch_and_prune_meta(img_array, meta_data, self.simple_keys)
+        img = MetaTensor.ensure_torch_and_prune_meta(
+            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
+        )
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)
         if self.image_only:

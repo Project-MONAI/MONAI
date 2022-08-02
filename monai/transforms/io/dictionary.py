@@ -75,6 +75,8 @@ class LoadImaged(MapTransform):
         image_only: bool = False,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
+        pattern: Optional[str] = None,
+        sep: str = ".",
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -105,12 +107,18 @@ class LoadImaged(MapTransform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
+            pattern: combined with `sep`, a regular expression used to match and prune keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            sep: combined with `pattern`, used to match and delete keys in the metadata (nested dictionary).
+                default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, simple_keys, *args, **kwargs)
+        self._loader = LoadImage(
+            reader, image_only, dtype, ensure_channel_first, simple_keys, pattern, sep, *args, **kwargs
+        )
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
