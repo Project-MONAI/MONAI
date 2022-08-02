@@ -13,8 +13,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from monai.apps.reconstruction.complex_utils import complex_conj, complex_mul
-from monai.networks.blocks.fft_utils_t import fftn_centered_t, ifftn_centered_t
+from monai.apps.reconstruction.networks.blocks.utils import sens_expand, sens_reduce
 
 
 class VarNetBlock(nn.Module):
@@ -27,55 +26,54 @@ class VarNetBlock(nn.Module):
     Args:
         refinement_model: the model used for refinement (typically a U-Net but can be any deep learning model
             that performs well when the input and output are in image domain (e.g., a convolutional network).
+        spatial_dims: is 2 for 2D data and is 3 for 3D data
     """
 
-    def __init__(self, refinement_model):
+    def __init__(self, refinement_model: nn.Module, spatial_dims: int = 2):
         super().__init__()
         self.model = refinement_model
-        self.dc_weight = nn.Parameter(torch.ones(1))
-        self.register_buffer("zeros", torch.zeros(1, 1, 1, 1, 1))
+        self.spatial_dims = spatial_dims
+        self.dc_weight = nn.Parameter(torch.ones(1))  # learned scalar as the multiplier of the DC block
+
+        buffer_shape = [1 for _ in range(spatial_dims + 3)]  # 3 denotes the batch, channel, and real/complex dimensions
+        self.register_buffer("zeros", torch.zeros(buffer_shape))
+
+    def soft_dc(self, x: Tensor, ref_kspace: Tensor, mask: Tensor) -> Tensor:
+        """
+        Applies data consistency to input x. Suppose x is some intermediate estimate of the kspace and ref_kspace
+        is the reference under-sampled measurement. This function returns mask * (x - ref_kspace). View this as the
+        residual between the original under-sampled kspace and the estimate given by the network.
+
+        Args:
+            x: 2D kspace (B,C,H,W,2) with the last dimension being 2 (for real/imaginary parts) and C denoting the
+                coil dimension. 3D data will have the shape (B,C,H,W,D,2).
+            ref_kspace: original under-sampled kspace with the same shape as x.
+            mask: the under-sampling mask with shape (1,1,1,W,1) for 2D data or (1,1,1,1,D,1) for 3D data.
+
+        Returns:
+            Output of DC block with the same shape as x
+        """
+        return torch.where(mask, x - ref_kspace, self.zeros) * self.dc_weight  # type: ignore
 
     def forward(self, current_kspace: Tensor, ref_kspace: Tensor, mask: Tensor, sens_maps: Tensor) -> Tensor:
         """
         Args:
-            current_kspace: predicted kspace from the previous block
-            ref_kspace: reference kspace for applying data consistency (is the under-sampled kspace in MRI reconstruction)
-            mask: the under-sampling mask
-            sens_maps: sensitivity maps for combining coil images
+            current_kspace: Predicted kspace from the previous block. It's a 2D kspace (B,C,H,W,2)
+                with the last dimension being 2 (for real/imaginary parts) and C denoting the
+                coil dimension. 3D data will have the shape (B,C,H,W,D,2).
+            ref_kspace: reference kspace for applying data consistency (is the under-sampled kspace in MRI reconstruction).
+                Its shape is the same as current_kspace.
+            mask: the under-sampling mask with shape (1,1,1,W,1) for 2D data or (1,1,1,1,D,1) for 3D data.
+            sens_maps: coil sensitivity maps with the same shape as current_kspace
+
+        Returns:
+            Output of VarNetBlock with the same shape as current_kspace
         """
-
-        def sens_expand(x: Tensor) -> Tensor:
-            """
-            expands an image to its corresponding coil images based on the given sens_maps
-
-            Args:
-                x: image (B,1,H,W,2) with the last dimension being 2 (for real/imaginary parts)
-
-            Returns:
-                expansion of x to (B,num_coils,H,W,2) where num_coils is the number of coils.
-            """
-            return fftn_centered_t(complex_mul(x, sens_maps), spatial_dims=2)  # type: ignore
-
-        def sens_reduce(x: Tensor) -> Tensor:
-            """
-            reduces coil images to a corresponding image based on the given sens_maps
-
-            Args:
-                x: kspace (B,num_coils,H,W,2) with the last dimension being 2 (for real/imaginary parts)
-
-            Returns:
-                reduction of x to (B,1,H,W,2)
-            """
-            x = ifftn_centered_t(x, spatial_dims=2)
-            return complex_mul(x, complex_conj(sens_maps)).sum(dim=1, keepdim=True)  # type: ignore
-
-        def soft_dc(x: Tensor) -> Tensor:
-            """
-            applies data consistency
-
-            Args:
-                x: kspace (B,num_coils,H,W,2) with the last dimension being 2 (for real/imaginary parts).
-            """
-            return torch.where(mask, x - ref_kspace, self.zeros) * self.dc_weight  # type: ignore
-
-        return current_kspace - soft_dc(current_kspace) - sens_expand(self.model(sens_reduce(current_kspace)))
+        dc_out = soft_dc(current_kspace, ref_kspace, mask)  # output of DC block
+        refinement_out = sens_expand(
+            self.model(sens_reduce(current_kspace, sens_maps, spatial_dims=self.spatial_dims)),
+            sens_maps,
+            spatial_dims=self.spatial_dims,
+        )  # output of refinement model
+        output = current_kspace - dc_out - refinement_out
+        return output
