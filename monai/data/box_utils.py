@@ -1054,7 +1054,7 @@ def non_max_suppression(
         )
 
     # convert numpy to tensor if needed
-    boxes_t, *_ = convert_data_type(boxes, torch.Tensor)
+    boxes_t, *_ = convert_data_type(boxes, torch.Tensor, device=torch.device("cpu"))
     scores_t, *_ = convert_to_dst_type(scores, boxes_t)
 
     # sort boxes in desending order according to the scores
