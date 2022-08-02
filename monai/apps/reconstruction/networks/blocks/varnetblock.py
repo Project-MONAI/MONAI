@@ -69,7 +69,7 @@ class VarNetBlock(nn.Module):
         Returns:
             Output of VarNetBlock with the same shape as current_kspace
         """
-        dc_out = soft_dc(current_kspace, ref_kspace, mask)  # output of DC block
+        dc_out = self.soft_dc(current_kspace, ref_kspace, mask)  # output of DC block
         refinement_out = sens_expand(
             self.model(sens_reduce(current_kspace, sens_maps, spatial_dims=self.spatial_dims)),
             sens_maps,

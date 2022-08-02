@@ -12,8 +12,6 @@
 This script contains utility functions for developing new blocks in PyTorch.
 """
 
-from typing import Sequence
-
 from torch import Tensor
 
 from monai.apps.reconstruction.complex_utils import complex_conj, complex_mul
