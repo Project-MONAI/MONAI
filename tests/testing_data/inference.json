@@ -46,10 +46,6 @@
                 "_target_": "RandRotated",
                 "_disabled_": true,
                 "keys": "image"
-            },
-            {
-                "_target_": "EnsureTyped",
-                "keys": "image"
             }
         ]
     },
@@ -91,7 +87,6 @@
             {
                 "_target_": "SaveImaged",
                 "keys": "pred",
-                "meta_keys": "image_meta_dict",
                 "output_dir": "@_meta_#output_dir"
             },
             {

@@ -13,8 +13,8 @@ import os
 import unittest
 
 from monai.apps import CrossValidation, DecathlonDataset
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils.enums import PostFix
+from monai.data import MetaTensor
+from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
@@ -23,12 +23,7 @@ class TestCrossValidation(unittest.TestCase):
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         train_transform = Compose(
-            [
-                LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
-            ]
+            [LoadImaged(keys=["image", "label"]), AddChanneld(keys=["image", "label"]), ScaleIntensityd(keys="image")]
         )
         val_transform = LoadImaged(keys=["image", "label"])
 
@@ -36,7 +31,7 @@ class TestCrossValidation(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue(PostFix.meta("image") in dataset[0])
+            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(

@@ -12,14 +12,12 @@
 import unittest
 from copy import deepcopy
 
-import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoise, RandKSpaceSpikeNoise
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -48,11 +46,7 @@ class TestRandKSpaceSpikeNoise(unittest.TestCase):
         intensity_range = [14, 15]
         t = RandKSpaceSpikeNoise(0.0, intensity_range, channel_wise)
         out = t(im)
-        self.assertEqual(type(im), type(out))
-        if isinstance(out, torch.Tensor):
-            self.assertEqual(out.device, im.device)
-            im, out = im.cpu(), out.cpu()
-        np.testing.assert_allclose(im, out)
+        assert_allclose(out, im, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_1_prob(self, im_shape, im_type, channel_wise):
@@ -62,11 +56,7 @@ class TestRandKSpaceSpikeNoise(unittest.TestCase):
         out = t(im)
         base_t = KSpaceSpikeNoise(t.sampled_locs, [14])
         out = out - base_t(im)
-        self.assertEqual(type(im), type(out))
-        if isinstance(out, torch.Tensor):
-            self.assertEqual(out.device, im.device)
-            im, out = im.cpu(), out.cpu()
-        np.testing.assert_allclose(out, im * 0)
+        assert_allclose(out, im * 0, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_same_result(self, im_shape, im_type, channel_wise):
@@ -77,11 +67,7 @@ class TestRandKSpaceSpikeNoise(unittest.TestCase):
         out1 = t(deepcopy(im))
         t.set_random_state(42)
         out2 = t(deepcopy(im))
-        self.assertEqual(type(im), type(out1))
-        if isinstance(out1, torch.Tensor):
-            self.assertEqual(out1.device, im.device)
-            out1, out2 = out1.cpu(), out2.cpu()
-        np.testing.assert_allclose(out1, out2)
+        assert_allclose(out1, out2, type_test="tensor")
 
     @parameterized.expand(TESTS)
     def test_intensity(self, im_shape, im_type, channel_wise):

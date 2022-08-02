@@ -16,7 +16,7 @@ from parameterized import parameterized
 from scipy.ndimage import zoom as zoom_scipy
 
 from monai.transforms import RandZoomd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [(0.8, 1.2, "nearest", None, False)]
 
@@ -34,25 +34,29 @@ class TestRandZoomd(NumpyImageTestCase2D):
             align_corners=align_corners,
             keep_size=keep_size,
         )
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             random_zoom.set_random_state(1234)
 
-            zoomed = random_zoom({key: p(self.imt[0])})
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            test_local_inversion(random_zoom, zoomed, {key: im}, key)
             expected = [
                 zoom_scipy(channel, zoom=random_zoom.rand_zoom._zoom, mode="nearest", order=0, prefilter=False)
                 for channel in self.imt[0]
             ]
 
             expected = np.stack(expected).astype(np.float32)
-            assert_allclose(zoomed[key], p(expected), atol=1.0)
+            assert_allclose(zoomed[key], p(expected), atol=1.0, type_test=False)
 
     def test_keep_size(self):
         key = "img"
         random_zoom = RandZoomd(
             keys=key, prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True, padding_mode="constant", constant_values=2
         )
-        for p in TEST_NDARRAYS:
-            zoomed = random_zoom({key: p(self.imt[0])})
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            zoomed = random_zoom({key: im})
+            test_local_inversion(random_zoom, zoomed, {key: im}, key)
             np.testing.assert_array_equal(zoomed[key].shape, self.imt.shape[1:])
 
     @parameterized.expand(
@@ -60,7 +64,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
     )
     def test_invalid_inputs(self, _, min_zoom, max_zoom, mode, raises):
         key = "img"
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             with self.assertRaises(raises):
                 random_zoom = RandZoomd(key, prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, mode=mode)
                 random_zoom({key: p(self.imt[0])})
@@ -69,7 +73,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         random_zoom = RandZoomd(
             keys="img", prob=1.0, min_zoom=[0.8, 0.7], max_zoom=[1.2, 1.3], mode="nearest", keep_size=False
         )
-        for p in TEST_NDARRAYS:
+        for p in TEST_NDARRAYS_ALL:
             random_zoom.set_random_state(1234)
             test_data = {"img": p(np.random.randint(0, 2, size=[2, 2, 3, 4]))}
             zoomed = random_zoom(test_data)
