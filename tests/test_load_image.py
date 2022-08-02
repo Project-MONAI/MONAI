@@ -332,12 +332,13 @@ class TestLoadImageMeta(unittest.TestCase):
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_param, expected_shape, track_meta):
         set_track_meta(track_meta)
-        r = LoadImage(image_only=True, **input_param)(self.test_data)
+        r = LoadImage(image_only=True, pattern="glmax", sep="%", **input_param)(self.test_data)
         self.assertTupleEqual(r.shape, expected_shape)
         if track_meta:
             self.assertIsInstance(r, MetaTensor)
             self.assertTrue(hasattr(r, "affine"))
             self.assertIsInstance(r.affine, torch.Tensor)
+            self.assertTrue("glmax" not in r.meta)
         else:
             self.assertIsInstance(r, torch.Tensor)
             self.assertNotIsInstance(r, MetaTensor)

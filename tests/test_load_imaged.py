@@ -166,7 +166,7 @@ class TestLoadImagedMeta(unittest.TestCase):
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_param, expected_shape, track_meta):
         set_track_meta(track_meta)
-        result = LoadImaged(image_only=True, **input_param)(self.test_data)
+        result = LoadImaged(image_only=True, pattern=".*_code", sep="$", **input_param)(self.test_data)
 
         # shouldn't have any extra meta data keys
         self.assertEqual(len(result), len(KEYS))
@@ -178,6 +178,7 @@ class TestLoadImagedMeta(unittest.TestCase):
                 self.assertTrue(hasattr(r, "affine"))
                 self.assertIsInstance(r.affine, torch.Tensor)
                 self.assertEqual(r.meta["space"], "RAS")
+                self.assertTrue("qform_code" not in r.meta)
             else:
                 self.assertIsInstance(r, torch.Tensor)
                 self.assertNotIsInstance(r, MetaTensor)
