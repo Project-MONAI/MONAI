@@ -477,6 +477,7 @@ class MetaTensor(MetaObj, torch.Tensor):
                 in the metadata (nested dictionary), default to None, no key deletion.
             sep: combined with `pattern`, used to match and delete keys in the metadata (nested dictionary).
                 default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``pattern=".*_code$", sep=" "`` removes any meta keys that ends with ``"_code"``.
 
         Returns:
             By default, a `MetaTensor` is returned.

@@ -166,7 +166,7 @@ class TestLoadImagedMeta(unittest.TestCase):
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_p, expected_shape, track_meta):
         set_track_meta(track_meta)
-        result = LoadImaged(image_only=True, prune_meta_pattern=".*_code", prune_meta_sep="$", **input_p)(
+        result = LoadImaged(image_only=True, prune_meta_pattern=".*_code$", prune_meta_sep=" ", **input_p)(
             self.test_data
         )
 

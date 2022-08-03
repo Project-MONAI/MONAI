@@ -135,6 +135,7 @@ class LoadImage(Transform):
                 in the metadata (nested dictionary), default to None, no key deletion.
             prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
