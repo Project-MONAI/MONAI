@@ -95,7 +95,7 @@ class ProbMapProducer:
         locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION]
         probs = engine.state.output[self.prob_key]
         for name, loc, prob in zip(names, locs, probs):
-            self.prob_map[name][loc] = prob
+            self.prob_map[name][tuple(loc)] = prob
             with self.lock:
                 self.counter[name] -= 1
                 if self.counter[name] == 0:
