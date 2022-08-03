@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+import sys
 from typing import Optional
 
 import torch
@@ -21,7 +22,7 @@ from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 
-logging.basicConfig(format="%(asctime)s - %(message)s")
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
 def convert_global_weights(global_weights, local_var_dict):
