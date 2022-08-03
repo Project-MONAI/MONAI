@@ -168,6 +168,9 @@ class WorkflowProfiler:
     .. code-block:: python
 
         import monai.transform as mt
+        from monai.utils import WorkflowProfiler
+        import torch
+
         comp=mt.Compose([mt.ScaleIntensity(),mt.RandAxisFlip(0.5)])
 
         with WorkflowProfiler() as wp:
