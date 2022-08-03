@@ -28,7 +28,7 @@ from monai.data.utils import (
     orientation_ras_lps,
 )
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import deprecated, ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
+from monai.utils import MetaKeys, SpaceKeys, deprecated, ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -133,7 +133,7 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
                 continue
             to_dict[key] = datum
     else:
-        affine_key, shape_key = "affine", "spatial_shape"
+        affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
             raise RuntimeError(
                 "affine matrix of all images should be the same for channel-wise concatenation. "
@@ -149,11 +149,11 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
 def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        channel_dim = int(meta_dict["original_channel_dim"])
+    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+        channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
-    meta_dict["original_channel_dim"] = 0
+    meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
 
 
@@ -286,13 +286,16 @@ class ITKReader(ImageReader):
             data = self._get_array_data(i)
             img_array.append(data)
             header = self._get_meta_dict(i)
-            header["original_affine"] = self._get_affine(i, self.affine_lps_to_ras)
-            header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = self._get_spatial_shape(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i, self.affine_lps_to_ras)
+            header[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS
+            header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -537,12 +540,12 @@ class PydicomReader(ImageReader):
             stack_metadata["spacing"] = np.asarray(spacing)
             if hasattr(slices[-1], "ImagePositionPatient"):
                 stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
-            stack_metadata["spatial_shape"] = shape + (len(slices),)
+            stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
             stack_array = stack_array[0]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
-            stack_metadata["spatial_shape"] = shape
+            stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape
 
         return stack_array, stack_metadata
 
@@ -589,7 +592,7 @@ class PydicomReader(ImageReader):
                 else:
                     data_array = self._get_array_data(d)
                     metadata = self._get_meta_dict(d)
-                    metadata["spatial_shape"] = data_array.shape
+                    metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
         img_array: List[np.ndarray] = []
@@ -598,20 +601,23 @@ class PydicomReader(ImageReader):
         for (data_array, metadata) in ensure_tuple(dicom_data):
             img_array.append(np.ascontiguousarray(np.swapaxes(data_array, 0, 1) if self.swap_ij else data_array))
             affine = self._get_affine(metadata, self.affine_lps_to_ras)
+            metadata[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS
             if self.swap_ij:
                 affine = affine @ np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-                sp_size = list(metadata["spatial_shape"])
+                sp_size = list(metadata[MetaKeys.SPATIAL_SHAPE])
                 sp_size[0], sp_size[1] = sp_size[1], sp_size[0]
-                metadata["spatial_shape"] = ensure_tuple(sp_size)
-            metadata["original_affine"] = affine
-            metadata["affine"] = affine.copy()
+                metadata[MetaKeys.SPATIAL_SHAPE] = ensure_tuple(sp_size)
+            metadata[MetaKeys.ORIGINAL_AFFINE] = affine
+            metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
-                metadata["original_channel_dim"] = (
-                    "no_channel" if len(data_array.shape) == len(metadata["spatial_shape"]) else -1
+                metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
-                metadata["original_channel_dim"] = self.channel_dim
-            metadata["spacing"] = affine_to_spacing(metadata["original_affine"], r=len(metadata["spatial_shape"]))
+                metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
+            metadata["spacing"] = affine_to_spacing(
+                metadata[MetaKeys.ORIGINAL_AFFINE], r=len(metadata[MetaKeys.SPATIAL_SHAPE])
+            )
 
             _copy_compatible_dict(metadata, compatible_meta)
 
@@ -675,7 +681,7 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
-            n = metadata["spatial_shape"][-1]
+            n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
             k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
             affine[0, 2] = k1
             affine[1, 2] = k2
@@ -772,7 +778,7 @@ class PydicomReader(ImageReader):
             all_segs[..., class_num] = frames
 
         all_segs = all_segs.transpose([1, 2, 0, 3])
-        metadata["spatial_shape"] = all_segs.shape[:-1]
+        metadata[MetaKeys.SPATIAL_SHAPE] = all_segs.shape[:-1]
 
         if "52009229" in metadata.keys():
             shared_func_group_seq = metadata["52009229"]["Value"][0]
@@ -925,23 +931,26 @@ class NibabelReader(ImageReader):
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
-            header["affine"] = self._get_affine(i)
-            header["original_affine"] = self._get_affine(i)
+            header[MetaKeys.AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header["as_closest_canonical"] = self.as_closest_canonical
             if self.as_closest_canonical:
                 i = nib.as_closest_canonical(i)
-                header["affine"] = self._get_affine(i)
-            header["spatial_shape"] = self._get_spatial_shape(i)
+                header[MetaKeys.AFFINE] = self._get_affine(i)
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
+            header[MetaKeys.SPACE] = SpaceKeys.RAS
             data = self._get_array_data(i)
             if self.squeeze_non_spatial_dims:
-                for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                for d in range(len(data.shape), len(header[MetaKeys.SPATIAL_SHAPE]), -1):
                     if data.shape[d - 1] == 1:
                         data = data.squeeze(axis=d - 1)
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1097,9 +1106,12 @@ class NumpyReader(ImageReader):
                 spatial_shape = np.asarray(i.shape)
                 if isinstance(self.channel_dim, int):
                     spatial_shape = np.delete(spatial_shape, self.channel_dim)
-                header["spatial_shape"] = spatial_shape
+                header[MetaKeys.SPATIAL_SHAPE] = spatial_shape
+                header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
-            header["original_channel_dim"] = self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+            header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+            )
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1178,10 +1190,12 @@ class PILReader(ImageReader):
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
-            header["spatial_shape"] = self._get_spatial_shape(i)
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             data = np.moveaxis(np.asarray(i), 0, 1)
             img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+            )
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1319,8 +1333,8 @@ class WSIReader(ImageReader):
 
         # Add necessary metadata
         metadata: Dict = {}
-        metadata["spatial_shape"] = np.asarray(region.shape[:-1])
-        metadata["original_channel_dim"] = -1
+        metadata[MetaKeys.SPATIAL_SHAPE] = np.asarray(region.shape[:-1])
+        metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = -1
 
         # Make it channel first
         region = EnsureChannelFirst()(region, metadata)
@@ -1555,16 +1569,18 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header["original_affine"] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header = self._switch_lps_ras(header)
-            header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = header["sizes"]
+            header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
+            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1600,8 +1616,8 @@ class NrrdReader(ImageReader):
 
         """
         if "space" not in header or header["space"] == "left-posterior-superior":
-            header["space"] = "right-anterior-superior"
-            header["original_affine"] = orientation_ras_lps(header["original_affine"])
+            header[MetaKeys.ORIGINAL_AFFINE] = orientation_ras_lps(header[MetaKeys.ORIGINAL_AFFINE])
+            header[MetaKeys.SPACE] = SpaceKeys.RAS
         return header
 
     def _convert_f_to_c_order(self, header: dict) -> dict:

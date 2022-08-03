@@ -18,11 +18,12 @@ from typing import Any, Sequence
 import numpy as np
 import torch
 
+import monai
 from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import PostFix
+from monai.utils.enums import MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 __all__ = ["MetaTensor"]
@@ -129,12 +130,12 @@ class MetaTensor(MetaObj, torch.Tensor):
             self.__dict__ = deepcopy(x.__dict__)
         # set the affine
         if affine is not None:
-            if "affine" in self.meta:
+            if MetaKeys.AFFINE in self.meta:
                 warnings.warn("Setting affine, but the applied meta contains an affine. This will be overwritten.")
             self.affine = affine
-        elif "affine" in self.meta:
+        elif MetaKeys.AFFINE in self.meta:
             # by using the setter function, we ensure it is converted to torch.Tensor if not already
-            self.affine = self.meta["affine"]
+            self.affine = self.meta[MetaKeys.AFFINE]
         else:
             self.affine = self.get_default_affine()
         # applied_operations
@@ -146,6 +147,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         # if we are creating a new MetaTensor, then deep copy attributes
         if isinstance(x, torch.Tensor) and not isinstance(x, MetaTensor):
             self.copy_meta_from(self)
+
+        if MetaKeys.SPACE not in self.meta:
+            self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
@@ -426,12 +430,12 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
-        return self.meta.get("affine", self.get_default_affine())
+        return self.meta.get(MetaKeys.AFFINE, self.get_default_affine())
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
-        self.meta["affine"] = torch.as_tensor(d, device=torch.device("cpu"))
+        self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"))
 
     @property
     def pixdim(self):
@@ -458,7 +462,9 @@ class MetaTensor(MetaObj, torch.Tensor):
         return new_inst
 
     @staticmethod
-    def ensure_torch_and_prune_meta(im: NdarrayTensor, meta: dict, simple_keys: bool = False):
+    def ensure_torch_and_prune_meta(
+        im: NdarrayTensor, meta: dict, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
+    ):
         """
         Convert the image to `torch.Tensor`. If `affine` is in the `meta` dictionary,
         convert that to `torch.Tensor`, too. Remove any superfluous metadata.
@@ -467,6 +473,11 @@ class MetaTensor(MetaObj, torch.Tensor):
             im: Input image (`np.ndarray` or `torch.Tensor`)
             meta: Metadata dictionary.
             simple_keys: whether to keep only a simple subset of metadata keys.
+            pattern: combined with `sep`, a regular expression used to match and prune keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            sep: combined with `pattern`, used to match and delete keys in the metadata (nested dictionary).
+                default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``pattern=".*_code$", sep=" "`` removes any meta keys that ends with ``"_code"``.
 
         Returns:
             By default, a `MetaTensor` is returned.
@@ -481,9 +492,12 @@ class MetaTensor(MetaObj, torch.Tensor):
         # remove any superfluous metadata.
         if simple_keys:
             # ensure affine is of type `torch.Tensor`
-            if "affine" in meta:
-                meta["affine"] = convert_to_tensor(meta["affine"])  # bc-breaking
+            if MetaKeys.AFFINE in meta:
+                meta[MetaKeys.AFFINE] = convert_to_tensor(meta[MetaKeys.AFFINE])  # bc-breaking
             remove_extra_metadata(meta)  # bc-breaking
+
+        if pattern is not None:
+            meta = monai.transforms.DeleteItemsd(keys=pattern, sep=sep, use_re=True)(meta)
 
         # return the `MetaTensor`
         return MetaTensor(img, meta=meta)
