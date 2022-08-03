@@ -62,7 +62,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.06"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.07"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -106,7 +106,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.06"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.07"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -204,7 +204,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: cron-gpu  # so that monai itself is verified first
     container:
-      image: nvcr.io/nvidia/pytorch:22.06-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:22.07-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, common]
     steps:
