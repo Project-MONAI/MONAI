@@ -194,8 +194,9 @@ class TestWorkflowProfiler(unittest.TestCase):
     @SkipIfNoModule("ignite")
     def test_handler(self):
         """Test profiling Engine objects works if Ignite is present."""
-        from monai.engines import SupervisedTrainer
         from ignite.engine import Events
+
+        from monai.engines import SupervisedTrainer
 
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
         im = torch.rand(1, 1, 16, 16)
