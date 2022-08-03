@@ -718,7 +718,7 @@ class DeleteItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             sep: the separator tag to define nested dictionary keys, default to ".".
             use_re: whether the specified key is a regular expression, it also can be
-                a list of bool values, map the to keys.
+                a list of bool values, mapping them to `keys`.
         """
         super().__init__(keys)
         self.sep = sep
@@ -730,7 +730,7 @@ class DeleteItemsd(MapTransform):
             if len(keys) > 1:
                 d[key] = _delete_item(keys[1:], d[key], use_re)
                 return d
-            return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+            return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
         for key, use_re in zip(self.keys, self.use_re):
