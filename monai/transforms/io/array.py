@@ -112,8 +112,8 @@ class LoadImage(Transform):
         dtype: DtypeLike = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        pattern: Optional[str] = None,
-        sep: str = ".",
+        prune_meta_pattern: Optional[str] = None,
+        prune_meta_sep: str = ".",
         *args,
         **kwargs,
     ) -> None:
@@ -131,10 +131,10 @@ class LoadImage(Transform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
-            pattern: combined with `sep`, a regular expression used to match and delete keys
+            prune_meta_pattern: combined with `prune_meta_sep`, a regular expression used to match and prune keys
                 in the metadata (nested dictionary), default to None, no key deletion.
-            sep: combined with `pattern`, used to match and prune keys in the metadata (nested dictionary).
-                default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+            prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
+                in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
 
@@ -154,8 +154,8 @@ class LoadImage(Transform):
         self.dtype = dtype
         self.ensure_channel_first = ensure_channel_first
         self.simple_keys = simple_keys
-        self.pattern = pattern
-        self.sep = sep
+        self.pattern = prune_meta_pattern
+        self.sep = prune_meta_sep
 
         self.readers: List[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
