@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -28,8 +28,9 @@ class ComplexUnet(nn.Module):
     """
     This variant of U-Net handles complex-value input/output. It can be
     used as a model to learn sensitivity maps in multi-coil MRI data. It is
-    built based on :py:class:`monai.networks.nets.BasicUNet`.
-    It also applies default normalization to the input which makes it more stable to train.
+    built based on :py:class:`monai.networks.nets.BasicUNet` by default but the user
+    can input their convolutional model as well.
+    ComplexUnet also applies default normalization to the input which makes it more stable to train.
 
     The data being a (complex) 2-channel tensor is a requirement for using this model.
 
@@ -46,6 +47,9 @@ class ComplexUnet(nn.Module):
             ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
         pad_factor: an integer denoting the number which each padded dimension will be divisible to.
             For example, 16 means each dimension will be divisible by 16 after padding
+        conv_net: the learning model used inside the ComplexUnet. The default
+            is :py:class:`monai.networks.nets.basic_unet`. The only requirement on the model is to
+            have 2 as input and output number of channels.
     """
 
     def __init__(
@@ -58,19 +62,28 @@ class ComplexUnet(nn.Module):
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
         pad_factor: int = 16,
+        conv_net: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.unet = BasicUNet(
-            spatial_dims=spatial_dims,
-            in_channels=2,
-            out_channels=2,
-            features=features,
-            act=act,
-            norm=norm,
-            bias=bias,
-            dropout=dropout,
-            upsample=upsample,
-        )
+        if conv_net is None:
+            self.unet = BasicUNet(
+                spatial_dims=spatial_dims,
+                in_channels=2,
+                out_channels=2,
+                features=features,
+                act=act,
+                norm=norm,
+                bias=bias,
+                dropout=dropout,
+                upsample=upsample,
+            )
+        else:
+            # assume the first layer is convolutional and
+            # check whether in_channels == 2
+            params = [p.shape for p in conv_net.parameters()]
+            if params[0][1] != 2:
+                raise ValueError(f"in_channels should be 2 but it's {params[0][1]}.")
+            self.unet = conv_net
         self.pad_factor = pad_factor
 
     def forward(self, x: Tensor) -> Tensor:
