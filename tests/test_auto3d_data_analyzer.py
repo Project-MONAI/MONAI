@@ -45,7 +45,7 @@ class TestDataAnalyzer(unittest.TestCase):
         if not path.isdir(tmp_dir):
             makedirs(tmp_dir)
 
-        cleanup_list = list()
+        cleanup_list = []
         for d in source_datalist["testing"] + source_datalist["training"]:
             im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
@@ -60,10 +60,10 @@ class TestDataAnalyzer(unittest.TestCase):
 
         yaml_fpath = path.join(tmp_dir, analyzer_output)
         analyser = DataAnalyzer(source_datalist, tmp_dir, output_yaml=yaml_fpath, device=device, worker=n_workers)
-        analyser_results = analyser.get_all_case_stats()
+        datastat = analyser.get_all_case_stats()
         cleanup_list.append(yaml_fpath)
 
-        assert len(analyser_results["stats_by_cases"]) == 4
+        assert len(datastat["stats_by_cases"]) == 4
 
         # clean up the fake datasets and output
         for file in cleanup_list:

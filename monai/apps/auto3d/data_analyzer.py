@@ -16,25 +16,22 @@ Step 1 of the AutoML pipeline. The dataset is analysized with this script.
 import argparse
 import copy
 import logging
-import sys
 import time
 import warnings
 from functools import partial
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 import numpy as np
 import torch
 
-import monai
 from monai import data, transforms
 from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
+from monai.data.meta_tensor import MetaTensor
 from monai.utils import min_version, optional_import
 
 yaml, _ = optional_import("yaml")
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 measure, _ = optional_import("scipy.ndimage.measurements")
-
-sys.path.append(".")
 
 logger = logging.getLogger("global")
 logger.addHandler(logging.StreamHandler())
@@ -48,13 +45,13 @@ class DataAnalyzer:
 
     Args:
         datalist: a Python dictionary storing group, fold, and other information of the medical
-            image dataset, or a string to the JSON file storing the dictionary
-        dataroot: user's local directory containing the datasets
-        output_yaml: path to save the analysis result
-        average: whether to average the statistical value across different image modalities
-        do_ccp: todo,
-        device: a string specifying hardware (CUDA/CPU) utilized for the operations
-            worker: number of workers to use for parallel processing
+            image dataset, or a string to the JSON file storing the dictionary.
+        dataroot: user's local directory containing the datasets.
+        output_yaml: path to save the analysis result.
+        average: whether to average the statistical value across different image modalities.
+        do_ccp: apply the connected component algorithm to process the labels/images
+        device: a string specifying hardware (CUDA/CPU) utilized for the operations.
+        worker: number of workers to use for parallel processing.
 
     Class method overview:
         Hardcoded functions:
@@ -62,38 +59,38 @@ class DataAnalyzer:
             _hardcode_operations: register statistic operations.
         Generate statistics for each case ({'image','label'}) from dataset.datalist:
             _get_case_image_stats: generate shape, cropped shape, spacing, intensities for images in each modality.
-            _get_case_foreground_image_stats: generate intensity stats for foreground image (label>0)
+            _get_case_foreground_image_stats: generate intensity stats for foreground image (label>0).
             _get_label_stats: generate stats for each label. The connected components of each label, and their shapes,
                               corresponding image region intensities stats.
         Generate overall stats for all cases in dataset.datalist:
             _intensity_summary: method defined to combine intensity stats for each case. The intensity features are
                                 min, max, mean, std, percentile defined in self._stats_opt. Those values are averaged
-                                over all the cases
+                                over all the cases.
             _stats_opt_summary: method defined to combine other stats like shape. The min, max, std e.t.c are calucated.
         Utilities:
-            _stats_opt: define stats calculation operations
+            _stats_opt: define stats calculation operations.
             _get_foreground_image: define how to get foreground/cropped images. Currently return bounding box for
-                                   image intensity > 0
-            _get_foreground_label: define foreground image with label > 0
-            save_yaml: save results to yaml file
-            get_case_stats: get stats for each case in dataset.datalist
+                                   image intensity > 0.
+            _get_foreground_label: define foreground image with label > 0.
+            save_yaml: save results to yaml file.
+            get_case_stats: get stats for each case in dataset.datalist.
             _get_case_summary: summarize the results from each case using functions _intensity_summary, _stats_opt_summary.
         Caller:
             get_all_case_stats: The function iterates dataset.datalist and call get_case_stats to generate stats. Then
                                 get_case_summary is called to combine results and save_yaml is called to save results.
 
     Custimize statistics calculation:
-        Write a custome function for indivisual case:
+        Write a new function for indivisual case:
             _get_your_stats(self):
                 1. processed_data = retrive processed data from self.data, if not exist, process data (like cropping)
                 2. define a dict case_stats = {'stats1': calculate(processed_data)}. Notice the data may be a list of
                 data from different modalities. So calculate(processed_data) should return a list of stats. case_status
                 will be written to the yaml file
                 3. create a dict case_stats_summary = {'stats1': summary_function}. The summary_function will process
-                a list of ['stats1','stats1',...] from all cases in self.dataset.datalist
+                a list of ['stats1','stats1',...] from all cases in self.dataset.datalist.
                 4. update self.data with processed_data and update self.gather_summary to register case_stats_summary,
-                and return case_stats
-        Add _get_your_stats to self._hardcode_functions
+                and return case_stats.
+        Add _get_your_stats to self._hardcode_functions.
     """
 
     def __init__(
@@ -106,6 +103,9 @@ class DataAnalyzer:
         device: str = "cuda",
         worker: int = 2,
     ):
+        """
+        Initializer will load the data and register the functions for data statistics gathering.
+        """
         self.output_yaml = output_yaml
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
@@ -125,11 +125,14 @@ class DataAnalyzer:
             ),
         )
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=worker, collate_fn=lambda x: x)
-        # If average all the modalities in the summary, if False, the stats for each modality are
-        # calculated separately
+        # Whether to average all the modalities in the summary
+        # If SUMMERY_AVERAGE is set to false,
+        # the stats for each modality are calculated separately
         self.SUMMERY_AVERAGE = average
         self.DO_CONNECTED_COMP = do_ccp
         self.device = device
+        self.data = {}
+        self.results = {}
         # gather all summary function for combining case stats
         self.gather_summary: Dict[str, Dict] = {}
         self._hardcode_functions()
@@ -146,18 +149,16 @@ class DataAnalyzer:
         ]
 
     def _hardcode_operations(self):
-        """Register operations for basic data operation."""
+        """
+        Register data operations (max/mean/median/...) for the gathering processes.
+        """
         # define basic operations for stats
         self.operations = {
             "max": torch.max,
             "mean": torch.mean,
             "median": torch.median,
             "min": torch.min,
-            "percentile": partial(torch.quantile, q=[0.005, 0.10, 0.90, 0.995]),
-            # 'percentile_00_5' : partial(torch.quantile, q=.005),
-            # 'percentile_99_5' : partial(torch.quantile, q=.995),
-            # 'percentile_10_0' : partial(torch.quantile, q=.10),
-            # 'percentile_90_0' : partial(torch.quantile, q=.90),
+            "percentile": partial(torch.quantile, q=torch.tensor([0.005, 0.10, 0.90, 0.995], device=self.device)),
             "stdev": partial(torch.std, unbiased=False),
         }
         # allow mapping the output of self.operations to new keys (save computation time)
@@ -173,13 +174,9 @@ class DataAnalyzer:
             "median": np.median,
             "min": np.min,
             "percentile": partial(np.quantile, q=[0.005, 0.10, 0.90, 0.995]),
-            # 'percentile_00_5' : partial(np.percentile, q=0.5),
-            # 'percentile_99_5' : partial(np.percentile, q=99.5),
-            # 'percentile_10_0' : partial(np.percentile, q=10),
-            # 'percentile_90_0' : partial(np.percentile, q=90),
             "stdev": np.std,
         }
-        # define summary functions for output from self.operations. For exmaple,
+        # define summary functions for output from self.operations. For example,
         # how to combine max intensity from each case (image)
         self.operations_summary = {
             "max": np.max,
@@ -193,14 +190,24 @@ class DataAnalyzer:
             "stdev": np.mean,
         }
 
-    def _get_case_image_stats(self):
-        ###############################################################
-        """Generate case_stats"""
+    def _get_case_image_stats(self) -> Dict:
+        """
+        Generate case_stats by checking datasets properties such as shape/channels/spacing.
+
+        Returns:
+            a dictionary of the images stats
+            - image_stats
+                - shape
+                - channel
+                - cropped_shape
+                - spacing
+                - intensity
+        """
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
         ndas = [ndas[i] for i in range(ndas.shape[0])]
-        if "nda_croppeds" not in self.data.keys():
+        if "nda_croppeds" not in self.data:
             self.data["nda_croppeds"] = [self._get_foreground_image(_) for _ in ndas]
         nda_croppeds = self.data["nda_croppeds"]
         # perform calculation
@@ -209,7 +216,6 @@ class DataAnalyzer:
                 "shape": [list(_.shape) for _ in ndas],
                 "channels": len(ndas),
                 "cropped_shape": [list(_.shape) for _ in nda_croppeds],
-                # 'spacing': np.tile(np.array(self.data['image_meta_dict']['pixdim'][1:4]), [len(ndas),1]).tolist(),
                 "spacing": np.tile(np.diag(self.data["image_meta_dict"]["affine"])[:3], [len(ndas), 1]).tolist(),
                 "intensity": [self._stats_opt(_) for _ in nda_croppeds],
             }
@@ -218,8 +224,9 @@ class DataAnalyzer:
         return case_stats
 
     def _get_case_image_stats_summary(self):
-        ###############################################################
-        """Update gather_summary"""
+        """
+        Update gather_summary by case-by-case.
+        """
         # this dictionary describes how to gather values in the summary
         case_stats_summary = {
             "image_stats": {
@@ -232,15 +239,25 @@ class DataAnalyzer:
         }
         self.gather_summary.update(case_stats_summary)
 
-    def _get_case_foreground_image_stats(self):
-        ###############################################################
-        """Generate case_stats"""
+    def _get_case_foreground_image_stats(self) -> Dict:
+        """
+        Generate case_stats based on foreground images (points where labels are positive).
+
+        Returns
+            a dictionary with following structure
+            - image_foreground_stats
+                - intensity
+                    - max
+                    - mean
+                    - median
+                    - ...
+        """
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_l = self.data["label"]
-        if "nda_foreground" not in self.data.keys():
+        if "nda_foreground" not in self.data:
             self.data["nda_foreground"] = [self._get_foreground_label(_, ndas_l) for _ in ndas]
         nda_foreground = self.data["nda_foreground"]
 
@@ -249,18 +266,40 @@ class DataAnalyzer:
         return case_stats
 
     def _get_case_foreground_image_stats_summary(self):
+        """
+        Update gather_summary from foreground cases one by one.
+        """
         case_stats_summary = {
             "image_foreground_stats": {"intensity": partial(self._intensity_summary, average=self.SUMMERY_AVERAGE)}
         }
         self.gather_summary.update(case_stats_summary)
 
     @staticmethod
-    def label_union(x):
+    def label_union(x: List):
+        """
+        Compute the union of labels and make it a list
+        Args:
+            x: a list of lists that has number (usually class_id) in each
+
+        Returns
+            a list showing the union (the union the class_ids)
+        """
         return list(set.union(*[set(np.array(_).tolist()) for _ in x]))
 
-    def _get_label_stats(self):
-        ###############################################################
-        """Generate case_stats"""
+    def _get_label_stats(self) -> Dict:
+        """
+        Generate stats for all the labels.
+        Returns
+            a dictionary with following structures:
+            - label_stats
+                - labels: class_IDs of the label + background class
+                - pixel_percentanges
+                - image_intensity
+                - label_N (N=0,1,...)
+                    - image_intensity
+                    - shape
+                    - ncomponents
+        """
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
@@ -299,14 +338,16 @@ class DataAnalyzer:
             case_stats["label_stats"].update({f"label_{index}": label_dict})
         # update pixel_percentage
         total_percent = np.sum(list(pixel_percentage.values()))
-        for key in pixel_percentage.keys():
-            pixel_percentage[key] = float(pixel_percentage[key] / total_percent)
+        for key, value in pixel_percentage.items():
+            pixel_percentage[key] = float(value / total_percent)
         case_stats["label_stats"].update({"pixel_percentage": pixel_percentage})
         logger.debug(f"Get label stats spent {time.time()-start}")
         return case_stats
 
     def _get_label_stats_summary(self):
-        """Get unique_label"""
+        """
+        Get unique_label and update the label into gather_summary. (todo) More descriptions about ccp.
+        """
         case_stats_summary = {
             "label_stats": {
                 "labels": self.label_union,
@@ -327,26 +368,35 @@ class DataAnalyzer:
             case_stats_summary["label_stats"].update({f"label_{index}": label_dict_summary})
         self.gather_summary.update(case_stats_summary)
 
-    def _pixelpercent_summary(self, x):
+    @staticmethod
+    def _pixelpercent_summary(x):
         """
-        Define the summary function for the pixel percentage over the whole dataset
-        x: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels
+        Define the summary function for the pixel percentage over the whole dataset.
+        Args
+            x: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels.
 
+        Returns
+            a dictionary showing the percentage of labels, with numeric keys (0, 1, ...)
         """
         percent_summary = {}
         for _ in x:
             for key, value in _.items():
                 percent_summary[key] = percent_summary.get(key, 0) + value
         total_percent = np.sum(list(percent_summary.values()))
-        for key in percent_summary.keys():
-            percent_summary[key] = float(percent_summary[key] / total_percent)
+        for key, value in percent_summary.items():
+            percent_summary[key] = float(value / total_percent)
         return percent_summary
 
-    def _intensity_summary(self, x, average=False):
+    def _intensity_summary(self, x: List, average: bool = False) -> Dict:
         """
-        Define the summary function for a stats over the whole dataset
-        x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
-        average: if True, average the values over all the images (modalities)
+        Define the summary function for stats over the whole dataset
+
+        Args:
+            x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
+            average: if average is true, operation will be applied along axis 0 and average out the values
+
+        Returns
+            a dictionary of the intensity stats. Keys include 'max', 'mean', and others defined in self.operations
 
         """
         result = {}
@@ -364,7 +414,7 @@ class DataAnalyzer:
             result[key] = np.array(value).tolist()
         return result
 
-    def _stats_opt_summary(self, data, average=False, is_label=False):
+    def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
         """
         Wraps _stats_opt for a list of data from all cases. Does not guarantee correct output
         for custimized stats structure. Check the following input structures.
@@ -378,70 +428,108 @@ class DataAnalyzer:
                     case_stats are list [stat1, stat2, ...]. stat1 can be 1d list, 2d list, and single value.
             average: the operation is performed after mixing all modalities.
             is_label: If the data is from label stats.
+
+        Returns
+            a dictonary with following property of data in keys like "max", "mean" and others defined in operations_summary
         """
         axis = None
-        if type(data[0]) is list or type(data[0]) is np.array:
+        if type(datastat_list[0]) is list or type(datastat_list[0]) is np.array:
             if not is_label:
-                # data size = [num of cases, number of modalities, stats]
-                data = np.concatenate([[np.array(_) for _ in data]])
+                # size = [num of cases, number of modalities, stats]
+                datastat_list = np.concatenate([[np.array(_) for _ in datastat_list]])
             else:
-                # data size = [num of cases, stats]
-                data = np.concatenate([np.array(_) for _ in data])
+                # size = [num of cases, stats]
+                datastat_list = np.concatenate([np.array(_) for _ in datastat_list])
             axis = (0,)
-            if average and len(data.shape) > 2:
+            if average and len(datastat_list.shape) > 2:
                 axis = (0, 1)
         # Calculate statistics from the data using numpy. The torch max, min, median e.t.c have
         # inconsistent interface for axis/dim input. Only used for summary
         result = {}
         for name, ops in self.operations_np.items():
             # get results
-            _result = ops(np.array(data), axis=axis).tolist()  # post process with key mapping
-            mappingkeys = self.operations_mappingkey.get(name, None)
+            _result = ops(np.array(datastat_list), axis=axis).tolist()  # post process with key mapping
+            mappingkeys = self.operations_mappingkey.get(name)
             if mappingkeys is not None:
                 result.update({mappingkeys[i]: _result[i] for i in range(len(_result))})
             else:
                 result[name] = _result
         return result
 
-    def _stats_opt(self, data):
-        """Calculate statistics from the data"""
+    def _stats_opt(self, raw_data):
+        """
+        Calculate statistics from the raw data
+
+        Args:
+            raw_data: ndarray.
+
+        Returns:
+            a dictionary to list out the statistics based on give operations (ops). For example, keys can include 'max', 'min',
+            'median', 'percentile_00_5', percentile_90_0', 'stdev'.
+
+        """
         result = {}
         for name, ops in self.operations.items():
-            if len(data) == 0:
-                data = torch.tensor([0.0], device=self.device)
-            if not torch.is_tensor(data):
-                data = torch.from_numpy(data).to(self.device)
+            if len(raw_data) == 0:
+                raw_data = torch.tensor([0.0], device=self.device)
+            if not torch.is_tensor(raw_data):
+                raw_data = torch.from_numpy(raw_data).to(self.device)
             #  compute the results
             # torch.quantile may fail with large input, if failed, use numpy version
             try:
-                _result = ops(data).data.cpu().numpy().tolist()
-            except Exception:
-                warnings.warn(f"torch {name} version has failed, using np version.")
-                _result = self.operations_np[name](data.cpu().numpy()).tolist()
+                _result = ops(raw_data).data.cpu().numpy().tolist()
+            except Exception as e:
+                logger.debug(e, exc_info=True)
+                _result = self.operations_np[name](raw_data.cpu().numpy()).tolist()
                 pass
             # post process the data
-            mappingkeys = self.operations_mappingkey.get(name, None)
+            mappingkeys = self.operations_mappingkey.get(name)
             if mappingkeys is not None:
                 result.update({mappingkeys[i]: _result[i] for i in range(len(_result))})
             else:
                 result[name] = _result
         return result
 
-    def _get_foreground_image(self, image, label=None):
+    @staticmethod
+    def _get_foreground_image(image: MetaTensor) -> MetaTensor:
         """
+        Get the image foreground / mask out the zero-value area.
         Update select_fn if the foreground is defined differently.
-        return image foreground without using label
 
+        Args:
+            image: ndarray image to segment.
+        Returns:
+            image foreground using non-zero values (rather than using label).
         """
-        crop_foreground = monai.transforms.CropForeground(select_fn=lambda x: x > 0)
+        crop_foreground = transforms.CropForeground(select_fn=lambda x: x > 0)
         return crop_foreground(image)
 
-    def _get_foreground_label(self, image, label):
-        """Define foreground using foreground label"""
+    @staticmethod
+    def _get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
+        """
+        Get foreground image / mask out the non-labeled area.
+
+        Args
+            image: ndarray image to segment.
+            label: ndarray the image input and annotated with class IDs.
+
+        Return
+
+        """
         return image[label > 0]
 
-    def save_yaml(self, results):
+    def save_yaml(self, results: Dict):
+        """
+        Save the datastat results into a YAML file
+
+        Args
+            results: data stats dictionary
+        """
+
         def float_representer(dumper, value):
+            """
+            Set the float number representation
+            """
             text = f"{value:.4f}"
             return dumper.represent_scalar("tag:yaml.org,2002:float", text)
 
@@ -451,16 +539,24 @@ class DataAnalyzer:
 
     def get_case_stats(self, batch_data):
         """
-        Function to get stats for each case {'image', 'label'}
+        Function to get stats for each case {'image', 'label'}. The data case is stored in self.data
         Args:
             batch_data: monai dataloader batch data
                 images: image with shape [modality, image_shape]
                 label: label with shape [image_shape]
-        The data case is stored in self.data
+
+        Returns:
+            a dictionary to summarize all the statistics for each case in following structure
+            - image_stats
+                - shape, channels,cropped_shape, spacing, intensity
+            - image_foreground_stats
+                - intensity
+            - label_stats
+                - labels, pxiel_percentage, image_intensity, label_0, label_1
+
         """
-        self.data = {}
-        self.data["image"] = batch_data["image"].to(self.device)  # torch.tensor(batch_data['image']).to(self.device)
-        self.data["label"] = batch_data["label"].to(self.device)  # torch.tensor(batch_data['label']).to(self.device)
+        self.data["image"] = batch_data["image"].to(self.device)
+        self.data["label"] = batch_data["label"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
         self.data["label_meta_dict"] = batch_data["label_meta_dict"]
         case_stats = {}
@@ -470,7 +566,7 @@ class DataAnalyzer:
 
     def _get_case_summary(self):
         """
-        Function to combine case stats. The stats for each case is stored in self.result['stats_by_cases'].
+        Function to combine case stats. The stats for each case is stored in self.results['stats_by_cases'].
         Each case stats is a dictionary. The function first get all the leaf-keys of self.gather_summary.
         self.gather_summary is a dictionary of the same structure with the final summary yaml
         output (self.results['stats_summary']), because it is updated by case_stats_summary.
@@ -489,10 +585,16 @@ class DataAnalyzer:
             )
             recursive_setvalue(key_chain, value, self.results["stats_summary"])
 
-    def get_all_case_stats(self):
-        """Get all case stats. Caller of the DataAnalyser class."""
+    def get_all_case_stats(self) -> Dict:
+        """
+        Get all case stats. Caller of the DataAnalyser class.
+
+        Returns
+            - the data statistics dictionary
+        """
         start = time.time()
-        self.results = {"stats_summary": {}, "stats_by_cases": []}
+        self.results["stats_summary"] = {}
+        self.results["stats_by_cases"] = []
         s = start
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -513,6 +615,7 @@ class DataAnalyzer:
 
 
 if __name__ == "__main__":
+    # The class can be run in the command line interface
     parser = argparse.ArgumentParser(description="input")
     parser.add_argument("--dataroot", type=str, required=True, help="data directory")
     parser.add_argument("--datalist", type=str, required=True, help="input json")
