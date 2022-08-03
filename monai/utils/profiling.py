@@ -299,7 +299,7 @@ class WorkflowProfiler:
         """Creates a context to profile, placing a timing result onto the queue when it exits."""
         if caller is None:
             caller = getframeinfo(stack()[2][0])  # caller of context, not something in contextlib
-            
+
         start = perf_counter_ns()
         try:
             yield
@@ -321,9 +321,9 @@ class WorkflowProfiler:
 
     def profile_iter(self, name, iterable):
         """Wrapper around anything iterable to profile how long it takes to generate items."""
-        
+
         class _Iterable:
-            def __iter__(_self):
+            def __iter__(_self):  # noqa: B902 N805
                 do_iter = True
                 orig_iter = iter(iterable)
                 caller = getframeinfo(stack()[1][0])
@@ -338,7 +338,7 @@ class WorkflowProfiler:
                         yield item
                     except StopIteration:
                         do_iter = False
-        
+
         return _Iterable()
 
     def get_times_summary(self, times_in_s=True):
@@ -383,35 +383,36 @@ class WorkflowProfiler:
             for r in rlist:
                 writer.writerow(r._asdict())
 
-                
+
 class ProfileHandler:
     """
     Handler for Ignite Engine classes which measures the time from a start event ton an end event. This can be used to
     profile epoch, iteration, and other events as defined in `ignite.engine.Events`. This class should be used only
     within the context of a profiler object.
-    
+
     Args:
         name: name of event to profile
         profiler: instance of WorkflowProfiler used by the handler, should be within the context of this object
         start_event: item in `ignite.engine.Events` stating event at which to start timing
         end_event: item in `ignite.engine.Events` stating event at which to stop timing
     """
-    def __init__(self,name:str, profiler:WorkflowProfiler, start_event, end_event):
-        self.name=name
-        self.profiler=profiler
-        self.start_event=start_event
-        self.end_event=end_event
-        self.ctx=None
-        
+
+    def __init__(self, name: str, profiler: WorkflowProfiler, start_event, end_event):
+        self.name = name
+        self.profiler = profiler
+        self.start_event = start_event
+        self.end_event = end_event
+        self.ctx = None
+
     def attach(self, engine):
         engine.add_event_handler(self.start_event, self.start)
         engine.add_event_handler(self.end_event, self.end)
         return self
-        
+
     def start(self, engine):
-        self.ctx=self.profiler.profile_ctx(self.name)
+        self.ctx = self.profiler.profile_ctx(self.name)
         self.ctx.__enter__()
-        
+
     def end(self, engine):
         self.ctx.__exit__(None, None, None)
-        self.ctx=None
+        self.ctx = None

@@ -92,8 +92,8 @@ from .module import (
 from .nvtx import Range
 from .profiling import (
     PerfContext,
-    WorkflowProfiler,
     ProfileHandler,
+    WorkflowProfiler,
     select_transform_call,
     torch_profiler_full,
     torch_profiler_time_cpu_gpu,

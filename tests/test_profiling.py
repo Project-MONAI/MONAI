@@ -12,18 +12,17 @@
 import datetime
 import os
 import unittest
+from io import StringIO
 
 import torch
 
-from tests.utils import SkipIfNoModule, skip_if_windows
-
 import monai.transforms as mt
-from monai.data import Dataset, DataLoader, ThreadDataLoader
+from monai.data import DataLoader, Dataset, ThreadDataLoader
 from monai.engines import SupervisedTrainer
 from monai.utils import first, optional_import
 from monai.utils.enums import CommonKeys
-from monai.utils.profiling import ProfileResult, WorkflowProfiler, ProfileHandler
-from io import StringIO
+from monai.utils.profiling import ProfileHandler, ProfileResult, WorkflowProfiler
+from tests.utils import SkipIfNoModule, skip_if_windows
 
 pd, _ = optional_import("pandas")
 
@@ -69,35 +68,35 @@ class TestWorkflowProfiler(unittest.TestCase):
         dt = datetime.datetime.fromisoformat(pr.timestamp)
 
         self.assertIsInstance(dt, datetime.datetime)
-        
+
     @skip_if_windows
     def test_profile_multiprocess(self):
         """Test results are gathered from multiple processes, profiling across processes fails in Windows."""
-        ds=Dataset([self.test_image]*4,self.scale)
-        dl=DataLoader(ds, batch_size=4, num_workers=4)
-        
+        ds = Dataset([self.test_image] * 4, self.scale)
+        dl = DataLoader(ds, batch_size=4, num_workers=4)
+
         with WorkflowProfiler() as wp:
-            batch=first(dl)
+            batch = first(dl)
 
         self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
-        
+
         results = wp.get_results()
         self.assertSequenceEqual(list(results), [self.scale_call_name])
 
         prs = results[self.scale_call_name]
 
         self.assertEqual(len(prs), 4)
-        
+
     def test_profile_multithread(self):
         """Test resulst are gathered from multiple threads using ThreadDataLoader."""
-        ds=Dataset([self.test_image]*4,self.scale)
-        dl=ThreadDataLoader(ds, batch_size=4, num_workers=4, use_thread_workers=True)
-        
+        ds = Dataset([self.test_image] * 4, self.scale)
+        dl = ThreadDataLoader(ds, batch_size=4, num_workers=4, use_thread_workers=True)
+
         with WorkflowProfiler() as wp:
-            batch=first(dl)
+            batch = first(dl)
 
         self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
-        
+
         results = wp.get_results()
         self.assertSequenceEqual(list(results), [self.scale_call_name])
 
@@ -123,6 +122,7 @@ class TestWorkflowProfiler(unittest.TestCase):
 
     def test_profile_callable(self):
         """Test profiling functions with default or set names."""
+
         def funca():
             pass
 
@@ -187,36 +187,35 @@ class TestWorkflowProfiler(unittest.TestCase):
         """Test dumping the results to csv file in a local StringIO object."""
         with WorkflowProfiler() as wp:
             self.scale(self.test_image)
-            
-        sio=StringIO()
+
+        sio = StringIO()
         wp.dump_csv(sio)
-        self.assertGreater(sio.tell(),0)
-    
+        self.assertGreater(sio.tell(), 0)
+
     @SkipIfNoModule("ignite")
     def test_handler(self):
         """Test profiling Engine objects works if Ignite is present."""
         from ignite.engine import Events
-        
-        net=torch.nn.Conv2d(1,1,3,padding=1)
-        im=torch.rand(1,1,16,16)
-        
+
+        net = torch.nn.Conv2d(1, 1, 3, padding=1)
+        im = torch.rand(1, 1, 16, 16)
+
         with WorkflowProfiler(None) as wp:
-            trainer=SupervisedTrainer(
+            trainer = SupervisedTrainer(
                 device=torch.device("cpu"),
                 max_epochs=2,
-                train_data_loader=[{CommonKeys.IMAGE:im,CommonKeys.LABEL:im}]*3,
+                train_data_loader=[{CommonKeys.IMAGE: im, CommonKeys.LABEL: im}] * 3,
                 epoch_length=3,
                 network=net,
                 optimizer=torch.optim.Adam(net.parameters()),
                 loss_function=torch.nn.L1Loss(),
             )
-            
-            epoch_h=ProfileHandler("Epoch",wp, Events.EPOCH_STARTED, Events.EPOCH_COMPLETED).attach(trainer)
+
+            _ = ProfileHandler("Epoch", wp, Events.EPOCH_STARTED, Events.EPOCH_COMPLETED).attach(trainer)
 
             trainer.run()
-            
+
         results = wp.get_results()
-        
+
         self.assertSequenceEqual(set(results), {"Epoch"})
         self.assertEqual(len(results["Epoch"]), 2)
-        
