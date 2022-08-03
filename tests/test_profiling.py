@@ -18,7 +18,6 @@ import torch
 
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset, ThreadDataLoader
-from monai.engines import SupervisedTrainer
 from monai.utils import first, optional_import
 from monai.utils.enums import CommonKeys
 from monai.utils.profiling import ProfileHandler, ProfileResult, WorkflowProfiler
@@ -195,6 +194,7 @@ class TestWorkflowProfiler(unittest.TestCase):
     @SkipIfNoModule("ignite")
     def test_handler(self):
         """Test profiling Engine objects works if Ignite is present."""
+        from monai.engines import SupervisedTrainer
         from ignite.engine import Events
 
         net = torch.nn.Conv2d(1, 1, 3, padding=1)

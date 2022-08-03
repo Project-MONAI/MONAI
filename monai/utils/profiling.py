@@ -323,7 +323,7 @@ class WorkflowProfiler:
         """Wrapper around anything iterable to profile how long it takes to generate items."""
 
         class _Iterable:
-            def __iter__(_self):  # noqa: B902, N805
+            def __iter__(_self):  # noqa: B902 N805 E0213
                 do_iter = True
                 orig_iter = iter(iterable)
                 caller = getframeinfo(stack()[1][0])
