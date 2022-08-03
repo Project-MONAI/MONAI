@@ -78,6 +78,13 @@ class ComplexUnet(nn.Module):
                 upsample=upsample,
             )
         else:
+            # assume the first and last layers are convolutional and
+            # check whether (in_channels,out_channels) == (2,2)
+            params = [p.shape for p in conv_net.parameters()]
+            if (params[0][1], params[-1][0]) != (2, 2):
+                raise ValueError(
+                    f"(in_channels,out_channels) should be (2,2) but they are ({params[0][1], params[-1][0]})."
+                )
             self.unet = conv_net
         self.pad_factor = pad_factor
 
