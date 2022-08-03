@@ -15,11 +15,12 @@ import unittest
 
 import torch
 
-from tests.utils import SkipIfNoModule
+from tests.utils import SkipIfNoModule, skip_if_windows
 
 import monai.transforms as mt
+from monai.data import Dataset, DataLoader, ThreadDataLoader
 from monai.engines import SupervisedTrainer
-from monai.utils import optional_import
+from monai.utils import first, optional_import
 from monai.utils.enums import CommonKeys
 from monai.utils.profiling import ProfileResult, WorkflowProfiler, ProfileHandler
 from io import StringIO
@@ -32,11 +33,13 @@ class TestWorkflowProfiler(unittest.TestCase):
         super().setUp()
 
         self.scale = mt.ScaleIntensity()
+        self.scale_call_name = "ScaleIntensity.__call__"
         self.test_comp = mt.Compose([mt.ScaleIntensity(), mt.RandAxisFlip(0.5)])
         self.test_image = torch.rand(1, 16, 16, 16)
         self.pid = os.getpid()
 
     def test_empty(self):
+        """Test that the profiler correctly produces an empty result when nothing happens in a context."""
         wp = WorkflowProfiler()
 
         with wp:
@@ -45,29 +48,65 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertEqual(wp.get_results(), {})
 
     def test_profile_transforms(self):
-        call_name = "ScaleIntensity.__call__"
+        """Test basic reporting when invoking a single transform directly."""
         with WorkflowProfiler() as wp:
             self.scale(self.test_image)
 
         results = wp.get_results()
-        self.assertSequenceEqual(list(results), [call_name])
+        self.assertSequenceEqual(list(results), [self.scale_call_name])
 
-        prs = results[call_name]
+        prs = results[self.scale_call_name]
 
         self.assertEqual(len(prs), 1)
 
         pr = prs[0]
 
         self.assertIsInstance(pr, ProfileResult)
-        self.assertEqual(pr.name, call_name)
+        self.assertEqual(pr.name, self.scale_call_name)
         self.assertEqual(pr.pid, self.pid)
         self.assertGreater(pr.time, 0)
 
         dt = datetime.datetime.fromisoformat(pr.timestamp)
 
         self.assertIsInstance(dt, datetime.datetime)
+        
+    @skip_if_windows
+    def test_profile_multiprocess(self):
+        """Test results are gathered from multiple processes, profiling across processes fails in Windows."""
+        ds=Dataset([self.test_image]*4,self.scale)
+        dl=DataLoader(ds, batch_size=4, num_workers=4)
+        
+        with WorkflowProfiler() as wp:
+            batch=first(dl)
+
+        self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
+        
+        results = wp.get_results()
+        self.assertSequenceEqual(list(results), [self.scale_call_name])
+
+        prs = results[self.scale_call_name]
+
+        self.assertEqual(len(prs), 4)
+        
+    def test_profile_multithread(self):
+        """Test resulst are gathered from multiple threads using ThreadDataLoader."""
+        ds=Dataset([self.test_image]*4,self.scale)
+        dl=ThreadDataLoader(ds, batch_size=4, num_workers=4, use_thread_workers=True)
+        
+        with WorkflowProfiler() as wp:
+            batch=first(dl)
+
+        self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
+        
+        results = wp.get_results()
+        self.assertSequenceEqual(list(results), [self.scale_call_name])
+
+        prs = results[self.scale_call_name]
+
+        self.assertEqual(len(prs), 4)
 
     def test_profile_context(self):
+        """Test results from profiling contexts with the same name accumulate correctly."""
         with WorkflowProfiler() as wp:
             with wp.profile_ctx("context"):
                 self.scale(self.test_image)
@@ -83,6 +122,7 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertEqual(len(prs), 2)
 
     def test_profile_callable(self):
+        """Test profiling functions with default or set names."""
         def funca():
             pass
 
@@ -105,6 +145,7 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertEqual(len(results["funcb"]), 2)
 
     def test_profile_iteration(self):
+        """Test iterables are profiled correctly, producing the right output and number of results."""
         with WorkflowProfiler() as wp:
             range_vals = []
 
@@ -119,22 +160,22 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertEqual(len(results["range5"]), 5)
 
     def test_times_summary(self):
-        call_name = "ScaleIntensity.__call__"
-
+        """Test generating the summary report dictionary."""
         with WorkflowProfiler() as wp:
             self.scale(self.test_image)
 
         tsum = wp.get_times_summary()
 
-        self.assertSequenceEqual(list(tsum), [call_name])
+        self.assertSequenceEqual(list(tsum), [self.scale_call_name])
 
-        times = tsum[call_name]
+        times = tsum[self.scale_call_name]
 
         self.assertEqual(len(times), 6)
         self.assertEqual(times[0], 1)
 
     @SkipIfNoModule("pandas")
     def test_times_summary_pd(self):
+        """Test generating the Pandas result works if Pandas is present."""
         with WorkflowProfiler() as wp:
             self.scale(self.test_image)
 
@@ -143,6 +184,7 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
 
     def test_csv_dump(self):
+        """Test dumping the results to csv file in a local StringIO object."""
         with WorkflowProfiler() as wp:
             self.scale(self.test_image)
             
@@ -152,6 +194,7 @@ class TestWorkflowProfiler(unittest.TestCase):
     
     @SkipIfNoModule("ignite")
     def test_handler(self):
+        """Test profiling Engine objects works if Ignite is present."""
         from ignite.engine import Events
         
         net=torch.nn.Conv2d(1,1,3,padding=1)
