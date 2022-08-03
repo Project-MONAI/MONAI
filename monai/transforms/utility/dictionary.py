@@ -972,8 +972,6 @@ class ConcatItemsd(MapTransform):
             d[self.name] = np.concatenate(output, axis=self.dim)
         elif issubclass(data_type, torch.Tensor):  # type: ignore
             d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
-        elif isinstance(d[key], MetaTensor):
-            d[self.name] = torch.cat(output, dim=self.dim)
         else:
             raise TypeError(
                 f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
