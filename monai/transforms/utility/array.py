@@ -238,7 +238,7 @@ class EnsureChannelFirst(Transform):
             return img
         if channel_dim == "no_channel":
             return convert_to_tensor(img[None], track_meta=get_track_meta())  # type: ignore
-        return convert_to_tensor(moveaxis(img, channel_dim, 0), track_meta=get_track_meta())
+        return convert_to_tensor(moveaxis(img, channel_dim, 0), track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
