@@ -200,7 +200,7 @@ if __name__ == "__main__":
     if err_mod:
         print(err_mod)
         # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+        assert sorted(err_mod) == ["monai.engines", "monai.fl.client", "monai.handlers"]
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)

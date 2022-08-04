@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+from typing import Dict, Optional
 
 from monai.fl.utils.constants import WeightType
 
@@ -22,7 +22,12 @@ class ExchangeObject(dict):
     """
 
     def __init__(
-        self, weights=None, optim=None, metrics: Dict = None, weight_type: Dict = None, statistics: Dict = None
+        self,
+        weights=None,
+        optim=None,
+        metrics: Optional[Dict] = None,
+        weight_type: Optional[Dict] = None,
+        statistics: Optional[Dict] = None,
     ):
         super().__init__()
         self.weights = weights
