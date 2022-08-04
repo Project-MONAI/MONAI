@@ -40,7 +40,7 @@ class VarNetBlock(nn.Module):
 
     def soft_dc(self, x: Tensor, ref_kspace: Tensor, mask: Tensor) -> Tensor:
         """
-        Applies data consistency to input x. Suppose x is some intermediate estimate of the kspace and ref_kspace
+        Applies data consistency to input x. Suppose x is an intermediate estimate of the kspace and ref_kspace
         is the reference under-sampled measurement. This function returns mask * (x - ref_kspace). View this as the
         residual between the original under-sampled kspace and the estimate given by the network.
 
