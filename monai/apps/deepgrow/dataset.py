@@ -15,7 +15,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from monai.transforms import EnsureChannelFirstd, Compose, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
+from monai.transforms import Compose, EnsureChannelFirstd, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
 from monai.utils import GridSampleMode
 from monai.utils.enums import PostFix
 

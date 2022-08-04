@@ -22,11 +22,11 @@ import torch
 
 from monai.apps import download_and_extract
 from monai.transforms import (
-    EnsureChannelFirstd,
     Affine,
     Affined,
     AsDiscrete,
     Compose,
+    EnsureChannelFirstd,
     Flip,
     Flipd,
     LoadImaged,
@@ -208,7 +208,12 @@ def get_data(keys):
     data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose(
-        [LoadImaged(keys), EnsureChannelFirstd(keys), ScaleIntensityd(CommonKeys.IMAGE), Rotate90d(keys, spatial_axes=[0, 2])]
+        [
+            LoadImaged(keys),
+            EnsureChannelFirstd(keys),
+            ScaleIntensityd(CommonKeys.IMAGE),
+            Rotate90d(keys, spatial_axes=[0, 2]),
+        ]
     )
     data = transforms(data)
     max_size = max(data[keys[0]].shape)
