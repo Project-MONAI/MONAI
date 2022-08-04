@@ -127,14 +127,20 @@ class MonaiAlgo(ClientAlgo):
 
     def get_weights(self, extra={}):
         self.phase = FlPhase.GET_WEIGHTS
-        weights = self.trainer.network.state_dict()
+        if self.trainer:
+            weights = self.trainer.network.state_dict()
+            stats = self.trainer.get_train_stats()  # TODO: returns dict with hardcoded strings from MONAI
+        else:
+            weights = None
+            stats = dict()
 
         # TODO: support weight diffs
+        assert isinstance(stats, dict)
         return_weights = ExchangeObject(
             weights=weights,
             optim=None,  # could be self.optimizer.state_dict()
             weight_type=WeightType.WEIGHTS,
-            statistics=self.trainer.get_train_stats(),  # TODO: returns dict with hardcoded strings from MONAI
+            statistics=stats
         )
 
         # filter weights if needed (use to apply differential privacy, encryption, compression, etc.)
