@@ -639,6 +639,11 @@ Nets
 .. autoclass:: monai.apps.reconstruction.networks.nets.complex_unet.ComplexUnet
    :members:
 
+`CoilSensitivityModel`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
+   :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
