@@ -67,6 +67,38 @@ def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:  # type: ignore
         return x.view(b, 2, c, h, w, d).permute(0, 2, 3, 4, 5, 1)
 
 
+def reshape_channel_to_batch_dim(x: Tensor) -> Sequence:
+    """
+    Combines batch and channel dimensions.
+
+    Args:
+        x: Ndim input of shape shape (B,C,...)
+
+    Returns:
+        A tuple containing:
+            (1) output of shape (B*C,1,...)
+            (2) batch size
+    """
+    b, c, *other = x.shape
+    return x.contiguous().view(b * c, 1, *other), b
+
+
+def reshape_batch_channel_to_channel_dim(x: Tensor, batch_size: int) -> Tensor:
+    """
+    Detaches batch and channel dimensions.
+
+    Args:
+        x: Ndim input of shape (B*C,1,...)
+        batch_size: batch size
+
+    Returns:
+        output of shape (B,C,...)
+    """
+    bc, one, *other = x.shape  # bc represents B*C
+    c = bc // batch_size
+    return x.view(batch_size, c, *other)
+
+
 def complex_normalize(x: Tensor) -> Sequence:  # type: ignore
     """
     Performs layer mean-std normalization for complex data. Normalization is done for each batch member
