@@ -9,26 +9,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import unittest
-from typing import Any, Dict
 
-import torch
-from ignite.engine import Engine
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
 from monai.fl.client.monai_algo import MonaiAlgo
-from monai.fl.utils.exchange_object import ExchangeObject
 from monai.fl.utils.constants import ExtraItems
+from monai.fl.utils.exchange_object import ExchangeObject
 
-TEST_CASE_1 = [{"config_train_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json"),
-                "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json")}]
+TEST_TRAIN_1 = [
+    {
+        "config_train_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json"),
+        "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json"),
+    }
+]
+TEST_TRAIN_2 = [
+    {
+        "config_train_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json"),
+        "config_filters_file": None,
+    }
+]
+
+TEST_PREDICT_1 = [
+    {
+        "config_predict_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_predict.json"),
+        "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json"),
+    }
+]
+TEST_PREDICT_2 = [
+    {
+        "config_predict_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_predict.json"),
+        "config_filters_file": None,
+    }
+]
+
+TEST_GET_WEIGHTS_1 = [
+    {
+        "config_train_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json"),
+        "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json"),
+    }
+]
+TEST_GET_WEIGHTS_2 = [
+    {
+        "config_train_file": None,
+        "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json"),
+    }
+]
+
 
 class TestFLMonaiAlgo(unittest.TestCase):
+    @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2])
+    def test_train(self, input_params):
+        # get testing data dir and update train config
+        with open(input_params["config_train_file"], "r") as f:
+            config_train = json.load(f)
 
-    @parameterized.expand([TEST_CASE_1])
-    def test_compute(self, input_params):
+        config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
+
+        with open(input_params["config_train_file"], "w") as f:
+            json.dump(config_train, f, indent=4)
+
+        # initialize algo
         algo = MonaiAlgo(**input_params)
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
 
@@ -40,8 +84,57 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         data = ExchangeObject(weights=network.state_dict())
 
-        # test training
-        algo.train(data=data, extra = {})
+        # test train
+        algo.train(data=data, extra={})
+
+    @parameterized.expand([TEST_PREDICT_1, TEST_PREDICT_2])
+    def test_predict(self, input_params):
+        # get testing data dir and update train config
+        with open(input_params["config_predict_file"], "r") as f:
+            config_predict = json.load(f)
+
+        config_predict["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
+
+        with open(input_params["config_predict_file"], "w") as f:
+            json.dump(config_predict, f, indent=4)
+
+        # initialize algo
+        algo = MonaiAlgo(**input_params)
+        algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
+
+        # initialize model
+        parser = ConfigParser()
+        parser.read_config(input_params["config_predict_file"])
+        parser.parse()
+        network = parser.get_parsed_content("network")
+
+        data = ExchangeObject(weights=network.state_dict())
+
+        # test predict
+        algo.predict(data=data, extra={})
+
+    @parameterized.expand([TEST_GET_WEIGHTS_1, TEST_GET_WEIGHTS_2])
+    def test_get_weights(self, input_params):
+        # get testing data dir and update train config
+        if input_params["config_train_file"]:
+            with open(input_params["config_train_file"], "r") as f:
+                config_train = json.load(f)
+
+            config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
+
+            with open(input_params["config_train_file"], "w") as f:
+                json.dump(config_train, f, indent=4)
+
+        # initialize algo
+        algo = MonaiAlgo(**input_params)
+        algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
+
+        # test train
+        weights = algo.get_weights(extra={})
+        self.assertIsInstance(weights, ExchangeObject)
+
+    # TODO: test abort and finalize
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,16 +11,8 @@
         "out_channels": 6
     },
     "network": "$@network_def.to(@device)",
-    "loss": {
-        "_target_": "torch.nn.CrossEntropyLoss"
-    },
-    "optimizer": {
-        "_target_": "torch.optim.Adam",
-        "params": "$@network.parameters()",
-        "lr": 0.0001
-    },
-    "train": {
-        "training_transforms": [
+    "validate": {
+        "val_transforms": [
             {
                 "_target_": "LoadImaged",
                 "keys": [
@@ -41,32 +33,6 @@
                 ]
             },
             {
-                "_target_": "RandRotated",
-                "keys": [
-                    "image"
-                ],
-                "range_x": 15,
-                "prob": 0.5,
-                "keep_size": true
-            },
-            {
-                "_target_": "RandFlipd",
-                "keys": [
-                    "image"
-                ],
-                "spatial_axis": 0,
-                "prob": 0.5
-            },
-            {
-                "_target_": "RandZoomd",
-                "keys": [
-                    "image"
-                ],
-                "min_zoom": 0.9,
-                "max_zoom": 1.1,
-                "prob": 0.5
-            },
-            {
                 "_target_": "ToTensord",
                 "keys": [
                     "image",
@@ -76,7 +42,7 @@
         ],
         "preprocessing": {
             "_target_": "Compose",
-            "transforms": "$@train#training_transforms"
+            "transforms": "$@validate#val_transforms"
         },
         "dataset": {
             "_target_": "Dataset",
@@ -90,35 +56,31 @@
                     "label": 1
                 }
             ],
-            "transform": "@train#preprocessing"
+            "transform": "@validate#preprocessing"
         },
         "dataloader": {
             "_target_": "DataLoader",
-            "dataset": "@train#dataset",
+            "dataset": "@validate#dataset",
             "batch_size": 128,
-            "shuffle": true,
-            "num_workers": 2
+            "shuffle": false,
+            "num_workers": 4
         },
         "inferer": {
             "_target_": "SimpleInferer"
         },
-        "handlers": [
-            {
-                "_target_": "StatsHandler",
-                "tag_name": "train_loss",
-                "output_transform": "$monai.handlers.from_engine(['loss'], first=True)"
+        "key_metric": {
+            "accuracy": {
+                "_target_": "ignite.metrics.Accuracy",
+                "output_transform": "$monai.handlers.from_engine(['pred', 'label'])"
             }
-        ],
-        "trainer": {
-            "_target_": "SupervisedTrainer",
-            "max_epochs": 2,
+        },
+        "evaluator": {
+            "_target_": "SupervisedEvaluator",
             "device": "@device",
-            "train_data_loader": "@train#dataloader",
+            "val_data_loader": "@validate#dataloader",
             "network": "@network",
-            "loss_function": "@loss",
-            "optimizer": "@optimizer",
-            "inferer": "@train#inferer",
-            "train_handlers": "@train#handlers"
+            "inferer": "@validate#inferer",
+            "key_val_metric": "@validate#key_metric"
         }
     }
 }
