@@ -13,9 +13,9 @@ import warnings
 from typing import Callable, List, Optional, Union
 
 import torch
+from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
-from torch.nn.modules.loss import _Loss
 from monai.utils import LossReduction
 
 
@@ -30,6 +30,7 @@ class AUCMLoss(_Loss):
         softmax: bool = False,
         other_act: Optional[Callable] = None,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        gpu: bool = False,
     ):
         super().__init__(reduction=LossReduction(reduction).value)
 
@@ -45,7 +46,7 @@ class AUCMLoss(_Loss):
         self.p = imratio
         self.num_classes = num_classes
         if self.p:
-            assert len(self.p) == self.num_classes , "imratio must be a list of length num_classes"
+            assert len(self.p) == self.num_classes, "imratio must be a list of length num_classes"
         else:
             self.p = [0.0] * self.num_classes
 
@@ -53,18 +54,32 @@ class AUCMLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
-
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.a = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(self.device)
-        self.b = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device,  requires_grad=True).to(self.device)
-        self.alpha = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(self.device)
+        
+        self.device = torch.device("cuda" if gpu else "cpu")
+        self.a = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
+            self.device
+        )
+        self.b = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
+            self.device
+        )
+        self.alpha = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
+            self.device
+        )
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, auto=True) -> torch.Tensor:
         """
         Args:
             y_pred
         """
-
+        if y_pred.shape[1] != self.num_classes:
+            raise ValueError(
+                f"y_pred.shape[1] must be {self.num_classes}, equal to num_classes ,but is {y_pred.shape[1]}"
+            )
+            
+        if y_true.shape[1] != self.num_classes:
+            raise ValueError(
+                f"y_true.shape[1] must be {self.num_classes}, equal to num_classes ,but is {y_true.shape[1]}"
+            )
 
         if self.sigmoid:
             y_pred = torch.sigmoid(y_pred)
@@ -83,27 +98,36 @@ class AUCMLoss(_Loss):
             if n_pred_ch == 1:
                 warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
             else:
-                y_true = one_hot(y_true, num_classes = n_pred_ch)
+                y_true = one_hot(y_true, num_classes=n_pred_ch)
 
         if y_pred.shape != y_true.shape:
-            raise ValueError(f"y_pred and y_true must have the same shape. y_pred.shape: {y_pred.shape}, y_true.shape: {y_true.shape}")
+            raise ValueError(
+                f"y_pred and y_true must have the same shape. y_pred.shape: {y_pred.shape}, y_true.shape: {y_true.shape}"
+            )
 
         total_loss = 0
         for idx in range(self.num_classes):
             if len(y_pred[:, idx].shape) == 1:
-               y_pred = y_pred[:, idx].reshape(-1, 1)
+                y_pred = y_pred[:, idx].reshape(-1, 1)
             if len(y_true[:, idx].shape) == 1:
-               y_true = y_true[:, idx].reshape(-1, 1)
+                y_true = y_true[:, idx].reshape(-1, 1)
             if auto or not self.p:
-               self.p[idx] = (y_true==1).sum()/y_true.shape[0]
+                self.p[idx] = (y_true == 1).sum() / y_true.shape[0]
 
-            loss =  + (1-self.p[idx]) * torch.mean((y_pred - self.a[idx])**2 * (1==y_true).float()) \
-                    + self.p[idx] * torch.mean((y_pred - self.b[idx])**2 *(0==y_true).float()) \
-                    + 2 * self.alpha[idx] * (self.p[idx] * (1 - self.p[idx]) \
-                    + torch.mean(self.p[idx] * y_pred * (0==y_true).float() \
-                    - (1 - self.p[idx]) * y_pred * (1==y_true).float())) \
-                    - self.p[idx] * (1  -self.p[idx]) * self.alpha[idx]**2
+            loss = (
+                (1 - self.p[idx]) * torch.mean((y_pred - self.a[idx]) ** 2 * (1 == y_true).float())
+                + self.p[idx] * torch.mean((y_pred - self.b[idx]) ** 2 * (0 == y_true).float())
+                + 2
+                * self.alpha[idx]
+                * (
+                    self.p[idx] * (1 - self.p[idx])
+                    + torch.mean(
+                        self.p[idx] * y_pred * (0 == y_true).float()
+                        - (1 - self.p[idx]) * y_pred * (1 == y_true).float()
+                    )
+                )
+                - self.p[idx] * (1 - self.p[idx]) * self.alpha[idx] ** 2
+            )
 
             total_loss += loss
-
         return total_loss
