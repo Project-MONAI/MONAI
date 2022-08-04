@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import json
 import os
 import unittest
@@ -19,6 +20,7 @@ from monai.bundle import ConfigParser
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
+from tests.utils import SkipIfNoModule
 
 TEST_TRAIN_1 = [
     {
@@ -60,6 +62,7 @@ TEST_GET_WEIGHTS_2 = [
 ]
 
 
+@SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2])
     def test_train(self, input_params):

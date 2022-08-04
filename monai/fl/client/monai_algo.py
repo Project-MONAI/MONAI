@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Optional
 
 import torch
 
+import monai
 from monai.bundle import ConfigParser
 from monai.config import IgniteInfo
-from monai.engines.trainer import Trainer
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
@@ -69,30 +69,28 @@ class MonaiAlgo(ClientAlgo):
         self.phase = FlPhase.IDLE
         self.client_name = None
 
-    def initialize(self, extra={}):
-        self.logger.info(f"Initializing {self.client_name} ...")  # TODO: remove
-
+    def initialize(self, extra=None):
+        if extra is None:
+            extra = {}
+        self.logger.info(f"Initializing {self.client_name} ...")
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
-
-        # Parse & instantiate trainer
         if self.config_train_file:
             self.logger.info(f"Parsing trainer configuration from {self.config_train_file}")
+
             self.train_parser = ConfigParser()
             self.train_parser.read_config(self.config_train_file)
             self.train_parser.parse()
             self.trainer = self.train_parser.get_parsed_content("train#trainer")
-
-        # Parse & instantiate predictor
         if self.config_predict_file:
             self.logger.info(f"Parsing predictor configuration from {self.config_predict_file}")
+
             self.predict_parser = ConfigParser()
             self.predict_parser.read_config(self.config_predict_file)
             self.predict_parser.parse()
             self.predictor = self.predict_parser.get_parsed_content("validate#evaluator")
-
-        # Parse & instantiate filters
         if self.config_filters_file:
             self.logger.info(f"Parsing filter configuration from {self.config_filters_file}")
+
             self.filter_parser = ConfigParser()
             self.filter_parser.read_config(self.config_filters_file)
             self.filter_parser.parse()
@@ -103,37 +101,40 @@ class MonaiAlgo(ClientAlgo):
                 pass
             try:
                 self.post_weight_filters = self.filter_parser.get_parsed_content("post_weight_filters")
+
             except BaseException:
                 pass
             try:
                 self.post_predict_filters = self.filter_parser.get_parsed_content("post_predict_filters")
+
             except BaseException:
                 pass
-
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def train(self, data: ExchangeObject, extra={}):
+    def train(self, data: ExchangeObject, extra=None):
+        if extra is None:
+            extra = {}
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
-        if self.trainer is None:
-            raise ValueError(f"self.trainer should not be None.")
 
-        # optionally filter the received global data
+        if self.trainer is None:
+            raise ValueError("self.trainer should not be None.")
         if self.pre_filters is not None:
             for _filter in self.pre_filters:
                 data = _filter(data, extra)
-
         self.phase = FlPhase.TRAIN
         self.logger.info(f"Load {self.client_name} weights...")
         local_weights = convert_global_weights(
             global_weights=data.weights, local_var_dict=self.trainer.network.state_dict()
         )
-        self.trainer.network.load_state_dict(local_weights)
 
+        self.trainer.network.load_state_dict(local_weights)
         self.logger.info(f"Start {self.client_name} training...")
         self.trainer.run()
 
-    def get_weights(self, extra={}):
+    def get_weights(self, extra=None):
+        if extra is None:
+            extra = {}
         self.phase = FlPhase.GET_WEIGHTS
         if self.trainer:
             weights = self.trainer.network.state_dict()
@@ -143,7 +144,8 @@ class MonaiAlgo(ClientAlgo):
             stats = dict()
 
         # TODO: support weight diffs
-        assert isinstance(stats, dict)
+        if not isinstance(stats, dict):
+            raise ValueError(f"stats is not a dict, {stats}")
         return_weights = ExchangeObject(
             weights=weights,
             optim=None,  # could be self.optimizer.state_dict()
@@ -158,58 +160,55 @@ class MonaiAlgo(ClientAlgo):
 
         return return_weights
 
-    def predict(self, data: ExchangeObject, extra={}):
+    def predict(self, data: ExchangeObject, extra=None):
+        if extra is None:
+            extra = {}
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
-        if self.predictor is None:
-            raise ValueError(f"self.predictor should not be None.")
 
+        if self.predictor is None:
+            raise ValueError("self.predictor should not be None.")
         if self.pre_filters is not None:
             for _filter in self.pre_filters:
                 data = _filter(data, extra)
-
         self.phase = FlPhase.PREDICT
         self.logger.info(f"Load {self.client_name} weights...")
         local_weights = convert_global_weights(
             global_weights=data.weights, local_var_dict=self.predictor.network.state_dict()
         )
-        self.predictor.network.load_state_dict(local_weights)
 
+        self.predictor.network.load_state_dict(local_weights)
         self.logger.info(f"Start {self.client_name} evaluating...")
         self.predictor.run()
         return_metrics = ExchangeObject(metrics=self.predictor.state.metrics)
-
         if self.post_predict_filters is not None:
             for _filter in self.post_predict_filters:
                 return_metrics = _filter(return_metrics, extra)
-
         return return_metrics
 
-    def abort(self, extra={}):
+    def abort(self, extra=None):
+        if extra is None:
+            extra = {}
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
-
-        # TODO: abort feature could be built into the MONAI Trainer class
-        if isinstance(self.trainer, Trainer):
+        if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
             self.trainer.terminate()
-            # save current iteration for next round
             setattr(self.trainer.state, "dataloader_iter", self.trainer._dataloader_iter)
-
             if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                # if current iteration is end of 1 epoch, manually trigger epoch completed event
                 self.trainer._fire_event(Events.EPOCH_COMPLETED)
-
-        if isinstance(self.predictor, Trainer):
+        if isinstance(self.predictor, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} predictor...")
             self.predictor.terminate()
 
-    def finalize(self, extra={}):
+    def finalize(self, extra=None):
         # TODO: finalize feature could be built into the MONAI Trainer class
 
+        if extra is None:
+            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
-        if isinstance(self.trainer, Trainer):
+        if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
             self.trainer.terminate()
-        if isinstance(self.predictor, Trainer):
+        if isinstance(self.predictor, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} predictor...")
             self.predictor.terminate()

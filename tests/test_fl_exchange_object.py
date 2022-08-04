@@ -17,6 +17,7 @@ from parameterized import parameterized
 from monai.fl.utils.constants import WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils.module import optional_import
+from tests.utils import SkipIfNoModule
 
 models, _ = optional_import("torchvision.models")
 network = models.resnet18(weights=None)
@@ -37,6 +38,7 @@ TEST_FAILURE_STATISTICS = [{"weights": None, "optim": None, "metrics": None, "we
 TEST_FAILURE_WEIGHT_TYPE = [{"weights": None, "optim": None, "metrics": None, "weight_type": 1, "statistics": None}]
 
 
+@SkipIfNoModule("torchvision")
 class TestFLExchangeObject(unittest.TestCase):
     @parameterized.expand([TEST_INIT_1, TEST_INIT_2])
     def test_init(self, input_params):
