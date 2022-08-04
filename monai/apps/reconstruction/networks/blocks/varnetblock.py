@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from monai.apps.reconstruction.networks.blocks.utils import sens_expand, sens_reduce
+from monai.apps.reconstruction.networks.nets.utils import sens_expand, sens_reduce
 
 
 class VarNetBlock(nn.Module):

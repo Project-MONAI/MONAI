@@ -233,6 +233,11 @@ Blocks
 .. autoclass:: DVF2DDF
     :members:
 
+`VarNetBlock`
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
+   :members:
+
 
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
