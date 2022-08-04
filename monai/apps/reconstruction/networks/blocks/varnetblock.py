@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from monai.apps.reconstruction.networks.nets.utils import sens_expand, sens_reduce
+from monai.apps.reconstruction.networks.nets.utils import sensitivity_map_expand, sensitivity_map_reduce
 
 
 class VarNetBlock(nn.Module):
@@ -70,8 +70,8 @@ class VarNetBlock(nn.Module):
             Output of VarNetBlock with the same shape as current_kspace
         """
         dc_out = self.soft_dc(current_kspace, ref_kspace, mask)  # output of DC block
-        refinement_out = sens_expand(
-            self.model(sens_reduce(current_kspace, sens_maps, spatial_dims=self.spatial_dims)),
+        refinement_out = sensitivity_map_expand(
+            self.model(sensitivity_map_reduce(current_kspace, sens_maps, spatial_dims=self.spatial_dims)),
             sens_maps,
             spatial_dims=self.spatial_dims,
         )  # output of refinement model

@@ -20,8 +20,8 @@ from monai.apps.reconstruction.networks.nets.utils import (
     reshape_channel_complex_to_last_dim,
     reshape_channel_to_batch_dim,
     reshape_complex_to_channel_dim,
-    sens_expand,
-    sens_reduce,
+    sensitivity_map_expand,
+    sensitivity_map_reduce,
 )
 
 # no need for checking devices, these functions don't change device format
@@ -58,8 +58,8 @@ class TestReconNetUtils(unittest.TestCase):
 
     @parameterized.expand(TEST_SENS)
     def test_sens_expand_reduce(self, test_data, sens):
-        result = sens_reduce(test_data, sens)
-        result = sens_expand(result, sens)
+        result = sensitivity_map_reduce(test_data, sens)
+        result = sensitivity_map_expand(result, sens)
         self.assertEqual(result.shape, test_data.shape)
 
 
