@@ -153,7 +153,6 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     label_count = 0
     unique_labels_count = 0
     for sid in range(vol_image.shape[0]):
-        # print(vol_image.shape, vol_label.shape if vol_label is not None else None)
         image = vol_image[sid, ...]
         label = vol_label[sid, ...] if vol_label is not None else None
 
