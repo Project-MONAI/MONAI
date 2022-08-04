@@ -193,7 +193,7 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
             self.trainer.terminate()
-            setattr(self.trainer.state, "dataloader_iter", self.trainer._dataloader_iter)
+            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
             if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
                 self.trainer._fire_event(Events.EPOCH_COMPLETED)
         if isinstance(self.predictor, monai.engines.Trainer):
