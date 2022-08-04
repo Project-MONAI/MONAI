@@ -9,40 +9,67 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import os
 import unittest
-
 import torch
+
 from parameterized import parameterized
 
+from monai.utils.module import optional_import
 from monai.fl.utils.constants import WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
-from monai.utils.module import optional_import
-from tests.utils import SkipIfNoModule
 
-models, has_torchvision = optional_import("torchvision.models")
+models, _ = optional_import("torchvision.models")
+network = models.resnet18(weights=None)
 
+TEST_INIT_1 = [
+    {
+        "weights": None,
+        "optim": None,
+        "metrics": None,
+        "weight_type": None,
+        "statistics": None
+    }
+]
+TEST_INIT_2 = [
+    {
+        "weights": network.state_dict(),
+        "optim": torch.optim.Adam(lr=1, params=network.parameters()),
+        "metrics": {"accuracy": 1},
+        "weight_type": WeightType.WEIGHT_DIFF,
+        "statistics": {"some_stat": 1}
+    }
+]
 
-TEST_INIT_1 = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": None}]
-TEST_INIT_2 = []
-if has_torchvision:
-    network = models.resnet18()
-    TEST_INIT_2.append(
-        {
-            "weights": network.state_dict(),
-            "optim": torch.optim.Adam(lr=1, params=network.parameters()),
-            "metrics": {"accuracy": 1},
-            "weight_type": WeightType.WEIGHT_DIFF,
-            "statistics": {"some_stat": 1},
-        }
-    )
+TEST_FAILURE_METRICS = [
+    {
+        "weights": None,
+        "optim": None,
+        "metrics": 1,
+        "weight_type": None,
+        "statistics": None
+    }
+]
+TEST_FAILURE_STATISTICS = [
+    {
+        "weights": None,
+        "optim": None,
+        "metrics": None,
+        "weight_type": None,
+        "statistics": 1
+    }
+]
+TEST_FAILURE_WEIGHT_TYPE = [
+    {
+        "weights": None,
+        "optim": None,
+        "metrics": None,
+        "weight_type": 1,
+        "statistics": None
+    }
+]
 
-TEST_FAILURE_METRICS = [{"weights": None, "optim": None, "metrics": 1, "weight_type": None, "statistics": None}]
-TEST_FAILURE_STATISTICS = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": 1}]
-TEST_FAILURE_WEIGHT_TYPE = [{"weights": None, "optim": None, "metrics": None, "weight_type": 1, "statistics": None}]
-
-
-@SkipIfNoModule("torchvision")
-@SkipIfNoModule("ignite")
 class TestFLExchangeObject(unittest.TestCase):
     @parameterized.expand([TEST_INIT_1, TEST_INIT_2])
     def test_init(self, input_params):
@@ -53,7 +80,6 @@ class TestFLExchangeObject(unittest.TestCase):
     def test_failures(self, input_params):
         with self.assertRaises(ValueError):
             ExchangeObject(**input_params)
-
 
 if __name__ == "__main__":
     unittest.main()
