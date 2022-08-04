@@ -215,7 +215,6 @@ class EnsureChannelFirst(Transform):
             strict_check: whether to raise an error when the meta information is insufficient.
         """
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
@@ -238,8 +237,8 @@ class EnsureChannelFirst(Transform):
             warnings.warn(msg)
             return img
         if channel_dim == "no_channel":
-            return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+            return convert_to_tensor(img[None], track_meta=get_track_meta())  # type: ignore
+        return convert_to_tensor(moveaxis(img, channel_dim, 0), track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
