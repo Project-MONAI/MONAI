@@ -68,25 +68,6 @@ class TestWorkflowProfiler(unittest.TestCase):
 
         self.assertIsInstance(dt, datetime.datetime)
 
-    @skip_if_windows
-    @skip_if_darwin
-    def test_profile_multiprocess(self):
-        """Test results are gathered from multiple processes, profiling across processes fails in Windows."""
-        ds = Dataset([self.test_image] * 4, self.scale)
-        dl = DataLoader(ds, batch_size=4, num_workers=4)
-
-        with WorkflowProfiler() as wp:
-            batch = first(dl)
-
-        self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
-
-        results = wp.get_results()
-        self.assertSequenceEqual(list(results), [self.scale_call_name])
-
-        prs = results[self.scale_call_name]
-
-        self.assertEqual(len(prs), 4)
-
     def test_profile_multithread(self):
         """Test resulst are gathered from multiple threads using ThreadDataLoader."""
         ds = Dataset([self.test_image] * 4, self.scale)

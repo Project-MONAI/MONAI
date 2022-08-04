@@ -152,8 +152,10 @@ class WorkflowProfiler:
     to generate items from iterables, and times to execute decorated functions.
 
     This profiler must be used only within its context because it uses an internal thread to read results from a
-    multiprocessing queue, this allows the profiler to function across multiple threads and processes. The
-    profiler uses `sys.settrace` and `threading.settrace` to find all calls to profile, this will be set when
+    multiprocessing queue. This allows the profiler to function across multiple threads and processes, though the
+    multiprocess tracing is at times unreliable and not available in Windows at all.
+    
+    The profiler uses `sys.settrace` and `threading.settrace` to find all calls to profile, this will be set when
     the context enters and cleared when it exits so proper use of the context is essential to prevent excessive
     tracing. Note that tracing has a high overhead so times will not accurately reflect real world performance
     but give an idea of relative share of time spent.
