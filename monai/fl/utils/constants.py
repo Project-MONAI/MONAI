@@ -24,7 +24,7 @@ class ExtraItems:
 class FlPhase:
     IDLE = "fl_idle"
     TRAIN = "fl_train"
-    PREDICT = "fl_predict"
+    EVALUATE = "fl_evaluate"
     GET_WEIGHTS = "fl_get_weights"
 
 
@@ -33,3 +33,13 @@ class FlStatistics:
     #  https://github.com/Project-MONAI/MONAI/blob/df4a7d72e1d231b898f88d92cf981721c49ceaeb/monai/engines/trainer.py#L60
     TOTAL_EPOCHS = "total_epochs"
     TOTAL_ITERATIONS = "total_iterations"
+
+
+class BundleConst:
+    KEY_TRAINER = "train#trainer"
+    KEY_EVALUATOR = "validate#evaluator"
+
+class FiltersType:
+    PRE_FILTERS = "pre_filters"
+    POST_WEIGHT_FILTERS = "post_weight_filters"
+    POST_EVALUATE_FILTERS = "post_evaluate_filters"
