@@ -11,16 +11,22 @@
 
 import logging
 import sys
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import torch
-from ignite.engine import Events
 
 from monai.bundle import ConfigParser
+from monai.config import IgniteInfo
 from monai.engines.trainer import Trainer
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
+from monai.utils import min_version, optional_import
+
+if TYPE_CHECKING:
+    from ignite.engine import Events
+else:
+    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -109,6 +115,8 @@ class MonaiAlgo(ClientAlgo):
     def train(self, data: ExchangeObject, extra={}):
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
+        if self.trainer is None:
+            raise ValueError(f"self.trainer should not be None.")
 
         # optionally filter the received global data
         if self.pre_filters is not None:
@@ -140,7 +148,7 @@ class MonaiAlgo(ClientAlgo):
             weights=weights,
             optim=None,  # could be self.optimizer.state_dict()
             weight_type=WeightType.WEIGHTS,
-            statistics=stats
+            statistics=stats,
         )
 
         # filter weights if needed (use to apply differential privacy, encryption, compression, etc.)
@@ -153,6 +161,8 @@ class MonaiAlgo(ClientAlgo):
     def predict(self, data: ExchangeObject, extra={}):
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
+        if self.predictor is None:
+            raise ValueError(f"self.predictor should not be None.")
 
         if self.pre_filters is not None:
             for _filter in self.pre_filters:
