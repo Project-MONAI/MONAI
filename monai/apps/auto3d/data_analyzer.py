@@ -19,22 +19,24 @@ import logging
 import time
 import warnings
 from functools import partial
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import torch
 
 from monai import data, transforms
 from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
+from monai.apps.utils import get_logger
+from monai.bundle.config_parser import ConfigParser
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import min_version, optional_import
+from monai.utils.misc import label_union
 
 yaml, _ = optional_import("yaml")
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 measure, _ = optional_import("scipy.ndimage.measurements")
 
-logger = logging.getLogger("global")
-logger.addHandler(logging.StreamHandler())
+logger = get_logger(module_name=__name__)
 
 __all__ = ["DataAnalyzer"]
 
@@ -47,37 +49,11 @@ class DataAnalyzer:
         datalist: a Python dictionary storing group, fold, and other information of the medical
             image dataset, or a string to the JSON file storing the dictionary.
         dataroot: user's local directory containing the datasets.
-        output_yaml: path to save the analysis result.
+        output_path: path to save the analysis result.
         average: whether to average the statistical value across different image modalities.
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
-
-    Class method overview:
-        Hardcoded functions:
-            _hardcode_functions: register all the statistic functions like _get_case_image_stats.
-            _hardcode_operations: register statistic operations.
-        Generate statistics for each case ({'image','label'}) from dataset.datalist:
-            _get_case_image_stats: generate shape, cropped shape, spacing, intensities for images in each modality.
-            _get_case_foreground_image_stats: generate intensity stats for foreground image (label>0).
-            _get_label_stats: generate stats for each label. The connected components of each label, and their shapes,
-                              corresponding image region intensities stats.
-        Generate overall stats for all cases in dataset.datalist:
-            _intensity_summary: method defined to combine intensity stats for each case. The intensity features are
-                                min, max, mean, std, percentile defined in self._stats_opt. Those values are averaged
-                                over all the cases.
-            _stats_opt_summary: method defined to combine other stats like shape. The min, max, std e.t.c are calucated.
-        Utilities:
-            _stats_opt: define stats calculation operations.
-            _get_foreground_image: define how to get foreground/cropped images. Currently return bounding box for
-                                   image intensity > 0.
-            _get_foreground_label: define foreground image with label > 0.
-            save_yaml: save results to yaml file.
-            get_case_stats: get stats for each case in dataset.datalist.
-            _get_case_summary: summarize the results from each case using functions _intensity_summary, _stats_opt_summary.
-        Caller:
-            get_all_case_stats: The function iterates dataset.datalist and call get_case_stats to generate stats. Then
-                                get_case_summary is called to combine results and save_yaml is called to save results.
 
     Custimize statistics calculation:
         Write a new function for indivisual case:
@@ -90,23 +66,23 @@ class DataAnalyzer:
                 a list of ['stats1','stats1',...] from all cases in self.dataset.datalist.
                 4. update self.data with processed_data and update self.gather_summary to register case_stats_summary,
                 and return case_stats.
-        Add _get_your_stats to self._hardcode_functions.
+        Add _get_your_stats to self._register_functions.
     """
 
     def __init__(
         self,
         datalist: Union[str, Dict],
         dataroot: str,
-        output_yaml: str = "./data_stats.yaml",
+        output_path: str = "./data_stats.yaml",
         average: bool = False,
         do_ccp: bool = True,
-        device: str = "cuda",
+        device: Union[str, torch.device] = "cuda",
         worker: int = 2,
     ):
         """
         Initializer will load the data and register the functions for data statistics gathering.
         """
-        self.output_yaml = output_yaml
+        self.output_path = output_path
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
             data=files,
@@ -126,21 +102,24 @@ class DataAnalyzer:
         )
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=worker, collate_fn=lambda x: x)
         # Whether to average all the modalities in the summary
-        # If SUMMERY_AVERAGE is set to false,
+        # If SUMMARY_AVERAGE is set to false,
         # the stats for each modality are calculated separately
-        self.SUMMERY_AVERAGE = average
+        self.SUMMARY_AVERAGE = average
         self.DO_CONNECTED_COMP = do_ccp
         self.device = device
-        self.data = {}
-        self.results = {}
+        self.data: Dict[str, Any] = {}
+        self.results: Dict[str, Dict] = {}
         # gather all summary function for combining case stats
         self.gather_summary: Dict[str, Dict] = {}
-        self._hardcode_functions()
-        self._hardcode_operations()
+        self._register_functions()
+        self._register_operations()
         print(self.gather_summary)
 
-    def _hardcode_functions(self):
-        """Register functions for calculating stats."""
+    def _register_functions(self):
+        """
+        Register all the statistic functions for calculating stats for individual cases and overall.
+
+        """
         self.functions = [self._get_case_image_stats, self._get_case_foreground_image_stats, self._get_label_stats]
         self.functions_summary = [
             self._get_case_image_stats_summary,
@@ -148,9 +127,9 @@ class DataAnalyzer:
             self._get_label_stats_summary,
         ]
 
-    def _hardcode_operations(self):
+    def _register_operations(self):
         """
-        Register data operations (max/mean/median/...) for the gathering processes.
+        Register data operations (max/mean/median/...) for the stats gathering processes.
         """
         # define basic operations for stats
         self.operations = {
@@ -192,7 +171,8 @@ class DataAnalyzer:
 
     def _get_case_image_stats(self) -> Dict:
         """
-        Generate case_stats by checking datasets properties such as shape/channels/spacing.
+        Generate image statistics for cases in datalist case ({'image','label'})
+        Statistics values are under key "image_stats"
 
         Returns:
             a dictionary of the images stats
@@ -230,18 +210,20 @@ class DataAnalyzer:
         # this dictionary describes how to gather values in the summary
         case_stats_summary = {
             "image_stats": {
-                "shape": partial(self._stats_opt_summary, average=self.SUMMERY_AVERAGE),
+                "shape": partial(self._stats_opt_summary, average=self.SUMMARY_AVERAGE),
                 "channels": self._stats_opt_summary,
-                "cropped_shape": partial(self._stats_opt_summary, average=self.SUMMERY_AVERAGE),
-                "spacing": partial(self._stats_opt_summary, average=self.SUMMERY_AVERAGE),
-                "intensity": partial(self._intensity_summary, average=self.SUMMERY_AVERAGE),
+                "cropped_shape": partial(self._stats_opt_summary, average=self.SUMMARY_AVERAGE),
+                "spacing": partial(self._stats_opt_summary, average=self.SUMMARY_AVERAGE),
+                "intensity": partial(self._intensity_summary, average=self.SUMMARY_AVERAGE),
             }
         }
         self.gather_summary.update(case_stats_summary)
 
     def _get_case_foreground_image_stats(self) -> Dict:
         """
-        Generate case_stats based on foreground images (points where labels are positive).
+        Generate intensity statistics based on foreground images for cases in datalist
+        ({'image','label'}). Foreground is defined by points where labels are positive numbers.
+        The statistics will be values with key name "intensity" under parent key "image_foreground_stats".
 
         Returns
             a dictionary with following structure
@@ -262,7 +244,7 @@ class DataAnalyzer:
         nda_foreground = self.data["nda_foreground"]
 
         case_stats = {"image_foreground_stats": {"intensity": [self._stats_opt(_) for _ in nda_foreground]}}
-        logger.debug(f"Get foreground image data stats spent {time.time()-start}")
+        logger.debug(f"Get foreground image data stats spent {time.time() - start}")
         return case_stats
 
     def _get_case_foreground_image_stats_summary(self):
@@ -270,25 +252,17 @@ class DataAnalyzer:
         Update gather_summary from foreground cases one by one.
         """
         case_stats_summary = {
-            "image_foreground_stats": {"intensity": partial(self._intensity_summary, average=self.SUMMERY_AVERAGE)}
+            "image_foreground_stats": {"intensity": partial(self._intensity_summary, average=self.SUMMARY_AVERAGE)}
         }
         self.gather_summary.update(case_stats_summary)
 
-    @staticmethod
-    def label_union(x: List):
-        """
-        Compute the union of labels and make it a list
-        Args:
-            x: a list of lists that has number (usually class_id) in each
-
-        Returns
-            a list showing the union (the union the class_ids)
-        """
-        return list(set.union(*[set(np.array(_).tolist()) for _ in x]))
-
     def _get_label_stats(self) -> Dict:
         """
-        Generate stats for all the labels.
+        Generate label statisics for all the cases in the datalist based on ({"images", "labels"}).
+        Each label has its own statistics including the connected components info, shape, and
+        corresponding image region intensity. The statistics are stored in the values with key name
+        "label_stats" in the return variable.
+
         Returns
             a dictionary with following structures:
             - label_stats
@@ -316,7 +290,7 @@ class DataAnalyzer:
         start = time.time()
         pixel_percentage = {}
         for index in unique_label:
-            label_dict = {"image_intensity": []}
+            label_dict: Dict[str, Any] = {}
             mask_index = ndas_l == index
             s = time.time()
             label_dict["image_intensity"] = [self._stats_opt(_[mask_index]) for _ in ndas]
@@ -350,18 +324,18 @@ class DataAnalyzer:
         """
         case_stats_summary = {
             "label_stats": {
-                "labels": self.label_union,
+                "labels": label_union,
                 "pixel_percentage": self._pixelpercent_summary,
-                "image_intensity": partial(self._intensity_summary, average=self.SUMMERY_AVERAGE),
+                "image_intensity": partial(self._intensity_summary, average=self.SUMMARY_AVERAGE),
             }
         }
         key_chain = ["label_stats", "labels"]
-        opt = self.label_union
+        opt = label_union
         unique_label = opt(
             list(filter(None, [recursive_getvalue(case, key_chain) for case in self.results["stats_by_cases"]]))
         )
         for index in unique_label:
-            label_dict_summary = {"image_intensity": partial(self._intensity_summary, average=self.SUMMERY_AVERAGE)}
+            label_dict_summary = {"image_intensity": partial(self._intensity_summary, average=self.SUMMARY_AVERAGE)}
             if self.DO_CONNECTED_COMP:
                 label_dict_summary["shape"] = partial(self._stats_opt_summary, is_label=True)
                 label_dict_summary["ncomponents"] = partial(self._stats_opt_summary, is_label=True)
@@ -390,6 +364,9 @@ class DataAnalyzer:
     def _intensity_summary(self, x: List, average: bool = False) -> Dict:
         """
         Define the summary function for stats over the whole dataset
+        Combine overall intensity statistics for all cases in datalist. The intensity features are
+        min, max, mean, std, percentile defined in self._stats_opt().
+        Values may be averaged over all the cases if average is set to True
 
         Args:
             x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
@@ -400,7 +377,7 @@ class DataAnalyzer:
 
         """
         result = {}
-        for key in x[0][0].keys():
+        for key in x[0][0].keys():  # .keys() not required, len(x) = N data
             value = []
             for case in x:
                 value.append([_[key] for _ in case])
@@ -416,6 +393,7 @@ class DataAnalyzer:
 
     def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
         """
+        Combine other stats calculation methods (like shape/min/max/std )
         Wraps _stats_opt for a list of data from all cases. Does not guarantee correct output
         for custimized stats structure. Check the following input structures.
 
@@ -458,7 +436,7 @@ class DataAnalyzer:
 
     def _stats_opt(self, raw_data):
         """
-        Calculate statistics from the raw data
+        Calculate statistics calculation operations (ops) on the images/labels
 
         Args:
             raw_data: ndarray.
@@ -493,53 +471,36 @@ class DataAnalyzer:
     @staticmethod
     def _get_foreground_image(image: MetaTensor) -> MetaTensor:
         """
-        Get the image foreground / mask out the zero-value area.
-        Update select_fn if the foreground is defined differently.
+        Get a foreground image by removing all-zero rectangles on the edges of the image
+        Note for developer: update select_fn if the foreground is defined differently.
 
         Args:
             image: ndarray image to segment.
         Returns:
-            image foreground using non-zero values (rather than using label).
+            ndarray of foreground image by removing all-zero edges. Note: the size of the ouput is smaller than the input.
         """
         crop_foreground = transforms.CropForeground(select_fn=lambda x: x > 0)
-        return crop_foreground(image)
+        image_foreground = MetaTensor(crop_foreground(image))
+        return image_foreground
 
     @staticmethod
     def _get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
         """
-        Get foreground image / mask out the non-labeled area.
+        Get foreground image pixel values and mask out the non-labeled area.
 
         Args
             image: ndarray image to segment.
             label: ndarray the image input and annotated with class IDs.
 
         Return
-
+            1D array of foreground image with label > 0
         """
-        return image[label > 0]
-
-    def save_yaml(self, results: Dict):
-        """
-        Save the datastat results into a YAML file
-
-        Args
-            results: data stats dictionary
-        """
-
-        def float_representer(dumper, value):
-            """
-            Set the float number representation
-            """
-            text = f"{value:.4f}"
-            return dumper.represent_scalar("tag:yaml.org,2002:float", text)
-
-        yaml.add_representer(float, float_representer)
-        with open(self.output_yaml, "w") as file:
-            yaml.dump(results, file, default_flow_style=None, sort_keys=False)
+        label_foreground = MetaTensor(image[label > 0])
+        return label_foreground
 
     def get_case_stats(self, batch_data):
         """
-        Function to get stats for each case {'image', 'label'}. The data case is stored in self.data
+        Get stats for each case {'image', 'label'} in the datalist. The data case is stored in self.data
         Args:
             batch_data: monai dataloader batch data
                 images: image with shape [modality, image_shape]
@@ -572,6 +533,7 @@ class DataAnalyzer:
         output (self.results['stats_summary']), because it is updated by case_stats_summary.
         The operations is retrived by recursive_getvalue and the combined value is calculated.
 
+        summarize the results from each case using functions _intensity_summary, _stats_opt_summary.
         """
         # initialize gather_summary
         [func() for func in self.functions_summary]
@@ -587,7 +549,8 @@ class DataAnalyzer:
 
     def get_all_case_stats(self) -> Dict:
         """
-        Get all case stats. Caller of the DataAnalyser class.
+        Get all case stats. Caller of the DataAnalyser class. The function iterates datalist and
+        call get_case_stats to generate stats. Then get_case_summary is called to combine results.
 
         Returns
             - the data statistics dictionary
@@ -609,7 +572,7 @@ class DataAnalyzer:
             logger.debug(f"Process data spent {time.time() - s}")
             s = time.time()
         self._get_case_summary()
-        self.save_yaml(self.results)
+        ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml")
         logger.debug(f"total time {time.time() - start}")
         return self.results
 
@@ -619,7 +582,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="input")
     parser.add_argument("--dataroot", type=str, required=True, help="data directory")
     parser.add_argument("--datalist", type=str, required=True, help="input json")
-    parser.add_argument("--output_yaml", default="./datastats.yaml", type=str, help="output yaml")
+    parser.add_argument("--output_path", default="./datastats.yaml", type=str, help="output yaml")
     parser.add_argument(
         "--average", default=False, action="store_true", help="mix the multi-modal images for calculation"
     )
@@ -633,7 +596,7 @@ if __name__ == "__main__":
     analyser = DataAnalyzer(
         args.datalist,
         args.dataroot,
-        output_yaml=args.output_yaml,
+        output_path=args.output_path,
         average=args.average,
         do_ccp=args.do_ccp,
         worker=args.worker,

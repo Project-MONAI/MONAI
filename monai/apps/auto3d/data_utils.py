@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 from typing import Any, Dict, List, Tuple, Union
+
+from monai.bundle.config_parser import ConfigParser
 
 __all__ = ["recursive_getvalue", "recursive_setvalue", "recursive_getkey", "datafold_read"]
 
@@ -31,8 +32,7 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
     """
 
     if isinstance(datalist, str):
-        with open(datalist) as f:
-            json_data = json.load(f)
+        json_data = ConfigParser.load_config_file(datalist)
     else:
         json_data = datalist
 

@@ -59,7 +59,7 @@ class TestDataAnalyzer(unittest.TestCase):
                 cleanup_list.append(label_fpath)
 
         yaml_fpath = path.join(tmp_dir, analyzer_output)
-        analyser = DataAnalyzer(source_datalist, tmp_dir, output_yaml=yaml_fpath, device=device, worker=n_workers)
+        analyser = DataAnalyzer(source_datalist, tmp_dir, output_path=yaml_fpath, device=device, worker=n_workers)
         datastat = analyser.get_all_case_stats()
         cleanup_list.append(yaml_fpath)
 
