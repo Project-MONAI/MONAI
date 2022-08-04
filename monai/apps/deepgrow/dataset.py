@@ -15,7 +15,7 @@ from typing import Dict, List
 
 import numpy as np
 
-from monai.transforms import AsChannelFirstd, Compose, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
+from monai.transforms import EnsureChannelFirstd, Compose, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
 from monai.utils import GridSampleMode
 from monai.utils.enums import PostFix
 
@@ -126,7 +126,7 @@ def _default_transforms(image_key, label_key, pixdim):
     return Compose(
         [
             LoadImaged(keys=keys),
-            AsChannelFirstd(keys=keys),
+            EnsureChannelFirstd(keys=keys),
             Orientationd(keys=keys, axcodes="RAS"),
             Spacingd(keys=keys, pixdim=pixdim, mode=mode),
             FromMetaTensord(keys=keys),
