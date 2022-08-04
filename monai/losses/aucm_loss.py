@@ -54,7 +54,7 @@ class AUCMLoss(_Loss):
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.other_act = other_act
-        
+
         self.device = torch.device("cuda" if gpu else "cpu")
         self.a = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
             self.device
@@ -75,7 +75,7 @@ class AUCMLoss(_Loss):
             raise ValueError(
                 f"y_pred.shape[1] must be {self.num_classes}, equal to num_classes ,but is {y_pred.shape[1]}"
             )
-            
+
         if y_true.shape[1] != self.num_classes:
             raise ValueError(
                 f"y_true.shape[1] must be {self.num_classes}, equal to num_classes ,but is {y_true.shape[1]}"

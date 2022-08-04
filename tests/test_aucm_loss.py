@@ -34,7 +34,7 @@ class TestAUCMLoss(unittest.TestCase):
         loss = AUCMLoss(num_classes=2)
         result = loss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
-    
+
     def test_single_result(self):
         loss = AUCMLoss(num_classes=1)
         y_p = torch.tensor([[[[1, 0], [0, 1.0]]], [[[0, 0], [0, 1.0]]]])
@@ -56,7 +56,7 @@ class TestAUCMLoss(unittest.TestCase):
         loss = AUCMLoss()
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((2, 2, 2)), torch.ones((2, 2, 2, 2)))
-            
+
     def test_ill_shape_pred_equal_numclasses(self):
         loss = AUCMLoss(num_classes=1)
         with self.assertRaisesRegex(ValueError, ""):
