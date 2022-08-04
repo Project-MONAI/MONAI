@@ -19,19 +19,22 @@ from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils.module import optional_import
 from tests.utils import SkipIfNoModule
 
-models, _ = optional_import("torchvision.models")
-network = models.resnet18(weights=None)
+models, has_torchvision = optional_import("torchvision.models")
+
 
 TEST_INIT_1 = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": None}]
-TEST_INIT_2 = [
-    {
-        "weights": network.state_dict(),
-        "optim": torch.optim.Adam(lr=1, params=network.parameters()),
-        "metrics": {"accuracy": 1},
-        "weight_type": WeightType.WEIGHT_DIFF,
-        "statistics": {"some_stat": 1},
-    }
-]
+TEST_INIT_2 = []
+if has_torchvision:
+    network = models.resnet18(weights=None)
+    TEST_INIT_2.append(
+        {
+            "weights": network.state_dict(),
+            "optim": torch.optim.Adam(lr=1, params=network.parameters()),
+            "metrics": {"accuracy": 1},
+            "weight_type": WeightType.WEIGHT_DIFF,
+            "statistics": {"some_stat": 1},
+        }
+    )
 
 TEST_FAILURE_METRICS = [{"weights": None, "optim": None, "metrics": 1, "weight_type": None, "statistics": None}]
 TEST_FAILURE_STATISTICS = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": 1}]
