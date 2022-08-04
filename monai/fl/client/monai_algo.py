@@ -41,7 +41,7 @@ def convert_global_weights(global_weights, local_var_dict):
                 # update the local dict
                 local_var_dict[var_name] = torch.as_tensor(global_weights[var_name])
             except Exception as e:
-                raise ValueError(f"Convert weight from {var_name} failed with error: {str(e)}")
+                raise ValueError(f"Convert weight from {var_name} failed.") from e
     return local_var_dict
 
 
