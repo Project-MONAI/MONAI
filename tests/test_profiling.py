@@ -17,11 +17,11 @@ from io import StringIO
 import torch
 
 import monai.transforms as mt
-from monai.data import DataLoader, Dataset, ThreadDataLoader
+from monai.data import Dataset, ThreadDataLoader
 from monai.utils import first, optional_import
 from monai.utils.enums import CommonKeys
 from monai.utils.profiling import ProfileHandler, ProfileResult, WorkflowProfiler
-from tests.utils import SkipIfNoModule, skip_if_darwin, skip_if_windows
+from tests.utils import SkipIfNoModule
 
 pd, _ = optional_import("pandas")
 
