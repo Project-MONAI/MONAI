@@ -64,7 +64,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2])
     def test_train(self, input_params):
         # get testing data dir and update train config
-        with open(input_params["config_train_file"], "r") as f:
+        with open(input_params["config_train_file"]) as f:
             config_train = json.load(f)
 
         config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
@@ -90,7 +90,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_PREDICT_1, TEST_PREDICT_2])
     def test_predict(self, input_params):
         # get testing data dir and update train config
-        with open(input_params["config_predict_file"], "r") as f:
+        with open(input_params["config_predict_file"]) as f:
             config_predict = json.load(f)
 
         config_predict["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
@@ -117,7 +117,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
     def test_get_weights(self, input_params):
         # get testing data dir and update train config
         if input_params["config_train_file"]:
-            with open(input_params["config_train_file"], "r") as f:
+            with open(input_params["config_train_file"]) as f:
                 config_train = json.load(f)
 
             config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
