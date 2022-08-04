@@ -110,6 +110,7 @@ __all__ = [
     "scale_affine",
     "attach_hook",
     "sync_meta_info",
+    "reset_ops_id",
 ]
 
 
@@ -1284,6 +1285,21 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
             k: convert_applied_interp_mode(trans_info[k], mode=mode, align_corners=align_corners) for k in trans_info
         }
     return trans_info
+
+
+def reset_ops_id(data):
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    if isinstance(data, (list, tuple)):
+        return [reset_ops_id(d) for d in data]
+    if isinstance(data, monai.data.MetaTensor):
+        data.applied_operations = reset_ops_id(data.applied_operations)
+        return data
+    if not isinstance(data, Mapping):
+        return data
+    data = dict(data)
+    if TraceKeys.ID in data:
+        data[TraceKeys.ID] = TraceKeys.NONE
+    return {k: reset_ops_id(v) for k, v in data.items()}
 
 
 def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):

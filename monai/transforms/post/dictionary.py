@@ -643,7 +643,7 @@ class Invertd(MapTransform):
                 meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
@@ -652,8 +652,8 @@ class Invertd(MapTransform):
 
             if not isinstance(inputs, MetaTensor):
                 inputs = convert_to_tensor(inputs, track_meta=True)
-            inputs.applied_operations = transform_info
-            inputs.meta = meta_info
+            inputs.applied_operations = deepcopy(transform_info)
+            inputs.meta = deepcopy(meta_info)
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
@@ -668,10 +668,11 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-                if config.USE_META_DICT and InvertibleTransform.trace_key(orig_key) in d:
-                    d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
             d[key] = post_func(inverted_data.to(device))
-            # save the inverted meta dict
+            # save the invertd applied_operations if it's in the source dict
+            if InvertibleTransform.trace_key(orig_key) in d:
+                d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
+            # save the inverted meta dict if it's in the source dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
