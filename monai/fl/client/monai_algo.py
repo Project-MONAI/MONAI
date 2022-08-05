@@ -155,8 +155,8 @@ class MonaiAlgo(ClientAlgo):
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
 
-        if self.predictor is None:
-            raise ValueError("self.predictor should not be None.")
+        if self.evaluator is None:
+            raise ValueError("self.evaluator should not be None.")
         if self.pre_filters is not None:
             for _filter in self.pre_filters:
                 data = _filter(data, extra)
@@ -167,10 +167,10 @@ class MonaiAlgo(ClientAlgo):
             global_weights=data.weights, local_var_dict=self.evaluator.network.state_dict()
         )
 
-        self.predictor.network.load_state_dict(local_weights)
+        self.evaluator.network.load_state_dict(local_weights)
         self.logger.info(f"Start {self.client_name} evaluating...")
-        self.predictor.run()
-        return_metrics = ExchangeObject(metrics=self.predictor.state.metrics)
+        self.evaluator.run()
+        return_metrics = ExchangeObject(metrics=self.evaluator.state.metrics)
 
         if self.post_evaluate_filters is not None:
             for _filter in self.post_evaluate_filters:
@@ -187,9 +187,9 @@ class MonaiAlgo(ClientAlgo):
             self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
             if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
                 self.trainer._fire_event(Events.EPOCH_COMPLETED)
-        if isinstance(self.predictor, monai.engines.Trainer):
-            self.logger.info(f"Aborting {self.client_name} predictor...")
-            self.predictor.terminate()
+        if isinstance(self.evaluator, monai.engines.Trainer):
+            self.logger.info(f"Aborting {self.client_name} evaluator...")
+            self.evaluator.terminate()
 
     def finalize(self, extra=None):
         # TODO: finalize feature could be built into the MONAI Trainer class
@@ -200,6 +200,6 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
             self.trainer.terminate()
-        if isinstance(self.predictor, monai.engines.Trainer):
-            self.logger.info(f"Terminating {self.client_name} predictor...")
-            self.predictor.terminate()
+        if isinstance(self.evaluator, monai.engines.Trainer):
+            self.logger.info(f"Terminating {self.client_name} evaluator...")
+            self.evaluator.terminate()
