@@ -1,5 +1,5 @@
 {
-    "dataset_dir": "tests/testing_data",
+    "dataset_dir": "/home/hroth/Code2/MONAI-FL_warvito/tests/testing_data",
     "imports": [
         "$import os"
     ],
