@@ -29,20 +29,14 @@ class ClientAlgo(abc.ABC):
 
     def initialize(self, extra=None):
         """call to initialize the ClientAlgo class"""
-        if extra is None:
-            extra = {}
         pass
 
     def finalize(self, extra=None):
         """call to finalize the ClientAlgo class"""
-        if extra is None:
-            extra = {}
         pass
 
     def abort(self, extra=None):
         """call to abort the ClientAlgo training or prediction"""
-        if extra is None:
-            extra = {}
         pass
 
     @abc.abstractmethod
@@ -52,8 +46,6 @@ class ClientAlgo(abc.ABC):
         # Arguments
         data: ExchangeObject containing current network weights to base training on.
         """
-        if extra is None:
-            extra = {}
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -72,8 +64,6 @@ class ClientAlgo(abc.ABC):
                 weight_type = WeightType.WEIGHTS
             )
         """
-        if extra is None:
-            extra = {}
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -86,6 +76,4 @@ class ClientAlgo(abc.ABC):
         # Returns
         predictions: predictions ExchangeObject.
         """
-        if extra is None:
-            extra = {}
         raise NotImplementedError
