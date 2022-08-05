@@ -123,7 +123,6 @@ class DataAnalyzer:
         self.gather_summary: Dict[str, Dict] = {}
         self._register_functions()
         self._register_operations()
-        print(self.gather_summary)
 
     def _register_functions(self):
         """
@@ -442,7 +441,7 @@ class DataAnalyzer:
 
     def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
         """
-        Combine other stats calculation methods (like shape/min/max/std ) Does not guarantee
+        Combine other stats calculation methods (like shape/min/max/std). Does not guarantee
         correct output for custimized stats structure. Check the following input structures.
 
         Args:

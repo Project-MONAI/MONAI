@@ -24,41 +24,44 @@ from monai.data import create_test_image_3d
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
 
+fake_datalist = {
+    "testing": [{"image": "val_001.fake.nii.gz"}],
+    "training": [
+        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
+        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
+        {"fold": 1, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
+        {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
+    ],
+}
+
 
 class TestDataAnalyzer(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.TemporaryDirectory()
+        dataroot = self.test_dir.name
+
+        # Generate a fake dataset
+        for d in fake_datalist["testing"] + fake_datalist["training"]:
+            im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
+            nib_image = nib.Nifti1Image(im, affine=np.eye(4))
+            image_fpath = path.join(dataroot, d["image"])
+            nib.save(nib_image, image_fpath)
+
+            if "label" in d:
+                nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
+                label_fpath = path.join(dataroot, d["label"])
+                nib.save(nib_image, label_fpath)
+
     def test_data_analyzer(self):
-        source_datalist = {
-            "testing": [{"image": "val_001.fake.nii.gz"}],
-            "training": [
-                {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-                {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-                {"fold": 1, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-                {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-            ],
-        }
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
+        datastat = analyser.get_all_case_stats()
 
-        # Generate datasets
-        with tempfile.TemporaryDirectory() as tempdir:
-            cleanup_list = []
-            for d in source_datalist["testing"] + source_datalist["training"]:
-                im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
-                nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-                image_fpath = path.join(tempdir, d["image"])
-                nib.save(nib_image, image_fpath)
-                cleanup_list.append(image_fpath)
-                if "label" in d:
-                    nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                    label_fpath = path.join(tempdir, d["label"])
-                    nib.save(nib_image, label_fpath)
-                    cleanup_list.append(label_fpath)
+        assert len(datastat["stats_by_cases"]) == 4
 
-            analyzer_output = "output.yaml"
-            yaml_fpath = path.join(tempdir, analyzer_output)
-            analyser = DataAnalyzer(source_datalist, tempdir, output_path=yaml_fpath, device=device, worker=n_workers)
-            datastat = analyser.get_all_case_stats()
-            cleanup_list.append(yaml_fpath)
-
-            assert len(datastat["stats_by_cases"]) == 4
+    def tearDown(self) -> None:
+        self.test_dir.cleanup()
 
 
 if __name__ == "__main__":
