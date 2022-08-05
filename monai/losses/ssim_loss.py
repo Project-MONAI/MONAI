@@ -38,7 +38,7 @@ class SSIMLoss(nn.Module):
             win_size: gaussian weighting window size
             k1: stability constant used in the luminance denominator
             k2: stability constant used in the contrast denominator
-            spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
+            spatial_dims: if 2, input shape is expected to be (B,C,H,W). if 3, it is expected to be (B,C,H,W,D)
         """
         super().__init__()
         self.win_size = win_size

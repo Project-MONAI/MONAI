@@ -286,7 +286,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # set padded flag to false if pad mode is None
-    padded = True if mode else False
+    padded = bool(mode)
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
         arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
