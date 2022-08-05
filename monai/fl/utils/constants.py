@@ -39,6 +39,7 @@ class BundleConst:
     KEY_TRAINER = "train#trainer"
     KEY_EVALUATOR = "validate#evaluator"
 
+
 class FiltersType:
     PRE_FILTERS = "pre_filters"
     POST_WEIGHT_FILTERS = "post_weight_filters"

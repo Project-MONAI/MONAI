@@ -20,7 +20,7 @@ from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigItem
 from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
-from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType, BundleConst, FiltersType
+from monai.fl.utils.constants import BundleConst, ExtraItems, FiltersType, FlPhase, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils import min_version, optional_import
 
@@ -89,12 +89,22 @@ class MonaiAlgo(ClientAlgo):
         self.parser.parse()
 
         # Get trainer, evaluator, and filters
-        self.trainer = self.parser.get_parsed_content(BundleConst.KEY_TRAINER, default=ConfigItem(None, BundleConst.KEY_TRAINER))
-        self.evaluator = self.parser.get_parsed_content(BundleConst.KEY_EVALUATOR, default=ConfigItem(None, BundleConst.KEY_EVALUATOR))
+        self.trainer = self.parser.get_parsed_content(
+            BundleConst.KEY_TRAINER, default=ConfigItem(None, BundleConst.KEY_TRAINER)
+        )
+        self.evaluator = self.parser.get_parsed_content(
+            BundleConst.KEY_EVALUATOR, default=ConfigItem(None, BundleConst.KEY_EVALUATOR)
+        )
 
-        self.pre_filters = self.parser.get_parsed_content(FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS))
-        self.post_weight_filters = self.parser.get_parsed_content(FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS))
-        self.post_evaluate_filters = self.parser.get_parsed_content(FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS))
+        self.pre_filters = self.parser.get_parsed_content(
+            FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
+        )
+        self.post_weight_filters = self.parser.get_parsed_content(
+            FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
+        )
+        self.post_evaluate_filters = self.parser.get_parsed_content(
+            FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
+        )
 
         self.logger.info(f"Initialized {self.client_name}.")
 
