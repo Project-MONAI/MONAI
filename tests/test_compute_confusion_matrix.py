@@ -23,19 +23,22 @@ from monai.metrics import (
     get_confusion_matrix,
 )
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # input data
 data: Dict[Any, Any] = {
     "y_pred": torch.tensor(
         [
             [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
-        ]
+        ],
+        device=_device,
     ),
     "y": torch.tensor(
         [
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]]],
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
-        ]
+        ],
+        device=_device,
     ),
 }
 

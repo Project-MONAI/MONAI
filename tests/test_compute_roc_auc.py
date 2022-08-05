@@ -19,8 +19,9 @@ from monai.data import decollate_batch
 from monai.metrics import ROCAUCMetric, compute_roc_auc
 from monai.transforms import Activations, AsDiscrete, Compose, ToTensor
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_1 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]], device="cuda:0" if torch.cuda.is_available() else "cpu"),
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]], device=_device),
     torch.tensor([[0], [1], [0], [1]]),
     True,
     2,
@@ -30,7 +31,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     torch.tensor([[0.5], [0.5], [0.2], [8.3]]),
-    torch.tensor([[0], [1], [0], [1]]),
+    torch.tensor([[0], [1], [0], [1]], device=_device),
     False,
     None,
     "macro",
