@@ -94,7 +94,7 @@ class VideoDataset:
 
     def get_fps(self) -> int:
         """Get the FPS of the capture device."""
-        return self._get_cap().get(cv2.CAP_PROP_FPS)
+        return self._get_cap().get(cv2.CAP_PROP_FPS)  # type: ignore
 
     def get_frame(self) -> Any:
         """Get next frame. For a file, this will be the next frame, whereas for a camera
@@ -135,14 +135,14 @@ class VideoFileDataset(Dataset, VideoDataset):
             raise RuntimeError("0 frames found")
         return num_frames
 
-    def __len__(self) -> int:
+    def __len__(self):
         return self.max_num_frames
 
     def __getitem__(self, index: int) -> Any:
         """
         Fetch single data item from index.
         """
-        if index >= self.max_num_frames:
+        if self.max_num_frames is not None and index >= self.max_num_frames:
             raise IndexError
         self._get_cap().set(cv2.CAP_PROP_POS_FRAMES, index)
         return self.get_frame()

@@ -13,6 +13,7 @@ import os
 import tempfile
 import unittest
 from contextlib import nullcontext
+from typing import Optional, Type, Union
 
 import torch
 
@@ -31,11 +32,11 @@ TRANSFORMS = mt.Compose([mt.AsChannelFirst(), mt.DivisiblePad(16), mt.ScaleInten
 
 class Base:
     class TestVideoDataset(unittest.TestCase):
-        video_source = None
-        ds = None
+        video_source: Union[int, str]
+        ds: Type[VideoDataset]
 
         def get_ds(self, *args, **kwargs) -> VideoDataset:
-            return self.ds(video_source=self.video_source, transform=TRANSFORMS, *args, **kwargs)
+            return self.ds(video_source=self.video_source, transform=TRANSFORMS, *args, **kwargs)  # type: ignore
 
         @unittest.skipIf(has_cv2, "Only tested when OpenCV not installed.")
         def test_no_opencv_raises(self):
