@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import logging
-import os.path
 import sys
 from typing import TYPE_CHECKING, Optional
 
@@ -20,7 +19,6 @@ import monai
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigItem
 from monai.config import IgniteInfo
-from monai.engines.trainer import Trainer
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType, BundleConst, FiltersType
 from monai.fl.utils.exchange_object import ExchangeObject
