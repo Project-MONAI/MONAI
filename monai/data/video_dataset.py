@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
 
-from monai.transforms.transform import apply_transform
 from monai.utils.enums import ColorOrder
 from monai.utils.module import optional_import
 
@@ -107,7 +106,7 @@ class VideoDataset:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # channel to front
         frame = np.moveaxis(frame, -1, 0)
-        return apply_transform(self.transform, frame) if self.transform is not None else frame
+        return self.transform(frame) if self.transform is not None else frame
 
 
 class VideoFileDataset(Dataset, VideoDataset):
