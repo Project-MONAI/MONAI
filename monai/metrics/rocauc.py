@@ -81,7 +81,7 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
         return float("nan")
 
     n = len(y)
-    indices = y_pred.argsort().cpu()
+    indices = y_pred.argsort()
     y = y[indices].cpu().numpy()
     y_pred = y_pred[indices].cpu().numpy()
     nneg = auc = tmp_pos = tmp_neg = 0.0
