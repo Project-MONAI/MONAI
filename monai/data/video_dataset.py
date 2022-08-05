@@ -74,7 +74,7 @@ class VideoDataset:
         self.max_num_frames = max_num_frames
 
     @staticmethod
-    def open_video(video_source: Union[str, int]) -> cv2.VideoCapture:
+    def open_video(video_source: Union[str, int]):
         """
         Use OpenCV to open a video source from either file or capture device.
 
@@ -92,7 +92,7 @@ class VideoDataset:
             raise RuntimeError(f"Failed to open video: {video_source}")
         return cap
 
-    def _get_cap(self) -> cv2.VideoCapture:
+    def _get_cap(self):
         """Return the cap. If multiprocesing, create a new one. Else return the one from construction time."""
         return self.open_video(self.video_source) if self.multiprocessing else self.cap
 
