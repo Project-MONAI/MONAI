@@ -245,12 +245,12 @@ class EnsureChannelFirst(Transform):
                     raise ValueError(msg)
                 warnings.warn(msg)
                 return img
-            meta_dict["original_channel_dim"] = channel_dim = "no_channel"
+            meta_dict["original_channel_dim"] = channel_dim = "no_channel"   # type: ignore
 
         if channel_dim == "no_channel":
             result = img[None]
         else:
-            result = moveaxis(img, channel_dim, 0)
+            result = moveaxis(img, channel_dim, 0)   # type: ignore
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
