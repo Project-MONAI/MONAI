@@ -23,7 +23,7 @@ from monai.utils import InterpolateMode
 
 __all__ = ["FlexibleUNet"]
 
-efficientnet_feature_channel = {
+encoder_feature_channel = {
     "efficientnet-b0": (16, 24, 40, 112, 320),
     "efficientnet-b1": (16, 24, 40, 112, 320),
     "efficientnet-b2": (16, 24, 48, 120, 352),
@@ -48,7 +48,7 @@ def _get_encoder_channels_by_backbone(backbone: str, in_channels: int = 3) -> tu
     Returns:
         A tuple of output feature map channels' length .
     """
-    encoder_channel_tuple = efficientnet_feature_channel[backbone]
+    encoder_channel_tuple = encoder_feature_channel[backbone]
     encoder_channel_list = [in_channels] + list(encoder_channel_tuple)
     encoder_channel = tuple(encoder_channel_list)
     return encoder_channel
@@ -188,24 +188,50 @@ class SegmentationHead(nn.Sequential):
 
 class FlexibleUNet(nn.Module):
     """
-    A flexible implement of UNet, in which the backbone can be replaced with any efficient network.
+    A flexible implement of UNet, in which the backbone can be replaced with any
+    efficient network. Currently the input must have a 2 or 3 spatial dimension
+    and the spatial size of each dimension must be a multiple of 32.
+    Args:
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        backbone: name of backbones to initialize, only support efficientnet right now,
+            can be from [efficientnet-b0,..., efficientnet-b8, efficientnet-l2].
+        pretrained: whether to initialize pretrained ImageNet weights, only available
+            for spatial_dims=2 and batch norm is used, default to False.
+        decoder_channels: number of output channels for all feature maps in decoder.
+            `len(decoder_channels)` should equal to `len(encoder_channels) - 1`,default
+            to (256, 128, 64, 32, 16).
+        spatial_dim: number of spatial dimensions, default to 2.
+        norm: normalization type and arguments, default to ("batch", {"eps": 1e-3,
+            "momentum": 0.1}).
+        act: activation type and arguments, default to ("relu", {"inplace": True}).
+        dropout: dropout ratio, default to 0.0.
+        decoder_bias: whether to have a bias term in decoder's convolution blocks.
+        upsample: upsampling mode, available options are``"deconv"``, ``"pixelshuffle"``,
+            ``"nontrainable"``.
+        interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+            Only used in the "nontrainable" mode.
     """
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        backbone: str = "efficientnet-b0",
-        pretrained: bool = True,
+        backbone: str,
+        pretrained: bool = False,
         decoder_channels: Tuple = (256, 128, 64, 32, 16),
         spatial_dims: int = 2,
+        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.1}),
+        act: Union[str, tuple] = ("relu", {"inplace": True}),
+        dropout: Union[float, tuple] = 0.0,
+        decoder_bias: bool = False,
+        upsample: str = "nontrainable",
+        interp_mode: str = "nearest",
     ) -> None:
         super().__init__()
 
-        if backbone not in efficientnet_feature_channel:
-            raise ValueError(
-                f"invalid model_name {backbone} found, must be one of {efficientnet_feature_channel.keys()}."
-            )
+        if backbone not in encoder_feature_channel:
+            raise ValueError(f"invalid model_name {backbone} found, must be one of {encoder_feature_channel.keys()}.")
 
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
@@ -223,21 +249,22 @@ class FlexibleUNet(nn.Module):
             model_name=model_name,
             pretrained=pretrained,
             in_channels=in_channels,
-            norm=("batch", {"eps": 1e-3, "momentum": 0.1}),
+            spatial_dims=spatial_dims,
+            norm=norm,
             adv_prop=adv_prop,
         )
         self.decoder = UNetDecoder(
             spatial_dims=spatial_dims,
             encoder_channels=encoder_channels,
             decoder_channels=decoder_channels,
-            act=("relu", {"inplace": True}),
-            norm="batch",
-            bias=False,
-            upsample="nontrainable",
+            act=act,
+            norm=norm,
+            dropout=dropout,
+            bias=decoder_bias,
+            upsample=upsample,
+            interp_mode=interp_mode,
             pre_conv=None,
-            interp_mode="nearest",
             align_corners=None,
-            dropout=0.0,
         )
 
         self.segmentation_head = SegmentationHead(
