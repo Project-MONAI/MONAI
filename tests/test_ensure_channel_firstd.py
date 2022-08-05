@@ -57,12 +57,24 @@ class TestEnsureChannelFirstd(unittest.TestCase):
 
     def test_exceptions(self):
         im = torch.zeros((1, 2, 3))
+        im_nodim = MetaTensor(im, meta={"original_channel_dim": None})
+
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirstd("img")({"img": im})
+            EnsureChannelFirstd("img", add_channel_default=False)({"img": im})
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirstd("img")({"img": MetaTensor(im, meta={"original_channel_dim": None})})
-        EnsureChannelFirstd("img", strict_check=False)({"img": im})
-        EnsureChannelFirstd("img", strict_check=False)({"img": MetaTensor(im, meta={"original_channel_dim": None})})
+            EnsureChannelFirstd("img", add_channel_default=False)({"img": im_nodim})
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirstd("img", strict_check=False, add_channel_default=False)({"img": im})
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirstd("img", strict_check=False, add_channel_default=False)({"img": im_nodim})
+
+    def test_default_channel_first(self):
+        im = torch.rand(4, 4)
+        result = EnsureChannelFirstd("img", add_channel_default=True)({"img": im})
+
+        self.assertEqual(result["img"].shape, (1, 4, 4))
 
 
 if __name__ == "__main__":
