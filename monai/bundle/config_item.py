@@ -315,7 +315,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = EXPR_KEY
-    run_eval = not os.environ.get("MONAI_EVAL_EXPR", "1") == "0"
+    run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)

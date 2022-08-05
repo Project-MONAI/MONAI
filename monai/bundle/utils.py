@@ -56,7 +56,7 @@ DEFAULT_INFERENCE = {
         "_target_": "Compose",
         "transforms": [
             {"_target_": "LoadImaged", "keys": "image"},
-            {"_target_": "AddChanneld", "keys": "image"},
+            {"_target_": "EnsureChannelFirstd", "keys": "image"},
             {"_target_": "ScaleIntensityd", "keys": "image"},
             {"_target_": "EnsureTyped", "keys": "image", "device": "@device"},
         ],

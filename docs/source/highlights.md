@@ -511,7 +511,7 @@ For example:
 ```py
 train_transforms = [
     LoadImaged(...),
-    AddChanneld(...),
+    EnsureChannelFirstd(...),
     Orientationd(...),
     Spacingd(...),
     ScaleIntensityRanged(...),
