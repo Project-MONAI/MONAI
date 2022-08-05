@@ -69,16 +69,12 @@ class ExchangeObject(dict):
                 raise ValueError(f"Expected weight type to be either {WeightType.WEIGHTS} or {WeightType.WEIGHT_DIFF}")
         self._weight_type = weight_type
 
-    # TODO: add self validation functions?
-    def is_valid_weights(self):
+    def is_valid_weights(self):  # TODO: add self validation functions?
         if not self.weights:
-            # raise ValueError(f"ExchangeObject doesn't contain a model")
             return False
         if not self.weight_type:
-            # raise ValueError(f"ExchangeObject doesn't set weight type")
             return False
         return True
 
-    # TODO: implement better summary function?
-    def summary(self):
+    def summary(self):  # TODO: implement better summary function?
         return dir(self)
