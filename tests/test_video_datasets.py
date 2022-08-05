@@ -40,7 +40,7 @@ class Base:
 
         @unittest.skipIf(has_cv2, "Only tested when OpenCV not installed.")
         def test_no_opencv_raises(self):
-            with self.assertRaises():
+            with self.assertRaises(RuntimeError):
                 _ = self.get_ds(max_num_frames=10)
 
         @unittest.skipUnless(has_cv2, "OpenCV required.")
