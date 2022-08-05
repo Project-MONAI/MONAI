@@ -504,6 +504,6 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def __repr__(self, *, tensor_contents=None):
         return self.as_tensor().__repr__() + super().__repr__()
-    
+
     def __str__(self):
         return str(self.as_tensor())

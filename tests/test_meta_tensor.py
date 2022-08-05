@@ -423,7 +423,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
         self.assertEqual(str(t), "tensor([1.])")
-        
+
     def test_astype(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
         for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.compat.long, np.uint16):
