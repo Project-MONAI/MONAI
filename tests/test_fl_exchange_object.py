@@ -25,7 +25,7 @@ models, has_torchvision = optional_import("torchvision.models")
 TEST_INIT_1 = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": None}]
 TEST_INIT_2 = []
 if has_torchvision:
-    network = models.resnet18(weights=None)
+    network = models.resnet18()
     TEST_INIT_2.append(
         {
             "weights": network.state_dict(),
