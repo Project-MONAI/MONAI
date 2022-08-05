@@ -422,22 +422,8 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        s1 = str(t)
-        s2 = t.__repr__()
-        expected_out = (
-            "tensor([1.])\n"
-            + "Metadata\n"
-            + "\tfname: filename\n"
-            + "\taffine: 1\n"
-            + "\tspace: RAS\n"
-            + "\n"
-            + "Applied operations\n"
-            + "[]\n"
-            + "Is batch?: False"
-        )
-        for s in (s1, s2):
-            self.assertEqual(s, expected_out)
-
+        self.assertEqual(str(t), "tensor([1.])")
+        
     def test_astype(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
         for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.compat.long, np.uint16):
