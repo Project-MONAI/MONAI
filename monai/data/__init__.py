@@ -37,7 +37,6 @@ from .dataset import (
     SmartCacheDataset,
     ZipDataset,
 )
-from .video_dataset import CameraDataset, VideoFileDataset  # isort:skip
 from .dataset_summary import DatasetSummary
 from .decathlon_datalist import (
     check_missing_files,
