@@ -65,16 +65,16 @@ class ExchangeObject(dict):
     @weight_type.setter
     def weight_type(self, weight_type):
         if weight_type is not None:
-            if weight_type not in [WeightType.WEIGHTS, WeightType.WEIGHT_DIFF]:  # TODO: get all WeightType options?
+            if weight_type not in [WeightType.WEIGHTS, WeightType.WEIGHT_DIFF]:
                 raise ValueError(f"Expected weight type to be either {WeightType.WEIGHTS} or {WeightType.WEIGHT_DIFF}")
         self._weight_type = weight_type
 
-    def is_valid_weights(self):  # TODO: add self validation functions?
+    def is_valid_weights(self):
         if not self.weights:
             return False
         if not self.weight_type:
             return False
         return True
 
-    def summary(self):  # TODO: implement better summary function?
+    def summary(self):
         return dir(self)
