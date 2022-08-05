@@ -43,6 +43,7 @@ __all__ = [
     "FastMRIKeys",
     "SpaceKeys",
     "MetaKeys",
+    "ColorOrder",
 ]
 
 
@@ -453,3 +454,12 @@ class MetaKeys(StrEnum):
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+
+
+class ColorOrder(StrEnum):
+    """
+    Enums for color order. Expand as necessary.
+    """
+
+    RGB = "RGB"
+    BGR = "BGR"
