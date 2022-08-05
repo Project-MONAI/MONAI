@@ -43,7 +43,10 @@ __all__ = ["DataAnalyzer"]
 
 class DataAnalyzer:
     """
-    The DataAnalyzer automatically analyzes a given medical image datasets and reports out the statistics.
+    The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
+    The module expects file paths to the image data and utilizes the LoadImaged transform to read the files.
+    which supports nii, nii.gz, png, jpg, bmp, npz, npy, and dcm formats. Currently, only segmentation
+    problem is supported, so the user needs to provide paths to the image and label files.
 
     Args:
         datalist: a Python dictionary storing group, fold, and other information of the medical
@@ -55,18 +58,25 @@ class DataAnalyzer:
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
 
-    Custimize statistics calculation:
-        Write a new function for indivisual case:
-            _get_your_stats(self):
-                1. processed_data = retrive processed data from self.data, if not exist, process data (like cropping)
-                2. define a dict case_stats = {'stats1': calculate(processed_data)}. Notice the data may be a list of
-                data from different modalities. So calculate(processed_data) should return a list of stats. case_status
-                will be written to the yaml file
-                3. create a dict case_stats_summary = {'stats1': summary_function}. The summary_function will process
-                a list of ['stats1','stats1',...] from all cases in self.dataset.datalist.
-                4. update self.data with processed_data and update self.gather_summary to register case_stats_summary,
-                and return case_stats.
-        Add _get_your_stats to self._register_functions.
+    For example:
+
+    .. code-block:: python
+
+        from monai.apps.auto3d.data_analyzer import DataAnalyzer
+
+        datalist = {
+            "testing": [{"image": "image_003.nii.gz"}],
+            "training": [
+                {"fold": 0, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
+                {"fold": 0, "image": "image_002.nii.gz", "label": "label_002.nii.gz"},
+                {"fold": 1, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
+                {"fold": 1, "image": "image_004.nii.gz", "label": "label_004.nii.gz"},
+            ],
+        }
+
+        dataroot = '/datasets' # the directory where you have the image files (nii.gz)
+        DataAnalyzer(datalist, dataroot)
+
     """
 
     def __init__(
@@ -80,7 +90,7 @@ class DataAnalyzer:
         worker: int = 2,
     ):
         """
-        Initializer will load the data and register the functions for data statistics gathering.
+        The initializer will load the data and register the functions for data statistics gathering.
         """
         self.output_path = output_path
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
@@ -117,7 +127,44 @@ class DataAnalyzer:
 
     def _register_functions(self):
         """
-        Register all the statistic functions for calculating stats for individual cases and overall.
+        Register all the statistic functions for calculating stats for individual cases and overall. If one installs
+        monai in the editable source code manner, then a new statistics calculation can be customized in the DataAnalyzer
+        class.
+
+        For example:
+
+        .. code-block:: python
+
+            class DataAnalyzer:
+                # other functions defined in the class
+                # below are for new functions
+
+                def my_fun(x_list: List[torch.tensor]):
+                    # notice the data may be a list of data from different modalities.
+                    # So my_fun(x) should return a list of stats.
+                    y_list = []
+                    for x in x_list:
+                        y_list.append(x.sum())
+                    return y_list
+
+                def _get_my_stats(self):  # in the DataAnalyzer class. case_stats will be written to the yaml file
+                    processed_data = self.data['image']
+                    case_stats = {'my_stats': my_fun(processed_data)}.
+                    return case_stats
+
+                def _get_my_stats_sumumary(self):
+                    case_stats_summary = {'stats1': summary_function}. The summary_function will process
+
+                    case_stats_summary = {
+                        "my_stats_summary": {"sum": self._get_my_stats}
+                    }
+                    self.gather_summary.update(case_stats_summary)
+
+                def _register_functions(self):
+                    # add
+                    self.functions = ...
+                    self.function_summary = ...
+                    self.function_summary.append(self._get_my_stats_sumumary)
 
         """
         self.functions = [self._get_case_image_stats, self._get_case_foreground_image_stats, self._get_label_stats]
@@ -171,8 +218,8 @@ class DataAnalyzer:
 
     def _get_case_image_stats(self) -> Dict:
         """
-        Generate image statistics for cases in datalist case ({'image','label'})
-        Statistics values are under key "image_stats"
+        Generate image statistics for cases in datalist ({'image','label'})
+        Statistics values are stored under the key "image_stats"
 
         Returns:
             a dictionary of the images stats
@@ -205,7 +252,7 @@ class DataAnalyzer:
 
     def _get_case_image_stats_summary(self):
         """
-        Update gather_summary by case-by-case.
+        Update self.gather_summary by case-by-case.
         """
         # this dictionary describes how to gather values in the summary
         case_stats_summary = {
@@ -221,9 +268,10 @@ class DataAnalyzer:
 
     def _get_case_foreground_image_stats(self) -> Dict:
         """
-        Generate intensity statistics based on foreground images for cases in datalist
-        ({'image','label'}). Foreground is defined by points where labels are positive numbers.
-        The statistics will be values with key name "intensity" under parent key "image_foreground_stats".
+        Generate intensity statistics based on foreground images for cases in the datalist
+        ({'image','label'}). The foreground is defined by points where labels are positive numbers.
+        The statistics will be values with the key name "intensity" under parent the key
+        "image_foreground_stats".
 
         Returns
             a dictionary with following structure
@@ -259,8 +307,8 @@ class DataAnalyzer:
     def _get_label_stats(self) -> Dict:
         """
         Generate label statisics for all the cases in the datalist based on ({"images", "labels"}).
-        Each label has its own statistics including the connected components info, shape, and
-        corresponding image region intensity. The statistics are stored in the values with key name
+        Each label has its own statistics (the connected components info, shape, and
+        corresponding image region intensity). The statistics are saved in the values with key name
         "label_stats" in the return variable.
 
         Returns
@@ -320,7 +368,7 @@ class DataAnalyzer:
 
     def _get_label_stats_summary(self):
         """
-        Get unique_label and update the label into gather_summary. (todo) More descriptions about ccp.
+        Get the label statistics for each unique label and update them into gather_summary.
         """
         case_stats_summary = {
             "label_stats": {
@@ -346,6 +394,7 @@ class DataAnalyzer:
     def _pixelpercent_summary(x):
         """
         Define the summary function for the pixel percentage over the whole dataset.
+
         Args
             x: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels.
 
@@ -366,7 +415,7 @@ class DataAnalyzer:
         Define the summary function for stats over the whole dataset
         Combine overall intensity statistics for all cases in datalist. The intensity features are
         min, max, mean, std, percentile defined in self._stats_opt().
-        Values may be averaged over all the cases if average is set to True
+        Values may be averaged over all the cases if the `average` is set to be True
 
         Args:
             x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
@@ -393,9 +442,8 @@ class DataAnalyzer:
 
     def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
         """
-        Combine other stats calculation methods (like shape/min/max/std )
-        Wraps _stats_opt for a list of data from all cases. Does not guarantee correct output
-        for custimized stats structure. Check the following input structures.
+        Combine other stats calculation methods (like shape/min/max/std ) Does not guarantee
+        correct output for custimized stats structure. Check the following input structures.
 
         Args:
             data: [case_stats, case_stats, ...].
@@ -439,7 +487,7 @@ class DataAnalyzer:
         Calculate statistics calculation operations (ops) on the images/labels
 
         Args:
-            raw_data: ndarray.
+            raw_data: ndarray image or label
 
         Returns:
             a dictionary to list out the statistics based on give operations (ops). For example, keys can include 'max', 'min',
@@ -472,7 +520,7 @@ class DataAnalyzer:
     def _get_foreground_image(image: MetaTensor) -> MetaTensor:
         """
         Get a foreground image by removing all-zero rectangles on the edges of the image
-        Note for developer: update select_fn if the foreground is defined differently.
+        Note for the developer: update select_fn if the foreground is defined differently.
 
         Args:
             image: ndarray image to segment.

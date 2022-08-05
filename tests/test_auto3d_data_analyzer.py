@@ -10,8 +10,9 @@
 # limitations under the License.
 
 import sys
+import tempfile
 import unittest
-from os import makedirs, path, remove, rmdir
+from os import path
 
 import nibabel as nib
 import numpy as np
@@ -37,40 +38,27 @@ class TestDataAnalyzer(unittest.TestCase):
         }
 
         # Generate datasets
-        tmp_dir = "tests/testing_data/auto3d_tmp"
-        analyzer_output = "output.yaml"
+        with tempfile.TemporaryDirectory() as tempdir:
+            cleanup_list = []
+            for d in source_datalist["testing"] + source_datalist["training"]:
+                im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
+                nib_image = nib.Nifti1Image(im, affine=np.eye(4))
+                image_fpath = path.join(tempdir, d["image"])
+                nib.save(nib_image, image_fpath)
+                cleanup_list.append(image_fpath)
+                if "label" in d:
+                    nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
+                    label_fpath = path.join(tempdir, d["label"])
+                    nib.save(nib_image, label_fpath)
+                    cleanup_list.append(label_fpath)
 
-        # generate fake datasets in temporary directory
+            analyzer_output = "output.yaml"
+            yaml_fpath = path.join(tempdir, analyzer_output)
+            analyser = DataAnalyzer(source_datalist, tempdir, output_path=yaml_fpath, device=device, worker=n_workers)
+            datastat = analyser.get_all_case_stats()
+            cleanup_list.append(yaml_fpath)
 
-        if not path.isdir(tmp_dir):
-            makedirs(tmp_dir)
-
-        cleanup_list = []
-        for d in source_datalist["testing"] + source_datalist["training"]:
-            im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
-            nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-            image_fpath = path.join(tmp_dir, d["image"])
-            nib.save(nib_image, image_fpath)
-            cleanup_list.append(image_fpath)
-            if "label" in d:
-                nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                label_fpath = path.join(tmp_dir, d["label"])
-                nib.save(nib_image, label_fpath)
-                cleanup_list.append(label_fpath)
-
-        yaml_fpath = path.join(tmp_dir, analyzer_output)
-        analyser = DataAnalyzer(source_datalist, tmp_dir, output_path=yaml_fpath, device=device, worker=n_workers)
-        datastat = analyser.get_all_case_stats()
-        cleanup_list.append(yaml_fpath)
-
-        assert len(datastat["stats_by_cases"]) == 4
-
-        # clean up the fake datasets and output
-        for file in cleanup_list:
-            if path.isfile(file):
-                remove(file)
-
-        rmdir(tmp_dir)
+            assert len(datastat["stats_by_cases"]) == 4
 
 
 if __name__ == "__main__":
