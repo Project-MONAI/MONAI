@@ -13,7 +13,7 @@ import os
 import tempfile
 import unittest
 from contextlib import nullcontext
-from typing import Optional, Type, Union
+from typing import Type, Union
 
 import torch
 
