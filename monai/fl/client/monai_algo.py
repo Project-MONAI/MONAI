@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+import os.path
 import sys
 from typing import TYPE_CHECKING, Optional
 
@@ -17,9 +18,11 @@ import torch
 
 import monai
 from monai.bundle import ConfigParser
+from monai.bundle.config_item import ConfigItem
 from monai.config import IgniteInfo
+from monai.engines.trainer import Trainer
 from monai.fl.client.client_algo import ClientAlgo
-from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType
+from monai.fl.utils.constants import ExtraItems, FlPhase, WeightType, BundleConst, FiltersType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils import min_version, optional_import
 
@@ -49,22 +52,20 @@ class MonaiAlgo(ClientAlgo):
     def __init__(
         self,
         config_train_file: Optional[str] = None,
-        config_predict_file: Optional[str] = None,
+        config_evaluate_file: Optional[str] = None,
         config_filters_file: Optional[str] = None,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.config_train_file = config_train_file
-        self.config_predict_file = config_predict_file
+        self.config_evaluate_file = config_evaluate_file
         self.config_filters_file = config_filters_file
 
-        self.train_parser = None
-        self.predict_parser = None
-        self.filter_parser = None
+        self.parser = None
         self.trainer = None
-        self.predictor = None
+        self.evaluator = None
         self.pre_filters = None
         self.post_weight_filters = None
-        self.post_predict_filters = None
+        self.post_evaluate_filters = None
 
         self.phase = FlPhase.IDLE
         self.client_name = None
@@ -74,41 +75,29 @@ class MonaiAlgo(ClientAlgo):
             extra = {}
         self.logger.info(f"Initializing {self.client_name} ...")
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+
+        # Read bundle config files
+        config_files = []
         if self.config_train_file:
-            self.logger.info(f"Parsing trainer configuration from {self.config_train_file}")
-
-            self.train_parser = ConfigParser()
-            self.train_parser.read_config(self.config_train_file)
-            self.train_parser.parse()
-            self.trainer = self.train_parser.get_parsed_content("train#trainer")
-        if self.config_predict_file:
-            self.logger.info(f"Parsing predictor configuration from {self.config_predict_file}")
-
-            self.predict_parser = ConfigParser()
-            self.predict_parser.read_config(self.config_predict_file)
-            self.predict_parser.parse()
-            self.predictor = self.predict_parser.get_parsed_content("validate#evaluator")
+            config_files.append(self.config_train_file)
+        if self.config_evaluate_file:
+            config_files.append(self.config_evaluate_file)
         if self.config_filters_file:
-            self.logger.info(f"Parsing filter configuration from {self.config_filters_file}")
+            config_files.append(self.config_filters_file)
 
-            self.filter_parser = ConfigParser()
-            self.filter_parser.read_config(self.config_filters_file)
-            self.filter_parser.parse()
-            # TODO: return default None in get_parsed_content() if key is not there, rather than using try/except
-            try:
-                self.pre_filters = self.filter_parser.get_parsed_content("pre_filters")
-            except BaseException:
-                pass
-            try:
-                self.post_weight_filters = self.filter_parser.get_parsed_content("post_weight_filters")
+        # Parse
+        self.parser = ConfigParser()
+        self.parser.read_config(config_files)
+        self.parser.parse()
 
-            except BaseException:
-                pass
-            try:
-                self.post_predict_filters = self.filter_parser.get_parsed_content("post_predict_filters")
+        # Get trainer, evaluator, and filters
+        self.trainer = self.parser.get_parsed_content(BundleConst.KEY_TRAINER, default=ConfigItem(None, BundleConst.KEY_TRAINER))
+        self.evaluator = self.parser.get_parsed_content(BundleConst.KEY_EVALUATOR, default=ConfigItem(None, BundleConst.KEY_EVALUATOR))
 
-            except BaseException:
-                pass
+        self.pre_filters = self.parser.get_parsed_content(FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS))
+        self.post_weight_filters = self.parser.get_parsed_content(FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS))
+        self.post_evaluate_filters = self.parser.get_parsed_content(FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS))
+
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra=None):
@@ -160,29 +149,31 @@ class MonaiAlgo(ClientAlgo):
 
         return return_weights
 
-    def predict(self, data: ExchangeObject, extra=None):
+    def evaluate(self, data: ExchangeObject, extra=None):
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
             raise ValueError(f"expected data to be ExchangeObject but received {type(data)}")
 
-        if self.predictor is None:
-            raise ValueError("self.predictor should not be None.")
+        if self.evaluator is None:
+            raise ValueError("self.evaluator should not be None.")
         if self.pre_filters is not None:
             for _filter in self.pre_filters:
                 data = _filter(data, extra)
-        self.phase = FlPhase.PREDICT
+
+        self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
         local_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=self.predictor.network.state_dict()
+            global_weights=data.weights, local_var_dict=self.evaluator.network.state_dict()
         )
 
-        self.predictor.network.load_state_dict(local_weights)
+        self.evaluator.network.load_state_dict(local_weights)
         self.logger.info(f"Start {self.client_name} evaluating...")
-        self.predictor.run()
-        return_metrics = ExchangeObject(metrics=self.predictor.state.metrics)
-        if self.post_predict_filters is not None:
-            for _filter in self.post_predict_filters:
+        self.evaluator.run()
+        return_metrics = ExchangeObject(metrics=self.evaluator.state.metrics)
+
+        if self.post_evaluate_filters is not None:
+            for _filter in self.post_evaluate_filters:
                 return_metrics = _filter(return_metrics, extra)
         return return_metrics
 
@@ -196,9 +187,9 @@ class MonaiAlgo(ClientAlgo):
             self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
             if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
                 self.trainer._fire_event(Events.EPOCH_COMPLETED)
-        if isinstance(self.predictor, monai.engines.Trainer):
-            self.logger.info(f"Aborting {self.client_name} predictor...")
-            self.predictor.terminate()
+        if isinstance(self.evaluator, monai.engines.Trainer):
+            self.logger.info(f"Aborting {self.client_name} evaluator...")
+            self.evaluator.terminate()
 
     def finalize(self, extra=None):
         # TODO: finalize feature could be built into the MONAI Trainer class
@@ -209,6 +200,6 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
             self.trainer.terminate()
-        if isinstance(self.predictor, monai.engines.Trainer):
-            self.logger.info(f"Terminating {self.client_name} predictor...")
-            self.predictor.terminate()
+        if isinstance(self.evaluator, monai.engines.Trainer):
+            self.logger.info(f"Terminating {self.client_name} evaluator...")
+            self.evaluator.terminate()

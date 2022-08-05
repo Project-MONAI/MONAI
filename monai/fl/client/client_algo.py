@@ -22,7 +22,7 @@ class ClientAlgo(abc.ABC):
 
         - #Algo.train()
         - #Algo.get_weights()
-        - #Algo.predict()
+        - #Algo.evaluate()
 
     initialize() and finalize() can be optionally be implemented to help with lifecycle management of the object.
     """
@@ -36,7 +36,7 @@ class ClientAlgo(abc.ABC):
         pass
 
     def abort(self, extra=None):
-        """call to abort the ClientAlgo training or prediction"""
+        """call to abort the ClientAlgo training or evaluation"""
         pass
 
     @abc.abstractmethod
@@ -67,13 +67,13 @@ class ClientAlgo(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def predict(self, data: ExchangeObject, extra=None) -> ExchangeObject:
+    def evaluate(self, data: ExchangeObject, extra=None) -> ExchangeObject:
         """
-        objective: get predictions from test data.
+        objective: get evaluation metrics on test data.
         # Arguments
-        data: ExchangeObject with network weights to use for prediction
+        data: ExchangeObject with network weights to use for evaluation
 
         # Returns
-        predictions: predictions ExchangeObject.
+        metrics: ExchangeObject with evaluation metrics.
         """
         raise NotImplementedError

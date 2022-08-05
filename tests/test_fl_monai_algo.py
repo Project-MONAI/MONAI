@@ -35,15 +35,15 @@ TEST_TRAIN_2 = [
     }
 ]
 
-TEST_PREDICT_1 = [
+TEST_EVALUATE_1 = [
     {
-        "config_predict_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_predict.json"),
+        "config_evaluate_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_evaluate.json"),
         "config_filters_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_filters.json"),
     }
 ]
-TEST_PREDICT_2 = [
+TEST_EVALUATE_2 = [
     {
-        "config_predict_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_predict.json"),
+        "config_evaluate_file": os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_evaluate.json"),
         "config_filters_file": None,
     }
 ]
@@ -90,16 +90,16 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
 
-    @parameterized.expand([TEST_PREDICT_1, TEST_PREDICT_2])
-    def test_predict(self, input_params):
+    @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2])
+    def test_evaluate(self, input_params):
         # get testing data dir and update train config
-        with open(input_params["config_predict_file"]) as f:
-            config_predict = json.load(f)
+        with open(input_params["config_evaluate_file"]) as f:
+            config_evaluate = json.load(f)
 
-        config_predict["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
+        config_evaluate["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
 
-        with open(input_params["config_predict_file"], "w") as f:
-            json.dump(config_predict, f, indent=4)
+        with open(input_params["config_evaluate_file"], "w") as f:
+            json.dump(config_evaluate, f, indent=4)
 
         # initialize algo
         algo = MonaiAlgo(**input_params)
@@ -107,14 +107,14 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(input_params["config_predict_file"])
+        parser.read_config(input_params["config_evaluate_file"])
         parser.parse()
         network = parser.get_parsed_content("network")
 
         data = ExchangeObject(weights=network.state_dict())
 
-        # test predict
-        algo.predict(data=data, extra={})
+        # test evaluate
+        algo.evaluate(data=data, extra={})
 
     @parameterized.expand([TEST_GET_WEIGHTS_1, TEST_GET_WEIGHTS_2])
     def test_get_weights(self, input_params):
