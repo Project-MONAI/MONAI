@@ -40,6 +40,7 @@ exclude_patterns = [
     "engines",
     "data",
     "apps",
+    "fl",
     "bundle",
     "config",
     "handlers",
