@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+from copy import deepcopy
 from typing import Any, Dict, List, Tuple, Union
 
 from monai.bundle.config_parser import ConfigParser
@@ -36,9 +37,9 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
     else:
         json_data = datalist
 
-    json_data = json_data[key]
+    dict_data = deepcopy(json_data[key])
 
-    for d in json_data:
+    for d in dict_data:
         for k, _ in d.items():
             if isinstance(d[k], list):
                 d[k] = [os.path.join(basedir, iv) for iv in d[k]]
@@ -47,7 +48,7 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
 
     tr = []
     val = []
-    for d in json_data:
+    for d in dict_data:
         if "fold" in d and d["fold"] == fold:
             val.append(d)
         else:
