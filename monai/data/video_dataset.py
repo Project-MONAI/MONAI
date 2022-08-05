@@ -36,6 +36,7 @@ class VideoDataset:
         max_num_frames: Optional[int] = None,
         color_order: str = ColorOrder.RGB,
         multiprocessing: bool = False,
+        channel_dim: int = 0,
     ) -> None:
         """
         Args:
@@ -50,6 +51,9 @@ class VideoDataset:
                 makes sense to use `multiprocessing=False`, as the source will then
                 only be opened once, at construction, which will be faster in those
                 circumstances.
+            channel_dim: OpenCV reads with the channel as the last dimension. Use this
+                flag to move it elsewhere. By default this is zero, so the channel
+                dimension is moved to the front.
 
         Raises:
             RuntimeError: OpenCV not installed.
@@ -61,6 +65,7 @@ class VideoDataset:
             raise NotImplementedError
 
         self.color_order = color_order
+        self.channel_dim = channel_dim
         self.video_source = video_source
         self.multiprocessing = multiprocessing
         if not multiprocessing:
@@ -104,8 +109,8 @@ class VideoDataset:
         # Switch color order if desired
         if self.color_order == ColorOrder.RGB:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # channel to front
-        frame = np.moveaxis(frame, -1, 0)
+        # move channel dim
+        frame = np.moveaxis(frame, -1, self.channel_dim)
         return self.transform(frame) if self.transform is not None else frame
 
 
