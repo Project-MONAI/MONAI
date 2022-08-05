@@ -108,7 +108,7 @@ class DataAnalyzer:
         self.DO_CONNECTED_COMP = do_ccp
         self.device = device
         self.data: Dict[str, Any] = {}
-        self.results: Dict[str, Dict] = {}
+        self.results: Dict[str, Any] = {}
         # gather all summary function for combining case stats
         self.gather_summary: Dict[str, Dict] = {}
         self._register_functions()
