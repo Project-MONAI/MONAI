@@ -22,7 +22,8 @@ class VariationalNetworkModel(nn.Module):
     """
     The end-to-end variational network (or simply e2e-VarNet) based on Sriram et. al., "End-to-end variational
     networks for accelerated MRI reconstruction".
-    It comprises several cascades
+    It comprises several cascades each consisting of refinement and data consistency steps. The network takes in
+    the under-sampled kspace and estimates the ground-truth reconstruction.
 
     Modified and adopted from: https://github.com/facebookresearch/fastMRI
 
@@ -75,5 +76,5 @@ class VariationalNetworkModel(nn.Module):
             output_image = root_sum_of_squares(
                 complex_abs(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
                 spatial_dim=1,  # 1 is for C which is the coil dimension
-            )
+            )  # shape is (B,H,W) for 2D and (B,H,W,D) for 3D data.
         return output_image  # type: ignore

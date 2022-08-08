@@ -649,6 +649,11 @@ Nets
 .. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
    :members:
 
+`e2e-VarNet`
+~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
+   :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
