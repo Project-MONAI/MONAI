@@ -20,6 +20,8 @@ from monai.apps.reconstruction.networks.nets.utils import (
     reshape_channel_complex_to_last_dim,
     reshape_channel_to_batch_dim,
     reshape_complex_to_channel_dim,
+    sensitivity_map_expand,
+    sensitivity_map_reduce,
 )
 
 # no need for checking devices, these functions don't change device format
@@ -30,6 +32,11 @@ TEST_RESHAPE = [(im_2d,), (im_3d,)]
 # normalize test case
 im_2d, im_3d = torch.randint(0, 3, [3, 4, 50, 70]).float(), torch.randint(0, 3, [3, 4, 50, 70, 80]).float()
 TEST_NORMALIZE = [(im_2d,), (im_3d,)]
+
+# test case for sensitivity map expansion/reduction
+ksp_2d, ksp_3d = torch.ones([3, 4, 50, 70, 2]), torch.ones([3, 4, 50, 70, 80, 2])
+sens_2d, sens_3d = torch.ones([3, 4, 50, 70, 2]), torch.ones([3, 4, 50, 70, 80, 2])
+TEST_SENS = [(ksp_2d, sens_2d), (ksp_3d, sens_3d)]
 
 
 class TestReconNetUtils(unittest.TestCase):
@@ -48,6 +55,12 @@ class TestReconNetUtils(unittest.TestCase):
         result, mean, std = complex_normalize(test_data)
         result = result * std + mean
         self.assertTrue((((result - test_data) ** 2).mean() ** 0.5).item() < 1e-5)
+
+    @parameterized.expand(TEST_SENS)
+    def test_sens_expand_reduce(self, test_data, sens):
+        result = sensitivity_map_reduce(test_data, sens)
+        result = sensitivity_map_expand(result, sens)
+        self.assertEqual(result.shape, test_data.shape)
 
 
 if __name__ == "__main__":
