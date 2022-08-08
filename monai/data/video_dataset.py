@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 else:
     cv2, has_cv2 = optional_import("cv2")
 
-__all__ = ["VideoFileDataset", "CameraDataset"]
+__all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
 
 
 class VideoDataset:
@@ -39,6 +39,8 @@ class VideoDataset:
         channel_dim: int = 0,
     ) -> None:
         """
+        Base video dataset.
+
         Args:
             video_source: filename of video.
             transform: transform to be applied to each frame.
