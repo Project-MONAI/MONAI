@@ -36,7 +36,7 @@ class VariationalNetworkModel(nn.Module):
             or list of available devices
     """
 
-    def __init__(self, hparams): #### pass different parts of hparams, separately
+    def __init__(self, hparams): # pass different parts of hparams, separately
         super().__init__()
         self.sens_net = CoilSensitivityModel(features=hparams.sens_features).to(hparams.devices[0])
 
