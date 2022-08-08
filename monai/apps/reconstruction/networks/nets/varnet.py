@@ -66,12 +66,7 @@ class VariationalNetworkModel(nn.Module):
         kspace_pred = masked_kspace.clone()
 
         for cascade in self.cascades:
-            kspace_pred = cascade(
-                kspace_pred,
-                masked_kspace,
-                mask,
-                sensitivity_maps,
-            )
+            kspace_pred = cascade(kspace_pred, masked_kspace, mask, sensitivity_maps)
 
             output_image = root_sum_of_squares(
                 complex_abs(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
