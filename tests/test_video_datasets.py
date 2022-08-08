@@ -27,7 +27,7 @@ cv2, has_cv2 = optional_import("cv2")
 
 
 NUM_CAPTURE_DEVICES = CameraDataset.get_num_devices()
-TRANSFORMS = mt.Compose([mt.AsChannelFirst(), mt.DivisiblePad(16), mt.ScaleIntensity(), mt.CastToType(torch.float32)])
+TRANSFORMS = mt.Compose([mt.EnsureChannelFirst(), mt.DivisiblePad(16), mt.ScaleIntensity(), mt.CastToType(torch.float32)])
 
 
 class Base:
@@ -100,7 +100,7 @@ class TestVideoFileDataset(Base.TestVideoDataset):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.video_source = os.path.join(tempfile.mkdtemp(), "endo.mp4")
+        cls.video_source = os.path.join(os.path.dirname(__file__), "testing_data", "endo.mp4")
         config = testing_data_config("videos", "endovis")
         download_url_or_skip_test(
             url=config["url"],
