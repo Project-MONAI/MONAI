@@ -26,7 +26,9 @@ cv2, has_cv2 = optional_import("cv2")
 
 
 NUM_CAPTURE_DEVICES = CameraDataset.get_num_devices()
-TRANSFORMS = mt.Compose([mt.EnsureChannelFirst(), mt.DivisiblePad(16), mt.ScaleIntensity(), mt.CastToType(torch.float32)])
+TRANSFORMS = mt.Compose(
+    [mt.EnsureChannelFirst(), mt.DivisiblePad(16), mt.ScaleIntensity(), mt.CastToType(torch.float32)]
+)
 
 
 class Base:
