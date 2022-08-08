@@ -139,7 +139,7 @@ class AutoConfigerBase:
         config["datastat"] = self._datastat
         config["datalist"] = self._datalist
         config["dataroot"] = self._dataroot
-        
+
         # name
         if self._name is None:
             from datetime import datetime

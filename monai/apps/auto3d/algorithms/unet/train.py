@@ -163,7 +163,7 @@ def main():
 
     # load data list (.json)
     if isinstance(config["datalist"], str):
-        with open(os.path.join(config["datalist"]), "r") as f:
+        with open(os.path.join(config["datalist"])) as f:
             json_data = json.load(f)
     else:
         json_data = config["datalist"]
@@ -253,12 +253,12 @@ def main():
                 keys=["label4crop"],
                 func=lambda x: np.concatenate(
                     tuple(
-                        [
+                        
                             ndimage.binary_dilation(
                                 (x.numpy() == _k).astype(x.numpy().dtype), iterations=max(patch_size) // 2
                             ).astype(x.numpy().dtype)
                             for _k in range(output_classes)
-                        ]
+                        
                     ),
                     axis=0,
                 ),
@@ -380,7 +380,7 @@ def main():
         model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=False)
 
     if args.checkpoint is not None and os.path.isfile(args.checkpoint):
-        print("[info] fine-tuning pre-trained checkpoint {0:s}".format(args.checkpoint))
+        print(f"[info] fine-tuning pre-trained checkpoint {args.checkpoint:s}")
         model.load_state_dict(torch.load(args.checkpoint, map_location=device))
         torch.cuda.empty_cache()
     else:
@@ -418,7 +418,7 @@ def main():
         if dist.get_rank() == 0:
             print("-" * 10)
             print(f"epoch {epoch + 1}/{num_validation_rounds}")
-            print("learning rate is set to {}".format(lr))
+            print(f"learning rate is set to {lr}")
 
         model.train()
         epoch_loss = 0
@@ -452,7 +452,7 @@ def main():
             idx_iter += 1
 
             if dist.get_rank() == 0:
-                print("[{0}] ".format(str(datetime.now())[:19]) + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+                print(f"[{str(datetime.now())[:19]}] " + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
                 writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
 
         # synchronizes all processes and reduce results
@@ -544,7 +544,7 @@ def main():
                 metric = metric.tolist()
                 if dist.get_rank() == 0:
                     for _c in range(output_classes - 1):
-                        print("evaluation metric - class {0:d}:".format(_c + 1), metric[2 * _c] / metric[2 * _c + 1])
+                        print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
                     avg_metric = 0
                     for _c in range(output_classes - 1):
                         avg_metric += metric[2 * _c] / metric[2 * _c + 1]
@@ -574,7 +574,7 @@ def main():
                     elapsed_time = (current_time - start_time) / 60.0
                     with open(os.path.join(args.output_root, "accuracy_history.csv"), "a") as f:
                         f.write(
-                            "{0:d}\t{1:.5f}\t{2:.5f}\t{3:.5f}\t{4:.1f}\t{5:d}\n".format(
+                            "{:d}\t{:.5f}\t{:.5f}\t{:.5f}\t{:.1f}\t{:d}\n".format(
                                 epoch + 1, avg_metric, loss_torch_epoch, lr, elapsed_time, idx_iter
                             )
                         )

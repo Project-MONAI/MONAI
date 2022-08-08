@@ -20,18 +20,18 @@ class AutoRunner:
 
     """
     def __init__(
-        self, 
+        self,
         dataroot: str,
         datalist: Union[str, Dict],
         input_args: Optional[Tuple] = None,
         ):
-        
+
         self.dataroot = dataroot
         self.datalist = datalist
         self.input_args = self._parse_input_args(**input_args)
-    
+
     def _parse_input_args(
-        self, 
+        self,
         input_args: Tuple = None
         ):
         # name: Optional[str] = None,
@@ -45,7 +45,7 @@ class AutoRunner:
         self,
         param: Dict = None
         ):
-        
+
         analyser = DataAnalyzer(self.datalist, self.dataroot)
         datastat = analyser.get_all_case_stats()
 
@@ -57,11 +57,11 @@ class AutoRunner:
             configer = auto_configer(net, **self.input_args)
             config = configer.generate_scripts()
             configs.append(config)
-        
+
         models_path = []
         for config in configs:
             model = DistributedTrainer(config)
             model.train(self.input_args['output_path'])
             models_path.append()
-        
+
         return models_path

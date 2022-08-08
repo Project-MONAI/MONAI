@@ -164,7 +164,7 @@ def distributed_all_gather(tensor_list, out_numpy=False, is_valid: bool = None):
     return tensor_list_out
 
 
-class AverageMeter(object):
+class AverageMeter:
     """Computes and stores the average and current value"""
 
     def __init__(self):
@@ -221,7 +221,7 @@ class LabelMapping(MapTransform):
 
     def label_mapping(self, x):
         dtype = x.dtype
-        return torch.cat([sum([x == i for i in c]) for c in self.class_index], dim=0).to(dtype=dtype)
+        return torch.cat([sum(x == i for i in c) for c in self.class_index], dim=0).to(dtype=dtype)
 
     def __call__(self, data):
         d = dict(data)
