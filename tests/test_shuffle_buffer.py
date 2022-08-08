@@ -19,7 +19,7 @@ from monai.utils import convert_data_type
 from tests.utils import SkipIfBeforePyTorchVersion
 
 
-@SkipIfBeforePyTorchVersion((1, 8))
+@SkipIfBeforePyTorchVersion((1, 12))
 class TestShuffleBuffer(unittest.TestCase):
     def test_shape(self):
         buffer = ShuffleBuffer([1, 2, 3, 4], seed=0)
@@ -34,8 +34,8 @@ class TestShuffleBuffer(unittest.TestCase):
             np.testing.assert_allclose(output, [[2, 1], [3, 4]])
             np.testing.assert_allclose(output2, [[3, 1], [2, 4]])
         else:  # multiprocess shuffle
-            np.testing.assert_allclose(output, [[2, 3], [1, 4]])
-            np.testing.assert_allclose(output2, [[1, 4], [2, 3]])
+            np.testing.assert_allclose(output, [[2, 3], [1, 4]], err_msg=f"seed {buffer.seed}")
+            np.testing.assert_allclose(output2, [[1, 4], [2, 3]], err_msg=f"seed {buffer.seed}")
 
 
 if __name__ == "__main__":
