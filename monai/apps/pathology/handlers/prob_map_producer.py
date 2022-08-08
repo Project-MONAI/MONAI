@@ -27,7 +27,10 @@ else:
 
 @deprecated(
     since="0.8",
-    msg_suffix="use `monai.handler.ProbMapProducer` (with `monai.data.wsi_dataset.SlidingPatchWSIDataset`) instead.",
+    msg_suffix=(
+        "use `monai.handler.ProbMapProducer` (with `monai.data.wsi_dataset.MaskedPatchWSIDataset` or "
+        "`monai.data.wsi_dataset.SlidingPatchWSIDataset`) instead."
+    ),
 )
 class ProbMapProducer:
     """
