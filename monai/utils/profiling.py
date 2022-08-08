@@ -223,7 +223,8 @@ class WorkflowProfiler:
             except Empty:
                 pass
 
-        assert not self._is_parent() or self.queue.empty()
+        if not (not self._is_parent() or self.queue.empty()):
+            raise AssertionError
 
     def _put_result(self, name, timedelta, filename, lineno):
         """Add a ProfileResult object to the queue."""
@@ -273,7 +274,8 @@ class WorkflowProfiler:
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Terminate the read thread cleanly and reset tracing if needed."""
-        assert self._is_parent()
+        if not self._is_parent():
+            raise AssertionError
 
         self.queue.put(None)
 

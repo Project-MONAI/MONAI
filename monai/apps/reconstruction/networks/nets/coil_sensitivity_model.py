@@ -126,7 +126,7 @@ class CoilSensitivityModel(nn.Module):
         # take out the fully-sampled region and set the rest of the data to zero
         x = torch.zeros_like(masked_kspace)
         start = (mask.shape[-2] - num_low_freqs + 1) // 2  # this marks the start of center extraction
-        x[..., start : start + num_low_freqs] = masked_kspace[..., start : start + num_low_freqs]
+        x[..., start : start + num_low_freqs, :] = masked_kspace[..., start : start + num_low_freqs, :]
 
         # apply inverse fourier to the extracted fully-sampled data
         x = ifftn_centered_t(x, spatial_dims=self.spatial_dims)
@@ -135,5 +135,5 @@ class CoilSensitivityModel(nn.Module):
         x = self.conv_net(x)
         x = reshape_batch_channel_to_channel_dim(x, b)  # shape will be (B,C,...)
         # normalize the maps
-        x /= root_sum_of_squares(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)  # type: ignore
+        x = x / root_sum_of_squares(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)  # type: ignore
         return x

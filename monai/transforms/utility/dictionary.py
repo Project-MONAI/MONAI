@@ -301,6 +301,7 @@ class EnsureChannelFirstd(MapTransform):
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
         allow_missing_keys: bool = False,
+        add_channel_default=True,
     ) -> None:
         """
         Args:
@@ -308,9 +309,11 @@ class EnsureChannelFirstd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             strict_check: whether to raise an error when the meta information is insufficient.
             allow_missing_keys: don't raise exception if key is missing.
+            add_channel_default: If True and the input image `img` is not a MetaTensor and `meta_dict` is not given,
+                or `img` is a MetaTensor but doesn't specify channel dimension, use the value is `no_channel`
         """
         super().__init__(keys, allow_missing_keys)
-        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check, add_channel_default=add_channel_default)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
