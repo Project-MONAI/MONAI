@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.apps.pathology.data import PatchWSIDataset as PatchWSIDatasetDeprecated
 from monai.data import PatchWSIDataset
 from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader
-from monai.utils import optional_import
+from monai.utils import deprecated, optional_import
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cim = optional_import("cucim")
@@ -285,6 +285,7 @@ def setUpModule():
     download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
+@deprecated(since="0.8", msg_suffix="use tests for `monai.data.PatchWSIDataset` instead, `PatchWSIDatasetTests`.")
 class TestPatchWSIDatasetDeprecated(unittest.TestCase):
     @parameterized.expand(
         [

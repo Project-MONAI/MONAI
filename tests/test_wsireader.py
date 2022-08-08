@@ -21,7 +21,7 @@ from monai.data import DataLoader, Dataset
 from monai.data.image_reader import WSIReader as WSIReaderDeprecated
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, FromMetaTensord, LoadImaged, ToTensord
-from monai.utils import first, optional_import
+from monai.utils import deprecated, first, optional_import
 from monai.utils.enums import PostFix
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
@@ -169,6 +169,7 @@ def setUpModule():
     download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
 
+@deprecated(since="0.8", msg_suffix="use tests for `monai.wsi_reader.WSIReader` instead, `WSIReaderTests`.")
 class WSIReaderDeprecatedTests:
     class Tests(unittest.TestCase):
         backend = None
