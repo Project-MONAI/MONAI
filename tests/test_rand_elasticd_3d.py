@@ -16,10 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Rand3DElasticd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
@@ -145,7 +145,7 @@ class TestRand3DElasticd(unittest.TestCase):
         for key in res:
             result = res[key]
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
-            assert_allclose(result, expected, rtol=1e-2, atol=1e-2)
+            assert_allclose(result, expected, type_test=False, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":

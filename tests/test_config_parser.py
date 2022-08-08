@@ -104,6 +104,8 @@ class TestConfigParser(unittest.TestCase):
         # test nested ids
         parser["dataset#_target_"] = "Dataset"
         self.assertEqual(parser["dataset#_target_"], "Dataset")
+        parser.update({"dataset#_target_1": "Dataset1"})
+        self.assertEqual(parser["dataset#_target_1"], "Dataset1")
         # test int id
         parser.set(["test1", "test2", "test3"])
         parser[1] = "test4"

@@ -140,7 +140,7 @@ class PatchEmbed(nn.Module):
         patch_size: Union[Sequence[int], int] = 2,
         in_chans: int = 1,
         embed_dim: int = 48,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         spatial_dims: int = 3,
     ) -> None:
         """
@@ -180,7 +180,7 @@ class PatchEmbed(nn.Module):
                 x = F.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - d % self.patch_size[0]))
 
         elif len(x_shape) == 4:
-            _, _, h, w = x.size()
+            _, _, h, w = x_shape
             if w % self.patch_size[1] != 0:
                 x = F.pad(x, (0, self.patch_size[1] - w % self.patch_size[1]))
             if h % self.patch_size[0] != 0:

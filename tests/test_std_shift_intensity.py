@@ -15,6 +15,7 @@ import numpy as np
 import torch
 
 from monai.transforms import ShiftIntensity, StdShiftIntensity
+from monai.utils import dtype_numpy_to_torch
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 
@@ -67,7 +68,7 @@ class TestStdShiftIntensity(NumpyImageTestCase2D):
             factor = np.random.rand()
             std_shifter = StdShiftIntensity(factor=factor, dtype=trans_dtype)
             result = std_shifter(image)
-            np.testing.assert_equal(result.dtype, trans_dtype)
+            np.testing.assert_equal(result.dtype, dtype_numpy_to_torch(trans_dtype))
 
 
 if __name__ == "__main__":

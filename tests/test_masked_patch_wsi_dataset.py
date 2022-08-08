@@ -16,8 +16,9 @@ from unittest import skipUnless
 from numpy.testing import assert_array_equal
 from parameterized import parameterized
 
-from monai.data import MaskedPatchWSIDataset
-from monai.utils import WSIPatchKeys, optional_import, set_determinism
+from monai.data import Dataset, MaskedPatchWSIDataset
+from monai.transforms import Lambdad
+from monai.utils import ProbMapKeys, WSIPatchKeys, optional_import, set_determinism
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
@@ -47,6 +48,23 @@ TEST_CASE_0 = [
     },
 ]
 
+TEST_CASE_1 = [
+    {
+        "data": Dataset([{"image": FILE_PATH}], transform=Lambdad(keys="image", func=lambda x: x[:])),
+        "mask_level": 8,
+        "patch_level": 8,
+        "patch_size": (2, 2),
+    },
+    {
+        "num_patches": 4256,
+        "wsi_size": [32914, 46000],
+        "mask_level": 8,
+        "patch_level": 8,
+        "mask_size": (128, 179),
+        "patch_size": (2, 2),
+    },
+]
+
 
 @skipUnless(has_cucim or has_osl or has_tiff, "Requires cucim, openslide, or tifffile!")
 def setUpModule():
@@ -59,10 +77,15 @@ class MaskedPatchWSIDatasetTests:
     class Tests(unittest.TestCase):
         backend = None
 
-        @parameterized.expand([TEST_CASE_0])
+        @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
         def test_gen_patches(self, input_parameters, expected):
             dataset = MaskedPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), expected["num_patches"])
+            self.assertTrue(isinstance(dataset.image_data, list))
+            for d1, d2 in zip(dataset.image_data, input_parameters["data"]):
+                self.assertTrue(d1["image"] == d2["image"])
+                self.assertTrue(d1[ProbMapKeys.NAME] == os.path.basename(d2["image"]))
+
             for i, sample in enumerate(dataset):
                 self.assertEqual(sample["metadata"][WSIPatchKeys.LEVEL], expected["patch_level"])
                 assert_array_equal(sample["metadata"][WSIPatchKeys.SIZE], expected["patch_size"])

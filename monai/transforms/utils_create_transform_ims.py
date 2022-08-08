@@ -22,11 +22,11 @@ import torch
 
 from monai.apps import download_and_extract
 from monai.transforms import (
-    AddChanneld,
     Affine,
     Affined,
     AsDiscrete,
     Compose,
+    EnsureChannelFirstd,
     Flip,
     Flipd,
     LoadImaged,
@@ -208,7 +208,12 @@ def get_data(keys):
     data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose(
-        [LoadImaged(keys), AddChanneld(keys), ScaleIntensityd(CommonKeys.IMAGE), Rotate90d(keys, spatial_axes=[0, 2])]
+        [
+            LoadImaged(keys),
+            EnsureChannelFirstd(keys),
+            ScaleIntensityd(CommonKeys.IMAGE),
+            Rotate90d(keys, spatial_axes=[0, 2]),
+        ]
     )
     data = transforms(data)
     max_size = max(data[keys[0]].shape)
@@ -459,7 +464,6 @@ if __name__ == "__main__":
     create_transform_im(RandFlip, dict(prob=1, spatial_axis=1), data)
     create_transform_im(RandFlipd, dict(keys=keys, prob=1, spatial_axis=2), data)
     create_transform_im(Flip, dict(spatial_axis=1), data)
-    create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Orientation, dict(axcodes="RPI", image_only=True), data)
     create_transform_im(Orientationd, dict(keys=keys, axcodes="RPI"), data)
@@ -722,7 +726,7 @@ if __name__ == "__main__":
 
     create_transform_im(
         RandSmoothDeform,
-        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="bilinear"),
         data,
     )
     create_transform_im(
@@ -733,7 +737,7 @@ if __name__ == "__main__":
             rand_size=(10, 10, 10),
             prob=1.0,
             def_range=0.05,
-            grid_mode="blinear",
+            grid_mode="bilinear",
         ),
         data,
     )
