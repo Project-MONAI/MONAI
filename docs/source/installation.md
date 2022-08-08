@@ -69,7 +69,7 @@ for the latest features:
 ```bash
 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
-or, to build with MONAI Cpp/CUDA extensions:
+or, to build with MONAI C++/CUDA extensions:
 ```bash
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
@@ -95,7 +95,7 @@ You can install it by running:
 cd MONAI/
 python setup.py develop
 ```
-or, to build with MONAI Cpp/CUDA extensions and install:
+or, to build with MONAI C++/CUDA extensions and install:
 ```bash
 cd MONAI/
 BUILD_MONAI=1 python setup.py develop
@@ -114,6 +114,12 @@ python setup.py develop --uninstall
 
 Alternatively, simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
 and the codebase is ready to use (without the additional features of MONAI C++/CUDA extensions).
+
+> The C++/CUDA extension features are currently experimental, a pre-compiled version is made available via
+> [the recent docker image releases](https://hub.docker.com/r/projectmonai/monai).
+> Building the extensions from source may require [Ninja](https://ninja-build.org/) and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit).
+> By default, CUDA extension is built if `torch.cuda.is_available()`. It's possible to force building by
+> setting ``FORCE_CUDA=1`` environment variable.
 
 
 ## Validating the install
@@ -190,9 +196,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom, h5py]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, h5py , respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.
