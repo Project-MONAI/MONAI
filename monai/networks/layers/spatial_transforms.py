@@ -14,8 +14,16 @@ from typing import Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
+import monai
 from monai.networks import to_norm_affine
-from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 _C, _ = optional_import("monai._C")
 
@@ -116,6 +124,8 @@ def grid_pull(
     ]
     out: torch.Tensor
     out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 
@@ -217,7 +227,10 @@ def grid_push(
     if shape is None:
         shape = tuple(input.shape[2:])
 
-    return _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class _GridCount(torch.autograd.Function):
@@ -313,7 +326,10 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
     if shape is None:
         shape = tuple(grid.shape[2:])
 
-    return _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class _GridGrad(torch.autograd.Function):
@@ -408,7 +424,10 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         for i in ensure_tuple(interpolation)
     ]
 
-    return _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class AffineTransform(nn.Module):
@@ -416,8 +435,8 @@ class AffineTransform(nn.Module):
         self,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         normalized: bool = False,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
         zero_centered: Optional[bool] = None,
@@ -465,8 +484,8 @@ class AffineTransform(nn.Module):
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
         if zero_centered is not None and self.normalized:
@@ -557,8 +576,8 @@ class AffineTransform(nn.Module):
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode.value,
-            padding_mode=self.padding_mode.value,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
             align_corners=self.align_corners,
         )
         return dst

@@ -46,7 +46,7 @@ class UpSample(nn.Sequential):
         size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
-        interp_mode: Union[InterpolateMode, str] = InterpolateMode.LINEAR,
+        interp_mode: str = InterpolateMode.LINEAR,
         align_corners: Optional[bool] = True,
         bias: bool = True,
         apply_pad_pool: bool = True,

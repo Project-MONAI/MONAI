@@ -27,15 +27,19 @@ class DeprecatedError(Exception):
     pass
 
 
-def warn_deprecated(obj, msg):
+def warn_deprecated(obj, msg, warning_category=FutureWarning):
     """
     Issue the warning message `msg`.
     """
-    warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
+    warnings.warn(f"{obj}: {msg}", category=warning_category, stacklevel=2)
 
 
 def deprecated(
-    since: Optional[str] = None, removed: Optional[str] = None, msg_suffix: str = "", version_val: str = __version__
+    since: Optional[str] = None,
+    removed: Optional[str] = None,
+    msg_suffix: str = "",
+    version_val: str = __version__,
+    warning_category=FutureWarning,
 ):
     """
     Marks a function or class as deprecated. If `since` is given this should be a version at or earlier than the
@@ -43,7 +47,7 @@ def deprecated(
     this can be any version and marks when the definition was removed.
 
     When the decorated definition is called, that is when the function is called or the class instantiated,
-    a `DeprecationWarning` is issued if `since` is given and the current version is at or later than that given.
+    a `warning_category` is issued if `since` is given and the current version is at or later than that given.
     a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
     than that, or if neither `since` nor `removed` is provided.
 
@@ -56,6 +60,7 @@ def deprecated(
         removed: version at which the definition was removed and no longer usable.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
+        warning_category: a warning category class, defaults to `FutureWarning`.
 
     Returns:
         Decorated definition which warns or raises exception when used
@@ -84,7 +89,7 @@ def deprecated(
         is_func = isinstance(obj, FunctionType)
         call_obj = obj if is_func else obj.__init__
 
-        msg_prefix = f"{'Function' if is_func else 'Class'} `{obj.__name__}`"
+        msg_prefix = f"{'Function' if is_func else 'Class'} `{obj.__qualname__}`"
 
         if is_removed:
             msg_infix = f"was removed in version {removed}."
@@ -102,7 +107,7 @@ def deprecated(
             if is_removed:
                 raise DeprecatedError(msg)
             if is_deprecated:
-                warn_deprecated(obj, msg)
+                warn_deprecated(obj, msg, warning_category)
 
             return call_obj(*args, **kwargs)
 
@@ -121,13 +126,14 @@ def deprecated_arg(
     msg_suffix: str = "",
     version_val: str = __version__,
     new_name: Optional[str] = None,
+    warning_category=FutureWarning,
 ):
     """
     Marks a particular named argument of a callable as deprecated. The same conditions for `since` and `removed` as
     described in the `deprecated` decorator.
 
     When the decorated definition is called, that is when the function is called or the class instantiated with args,
-    a `DeprecationWarning` is issued if `since` is given and the current version is at or later than that given.
+    a `warning_category` is issued if `since` is given and the current version is at or later than that given.
     a `DeprecatedError` exception is instead raised if `removed` is given and the current version is at or later
     than that, or if neither `since` nor `removed` is provided.
 
@@ -147,6 +153,7 @@ def deprecated_arg(
         new_name: name of position or keyword argument to replace the deprecated argument.
             if it is specified and the signature of the decorated function has a `kwargs`, the value to the
             deprecated argument `name` will be removed.
+        warning_category: a warning category class, defaults to `FutureWarning`.
 
     Returns:
         Decorated callable which warns or raises exception when deprecated argument used.
@@ -171,7 +178,7 @@ def deprecated_arg(
         is_removed = removed is not None and version_leq(removed, version_val)
 
     def _decorator(func):
-        argname = f"{func.__name__}_{name}"
+        argname = f"{func.__module__} {func.__qualname__}:{name}"
 
         msg_prefix = f"Argument `{name}`"
 
@@ -212,7 +219,7 @@ def deprecated_arg(
                 if is_removed:
                     raise DeprecatedError(msg)
                 if is_deprecated:
-                    warn_deprecated(argname, msg)
+                    warn_deprecated(argname, msg, warning_category)
 
             return func(*args, **kwargs)
 

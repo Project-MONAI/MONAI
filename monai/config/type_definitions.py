@@ -38,6 +38,7 @@ __all__ = [
     "NdarrayOrTensor",
     "TensorOrList",
     "PathLike",
+    "SequenceStr",
 ]
 
 
@@ -77,3 +78,7 @@ TensorOrList = Union[torch.Tensor, Sequence[torch.Tensor]]
 
 #: PathLike: The PathLike type is used for defining a file path.
 PathLike = Union[str, os.PathLike]
+
+#: SequenceStr
+# string or a sequence of strings for `mode` types.
+SequenceStr = Union[Sequence[str], str]

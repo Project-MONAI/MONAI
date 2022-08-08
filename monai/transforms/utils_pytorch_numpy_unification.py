@@ -107,8 +107,8 @@ def percentile(
     if isinstance(x, np.ndarray):
         result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
     else:
-        q = torch.tensor(q, device=x.device)
-        result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
+        q = convert_to_dst_type(q / 100.0, x)[0]
+        result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
 
 
@@ -314,7 +314,7 @@ def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None, **kwarg
 
     Args:
         a: input data to repeat.
-        repeats: number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis.
+        repeats: number of repetitions for each element, repeats is broadcast to fit the shape of the given axis.
         axis: axis along which to repeat values.
         kwargs: if `a` is PyTorch Tensor, additional args for `torch.repeat_interleave`, more details:
             https://pytorch.org/docs/stable/generated/torch.repeat_interleave.html.
