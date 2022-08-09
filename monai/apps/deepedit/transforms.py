@@ -18,7 +18,7 @@ from typing import Dict, Hashable, Mapping, Optional
 import numpy as np
 import torch
 
-from monai.config import KeysCollection, NdarrayOrTensor
+from monai.config import KeysCollection
 from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
@@ -95,12 +95,12 @@ class NormalizeLabelsInDatasetd(MapTransform):
 
         self.label_names = label_names
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             # Dictionary containing new label numbers
             new_label_names = {}
-            label = torch.zeros_like(d[key])
+            label = np.zeros(d[key].shape)
             # Making sure the range values and number of labels are the same
             for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
                 if key_label != "background":
