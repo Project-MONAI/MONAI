@@ -1,0 +1,275 @@
+---
+imports:
+  - "$from scipy import ndimage"
+arch_ckpt_path: models
+amp: true
+data_file_base_dir: /workspace/data/msd/Task07_Pancreas
+data_list_file_path: configs/dataset_0.json
+determ: true
+input_channels: 1
+learning_rate: 0.025
+learning_rate_arch: 0.001
+learning_rate_milestones:
+- 0.4
+- 0.8
+num_images_per_batch: 1
+num_epochs: 1430
+num_epochs_per_validation: 100
+num_epochs_warmup: 715
+num_patches_per_image: 1
+num_sw_batch_size: 6
+output_classes: 3
+overlap_ratio: 0.625
+patch_size:
+- 96
+- 96
+- 96
+patch_size_valid:
+- 96
+- 96
+- 96
+ram_cost_factor: 0.8
+image_key: image
+label_key: label
+transform_train:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys:
+    - "@image_key"
+    - "@label_key"
+  - _target_: EnsureChannelFirstd
+    keys:
+    - "@image_key"
+    - "@label_key"
+  - _target_: Orientationd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    axcodes: RAS
+  - _target_: Spacingd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    pixdim:
+    - 1
+    - 1
+    - 1
+    mode:
+    - bilinear
+    - nearest
+    align_corners:
+    - true
+    - true
+  - _target_: CastToTyped
+    keys: "@image_key"
+    dtype: "$torch.float32"
+  - _target_: ScaleIntensityRanged
+    keys: "@image_key"
+    a_min: -87
+    a_max: 199
+    b_min: 0
+    b_max: 1
+    clip: true
+  - _target_: CastToTyped
+    keys:
+    - "@image_key"
+    - "@label_key"
+    dtype:
+    - "$np.float16"
+    - "$np.uint8"
+  - _target_: CopyItemsd
+    keys: "@label_key"
+    times: 1
+    names:
+    - label4crop
+  - _target_: Lambdad
+    keys: label4crop
+    func: "$lambda x, s=@output_classes: np.concatenate(tuple([ndimage.binary_dilation((x==_k).astype(x.dtype), iterations=48).astype(x.dtype) for _k in range(s)]), axis=0)"
+    overwrite: true
+  - _target_: EnsureTyped
+    keys:
+    - "@image_key"
+    - "@label_key"
+  - _target_: CastToTyped
+    keys: "@image_key"
+    dtype: "$torch.float32"
+  - _target_: SpatialPadd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    - label4crop
+    spatial_size: "@patch_size"
+    mode:
+    - reflect
+    - constant
+    - constant
+  - _target_: RandCropByLabelClassesd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    label_key: label4crop
+    num_classes: "@output_classes"
+    ratios: "$[1,] * @output_classes"
+    spatial_size: "@patch_size"
+    num_samples: "@num_patches_per_image"
+  - _target_: Lambdad
+    keys: label4crop
+    func: "$lambda x: 0"
+  - _target_: RandRotated
+    keys:
+    - "@image_key"
+    - "@label_key"
+    range_x: 0.3
+    range_y: 0.3
+    range_z: 0.3
+    mode:
+    - bilinear
+    - nearest
+    prob: 0.2
+  - _target_: RandZoomd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    min_zoom: 0.8
+    max_zoom: 1.2
+    mode:
+    - trilinear
+    - nearest
+    align_corners:
+    - null
+    - null
+    prob: 0.16
+  - _target_: RandGaussianSmoothd
+    keys: "@image_key"
+    sigma_x:
+    - 0.5
+    - 1.15
+    sigma_y:
+    - 0.5
+    - 1.15
+    sigma_z:
+    - 0.5
+    - 1.15
+    prob: 0.15
+  - _target_: RandScaleIntensityd
+    keys: "@image_key"
+    factors: 0.3
+    prob: 0.5
+  - _target_: RandShiftIntensityd
+    keys: "@image_key"
+    offsets: 0.1
+    prob: 0.5
+  - _target_: RandGaussianNoised
+    keys: "@image_key"
+    std: 0.01
+    prob: 0.15
+  - _target_: RandFlipd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    spatial_axis: 0
+    prob: 0.5
+  - _target_: RandFlipd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    spatial_axis: 1
+    prob: 0.5
+  - _target_: RandFlipd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    spatial_axis: 2
+    prob: 0.5
+  - _target_: CastToTyped
+    keys:
+    - "@image_key"
+    - "@label_key"
+    dtype:
+    - "$torch.float32"
+    - "$torch.uint8"
+  - _target_: ToTensord
+    keys:
+    - "@image_key"
+    - "@label_key"
+transform_validation:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys:
+    - "@image_key"
+    - "@label_key"
+  - _target_: EnsureChannelFirstd
+    keys:
+    - "@image_key"
+    - "@label_key"
+  - _target_: Orientationd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    axcodes: RAS
+  - _target_: Spacingd
+    keys:
+    - "@image_key"
+    - "@label_key"
+    pixdim:
+    - 1
+    - 1
+    - 1
+    mode:
+    - bilinear
+    - nearest
+    align_corners:
+    - true
+    - true
+  - _target_: CastToTyped
+    keys: "@image_key"
+    dtype: "$torch.float32"
+  - _target_: ScaleIntensityRanged
+    keys: "@image_key"
+    a_min: -87
+    a_max: 199
+    b_min: 0
+    b_max: 1
+    clip: true
+  - _target_: CastToTyped
+    keys:
+    - "@image_key"
+    - "@label_key"
+    dtype:
+    - "$np.float16"
+    - "$np.uint8"
+  - _target_: CastToTyped
+    keys:
+    - "@image_key"
+    - "@label_key"
+    dtype:
+    - "$torch.float32"
+    - "$torch.uint8"
+  - _target_: ToTensord
+    keys:
+    - "@image_key"
+    - "@label_key"
+loss:
+  _target_: DiceCELoss
+  include_background: false
+  to_onehot_y: true
+  softmax: true
+  squared_pred: true
+  batch: true
+  smooth_nr: 0.00001
+  smooth_dr: 0.00001
+dints_space:
+  _target_: monai.networks.nets.TopologySearch
+  channel_mul: 0.5
+  num_blocks: 12
+  num_depths: 4
+  use_downsample: true
+  device: "$torch.device('cuda')"
+network:
+  _target_: monai.networks.nets.DiNTS
+  dints_space: "@dints_space"
+  in_channels: "@input_channels"
+  num_classes: "@output_classes"
+  use_downsample: true
