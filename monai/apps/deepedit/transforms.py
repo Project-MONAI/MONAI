@@ -100,7 +100,7 @@ class NormalizeLabelsInDatasetd(MapTransform):
         for key in self.key_iterator(d):
             # Dictionary containing new label numbers
             new_label_names = {}
-            label = MetaTensor(torch.zeros_like(d[key]))
+            label = torch.zeros_like(d[key])
             # Making sure the range values and number of labels are the same
             for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
                 if key_label != "background":
@@ -110,7 +110,7 @@ class NormalizeLabelsInDatasetd(MapTransform):
                     new_label_names["background"] = 0
 
             d["label_names"] = new_label_names
-            d[key] = label
+            d[key].array = label
         return d
 
 
