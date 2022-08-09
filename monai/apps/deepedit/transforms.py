@@ -98,22 +98,19 @@ class NormalizeLabelsInDatasetd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            if key == "label":
-                # Dictionary containing new label numbers
-                new_label_names = {}
-                label = np.zeros(d[key].shape)
-                # Making sure the range values and number of labels are the same
-                for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
-                    if key_label != "background":
-                        new_label_names[key_label] = idx
-                        label[d[key] == val_label] = idx
-                    if key_label == "background":
-                        new_label_names["background"] = 0
+            # Dictionary containing new label numbers
+            new_label_names = {}
+            label = MetaTensor(torch.zeros_like(d[key]))
+            # Making sure the range values and number of labels are the same
+            for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
+                if key_label != "background":
+                    new_label_names[key_label] = idx
+                    label[d[key] == val_label] = idx
+                if key_label == "background":
+                    new_label_names["background"] = 0
 
-                d["label_names"] = new_label_names
-                d[key] = label
-            else:
-                warnings.warn("This transform only applies to the label")
+            d["label_names"] = new_label_names
+            d[key] = label
         return d
 
 
