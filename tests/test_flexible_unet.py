@@ -46,7 +46,7 @@ def make_shape_cases(
     pretrained,
     in_channels=3,
     num_classes=10,
-    input_shape=224,
+    input_shape=96,
     norm=("batch", {"eps": 1e-3, "momentum": 0.01}),
 ):
     ret_tests = []
@@ -138,8 +138,8 @@ CASES_VARIATIONS.extend(
 )
 
 # change input shape test
-# 128
-# 2D 128x128 input
+# 96
+# 2D 96x96 input
 CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS,
@@ -148,10 +148,10 @@ CASES_VARIATIONS.extend(
         pretrained=[False, True],
         in_channels=3,
         num_classes=10,
-        input_shape=128,
+        input_shape=96,
     )
 )
-# 2D 256x256 input
+# 2D 64x64 input
 CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS,
@@ -160,11 +160,11 @@ CASES_VARIATIONS.extend(
         pretrained=[False, True],
         in_channels=3,
         num_classes=10,
-        input_shape=256,
+        input_shape=64,
     )
 )
 
-# 3D 128x128x128 input
+# 3D 96x96x96 input
 CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS,
@@ -173,11 +173,11 @@ CASES_VARIATIONS.extend(
         pretrained=[False],
         in_channels=3,
         num_classes=10,
-        input_shape=128,
+        input_shape=96,
     )
 )
 
-# 3D 256x256x256 input
+# 3D 64x64x64 input
 CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS,
@@ -186,7 +186,7 @@ CASES_VARIATIONS.extend(
         pretrained=[False],
         in_channels=3,
         num_classes=10,
-        input_shape=256,
+        input_shape=64,
     )
 )
 
