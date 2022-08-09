@@ -23,7 +23,7 @@ from monai.apps.deepedit.transforms import (
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
 )
-from monai.data import Dataset
+from monai.data import Dataset, DataLoader
 from monai.engines import SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.losses import DiceCELoss
@@ -62,7 +62,7 @@ class TestInteractions(unittest.TestCase):
             ]
         )
         dataset = Dataset(data, transform=pre_transforms)
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=5)
+        data_loader = DataLoader(dataset, batch_size=5)
 
         iteration_transforms = [
             FindDiscrepancyRegionsDeepEditd(keys="label", pred="pred", discrepancy="discrepancy"),
