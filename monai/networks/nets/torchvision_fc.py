@@ -33,7 +33,7 @@ class TorchVisionFCModel(NetAdapter):
         dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
             default to 2 as most Torchvision models are for 2D image processing.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
-        use_conv: whether use convolutional layer to replace the last layer, default to False.
+        use_conv: whether to use convolutional layer to replace the last layer, default to False.
         pool: parameters for the pooling layer, it should be a tuple, the first item is name of the pooling layer,
             the second item is dictionary of the initialization args. if None, will not replace the `layers[-2]`.
             default to `("avg", {"kernel_size": 7, "stride": 1})`.
