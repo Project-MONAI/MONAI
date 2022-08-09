@@ -415,7 +415,7 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
+        track_meta: whether to convert to `MetaTensor`, default to `None`, output type will be `torch.Tensor`.
             if `None`, use the return value of ``get_track_meta``.
 
     """
@@ -427,7 +427,7 @@ class ToTensor(Transform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = False,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
