@@ -19,6 +19,8 @@ from monai.networks import eval_mode
 from monai.networks.nets import TorchVisionFCModel
 from monai.utils import optional_import
 
+Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
+
 _, has_tv = optional_import("torchvision")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -114,6 +116,20 @@ TEST_CASE_PRETRAINED_5 = [
 ]
 
 
+TEST_CASE_PRETRAINED_6 = [
+    {
+        "model_name": "inception_v3",
+        "num_classes": 5,
+        "use_conv": False,
+        "pool": None,
+        "weights": Inception_V3_Weights.IMAGENET1K_V1 if has_enum else None,
+    },
+    (2, 3, 299, 299),
+    (2, 5),
+    -0.21029122173786163,
+]
+
+
 class TestTorchVisionFCModel(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     @skipUnless(has_tv, "Requires TorchVision.")
@@ -131,6 +147,7 @@ class TestTorchVisionFCModel(unittest.TestCase):
             TEST_CASE_PRETRAINED_3,
             TEST_CASE_PRETRAINED_4,
             TEST_CASE_PRETRAINED_5,
+            TEST_CASE_PRETRAINED_6,
         ]
     )
     @skipUnless(has_tv, "Requires TorchVision.")

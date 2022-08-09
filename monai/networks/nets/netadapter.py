@@ -72,7 +72,11 @@ class NetAdapter(torch.nn.Module):
 
         if pool is None:
             # remove the last layer
-            self.features = torch.nn.Sequential(*layers[:-1])
+            if hasattr(model, "fc"):  # assuming fc is the last layer
+                model.fc = torch.nn.Identity()
+                self.features = model
+            else:
+                self.features = torch.nn.Sequential(*layers[:-1])
             self.pool = None
         else:
             # remove the last 2 layers
@@ -84,14 +88,14 @@ class NetAdapter(torch.nn.Module):
             # add 1x1 conv (it behaves like a FC layer)
             self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:
-            # remove the last Linear layer (fully connected)
-            self.features = torch.nn.Sequential(*layers[:-1])
             # replace the out_features of FC layer
             self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
         self.use_conv = use_conv
 
     def forward(self, x):
         x = self.features(x)
+        if isinstance(x, tuple):
+            x = x[0]  # it might be a namedtuple such as torchvision.model.InceptionOutputs
         if self.pool is not None:
             x = self.pool(x)
 
