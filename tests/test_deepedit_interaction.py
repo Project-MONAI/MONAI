@@ -23,7 +23,7 @@ from monai.apps.deepedit.transforms import (
     FindDiscrepancyRegionsDeepEditd,
     SplitPredsLabeld,
 )
-from monai.data import Dataset, DataLoader
+from monai.data import DataLoader, Dataset
 from monai.engines import SupervisedTrainer
 from monai.engines.utils import IterationEvents
 from monai.losses import DiceCELoss
