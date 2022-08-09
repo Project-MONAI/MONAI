@@ -31,12 +31,13 @@ class NetAdapter(torch.nn.Module):
         dim: number of supported spatial dimensions in the specified model, depends on the model implementation.
             default to 2 as most Torchvision models are for 2D image processing.
         in_channels: number of the input channels of last layer. if None, get it from `in_features` of last layer.
-        use_conv: whether use convolutional layer to replace the last layer, default to False.
+        use_conv: whether to use convolutional layer to replace the last layer, default to False.
         pool: parameters for the pooling layer, it should be a tuple, the first item is name of the pooling layer,
             the second item is dictionary of the initialization args. if None, will not replace the `layers[-2]`.
             default to `("avg", {"kernel_size": 7, "stride": 1})`.
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
+        fc_name: the corresponding layer attribute of the last fully connected layer. Defaults to ``"fc"``.
 
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``num_classes`` instead.
@@ -54,13 +55,14 @@ class NetAdapter(torch.nn.Module):
         pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
         n_classes: Optional[int] = None,
+        fc_name: str = "fc",
     ):
         super().__init__()
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes == 1:
             num_classes = n_classes
         layers = list(model.children())
-        orig_fc = layers[-1]
+        orig_fc = getattr(model, fc_name, layers[-1])
         in_channels_: int
 
         if in_channels is None:
@@ -72,8 +74,8 @@ class NetAdapter(torch.nn.Module):
 
         if pool is None:
             # remove the last layer or replace it with an identity
-            if hasattr(model, "fc"):  # assuming fc is the last layer
-                model.fc = torch.nn.Identity()
+            if hasattr(model, fc_name):  # assuming fc is the last layer
+                setattr(model, fc_name, torch.nn.Identity())
                 self.features = model
             else:
                 self.features = torch.nn.Sequential(*layers[:-1])
@@ -84,14 +86,12 @@ class NetAdapter(torch.nn.Module):
             self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
-
         if use_conv:
             # add 1x1 conv (it behaves like a FC layer)
             self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:
             # replace the out_features of FC layer
             self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
-
         self.use_conv = use_conv
         self.dim = dim
 
