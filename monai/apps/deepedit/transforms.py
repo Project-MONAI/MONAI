@@ -110,7 +110,10 @@ class NormalizeLabelsInDatasetd(MapTransform):
                     new_label_names["background"] = 0
 
             d["label_names"] = new_label_names
-            d[key].array = label
+            if isinstance(d[key], MetaTensor):
+                d[key].array = label
+            else:
+                d[key] = label
         return d
 
 
