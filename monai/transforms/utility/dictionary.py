@@ -300,22 +300,26 @@ class EnsureChannelFirstd(MapTransform):
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         strict_check: bool = True,
+        allow_missing_keys: bool = False,
+        add_channel_default=True,
     ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             strict_check: whether to raise an error when the meta information is insufficient.
-
+            allow_missing_keys: don't raise exception if key is missing.
+            add_channel_default: If True and the input image `img` is not a MetaTensor and `meta_dict` is not given,
+                or `img` is a MetaTensor but doesn't specify channel dimension, use the value is `no_channel`
         """
-        super().__init__(keys)
-        self.adjuster = EnsureChannelFirst(strict_check=strict_check)
+        super().__init__(keys, allow_missing_keys)
+        self.adjuster = EnsureChannelFirst(strict_check=strict_check, add_channel_default=add_channel_default)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in zip(self.keys, self.meta_keys, self.meta_key_postfix):
+        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
         return d
 
@@ -485,6 +489,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -495,10 +500,13 @@ class ToTensord(MapTransform, InvertibleTransform):
             device: specify the target device to put the Tensor data.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+            track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
+                if `None`, use the return value of ``get_track_meta``.
             allow_missing_keys: don't raise exception if key is missing.
+
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence)
+        self.converter = ToTensor(dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -713,7 +721,7 @@ class DeleteItemsd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             sep: the separator tag to define nested dictionary keys, default to ".".
             use_re: whether the specified key is a regular expression, it also can be
-                a list of bool values, map the to keys.
+                a list of bool values, mapping them to `keys`.
         """
         super().__init__(keys)
         self.sep = sep
@@ -725,7 +733,7 @@ class DeleteItemsd(MapTransform):
             if len(keys) > 1:
                 d[key] = _delete_item(keys[1:], d[key], use_re)
                 return d
-            return {k: v for k, v in d.items() if (use_re and not re.search(key, k)) or (not use_re and k != key)}
+            return {k: v for k, v in d.items() if (use_re and not re.search(key, f"{k}")) or (not use_re and k != key)}
 
         d = dict(data)
         for key, use_re in zip(self.keys, self.use_re):
@@ -924,7 +932,8 @@ class CopyItemsd(MapTransform):
 class ConcatItemsd(MapTransform):
     """
     Concatenate specified items from data dictionary together on the first dim to construct a big array.
-    Expect all the items are numpy array or PyTorch Tensor.
+    Expect all the items are numpy array or PyTorch Tensor or MetaTensor.
+    Return the first input's meta information when items are MetaTensor.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -946,7 +955,7 @@ class ConcatItemsd(MapTransform):
         """
         Raises:
             TypeError: When items in ``data`` differ in type.
-            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor]``.
+            TypeError: When the item type is not in ``Union[numpy.ndarray, torch.Tensor, MetaTensor]``.
 
         """
         d = dict(data)
@@ -964,10 +973,12 @@ class ConcatItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.concatenate(output, axis=self.dim)
-        elif data_type is torch.Tensor:
+        elif issubclass(data_type, torch.Tensor):  # type: ignore
             d[self.name] = torch.cat(output, dim=self.dim)  # type: ignore
         else:
-            raise TypeError(f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor).")
+            raise TypeError(
+                f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
+            )
         return d
 
 

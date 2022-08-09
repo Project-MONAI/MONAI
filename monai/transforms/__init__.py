@@ -622,6 +622,7 @@ from .utils import (
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
+    reset_ops_id,
     resize_center,
     sync_meta_info,
     weighted_patch_samples,

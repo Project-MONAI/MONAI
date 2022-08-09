@@ -85,14 +85,15 @@ class Pad(InvertibleTransform):
     in which case `np.pad` will be used.
 
     Args:
-        to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
+        to_pad: the amount to pad in each dimension (including the channel) [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
-        mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -122,6 +123,9 @@ class Pad(InvertibleTransform):
     def _np_pad(img: torch.Tensor, pad_width, mode, **kwargs) -> torch.Tensor:
         img_np = img.detach().cpu().numpy() if isinstance(img, torch.Tensor) else img
         mode = convert_pad_mode(dst=img_np, mode=mode).value
+        if mode == "constant" and "value" in kwargs:
+            val = kwargs.pop("value")
+            kwargs["constant_values"] = val
         out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))
         if isinstance(img, MetaTensor):
             out = convert_to_dst_type(out, dst=img)[0]
@@ -141,9 +145,9 @@ class Pad(InvertibleTransform):
             img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
             to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
                 default to `self.to_pad`.
-            mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
                 ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -163,16 +167,26 @@ class Pad(InvertibleTransform):
 
         # all zeros, skip padding
         if np.asarray(to_pad_).any():
-            if mode in ["linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"]:
+            to_pad_ = list(to_pad_)
+            if len(to_pad_) < len(img_t.shape):
+                to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
+            if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
+                mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
                 try:
-                    mode_ = convert_pad_mode(dst=img_t, mode=mode_).value
-                    out = self._pt_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
-                # but if mode or args don't exist in pytorch, use numpy instead
-                except (ValueError, TypeError) as err:
-                    if "Unsupported option" in str(err) or "unexpected keyword" in str(err):
+                    _pad = (
+                        self._pt_pad
+                        if mode_ in {"reflect", "replicate"}
+                        and img_t.dtype not in {torch.int16, torch.int64, torch.bool, torch.uint8}
+                        else self._np_pad
+                    )
+                    out = _pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                except (ValueError, TypeError, RuntimeError) as err:
+                    if "supported" in str(err) or "unexpected keyword" in str(err) or "implemented" in str(err):
                         out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
+                    else:
+                        raise ValueError(f"{mode_}, {kwargs_}, {img_t.dtype}, {img_t.device}") from err
         else:
             out = img_t
         if get_track_meta():
@@ -184,7 +198,7 @@ class Pad(InvertibleTransform):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
-        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -384,8 +398,8 @@ class Crop(InvertibleTransform):
             return list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
-                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
+                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
+                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
                 _zeros = torch.zeros_like(roi_center_t)
                 half = (
                     torch.divide(roi_size_t, 2, rounding_mode="floor")
@@ -436,7 +450,7 @@ class Crop(InvertibleTransform):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
         mat = create_translate(spatial_rank, to_shift)
-        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
