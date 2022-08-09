@@ -1,4 +1,5 @@
 {
+    "bundle_root": "tests/testing_data",
     "dataset_dir": "tests/testing_data",
     "imports": [
         "$import os"

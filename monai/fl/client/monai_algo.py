@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import logging
+import os
 import sys
 from typing import TYPE_CHECKING, Optional
 
@@ -20,8 +21,17 @@ from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigItem
 from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
-from monai.fl.utils.constants import BundleConst, ExtraItems, FiltersType, FlPhase, WeightType
+from monai.fl.utils.constants import (
+    BundleKeys,
+    ExtraItems,
+    FiltersType,
+    FlPhase,
+    FlStatistics,
+    RequiredBundleKeys,
+    WeightType,
+)
 from monai.fl.utils.exchange_object import ExchangeObject
+from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, optional_import
 
 if TYPE_CHECKING:
@@ -38,77 +48,170 @@ def convert_global_weights(global_weights, local_var_dict):
     model_keys = global_weights.keys()
     for var_name in local_var_dict:
         if var_name in model_keys:
+            weights = global_weights[var_name]
             try:
+                # reshape global weights to compute difference later on
+                weights = torch.reshape(torch.as_tensor(weights), local_var_dict[var_name].shape)
                 # update the local dict
-                local_var_dict[var_name] = torch.as_tensor(global_weights[var_name])
+                local_var_dict[var_name] = weights
             except Exception as e:
                 raise ValueError(f"Convert weight from {var_name} failed.") from e
     return local_var_dict
 
 
+def compute_weight_diff(global_weights, local_var_dict):
+    if global_weights is None:
+        raise ValueError("Cannot compute weight differences if `global_weights` is None!")
+    if local_var_dict is None:
+        raise ValueError("Cannot compute weight differences if `local_var_dict` is None!")
+    # compute delta model, global model has the primary key set
+    weight_diff = {}
+    for name in global_weights:
+        if name not in local_var_dict:
+            continue
+        weight_diff[name] = local_var_dict[name].cpu() - global_weights[name]
+        if torch.any(torch.isnan(weight_diff[name])):
+            raise ValueError(f"Weights for {name} became NaN...")
+    return weight_diff
+
+
+def check_bundle_config(parser):
+    for k in RequiredBundleKeys:
+        if parser.get(k, None) is None:
+            raise KeyError(f"Bundle config misses required key `{k}`")
+
+
 class MonaiAlgo(ClientAlgo):
+    """
+    Implementation of ``ClientAlgo'' to allow federated learning with MONAI bundle configurations.
+
+    Args:
+        bundle_root: path of bundle.
+        local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
+        send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
+        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json"
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json"
+        config_filters_filename: filter configuration file.
+    """
+
     def __init__(
         self,
-        config_train_file: Optional[str] = None,
-        config_evaluate_file: Optional[str] = None,
-        config_filters_file: Optional[str] = None,
+        bundle_root: str,
+        local_epochs: int = 1,
+        send_weight_diff: bool = True,
+        config_train_filename: Optional[str] = "configs/train.json",
+        config_evaluate_filename: Optional[str] = "configs/evaluate.json",
+        config_filters_filename: Optional[str] = None,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.config_train_file = config_train_file
-        self.config_evaluate_file = config_evaluate_file
-        self.config_filters_file = config_filters_file
 
-        self.parser = None
+        self.bundle_root = bundle_root
+        self.local_epochs = local_epochs
+        self.send_weight_diff = send_weight_diff
+        self.config_train_filename = config_train_filename
+        self.config_evaluate_filename = config_evaluate_filename
+        self.config_filters_filename = config_filters_filename
+
+        self.app_root = None
+        self.train_parser = None
+        self.eval_parser = None
+        self.filter_parser = None
         self.trainer = None
         self.evaluator = None
         self.pre_filters = None
         self.post_weight_filters = None
         self.post_evaluate_filters = None
+        self.iter_of_start_time = 0
+        self.global_weights = None
 
         self.phase = FlPhase.IDLE
         self.client_name = None
 
     def initialize(self, extra=None):
+        """
+        Initialize routine to parse configuration files and extract main components such as trainer, evaluator, and filters.
+
+        Args:
+            extra: Dict with additional information that should be provided by FL system,
+            i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+
+        """
         if extra is None:
             extra = {}
         self.logger.info(f"Initializing {self.client_name} ...")
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
 
+        # FL platform needs to provide filepath to configuration files
+        self.app_root = extra.get(ExtraItems.APP_ROOT, "")
+
         # Read bundle config files
-        config_files = []
-        if self.config_train_file:
-            config_files.append(self.config_train_file)
-        if self.config_evaluate_file:
-            config_files.append(self.config_evaluate_file)
-        if self.config_filters_file:
-            config_files.append(self.config_filters_file)
+        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+
+        config_train_files = []
+        config_eval_files = []
+        config_filter_files = []
+        if self.config_train_filename:
+            config_train_files.append(os.path.join(self.bundle_root, self.config_train_filename))
+            config_eval_files.append(os.path.join(self.bundle_root, self.config_train_filename))
+        if self.config_evaluate_filename:
+            config_eval_files.append(os.path.join(self.bundle_root, self.config_evaluate_filename))
+        if self.config_filters_filename:  # filters are read by train_parser
+            config_filter_files.append(os.path.join(self.bundle_root, self.config_filters_filename))
 
         # Parse
-        self.parser = ConfigParser()
-        self.parser.read_config(config_files)
-        self.parser.parse()
+        self.train_parser = ConfigParser()
+        self.eval_parser = ConfigParser()
+        self.filter_parser = ConfigParser()
+        if len(config_train_files) > 0:
+            self.train_parser.read_config(config_train_files)
+            check_bundle_config(self.train_parser)
+        if len(config_eval_files) > 0:
+            self.eval_parser.read_config(config_eval_files)
+            check_bundle_config(self.eval_parser)
+        if len(config_filter_files) > 0:
+            self.filter_parser.read_config(config_eval_files)
 
-        # Get trainer, evaluator, and filters
-        self.trainer = self.parser.get_parsed_content(
-            BundleConst.KEY_TRAINER, default=ConfigItem(None, BundleConst.KEY_TRAINER)
+        # override some config items
+        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
+        self.eval_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
+        # number of training epochs for each round
+        if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
+            self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
+
+        self.train_parser.parse()
+        self.eval_parser.parse()
+        self.filter_parser.parse()
+
+        # Get trainer, evaluator
+        self.trainer = self.train_parser.get_parsed_content(
+            BundleKeys.TRAINER, default=ConfigItem(None, BundleKeys.TRAINER)
         )
-        self.evaluator = self.parser.get_parsed_content(
-            BundleConst.KEY_EVALUATOR, default=ConfigItem(None, BundleConst.KEY_EVALUATOR)
+        self.evaluator = self.eval_parser.get_parsed_content(
+            BundleKeys.EVALUATOR, default=ConfigItem(None, BundleKeys.EVALUATOR)
         )
 
-        self.pre_filters = self.parser.get_parsed_content(
+        # Get filters
+        self.pre_filters = self.filter_parser.get_parsed_content(
             FiltersType.PRE_FILTERS, default=ConfigItem(None, FiltersType.PRE_FILTERS)
         )
-        self.post_weight_filters = self.parser.get_parsed_content(
+        self.post_weight_filters = self.filter_parser.get_parsed_content(
             FiltersType.POST_WEIGHT_FILTERS, default=ConfigItem(None, FiltersType.POST_WEIGHT_FILTERS)
         )
-        self.post_evaluate_filters = self.parser.get_parsed_content(
+        self.post_evaluate_filters = self.filter_parser.get_parsed_content(
             FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
         )
 
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra=None):
+        """
+        Train on client's local data.
+
+        Args:
+            data: `ExchangeObject` containing the current global model weights.
+            extra: Dict with additional information that can be provided by FL system.
+
+        """
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -121,32 +224,54 @@ class MonaiAlgo(ClientAlgo):
                 data = _filter(data, extra)
         self.phase = FlPhase.TRAIN
         self.logger.info(f"Load {self.client_name} weights...")
-        local_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=self.trainer.network.state_dict()
+        self.global_weights = convert_global_weights(
+            global_weights=data.weights, local_var_dict=get_state_dict(self.trainer.network)
         )
 
-        self.trainer.network.load_state_dict(local_weights)
+        # set engine state max epochs.
+        self.trainer.state.max_epochs = self.trainer.state.epoch + self.local_epochs
+        # get current iteration when a round starts
+        self.iter_of_start_time = self.trainer.state.iteration
+
+        copy_model_state(src=self.global_weights, dst=self.trainer.network)
         self.logger.info(f"Start {self.client_name} training...")
         self.trainer.run()
 
     def get_weights(self, extra=None):
+        """
+        Returns the current weights of the model.
+
+        Args:
+            extra: Dict with additional information that can be provided by FL system.
+
+        Returns:
+            return_weights: `ExchangeObject` containing current weights.
+
+        """
         if extra is None:
             extra = {}
         self.phase = FlPhase.GET_WEIGHTS
         if self.trainer:
-            weights = self.trainer.network.state_dict()
-            stats = self.trainer.get_train_stats()  # TODO: returns dict with hardcoded strings from MONAI
+            weights = get_state_dict(self.trainer.network)
+            weigh_type = WeightType.WEIGHTS
+            stats = self.trainer.get_train_stats()
+            # calculate current iteration and epoch data after training.
+            stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
+            # compute weight differences
+            if self.send_weight_diff:
+                weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
+                weigh_type = WeightType.WEIGHT_DIFF
         else:
             weights = None
+            weigh_type = None
             stats = dict()
 
-        # TODO: support weight diffs
         if not isinstance(stats, dict):
             raise ValueError(f"stats is not a dict, {stats}")
         return_weights = ExchangeObject(
             weights=weights,
             optim=None,  # could be self.optimizer.state_dict()
-            weight_type=WeightType.WEIGHTS,
+            weight_type=weigh_type,
             statistics=stats,
         )
 
@@ -158,6 +283,17 @@ class MonaiAlgo(ClientAlgo):
         return return_weights
 
     def evaluate(self, data: ExchangeObject, extra=None):
+        """
+        Evaluate on client's local data.
+
+        Args:
+            data: `ExchangeObject` containing the current global model weights.
+            extra: Dict with additional information that can be provided by FL system.
+
+        Returns:
+            return_metrics: `ExchangeObject` containing evaluation metrics.
+
+        """
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -171,13 +307,16 @@ class MonaiAlgo(ClientAlgo):
 
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
-        local_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=self.evaluator.network.state_dict()
+        global_weights = convert_global_weights(
+            global_weights=data.weights, local_var_dict=get_state_dict(self.evaluator.network)
         )
 
-        self.evaluator.network.load_state_dict(local_weights)
+        copy_model_state(src=global_weights, dst=self.evaluator.network)
         self.logger.info(f"Start {self.client_name} evaluating...")
-        self.evaluator.run()
+        if isinstance(self.trainer, monai.engines.Trainer):
+            self.evaluator.run(self.trainer.state.epoch + 1)
+        else:
+            self.evaluator.run()
         return_metrics = ExchangeObject(metrics=self.evaluator.state.metrics)
 
         if self.post_evaluate_filters is not None:
@@ -186,8 +325,12 @@ class MonaiAlgo(ClientAlgo):
         return return_metrics
 
     def abort(self, extra=None):
-        if extra is None:
-            extra = {}
+        """
+        Abort the training or evaluation.
+        Args:
+            extra: Dict with additional information that can be provided by FL system.
+        """
+
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
@@ -200,8 +343,13 @@ class MonaiAlgo(ClientAlgo):
             self.evaluator.terminate()
 
     def finalize(self, extra=None):
-        # TODO: finalize feature could be built into the MONAI Trainer class
+        """
+        Finalize the training or evaluation.
+        Args:
+            extra: Dict with additional information that can be provided by FL system.
+        """
 
+        # TODO: finalize feature could be built into the MONAI Trainer class
         if extra is None:
             extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
