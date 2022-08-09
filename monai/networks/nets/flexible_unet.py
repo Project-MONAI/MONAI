@@ -188,29 +188,7 @@ class SegmentationHead(nn.Sequential):
 
 class FlexibleUNet(nn.Module):
     """
-    A flexible implement of UNet, in which the backbone can be replaced with any
-    efficient network. Currently the input must have a 2 or 3 spatial dimension
-    and the spatial size of each dimension must be a multiple of 32.
-    Args:
-        in_channels: number of input channels.
-        out_channels: number of output channels.
-        backbone: name of backbones to initialize, only support efficientnet right now,
-            can be from [efficientnet-b0,..., efficientnet-b8, efficientnet-l2].
-        pretrained: whether to initialize pretrained ImageNet weights, only available
-            for spatial_dims=2 and batch norm is used, default to False.
-        decoder_channels: number of output channels for all feature maps in decoder.
-            `len(decoder_channels)` should equal to `len(encoder_channels) - 1`,default
-            to (256, 128, 64, 32, 16).
-        spatial_dim: number of spatial dimensions, default to 2.
-        norm: normalization type and arguments, default to ("batch", {"eps": 1e-3,
-            "momentum": 0.1}).
-        act: activation type and arguments, default to ("relu", {"inplace": True}).
-        dropout: dropout ratio, default to 0.0.
-        decoder_bias: whether to have a bias term in decoder's convolution blocks.
-        upsample: upsampling mode, available options are``"deconv"``, ``"pixelshuffle"``,
-            ``"nontrainable"``.
-        interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
-            Only used in the "nontrainable" mode.
+    A flexible implement of UNet.
     """
 
     def __init__(
@@ -228,6 +206,35 @@ class FlexibleUNet(nn.Module):
         upsample: str = "nontrainable",
         interp_mode: str = "nearest",
     ) -> None:
+        """
+        A flexible implement of UNet, in which the backbone/encoder can be replaced with
+        any efficient network. Currently the input must have a 2 or 3 spatial dimension
+        and the spatial size of each dimension must be a multiple of 32
+
+        TODO(binliu@nvidia.com): Add more backbones/encoders to this class and make a general
+        encoder-decoder structure. ETC:2022.09.01
+
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            backbone: name of backbones to initialize, only support efficientnet right now,
+                can be from [efficientnet-b0,..., efficientnet-b8, efficientnet-l2].
+            pretrained: whether to initialize pretrained ImageNet weights, only available
+                for spatial_dims=2 and batch norm is used, default to False.
+            decoder_channels: number of output channels for all feature maps in decoder.
+                `len(decoder_channels)` should equal to `len(encoder_channels) - 1`,default
+                to (256, 128, 64, 32, 16).
+            spatial_dims: number of spatial dimensions, default to 2.
+            norm: normalization type and arguments, default to ("batch", {"eps": 1e-3,
+                "momentum": 0.1}).
+            act: activation type and arguments, default to ("relu", {"inplace": True}).
+            dropout: dropout ratio, default to 0.0.
+            decoder_bias: whether to have a bias term in decoder's convolution blocks.
+            upsample: upsampling mode, available options are``"deconv"``, ``"pixelshuffle"``,
+                ``"nontrainable"``.
+            interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
+                Only used in the "nontrainable" mode.
+        """
         super().__init__()
 
         if backbone not in encoder_feature_channel:
@@ -273,19 +280,19 @@ class FlexibleUNet(nn.Module):
 
         self.pool = Pool[Pool.ADAPTIVEMAX, 2](1)
 
-    def forward(self, x):
+    def forward(self, inputs: torch.Tensor):
         """
-        Do typical encoder, decoder, header inference.
+        Do a typical encoder-decoder-header inference.
 
         Args:
-            inputs: input should have spatially N dimensions
-            ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``, N is defined by `dimensions`.
+            inputs: input should have spatially N dimensions ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``,
+                N is defined by `dimensions`.
 
         Returns:
-            A torch Tensor of "raw" predictions in shape
-            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
+            A torch Tensor of "raw" predictions in shape ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
 
         """
+        x = inputs
         input_spatial_dims = x.shape[-self.spatial_dims :]
         for shape_size in input_spatial_dims:
             if (shape_size % 32) != 0:

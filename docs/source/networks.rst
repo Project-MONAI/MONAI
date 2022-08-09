@@ -524,6 +524,11 @@ Nets
 .. autoclass:: BasicUnet
 .. autoclass:: Basicunet
 
+`FlexibleUNet`
+~~~~~~~~~~~~~~
+.. autoclass:: FlexibleUNet
+  :members:
+
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
