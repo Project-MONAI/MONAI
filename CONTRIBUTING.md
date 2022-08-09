@@ -296,6 +296,8 @@ The process of releasing backwards incompatible API changes is as follows:
    1. Note that the versioning policy is similar to PyTorch's approach which does not precisely follow [the semantic versioning](https://semver.org/) definition.
       Major version numbers are instead used to represent major product version (which is currently not planned to be greater than 1),
       minor version for both compatible and incompatible, and patch version for bug fixes.
+   1. when recommending new API to use in place of a deprecated API, the recommended version should
+      provide exact feature-like behaviour otherwise users will have a harder time migrating.
 1. add new test cases by extending the existing unit tests to cover both the deprecated and updated APIs.
 1. collect feedback from the users during the subsequent few releases, and reconsider step 1 if needed.
 1. before each release, review the deprecating APIs, and clean up the removed APIs described in step 2.
