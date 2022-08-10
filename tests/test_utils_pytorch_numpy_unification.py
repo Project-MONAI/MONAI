@@ -47,6 +47,9 @@ class TestPytorchNumpyUnification(unittest.TestCase):
             if isinstance(x, torch.Tensor):
                 self.assertIsInstance(q, torch.Tensor)
             assert_allclose(q.shape, [2], type_test=False)
+        for p in [*TEST_NDARRAYS, list]:
+            q = percentile(x, p([10, 50]))
+            assert_allclose(q.shape, [2], type_test=False)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:
