@@ -107,7 +107,7 @@ def percentile(
         result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
         result = convert_to_dst_type(result, x)[0]
     else:
-        q = convert_to_dst_type(q / 100.0, x)[0]
+        q = convert_to_dst_type(q_np / 100.0, x)[0]
         result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
 
