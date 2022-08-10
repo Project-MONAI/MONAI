@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import unittest
-from typing import TYPE_CHECKING
 
 import torch
 from parameterized import parameterized
@@ -20,19 +19,8 @@ from monai.networks.nets import FlexibleUNet
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails
 
-if TYPE_CHECKING:
-    import torchvision
-
-    has_torchvision = True
-else:
-    torchvision, has_torchvision = optional_import("torchvision")
-
-if TYPE_CHECKING:
-    import PIL
-
-    has_pil = True
-else:
-    PIL, has_pil = optional_import("PIL")
+torchvision, has_torchvision = optional_import("torchvision")
+PIL, has_pil = optional_import("PIL")
 
 
 def get_model_names():
@@ -46,7 +34,7 @@ def make_shape_cases(
     pretrained,
     in_channels=3,
     num_classes=10,
-    input_shape=96,
+    input_shape=64,
     norm=("batch", {"eps": 1e-3, "momentum": 0.01}),
 ):
     ret_tests = []
@@ -74,7 +62,7 @@ def make_shape_cases(
 
 # create list of selected models to speed up redundant tests
 # only test the models B0, B3, B7
-SEL_MODELS = [get_model_names()[i] for i in [0, 3, 7]]
+SEL_MODELS = [get_model_names()[i] for i in [0, 3]]
 
 # pretrained=False cases
 # 2D and 3D models are expensive so use selected models
@@ -164,7 +152,7 @@ CASES_VARIATIONS.extend(
     )
 )
 
-# 3D 96x96x96 input
+# 3D 32x32x32 input
 CASES_VARIATIONS.extend(
     make_shape_cases(
         models=SEL_MODELS,
@@ -173,7 +161,7 @@ CASES_VARIATIONS.extend(
         pretrained=[False],
         in_channels=3,
         num_classes=10,
-        input_shape=96,
+        input_shape=32,
     )
 )
 
