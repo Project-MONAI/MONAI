@@ -42,6 +42,11 @@ __all__ = [
     "stack",
     "mode",
     "unique",
+    "max",
+    "min",
+    "median",
+    "mean",
+    "std",
 ]
 
 
@@ -81,11 +86,9 @@ def percentile(
     x: NdarrayOrTensor, q, dim: Optional[int] = None, keepdim: bool = False, **kwargs
 ) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
-
     Pytorch uses `quantile`. For more details please refer to:
     https://pytorch.org/docs/stable/generated/torch.quantile.html.
     https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
-
     Args:
         x: input data
         q: percentile to compute (should in range 0 <= q <= 100)
@@ -94,22 +97,19 @@ def percentile(
         keepdim: whether the output data has dim retained or not.
         kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
             https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
-
     Returns:
         Resulting value (scalar)
     """
-    if np.isscalar(q):
-        if not 0 <= q <= 100:  # type: ignore
-            raise ValueError
-    elif any(q < 0) or any(q > 100):
-        raise ValueError
+    q_np = convert_data_type(q, output_type=np.ndarray, wrap_sequence=True)[0]
+    if ((q_np < 0) | (q_np > 100)).any():
+        raise ValueError(f"q values must be in [0, 100], got values: {q}.")
     result: Union[NdarrayOrTensor, float, int]
     if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
         _x = convert_data_type(x, output_type=np.ndarray)[0]
-        result = np.percentile(_x, q, axis=dim, keepdims=keepdim, **kwargs)
+        result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
         result = convert_to_dst_type(result, x)[0]
     else:
-        q = convert_to_dst_type(q / 100.0, x)[0]
+        q = convert_to_dst_type(q_np / 100.0, x)[0]
         result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
 
