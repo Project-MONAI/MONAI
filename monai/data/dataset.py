@@ -710,7 +710,7 @@ class CacheDataset(Dataset):
 
         transforms = Compose([
             LoadImaged(),
-            AddChanneld(),
+            EnsureChannelFirstd(),
             Spacingd(),
             Orientationd(),
             ScaleIntensityRanged(),
@@ -720,7 +720,7 @@ class CacheDataset(Dataset):
 
     when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
     this dataset will cache the results up to ``ScaleIntensityRanged``, as
-    all non-random transforms `LoadImaged`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+    all non-random transforms `LoadImaged`, `EnsureChannelFirstd`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
     can be cached. During training, the dataset will load the cached results and run
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
@@ -1230,7 +1230,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         img_transform = Compose(
             [
                 LoadImage(image_only=True),
-                AddChannel(),
+                EnsureChannelFirst(),
                 RandAdjustContrast()
             ]
         )
@@ -1250,7 +1250,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         img_transform = TestCompose(
             [
                 LoadImage(image_only=False),
-                AddChannel(),
+                EnsureChannelFirst(),
                 Spacing(pixdim=(1.5, 1.5, 3.0)),
                 RandAdjustContrast()
             ]
