@@ -204,9 +204,10 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
         amp_kwargs={"dtype": torch.float16 if bool(amp) else torch.float32} if pytorch_after(1, 10, 0) else {},
     )
     trainer.run()
+
     # test train and validation stats
     train_stats = trainer.get_train_stats("output")
-    assert_allclose(train_stats["output"]["loss"], trainer.state.output["loss"])
+    assert_allclose(train_stats["output"][0]["loss"], trainer.state.output[0]["loss"])
     val_stats = evaluator.get_validation_stats("metrics")
 
     return val_stats["best_validation_metric"]

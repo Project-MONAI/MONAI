@@ -78,6 +78,7 @@ class StatsKeys:
     Default keys for the statistics of trainer and evaluator.
 
     """
+
     RANK = "rank"
     CURRENT_ITERATION = "current_iteration"
     CURRENT_EPOCH = "current_epoch"
