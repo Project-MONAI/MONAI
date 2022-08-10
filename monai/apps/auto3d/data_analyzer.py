@@ -29,6 +29,8 @@ from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recurs
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import no_collation
+from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 from monai.utils import min_version, optional_import
 from monai.utils.misc import label_union
 
@@ -46,7 +48,9 @@ class DataAnalyzer:
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
     The module expects file paths to the image data and utilizes the LoadImaged transform to read the files.
     which supports nii, nii.gz, png, jpg, bmp, npz, npy, and dcm formats. Currently, only segmentation
-    problem is supported, so the user needs to provide paths to the image and label files.
+    problem is supported, so the user needs to provide paths to the image and label files. Also, label 
+    data format is preferred to be (1,H,W,D), with the label index in the first dimension. If it is in 
+    onehot format, it will be converted to the preferred format.
 
     Args:
         datalist: a Python dictionary storing group, fold, and other information of the medical
@@ -102,7 +106,6 @@ class DataAnalyzer:
                     transforms.EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
                     transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
                     transforms.EnsureTyped(keys=["image", "label"], data_type="tensor"),
-                    # some dataset has onehot label size of (H,W,D,C). Only allow label index of size (1,H,W,D)
                     transforms.Lambdad(
                         keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
                     ),
@@ -110,7 +113,7 @@ class DataAnalyzer:
                 ]
             ),
         )
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=worker, collate_fn=lambda x: x)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=worker, collate_fn=no_collation)
         # Whether to average all the modalities in the summary
         # If SUMMARY_AVERAGE is set to false,
         # the stats for each modality are calculated separately
@@ -179,40 +182,31 @@ class DataAnalyzer:
         """
         # define basic operations for stats
         self.operations = {
-            "max": torch.max,
-            "mean": torch.mean,
-            "median": torch.median,
-            "min": torch.min,
-            "percentile": partial(torch.quantile, q=torch.tensor([0.005, 0.10, 0.90, 0.995], device=self.device)),
-            "stdev": partial(torch.std, unbiased=False),
+            "max": max,
+            "mean": mean,
+            "median": median,
+            "min": min,
+            "percentile": partial(percentile, q=np.array([0.5, 10, 90, 99.5])),
+            "stdev": std,
         }
         # allow mapping the output of self.operations to new keys (save computation time)
         # the output from torch.quantile is mapped to four keys.
         self.operations_mappingkey = {
             "percentile": ["percentile_00_5", "percentile_10_0", "percentile_90_0", "percentile_99_5"]
         }
-        # np version of self.operations. torch operation has inconsistent interfaces.
-        # only used in the summary part.
-        self.operations_np = {
-            "max": np.max,
-            "mean": np.mean,
-            "median": np.median,
-            "min": np.min,
-            "percentile": partial(np.quantile, q=[0.005, 0.10, 0.90, 0.995]),
-            "stdev": np.std,
-        }
         # define summary functions for output from self.operations. For example,
         # how to combine max intensity from each case (image)
+        # operation summary definition must accept dim input like torch.mean
         self.operations_summary = {
-            "max": np.max,
-            "mean": np.mean,
-            "median": np.mean,
-            "min": np.min,
-            "percentile_00_5": np.mean,
-            "percentile_99_5": np.mean,
-            "percentile_10_0": np.mean,
-            "percentile_90_0": np.mean,
-            "stdev": np.mean,
+            "max": max,
+            "mean": mean,
+            "median": mean,
+            "min": min,
+            "percentile_00_5": mean,
+            "percentile_99_5": mean,
+            "percentile_10_0": mean,
+            "percentile_90_0": mean,
+            "stdev": mean,
         }
 
     def _get_case_image_stats(self) -> Dict:
@@ -429,13 +423,8 @@ class DataAnalyzer:
             value = []
             for case in x:
                 value.append([_[key] for _ in case])
-            axis = (0,) if not average else None
-            try:
-                value = self.operations_summary[key](value, axis=axis)
-            except SyntaxWarning:
-                logger.debug("operation summary definition must accept axis input like np.mean")
-                warnings.warn("operation summary definition must accept axis input like np.mean")
-                pass
+            dim = (0,) if not average else None
+            value = self.operations_summary[key](value, dim=dim)
             result[key] = np.array(value).tolist()
         return result
 
@@ -468,12 +457,11 @@ class DataAnalyzer:
             axis = (0,)
             if average and len(datastat_list.shape) > 2:
                 axis = (0, 1)
-        # Calculate statistics from the data using numpy. The torch max, min, median e.t.c have
-        # inconsistent interface for axis/dim input. Only used for summary
+        # Calculate statistics from the data using numpy. Only used for summary
         result = {}
-        for name, ops in self.operations_np.items():
+        for name, ops in self.operations.items():
             # get results
-            _result = ops(np.array(datastat_list), axis=axis).tolist()  # post process with key mapping
+            _result = ops(np.array(datastat_list), dim=axis).tolist()  # post process with key mapping
             mappingkeys = self.operations_mappingkey.get(name)
             if mappingkeys is not None:
                 result.update({mappingkeys[i]: _result[i] for i in range(len(_result))})
@@ -500,13 +488,7 @@ class DataAnalyzer:
             if not torch.is_tensor(raw_data):
                 raw_data = torch.from_numpy(raw_data).to(self.device)
             #  compute the results
-            # torch.quantile may fail with large input, if failed, use numpy version
-            try:
-                _result = ops(raw_data).data.cpu().numpy().tolist()
-            except Exception as e:
-                logger.debug(e, exc_info=True)
-                _result = self.operations_np[name](raw_data.cpu().numpy()).tolist()
-                pass
+            _result = ops(raw_data).data.cpu().numpy().tolist()
             # post process the data
             mappingkeys = self.operations_mappingkey.get(name)
             if mappingkeys is not None:

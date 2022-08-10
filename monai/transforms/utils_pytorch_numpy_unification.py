@@ -402,3 +402,63 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
         return torch.inverse(x)  # type: ignore
     return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
+
+
+def max(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+    """`torch.max` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor
+    """
+    if dim is None:
+        return torch.max(x, **kwargs) if isinstance(x, torch.Tensor) else np.max(x, **kwargs)  # type: ignore
+    else:
+        return torch.max(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.max(x, axis=dim, **kwargs)  # type: ignore
+
+
+def mean(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+    """`torch.mean` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor
+    """
+    if dim is None:
+        return torch.mean(x, **kwargs) if isinstance(x, torch.Tensor) else np.mean(x, **kwargs)  # type: ignore
+    else:
+        return torch.mean(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.mean(x, axis=dim, **kwargs)  # type: ignore
+
+
+def median(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+    """`torch.median` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor
+    """
+    if dim is None:
+        return torch.median(x, **kwargs) if isinstance(x, torch.Tensor) else np.median(x, **kwargs)  # type: ignore
+    else:
+        return torch.median(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.median(x, axis=dim, **kwargs)  # type: ignore
+
+
+def min(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+    """`torch.min` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor
+    """
+    if dim is None:
+        return torch.min(x, **kwargs) if isinstance(x, torch.Tensor) else np.min(x, **kwargs)  # type: ignore
+    else:
+        return torch.min(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.min(x, axis=dim, **kwargs)  # type: ignore
+
+
+def std(x: NdarrayOrTensor, dim: Optional[int] = None, unbias: Optional[bool] = False) -> NdarrayTensor:
+    """`torch.std` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor
+    """
+    if dim is None:
+        return torch.std(x, unbias) if isinstance(x, torch.Tensor) else np.std(x)  # type: ignore
+    else:
+        return torch.std(x, dim, unbias) if isinstance(x, torch.Tensor) else np.std(x, axis=dim)  # type: ignore
