@@ -12,11 +12,12 @@
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
 TEST_MODE = []
 for p in TEST_NDARRAYS:
@@ -38,6 +39,17 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(dtype))
                 results.append(percentile(arr, q))
                 assert_allclose(results[0], results[-1], type_test=False, atol=1e-4, rtol=1e-4)
+
+    @skip_if_quick
+    def test_many_elements_quantile(self):  # pytorch#64947
+        for p in TEST_NDARRAYS:
+            for elements in (1000, 17_000_000):
+                for t in [*TEST_NDARRAYS, list]:
+                    x = p(np.random.randn(elements))
+                    q = percentile(x, t([10, 50]))
+                    if isinstance(x, torch.Tensor):
+                        self.assertIsInstance(q, torch.Tensor)
+                    assert_allclose(q.shape, [2], type_test=False)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:
