@@ -18,11 +18,11 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import TorchVisionFCModel, UNet
 from monai.networks.utils import look_up_named_module, set_named_module
-from monai.utils import optional_import
+from monai.utils import min_version, optional_import
 
 Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
 
-_, has_tv = optional_import("torchvision")
+_, has_tv = optional_import("torchvision", "0.11", min_version)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
