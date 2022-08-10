@@ -503,7 +503,16 @@ class MetaTensor(MetaObj, torch.Tensor):
         return MetaTensor(img, meta=meta)
 
     def __repr__(self, *, tensor_contents=None):
+        """
+        Prints out a long represention of the MetaTensor object with metadata as well as content data.
+        
+        Args:
+            tensor_contents: currently unused
+        """
         return self.as_tensor().__repr__() + super().__repr__()
 
     def __str__(self):
+        """
+        Prints a simpler representation of the tensor identical to torch.Tensor.__str__.
+        """
         return str(self.as_tensor())
