@@ -104,8 +104,10 @@ def percentile(
     elif any(q < 0) or any(q > 100):
         raise ValueError
     result: Union[NdarrayOrTensor, float, int]
-    if isinstance(x, np.ndarray):
-        result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
+    if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
+        _x = convert_data_type(x, output_type=np.ndarray)[0]
+        result = np.percentile(_x, q, axis=dim, keepdims=keepdim, **kwargs)
+        result = convert_to_dst_type(result, x)[0]
     else:
         q = convert_to_dst_type(q / 100.0, x)[0]
         result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
