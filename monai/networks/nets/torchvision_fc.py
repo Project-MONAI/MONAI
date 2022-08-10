@@ -28,8 +28,8 @@ class TorchVisionFCModel(NetAdapter):
 
         - ``pool=None`` indicates no modification in the pooling layers, this should be used with ``fc_name``
           to locate the target FC layer:
-          loading a torchvision classification model, replacing the last fully connected layer (FC) with
-          a new FC (num_class), example input arguments:
+          this class will load a torchvision classification model, replace the last fully connected layer (FC) with
+          a new FC layer with ``num_classes`` outputs, example input arguments:
           ``use_conv=False, pool=None, fc_name="heads.head``
           The ``heads.head`` is the target FC of the input `model_name`, could be found by, for example::
 
@@ -38,7 +38,7 @@ class TorchVisionFCModel(NetAdapter):
 
         - ``pool`` set to ``""`` or a tuple of parameters indicates modification of both the pooling and the
           FC layer, this could be used with ``node_name`` to locate the model feature outputs:
-          loading a torchvision classification model, removing the existing last pooling and FC layers, and
+          this class will load a torchvision classification model, remove the existing pooling and FC layers, and
 
           - append additional convolution layers:
             ``use_conv=True, pool="", node_name="permute"``
