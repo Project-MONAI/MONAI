@@ -75,7 +75,20 @@ TEST_CASE_6 = [
 ]
 
 TEST_CASE_7 = [
-    {"model_name": "vit_b_16", "num_classes": 5, "pool": None, "in_channels": 768, "fc_name": "heads"},
+    {
+        "model_name": "inception_v3",
+        "num_classes": 5,
+        "use_conv": True,
+        "pool": "",
+        "in_channels": 2048,
+        "node_name": "Mixed_7c.cat_2",
+    },
+    (2, 3, 224, 224),
+    (2, 5, 5, 5),
+]
+
+TEST_CASE_8 = [
+    {"model_name": "vit_b_16", "num_classes": 5, "in_channels": 768, "pool": None, "fc_name": "heads.head"},
     (2, 3, 224, 224),
     (2, 5),
 ]
@@ -139,7 +152,17 @@ TEST_CASE_PRETRAINED_6 = [
 
 class TestTorchVisionFCModel(unittest.TestCase):
     @parameterized.expand(
-        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+        [
+            TEST_CASE_0,
+            TEST_CASE_1,
+            TEST_CASE_2,
+            TEST_CASE_3,
+            TEST_CASE_4,
+            TEST_CASE_5,
+            TEST_CASE_6,
+            TEST_CASE_7,
+            TEST_CASE_8,
+        ]
     )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
@@ -164,7 +187,7 @@ class TestTorchVisionFCModel(unittest.TestCase):
         net = TorchVisionFCModel(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
-            value = next(net.parameters())[0, 0, 0, 0].item()
+            value = next(net.features.parameters())[0, 0, 0, 0].item()
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
 
@@ -176,10 +199,8 @@ class TestLookup(unittest.TestCase):
         mod = look_up_named_module("model.1.submodule.1.submodule.1.submodule.0.conv", net)
         self.assertTrue(str(mod).startswith("Conv2d"))
         self.assertIsInstance(set_named_module(net, "model", torch.nn.Identity()).model, torch.nn.Identity)
-        with self.assertRaises(ValueError):
-            look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net)
-        with self.assertRaises(ValueError):
-            look_up_named_module("test attribute", net)
+        self.assertEqual(look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net), None)
+        self.assertEqual(look_up_named_module("test attribute", net), None)
 
 
 if __name__ == "__main__":

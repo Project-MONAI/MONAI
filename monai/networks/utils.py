@@ -62,14 +62,20 @@ def look_up_named_module(name: str, mod, print_all_options=False):
     Returns:
         the corresponding pytorch module's subcomponent such as ``net.features[3][1].attn``
     """
-    name_str = look_up_option(name, {n[0] for n in mod.named_modules()}, print_all_options=print_all_options)
+    name_str = look_up_option(
+        name, {n[0] for n in mod.named_modules()}, default=None, print_all_options=print_all_options
+    )
+    if name_str is None:
+        return None
     if name_str == "":
         return mod
     for n in name_str.split("."):
         if n.isdigit():
             mod = mod[int(n)]
         else:
-            n = look_up_option(n, {item[0] for item in mod.named_modules()}, print_all_options=False)
+            n = look_up_option(n, {item[0] for item in mod.named_modules()}, default=None, print_all_options=False)
+            if n is None:
+                return None
             mod = getattr(mod, n)
     return mod
 

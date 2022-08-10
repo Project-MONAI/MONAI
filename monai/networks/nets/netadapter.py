@@ -15,14 +15,17 @@ import torch
 
 from monai.networks.layers import Conv, get_pool_layer
 from monai.networks.utils import look_up_named_module, set_named_module
-from monai.utils import deprecated_arg
+from monai.utils import deprecated_arg, look_up_option, optional_import
+
+get_graph_node_names, _has_utils = optional_import("torchvision.models.feature_extraction", name="get_graph_node_names")
+create_feature_extractor, _ = optional_import("torchvision.models.feature_extraction", name="create_feature_extractor")
 
 
 class NetAdapter(torch.nn.Module):
     """
     Wrapper to replace the last layer of model by convolutional layer or FC layer.
-    This module expects the output of `model layers[0: -2]` is a feature map with shape [B, C, spatial dims],
-    then replace the model's last two layers with an optional `pooling` and a `conv` or `linear` layer.
+
+    See also: :py:class:`monai.networks.nets.TorchVisionFCModel`
 
     Args:
         model: a PyTorch model, which can be both 2D and 3D models. typically, it can be a pretrained model
@@ -39,6 +42,7 @@ class NetAdapter(torch.nn.Module):
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
         fc_name: the corresponding layer attribute of the last fully connected layer. Defaults to ``"fc"``.
+        node_name: the corresponding feature extractor node name of `model`. Defaults to "", not in use.
 
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``num_classes`` instead.
@@ -57,52 +61,61 @@ class NetAdapter(torch.nn.Module):
         bias: bool = True,
         n_classes: Optional[int] = None,
         fc_name: str = "fc",
+        node_name: str = "",
     ):
         super().__init__()
         # in case the new num_classes is default but you still call deprecated n_classes
         if n_classes is not None and num_classes == 1:
             num_classes = n_classes
         layers = list(model.children())
-        try:
-            orig_fc = look_up_named_module(fc_name, model)
-        except ValueError:
+        orig_fc = look_up_named_module(fc_name, model)
+        if orig_fc is None:
             orig_fc = layers[-1]
+        # guess the number of input channels of the last fully connected layer
         in_channels_: int
         if in_channels is None:
             if not hasattr(orig_fc, "in_features"):
-                raise ValueError("please specify the input channels of last layer with arg `in_channels`.")
+                raise ValueError("please specify input channels of the last fully connected layer with `in_channels`.")
             in_channels_ = orig_fc.in_features  # type: ignore
         else:
             in_channels_ = in_channels
-        if pool is None:
-            # remove the last layer or replace it with an identity
-            if look_up_named_module(fc_name, model):  # assuming fc is the last layer
-                self.features = set_named_module(model, fc_name, torch.nn.Identity())
-            else:
-                self.features = torch.nn.Sequential(*layers[:-1])
-            self.pool = None
-        else:
-            # remove the last 2 layers
-            self.features = torch.nn.Sequential(*layers[:-2])
-            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
 
+        # create new fully connected layer or kernel size 1 convolutional layer
         self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
         if use_conv:
-            # add 1x1 conv (it behaves like a FC layer)
             self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
         else:
-            # replace the out_features of FC layer
             self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
+        # modify the input model, depending on whether to replace the last pooling layer ``pool``
+        if pool is None:  # no modification of pooling
+            if node_name != "":
+                raise ValueError("`node_name` is not compatible with `pool=None`, please set `pool=" "`.")
+            # we just drop the model's fully connected layer or set it to identity
+            if look_up_named_module(fc_name, model):
+                self.features = set_named_module(model, fc_name, torch.nn.Identity())
+            else:
+                self.features = torch.nn.Sequential(*layers[:-1])  # assuming FC is the last and model is sequential
+            self.pool = None
+        else:
+            # user-specified new pooling layer, we drop both the pooling and FC layers from the model
+            if node_name and _has_utils:
+                node_name = look_up_option(node_name, get_graph_node_names(model)[0 if model.training else 1])
+                self.features = create_feature_extractor(model, [node_name])
+            else:
+                self.features = torch.nn.Sequential(*layers[:-2])  # assuming the last 2 layers are pooling&FC
+            self.pool = get_pool_layer(name=pool, spatial_dims=dim)
         self.use_conv = use_conv
         self.dim = dim
+        self.node_name = node_name
 
     def forward(self, x):
         x = self.features(x)
         if isinstance(x, tuple):
             x = x[0]  # it might be a namedtuple such as torchvision.model.InceptionOutputs
+        elif isinstance(x, dict):
+            x = x[self.node_name]  # torchvision create_feature_extractor
         if self.pool is not None:
             x = self.pool(x)
-
         if not self.use_conv:
             x = torch.flatten(x, 1)
         else:  # user specified `use_conv` but the pooling layer removed the spatial dims
