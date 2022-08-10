@@ -83,8 +83,8 @@ TEST_CASE_7 = [
         "in_channels": 2048,
         "node_name": "Mixed_7c.cat_2",
     },
-    (2, 3, 224, 224),
-    (2, 5, 5, 5),
+    (2, 3, 299, 299),
+    (2, 5, 8, 8),
 ]
 
 TEST_CASE_8 = [
@@ -152,17 +152,8 @@ TEST_CASE_PRETRAINED_6 = [
 
 class TestTorchVisionFCModel(unittest.TestCase):
     @parameterized.expand(
-        [
-            TEST_CASE_0,
-            TEST_CASE_1,
-            TEST_CASE_2,
-            TEST_CASE_3,
-            TEST_CASE_4,
-            TEST_CASE_5,
-            TEST_CASE_6,
-            TEST_CASE_7,
-            TEST_CASE_8,
-        ]
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+        + ([TEST_CASE_8] if has_enum else [])
     )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
@@ -179,15 +170,15 @@ class TestTorchVisionFCModel(unittest.TestCase):
             TEST_CASE_PRETRAINED_3,
             TEST_CASE_PRETRAINED_4,
             TEST_CASE_PRETRAINED_5,
-            TEST_CASE_PRETRAINED_6,
         ]
+        + ([TEST_CASE_PRETRAINED_6] if has_enum else [])
     )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_with_pretrained(self, input_param, input_shape, expected_shape, expected_value):
         net = TorchVisionFCModel(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
-            value = next(net.parameters())[0, 0, 0, 0].item()
+            value = next(net.features.parameters())[0, 0, 0, 0].item()
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
 
