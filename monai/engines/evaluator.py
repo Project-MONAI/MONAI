@@ -17,7 +17,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
+from monai.engines.utils import IterationEvents, StatsKeys, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
@@ -146,8 +146,24 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> dict[str, float]:
-        return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
+    def get_validation_stats(self, *others) -> dict[str, float]:
+        """
+        Get the statistics information of the validation process.
+        Default to return the `rank`, `best_validation_epoch` and `best_validation_metric`.
+
+        Args:
+            others: except for the default stats, other variables in the `self.state` to return, will use
+                the variable name as the key and the state content as the value
+
+        """
+        stats = {
+            StatsKeys.RANK: self.state.rank,
+            StatsKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
+            StatsKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
+        }
+        for k in others:
+            stats[k] = self.state.k
+        return stats
 
 
 class SupervisedEvaluator(Evaluator):

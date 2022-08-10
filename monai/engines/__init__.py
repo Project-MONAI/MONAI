@@ -18,6 +18,7 @@ from .utils import (
     PrepareBatch,
     PrepareBatchDefault,
     PrepareBatchExtraInput,
+    StatsKeys,
     default_make_latent,
     default_metric_cmp_fn,
     default_prepare_batch,
