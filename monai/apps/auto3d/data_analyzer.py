@@ -41,7 +41,7 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
-class DataAnalyzer(object):
+class DataAnalyzer:
     """
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
     The module expects file paths to the image data and utilizes the LoadImaged transform to read the files.
