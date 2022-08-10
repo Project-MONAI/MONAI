@@ -74,7 +74,6 @@ class NetAdapter(torch.nn.Module):
             in_channels_ = orig_fc.in_features  # type: ignore
         else:
             in_channels_ = in_channels
-
         if pool is None:
             # remove the last layer or replace it with an identity
             if look_up_named_module(fc_name, model):  # assuming fc is the last layer
