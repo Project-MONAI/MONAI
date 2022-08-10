@@ -212,23 +212,30 @@ class SkipIfModule:
 
 def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extension is not available
+    Skip the unit tests if the cpp extension is not available.
     """
     return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
-    Skip the unit tests if torch.cuda.is_available is False
+    Skip the unit tests if torch.cuda.is_available is False.
     """
     return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
     """
-    Skip the unit tests if platform is win32
+    Skip the unit tests if platform is win32.
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+def skip_if_darwin(obj):
+    """
+    Skip the unit tests if platform is macOS (Darwin).
+    """
+    return unittest.skipIf(sys.platform == "darwin", "Skipping tests on macOS/Darwin")(obj)
 
 
 class SkipIfBeforePyTorchVersion:

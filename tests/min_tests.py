@@ -163,7 +163,6 @@ def run_testsuit():
         "test_vitautoenc",
         "test_write_metrics_reports",
         "test_wsireader",
-        "test_wsireader_new",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",

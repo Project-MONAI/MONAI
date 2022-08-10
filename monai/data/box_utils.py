@@ -1063,7 +1063,7 @@ def non_max_suppression(
 
     # initialize the list of picked indexes
     pick = []
-    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(torch.long)
+    idxs = torch.Tensor(list(range(0, boxes_sort.shape[0]))).to(device=boxes_t.device, dtype=torch.long)
 
     # keep looping while some indexes still remain in the indexes list
     while len(idxs) > 0:

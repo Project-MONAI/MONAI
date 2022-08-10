@@ -57,7 +57,7 @@ def deprecated(
 
     Args:
         since: version at which the definition was marked deprecated but not removed.
-        removed: version at which the definition was removed and no longer usable.
+        removed: version at which the definition was/will be removed and no longer usable.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
         warning_category: a warning category class, defaults to `FutureWarning`.
@@ -147,7 +147,7 @@ def deprecated_arg(
     Args:
         name: name of position or keyword argument to mark as deprecated.
         since: version at which the argument was marked deprecated but not removed.
-        removed: version at which the argument was removed and no longer usable.
+        removed: version at which the argument was/will be removed and no longer usable.
         msg_suffix: message appended to warning/exception detailing reasons for deprecation and what to use instead.
         version_val: (used for testing) version to compare since and removed against, default is MONAI version.
         new_name: name of position or keyword argument to replace the deprecated argument.
