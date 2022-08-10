@@ -36,6 +36,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to skip distance computation on the first channel of
             the predicted output. Defaults to ``False``.

@@ -39,6 +39,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
     The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.

@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import KeysCollection
+from monai.data import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.utils import min_version, optional_import
@@ -71,7 +72,11 @@ class DiscardAddGuidanced(MapTransform):
         d: Dict = dict(data)
         for key in self.key_iterator(d):
             if key == "image":
-                d[key] = self._apply(d[key])
+                tmp_image = self._apply(d[key])
+                if isinstance(d[key], MetaTensor):
+                    d[key].array = tmp_image
+                else:
+                    d[key] = tmp_image
             else:
                 print("This transform only applies to the image")
         return d
@@ -93,22 +98,22 @@ class NormalizeLabelsInDatasetd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            if key == "label":
-                # Dictionary containing new label numbers
-                new_label_names = {}
-                label = np.zeros(d[key].shape)
-                # Making sure the range values and number of labels are the same
-                for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
-                    if key_label != "background":
-                        new_label_names[key_label] = idx
-                        label[d[key] == val_label] = idx
-                    if key_label == "background":
-                        new_label_names["background"] = 0
+            # Dictionary containing new label numbers
+            new_label_names = {}
+            label = np.zeros(d[key].shape)
+            # Making sure the range values and number of labels are the same
+            for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
+                if key_label != "background":
+                    new_label_names[key_label] = idx
+                    label[d[key] == val_label] = idx
+                if key_label == "background":
+                    new_label_names["background"] = 0
 
-                d["label_names"] = new_label_names
-                d[key] = label
+            d["label_names"] = new_label_names
+            if isinstance(d[key], MetaTensor):
+                d[key].array = label
             else:
-                warnings.warn("This transform only applies to the label")
+                d[key] = label
         return d
 
 
@@ -239,7 +244,10 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                     # Getting signal based on guidance
                     signal = self._get_signal(image, guidance[key_label])
                     tmp_image = np.concatenate([tmp_image, signal], axis=0)
-                d[key] = tmp_image
+                    if isinstance(d[key], MetaTensor):
+                        d[key].array = tmp_image
+                    else:
+                        d[key] = tmp_image
                 return d
             else:
                 print("This transform only applies to image key")

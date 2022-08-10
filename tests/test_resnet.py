@@ -16,7 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
 from tests.utils import test_script_save
 
@@ -95,10 +96,57 @@ TEST_CASE_4 = [  # 2D, batch 2, 1 input channel
     ((2, 512), (2, 2048)),
 ]
 
+TEST_CASE_5 = [  # 1D, batch 1, 2 input channels
+    {
+        "block": "basic",
+        "layers": [1, 1, 1, 1],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_5_A = [  # 1D, batch 1, 2 input channels
+    {
+        "block": ResNetBlock,
+        "layers": [1, 1, 1, 1],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_6 = [  # 1D, batch 1, 2 input channels
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6]:
+    TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]

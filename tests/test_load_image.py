@@ -161,6 +161,7 @@ class TestLoadImage(unittest.TestCase):
             result = LoadImage(image_only=True, **input_param)(filenames)
             ext = "".join(Path(name).suffixes)
             self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image" + ext))
+            self.assertEqual(result.meta["space"], "RAS")
             assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
@@ -331,12 +332,13 @@ class TestLoadImageMeta(unittest.TestCase):
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_param, expected_shape, track_meta):
         set_track_meta(track_meta)
-        r = LoadImage(image_only=True, **input_param)(self.test_data)
+        r = LoadImage(image_only=True, prune_meta_pattern="glmax", prune_meta_sep="%", **input_param)(self.test_data)
         self.assertTupleEqual(r.shape, expected_shape)
         if track_meta:
             self.assertIsInstance(r, MetaTensor)
             self.assertTrue(hasattr(r, "affine"))
             self.assertIsInstance(r.affine, torch.Tensor)
+            self.assertTrue("glmax" not in r.meta)
         else:
             self.assertIsInstance(r, torch.Tensor)
             self.assertNotIsInstance(r, MetaTensor)
