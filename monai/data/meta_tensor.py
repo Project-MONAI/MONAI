@@ -505,7 +505,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     def __repr__(self, *, tensor_contents=None):
         """
         Prints out a long represention of the MetaTensor object with metadata as well as content data.
-        
+
         Args:
             tensor_contents: currently unused
         """
