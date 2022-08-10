@@ -16,7 +16,8 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import TorchVisionFCModel
+from monai.networks.nets import TorchVisionFCModel, UNet
+from monai.networks.utils import look_up_named_module, set_named_module
 from monai.utils import optional_import
 
 Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
@@ -70,6 +71,12 @@ TEST_CASE_5 = [
 TEST_CASE_6 = [
     {"model_name": "resnet101", "num_classes": 5, "use_conv": False, "pool": None, "pretrained": False},
     (2, 3, 256, 256),
+    (2, 5),
+]
+
+TEST_CASE_7 = [
+    {"model_name": "vit_b_16", "num_classes": 5, "pool": None, "in_channels": 768, "fc_name": "heads"},
+    (2, 3, 224, 224),
     (2, 5),
 ]
 
@@ -131,7 +138,9 @@ TEST_CASE_PRETRAINED_6 = [
 
 
 class TestTorchVisionFCModel(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+    )
     @skipUnless(has_tv, "Requires TorchVision.")
     def test_without_pretrained(self, input_param, input_shape, expected_shape):
         net = TorchVisionFCModel(**input_param).to(device)
@@ -158,6 +167,19 @@ class TestTorchVisionFCModel(unittest.TestCase):
             value = next(net.parameters())[0, 0, 0, 0].item()
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
+
+
+class TestLookup(unittest.TestCase):
+    def test_get_module(self):
+        net = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32, 64), strides=(2, 2, 2, 2))
+        self.assertEqual(look_up_named_module("", net), net)
+        mod = look_up_named_module("model.1.submodule.1.submodule.1.submodule.0.conv", net)
+        self.assertTrue(str(mod).startswith("Conv2d"))
+        self.assertIsInstance(set_named_module(net, "model", torch.nn.Identity()).model, torch.nn.Identity)
+        with self.assertRaises(ValueError):
+            look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net)
+        with self.assertRaises(ValueError):
+            look_up_named_module("test attribute", net)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 
 from monai.networks.layers import Conv, get_pool_layer
+from monai.networks.utils import look_up_named_module, set_named_module
 from monai.utils import deprecated_arg
 
 
@@ -62,9 +63,11 @@ class NetAdapter(torch.nn.Module):
         if n_classes is not None and num_classes == 1:
             num_classes = n_classes
         layers = list(model.children())
-        orig_fc = getattr(model, fc_name, layers[-1])
+        try:
+            orig_fc = look_up_named_module(fc_name, model)
+        except ValueError:
+            orig_fc = layers[-1]
         in_channels_: int
-
         if in_channels is None:
             if not hasattr(orig_fc, "in_features"):
                 raise ValueError("please specify the input channels of last layer with arg `in_channels`.")
@@ -74,9 +77,8 @@ class NetAdapter(torch.nn.Module):
 
         if pool is None:
             # remove the last layer or replace it with an identity
-            if hasattr(model, fc_name):  # assuming fc is the last layer
-                setattr(model, fc_name, torch.nn.Identity())
-                self.features = model
+            if look_up_named_module(fc_name, model):  # assuming fc is the last layer
+                self.features = set_named_module(model, fc_name, torch.nn.Identity())
             else:
                 self.features = torch.nn.Sequential(*layers[:-1])
             self.pool = None

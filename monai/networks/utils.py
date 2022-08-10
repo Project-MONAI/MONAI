@@ -24,6 +24,7 @@ import torch.nn as nn
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
+from monai.utils.module import look_up_option
 
 __all__ = [
     "one_hot",
@@ -43,7 +44,57 @@ __all__ = [
     "meshgrid_ij",
     "replace_modules",
     "replace_modules_temp",
+    "look_up_named_module",
+    "set_named_module",
 ]
+
+
+def look_up_named_module(name: str, mod, print_all_options=False):
+    """
+    get the named module in `mod` by the attribute name,
+    for example ``look_up_named_module(net, "features.3.1.attn")``
+
+    Args:
+        name: a string representing the module attribute.
+        mod: a pytorch module to be searched (in ``mod.named_modules()``).
+        print_all_options: whether to print all named modules when `name` is not found in `mod`. Defaults to False.
+
+    Returns:
+        the corresponding pytorch module's subcomponent such as ``net.features[3][1].attn``
+    """
+    name_str = look_up_option(name, {n[0] for n in mod.named_modules()}, print_all_options=print_all_options)
+    if name_str == "":
+        return mod
+    for n in name_str.split("."):
+        if n.isdigit():
+            mod = mod[int(n)]
+        else:
+            n = look_up_option(n, {item[0] for item in mod.named_modules()}, print_all_options=False)
+            mod = getattr(mod, n)
+    return mod
+
+
+def set_named_module(mod, name: str, new_layer):
+    """
+    look up `name` in `mod` and replace the layer with `new_layer`, return the updated `mod`.
+
+    Args:
+        mod: a pytorch module to be updated.
+        name: a string representing the target module attribute.
+        new_layer: a new module replacing the corresponding layer at ``mod.name``.
+
+    Returns:
+        an updated ``mod``
+
+    See also: :py:func:`monai.networks.utils.look_up_named_module`.
+    """
+    mods_attr = name.rsplit(".", 1)
+    submods, attr = mods_attr if len(mods_attr) == 2 else ("", name)
+    if not attr:
+        return new_layer
+    _mod = look_up_named_module(submods, mod)
+    setattr(_mod, attr, new_layer)
+    return mod
 
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:

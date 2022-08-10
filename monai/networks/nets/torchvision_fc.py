@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Any, Dict, Optional, Tuple
 
 from monai.networks.nets import NetAdapter
+from monai.networks.utils import look_up_named_module
 from monai.utils import deprecated_arg, optional_import
 
 models, _ = optional_import("torchvision.models")
@@ -22,7 +24,7 @@ __all__ = ["TorchVisionFCModel"]
 
 class TorchVisionFCModel(NetAdapter):
     """
-    Customize the fully connected layer of TorchVision model or replace it by convolutional layer.
+    Customize the fully connected layer of (pretrained) TorchVision model or replace it by convolutional layer.
 
     Args:
         model_name: name of any torchvision model with fully connected layer at the end.
@@ -40,6 +42,7 @@ class TorchVisionFCModel(NetAdapter):
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
         pretrained: whether to use the imagenet pretrained weights. Default to False.
+        fc_name: the corresponding layer attribute of the last fully connected layer. Defaults to ``"fc"``.
         weights: additional weights enum for the torchvision model.
         kwargs: additional parameters for the torchvision model.
 
@@ -57,6 +60,7 @@ class TorchVisionFCModel(NetAdapter):
             use_conv=False,
             pool=None,
         )
+        # model = TorchVisionFCModel("vit_b_16", num_classes=4, pool=None, in_channels=768, fc_name="heads")
         output = model.forward(torch.randn(2, 3, 299, 299))
         print(output.shape)  # torch.Size([2, 4])
 
@@ -74,6 +78,7 @@ class TorchVisionFCModel(NetAdapter):
         bias: bool = True,
         pretrained: bool = False,
         n_classes: Optional[int] = None,
+        fc_name: str = "fc",
         weights=None,
         **kwargs,
     ):
@@ -86,9 +91,8 @@ class TorchVisionFCModel(NetAdapter):
             model = getattr(models, model_name)(
                 pretrained=pretrained, **kwargs
             )  # 'pretrained' is deprecated since 0.13
-        # check if the model is compatible, should have a FC layer at the end
-        if not str(list(model.children())[-1]).startswith("Linear"):
-            raise ValueError(f"Model ['{model_name}'] does not have a Linear layer at the end.")
+        if look_up_named_module(fc_name, model) is None:
+            warnings.warn(f"Model 'torchvision.models.{model_name}' does not have a layer at model.{fc_name}.")
 
         super().__init__(
             model=model,
@@ -98,4 +102,5 @@ class TorchVisionFCModel(NetAdapter):
             use_conv=use_conv,
             pool=pool,
             bias=bias,
+            fc_name=fc_name,
         )
