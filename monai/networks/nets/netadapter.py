@@ -84,7 +84,7 @@ class NetAdapter(torch.nn.Module):
         # modify the input model, depending on whether to replace the last pooling layer ``pool``
         if pool is None:  # no modification of pooling
             if node_name != "":
-                raise ValueError("`node_name` is not compatible with `pool=None`, please set `pool=" "`.")
+                raise ValueError("`node_name` is not compatible with `pool=None`, please set `pool=''`.")
             # we just drop the model's fully connected layer or set it to identity
             if look_up_named_module(fc_name, model):
                 self.features = set_named_module(model, fc_name, torch.nn.Identity())
