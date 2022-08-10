@@ -22,7 +22,7 @@ from monai.utils import min_version, optional_import
 
 Inception_V3_Weights, has_enum = optional_import("torchvision.models.inception", name="Inception_V3_Weights")
 
-_, has_tv = optional_import("torchvision", "0.11.1", min_version)
+_, has_tv = optional_import("torchvision", "0.12", min_version)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
