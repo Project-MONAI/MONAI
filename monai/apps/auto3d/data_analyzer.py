@@ -13,9 +13,7 @@
 Step 1 of the AutoML pipeline. The dataset is analysized with this script.
 """
 
-import argparse
 import copy
-import logging
 import time
 import warnings
 from functools import partial
@@ -43,13 +41,13 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
-class DataAnalyzer:
+class DataAnalyzer(object):
     """
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
     The module expects file paths to the image data and utilizes the LoadImaged transform to read the files.
     which supports nii, nii.gz, png, jpg, bmp, npz, npy, and dcm formats. Currently, only segmentation
-    problem is supported, so the user needs to provide paths to the image and label files. Also, label 
-    data format is preferred to be (1,H,W,D), with the label index in the first dimension. If it is in 
+    problem is supported, so the user needs to provide paths to the image and label files. Also, label
+    data format is preferred to be (1,H,W,D), with the label index in the first dimension. If it is in
     onehot format, it will be converted to the preferred format.
 
     Args:
@@ -80,6 +78,19 @@ class DataAnalyzer:
 
         dataroot = '/datasets' # the directory where you have the image files (nii.gz)
         DataAnalyzer(datalist, dataroot)
+
+    Note:
+        The module can also be called from the command line interface (CLI) if MONAI is
+        installed with the source code.
+
+    For example:
+
+    .. code-block:: bash
+
+        python monai/apps/auto3d/data_analyzer.py \
+            get_all_case_stats \
+            --datalist="my_datalist.json" \
+            --dataroot="my_dataroot_dir"
 
     """
 
@@ -607,30 +618,7 @@ class DataAnalyzer:
 
 
 if __name__ == "__main__":
-    # The class can be run in the command line interface
-    parser = argparse.ArgumentParser(description="input")
-    parser.add_argument("--dataroot", type=str, required=True, help="data directory")
-    parser.add_argument("--datalist", type=str, required=True, help="input json")
-    parser.add_argument("--output_path", default="./datastats.yaml", type=str, help="output yaml")
-    parser.add_argument(
-        "--average", default=False, action="store_true", help="mix the multi-modal images for calculation"
-    )
-    parser.add_argument(
-        "--do_ccp", default=False, action="store_true", help="do connected components calculation for label"
-    )
-    parser.add_argument("--worker", type=int, default=2, help="worker number")
-    parser.add_argument("--debug", default=False, action="store_true", help="print logger debug output")
-    parser.add_argument("--device", type=str, default="cuda", help="device for running")
-    args = parser.parse_args()
-    analyser = DataAnalyzer(
-        args.datalist,
-        args.dataroot,
-        output_path=args.output_path,
-        average=args.average,
-        do_ccp=args.do_ccp,
-        worker=args.worker,
-        device=args.device,
-    )
-    level = logging.DEBUG if args.debug else logging.INFO
-    logger.setLevel(level)
-    analyser.get_all_case_stats()
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire(DataAnalyzer)

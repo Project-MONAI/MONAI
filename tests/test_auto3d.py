@@ -58,7 +58,7 @@ class TestDataAnalyzer(unittest.TestCase):
         analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
         datastat = analyser.get_all_case_stats()
 
-        assert len(datastat["stats_by_cases"]) == 4
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
