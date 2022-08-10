@@ -65,7 +65,8 @@ class Trainer(Workflow):
 
         Args:
             others: except for the default stats, other variables in the `self.state` to return, will use
-                the variable name as the key and the state content as the value
+                the variable name as the key and the state content as the value.
+                if the variable doesn't exist, default value is `None`.
 
         """
         stats = {
@@ -76,7 +77,7 @@ class Trainer(Workflow):
             StatsKeys.TOTAL_ITERATIONS: self.state.epoch_length,
         }
         for k in others:
-            stats[k] = self.state.k
+            stats[k] = getattr(self.state, k, None)
         return stats
 
 

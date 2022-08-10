@@ -153,7 +153,8 @@ class Evaluator(Workflow):
 
         Args:
             others: except for the default stats, other variables in the `self.state` to return, will use
-                the variable name as the key and the state content as the value
+                the variable name as the key and the state content as the value.
+                if the variable doesn't exist, default value is `None`.
 
         """
         stats = {
@@ -162,7 +163,7 @@ class Evaluator(Workflow):
             StatsKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
         }
         for k in others:
-            stats[k] = self.state.k
+            stats[k] = getattr(self.state, k, None)
         return stats
 
 
