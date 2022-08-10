@@ -87,7 +87,8 @@ class DataAnalyzer:
 
     .. code-block:: bash
 
-        python monai/apps/auto3d/data_analyzer.py \
+        python monai/apps/auto3d \
+            DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \
             --dataroot="my_dataroot_dir"
@@ -615,10 +616,3 @@ class DataAnalyzer:
         ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml")
         logger.debug(f"total time {time.time() - start}")
         return self.results
-
-
-if __name__ == "__main__":
-    from monai.utils import optional_import
-
-    fire, _ = optional_import("fire")
-    fire.Fire(DataAnalyzer)
