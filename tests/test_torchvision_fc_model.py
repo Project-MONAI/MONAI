@@ -187,7 +187,7 @@ class TestTorchVisionFCModel(unittest.TestCase):
         net = TorchVisionFCModel(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
-            value = next(net.features.parameters())[0, 0, 0, 0].item()
+            value = next(net.parameters())[0, 0, 0, 0].item()
             self.assertEqual(value, expected_value)
             self.assertEqual(result.shape, expected_shape)
 

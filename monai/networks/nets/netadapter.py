@@ -42,7 +42,8 @@ class NetAdapter(torch.nn.Module):
         bias: the bias value when replacing the last layer. if False, the layer will not learn an additive bias,
             default to True.
         fc_name: the corresponding layer attribute of the last fully connected layer. Defaults to ``"fc"``.
-        node_name: the corresponding feature extractor node name of `model`. Defaults to "", not in use.
+        node_name: the corresponding feature extractor node name of `model`.
+            Defaults to "", the extractor is not in use.
 
     .. deprecated:: 0.6.0
         ``n_classes`` is deprecated, use ``num_classes`` instead.
@@ -80,12 +81,6 @@ class NetAdapter(torch.nn.Module):
         else:
             in_channels_ = in_channels
 
-        # create new fully connected layer or kernel size 1 convolutional layer
-        self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
-        if use_conv:
-            self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
-        else:
-            self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
         # modify the input model, depending on whether to replace the last pooling layer ``pool``
         if pool is None:  # no modification of pooling
             if node_name != "":
@@ -104,6 +99,13 @@ class NetAdapter(torch.nn.Module):
             else:
                 self.features = torch.nn.Sequential(*layers[:-2])  # assuming the last 2 layers are pooling&FC
             self.pool = get_pool_layer(name=pool, spatial_dims=dim)
+
+        # create new fully connected layer or kernel size 1 convolutional layer
+        self.fc: Union[torch.nn.Linear, torch.nn.Conv2d, torch.nn.Conv3d]
+        if use_conv:
+            self.fc = Conv[Conv.CONV, dim](in_channels=in_channels_, out_channels=num_classes, kernel_size=1, bias=bias)
+        else:
+            self.fc = torch.nn.Linear(in_features=in_channels_, out_features=num_classes, bias=bias)
         self.use_conv = use_conv
         self.dim = dim
         self.node_name = node_name

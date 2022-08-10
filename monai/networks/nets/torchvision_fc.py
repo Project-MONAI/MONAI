@@ -26,34 +26,34 @@ class TorchVisionFCModel(NetAdapter):
 
     This class supports two primary use cases:
 
-        - ``pool=None`` indicates no modification in the pooling layers, this should be used with ``fc_name``
-          to locate the target FC layer:
-          this class will load a torchvision classification model, replace the last fully connected layer (FC) with
-          a new FC layer with ``num_classes`` outputs, example input arguments:
-          ``use_conv=False, pool=None, fc_name="heads.head``
-          The ``heads.head`` is the target FC of the input `model_name`, could be found by, for example::
+        - use ``pool=None`` to indicate no modification in the pooling layers. It should be used with ``fc_name``
+          to locate the target FC layer to modify:
+          In this case, the class will load a torchvision classification model,
+          replace the last fully connected (FC) layer with a new FC layer with ``num_classes`` outputs,
+          example input arguments: ``use_conv=False, pool=None, fc_name="heads.head"``.
+          The ``heads.head`` specifies the target FC of the input model, could be found by ``model.named_modules()``,
+          for example::
 
               from torchvision.models import vit_b_16
               print([name[0] for name in vit_b_16().named_modules()])
 
-        - ``pool`` set to ``""`` or a tuple of parameters indicates modification of both the pooling and the
-          FC layer, this could be used with ``node_name`` to locate the model feature outputs:
-          this class will load a torchvision classification model, remove the existing pooling and FC layers, and
+        - use ``pool=""`` or set it to a tuple of pooling parameters to indicate modifications of both
+          the pooling and the FC layer. It should be used with ``node_name`` to locate the model feature outputs:
+          In this case, the class will load a torchvision model, remove the existing pooling and FC layers, and
 
-          - append additional convolution layers:
+          - append an additional convolution layer:
             ``use_conv=True, pool="", node_name="permute"``
-          - append additional pooling and classification layers:
+          - append an additional pooling and FC layers:
             ``use_conv=False, pool=("avg", {"kernel_size": 7, "stride": 1}), node_name="permute"``
-          - append additional pooling + convolution layers:
+          - append an additional pooling and convolution layers:
             ``use_conv=True, pool=("avg", {"kernel_size": 7, "stride": 1}), node_name="permute"``
 
-          The ``permute`` is the target feature extraction node of the input `model_name`, could be found by,
-          for example::
+          The ``permute`` in the example is the target feature extraction node of the input
+          `model_name`, could be found by using the torchvision feature extraction utilities, for example::
 
               from torchvision.models.feature_extraction import get_graph_node_names
               from torchvision.models import swin_t
               print(get_graph_node_names(swin_t())[0])
-
 
     Args:
         model_name: name of any torchvision model with fully connected layer at the end.
