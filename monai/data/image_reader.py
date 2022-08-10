@@ -28,7 +28,7 @@ from monai.data.utils import (
     orientation_ras_lps,
 )
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import MetaKeys, SpaceKeys, ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
+from monai.utils import MetaKeys, SpaceKeys, deprecated, ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -1218,6 +1218,7 @@ class PILReader(ImageReader):
         return np.asarray((img.width, img.height))
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.wsi_reader.WSIReader` instead.")
 class WSIReader(ImageReader):
     """
     Read whole slide images and extract patches.
