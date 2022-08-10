@@ -15,7 +15,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import FlexibleUNet
+from monai.networks.nets import EfficientNetBNFeatures, FlexibleUNet
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails
 
@@ -61,7 +61,7 @@ def make_shape_cases(
 
 
 # create list of selected models to speed up redundant tests
-# only test the models B0, B3, B7
+# only test the models B0, B3
 SEL_MODELS = [get_model_names()[i] for i in [0, 3]]
 
 # pretrained=False cases
@@ -178,6 +178,29 @@ CASES_VARIATIONS.extend(
     )
 )
 
+# pretrain weight verified
+CASES_PRETRAIN = [
+    (
+        {
+            "in_channels": 3,
+            "out_channels": 10,
+            "backbone": SEL_MODELS[0],
+            "pretrained": True,
+            "spatial_dims": 2,
+            "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        },
+        {
+            "in_channels": 3,
+            "num_classes": 10,
+            "model_name": SEL_MODELS[0],
+            "pretrained": True,
+            "spatial_dims": 2,
+            "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        },
+        ["_conv_stem.weight"],
+    )
+]
+
 
 class TestFLEXIBLEUNET(unittest.TestCase):
     @parameterized.expand(CASES_2D + CASES_3D + CASES_VARIATIONS)
@@ -193,6 +216,25 @@ class TestFLEXIBLEUNET(unittest.TestCase):
 
         # check output shape
         self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(CASES_PRETRAIN)
+    def test_pretrain(self, input_param, efficient_input_param, weight_list):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        with skip_if_downloading_fails():
+            net = FlexibleUNet(**input_param).to(device)
+
+        with skip_if_downloading_fails():
+            eff_net = EfficientNetBNFeatures(**efficient_input_param).to(device)
+
+        for weight_name in weight_list:
+            if weight_name in net.encoder.state_dict() and weight_name in eff_net.state_dict():
+                net_weight = net.encoder.state_dict()[weight_name]
+                download_weight = eff_net.state_dict()[weight_name]
+                weight_diff = torch.abs(net_weight - download_weight)
+                diff_sum = torch.sum(weight_diff)
+                # check if a weight in weight_list equals to the downloaded weight.
+                self.assertLess(abs(diff_sum.item() - 0), 1e-8)
 
 
 if __name__ == "__main__":
