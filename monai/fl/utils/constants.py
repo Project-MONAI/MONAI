@@ -28,13 +28,6 @@ class FlPhase:
     GET_WEIGHTS = "fl_get_weights"
 
 
-class FlStatistics:
-    # TODO: currently uses hardcoded strings from. Might move to MONAI core?
-    #  https://github.com/Project-MONAI/MONAI/blob/df4a7d72e1d231b898f88d92cf981721c49ceaeb/monai/engines/trainer.py#L60
-    TOTAL_EPOCHS = "total_epochs"
-    TOTAL_ITERATIONS = "total_iterations"
-
-
 class BundleConst:
     KEY_TRAINER = "train#trainer"
     KEY_EVALUATOR = "validate#evaluator"

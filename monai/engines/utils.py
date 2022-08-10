@@ -27,6 +27,7 @@ else:
 __all__ = [
     "IterationEvents",
     "GanKeys",
+    "StatsKeys",
     "get_devices_spec",
     "default_prepare_batch",
     "PrepareBatch",
@@ -70,6 +71,20 @@ class GanKeys:
     LATENTS = "latents"
     GLOSS = "g_loss"
     DLOSS = "d_loss"
+
+
+class StatsKeys:
+    """
+    Default keys for the statistics of trainer and evaluator.
+
+    """
+    RANK = "rank"
+    CURRENT_ITERATION = "current_iteration"
+    CURRENT_EPOCH = "current_epoch"
+    TOTAL_EPOCHS = "total_epochs"
+    TOTAL_ITERATIONS = "total_iterations"
+    BEST_VALIDATION_EPOCH = "best_validation_epoch"
+    BEST_VALIDATION_METRTC = "best_validation_metric"
 
 
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:

@@ -21,6 +21,7 @@ from monai.config import IgniteInfo
 from monai.engines.utils import (
     GanKeys,
     IterationEvents,
+    StatsKeys,
     default_make_latent,
     default_metric_cmp_fn,
     default_prepare_batch,
@@ -57,8 +58,26 @@ class Trainer(Workflow):
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
-    def get_train_stats(self) -> dict[str, float]:
-        return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
+    def get_train_stats(self, *others) -> dict[str, float]:
+        """
+        Get the statistics information of the training process.
+        Default to return the `rank`, `current_epoch`, `current_iteration`, `total_epochs`, `total_iterations`.
+
+        Args:
+            others: except for the default stats, other variables in the `self.state` to return, will use
+                the variable name as the key and the state content as the value
+
+        """
+        stats = {
+            StatsKeys.RANK: self.state.rank,
+            StatsKeys.CURRENT_EPOCH: self.state.epoch,
+            StatsKeys.CURRENT_ITERATION: self.state.iteration,
+            StatsKeys.TOTAL_EPOCHS: self.state.max_epochs,
+            StatsKeys.TOTAL_ITERATIONS: self.state.epoch_length,
+        }
+        for k in others:
+            stats[k] = self.state.k
+        return stats
 
 
 class SupervisedTrainer(Trainer):
