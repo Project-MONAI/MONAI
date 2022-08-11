@@ -459,8 +459,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
-            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 
