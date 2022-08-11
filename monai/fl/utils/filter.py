@@ -1,4 +1,3 @@
-# coding: utf8
 import abc
 
 from monai.fl.utils.exchange_object import ExchangeObject

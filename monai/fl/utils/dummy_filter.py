@@ -1,4 +1,3 @@
-# coding: utf8
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.fl.utils.filter import Filter
 

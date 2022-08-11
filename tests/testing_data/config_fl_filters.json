@@ -1,9 +1,13 @@
 {
-	"pre_filters": [{
-		"_target_": "monai.fl.utils.dummy_filter.DummyFilter"
-	}],
-	"post_weight_filters": [{
-		"_target_": "monai.fl.utils.dummy_filter.DummyFilter"
-	}],
-	"post_evaluate_filters": []
+    "pre_filters": [
+        {
+            "_target_": "monai.fl.utils.dummy_filter.DummyFilter"
+        }
+    ],
+    "post_weight_filters": [
+        {
+            "_target_": "monai.fl.utils.dummy_filter.DummyFilter"
+        }
+    ],
+    "post_evaluate_filters": []
 }
