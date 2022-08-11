@@ -135,7 +135,7 @@ class MonaiAlgo(ClientAlgo):
         self.phase = FlPhase.GET_WEIGHTS
         if self.trainer:
             weights = self.trainer.network.state_dict()
-            stats = self.trainer.get_train_stats()
+            stats = self.trainer.get_stats()
         else:
             weights = None
             stats = dict()

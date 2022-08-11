@@ -146,14 +146,14 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self, *others) -> dict[str, float]:
+    def get_stats(self, *vars):
         """
         Get the statistics information of the validation process.
         Default to return the `rank`, `best_validation_epoch` and `best_validation_metric`.
 
         Args:
-            others: except for the default stats, other variables in the `self.state` to return, will use
-                the variable name as the key and the state content as the value.
+            vars: except for the default stats, other variables name in the `self.state` to return,
+                will use the variable name as the key and the state content as the value.
                 if the variable doesn't exist, default value is `None`.
 
         """
@@ -162,7 +162,7 @@ class Evaluator(Workflow):
             StatsKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
             StatsKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
         }
-        for k in others:
+        for k in vars:
             stats[k] = getattr(self.state, k, None)
         return stats
 
