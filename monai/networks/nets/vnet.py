@@ -68,7 +68,9 @@ class InputTransition(nn.Module):
         super().__init__()
 
         if out_channels % in_channels != 0:
-            raise ValueError(f"out channels should be divisible by in_channels. Got in_channels={in_channels}, out_channels={out_channels}.")
+            raise ValueError(
+                f"out channels should be divisible by in_channels. Got in_channels={in_channels}, out_channels={out_channels}."
+            )
 
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
