@@ -67,16 +67,17 @@ class InputTransition(nn.Module):
     ):
         super().__init__()
 
-        if 16 % in_channels != 0:
+        if out_channels % in_channels != 0:
             raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
 
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
-        self.act_function = get_acti_layer(act, 16)
+        self.out_channels = out_channels
+        self.act_function = get_acti_layer(act, out_channels)
         self.conv_block = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=16,
+            out_channels=out_channels,
             kernel_size=5,
             act=None,
             norm=Norm.BATCH,
@@ -85,7 +86,7 @@ class InputTransition(nn.Module):
 
     def forward(self, x):
         out = self.conv_block(x)
-        repeat_num = 16 // self.in_channels
+        repeat_num = self.out_channels // self.in_channels
         x16 = x.repeat([1, repeat_num, 1, 1, 1][: self.spatial_dims + 2])
         out = self.act_function(torch.add(out, x16))
         return out
