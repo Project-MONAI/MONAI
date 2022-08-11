@@ -51,9 +51,9 @@ class LoadImaged(MapTransform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
-    Please note that for png, jpg, bmp format images, `PILReader` will swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats in PIL is
-    different from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
+    loading the array because the `HW` definition for non-medical specific file formats is different
+    from other common medical packages.
 
     Note:
 
