@@ -12,8 +12,8 @@
 import torch.nn as nn
 from torch import Tensor
 
-from monai.apps.reconstruction.complex_utils import complex_abs
-from monai.apps.reconstruction.mri_utils import root_sum_of_squares
+from monai.apps.reconstruction.complex_utils import complex_abs_t
+from monai.apps.reconstruction.mri_utils import root_sum_of_squares_t
 from monai.apps.reconstruction.networks.blocks.varnetblock import VarNetBlock
 from monai.networks.blocks.fft_utils_t import ifftn_centered_t
 
@@ -68,8 +68,8 @@ class VariationalNetworkModel(nn.Module):
         for cascade in self.cascades:
             kspace_pred = cascade(kspace_pred, masked_kspace, mask, sensitivity_maps)
 
-        output_image = root_sum_of_squares(
-            complex_abs(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
+        output_image = root_sum_of_squares_t(
+            complex_abs_t(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
             spatial_dim=1,  # 1 is for C which is the coil dimension
         )  # shape is (B,H,W) for 2D and (B,H,W,D) for 3D data.
         return output_image  # type: ignore
