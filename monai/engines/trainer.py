@@ -58,14 +58,14 @@ class Trainer(Workflow):
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
-    def get_train_stats(self, *others) -> dict[str, float]:
+    def get_stats(self, *vars):
         """
         Get the statistics information of the training process.
         Default to return the `rank`, `current_epoch`, `current_iteration`, `total_epochs`, `total_iterations`.
 
         Args:
-            others: except for the default stats, other variables in the `self.state` to return, will use
-                the variable name as the key and the state content as the value.
+            vars: except for the default stats, other variables name in the `self.state` to return,
+                will use the variable name as the key and the state content as the value.
                 if the variable doesn't exist, default value is `None`.
 
         """
@@ -76,7 +76,7 @@ class Trainer(Workflow):
             StatsKeys.TOTAL_EPOCHS: self.state.max_epochs,
             StatsKeys.TOTAL_ITERATIONS: self.state.epoch_length,
         }
-        for k in others:
+        for k in vars:
             stats[k] = getattr(self.state, k, None)
         return stats
 

@@ -206,9 +206,9 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     trainer.run()
 
     # test train and validation stats
-    train_stats = trainer.get_train_stats("output")
+    train_stats = trainer.get_stats("output")
     assert_allclose(train_stats["output"][0]["loss"], trainer.state.output[0]["loss"])
-    val_stats = evaluator.get_validation_stats("metrics")
+    val_stats = evaluator.get_stats("metrics")
 
     return val_stats["best_validation_metric"]
 
