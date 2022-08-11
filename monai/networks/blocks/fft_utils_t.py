@@ -14,8 +14,6 @@ from typing import List
 import torch
 from torch import Tensor
 
-from monai.utils.type_conversion import convert_data_type
-
 
 def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
     """
