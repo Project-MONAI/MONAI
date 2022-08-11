@@ -300,7 +300,7 @@ The process of releasing backwards incompatible API changes is as follows:
       provide exact feature-like behaviour otherwise users will have a harder time migrating.
 1. add new test cases by extending the existing unit tests to cover both the deprecated and updated APIs.
 1. collect feedback from the users during the subsequent few releases, and reconsider step 1 if needed.
-1. before each release, review the deprecating APIs, and clean up the removed APIs described in step 2.
+1. before each release, review the deprecating APIs and relevant tests, and clean up the removed APIs described in step 2.
 
 
 
