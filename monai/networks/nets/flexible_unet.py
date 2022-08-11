@@ -12,6 +12,7 @@
 from typing import Optional, Sequence, Tuple, Union
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from monai.networks.blocks import UpSample
@@ -61,7 +62,7 @@ class UNetDecoder(nn.Module):
     <https://github.com/qubvel/segmentation_models.pytorch>`_.
 
     Args:
-        dim: number of spatial dimensions.
+        spatial_dims: number of spatial dimensions.
         encoder_channels: number of output channels for all feature maps in encoder.
             `len(encoder_channels)` should be no less than 2.
         decoder_channels: number of output channels for all feature maps in decoder.
@@ -69,6 +70,7 @@ class UNetDecoder(nn.Module):
         act: activation type and arguments.
         norm: feature normalization type and arguments.
         dropout: dropout ratio.
+        bias: whether to have a bias term in convolution blocks in this decoder.
         upsample: upsampling mode, available options are
             ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
         pre_conv: a conv block applied before upsampling.
@@ -188,7 +190,7 @@ class SegmentationHead(nn.Sequential):
 
 class FlexibleUNet(nn.Module):
     """
-    A flexible implement of UNet.
+    A flexible implementation of UNet-like encoder-decoder architecture.
     """
 
     def __init__(
@@ -293,12 +295,6 @@ class FlexibleUNet(nn.Module):
 
         """
         x = inputs
-        input_spatial_dims = x.shape[-self.spatial_dims :]
-        for shape_size in input_spatial_dims:
-            if (shape_size % 32) != 0:
-                raise ValueError(
-                    f"Input shape {input_spatial_dims} is illegal, expecting input size which can be divided by 32."
-                )
         enc_out = self.encoder(x)
         decoder_out = self.decoder(enc_out)
         x_seg = self.segmentation_head(decoder_out)

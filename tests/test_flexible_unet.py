@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import EfficientNetBNFeatures, FlexibleUNet
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
@@ -202,6 +202,7 @@ CASES_PRETRAIN = [
 ]
 
 
+@skip_if_quick
 class TestFLEXIBLEUNET(unittest.TestCase):
     @parameterized.expand(CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
