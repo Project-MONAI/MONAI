@@ -11,6 +11,8 @@
 
 from typing import Optional, Tuple, Union
 
+import torch.nn
+
 from monai.networks.layers.factories import Act, Dropout, Norm, Pool, split_args
 from monai.utils import has_option
 
@@ -36,6 +38,8 @@ def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, cha
         channels: number of features/channels when the normalization layer requires this parameter
             but it is not specified in the norm parameters.
     """
+    if name == "":
+        return torch.nn.Identity()
     norm_name, norm_args = split_args(name)
     norm_type = Norm[norm_name, spatial_dims]
     kw_args = dict(norm_args)
@@ -62,6 +66,8 @@ def get_act_layer(name: Union[Tuple, str]):
     Args:
         name: an activation type string or a tuple of type string and parameters.
     """
+    if name == "":
+        return torch.nn.Identity()
     act_name, act_args = split_args(name)
     act_type = Act[act_name]
     return act_type(**act_args)
@@ -84,6 +90,8 @@ def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional
         name: a dropout ratio or a tuple of dropout type and parameters.
         dropout_dim: the spatial dimension of the dropout operation.
     """
+    if name == "":
+        return torch.nn.Identity()
     if isinstance(name, (int, float)):
         # if dropout was specified simply as a p value, use default name and make a keyword map with the value
         drop_name = Dropout.DROPOUT
@@ -111,6 +119,8 @@ def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
         spatial_dims: number of spatial dimensions of the input.
 
     """
+    if name == "":
+        return torch.nn.Identity()
     pool_name, pool_args = split_args(name)
     pool_type = Pool[pool_name, spatial_dims]
     return pool_type(**pool_args)
