@@ -83,7 +83,7 @@ def check_bundle_config(parser):
 
 class MonaiAlgo(ClientAlgo):
     """
-    Implementation of ``ClientAlgo'' to allow federated learning with MONAI bundle configurations.
+    Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
 
     Args:
         bundle_root: path of bundle.
