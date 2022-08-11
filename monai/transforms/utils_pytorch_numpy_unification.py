@@ -117,7 +117,6 @@ def percentile(
     return result
 
 
-
 def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
     """
     Note that `torch.where` may convert y.dtype to x.dtype.
