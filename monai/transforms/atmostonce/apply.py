@@ -11,14 +11,19 @@ from monai.transforms.spatial.array import Resample
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils import create_grid
 from monai.utils import GridSampleMode, GridSamplePadMode
-from monai.utils.enums import GridPatchSort, TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.enums import TransformBackends
+from monai.utils.type_conversion import (convert_data_type, convert_to_dst_type,
+                                         expand_scalar_to_tuple)
 from monai.utils.mapping_stack import MappingStack
 
 # TODO: This should move to a common place to be shared with dictionary
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 DtypeSequence = Union[Sequence[DtypeLike], DtypeLike]
+
+
+
+
 
 class Applyd(MapTransform, InvertibleTransform):
 
@@ -61,10 +66,14 @@ class Applyd(MapTransform, InvertibleTransform):
                  data: Mapping[Hashable, NdarrayOrTensor],
                  allow_missing_keys: bool = False) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        mapping_stack = d["mapping_stack"]
-        affine = mapping_stack.transform()
-        for key_tuple in self.key_iterator(d, self.modes, self.padding_modes, self.dtypes):
+        mapping_stack = d["mappings"]
+        keys = d.keys()
+        for key_tuple in self.key_iterator(d,
+                                           expand_scalar_to_tuple(self.modes, len(keys)),
+                                           expand_scalar_to_tuple(self.padding_modes, len(keys)),
+                                           expand_scalar_to_tuple(self.dtypes, len(keys))):
             key, mode, padding_mode, dtype = key_tuple
+            affine = mapping_stack[key].transform()
             data = d[key]
             spatial_size = data.shape[1:]
             grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=dtype)
