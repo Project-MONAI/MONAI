@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import re
-from typing import Any, Optional, Sequence, Tuple, Type, Union
+from typing import Any, SupportsInt, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 import numpy as np
 import torch
@@ -34,6 +34,7 @@ __all__ = [
     "convert_to_numpy",
     "convert_to_tensor",
     "convert_to_dst_type",
+    "expand_scalar_to_tuple"
 ]
 
 
@@ -347,3 +348,28 @@ def convert_to_list(data: Union[Sequence, torch.Tensor, np.ndarray]) -> list:
 
     """
     return data.tolist() if isinstance(data, (torch.Tensor, np.ndarray)) else list(data)
+
+
+TValue = TypeVar('TValue')
+def expand_scalar_to_tuple(value: Union[Tuple[TValue], float],
+                           length: int):
+    """
+    If `value` is not a tuple, it will be converted to a tuple of the given `length`.
+    Otherwise, it is returned as is. Note that if `value` is a tuple, its length must be
+    the same as the `length` parameter or the conversion will fail.
+    Args:
+        value: the value to be converted to a tuple if necessary
+        length: the length of the resulting tuple
+    Returns:
+        If `value` is already a tuple, then `value` is returned. Otherwise, return a tuple
+        of length `length`, each element of which is `value`.
+    """
+    if not isinstance(length, int):
+        raise ValueError("'length' must be an integer value")
+
+    if not isinstance(value, tuple):
+        return tuple(value for _ in range(length))
+    else:
+        if length != len(value):
+            raise ValueError("if 'value' is a tuple it must be the same length as 'length'")
+    return value
