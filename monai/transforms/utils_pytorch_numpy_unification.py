@@ -86,9 +86,11 @@ def percentile(
     x: NdarrayOrTensor, q, dim: Optional[int] = None, keepdim: bool = False, **kwargs
 ) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
+
     Pytorch uses `quantile`. For more details please refer to:
     https://pytorch.org/docs/stable/generated/torch.quantile.html.
     https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
+
     Args:
         x: input data
         q: percentile to compute (should in range 0 <= q <= 100)
@@ -97,6 +99,7 @@ def percentile(
         keepdim: whether the output data has dim retained or not.
         kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
             https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
+
     Returns:
         Resulting value (scalar)
     """
@@ -112,6 +115,7 @@ def percentile(
         q = convert_to_dst_type(q_np / 100.0, x)[0]
         result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
+
 
 
 def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
