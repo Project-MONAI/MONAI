@@ -18,19 +18,13 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo
-from monai.engines.utils import (
-    GanKeys,
-    IterationEvents,
-    StatsKeys,
-    default_make_latent,
-    default_metric_cmp_fn,
-    default_prepare_batch,
-)
+from monai.engines.utils import IterationEvents, default_make_latent, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import
+from monai.utils import GanKeys, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.enums import EngineStatsKeys as ESKeys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -70,11 +64,11 @@ class Trainer(Workflow):
 
         """
         stats = {
-            StatsKeys.RANK: self.state.rank,
-            StatsKeys.CURRENT_EPOCH: self.state.epoch,
-            StatsKeys.CURRENT_ITERATION: self.state.iteration,
-            StatsKeys.TOTAL_EPOCHS: self.state.max_epochs,
-            StatsKeys.TOTAL_ITERATIONS: self.state.epoch_length,
+            ESKeys.RANK: self.state.rank,
+            ESKeys.CURRENT_EPOCH: self.state.epoch,
+            ESKeys.CURRENT_ITERATION: self.state.iteration,
+            ESKeys.TOTAL_EPOCHS: self.state.max_epochs,
+            ESKeys.TOTAL_ITERATIONS: self.state.epoch_length,
         }
         for k in vars:
             stats[k] = getattr(self.state, k, None)

@@ -17,13 +17,14 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.engines.utils import IterationEvents, StatsKeys, default_metric_cmp_fn, default_prepare_batch
+from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.enums import EngineStatsKeys as ESKeys
 from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
@@ -158,9 +159,9 @@ class Evaluator(Workflow):
 
         """
         stats = {
-            StatsKeys.RANK: self.state.rank,
-            StatsKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
-            StatsKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
+            ESKeys.RANK: self.state.rank,
+            ESKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
+            ESKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
         }
         for k in vars:
             stats[k] = getattr(self.state, k, None)

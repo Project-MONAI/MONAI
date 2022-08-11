@@ -13,12 +13,10 @@ from .evaluator import EnsembleEvaluator, Evaluator, SupervisedEvaluator
 from .multi_gpu_supervised_trainer import create_multigpu_supervised_evaluator, create_multigpu_supervised_trainer
 from .trainer import GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
-    GanKeys,
     IterationEvents,
     PrepareBatch,
     PrepareBatchDefault,
     PrepareBatchExtraInput,
-    StatsKeys,
     default_make_latent,
     default_metric_cmp_fn,
     default_prepare_batch,
