@@ -139,12 +139,12 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
             output2 = ifftn_centered(ksp, spatial_dims=2, is_complex=True)
     """
     # define spatial dims to perform ifftshift, fftshift, and ifft
-    shift = list(range(-spatial_dims, 0))
+    shift = [i for i in range(-spatial_dims, 0)]  # noqa: C416
     if is_complex:
         if ksp.shape[-1] != 2:
             raise ValueError(f"ksp.shape[-1] is not 2 ({ksp.shape[-1]}).")
-        shift = list(range(-spatial_dims - 1, -1))
-    dims = list(range(-spatial_dims, 0))
+        shift = [i for i in range(-spatial_dims - 1, -1)]  # noqa: C416
+    dims = [i for i in range(-spatial_dims, 0)]  # noqa: C416
 
     x = ifftshift(ksp, shift)
 
@@ -187,12 +187,12 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
             output2 = fftn_centered(im, spatial_dims=2, is_complex=True)
     """
     # define spatial dims to perform ifftshift, fftshift, and fft
-    shift = list(range(-spatial_dims, 0))
+    shift = [i for i in range(-spatial_dims, 0)]  # noqa: C416
     if is_complex:
         if im.shape[-1] != 2:
             raise ValueError(f"img.shape[-1] is not 2 ({im.shape[-1]}).")
-        shift = list(range(-spatial_dims - 1, -1))
-    dims = list(range(-spatial_dims, 0))
+        shift = [i for i in range(-spatial_dims - 1, -1)]  # noqa: C416
+    dims = [i for i in range(-spatial_dims, 0)]  # noqa: C416
 
     x = ifftshift(im, shift)
 
