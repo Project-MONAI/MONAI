@@ -60,6 +60,7 @@ class DataAnalyzer:
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
+        image_only: boolean set to True if the user wants to use the DataAnalyzer on a dataset without labels.
 
     For example:
 
@@ -566,7 +567,7 @@ class DataAnalyzer:
                 - labels, pxiel_percentage, image_intensity, label_0, label_1
 
         Raise
-            ValueError if data loader is unable to populate "label_meta_dict"
+            ValueError if data loader is unable to find "label" or "label_meta_dict"
         Note:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
             may be generated and carried over in the computation. In such cases, the output dictionary
@@ -577,6 +578,10 @@ class DataAnalyzer:
         self.data["image"] = batch_data["image"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
         if not self.image_only:
+            if "label" not in batch_data:
+                raise ValueError("label not found. Please set image_only to True if there is no label files")
+            if "label_meta_dict" not in batch_data:
+                raise ValueError("label_meta_dict not found. Please set image_only to True if there is no label files")
             self.data["label"] = batch_data["label"].to(self.device)
             self.data["label_meta_dict"] = batch_data["label_meta_dict"]
         case_stats = {}
@@ -625,6 +630,9 @@ class DataAnalyzer:
                     - "image_foreground_stats" (similar to above)
                     - "label_stats"
 
+        Raise:
+            ValueError if the user sent image_only to False but there is no label found
+
         Note:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
             may be generated and carried over in the computation. In such cases, the output dictionary
@@ -643,6 +651,11 @@ class DataAnalyzer:
             if self.image_only:
                 case_stat = {"image": images_file}
             else:
+                if "label_meta_dict" not in batch_data:
+                    raise ValueError(
+                        "label_meta_dict not found. Please set image_only to True if there is no label files"
+                    )
+
                 label_file = batch_data[0]["label_meta_dict"]["filename_or_obj"]
                 case_stat = {"image": images_file, "label": label_file}
 
