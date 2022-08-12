@@ -11,17 +11,17 @@
 
 from typing import Optional, Sequence, Union
 
-import torch
 import torch.nn as nn
 from torch import Tensor
 
 from monai.apps.reconstruction.networks.nets.utils import (
     complex_normalize,
+    divisible_pad_t,
+    inverse_divisible_pad_t,
     reshape_channel_complex_to_last_dim,
     reshape_complex_to_channel_dim,
 )
 from monai.networks.nets.basic_unet import BasicUNet
-from monai.transforms import DivisiblePad
 
 
 class ComplexUnet(nn.Module):
@@ -98,14 +98,13 @@ class ComplexUnet(nn.Module):
         x = reshape_complex_to_channel_dim(x)  # x will be of shape (B,C*2,H,W)
         x, mean, std = complex_normalize(x)  # x will be of shape (B,C*2,H,W)
         # pad input
-        padder = DivisiblePad(k=self.pad_factor)
-        x = torch.stack(
-            [padder(xi) for xi in x]
+        x, padding_sizes = divisible_pad_t(
+            x, k=self.pad_factor
         )  # x will be of shape (B,C*2,H',W') where H' and W' are for after padding
 
         x = self.unet(x)
         # inverse padding
-        x = torch.stack([padder.inverse(xi) for xi in x])  # x will be of shape (B,C*2,H,W)
+        x = inverse_divisible_pad_t(x, padding_sizes)  # x will be of shape (B,C*2,H,W)
 
         x = x * std + mean
         x = reshape_channel_complex_to_last_dim(x)  # x will be of shape (B,C,H,W,2)
