@@ -547,12 +547,18 @@ class DataAnalyzer:
 
         Returns:
             a dictionary to summarize all the statistics for each case in following structure
-            - image_stats
+            - "image_stats"
                 - shape, channels,cropped_shape, spacing, intensity
-            - image_foreground_stats
-                - intensity
-            - label_stats
+            - "image_foreground_stats"
+                - "intensity"
+            - "label_stats"
                 - labels, pxiel_percentage, image_intensity, label_0, label_1
+        
+        Note:
+            nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
+            may be generated and carried over in the computation. In such cases, the output dictionary
+            will include .nan/.inf in the statistics.
+
 
         """
         self.data["image"] = batch_data["image"].to(self.device)
@@ -604,7 +610,12 @@ class DataAnalyzer:
                     - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations)
                     - "image_foreground_stats" (similar to above)
                     - "label_stats"
-                            
+        
+        Note:
+            nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
+            may be generated and carried over in the computation. In such cases, the output dictionary
+            will include .nan/.inf in the statistics.
+            
         """
         start = time.time()
         self.results["stats_summary"] = {}
