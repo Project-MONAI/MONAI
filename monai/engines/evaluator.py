@@ -22,7 +22,7 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
+from monai.utils import ForwardMode, deprecated, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
 from monai.utils.module import look_up_option
@@ -166,6 +166,10 @@ class Evaluator(Workflow):
         for k in vars:
             stats[k] = getattr(self.state, k, None)
         return stats
+
+    @deprecated(since="0.8", msg_suffix="please use the `get_stats()` API instead.")
+    def get_validation_stats(self):
+        return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
 class SupervisedEvaluator(Evaluator):
