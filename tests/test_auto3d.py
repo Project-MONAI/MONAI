@@ -25,7 +25,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
 
 fake_datalist = {
-    "testing": [{"image": "val_001.fake.nii.gz"}],
+    "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
         {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
@@ -56,6 +56,16 @@ class TestDataAnalyzer(unittest.TestCase):
         dataroot = self.test_dir.name
         yaml_fpath = path.join(dataroot, "data_stats.yaml")
         analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
+        datastat = analyser.get_all_case_stats()
+
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_data_analyzer_image_only(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(
+            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, image_only=True
+        )
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
