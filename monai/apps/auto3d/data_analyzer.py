@@ -18,7 +18,7 @@ import time
 import warnings
 from functools import partial
 from os import path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
 import numpy as np
 import torch
@@ -99,12 +99,12 @@ class DataAnalyzer:
     def __init__(
         self,
         datalist: Union[str, Dict],
-        dataroot: str,
-        output_path: str = "./data_stats.yaml",
-        average: bool = False,
-        do_ccp: bool = True,
-        device: Union[str, torch.device] = "cuda",
-        worker: int = 2,
+        dataroot: Optional[str] = "",
+        output_path: Optional[str] = "./data_stats.yaml",
+        average: Optional[bool] = False,
+        do_ccp: Optional[bool] = True,
+        device: Optional[Union[str, torch.device]] = "cuda",
+        worker: Optional[int] = 2,
     ):
         """
         The initializer will load the data and register the functions for data statistics gathering.
@@ -414,7 +414,7 @@ class DataAnalyzer:
             percent_summary[key] = float(value / total_percent)
         return percent_summary
 
-    def _intensity_summary(self, xs: List, average: bool = False) -> Dict:
+    def _intensity_summary(self, xs: List, average: Optional[bool] = False) -> Dict:
         """
         Define the summary function for stats over the whole dataset.
         Combine overall intensity statistics for all cases in datalist. The intensity features are
@@ -440,7 +440,7 @@ class DataAnalyzer:
 
         return result
 
-    def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
+    def _stats_opt_summary(self, datastat_list, average: Optional[bool] = False, is_label: Optional[bool] = False):
         """
         Combine other stats calculation methods (like shape/min/max/std). Does not guarantee
         correct output for custimized stats structure. Check the following input structures.
