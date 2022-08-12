@@ -22,7 +22,7 @@ from monai.engines.utils import IterationEvents, default_make_latent, default_me
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import GanKeys, min_version, optional_import
+from monai.utils import GanKeys, deprecated, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
 
@@ -73,6 +73,10 @@ class Trainer(Workflow):
         for k in vars:
             stats[k] = getattr(self.state, k, None)
         return stats
+
+    @deprecated(since="0.8", msg_suffix="please use the `get_stats()` API instead.")
+    def get_train_stats(self):
+        return self.get_stats()
 
 
 class SupervisedTrainer(Trainer):
