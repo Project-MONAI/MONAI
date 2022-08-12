@@ -149,7 +149,7 @@ class SegmentationHead(nn.Sequential):
     <https://github.com/qubvel/segmentation_models.pytorch>`_.
 
     Args:
-        dim: number of spatial dimensions.
+        spatial_dims: number of spatial dimensions.
         in_channels: number of input channels for the block.
         out_channels: number of output channels for the block.
         kernel_size: kernel size for the conv layer.
@@ -160,7 +160,7 @@ class SegmentationHead(nn.Sequential):
 
     def __init__(
         self,
-        dim: int,
+        spatial_dims: int,
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
@@ -168,13 +168,13 @@ class SegmentationHead(nn.Sequential):
         scale_factor: float = 1.0,
     ):
 
-        conv_layer = Conv[Conv.CONV, dim](
+        conv_layer = Conv[Conv.CONV, spatial_dims](
             in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, padding=kernel_size // 2
         )
         up_layer: nn.Module = nn.Identity()
         if scale_factor > 1.0:
             up_layer = UpSample(
-                spatial_dims=dim,
+                spatial_dims=spatial_dims,
                 scale_factor=scale_factor,
                 mode="nontrainable",
                 pre_conv=None,
@@ -271,12 +271,13 @@ class FlexibleUNet(nn.Module):
             pre_conv=None,
             align_corners=None,
         )
-
         self.segmentation_head = SegmentationHead(
-            dim=spatial_dims, in_channels=decoder_channels[-1], out_channels=out_channels, kernel_size=3, act=None
+            spatial_dims=spatial_dims,
+            in_channels=decoder_channels[-1],
+            out_channels=out_channels,
+            kernel_size=3,
+            act=None,
         )
-
-        self.pool = Pool[Pool.ADAPTIVEMAX, 2](1)
 
     def forward(self, inputs: torch.Tensor):
         """
