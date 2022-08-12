@@ -554,6 +554,8 @@ class DataAnalyzer:
             - "label_stats"
                 - labels, pxiel_percentage, image_intensity, label_0, label_1
         
+        Raise
+            ValueError if data loader is unable to populate "label_meta_dict"
         Note:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
             may be generated and carried over in the computation. In such cases, the output dictionary
@@ -564,7 +566,10 @@ class DataAnalyzer:
         self.data["image"] = batch_data["image"].to(self.device)
         self.data["label"] = batch_data["label"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
-        self.data["label_meta_dict"] = batch_data["label_meta_dict"]
+        if "label_meta_dict" in batch_data:
+            self.data["label_meta_dict"] = batch_data["label_meta_dict"]
+        else:
+            raise ValueError("Cannot find label_meta_dict from the output of the data loader")
         case_stats = {}
         for func in self.functions:
             case_stats.update(func())
