@@ -524,6 +524,11 @@ Nets
 .. autoclass:: BasicUnet
 .. autoclass:: Basicunet
 
+`FlexibleUNet`
+~~~~~~~~~~~~~~
+.. autoclass:: FlexibleUNet
+  :members:
+
 `VNet`
 ~~~~~~
 .. autoclass:: VNet
@@ -647,6 +652,11 @@ Nets
 `CoilSensitivityModel`
 ~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.coil_sensitivity_model.CoilSensitivityModel
+   :members:
+
+`e2e-VarNet`
+~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
    :members:
 
 Utilities
