@@ -12,7 +12,6 @@
 from typing import Optional, Sequence, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from monai.networks.blocks import UpSample
