@@ -92,8 +92,8 @@ def percentile(
     https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Args:
-        x: input data
-        q: percentile to compute (should in range 0 <= q <= 100)
+        x: input data.
+        q: percentile to compute (should in range 0 <= q <= 100).
         dim: the dim along which the percentiles are computed. default is to compute the percentile
             along a flattened version of the array.
         keepdim: whether the output data has dim retained or not.
@@ -175,8 +175,8 @@ def unravel_index(idx, shape) -> NdarrayOrTensor:
     """`np.unravel_index` with equivalent implementation for torch.
 
     Args:
-        idx: index to unravel
-        shape: shape of array/tensor
+        idx: index to unravel.
+        shape: shape of array/tensor.
 
     Returns:
         Index unravelled for given shape
@@ -194,8 +194,8 @@ def unravel_indices(idx, shape) -> NdarrayOrTensor:
     """Computing unravel coordinates from indices.
 
     Args:
-        idx: a sequence of indices to unravel
-        shape: shape of array/tensor
+        idx: a sequence of indices to unravel.
+        shape: shape of array/tensor.
 
     Returns:
         Stacked indices unravelled for given shape
@@ -208,7 +208,7 @@ def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.ravel` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor. to ravel
+        x: array/tensor. to ravel.
 
     Returns:
         Return a contiguous flattened array/tensor.
@@ -226,8 +226,8 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrT
     For pytorch, convert to boolean for compatibility with older versions.
 
     Args:
-        x: input array/tensor
-        axis: axis to perform `any` over
+        x: input array/tensor.
+        axis: axis to perform `any` over.
 
     Returns:
         Return a contiguous flattened array/tensor.
@@ -250,8 +250,8 @@ def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.maximum` with equivalent implementation for torch.
 
     Args:
-        a: first array/tensor
-        b: second array/tensor
+        a: first array/tensor.
+        b: second array/tensor.
 
     Returns:
         Element-wise maximum between two arrays/tensors.
