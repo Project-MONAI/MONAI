@@ -105,6 +105,7 @@ class DataAnalyzer:
         do_ccp: Optional[bool] = True,
         device: Optional[Union[str, torch.device]] = "cuda",
         worker: Optional[int] = 2,
+        image_only: Optional[bool] = False,
     ):
         """
         The initializer will load the data and register the functions for data statistics gathering.
@@ -113,22 +114,29 @@ class DataAnalyzer:
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
             logger.debug(f"{output_path} will be overwritten by a new datastat.")
         self.output_path = output_path
+        self.image_only = image_only
+
+        if self.image_only:
+            keys = ["image"]
+        else:
+            keys = ["image", "label"]
+
+        transform_list = [
+            transforms.LoadImaged(keys=keys),
+            transforms.EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
+            transforms.Orientationd(keys=keys, axcodes="RAS"),
+            transforms.EnsureTyped(keys=keys, data_type="tensor"),
+        ]
+
+        if not self.image_only:
+            transform_list += [
+                transforms.Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True)),
+                transforms.SqueezeDimd(keys=["label"], dim=0),
+            ]
+
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
-        ds = data.Dataset(
-            data=files,
-            transform=transforms.Compose(
-                [
-                    transforms.LoadImaged(keys=["image", "label"]),
-                    transforms.EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
-                    transforms.Orientationd(keys=["image", "label"], axcodes="RAS"),
-                    transforms.EnsureTyped(keys=["image", "label"], data_type="tensor"),
-                    transforms.Lambdad(
-                        keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
-                    ),
-                    transforms.SqueezeDimd(keys=["label"], dim=0),  # make label (H,W,D)
-                ]
-            ),
-        )
+        ds = data.Dataset(data=files, transform=transforms.Compose(transform_list))
+
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=worker, collate_fn=no_collation)
         # Whether to average all the modalities in the summary
         # If SUMMARY_AVERAGE is set to false,
@@ -183,12 +191,11 @@ class DataAnalyzer:
                     self.function_summary.append(self._get_my_stats_sumumary)
 
         """
-        self.functions = [self._get_case_image_stats, self._get_case_foreground_image_stats, self._get_label_stats]
-        self.functions_summary = [
-            self._get_case_image_stats_summary,
-            self._get_case_foreground_image_stats_summary,
-            self._get_label_stats_summary,
-        ]
+        self.functions = [self._get_case_image_stats]
+        self.functions_summary = [self._get_case_image_stats_summary]
+        if not self.image_only:
+            self.functions += [self._get_case_foreground_image_stats, self._get_label_stats]
+            self.functions_summary += [self._get_case_foreground_image_stats_summary, self._get_label_stats_summary]
 
     def _register_operations(self):
         """
@@ -568,12 +575,10 @@ class DataAnalyzer:
 
         """
         self.data["image"] = batch_data["image"].to(self.device)
-        self.data["label"] = batch_data["label"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
-        if "label_meta_dict" in batch_data:
+        if not self.image_only:
+            self.data["label"] = batch_data["label"].to(self.device)
             self.data["label_meta_dict"] = batch_data["label_meta_dict"]
-        else:
-            raise ValueError("Cannot find label_meta_dict from the output of the data loader")
         case_stats = {}
         for func in self.functions:
             case_stats.update(func())
@@ -635,9 +640,13 @@ class DataAnalyzer:
 
         for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
             images_file = batch_data[0]["image_meta_dict"]["filename_or_obj"]
-            label_file = batch_data[0]["label_meta_dict"]["filename_or_obj"]
+            if self.image_only:
+                case_stat = {"image": images_file}
+            else:
+                label_file = batch_data[0]["label_meta_dict"]["filename_or_obj"]
+                case_stat = {"image": images_file, "label": label_file}
+
             logger.debug(f"Load data spent {time.time() - s}")
-            case_stat = {"image": images_file, "label": label_file}
             case_stat.update(self.get_case_stats(batch_data[0]))
             self.results["stats_by_cases"].append(case_stat)
             logger.debug(f"Process data spent {time.time() - s}")
