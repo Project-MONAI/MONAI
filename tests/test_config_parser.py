@@ -232,6 +232,20 @@ class TestConfigParser(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
 
+    def test_convert_key_chain_to_id(self):
+        config = {"key1": {"key2": {"key3": 1}, "key4": 2}}
+        key_chain = ["key1", "key2", "key3"]
+        parser = ConfigParser(config=config)
+        id = parser.convert_key_chain_to_id(key_chain)
+        assert parser.get(id) == 1
+
+    def test_recursive_get_key_chains(self):
+        config = {"key1": {"key2": {"key3": 1}, "key4": 2}}
+        expected = ["key1#key2#key3", "key1#key4"]
+        parser = ConfigParser(config=config)
+        key_chains = parser.recursive_get_key_chains()
+        self.assertListEqual(key_chains, expected)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,7 +13,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union, List
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -464,22 +464,49 @@ class ConfigParser:
             value = value.replace(p, sym + new)
         return value
 
-    @classmethod
-    def convert_key_chain_to_id(cls, key_chain: List[str]):
+    def convert_key_chain_to_id(self, key_chain: List[str]) -> str:
         """
-        To simplify the use of ConfigParser in some scenario, this function can convert a list of string 
-        keys (e.g. ["key1", "key2", "key3"]) to the ID format ("key1#key2#key3"), which can be used by 
+        To simplify the use of ConfigParser in some scenario, this function can convert a list of string
+        keys (e.g. ["key1", "key2", "key3"]) to the ID format ("key1#key2#key3"), which can be used by
         other functions
 
         Args:
             key_chain: a list of string keys
-        
+
         Return:
-            a formated string 
-        
+            a formated string
+
         """
         id_str = ""
         for key in key_chain:
             id_str += key + ID_SEP_KEY
         id_str = id_str[:-1]
         return id_str
+
+    def recursive_get_key_chains(self) -> List:
+        """
+        Return all key chains in the config.
+
+        Returns:
+            list of formatted key chains
+
+        Examples:
+            self.config = {'key1':{'key2':{'key3':1},'key4':2}},
+            recursive_getkey(dicts) will return [['key1','key2','key3'], ['key1','key4']]
+        """
+
+        def recursive_getkey(dicts: Dict) -> List:
+            keys = []
+            for key, value in dicts.items():
+                if type(value) is dict:
+                    keys.extend([[key] + _ for _ in recursive_getkey(value)])
+                else:
+                    keys.append([key])
+            return keys
+
+        key_chain_list = recursive_getkey(self[""])
+        id_list = []
+        for key_chain in key_chain_list:
+            id_list.append(self.convert_key_chain_to_id(key_chain))
+
+        return id_list
