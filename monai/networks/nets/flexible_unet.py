@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, List, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import nn
 
 from monai.networks.blocks import UpSample
-from monai.networks.layers.factories import Conv, Pool
+from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.nets import EfficientNetBNFeatures
 from monai.networks.nets.basic_unet import UpCat
