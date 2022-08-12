@@ -111,7 +111,7 @@ class DataAnalyzer:
         self.output_path = output_path
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
-            data=train_files,
+            data=files,
             transform=transforms.Compose(
                 [
                     transforms.LoadImaged(keys=["image", "label"]),
