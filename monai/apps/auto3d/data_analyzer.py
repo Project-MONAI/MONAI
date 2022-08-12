@@ -18,7 +18,7 @@ import time
 import warnings
 from functools import partial
 from os import path
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import torch
