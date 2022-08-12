@@ -166,9 +166,7 @@ class DataAnalyzer:
                     case_stats = {'my_stats': my_fun(processed_data)}.
                     return case_stats
 
-                def _get_my_stats_sumumary(self):
-                    case_stats_summary = {'stats1': summary_function}. The summary_function will process
-
+                def _get_my_stats_sumumary(self): The _get_my_stats will process the entire datasets
                     case_stats_summary = {
                         "my_stats_summary": {"sum": self._get_my_stats}
                     }
@@ -595,6 +593,18 @@ class DataAnalyzer:
 
         Returns
             - the data statistics dictionary
+            - "stats_summary" (summary statistics of the entire datasets)
+                - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations_summary)
+                - "image_foreground_stats" (info of the intensity for the non-zero labeled voxels)
+                - "label_stats" (info of the labels, pixel percentange, image_intensity, and each invidiual label)
+            - "stats_by_cases"
+                - List type value. Each element of the list is statistics of a image-label info. For example:
+                    - "image" (value is the path to an image)
+                    - "label" (value is the path to the corresponding label)
+                    - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations)
+                    - "image_foreground_stats" (similar to above)
+                    - "label_stats"
+                            
         """
         start = time.time()
         self.results["stats_summary"] = {}
