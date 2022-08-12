@@ -111,7 +111,7 @@ class DataAnalyzer:
         self.output_path = output_path
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
-            data=files,
+            data=train_files,
             transform=transforms.Compose(
                 [
                     transforms.LoadImaged(keys=["image", "label"]),
@@ -221,33 +221,29 @@ class DataAnalyzer:
 
     def _get_case_image_stats(self) -> Dict:
         """
-        Generate image statistics for cases in datalist ({'image','label'})
-        Statistics values are stored under the key "image_stats"
+        Generate image statistics for cases in datalist ({'image','label'}).
+        Statistics values are stored under the key "image_stats".
 
         Returns:
-            a dictionary of the images stats
-            - image_stats
-                - shape
-                - channel
-                - cropped_shape
-                - spacing
-                - intensity
+            a dictionary of the images stats.
+            - "image_stats"
+                - "shape", "channel", "cropped_shape", "spacing", "intensity"
         """
         # retrieve transformed data from self.data
         start = time.time()
         ndas = self.data["image"]
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         if "nda_croppeds" not in self.data:
-            self.data["nda_croppeds"] = [self._get_foreground_image(_) for _ in ndas]
+            self.data["nda_croppeds"] = [self._get_foreground_image(nda) for nda in ndas]
         nda_croppeds = self.data["nda_croppeds"]
         # perform calculation
         case_stats = {
             "image_stats": {
-                "shape": [list(_.shape) for _ in ndas],
+                "shape": [list(nda.shape) for nda in ndas],
                 "channels": len(ndas),
-                "cropped_shape": [list(_.shape) for _ in nda_croppeds],
+                "cropped_shape": [list(nda_cropped.shape) for nda_cropped in nda_croppeds],
                 "spacing": np.tile(np.diag(self.data["image_meta_dict"]["affine"])[:3], [len(ndas), 1]).tolist(),
-                "intensity": [self._stats_opt(_) for _ in nda_croppeds],
+                "intensity": [self._stats_opt(nda_cropped) for nda_cropped in nda_croppeds],
             }
         }
         logger.debug(f"Get image stats spent {time.time()-start}")
@@ -291,10 +287,10 @@ class DataAnalyzer:
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_l = self.data["label"]
         if "nda_foreground" not in self.data:
-            self.data["nda_foreground"] = [self._get_foreground_label(_, ndas_l) for _ in ndas]
+            self.data["nda_foreground"] = [self._get_foreground_label(nda, ndas_l) for nda in ndas]
         nda_foreground = self.data["nda_foreground"]
 
-        case_stats = {"image_foreground_stats": {"intensity": [self._stats_opt(_) for _ in nda_foreground]}}
+        case_stats = {"image_foreground_stats": {"intensity": [self._stats_opt(nda) for nda in nda_foreground]}}
         logger.debug(f"Get foreground image data stats spent {time.time() - start}")
         return case_stats
 
@@ -316,14 +312,14 @@ class DataAnalyzer:
 
         Returns
             a dictionary with following structures:
-            - label_stats
-                - labels: class_IDs of the label + background class
-                - pixel_percentanges
-                - image_intensity
-                - label_N (N=0,1,...)
-                    - image_intensity
-                    - shape
-                    - ncomponents
+            - "label_stats"
+                - "labels" : class_IDs of the label + background class
+                - "pixel_percentanges"
+                - "image_intensity"
+                - "label_N" (N=0,1,...)
+                    - "image_intensity"
+                    - "shape"
+                    - "ncomponents"
         """
         # retrieve transformed data from self.data
         start = time.time()
@@ -335,7 +331,7 @@ class DataAnalyzer:
             "label_stats": {
                 "labels": unique_label,
                 "pixel_percentage": None,
-                "image_intensity": [self._stats_opt(_[ndas_l > 0]) for _ in ndas],
+                "image_intensity": [self._stats_opt(nda[ndas_l > 0]) for nda in ndas],
             }
         }
         start = time.time()
@@ -344,7 +340,7 @@ class DataAnalyzer:
             label_dict: Dict[str, Any] = {}
             mask_index = ndas_l == index
             s = time.time()
-            label_dict["image_intensity"] = [self._stats_opt(_[mask_index]) for _ in ndas]
+            label_dict["image_intensity"] = [self._stats_opt(nda[mask_index]) for nda in ndas]
             logger.debug(f" label {index} stats takes {time.time() - s}")
             pixel_percentage[index] = torch.sum(mask_index).data.cpu().numpy()
             if self.DO_CONNECTED_COMP:
@@ -394,48 +390,50 @@ class DataAnalyzer:
         self.gather_summary.update(case_stats_summary)
 
     @staticmethod
-    def _pixelpercent_summary(x):
+    def _pixelpercent_summary(xs):
         """
         Define the summary function for the pixel percentage over the whole dataset.
 
         Args
-            x: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels.
+            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels. 
+                Length of xs is number of data samples.
 
         Returns
             a dictionary showing the percentage of labels, with numeric keys (0, 1, ...)
         """
         percent_summary = {}
-        for _ in x:
-            for key, value in _.items():
+        for x in xs:
+            for key, value in x.items():
                 percent_summary[key] = percent_summary.get(key, 0) + value
         total_percent = np.sum(list(percent_summary.values()))
         for key, value in percent_summary.items():
             percent_summary[key] = float(value / total_percent)
         return percent_summary
 
-    def _intensity_summary(self, x: List, average: bool = False) -> Dict:
+    def _intensity_summary(self, xs: List, average: bool = False) -> Dict:
         """
-        Define the summary function for stats over the whole dataset
+        Define the summary function for stats over the whole dataset.
         Combine overall intensity statistics for all cases in datalist. The intensity features are
         min, max, mean, std, percentile defined in self._stats_opt().
-        Values may be averaged over all the cases if the `average` is set to be True
+        Values may be averaged over all the cases if the `average` is set to be True.
 
         Args:
-            x: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]
-            average: if average is true, operation will be applied along axis 0 and average out the values
+            xs: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]. Length of xs is number of data samples.
+            average: if average is true, operation will be applied along axis 0 and average out the values.
 
         Returns
-            a dictionary of the intensity stats. Keys include 'max', 'mean', and others defined in self.operations
+            a dictionary of the intensity stats. Keys include 'max', 'mean', and others defined in self.operations.
 
         """
         result = {}
-        for key in x[0][0].keys():  # .keys() not required, len(x) = N data
+        for op_key in xs[0][0]:
             value = []
-            for case in x:
-                value.append([_[key] for _ in case])
+            for x in xs:
+                value.append([stats[op_key] for stats in x])
             dim = (0,) if not average else None
-            value = self.operations_summary[key](value, dim=dim)
-            result[key] = np.array(value).tolist()
+            value = self.operations_summary[op_key](value, dim=dim)
+            result[op_key] = np.array(value).tolist()
+        
         return result
 
     def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
@@ -460,10 +458,10 @@ class DataAnalyzer:
         if type(datastat_list[0]) is list or type(datastat_list[0]) is np.array:
             if not is_label:
                 # size = [num of cases, number of modalities, stats]
-                datastat_list = np.concatenate([[np.array(_) for _ in datastat_list]])
+                datastat_list = np.concatenate([[np.array(datastat) for datastat in datastat_list]])
             else:
                 # size = [num of cases, stats]
-                datastat_list = np.concatenate([np.array(_) for _ in datastat_list])
+                datastat_list = np.concatenate([np.array(datastat) for datastat in datastat_list])
             axis = (0,)
             if average and len(datastat_list.shape) > 2:
                 axis = (0, 1)
@@ -484,7 +482,7 @@ class DataAnalyzer:
         Calculate statistics calculation operations (ops) on the images/labels
 
         Args:
-            raw_data: ndarray image or label
+            raw_data: ndarray image or label.
 
         Returns:
             a dictionary to list out the statistics based on give operations (ops). For example, keys can include 'max', 'min',
@@ -541,9 +539,11 @@ class DataAnalyzer:
         """
         Get stats for each case {'image', 'label'} in the datalist. The data case is stored in self.data
         Args:
-            batch_data: monai dataloader batch data
-                images: image with shape [modality, image_shape]
-                label: label with shape [image_shape]
+            batch_data has follwing keys (monai dataloader batch data)
+            - "images" (image with shape [modality, image_shape])
+            - "label" (label with shape [image_shape])
+            - "image_meta_dict" (meta info of the image data)
+            - "label_meta_dict" (meta info of the label data)
 
         Returns:
             a dictionary to summarize all the statistics for each case in following structure
