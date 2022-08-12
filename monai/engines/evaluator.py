@@ -167,7 +167,7 @@ class Evaluator(Workflow):
             stats[k] = getattr(self.state, k, None)
         return stats
 
-    @deprecated(since="0.8", msg_suffix="please use the `get_stats()` API instead.")
+    @deprecated(since="0.9", msg_suffix="please use the `get_stats()` API instead.")
     def get_validation_stats(self):
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
