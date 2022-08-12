@@ -15,10 +15,15 @@ from monai.fl.utils.constants import WeightType
 
 
 class ExchangeObject(dict):
-    """Exchange object
+    """
+    Contains the information shared between client and server.
 
-    Contains the information shared between client and server
-
+    Args:
+        weights: model weights.
+        optim: optimizer weights.
+        metrics: evaluation metrics.
+        weight_type: type of weights (see monai.fl.utils.constants.WeightType).
+        statistics: training statistics, i.e. number executed iterations.
     """
 
     def __init__(
