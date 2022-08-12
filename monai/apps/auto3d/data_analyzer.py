@@ -17,6 +17,7 @@ import copy
 import time
 import warnings
 from functools import partial
+from os import path
 from typing import Any, Dict, List, Union
 
 import numpy as np
@@ -108,6 +109,9 @@ class DataAnalyzer:
         """
         The initializer will load the data and register the functions for data statistics gathering.
         """
+        if path.isfile(output_path):
+            warnings.warn(f"File {output_path} already exists and will be overwritten.")
+            logger.debug(f"{output_path} will be overwritten by a new datastat.")
         self.output_path = output_path
         files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1)
         ds = data.Dataset(
@@ -395,7 +399,7 @@ class DataAnalyzer:
         Define the summary function for the pixel percentage over the whole dataset.
 
         Args
-            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels. 
+            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels.
                 Length of xs is number of data samples.
 
         Returns
@@ -433,7 +437,7 @@ class DataAnalyzer:
             dim = (0,) if not average else None
             value = self.operations_summary[op_key](value, dim=dim)
             result[op_key] = np.array(value).tolist()
-        
+
         return result
 
     def _stats_opt_summary(self, datastat_list, average=False, is_label=False):
@@ -553,7 +557,7 @@ class DataAnalyzer:
                 - "intensity"
             - "label_stats"
                 - labels, pxiel_percentage, image_intensity, label_0, label_1
-        
+
         Raise
             ValueError if data loader is unable to populate "label_meta_dict"
         Note:
@@ -615,12 +619,12 @@ class DataAnalyzer:
                     - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations)
                     - "image_foreground_stats" (similar to above)
                     - "label_stats"
-        
+
         Note:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
             may be generated and carried over in the computation. In such cases, the output dictionary
             will include .nan/.inf in the statistics.
-            
+
         """
         start = time.time()
         self.results["stats_summary"] = {}
