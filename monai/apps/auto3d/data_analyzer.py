@@ -613,6 +613,6 @@ class DataAnalyzer:
             logger.debug(f"Process data spent {time.time() - s}")
             s = time.time()
         self._get_case_summary()
-        ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml")
+        ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml", default_flow_style=None)
         logger.debug(f"total time {time.time() - start}")
         return self.results
