@@ -98,6 +98,21 @@ def convert_to_tensor_complex(
     return converted_data
 
 
+def complex_abs_t(x: Tensor) -> Tensor:
+    """
+    Compute the absolute value of a complex tensor.
+
+    Args:
+        x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
+
+    Returns:
+        Absolute value along the last dimention
+    """
+    if x.shape[-1] != 2:
+        raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
+    return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5  # type: ignore
+
+
 def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """
     Compute the absolute value of a complex array.
@@ -116,24 +131,27 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
             # the following line prints 5
             print(complex_abs(x))
     """
-    if x.shape[-1] != 2:
-        raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
-    return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5
+    return complex_abs_t(x)  # type: ignore
 
 
-def complex_abs_t(x: Tensor) -> Tensor:
+def complex_mul_t(x: Tensor, y: Tensor) -> Tensor:
     """
-    Compute the absolute value of a complex tensor.
+    Compute complex-valued multiplication. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
 
     Args:
         x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
+        y: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Absolute value along the last dimention
+        Complex multiplication of x and y
     """
-    if x.shape[-1] != 2:
-        raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
-    return (x[..., 0] ** 2 + x[..., 1] ** 2) ** 0.5  # type: ignore
+    if x.shape[-1] != 2 or y.shape[-1] != 2:
+        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]} and y.shape[-1] is {y.shape[-1]}.")
+
+    real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
+    imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
+
+    return torch.stack((real_part, imag_part), dim=-1)  # type: ignore
 
 
 def complex_mul(x: NdarrayOrTensor, y: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -159,34 +177,31 @@ def complex_mul(x: NdarrayOrTensor, y: NdarrayOrTensor) -> NdarrayOrTensor:
     if x.shape[-1] != 2 or y.shape[-1] != 2:
         raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]} and y.shape[-1] is {y.shape[-1]}.")
 
-    real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
-    imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
-
     if isinstance(x, Tensor):
-        return torch.stack((real_part, imag_part), dim=-1)  # type: ignore
+        return complex_mul_t(x, y)  # type: ignore
+
     else:
+        real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
+        imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
+
         mult: np.ndarray = np.stack((real_part, imag_part), axis=-1)
         return mult
 
 
-def complex_mul_t(x: Tensor, y: Tensor) -> Tensor:
+def complex_conj_t(x: Tensor) -> Tensor:
     """
-    Compute complex-valued multiplication. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
+    Compute complex conjugate of a tensor. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
 
     Args:
         x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
-        y: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Complex multiplication of x and y
+        Complex conjugate of x
     """
-    if x.shape[-1] != 2 or y.shape[-1] != 2:
-        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]} and y.shape[-1] is {y.shape[-1]}.")
+    if x.shape[-1] != 2:
+        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]}.")
 
-    real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
-    imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
-
-    return torch.stack((real_part, imag_part), dim=-1)  # type: ignore
+    return torch.stack((x[..., 0], -x[..., 1]), dim=-1)
 
 
 def complex_conj(x: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -211,23 +226,7 @@ def complex_conj(x: NdarrayOrTensor) -> NdarrayOrTensor:
         raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]}.")
 
     if isinstance(x, Tensor):
-        return torch.stack((x[..., 0], -x[..., 1]), dim=-1)
+        return complex_conj_t(x)
     else:
         np_conj: np.ndarray = np.stack((x[..., 0], -x[..., 1]), axis=-1)
         return np_conj
-
-
-def complex_conj_t(x: Tensor) -> Tensor:
-    """
-    Compute complex conjugate of a tensor. Supports Ndim inputs with last dim equal to 2 (real/imaginary channels)
-
-    Args:
-        x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
-
-    Returns:
-        Complex conjugate of x
-    """
-    if x.shape[-1] != 2:
-        raise ValueError(f"last dim must be 2, but x.shape[-1] is {x.shape[-1]}.")
-
-    return torch.stack((x[..., 0], -x[..., 1]), dim=-1)
