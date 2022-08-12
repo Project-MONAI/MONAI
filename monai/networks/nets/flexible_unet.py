@@ -244,10 +244,7 @@ class FlexibleUNet(nn.Module):
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
 
-        if "ap" in backbone:
-            adv_prop = True
-        else:
-            adv_prop = False
+        adv_prop = "ap" in backbone
 
         self.backbone = backbone
         self.spatial_dims = spatial_dims
