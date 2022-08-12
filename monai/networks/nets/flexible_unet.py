@@ -78,6 +78,7 @@ class UNetDecoder(nn.Module):
             Only used in the "nontrainable" mode.
         align_corners: set the align_corners parameter for upsample. Defaults to True.
             Only used in the "nontrainable" mode.
+        is_pad: whether to pad upsampling features to fit the encoder spatial dims.
 
     """
 
@@ -94,6 +95,7 @@ class UNetDecoder(nn.Module):
         pre_conv: Optional[str],
         interp_mode: str,
         align_corners: Optional[bool],
+        is_pad: bool,
     ):
 
         super().__init__()
@@ -123,6 +125,7 @@ class UNetDecoder(nn.Module):
                     interp_mode=interp_mode,
                     align_corners=align_corners,
                     halves=halve,
+                    is_pad=is_pad,
                 )
             )
         self.blocks = nn.ModuleList(blocks)
@@ -206,11 +209,13 @@ class FlexibleUNet(nn.Module):
         decoder_bias: bool = False,
         upsample: str = "nontrainable",
         interp_mode: str = "nearest",
+        is_pad: bool = True,
     ) -> None:
         """
         A flexible implement of UNet, in which the backbone/encoder can be replaced with
         any efficient network. Currently the input must have a 2 or 3 spatial dimension
-        and the spatial size of each dimension must be a multiple of 32
+        and the spatial size of each dimension must be a multiple of 32 if is pad parameter
+        is False
 
         TODO(binliu@nvidia.com): Add more backbones/encoders to this class and make a general
         encoder-decoder structure. ETC:2022.09.01
@@ -235,6 +240,8 @@ class FlexibleUNet(nn.Module):
                 ``"nontrainable"``.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
+            is_pad: whether to use padding feature maps to enable the input spatial not necessary
+                to be a multiple of 32. Default to True.
         """
         super().__init__()
 
@@ -270,6 +277,7 @@ class FlexibleUNet(nn.Module):
             interp_mode=interp_mode,
             pre_conv=None,
             align_corners=None,
+            is_pad=is_pad,
         )
         self.segmentation_head = SegmentationHead(
             spatial_dims=spatial_dims,
