@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, List, Sequence, Tuple, Union
 
 import torch
 from torch import nn
@@ -127,7 +127,7 @@ class UNetDecoder(nn.Module):
             )
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, features: Sequence[torch.Tensor], skip_connect: int = 4):
+    def forward(self, features: List[torch.Tensor], skip_connect: int = 4):
         skips = features[:-1][::-1]
         features = features[1:][::-1]
 
