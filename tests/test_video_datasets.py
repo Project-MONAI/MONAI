@@ -36,8 +36,11 @@ class Base:
         video_source: Union[int, str]
         ds: Type[VideoDataset]
 
+        def get_video_source(self):
+            return self.video_source
+
         def get_ds(self, *args, **kwargs) -> VideoDataset:
-            return self.ds(video_source=self.video_source, transform=TRANSFORMS, *args, **kwargs)  # type: ignore
+            return self.ds(video_source=self.get_video_source(), transform=TRANSFORMS, *args, **kwargs)  # type: ignore
 
         @unittest.skipIf(has_cv2, "Only tested when OpenCV not installed.")
         def test_no_opencv_raises(self):
@@ -101,8 +104,21 @@ class TestVideoFileDataset(Base.TestVideoDataset):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.video_source = os.path.join(os.path.dirname(__file__), "testing_data", "endo.mp4")
-        config = testing_data_config("videos", "endovis")
+        codecs = VideoFileDataset.get_available_codecs()
+        if ".mp4" in codecs.values():
+            fname = "endo.mp4"
+            config = testing_data_config("videos", "endovis")
+            cls.known_fps = 2.0
+            cls.known_num_frames = 23
+        elif ".avi" in codecs.values():
+            fname = "ultrasound.avi"
+            config = testing_data_config("videos", "ultrasound")
+            cls.known_fps = 2.0
+            cls.known_num_frames = 523
+        else:
+            cls.video_source = None
+            return
+        cls.video_source = os.path.join(os.path.dirname(__file__), "testing_data", fname)
         download_url_or_skip_test(
             url=config["url"],
             filepath=cls.video_source,
@@ -112,10 +128,20 @@ class TestVideoFileDataset(Base.TestVideoDataset):
 
     @unittest.skipUnless(has_cv2, "OpenCV required.")
     def test_dataset(self):
-        known_fps = 2.0
-        known_num_frames = 23
-        super().test_dataset(known_num_frames, known_fps)
-        self.assertEqual(self.get_ds().get_num_frames(), known_num_frames)
+        super().test_dataset(self.known_num_frames, self.known_fps)
+        self.assertEqual(self.get_ds().get_num_frames(), self.known_num_frames)
+
+    def test_available_codecs(self):
+        codecs = VideoFileDataset.get_available_codecs()
+        if not has_cv2:
+            self.assertEqual(codecs, {})
+        else:
+            self.assertGreater(len(codecs), 0)
+
+    def get_video_source(self):
+        if self.video_source is None:
+            raise unittest.SkipTest("missing required codecs")
+        return super().get_video_source()
 
 
 if __name__ == "__main__":

@@ -61,6 +61,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/d1_im.mp4",
             "hash_type": "md5",
             "hash_val": "9b103c07326439b0ea376018d7189384"
+        },
+        "ultrasound": {
+            "url": "https://github.com/rijobro/real_time_seg/raw/main/example_data/Ultrasound/Q000_04_tu_segmented_ultrasound_256.avi",
+            "hash_type": "md5",
+            "hash_val": "f0755960cc4a08a958561cda9a79a157"
         }
     },
     "models": {

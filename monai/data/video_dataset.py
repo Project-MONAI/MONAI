@@ -10,7 +10,9 @@
 # limitations under the License.
 
 import os
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+import sys
+import tempfile
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
@@ -26,6 +28,25 @@ else:
     cv2, has_cv2 = optional_import("cv2")
 
 __all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
+
+
+class SuppressStderr:
+    """Suppres stderr. Useful as OpenCV (and dependencies) can produce a lot of output."""
+
+    def __enter__(self):
+        self.errnull_file = open(os.devnull, "w")
+        self.old_stderr_fileno_undup = sys.stderr.fileno()
+        self.old_stderr_fileno = os.dup(sys.stderr.fileno())
+        self.old_stderr = sys.stderr
+        os.dup2(self.errnull_file.fileno(), self.old_stderr_fileno_undup)
+        sys.stderr = self.errnull_file
+        return self
+
+    def __exit__(self, *_):
+        sys.stderr = self.old_stderr
+        os.dup2(self.old_stderr_fileno, self.old_stderr_fileno_undup)
+        os.close(self.old_stderr_fileno)
+        self.errnull_file.close()
 
 
 class VideoDataset:
@@ -89,7 +110,8 @@ class VideoDataset:
         """
         if isinstance(video_source, str) and not os.path.isfile(video_source):
             raise RuntimeError("Video file does not exist: " + video_source)
-        cap = cv2.VideoCapture(video_source)
+        with SuppressStderr():
+            cap = cv2.VideoCapture(video_source)
         if not cap.isOpened():
             raise RuntimeError(f"Failed to open video: {video_source}")
         return cap
@@ -128,6 +150,26 @@ class VideoFileDataset(Dataset, VideoDataset):
         num_frames = self.get_num_frames()
         if self.max_num_frames is None or num_frames < self.max_num_frames:
             self.max_num_frames = num_frames
+
+    @staticmethod
+    def get_available_codecs() -> Dict[str, str]:
+        """Try different codecs, see which are available.
+        Returns a dictionary with of available codecs with codecs as keys and file extensions as values."""
+        if not has_cv2:
+            return {}
+        all_codecs = {"mp4v": ".mp4", "X264": ".avi", "H264": ".mp4", "MP42": ".mp4", "MJPG": ".mjpeg", "DIVX": ".avi"}
+        codecs = {}
+        with SuppressStderr():
+            writer = cv2.VideoWriter()
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                for codec, ext in all_codecs.items():
+                    fname = os.path.join(tmp_dir, f"test{ext}")
+                    fourcc = cv2.VideoWriter_fourcc(*codec)
+                    noviderr = writer.open(fname, fourcc, 1, (10, 10))
+                    if noviderr:
+                        codecs[codec] = ext
+            writer.release()
+        return codecs
 
     def get_num_frames(self) -> int:
         """
