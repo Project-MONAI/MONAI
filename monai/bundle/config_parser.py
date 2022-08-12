@@ -13,7 +13,7 @@ import json
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union, List
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
@@ -463,3 +463,23 @@ class ConfigParser:
                 new = ID_SEP_KEY.join(current_id[:-length]) + ID_SEP_KEY
             value = value.replace(p, sym + new)
         return value
+
+    @classmethod
+    def convert_key_chain_to_id(cls, key_chain: List[str]):
+        """
+        To simplify the use of ConfigParser in some scenario, this function can convert a list of string 
+        keys (e.g. ["key1", "key2", "key3"]) to the ID format ("key1#key2#key3"), which can be used by 
+        other functions
+
+        Args:
+            key_chain: a list of string keys
+        
+        Return:
+            a formated string 
+        
+        """
+        id_str = ""
+        for key in key_chain:
+            id_str += key + ID_SEP_KEY
+        id_str = id_str[:-1]
+        return id_str
