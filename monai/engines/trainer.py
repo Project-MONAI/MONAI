@@ -74,7 +74,7 @@ class Trainer(Workflow):
             stats[k] = getattr(self.state, k, None)
         return stats
 
-    @deprecated(since="0.8", msg_suffix="please use the `get_stats()` API instead.")
+    @deprecated(since="0.9", msg_suffix="please use the `get_stats()` API instead.")
     def get_train_stats(self):
         return self.get_stats()
 
