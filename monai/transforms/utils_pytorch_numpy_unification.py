@@ -141,7 +141,7 @@ def nonzero(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
 
     Returns:
         Index unravelled for given shape
@@ -208,7 +208,7 @@ def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.ravel` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor to ravel
+        x: array/tensor. to ravel
 
     Returns:
         Return a contiguous flattened array/tensor.
@@ -334,7 +334,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isnan` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
 
     """
     if isinstance(x, np.ndarray):
@@ -346,7 +346,7 @@ def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:
-        x: array/tensor
+        x: array/tensor.
         kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
             https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html.
 
@@ -364,8 +364,8 @@ def stack(x: Sequence[NdarrayTensor], dim: int) -> NdarrayTensor:
     """`np.stack` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
-        dim: dimension along which to perform the stack (referred to as `axis` by numpy)
+        x: array/tensor.
+        dim: dimension along which to perform the stack (referred to as `axis` by numpy).
     """
     if isinstance(x[0], np.ndarray):
         return np.stack(x, dim)  # type: ignore
@@ -376,8 +376,8 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
     """`torch.mode` with equivalent implementation for numpy.
 
     Args:
-        x: array/tensor
-        dim: dimension along which to perform `mode` (referred to as `axis` by numpy)
+        x: array/tensor.
+        dim: dimension along which to perform `mode` (referred to as `axis` by numpy).
         to_long: convert input to long before performing mode.
     """
     dtype = torch.int64 if to_long else None
@@ -391,7 +391,7 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
     """`torch.unique` with equivalent implementation for numpy.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
 
@@ -400,7 +400,7 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     """`torch.linalg.inv` with equivalent implementation for numpy.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
         return torch.inverse(x)  # type: ignore
@@ -411,7 +411,7 @@ def max(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTenso
     """`torch.max` with equivalent implementation for numpy
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if dim is None:
         return torch.max(x, **kwargs) if isinstance(x, torch.Tensor) else np.max(x, **kwargs)  # type: ignore
@@ -423,7 +423,7 @@ def mean(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTens
     """`torch.mean` with equivalent implementation for numpy
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if dim is None:
         return torch.mean(x, **kwargs) if isinstance(x, torch.Tensor) else np.mean(x, **kwargs)  # type: ignore
@@ -435,7 +435,7 @@ def median(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTe
     """`torch.median` with equivalent implementation for numpy
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if dim is None:
         return torch.median(x, **kwargs) if isinstance(x, torch.Tensor) else np.median(x, **kwargs)  # type: ignore
@@ -447,7 +447,7 @@ def min(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTenso
     """`torch.min` with equivalent implementation for numpy
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if dim is None:
         return torch.min(x, **kwargs) if isinstance(x, torch.Tensor) else np.min(x, **kwargs)  # type: ignore
@@ -459,7 +459,7 @@ def std(x: NdarrayOrTensor, dim: Optional[int] = None, unbias: Optional[bool] = 
     """`torch.std` with equivalent implementation for numpy
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
     if dim is None:
         return torch.std(x, unbias) if isinstance(x, torch.Tensor) else np.std(x)  # type: ignore
