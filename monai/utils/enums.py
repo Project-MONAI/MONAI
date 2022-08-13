@@ -453,3 +453,4 @@ class MetaKeys(StrEnum):
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+    EVALUATED = "evaluated"  # whether the array is up-to-date with the applied_operations (lazy evaluation)

@@ -25,7 +25,15 @@ from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+    "LazyTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -125,6 +133,15 @@ class ThreadUnsafe:
     """
 
     pass
+
+
+class LazyTransform:
+    """Whether the transform can accept lazy metatensors (metatensor.evaluated is False) and can be evaluated lazily."""
+
+    eager_mode = True
+
+    def set_eager_mode(self, value):
+        self.eager_mode = value
 
 
 class Randomizable(ABC, ThreadUnsafe):

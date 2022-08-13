@@ -24,7 +24,7 @@ from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
 from monai.utils.enums import MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -125,7 +125,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         super().__init__()
         # set meta
         if meta is not None:
-            self.meta = meta
+            self.meta = dict(meta)
         elif isinstance(x, MetaObj):
             self.__dict__ = deepcopy(x.__dict__)
         # set the affine
@@ -150,6 +150,60 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         if MetaKeys.SPACE not in self.meta:
             self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
+        if MetaKeys.ORIGINAL_CHANNEL_DIM not in self.meta:
+            self.meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0  # defaulting to channel first
+
+    @property
+    def evaluated(self) -> bool:
+        """a flag indicating whether the array content is up-to-date with the affine/spatial_shape properties."""
+        if MetaKeys.EVALUATED not in self.meta:
+            self.meta[MetaKeys.EVALUATED] = True
+        return bool(self.meta[MetaKeys.EVALUATED])
+
+    @evaluated.setter
+    def evaluated(self, value: bool):
+        """when setting an evaluated metatensor to a lazy status, original affine will be stored."""
+        if not value and (MetaKeys.SPATIAL_SHAPE not in self.meta or MetaKeys.AFFINE not in self.meta):
+            warnings.warn("Setting MetaTensor to lazy evaluation requires spatial_shape and affine.")
+        if self.evaluated and not value:
+            self.meta[MetaKeys.ORIGINAL_AFFINE] = self.affine  # switch to lazy evaluation, store current affine
+            self.meta[MetaKeys.SPATIAL_SHAPE] = self.spatial_shape
+        self.meta[MetaKeys.EVALUATED] = value
+
+    def evaluate(self, mode="bilinear", padding_mode="border"):
+        if self.evaluated:
+            self.spatial_shape = self.array.shape[1:]
+            return
+        # how to ensure channel first?
+        resampler = monai.transforms.SpatialResample(mode=mode, padding_mode=padding_mode)
+        dst_affine, self.affine = self.affine, self.meta[MetaKeys.ORIGINAL_AFFINE]
+        with resampler.trace_transform(False):
+            output = resampler(self, dst_affine=dst_affine, spatial_size=self.spatial_shape)
+        self.array = output.array
+        self.spatial_shape = self.array.shape[1:]
+        self.affine = dst_affine
+        self.evaluated = True
+        return
+
+    @property
+    def spatial_shape(self):
+        """if spatial shape is undefined, it infers the shape from array shape and original channel dim."""
+        if MetaKeys.SPATIAL_SHAPE not in self.meta:
+            _shape = list(self.array.shape)
+            channel_dim = self.meta.get(MetaKeys.ORIGINAL_CHANNEL_DIM, 0)
+            if _shape and channel_dim != "no_channel":
+                _shape.pop(int(channel_dim))
+        else:
+            _shape = self.meta.get(MetaKeys.SPATIAL_SHAPE)
+        if not isinstance(_shape, torch.Tensor):
+            self.meta[MetaKeys.SPATIAL_SHAPE] = convert_to_tensor(
+                _shape, device=torch.device("cpu"), wrap_sequence=True, track_meta=False
+            )
+        return self.meta[MetaKeys.SPATIAL_SHAPE]
+
+    @spatial_shape.setter
+    def spatial_shape(self, value):
+        self.meta[MetaKeys.SPATIAL_SHAPE] = convert_to_dst_type(value, self.spatial_shape, wrap_sequence=True)[0]
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
