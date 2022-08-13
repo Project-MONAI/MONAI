@@ -19,6 +19,7 @@ import numpy as np
 import torch
 
 from monai.apps.auto3d.data_analyzer import DataAnalyzer
+from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -52,6 +53,10 @@ class TestDataAnalyzer(unittest.TestCase):
                 label_fpath = path.join(dataroot, d["label"])
                 nib.save(nib_image, label_fpath)
 
+        # write to a json file
+        self.fake_json_datalist = path.join(dataroot, "fake_input.json")
+        ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
+
     def test_data_analyzer(self):
         dataroot = self.test_dir.name
         yaml_fpath = path.join(dataroot, "data_stats.yaml")
@@ -65,6 +70,16 @@ class TestDataAnalyzer(unittest.TestCase):
         yaml_fpath = path.join(dataroot, "data_stats.yaml")
         analyser = DataAnalyzer(
             fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, image_only=True
+        )
+        datastat = analyser.get_all_case_stats()
+
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_data_analyzer_from_yaml(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(
+            self.fake_json_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers
         )
         datastat = analyser.get_all_case_stats()
 
