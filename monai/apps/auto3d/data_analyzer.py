@@ -82,14 +82,13 @@ class DataAnalyzer:
         DataAnalyzer(datalist, dataroot)
 
     Note:
-        The module can also be called from the command line interface (CLI) if MONAI is
-        installed with the source code.
+        The module can also be called from the command line interface (CLI).
 
     For example:
 
     .. code-block:: bash
 
-        python monai/apps/auto3d \
+        python -m monai/apps/auto3d \
             DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \
