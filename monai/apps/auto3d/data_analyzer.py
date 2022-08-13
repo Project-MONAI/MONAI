@@ -102,7 +102,7 @@ class DataAnalyzer:
         datalist: Union[str, Dict],
         dataroot: str = "",
         output_path: str = "./data_stats.yaml",
-        average: bool = False,
+        average: bool = True,
         do_ccp: bool = True,
         device: Union[str, torch.device] = "cuda",
         worker: int = 2,
@@ -651,7 +651,7 @@ class DataAnalyzer:
             if self.image_only:
                 case_stat = {"image": images_file}
             else:
-                if "label_meta_dict" not in batch_data:
+                if "label_meta_dict" not in batch_data[0]:
                     raise ValueError(
                         "label_meta_dict not found. Please set image_only to True if there is no label files"
                     )
