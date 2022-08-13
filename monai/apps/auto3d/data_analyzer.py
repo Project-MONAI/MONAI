@@ -448,7 +448,7 @@ class DataAnalyzer:
 
         return result
 
-    def _stats_opt_summary(self, datastat_list, average: bool = False, is_label: bool = False):
+    def _stats_opt_summary(self, datastat_list, average: bool = False, is_label: bool = False) -> Dict:
         """
         Combine other stats calculation methods (like shape/min/max/std). Does not guarantee
         correct output for custimized stats structure. Check the following input structures.
@@ -547,7 +547,7 @@ class DataAnalyzer:
         label_foreground = MetaTensor(image[label > 0])
         return label_foreground
 
-    def get_case_stats(self, batch_data):
+    def get_case_stats(self, batch_data) -> Dict:
         """
         Get stats for each case {'image', 'label'} in the datalist. The data case is stored in self.data
         Args:
