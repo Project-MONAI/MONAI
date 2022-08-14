@@ -561,7 +561,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Resized(MapTransform, InvertibleTransform):
+class Resized(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Resize`.
 
@@ -603,6 +603,10 @@ class Resized(MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.resizer.set_eager_mode(value)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -718,7 +722,7 @@ class Affined(MapTransform, InvertibleTransform):
         return d
 
 
-class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.RandAffine`.
     """
@@ -812,6 +816,10 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rand_affine.set_eager_mode(value)
+
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandAffined":
@@ -830,7 +838,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        spatial_size = d[first_key].shape[1:]  # type: ignore
+        item = d[first_key]
+        spatial_size = item.spatial_shape if isinstance(item, MetaTensor) and not item.evaluated else item.shape[1:]  # type: ignore
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
@@ -839,7 +848,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(grid=grid)
+                self.rand_affine.rand_affine_grid.affine_only = not self.eager_mode
+                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
@@ -1289,7 +1299,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Rotated(MapTransform, InvertibleTransform):
+class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate`.
 
@@ -1338,6 +1348,10 @@ class Rotated(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rotator.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -1355,7 +1369,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -1414,6 +1428,10 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rand_rotate.set_eager_mode(value)
+
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandRotated":
@@ -1456,7 +1474,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
 
-class Zoomd(MapTransform, InvertibleTransform):
+class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Zoom`.
 
@@ -1506,6 +1524,10 @@ class Zoomd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, **kwargs)
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.zoomer.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key, mode, padding_mode, align_corners in self.key_iterator(
@@ -1521,7 +1543,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dict-based version :py:class:`monai.transforms.RandZoom`.
 
@@ -1581,6 +1603,10 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rand_zoom.set_eager_mode(value)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None

@@ -44,7 +44,7 @@ def eval_lazy_stack(data, upcoming, lazy_resample: bool = False):
         return data  # eager evaluation
     if isinstance(data, monai.data.MetaTensor):
         if lazy_resample and not isinstance(upcoming, LazyTransform):
-            data.evaluate("nearest")
+            data.evaluate("bilinear")
         return data
     if isinstance(data, Mapping):
         if isinstance(upcoming, MapTransform):

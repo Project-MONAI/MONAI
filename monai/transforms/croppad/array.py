@@ -144,7 +144,6 @@ class Pad(InvertibleTransform, LazyTransform):
             self.update_meta(img, to_pad=to_pad)
             self.push_transform(img, orig_size=img.spatial_shape, extra_info={"padded": to_pad})
             img.spatial_shape = [d + s + e for d, (s, e) in zip(img.spatial_shape, to_pad[1:])]
-            return img
         return img
 
     def __call__(  # type: ignore
@@ -443,7 +442,6 @@ class Crop(InvertibleTransform, LazyTransform):
             self.update_meta(img, slices=slices)
             self.push_transform(img, orig_size=img.spatial_shape, extra_info={"cropped": cropped})
             img.spatial_shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img.spatial_shape)]
-            return img
         return img
 
     def __call__(self, img: torch.Tensor, slices: Tuple[slice, ...]) -> torch.Tensor:  # type: ignore
