@@ -15,24 +15,18 @@ import json
 import logging
 import math
 import monai
-import nibabel as nib
 import numpy as np
 import os
 import sys
 import time
 import torch
 import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
 import yaml
 
 from datetime import datetime
-from glob import glob
 from monai.data import (
     partition_dataset,
     CacheDataset,
-    DataLoader,
-    Dataset,
     ThreadDataLoader,
 )
 from monai.inferers import sliding_window_inference
@@ -49,33 +43,24 @@ from monai.transforms import (
     EnsureChannelFirstd,
     EnsureType,
     EnsureTyped,
-    Identityd,
     Lambdad,
     LoadImaged,
     NormalizeIntensityd,
     Orientationd,
     ScaleIntensityRanged,
     RandCropByLabelClassesd,
-    RandCropByPosNegLabeld,
     RandGaussianNoised,
     RandGaussianSmoothd,
     RandShiftIntensityd,
     RandScaleIntensityd,
-    RandSpatialCropd,
-    RandSpatialCropSamplesd,
     RandFlipd,
     RandRotated,
-    RandRotate90d,
     RandZoomd,
     Spacingd,
     SpatialPadd,
-    ToDeviced,
-    ToNumpyd,
-    ToTensord,
 )
 from monai.utils import set_determinism
 from scipy import ndimage
-from torch import nn
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
 
@@ -274,7 +259,7 @@ def main():
     world_size = dist.get_world_size()
 
     # load data list (.json)
-    with open(os.path.join(args.repo_root, input_info["datalist"]), "r") as f:
+    with open(os.path.join(args.repo_root, input_info["datalist"])) as f:
         json_data = json.load(f)
 
     list_train = []
@@ -380,13 +365,13 @@ def main():
                 keys=["label4crop"],
                 func=lambda x: np.concatenate(
                     tuple(
-                        [
+                        
                             ndimage.binary_dilation(
                                 (x == _k).astype(x.dtype),
                                 iterations=max(patch_size) // 2,
                             ).astype(x.dtype)
                             for _k in range(output_classes)
-                        ]
+                        
                     ),
                     axis=0,
                 ),
@@ -551,7 +536,7 @@ def main():
         )
 
     if args.checkpoint != None and os.path.isfile(args.checkpoint):
-        print("[info] fine-tuning pre-trained checkpoint {0:s}".format(args.checkpoint))
+        print(f"[info] fine-tuning pre-trained checkpoint {args.checkpoint:s}")
         model.load_state_dict(torch.load(args.checkpoint, map_location=device))
         torch.cuda.empty_cache()
     else:
@@ -591,7 +576,7 @@ def main():
         if dist.get_rank() == 0:
             print("-" * 10)
             print(f"epoch {epoch + 1}/{num_validation_rounds}")
-            print("learning rate is set to {}".format(lr))
+            print(f"learning rate is set to {lr}")
 
         model.train()
         epoch_loss = 0
@@ -634,7 +619,7 @@ def main():
 
             if dist.get_rank() == 0:
                 print(
-                    "[{0}] ".format(str(datetime.now())[:19])
+                    f"[{str(datetime.now())[:19]}] "
                     + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}"
                 )
                 writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
@@ -717,7 +702,7 @@ def main():
                 if dist.get_rank() == 0:
                     for _c in range(output_classes - 1):
                         print(
-                            "evaluation metric - class {0:d}:".format(_c + 1),
+                            f"evaluation metric - class {_c + 1:d}:",
                             metric[2 * _c] / metric[2 * _c + 1],
                         )
                     avg_metric = 0
@@ -756,7 +741,7 @@ def main():
                         os.path.join(args.output_root, "accuracy_history.csv"), "a"
                     ) as f:
                         f.write(
-                            "{0:d}\t{1:.5f}\t{2:.5f}\t{3:.5f}\t{4:.1f}\t{5:d}\n".format(
+                            "{:d}\t{:.5f}\t{:.5f}\t{:.5f}\t{:.1f}\t{:d}\n".format(
                                 epoch + 1,
                                 avg_metric,
                                 loss_torch_epoch,
