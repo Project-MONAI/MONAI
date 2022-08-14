@@ -16,7 +16,7 @@ import skimage.transform
 from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
-from monai.transforms import Resized
+from monai.transforms import Invertd, Resized
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
@@ -79,6 +79,14 @@ class TestResized(NumpyImageTestCase2D):
         self.assertNotIsInstance(result["img"], MetaTensor)
         np.testing.assert_allclose(result["img"].shape[1:], expected_shape)
         set_track_meta(True)
+
+    def test_identical_spatial(self):
+        test_input = {"X": np.ones((1, 10, 16, 17))}
+        xform = Resized("X", (-1, 18, 19))
+        out = xform(test_input)
+        out["Y"] = 2 * out["X"]
+        transform_inverse = Invertd(keys="Y", transform=xform, orig_keys="X")
+        assert_allclose(transform_inverse(out)["Y"].array, np.ones((1, 10, 16, 17)) * 2)
 
 
 if __name__ == "__main__":
