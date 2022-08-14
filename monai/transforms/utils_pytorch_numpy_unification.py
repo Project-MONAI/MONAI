@@ -290,7 +290,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
 def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
-        return np.isfinite(x)
+        return np.isfinite(x)  # type: ignore
     return torch.isfinite(x)
 
 
@@ -338,7 +338,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
 
     """
     if isinstance(x, np.ndarray):
-        return np.isnan(x)
+        return np.isnan(x)  # type: ignore
     return torch.isnan(x)
 
 
