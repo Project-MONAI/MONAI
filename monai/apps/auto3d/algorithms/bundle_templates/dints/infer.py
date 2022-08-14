@@ -3,7 +3,6 @@
 import argparse
 import json
 import monai
-import numpy as np
 import os
 import torch
 import torch.distributed as dist
@@ -13,17 +12,13 @@ from monai.data import (
     Dataset,
     DataLoader,
     decollate_batch,
-    load_decathlon_datalist,
     partition_dataset,
 )
 from monai.inferers import sliding_window_inference
-from monai.metrics import compute_meandice
 from monai.transforms import (
     Activationsd,
-    AsDiscrete,
     AsDiscreted,
     Compose,
-    CopyItemsd,
     EnsureChannelFirstd,
     LoadImaged,
     NormalizeIntensityd,
@@ -31,13 +26,11 @@ from monai.transforms import (
     ScaleIntensityRanged,
     CropForegroundd,
     Invertd,
-    EnsureType,
     EnsureTyped,
     CastToTyped,
     Orientationd,
     Spacingd,
     KeepLargestConnectedComponentd,
-    ToTensord,
 )
 from torch.nn.parallel import DistributedDataParallel
 
@@ -144,7 +137,7 @@ class SupervisedEvaluator:
             world_size = 1
 
         # load data list (.json)
-        with open(os.path.join(repo_root, input_info["datalist"]), "r") as f:
+        with open(os.path.join(repo_root, input_info["datalist"])) as f:
             json_data = json.load(f)
         list_test = json_data[data_list_key]
 
