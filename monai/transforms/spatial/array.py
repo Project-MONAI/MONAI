@@ -712,7 +712,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         return data
 
 
-class Flip(InvertibleTransform):
+class Flip(InvertibleTransform, LazyTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
     See `torch.flip` documentation for additional details:
@@ -744,6 +744,15 @@ class Flip(InvertibleTransform):
     def forward_image(self, img, axes) -> torch.Tensor:
         return torch.flip(img, axes)
 
+    def lazy_call(self, img: torch.Tensor, axes) -> torch.Tensor:
+        if get_track_meta() and isinstance(img, MetaTensor):
+            img.evaluated = False
+            self.update_meta(img, img.shape, axes)
+            self.push_transform(img)
+            img.spatial_shape = img.spatial_shape
+            return img
+        return img
+
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -751,6 +760,8 @@ class Flip(InvertibleTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axis)
+        if not self.eager_mode:
+            return self.lazy_call(img, axes)
         out = self.forward_image(img, axes)
         if get_track_meta():
             self.update_meta(out, out.shape, axes)
@@ -764,7 +775,7 @@ class Flip(InvertibleTransform):
             return flipper(data)
 
 
-class Resize(InvertibleTransform):
+class Resize(InvertibleTransform, LazyTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
@@ -860,15 +871,16 @@ class Resize(InvertibleTransform):
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
+            img_size = img.spatial_shape if isinstance(img, MetaTensor) and not img.evaluated else img.shape[1:]
+            spatial_size_ = fall_back_tuple(self.spatial_size, img_size)
         else:  # for the "longest" mode
-            img_size = img.shape[1:]
+            img_size = img.spatial_shape if isinstance(img, MetaTensor) and not img.evaluated else img.shape[1:]
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
-        original_sp_size = img.shape[1:]
+        original_sp_size = img.spatial_shape if isinstance(img, MetaTensor) and not img.evaluated else img.shape[1:]
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
@@ -877,6 +889,8 @@ class Resize(InvertibleTransform):
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
+            if not self.eager_mode:
+                raise ValueError("anti aliasing is not compatible with lazy evaluation.")
             factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
             if anti_aliasing_sigma is None:
                 # if sigma is not given, use the default sigma in skimage.transform.resize
@@ -1478,7 +1492,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
         return Rotate(0).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
-class RandFlip(RandomizableTransform, InvertibleTransform):
+class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly flips the image along axes. Preserves shape.
     See numpy.flip for additional details.
@@ -1494,6 +1508,10 @@ class RandFlip(RandomizableTransform, InvertibleTransform):
     def __init__(self, prob: float = 0.1, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.flipper.set_eager_mode(value)
 
     def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
         """

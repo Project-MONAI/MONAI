@@ -1128,7 +1128,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         return d
 
 
-class Flipd(MapTransform, InvertibleTransform):
+class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Flip`.
 
@@ -1152,6 +1152,10 @@ class Flipd(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.flipper = Flip(spatial_axis=spatial_axis)
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.flipper.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -1165,7 +1169,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
 
-class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandFlip`.
 
@@ -1191,6 +1195,10 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = Flip(spatial_axis=spatial_axis)
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.flipper.set_eager_mode(value)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
