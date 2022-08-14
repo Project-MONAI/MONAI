@@ -30,7 +30,7 @@ from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
     create_control_grid,
@@ -99,7 +99,7 @@ __all__ = [
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
 
 
-class SpatialResample(InvertibleTransform):
+class SpatialResample(InvertibleTransform, LazyTransform):
     """
     Resample input image from the orientation/spacing defined by ``src_affine`` affine matrix into
     the ones specified by ``dst_affine`` affine matrix.
@@ -176,6 +176,13 @@ class SpatialResample(InvertibleTransform):
     def update_meta(self, img, dst_affine):
         img.affine = dst_affine
 
+    def lazy_call(self, img: torch.Tensor, output_shape, *args) -> torch.Tensor:
+        if get_track_meta() and isinstance(img, MetaTensor):
+            img.evaluated = False
+            img.spatial_shape = output_shape
+            return self._post_process(img, *args)
+        return img
+
     @deprecated_arg(
         name="src_affine", since="0.9", msg_suffix="img should be `MetaTensor`, so affine can be extracted directly."
     )
@@ -247,6 +254,11 @@ class SpatialResample(InvertibleTransform):
         elif spatial_size is None and spatial_rank > 1:  # auto spatial size
             spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
         spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
+
+        if not self.eager_mode:
+            return self.lazy_call(
+                img, spatial_size, src_affine_, dst_affine, mode, padding_mode, align_corners, original_spatial_shape
+            )
 
         if (
             allclose(src_affine_, dst_affine, atol=AFFINE_TOL)
@@ -407,7 +419,7 @@ class ResampleToMatch(SpatialResample):
         return img
 
 
-class Spacing(InvertibleTransform):
+class Spacing(InvertibleTransform, LazyTransform):
     """
     Resample input image into the specified `pixdim`.
     """
@@ -470,6 +482,10 @@ class Spacing(InvertibleTransform):
             align_corners=align_corners,
             dtype=dtype,
         )
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.sp_resample.set_eager_mode(value)
 
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
@@ -555,7 +571,7 @@ class Spacing(InvertibleTransform):
         return self.sp_resample.inverse(data)
 
 
-class Orientation(InvertibleTransform):
+class Orientation(InvertibleTransform, LazyTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
     """
@@ -595,6 +611,15 @@ class Orientation(InvertibleTransform):
         self.axcodes = axcodes
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
+
+    def lazy_call(self, img: torch.Tensor, new_affine, original_affine, ordering) -> torch.Tensor:
+        if get_track_meta() and isinstance(img, MetaTensor):
+            img.evaluated = False
+            self.update_meta(img, new_affine)
+            self.push_transform(img, extra_info={"original_affine": original_affine})
+            img.spatial_shape = img.spatial_shape[[i - 1 for i in ordering if i != 0]]
+            return img
+        return img
 
     def __call__(self, data_array: torch.Tensor) -> torch.Tensor:
         """
@@ -655,15 +680,16 @@ class Orientation(InvertibleTransform):
         spatial_ornt[:, 0] += 1  # skip channel dim
         spatial_ornt = np.concatenate([np.array([[0, 1]]), spatial_ornt])
         axes = [ax for ax, flip in enumerate(spatial_ornt[:, 1]) if flip == -1]
-        if axes:
-            data_array = torch.flip(data_array, dims=axes)
         full_transpose = np.arange(len(data_array.shape))
         full_transpose[: len(spatial_ornt)] = np.argsort(spatial_ornt[:, 0])
-        if not np.all(full_transpose == np.arange(len(data_array.shape))):
-            data_array = data_array.permute(full_transpose.tolist())
-
         new_affine = to_affine_nd(affine_np, new_affine)
         new_affine, *_ = convert_data_type(new_affine, torch.Tensor, dtype=torch.float32, device=data_array.device)
+        if not self.eager_mode:
+            return self.lazy_call(data_array, new_affine, affine_np, full_transpose)
+        if axes:
+            data_array = torch.flip(data_array, dims=axes)
+        if not np.all(full_transpose == np.arange(len(data_array.shape))):
+            data_array = data_array.permute(full_transpose.tolist())
 
         if get_track_meta():
             self.update_meta(data_array, new_affine)

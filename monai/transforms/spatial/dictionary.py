@@ -51,7 +51,7 @@ from monai.transforms.spatial.array import (
     SpatialResample,
     Zoom,
 )
-from monai.transforms.transform import MapTransform, RandomizableTransform
+from monai.transforms.transform import LazyTransform, MapTransform, RandomizableTransform
 from monai.transforms.utils import create_grid
 from monai.utils import (
     GridSampleMode,
@@ -142,7 +142,7 @@ __all__ = [
 ]
 
 
-class SpatialResampled(MapTransform, InvertibleTransform):
+class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialResample`.
 
@@ -204,6 +204,10 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.sp_transform.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
         for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
@@ -227,7 +231,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
 
-class ResampleToMatchd(MapTransform, InvertibleTransform):
+class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
     """Dictionary-based wrapper of :py:class:`monai.transforms.ResampleToMatch`."""
 
     backend = ResampleToMatch.backend
@@ -273,6 +277,10 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.resampler = ResampleToMatch()
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.resampler.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
@@ -295,7 +303,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
 
-class Spacingd(MapTransform, InvertibleTransform):
+class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Spacing`.
 
@@ -372,6 +380,10 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.spacing_transform.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
@@ -390,7 +402,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         return d
 
 
-class Orientationd(MapTransform, InvertibleTransform):
+class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Orientation`.
 
@@ -432,6 +444,10 @@ class Orientationd(MapTransform, InvertibleTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.ornt_transform = Orientation(axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels)
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.ornt_transform.set_eager_mode(value)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)

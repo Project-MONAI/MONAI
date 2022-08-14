@@ -362,7 +362,11 @@ class RandCropd(Cropd, Randomizable):
         d = dict(data)
         # the first key must exist to execute random operations
         first_item = d[self.first_key(d)]
-        self.randomize(first_item.spatial_shape if isinstance(first_item, MetaTensor) else first_item.shape[1:])
+        self.randomize(
+            first_item.spatial_shape
+            if isinstance(first_item, MetaTensor) and not first_item.evaluated
+            else first_item.shape[1:]
+        )
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
             d[key] = self.cropper(d[key], **kwargs)  # type: ignore

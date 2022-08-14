@@ -141,9 +141,9 @@ class Pad(InvertibleTransform, LazyTransform):
     def lazy_call(self, img: torch.Tensor, to_pad) -> torch.Tensor:
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
-            orig_size = img.spatial_shape
             self.update_meta(img, to_pad=to_pad)
-            self.push_transform(img, orig_size=orig_size, extra_info={"padded": to_pad})
+            self.push_transform(img, orig_size=img.spatial_shape, extra_info={"padded": to_pad})
+            img.spatial_shape = [d + s + e for d, (s, e) in zip(img.spatial_shape, to_pad[1:])]
             return img
         return img
 
@@ -186,8 +186,6 @@ class Pad(InvertibleTransform, LazyTransform):
                 to_pad_ = list(to_pad_) + [(0, 0)] * (len(img_t.shape) - len(to_pad_))
             if not self.eager_mode:
                 return self.lazy_call(img_t, to_pad=to_pad_)
-            if not img_t.evaluated:
-                img_t.evaluate()
             if mode_ in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
                 out = self._np_pad(img_t, pad_width=to_pad_, mode=mode_, **kwargs_)
             else:
@@ -217,8 +215,6 @@ class Pad(InvertibleTransform, LazyTransform):
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
         tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
-        new_shape = [d + s + e for d, (s, e) in zip(tensor.spatial_shape, to_pad[1:])]
-        tensor.spatial_shape = new_shape
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -444,9 +440,9 @@ class Crop(InvertibleTransform, LazyTransform):
     def lazy_call(self, img: torch.Tensor, slices, cropped) -> torch.Tensor:
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
-            orig_size = img.spatial_shape
-            self.update_meta(img, slices=slices, orig_size=orig_size)
-            self.push_transform(img, orig_size=orig_size, extra_info={"cropped": cropped})
+            self.update_meta(img, slices=slices)
+            self.push_transform(img, orig_size=img.spatial_shape, extra_info={"cropped": cropped})
+            img.spatial_shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], img.spatial_shape)]
             return img
         return img
 
@@ -468,20 +464,17 @@ class Crop(InvertibleTransform, LazyTransform):
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
         if not self.eager_mode:
             return self.lazy_call(img_t, slices, cropped)
-        if not img_t.evaluated:
-            img_t.evaluate()
         img_t = img_t[slices]  # type: ignore
         if get_track_meta():
-            self.update_meta(tensor=img_t, slices=slices, orig_size=orig_size)
+            self.update_meta(tensor=img_t, slices=slices)
             self.push_transform(img_t, orig_size=orig_size, extra_info={"cropped": cropped})
         return img_t
 
-    def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...], orig_size):
+    def update_meta(self, tensor: MetaTensor, slices: Tuple[slice, ...]):
         spatial_rank = max(len(tensor.affine) - 1, 1)
-        to_shift = [s.start if s.start is not None else 0 for s in slices[1:]]
+        to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
         mat = create_translate(spatial_rank, to_shift)
         tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
-        tensor.spatial_shape = [s.indices(o)[1] - s.indices(o)[0] for s, o in zip(slices[1:], orig_size)]
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
