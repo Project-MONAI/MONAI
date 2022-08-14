@@ -365,13 +365,13 @@ def main():
                 keys=["label4crop"],
                 func=lambda x: np.concatenate(
                     tuple(
-                        
+
                             ndimage.binary_dilation(
                                 (x == _k).astype(x.dtype),
                                 iterations=max(patch_size) // 2,
                             ).astype(x.dtype)
                             for _k in range(output_classes)
-                        
+
                     ),
                     axis=0,
                 ),
