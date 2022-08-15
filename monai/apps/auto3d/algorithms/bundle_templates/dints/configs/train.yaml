@@ -4,7 +4,7 @@ bundle_root: null
 ckpt_path: "$@bundle_root + '/model'"
 data_file_base_dir: null
 data_list_file_path: null
-determ: true
+determ: false
 fold: null
 input_channels: null
 learning_rate: 0.025
