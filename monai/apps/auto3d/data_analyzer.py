@@ -18,7 +18,7 @@ import time
 import warnings
 from functools import partial
 from os import path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import torch
@@ -35,7 +35,9 @@ from monai.utils.misc import label_union
 
 yaml, _ = optional_import("yaml")
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
-measure, _ = optional_import("scipy.ndimage.measurements")
+measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
+cp, has_cp = optional_import("cupy")
+cucim, has_cucim = optional_import("cucim")
 
 logger = get_logger(module_name=__name__)
 
@@ -60,9 +62,9 @@ class DataAnalyzer:
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
-        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the 
+        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
             datalist to locate the image files of the dataset.
-        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the 
+        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
 
@@ -360,18 +362,9 @@ class DataAnalyzer:
             logger.debug(f" label {index} stats takes {time.time() - s}")
             pixel_percentage[index] = torch.sum(mask_index).data.cpu().numpy()
             if self.DO_CONNECTED_COMP:
-                label_dict["shape"] = []
-                label_dict["ncomponents"] = None
-                # find all connected components and their bounding shape
-                structure = np.ones(np.ones(len(ndas_l.shape), dtype=np.int32) * 3, dtype=np.int32)
-                labeled, ncomponents = measure.label(mask_index.data.cpu().numpy(), structure)
-                label_dict.update({"ncomponents": ncomponents})
-                for ncomp in range(1, ncomponents + 1):
-                    comp_idx = np.argwhere(labeled == ncomp)
-                    comp_idx_min = np.min(comp_idx, axis=0).tolist()
-                    comp_idx_max = np.max(comp_idx, axis=0).tolist()
-                    bbox_shape = [comp_idx_max[i] - comp_idx_min[i] + 1 for i in range(len(comp_idx_max))]
-                    label_dict["shape"].append(bbox_shape)
+                shape_list, ncomponents = self._get_label_ccp(mask_index)
+                label_dict["shape"] = shape_list
+                label_dict["ncomponents"] = ncomponents
             case_stats["label_stats"].update({f"label_{index}": label_dict})
         # update pixel_percentage
         total_percent = np.sum(list(pixel_percentage.values()))
@@ -550,6 +543,45 @@ class DataAnalyzer:
         """
         label_foreground = MetaTensor(image[label > 0])
         return label_foreground
+
+    @staticmethod
+    def _get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[Any], int]:
+        """
+        Find all connected components and their bounding shape. Backend can be cuPy/cuCIM or Numpy
+        depending on the hardware.
+
+        Args:
+            mask_index: a binary mask
+            use_gpu: a switch to use GPU/CUDA or not. If GPU is unavailable, CPU will be used
+                regardless of this setting
+
+        """
+        shape_list = []
+        if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
+            mask_cupy = transforms.ToCupy()(mask_index.short())
+            labeled = cucim.skimage.measure.label(mask_cupy)
+            vals = cp.unique(labeled[cp.nonzero(labeled)])
+
+            for ncomp in vals:
+                comp_idx = cp.argwhere(labeled == ncomp)
+                comp_idx_min = cp.min(comp_idx, axis=0).tolist()
+                comp_idx_max = cp.max(comp_idx, axis=0).tolist()
+                bbox_shape = [comp_idx_max[i] - comp_idx_min[i] + 1 for i in range(len(comp_idx_max))]
+                shape_list.append(bbox_shape)
+            ncomponents = len(vals)
+
+        elif has_measure:
+            labeled, ncomponents = measure_np.label(mask_index.data.cpu().numpy(), background=-1, return_num=True)
+            for ncomp in range(1, ncomponents + 1):
+                comp_idx = np.argwhere(labeled == ncomp)
+                comp_idx_min = np.min(comp_idx, axis=0).tolist()
+                comp_idx_max = np.max(comp_idx, axis=0).tolist()
+                bbox_shape = [comp_idx_max[i] - comp_idx_min[i] + 1 for i in range(len(comp_idx_max))]
+                shape_list.append(bbox_shape)
+        else:
+            raise RuntimeError("Cannot find one of the following required dependencies: {cuPy+cuCIM} or {scikit-image}")
+
+        return shape_list, ncomponents
 
     def get_case_stats(self, batch_data) -> Dict:
         """
