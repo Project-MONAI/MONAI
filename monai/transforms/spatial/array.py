@@ -842,10 +842,12 @@ class Resize(InvertibleTransform):
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
-        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            return convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
-
         original_sp_size = img.shape[1:]
+        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
+        _align_corners = self.align_corners if align_corners is None else align_corners
+        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
+            img = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
+            return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
@@ -862,25 +864,25 @@ class Resize(InvertibleTransform):
             img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
-        _align_corners = self.align_corners if align_corners is None else align_corners
-
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
+        return self._post_process(out, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
+
+    def _post_process(self, img: torch.Tensor, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
         if get_track_meta():
-            self.update_meta(out, original_sp_size, spatial_size_)
+            self.update_meta(img, orig_size, sp_size)
             self.push_transform(
-                out,
-                orig_size=original_sp_size,
+                img,
+                orig_size=orig_size,
                 extra_info={
-                    "mode": _mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
+                    "mode": mode,
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                    "new_dim": len(orig_size) - ndim,  # additional dims appended
                 },
             )
-        return out
+        return img
 
     def update_meta(self, img, spatial_size, new_spatial_size):
         affine = convert_to_tensor(img.affine, track_meta=False)
