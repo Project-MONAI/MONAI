@@ -35,6 +35,7 @@ __all__ = [
     "TraceKeys",
     "InverseKeys",
     "CommonKeys",
+    "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
@@ -44,6 +45,7 @@ __all__ = [
     "SpaceKeys",
     "MetaKeys",
     "ColorOrder",
+    "EngineStatsKeys",
 ]
 
 
@@ -307,6 +309,19 @@ class CommonKeys(StrEnum):
     METADATA = "metadata"
 
 
+class GanKeys(StrEnum):
+    """
+    A set of common keys for generative adversarial networks.
+
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
 class PostFix(StrEnum):
     """Post-fixes."""
 
@@ -463,3 +478,18 @@ class ColorOrder(StrEnum):
 
     RGB = "RGB"
     BGR = "BGR"
+
+
+class EngineStatsKeys(StrEnum):
+    """
+    Default keys for the statistics of trainer and evaluator engines.
+
+    """
+
+    RANK = "rank"
+    CURRENT_ITERATION = "current_iteration"
+    CURRENT_EPOCH = "current_epoch"
+    TOTAL_EPOCHS = "total_epochs"
+    TOTAL_ITERATIONS = "total_iterations"
+    BEST_VALIDATION_EPOCH = "best_validation_epoch"
+    BEST_VALIDATION_METRTC = "best_validation_metric"
