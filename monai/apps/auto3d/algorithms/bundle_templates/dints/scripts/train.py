@@ -340,7 +340,7 @@ def run(config_file: Union[str, Sequence[str]]):
                         val_labels = val_labels[None, ...]
 
                     value = compute_meandice(
-                        y_pred=val_outputs, y=val_labels, include_background=False
+                        y_pred=val_outputs, y=val_labels, include_background=not softmax
                     )
 
                     print(_index + 1, "/", len(val_loader), value)
