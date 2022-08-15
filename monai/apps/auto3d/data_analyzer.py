@@ -463,7 +463,7 @@ class DataAnalyzer:
         Returns
             a dictonary with following property of data in keys like "max", "mean" and others defined in operations_summary
         """
-        axis: Union[Tuple[int, int], Tuple[int]] = None
+        axis: Union[Tuple[int, int], int]
 
         if isinstance(datastat_list[0], list) or isinstance(datastat_list[0], np.ndarray):
             if not is_label:
@@ -472,7 +472,7 @@ class DataAnalyzer:
             else:
                 # size = [num of cases, stats]
                 datastat_list = np.concatenate([np.array(datastat) for datastat in datastat_list])
-            axis = (0,)
+            axis = 0
             if average and len(datastat_list.shape) > 2:
                 axis = (0, 1)
         # Calculate statistics from the data using numpy. Only used for summary
