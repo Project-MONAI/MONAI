@@ -140,7 +140,11 @@ class LazyTransform:
 
     eager_mode = True
 
-    def set_eager_mode(self, value):
+    def set_eager_mode(self, value: bool):
+        """
+        when eager_mode is True, the transform should return the transformed array with up-to-date metadata.
+        When it's False, the transform may return updated metadata and not running the actual data array transform.
+        """
         self.eager_mode = value
 
 

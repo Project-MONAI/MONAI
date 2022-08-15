@@ -462,7 +462,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class Rotate90d(MapTransform, InvertibleTransform):
+class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Rotate90`.
     """
@@ -482,6 +482,10 @@ class Rotate90d(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.rotator = Rotate90(k, spatial_axes)
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rotator.set_eager_mode(value)
+
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
@@ -495,7 +499,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate90`.
     With probability `prob`, input arrays are rotated by 90 degrees
@@ -543,6 +547,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform):
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
         # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
+        rotator.set_eager_mode(value)
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
             if get_track_meta():
@@ -621,7 +626,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         return d
 
 
-class Affined(MapTransform, InvertibleTransform):
+class Affined(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Affine`.
     """
@@ -708,6 +713,10 @@ class Affined(MapTransform, InvertibleTransform):
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.affine.set_eager_mode(value)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -829,7 +838,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
+        first_key: Hashable = self.first_key(d)
         if first_key == []:
             out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
@@ -848,7 +857,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         if do_resampling:  # need to prepare grid
             grid = self.rand_affine.get_identity_grid(sp_size)
             if self._do_transform:  # add some random factors
-                self.rand_affine.rand_affine_grid.affine_only = not self.eager_mode
                 grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
@@ -1241,7 +1249,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         return d
 
 
-class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
+class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAxisFlip`.
 
@@ -1261,6 +1269,10 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
         self.flipper = RandAxisFlip(prob=1.0)
+
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.flipper.set_eager_mode(value)
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None

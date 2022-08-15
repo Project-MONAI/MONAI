@@ -934,7 +934,7 @@ class Resize(InvertibleTransform, LazyTransform):
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
             img = self._post_process(img, img.spatial_shape, sp_size, *args)
-            img.spatial_shape = sp_size
+            img.spatial_shape = sp_size  # type: ignore
         return img
 
     def update_meta(self, img, spatial_size, new_spatial_size):
@@ -1085,11 +1085,11 @@ class Rotate(InvertibleTransform, LazyTransform):
             )
         return img
 
-    def lazy_call(self, img, output_shape, transform_t, *args):
+    def lazy_call(self, img: torch.Tensor, output_shape, transform_t, *args) -> torch.Tensor:
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
             img = self._post_process(img, img.spatial_shape, transform_t, *args)
-            img.spatial_shape = output_shape
+            img.spatial_shape = output_shape  # type: ignore
         return img
 
     def update_meta(self, img, rotate_mat):
@@ -1209,7 +1209,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         _padding_mode = padding_mode or self.padding_mode
 
-        if not self.eager_mode:
+        if not self.eager_mode and isinstance(img, MetaTensor):
             if self.keep_size:
                 raise NotImplementedError("keep_size=True is currently not compatible with lazy evaluation")
             else:
@@ -1247,7 +1247,7 @@ class Zoom(InvertibleTransform, LazyTransform):
             )
         return out
 
-    def lazy_call(self, img, zoom_size, mode, align_corners):
+    def lazy_call(self, img: torch.Tensor, zoom_size, mode, align_corners) -> torch.Tensor:
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
             self.update_meta(img, img.spatial_shape, zoom_size)
@@ -1261,7 +1261,7 @@ class Zoom(InvertibleTransform, LazyTransform):
                     "padcrop": {},
                 },
             )
-            img.spatial_shape = zoom_size
+            img.spatial_shape = zoom_size  # type: ignore
         return img
 
     def update_meta(self, img, spatial_size, new_spatial_size):
@@ -1293,7 +1293,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         return out
 
 
-class Rotate90(InvertibleTransform):
+class Rotate90(InvertibleTransform, LazyTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See `torch.rot90` for additional details:
@@ -1311,7 +1311,7 @@ class Rotate90(InvertibleTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         """
-        self.k = k
+        self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
@@ -1324,13 +1324,28 @@ class Rotate90(InvertibleTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axes)
-        ori_shape = img.shape[1:]
+        ori_shape = img.spatial_shape if isinstance(img, MetaTensor) and not img.evaluated else img.shape[1:]
+        if not self.eager_mode:
+            return self.lazy_call(img, axes, self.k)
         out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
         out = convert_to_dst_type(out, img)[0]
         if get_track_meta():
             self.update_meta(out, ori_shape, out.shape[1:], axes, self.k)
             self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
         return out
+
+    def lazy_call(self, img: torch.Tensor, axes, k) -> torch.Tensor:
+        if get_track_meta() and isinstance(img, MetaTensor):
+            img.evaluated = False
+            ori_shape = img.spatial_shape.cpu().tolist()
+            output_shape = img.spatial_shape.cpu().tolist()
+            if k in (1, 3):
+                a_0, a_1 = axes[0] - 1, axes[1] - 1
+                output_shape[a_0], output_shape[a_1] = ori_shape[a_1], ori_shape[a_0]
+            self.update_meta(img, ori_shape, output_shape, axes, k)
+            self.push_transform(img, extra_info={"axes": [d - 1 for d in axes], "k": k})
+            img.spatial_shape = output_shape
+        return img
 
     def update_meta(self, img, spatial_size, new_spatial_size, axes, k):
         affine = convert_data_type(img.affine, torch.Tensor)[0]
@@ -1362,7 +1377,7 @@ class Rotate90(InvertibleTransform):
             return xform(data)
 
 
-class RandRotate90(RandomizableTransform, InvertibleTransform):
+class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1401,7 +1416,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform):
             self.randomize()
 
         if self._do_transform:
-            out = Rotate90(self._rand_k, self.spatial_axes)(img)
+            xform = Rotate90(self._rand_k, self.spatial_axes)
+            xform.set_eager_mode(self.eager_mode)
+            out = xform(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -1774,7 +1791,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         return Zoom(self._zoom).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
 
 
-class AffineGrid(Transform):
+class AffineGrid(Transform, LazyTransform):
     """
     Affine transforms on the coordinates.
 
@@ -1800,7 +1817,6 @@ class AffineGrid(Transform):
         device: device on which the tensor will be allocated, if a new grid is generated.
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial dimensions + 1.
-        affine_only: whether to return an affine matrix without computing the actual grid. Defaults to False.
 
     .. deprecated:: 0.6.0
         ``as_tensor_output`` is deprecated.
@@ -1820,7 +1836,6 @@ class AffineGrid(Transform):
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         affine: Optional[NdarrayOrTensor] = None,
-        affine_only: bool = False,
     ) -> None:
         self.rotate_params = rotate_params
         self.shear_params = shear_params
@@ -1829,11 +1844,10 @@ class AffineGrid(Transform):
         self.device = device
         self.dtype = dtype
         self.affine = affine
-        self.affine_only = affine_only
 
     def __call__(
         self, spatial_size: Optional[Sequence[int]] = None, grid: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
         Therefore, either `spatial_size` or `grid` must be provided.
@@ -1847,7 +1861,7 @@ class AffineGrid(Transform):
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
-        if not self.affine_only:
+        if self.eager_mode:
             if grid is None:  # create grid from spatial_size
                 if spatial_size is None:
                     raise ValueError("Incompatible values: grid=None and spatial_size=None.")
@@ -1860,7 +1874,7 @@ class AffineGrid(Transform):
             spatial_dims = len(grid_.shape) - 1
         else:
             _device = self.device
-            spatial_dims = len(spatial_size)
+            spatial_dims = len(spatial_size)  # type: ignore
         _b = TransformBackends.TORCH
         affine: NdarrayOrTensor
         if self.affine is None:
@@ -1875,8 +1889,8 @@ class AffineGrid(Transform):
                 affine = affine @ create_scale(spatial_dims, self.scale_params, device=_device, backend=_b)
         else:
             affine = self.affine
-        if self.affine_only:
-            return None, affine
+        if not self.eager_mode:
+            return None, affine  # type: ignore
 
         affine = to_affine_nd(len(grid_) - 1, affine)
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
@@ -1884,7 +1898,7 @@ class AffineGrid(Transform):
         return grid_, affine  # type: ignore
 
 
-class RandAffineGrid(Randomizable, Transform):
+class RandAffineGrid(Randomizable, Transform, LazyTransform):
     """
     Generate randomised affine grid.
 
@@ -1901,7 +1915,7 @@ class RandAffineGrid(Randomizable, Transform):
         scale_range: RandRange = None,
         as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
-        affine_only: bool = False,
+        dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
@@ -1928,6 +1942,8 @@ class RandAffineGrid(Randomizable, Transform):
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
             device: device to store the output grid data.
+            dtype: data type for the grid computation. Defaults to ``np.float32``.
+                If ``None``, use the data type of input data (if `grid` is provided).
 
         See also:
             - :py:meth:`monai.transforms.utils.create_rotate`
@@ -1950,7 +1966,7 @@ class RandAffineGrid(Randomizable, Transform):
         self.scale_params: Optional[List[float]] = None
 
         self.device = device
-        self.affine_only = affine_only
+        self.dtype = dtype
         self.affine: Optional[torch.Tensor] = torch.eye(4, dtype=torch.float64)
 
     def _get_rand_param(self, param_range, add_scalar: float = 0.0):
@@ -1993,10 +2009,11 @@ class RandAffineGrid(Randomizable, Transform):
             translate_params=self.translate_params,
             scale_params=self.scale_params,
             device=self.device,
-            affine_only=self.affine_only,
+            dtype=self.dtype,
         )
-        if affine_grid.affine_only:
-            return affine_grid(spatial_size, grid)[1]
+        affine_grid.set_eager_mode(self.eager_mode)
+        if not self.eager_mode:  # return the affine only, don't construct the grid
+            return affine_grid(spatial_size, grid)[1]  # type: ignore
         _grid: torch.Tensor
         _grid, self.affine = affine_grid(spatial_size, grid)
         return _grid
@@ -2275,6 +2292,10 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode: str = look_up_option(mode, GridSampleMode)
         self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.affine_grid.set_eager_mode(value)
+
     def __call__(
         self,
         img: torch.Tensor,
@@ -2306,7 +2327,6 @@ class Affine(InvertibleTransform, LazyTransform):
         _mode = mode or self.mode
         _padding_mode = padding_mode or self.padding_mode
         if not self.eager_mode:
-            self.affine_grid.affine_only = True
             _, affine = self.affine_grid(spatial_size=sp_size)
             return self.lazy_call(img, affine, sp_size, _mode, _padding_mode)
         grid, affine = self.affine_grid(spatial_size=sp_size)
@@ -2458,10 +2478,16 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.mode: str = GridSampleMode(mode)
         self.padding_mode: str = GridSamplePadMode(padding_mode)
 
+    def set_eager_mode(self, value):
+        super().set_eager_mode(value)
+        self.rand_affine_grid.set_eager_mode(value)
+
     def _init_identity_cache(self):
         """
         Create cache of the identity grid if cache_grid=True and spatial_size is known.
         """
+        if not self.eager_mode:
+            return None
         if self.spatial_size is None:
             if self.cache_grid:
                 warnings.warn(
@@ -2551,10 +2577,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if not self.eager_mode:
             if self._do_transform:
-                self.rand_affine_grid.affine_only = True
                 affine = self.rand_affine_grid(sp_size, grid=grid, randomize=randomize)
             else:
-                affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img)[0]
+                affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img, dtype=self.rand_affine_grid.dtype)[0]
             return self.lazy_call(img, affine, sp_size, _mode, _padding_mode, do_resampling)
         if not do_resampling:
             out: torch.Tensor = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)[0]
@@ -2584,7 +2609,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         affine = convert_data_type(img.affine, torch.Tensor)[0]
         img.affine = Affine.compute_w_affine(affine, mat, img_size, sp_size)
 
-    def lazy_call(self, img: torch.Tensor, affine, output_size, mode, padding_mode, do_resampling):
+    def lazy_call(self, img: torch.Tensor, affine, output_size, mode, padding_mode, do_resampling) -> torch.Tensor:
         if get_track_meta() and isinstance(img, MetaTensor):
             img.evaluated = False
             orig_size = img.spatial_shape

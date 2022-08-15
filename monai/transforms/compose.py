@@ -30,12 +30,14 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, ensure_tuple, get_seed
-from monai.utils.enums import TraceKeys
+from monai.utils.enums import GridSampleMode, GridSamplePadMode, TraceKeys
 
 __all__ = ["Compose", "OneOf"]
 
 
-def eval_lazy_stack(data, upcoming, lazy_resample: bool = False):
+def eval_lazy_stack(
+    data, upcoming, lazy_resample: bool = False, mode=GridSampleMode.BILINEAR, padding_mode=GridSamplePadMode.BORDER
+):
     """
     Given the upcoming transform ``upcoming``, if lazy_resample is True, go through the Metatensors and
     evaluate the lazy applied operations. The returned `data` will then be ready for the ``upcoming`` transform.
@@ -44,7 +46,7 @@ def eval_lazy_stack(data, upcoming, lazy_resample: bool = False):
         return data  # eager evaluation
     if isinstance(data, monai.data.MetaTensor):
         if lazy_resample and not isinstance(upcoming, LazyTransform):
-            data.evaluate("bilinear")
+            data.evaluate(mode=mode, padding_mode=padding_mode)
         return data
     if isinstance(data, Mapping):
         if isinstance(upcoming, MapTransform):
@@ -135,6 +137,15 @@ class Compose(Randomizable, InvertibleTransform):
             for NumPy array and PyTorch Tensor, log the data shape and value range,
             for other metadata, log the values directly. default to `False`.
         lazy_resample: whether to compute consecutive spatial transforms resampling lazily. Default to False.
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode when ``lazy_resample=True``. Defaults to ``"bilinear"``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            When `USE_COMPILED` is `True`, this argument uses
+            ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
+            See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values when ``lazy_resample=True``. Defaults to ``"border"``.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
     """
 
@@ -145,6 +156,8 @@ class Compose(Randomizable, InvertibleTransform):
         unpack_items: bool = False,
         log_stats: bool = False,
         lazy_resample: bool = False,
+        mode=GridSampleMode.BILINEAR,
+        padding_mode=GridSamplePadMode.BORDER,
     ) -> None:
         if transforms is None:
             transforms = []
@@ -153,6 +166,8 @@ class Compose(Randomizable, InvertibleTransform):
         self.unpack_items = unpack_items
         self.log_stats = log_stats
         self.lazy_resample = lazy_resample
+        self.mode = mode
+        self.padding_mode = padding_mode
         self.set_random_state(seed=get_seed())
 
         if self.lazy_resample:
@@ -202,9 +217,17 @@ class Compose(Randomizable, InvertibleTransform):
 
     def __call__(self, input_):
         for _transform in self.transforms:
-            input_ = eval_lazy_stack(input_, upcoming=_transform, lazy_resample=self.lazy_resample)
+            input_ = eval_lazy_stack(
+                input_,
+                upcoming=_transform,
+                lazy_resample=self.lazy_resample,
+                mode=self.mode,
+                padding_mode=self.padding_mode,
+            )
             input_ = apply_transform(_transform, input_, self.map_items, self.unpack_items, self.log_stats)
-        input_ = eval_lazy_stack(input_, upcoming=None, lazy_resample=self.lazy_resample)
+        input_ = eval_lazy_stack(
+            input_, upcoming=None, lazy_resample=self.lazy_resample, mode=self.mode, padding_mode=self.padding_mode
+        )
         return input_
 
     def inverse(self, data):
