@@ -25,6 +25,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
+from monai.utils import TransformBackends
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.utils.module import version_leq
@@ -52,6 +53,8 @@ __all__ = [
     "sample_slices",
     "check_parent_dir",
     "save_obj",
+    "get_backend_from_data",
+    "get_device_from_data",
 ]
 
 _seed = None
@@ -471,3 +474,23 @@ def save_obj(
                 shutil.move(str(temp_path), path)
     except PermissionError:  # project-monai/monai issue #3613
         pass
+
+
+def get_device_from_data(data):
+    if isinstance(data, np.ndarray):
+        return None
+    elif isinstance(data, torch.Tensor):
+        return data.device
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def get_backend_from_data(data):
+    if isinstance(data, np.ndarray):
+        return TransformBackends.NUMPY
+    elif isinstance(data, torch.Tensor):
+        return TransformBackends.TORCH
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))

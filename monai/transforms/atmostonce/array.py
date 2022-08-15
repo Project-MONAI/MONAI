@@ -10,7 +10,8 @@ from monai.transforms import Transform
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
                          InterpolateMode, NumpyPadMode, PytorchPadMode)
-from monai.utils.mapping_stack import MappingStack
+from monai.utils.mapping_stack import MappingStack, MatrixFactory
+from monai.utils.misc import get_backend_from_data, get_device_from_data
 
 
 class Rotate(Transform):
@@ -39,7 +40,24 @@ class Rotate(Transform):
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> NdarrayOrTensor:
-        pass
+        mode = self.mode if mode is None else mode
+        padding_mode = self.padding_mode if padding_mode is None else padding_mode
+        align_corners = self.align_corners if align_corners is None else align_corners
+        keep_size = self.keep_size
+        dtype = self.dtype
+        matrix_factory = MatrixFactory(len(img.shape)-1,
+                                       get_backend_from_data(img),
+                                       get_device_from_data(img))
+        if mapping_stack is None:
+            mapping_stack = MappingStack(matrix_factory)
+        mapping_stack.push(matrix_factory.rotate_euler(self.angle,
+                                                       **{
+                                                           "padding_mode": padding_mode,
+                                                           "mode": mode,
+                                                           "align_corners": align_corners,
+                                                           "keep_size": keep_size,
+                                                           "dtype": dtype
+                                                       }))
 
 
 class Zoom(Transform):
@@ -55,6 +73,7 @@ class Zoom(Transform):
         padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = None,
         keep_size: bool = True,
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
         **kwargs
     ):
         self.zoom = zoom
@@ -62,6 +81,7 @@ class Zoom(Transform):
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.dtype = dtype
         self.kwargs = kwargs
 
     def __call__(
@@ -72,7 +92,26 @@ class Zoom(Transform):
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None
     ) -> NdarrayOrTensor:
-        pass
+
+        mode = self.mode if mode is None else mode
+        padding_mode = self.padding_mode if padding_mode is None else padding_mode
+        align_corners = self.align_corners if align_corners is None else align_corners
+        keep_size = self.keep_size
+        dtype = self.dtype
+        matrix_factory = MatrixFactory(len(img.shape)-1,
+                                       get_backend_from_data(img),
+                                       get_device_from_data(img))
+        if mapping_stack is None:
+            mapping_stack = MappingStack(matrix_factory)
+        mapping_stack.push(matrix_factory.scale(self.zoom,
+                                                **{
+                                                    "padding_mode": padding_mode,
+                                                    "mode": mode,
+                                                    "align_corners": align_corners,
+                                                    "keep_size": keep_size,
+                                                    "dtype": dtype
+                                                }))
+        img.add
 
 
 class Resize(Transform):
@@ -96,12 +135,28 @@ class Resize(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
+        mapping_stack: Optional[MappingStack] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
         anti_aliasing_sigma: Union[Sequence[float], float, None] = None
     ) -> NdarrayOrTensor:
-        pass
+        mode = self.mode if mode is None else mode
+        align_corners = self.align_corners if align_corners is None else align_corners
+        keep_size = self.keep_size
+        dtype = self.dtype
+        matrix_factory = MatrixFactory(len(img.shape)-1,
+                                       get_backend_from_data(img),
+                                       get_device_from_data(img))
+        if mapping_stack is None:
+            mapping_stack = MappingStack(matrix_factory)
+        mapping_stack.push(matrix_factory.scale(self.zoom,
+                                                **{
+                                                    "mode": mode,
+                                                    "align_corners": align_corners,
+                                                    "keep_size": keep_size,
+                                                    "dtype": dtype
+                                                }))
 
 
 class Spacing(Transform):

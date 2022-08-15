@@ -53,14 +53,16 @@ class MatrixFactory:
     def identity(self):
         return self._eye(self._dims + 1)
 
-    def rotate_euler(self, radians: Union[Sequence[float], float]):
-        return _create_rotate(self._dims, radians, self._sin, self._cos, self._eye)
+    def rotate_euler(self, radians: Union[Sequence[float], float], **extra_args):
+        matrix = _create_rotate(self._dims, radians, self._sin, self._cos, self._eye)
+        return {"matrix": matrix, "args": extra_args}
 
     def shear(self, coefs: Union[Sequence[float], float]):
         return _create_shear(self._dims, coefs, self._eye)
 
-    def scale(self, factors: Union[Sequence[float], float]):
-        return _create_scale(self._dims, factors, self._diag)
+    def scale(self, factors: Union[Sequence[float], float], **extra_args):
+        matrix = _create_scale(self._dims, factors, self._diag)
+        return {"matrix": matrix, "args": extra_args}
 
     def translate(self, offsets: Union[Sequence[float], float]):
         return _create_translate(self._dims, offsets, self._eye)
