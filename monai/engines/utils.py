@@ -17,7 +17,7 @@ import torch
 from monai.config import IgniteInfo
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, min_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import CommonKeys, GanKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
@@ -26,7 +26,6 @@ else:
 
 __all__ = [
     "IterationEvents",
-    "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
     "PrepareBatch",
@@ -57,19 +56,6 @@ class IterationEvents(EventEnum):
     MODEL_COMPLETED = "model_completed"
     INNER_ITERATION_STARTED = "inner_iteration_started"
     INNER_ITERATION_COMPLETED = "inner_iteration_completed"
-
-
-class GanKeys:
-    """
-    A set of common keys for generative adversarial networks.
-
-    """
-
-    REALS = "reals"
-    FAKES = "fakes"
-    LATENTS = "latents"
-    GLOSS = "g_loss"
-    DLOSS = "d_loss"
 
 
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
