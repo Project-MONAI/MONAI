@@ -138,7 +138,7 @@ class TestVideoFileDataset(Base.TestVideoDataset):
         if not has_cv2:
             self.assertEqual(codecs, {})
         else:
-            self.assertGreater(len(codecs), 0)
+            self.assertGreaterEqual(len(codecs), 0)
 
     def get_video_source(self):
         if self.video_source is None:
