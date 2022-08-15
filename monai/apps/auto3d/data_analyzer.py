@@ -464,7 +464,7 @@ class DataAnalyzer:
             a dictonary with following property of data in keys like "max", "mean" and others defined in operations_summary
         """
         axis = None
-        if type(datastat_list[0]) is list or type(datastat_list[0]) is np.array:
+        if isinstance(datastat_list[0], list) or isinstance(datastat_list[0], np.ndarray):
             if not is_label:
                 # size = [num of cases, number of modalities, stats]
                 datastat_list = np.concatenate([[np.array(datastat) for datastat in datastat_list]])
