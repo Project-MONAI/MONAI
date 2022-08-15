@@ -94,7 +94,7 @@ class DataAnalyzer:
 
     .. code-block:: bash
 
-        python -m monai/apps/auto3d \
+        python -m monai.apps.auto3d \
             DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \
@@ -647,7 +647,7 @@ class DataAnalyzer:
             )
             recursive_setvalue(key_chain, value, self.results["stats_summary"])
 
-    def _check_data_uniformity(self, keys: List[str] = ["spacing"]):
+    def _check_data_uniformity(self, keys: List[str]):
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -724,7 +724,7 @@ class DataAnalyzer:
             logger.debug(f"Process data spent {time.time() - s}")
             s = time.time()
         self._get_case_summary()
-        if not self._check_data_uniformity():
+        if not self._check_data_uniformity(["spacing"]):
             logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
         ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml", default_flow_style=None)
         logger.debug(f"total time {time.time() - start}")

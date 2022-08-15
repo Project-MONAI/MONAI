@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -407,7 +407,7 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
 
 
-def max(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+def max(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.max` with equivalent implementation for numpy
 
     Args:
@@ -419,7 +419,7 @@ def max(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTenso
         return torch.max(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.max(x, axis=dim, **kwargs)  # type: ignore
 
 
-def mean(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+def mean(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.mean` with equivalent implementation for numpy
 
     Args:
@@ -431,7 +431,7 @@ def mean(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTens
         return torch.mean(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.mean(x, axis=dim, **kwargs)  # type: ignore
 
 
-def median(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+def median(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.median` with equivalent implementation for numpy
 
     Args:
@@ -443,7 +443,7 @@ def median(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTe
         return torch.median(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.median(x, axis=dim, **kwargs)  # type: ignore
 
 
-def min(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTensor:
+def min(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.min` with equivalent implementation for numpy
 
     Args:
@@ -455,7 +455,7 @@ def min(x: NdarrayOrTensor, dim: Optional[int] = None, **kwargs) -> NdarrayTenso
         return torch.min(x, dim, **kwargs) if isinstance(x, torch.Tensor) else np.min(x, axis=dim, **kwargs)  # type: ignore
 
 
-def std(x: NdarrayOrTensor, dim: Optional[int] = None, unbias: Optional[bool] = False) -> NdarrayTensor:
+def std(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, unbias: Optional[bool] = False) -> NdarrayTensor:
     """`torch.std` with equivalent implementation for numpy
 
     Args:
