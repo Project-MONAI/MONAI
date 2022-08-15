@@ -169,7 +169,7 @@ class MonaiAlgo(ClientAlgo):
             self.eval_parser.read_config(config_eval_files)
             check_bundle_config(self.eval_parser)
         if len(config_filter_files) > 0:
-            self.filter_parser.read_config(config_eval_files)
+            self.filter_parser.read_config(config_filter_files)
 
         # override some config items
         self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
