@@ -22,9 +22,9 @@ transforms_validate:
     - "@image_key"
     - "@label_key"
     pixdim:
-    - PLACEHOLDER
-    - PLACEHOLDER
-    - PLACEHOLDER
+    - 1
+    - 1
+    - 1
     mode:
     - bilinear
     - nearest
@@ -34,7 +34,10 @@ transforms_validate:
   - _target_: CastToTyped
     keys: "@image_key"
     dtype: "$torch.float32"
-  - INTENSITY_NORMALIZATION
+  - _target_: NormalizeIntensityd
+    keys: "@image_key"
+    nonzero: true
+    channel_wise: true
   - _target_: CastToTyped
     keys:
     - "@image_key"

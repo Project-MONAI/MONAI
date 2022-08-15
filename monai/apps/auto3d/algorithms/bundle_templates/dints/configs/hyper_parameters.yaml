@@ -1,26 +1,26 @@
 ---
 amp: true
-bundle_root: PLACEHOLDER
+bundle_root: "/home/dongy/Project/MONAI/auto3d/Task05_Prostate"
 ckpt_path: "$@bundle_root + '/model'"
-data_file_base_dir: PLACEHOLDER
-data_list_file_path: PLACEHOLDER
+data_file_base_dir: "/workspace/data/msd/Task05_Prostate"
+data_list_file_path: "$@bundle_root + '/../datafolds/msd_task05_prostate_folds.json'"
 determ: false
-fold: PLACEHOLDER
-input_channels: PLACEHOLDER
+fold: 0
+input_channels: 2
 learning_rate: 0.025
 num_images_per_batch: 2
 num_iterations: 40000
 num_iterations_per_validation: 500
 num_patches_per_image: 1
 num_sw_batch_size: 2
-output_classes: PLACEHOLDER
+output_classes: 3
 overlap_ratio: 0.625
 patch_size:
-- PLACEHOLDER
-- PLACEHOLDER
-- PLACEHOLDER
+- 160
+- 160
+- 32
 patch_size_valid:
-- PLACEHOLDER
-- PLACEHOLDER
-- PLACEHOLDER
-softmax: PLACEHOLDER
+- 160
+- 160
+- 32
+softmax: true
