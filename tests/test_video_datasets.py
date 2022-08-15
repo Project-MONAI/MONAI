@@ -116,6 +116,8 @@ class TestVideoFileDataset(Base.TestVideoDataset):
             cls.known_fps = 2.0
             cls.known_num_frames = 523
         else:
+            cls.known_fps = None
+            cls.known_num_frames = None
             cls.video_source = None
             return
         cls.video_source = os.path.join(os.path.dirname(__file__), "testing_data", fname)
