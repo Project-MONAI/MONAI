@@ -647,6 +647,29 @@ class DataAnalyzer:
             )
             recursive_setvalue(key_chain, value, self.results["stats_summary"])
 
+    def _check_data_uniformity(self, keys: List[str] = ["spacing"]):
+        """
+        Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
+        affine matrices/spacings due to monai transforms.
+
+        Args:
+            a list of string-type keys under image_stats dictionary. Default value is ["spacing"].
+        Returns:
+            False if one of the selected key values is not constant across the dataset images.
+
+        """
+
+        for key in keys:
+            prev_val = None
+            for stats in self.results["stats_by_cases"]:
+                image_stats = stats["image_stats"]
+                if prev_val is None:
+                    prev_val = image_stats[key]
+                elif prev_val != image_stats[key]:
+                    return False
+
+        return True
+
     def get_all_case_stats(self) -> Dict:
         """
         Get all case stats. Caller of the DataAnalyser class. The function iterates datalist and
@@ -701,6 +724,8 @@ class DataAnalyzer:
             logger.debug(f"Process data spent {time.time() - s}")
             s = time.time()
         self._get_case_summary()
+        if not self._check_data_uniformity():
+            logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
         ConfigParser.export_config_file(self.results, self.output_path, fmt="yaml", default_flow_style=None)
         logger.debug(f"total time {time.time() - start}")
         return self.results
