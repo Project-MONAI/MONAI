@@ -60,9 +60,9 @@ class DataAnalyzer:
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
-        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the 
+        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
             datalist to locate the image files of the dataset.
-        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the 
+        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
 
