@@ -82,7 +82,7 @@ class TestResized(NumpyImageTestCase2D):
 
     def test_identical_spatial(self):
         test_input = {"X": np.ones((1, 10, 16, 17))}
-        xform = Resized("X", (-1, 18, 19))
+        xform = Resized("X", (-1, 16, 17))
         out = xform(test_input)
         out["Y"] = 2 * out["X"]
         transform_inverse = Invertd(keys="Y", transform=xform, orig_keys="X")
