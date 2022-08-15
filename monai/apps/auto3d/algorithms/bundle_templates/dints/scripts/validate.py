@@ -9,33 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import json
 import logging
 import monai
-import nibabel as nib
 import numpy as np
 import os
-import pandas as pd
-import pathlib
-import shutil
 import sys
-import tempfile
 import time
 import torch
 import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
 import yaml
 
-from datetime import datetime
-from glob import glob
-from torch import nn
-from torch.nn.parallel import DistributedDataParallel
 
 # from torch.utils.data import DataLoader
 # from torch.utils.data.distributed import DistributedSampler
-from torch.utils.tensorboard import SummaryWriter
 from monai.transforms import (
     AsDiscrete,
     # BatchInverseTransform,
@@ -43,17 +30,12 @@ from monai.transforms import (
 )
 from monai.data import (
     DataLoader,
-    Dataset,
-    create_test_image_3d,
-    DistributedSampler,
-    list_data_collate,
     partition_dataset,
 )
 # from monai.inferers import sliding_window_inference
 
 # from monai.losses import DiceLoss, FocalLoss, GeneralizedDiceLoss
 from monai.metrics import compute_meandice
-from monai.utils import set_determinism
 # from monai.utils.enums import InverseKeys
 # from transforms import creating_transforms_testing, str2aug
 # from utils import (
@@ -90,7 +72,7 @@ def run(config_file: Union[str, Sequence[str]], ckpt_path: str):
     dist.init_process_group(backend="nccl", init_method="env://")
 
     # data
-    with open(args.json, "r") as f:
+    with open(args.json) as f:
         json_data = json.load(f)
 
     # inference data
@@ -152,7 +134,7 @@ def run(config_file: Union[str, Sequence[str]], ckpt_path: str):
     torch.cuda.set_device(device)
 
     start_time = time.time()
-    
+
     metric = torch.zeros((output_classes - 1) * 2, dtype=torch.float, device=device)
     metric_sum = 0.0
     metric_count = 0
@@ -189,9 +171,9 @@ def run(config_file: Union[str, Sequence[str]], ckpt_path: str):
         print_message += ", "
         for _k in range(1, output_classes):
             if output_classes == 2:
-                print_message += "{0:.5f}".format(metric_vals.squeeze())
+                print_message += f"{metric_vals.squeeze():.5f}"
             else:
-                print_message += "{0:.5f}".format(metric_vals.squeeze()[_k - 1])
+                print_message += f"{metric_vals.squeeze()[_k - 1]:.5f}"
             print_message += ", "
         print(print_message)
 
@@ -209,7 +191,7 @@ def run(config_file: Union[str, Sequence[str]], ckpt_path: str):
     metric = metric.tolist()
     if dist.get_rank() == 0:
         for _c in range(output_classes - 1):
-            print("evaluation metric - class {0:d}:".format(_c + 1), metric[2 * _c] / metric[2 * _c + 1])
+            print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
         avg_metric = 0
         for _c in range(output_classes - 1):
             avg_metric += metric[2 * _c] / metric[2 * _c + 1]
