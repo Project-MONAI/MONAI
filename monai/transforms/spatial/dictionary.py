@@ -547,7 +547,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
         # to be compatible with the random status of some previous integration tests
         rotator = Rotate90(self._rand_k, self.spatial_axes)
-        rotator.set_eager_mode(value)
+        rotator.set_eager_mode(self.eager_mode)
         for key in self.key_iterator(d):
             d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
             if get_track_meta():
@@ -838,7 +838,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Hashable = self.first_key(d)
+        first_key = self.first_key(d)
         if first_key == []:
             out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
