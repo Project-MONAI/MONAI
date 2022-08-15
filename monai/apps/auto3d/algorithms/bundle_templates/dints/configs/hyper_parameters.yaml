@@ -1,0 +1,26 @@
+---
+amp: true
+bundle_root: PLACEHOLDER
+ckpt_path: "$@bundle_root + '/model'"
+data_file_base_dir: PLACEHOLDER
+data_list_file_path: PLACEHOLDER
+determ: false
+fold: PLACEHOLDER
+input_channels: PLACEHOLDER
+learning_rate: 0.025
+num_images_per_batch: 2
+num_iterations: 40000
+num_iterations_per_validation: 500
+num_patches_per_image: 1
+num_sw_batch_size: 2
+output_classes: PLACEHOLDER
+overlap_ratio: 0.625
+patch_size:
+- PLACEHOLDER
+- PLACEHOLDER
+- PLACEHOLDER
+patch_size_valid:
+- PLACEHOLDER
+- PLACEHOLDER
+- PLACEHOLDER
+softmax: PLACEHOLDER

@@ -1,29 +1,29 @@
 ---
 amp: true
-bundle_root: null
+bundle_root: /home/dongy/Project/MONAI/auto3d/Task05_Prostate
 ckpt_path: "$@bundle_root + '/model'"
-data_file_base_dir: null
-data_list_file_path: null
-determ: false
-fold: null
-input_channels: null
+data_file_base_dir: /workspace/data/msd/Task05_Prostate
+data_list_file_path: "$@bundle_root + '/../datafolds/msd_task05_prostate_folds.json'"
+determ: true
+fold: 0
+input_channels: 2
 learning_rate: 0.025
 num_images_per_batch: 2
 num_iterations: 40000
 num_iterations_per_validation: 500
 num_patches_per_image: 1
 num_sw_batch_size: 2
-output_classes: null
+output_classes: 3
 overlap_ratio: 0.625
 patch_size:
-- null
-- null
-- null
+- 160
+- 160
+- 32
 patch_size_valid:
-- null
-- null
-- null
-softmax: null
+- 160
+- 160
+- 32
+softmax: true
 image_key: image
 label_key: label
 transform_train:
@@ -59,7 +59,17 @@ transform_train:
   - _target_: CastToTyped
     keys: "@image_key"
     dtype: "$torch.float32"
-  - INTENSITY_NORMALIZATION
+  # - _target_: ScaleIntensityRanged
+  #   keys: "@image_key"
+  #   a_min: -87
+  #   a_max: 199
+  #   b_min: 0
+  #   b_max: 1
+  #   clip: true
+  - _target_: NormalizeIntensityd
+    keys: "@image_key"
+    nonzero: true
+    channel_wise: true
   - _target_: CastToTyped
     keys:
     - "@image_key"
@@ -200,7 +210,17 @@ transform_validation:
   - _target_: CastToTyped
     keys: "@image_key"
     dtype: "$torch.float32"
-  - INTENSITY_NORMALIZATION
+  # - _target_: ScaleIntensityRanged
+  #   keys: "@image_key"
+  #   a_min: -87
+  #   a_max: 199
+  #   b_min: 0
+  #   b_max: 1
+  #   clip: true
+  - _target_: NormalizeIntensityd
+    keys: "@image_key"
+    nonzero: true
+    channel_wise: true
   - _target_: CastToTyped
     keys:
     - "@image_key"
@@ -219,7 +239,25 @@ transform_validation:
     keys:
     - "@image_key"
     - "@label_key"
-arch_ckpt_path: null
+# loss:
+#   _target_: DiceFocalLoss
+#   include_background: true
+#   to_onehot_y: true
+#   softmax: true
+#   squared_pred: true
+#   batch: true
+#   smooth_nr: 0.00001
+#   smooth_dr: 0.00001
+# optimizer:
+#   _target_: DiceFocalLoss
+#   include_background: true
+#   to_onehot_y: true
+#   softmax: true
+#   squared_pred: true
+#   batch: true
+#   smooth_nr: 0.00001
+#   smooth_dr: 0.00001
+arch_ckpt_path: "$@bundle_root + '/scripts/arch_code.pth'"
 arch_ckpt: "$torch.load(@arch_ckpt_path, map_location=torch.device('cuda'))"
 dints_space:
   _target_: monai.networks.nets.TopologyInstance
