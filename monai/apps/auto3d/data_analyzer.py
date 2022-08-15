@@ -463,7 +463,7 @@ class DataAnalyzer:
         Returns
             a dictonary with following property of data in keys like "max", "mean" and others defined in operations_summary
         """
-        axis = None
+        axis: Tuple[int, int] = None
         if isinstance(datastat_list[0], list) or isinstance(datastat_list[0], np.ndarray):
             if not is_label:
                 # size = [num of cases, number of modalities, stats]
