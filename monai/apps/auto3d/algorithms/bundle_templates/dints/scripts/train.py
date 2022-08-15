@@ -252,8 +252,6 @@ def run(config_file: Union[str, Sequence[str]]):
         model.train()
         epoch_loss = 0
         loss_torch = torch.zeros(2, dtype=torch.float, device=device)
-        epoch_loss_arch = 0
-        loss_torch_arch = torch.zeros(2, dtype=torch.float, device=device)
         step = 0
 
         for batch_data in train_loader:
@@ -300,7 +298,6 @@ def run(config_file: Union[str, Sequence[str]]):
             dist.all_reduce(loss_torch, op=torch.distributed.ReduceOp.SUM)
 
         loss_torch = loss_torch.tolist()
-        loss_torch_arch = loss_torch_arch.tolist()
         if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
             loss_torch_epoch = loss_torch[0] / loss_torch[1]
             print(
