@@ -81,7 +81,9 @@ class TestEnsureChannelFirst(unittest.TestCase):
         with self.assertRaises(ValueError):  # not MetaTensor
             EnsureChannelFirst(add_channel_default=False)(im)
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirst(add_channel_default=False)(MetaTensor(im))
+            test_case = MetaTensor(im)
+            test_case.meta.pop("original_channel_dim")
+            EnsureChannelFirst(add_channel_default=False)(test_case)
         with self.assertRaises(ValueError):  # no meta channel
             EnsureChannelFirst(add_channel_default=False)(im_nodim)
 

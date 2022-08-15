@@ -150,8 +150,10 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         if MetaKeys.SPACE not in self.meta:
             self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
+        if MetaKeys.EVALUATED not in self.meta:
+            self.meta[MetaKeys.EVALUATED] = True
         if MetaKeys.ORIGINAL_CHANNEL_DIM not in self.meta:
-            self.meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0  # defaulting to channel first
+            self.meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = "no_channel"  # defaulting to channel first
 
     @property
     def evaluated(self) -> bool:
