@@ -1,4 +1,13 @@
 {
-    "pre_filters": [],
-    "post_weight_filters": []
+    "pre_filters": [
+        {
+            "_target_": "monai.fl.utils.filters.SummaryFilter"
+        }
+    ],
+    "post_weight_filters": [
+        {
+            "_target_": "monai.fl.utils.filters.SummaryFilter"
+        }
+    ],
+    "post_evaluate_filters": []
 }
