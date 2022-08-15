@@ -60,7 +60,11 @@ class DataAnalyzer:
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
         worker: number of workers to use for parallel processing.
-        image_only: boolean set to True if the user wants to use the DataAnalyzer on a dataset without labels.
+        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the 
+            datalist to locate the image files of the dataset.
+        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the 
+            datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
+            will skip looking for labels and all label-related operations.
 
     For example:
 
@@ -105,7 +109,8 @@ class DataAnalyzer:
         do_ccp: bool = True,
         device: Union[str, torch.device] = "cuda",
         worker: int = 2,
-        image_only: bool = False,
+        image_key: str = "image",
+        label_key: str = "label",
     ):
         """
         The initializer will load the data and register the functions for data statistics gathering.
@@ -114,12 +119,12 @@ class DataAnalyzer:
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
             logger.debug(f"{output_path} will be overwritten by a new datastat.")
         self.output_path = output_path
-        self.image_only = image_only
+        self.IMAGE_ONLY = True if label_key is None else False
 
-        if self.image_only:
-            keys = ["image"]
+        if self.IMAGE_ONLY:
+            keys = [image_key]
         else:
-            keys = ["image", "label"]
+            keys = [image_key, label_key]
 
         transform_list = [
             transforms.LoadImaged(keys=keys),
@@ -128,7 +133,7 @@ class DataAnalyzer:
             transforms.EnsureTyped(keys=keys, data_type="tensor"),
         ]
 
-        if not self.image_only:
+        if not self.IMAGE_ONLY:
             transform_list += [
                 transforms.Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True)),
                 transforms.SqueezeDimd(keys=["label"], dim=0),
@@ -193,7 +198,7 @@ class DataAnalyzer:
         """
         self.functions = [self._get_case_image_stats]
         self.functions_summary = [self._get_case_image_stats_summary]
-        if not self.image_only:
+        if not self.IMAGE_ONLY:
             self.functions += [self._get_case_foreground_image_stats, self._get_label_stats]
             self.functions_summary += [self._get_case_foreground_image_stats_summary, self._get_label_stats_summary]
 
@@ -576,7 +581,7 @@ class DataAnalyzer:
         """
         self.data["image"] = batch_data["image"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
-        if not self.image_only:
+        if not self.IMAGE_ONLY:
             if "label" not in batch_data:
                 raise ValueError("label not found. Please set image_only to True if there is no label files")
             if "label_meta_dict" not in batch_data:
@@ -647,7 +652,7 @@ class DataAnalyzer:
 
         for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
             images_file = batch_data[0]["image_meta_dict"]["filename_or_obj"]
-            if self.image_only:
+            if self.IMAGE_ONLY:
                 case_stat = {"image": images_file}
             else:
                 if "label_meta_dict" not in batch_data[0]:

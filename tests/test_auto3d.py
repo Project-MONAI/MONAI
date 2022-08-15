@@ -69,7 +69,7 @@ class TestDataAnalyzer(unittest.TestCase):
         dataroot = self.test_dir.name
         yaml_fpath = path.join(dataroot, "data_stats.yaml")
         analyser = DataAnalyzer(
-            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, image_only=True
+            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
         )
         datastat = analyser.get_all_case_stats()
 
