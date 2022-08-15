@@ -463,7 +463,7 @@ class DataAnalyzer:
         Returns
             a dictonary with following property of data in keys like "max", "mean" and others defined in operations_summary
         """
-        axis: Union[Tuple[int, int], int]
+        axis: Union[Tuple[int, int], int, None] = None
 
         if isinstance(datastat_list[0], list) or isinstance(datastat_list[0], np.ndarray):
             if not is_label:
