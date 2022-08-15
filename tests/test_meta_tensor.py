@@ -74,8 +74,8 @@ class TestMetaTensor(unittest.TestCase):
         aff_a = meta_a.get("affine", None)
         aff_b = meta_b.get("affine", None)
         assert_allclose(aff_a, aff_b)
-        meta_a = {k: v for k, v in meta_a.items() if k != "affine"}
-        meta_b = {k: v for k, v in meta_b.items() if k != "affine"}
+        meta_a = {k: v for k, v in meta_a.items() if k not in ("affine", "original_channel_dim")}
+        meta_b = {k: v for k, v in meta_b.items() if k not in ("affine", "original_channel_dim")}
         self.assertEqual(meta_a, meta_b)
 
     def check(
@@ -122,7 +122,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_as_dict(self):
         m, _ = self.get_im()
         m_dict = m.as_dict("im")
-        im, meta = m_dict["im"], m_dict[PostFix.meta("im")]
+        im, meta = m_dict["im"], deepcopy(m_dict[PostFix.meta("im")])
         affine = meta.pop("affine")
         m2 = MetaTensor(im, affine, meta)
         self.check(m2, m, check_ids=False)
