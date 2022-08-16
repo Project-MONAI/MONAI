@@ -208,7 +208,7 @@ def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.ravel` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor. to ravel.
+        x: array/tensor to ravel.
 
     Returns:
         Return a contiguous flattened array/tensor.

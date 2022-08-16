@@ -87,7 +87,7 @@ class DataAnalyzer:
         dataroot = '/datasets' # the directory where you have the image files (nii.gz)
         DataAnalyzer(datalist, dataroot)
 
-    Note:
+    Notes:
         The module can also be called from the command line interface (CLI).
 
     For example:
@@ -243,9 +243,8 @@ class DataAnalyzer:
         Statistics values are stored under the key "image_stats".
 
         Returns:
-            a dictionary of the images stats.
-            - "image_stats"
-                - "shape", "channel", "cropped_shape", "spacing", "intensity"
+            a dictionary of the images stats in format of {"image_stats": {"shape":[], 
+                "channel":[], "cropped_shape":[], "spacing":[], "intensity":[]}}
         """
         # retrieve transformed data from self.data
         start = time.time()
@@ -290,14 +289,14 @@ class DataAnalyzer:
         The statistics will be values with the key name "intensity" under parent the key
         "image_foreground_stats".
 
-        Returns
+        Returns:
             a dictionary with following structure
-            - image_foreground_stats
-                - intensity
-                    - max
-                    - mean
-                    - median
-                    - ...
+                - image_foreground_stats
+                    - intensity
+                        - max
+                        - mean
+                        - median
+                        - etc
         """
         # retrieve transformed data from self.data
         start = time.time()
@@ -328,16 +327,9 @@ class DataAnalyzer:
         corresponding image region intensity). The statistics are saved in the values with key name
         "label_stats" in the return variable.
 
-        Returns
-            a dictionary with following structures:
-            - "label_stats"
-                - "labels" : class_IDs of the label + background class
-                - "pixel_percentanges"
-                - "image_intensity"
-                - "label_N" (N=0,1,...)
-                    - "image_intensity"
-                    - "shape"
-                    - "ncomponents"
+        Returns:
+            a dictionary in format of {"label_stats":{"labels":[], "pixel_percentage":[]
+                "image_intensity":[], "label_0":{}, "label_1":{}}}
         """
         # retrieve transformed data from self.data
         start = time.time()
@@ -404,10 +396,10 @@ class DataAnalyzer:
         Define the summary function for the pixel percentage over the whole dataset.
 
         Args
-            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The dict may miss some labels.
-                Length of xs is number of data samples.
+            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The 
+                dict may miss some labels. Length of xs is number of data samples.
 
-        Returns
+        Returns:
             a dictionary showing the percentage of labels, with numeric keys (0, 1, ...)
         """
         percent_summary = {}
@@ -430,7 +422,7 @@ class DataAnalyzer:
             xs: list of the list of intensity stats [[{max:, min:, },{max:, min:, }]]. Length of xs is number of data samples.
             average: if average is true, operation will be applied along axis 0 and average out the values.
 
-        Returns
+        Returns:
             a dictionary of the intensity stats. Keys include 'max', 'mean', and others defined in self.operations.
 
         """
@@ -523,8 +515,12 @@ class DataAnalyzer:
 
         Args:
             image: ndarray image to segment.
+        
         Returns:
-            ndarray of foreground image by removing all-zero edges. Note: the size of the ouput is smaller than the input.
+            ndarray of foreground image by removing all-zero edges. 
+        
+        Notes: 
+            the size of the ouput is smaller than the input.
         """
         crop_foreground = transforms.CropForeground(select_fn=lambda x: x > 0)
         image_foreground = MetaTensor(crop_foreground(image))
@@ -539,7 +535,7 @@ class DataAnalyzer:
             image: ndarray image to segment.
             label: ndarray the image input and annotated with class IDs.
 
-        Return
+        Returns:
             1D array of foreground image with label > 0
         """
         label_foreground = MetaTensor(image[label > 0])
@@ -587,28 +583,24 @@ class DataAnalyzer:
     def get_case_stats(self, batch_data) -> Dict:
         """
         Get stats for each case {'image', 'label'} in the datalist. The data case is stored in self.data
+        
         Args:
-            batch_data has follwing keys (monai dataloader batch data)
-            - "images" (image with shape [modality, image_shape])
-            - "label" (label with shape [image_shape])
-            - "image_meta_dict" (meta info of the image data)
-            - "label_meta_dict" (meta info of the label data)
+            batch_data: from monai dataloader batch data, with keys "images", "labels", "image_meta_dict",
+                "label_meta_dict"
 
         Returns:
-            a dictionary to summarize all the statistics for each case in following structure
-            - "image_stats"
-                - shape, channels,cropped_shape, spacing, intensity
-            - "image_foreground_stats"
-                - "intensity"
-            - "label_stats"
-                - labels, pxiel_percentage, image_intensity, label_0, label_1
+            a dictionary to summarize all the statistics in format of {"image_stats":{"shape",[], "channels":[]
+                "cropped_shape":[], "spacing":[], "intensity":[]}, "image_foreground_stats":{"intensity":[]},
+                "label_stats":{"labels":[], "pixel_percentage":[], "image_intensity":[], "label_0":[], "label_1":
+                [], "label_N":[]}}
 
-        Raise
-            ValueError if data loader is unable to find "label" or "label_meta_dict"
-        Note:
+        Raises:
+            ValueError: if data loader is unable to find "label" or "label_meta_dict"
+
+        Notes:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
-            may be generated and carried over in the computation. In such cases, the output dictionary
-            will include .nan/.inf in the statistics.
+                may be generated and carried over in the computation. In such cases, the output 
+                dictionary will include .nan/.inf in the statistics.
 
 
         """
@@ -654,7 +646,8 @@ class DataAnalyzer:
         affine matrices/spacings due to monai transforms.
 
         Args:
-            a list of string-type keys under image_stats dictionary. Default value is ["spacing"].
+            keys: a list of string-type keys under image_stats dictionary.
+
         Returns:
             False if one of the selected key values is not constant across the dataset images.
 
@@ -676,27 +669,27 @@ class DataAnalyzer:
         Get all case stats. Caller of the DataAnalyser class. The function iterates datalist and
         call get_case_stats to generate stats. Then get_case_summary is called to combine results.
 
-        Returns
-            - the data statistics dictionary
-            - "stats_summary" (summary statistics of the entire datasets)
-                - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations_summary)
-                - "image_foreground_stats" (info of the intensity for the non-zero labeled voxels)
-                - "label_stats" (info of the labels, pixel percentange, image_intensity, and each invidiual label)
-            - "stats_by_cases"
-                - List type value. Each element of the list is statistics of a image-label info. For example:
-                    - "image" (value is the path to an image)
-                    - "label" (value is the path to the corresponding label)
-                    - "image_stats" (summarizing info of shape, channel, spacing, and etc using operations)
-                    - "image_foreground_stats" (similar to above)
-                    - "label_stats"
+        Returns:
+            A data statistics dictionary containing 
+                "stats_summary" (summary statistics of the entire datasets). Within stats_summary
+                there are "image_stats"  (summarizing info of shape, channel, spacing, and etc 
+                using operations_summary), "image_foreground_stats" (info of the intensity for the 
+                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentange, 
+                image_intensity, and each  invidiual label)
+                "stats_by_cases" (List type value. Each element of the list is statistics of 
+                a image-label info. Within each each element, there are: "image" (value is the 
+                path to an image), "label" (value is the path to the corresponding label), "image_stats" 
+                (summarizing info of shape, channel, spacing, and etc using operations),
+                "image_foreground_stats" (similar to the previous one but one foreground image), and
+                "label_stats" (stats of the individual labels )
 
-        Raise:
-            ValueError if the user sent image_only to False but there is no label found
+        Raises:
+            ValueError: if the user sent image_only to False but there is no label found
 
-        Note:
-            nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
-            may be generated and carried over in the computation. In such cases, the output dictionary
-            will include .nan/.inf in the statistics.
+        Notes:
+            Since the backend of the statistics computation are torch/numpy, nan/inf value
+            may be generated and carried over in the computation. In such cases, the output 
+            dictionary will include .nan/.inf in the statistics.
 
         """
         start = time.time()

@@ -65,7 +65,7 @@ def recursive_getvalue(dicts: Dict, keys: Union[str, List]) -> Any:
         dicts: a provided dictionary
         keys: name of the key or a list showing the key chain to access the value
 
-    Exmaple:
+    Examples:
         dicts = {'a':{'b':{'c':1}}}, keys = ['a','b','c']
         recursive_getvalue(dicts, keys) = 1
     """
@@ -85,7 +85,7 @@ def recursive_setvalue(keys: Union[str, List], value: Any, dicts: Dict) -> None:
         value: key value
         dicts: user-provided dictionary
 
-    Exmaples:
+    Examples:
         dicts = {'a':{'b':{'c':1}}}, keys = ['a','b','c'], value = 2
         recursive_setvalue(keys, value, dicts) will set dicts = {'a':{'b':{'c':2}}}
     """
