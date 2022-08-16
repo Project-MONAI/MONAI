@@ -18,3 +18,26 @@ import torch
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import Metric, CumulativeIterationMetric
+
+
+def variance_metric(self, input_image, threshold_value=0.0005):
+    '''
+
+    :param self:
+    :param input_image: The Input image is Repeats, Channels, Volume, Height, Depth or Repeats, Channels, Height, Depth
+    :param threshold_value:
+    :return: A N-dimension spatial map or a single scalar value of sum/mean depending upon choice
+    '''
+    input_image = input_image.astype(dtype="float32")
+
+    # Threshold values less than or equal to zero
+    threshold = threshold_value
+    input_image[input_image <= 0] = threshold
+
+    vari = np.nanvar(input_image, axis=0)
+    variance = np.sum(vari, axis=0)
+
+    if self.dimension == 3:
+        variance = np.expand_dims(variance, axis=0)
+        variance = np.expand_dims(variance, axis=0)
+    return variance
