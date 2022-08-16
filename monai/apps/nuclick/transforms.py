@@ -431,8 +431,7 @@ class AddClickSignalsd(MapTransform):
         cx = np.delete(cx, del_indices)
         cy = np.delete(cy, del_indices)
 
-        for i in range(len(bounding_boxes)):
-            bounding_box = bounding_boxes[i]
+        for i, bounding_box in enumerate(bounding_boxes):
             x_start = bounding_box[0]
             y_start = bounding_box[1]
             x_end = bounding_box[2]
@@ -527,9 +526,9 @@ class PostFilterLabeld(MapTransform):
 
     def gen_instance_map(self, masks, bounding_boxes, m, n, flatten=True):
         instance_map = np.zeros((m, n), dtype=np.uint16)
-        for i in range(len(masks)):
+        for i, item in enumerate(masks):
             this_bb = bounding_boxes[i]
-            this_mask_pos = np.argwhere(masks[i] > 0)
+            this_mask_pos = np.argwhere(item > 0)
             this_mask_pos[:, 0] = this_mask_pos[:, 0] + this_bb[1]
             this_mask_pos[:, 1] = this_mask_pos[:, 1] + this_bb[0]
             instance_map[this_mask_pos[:, 0], this_mask_pos[:, 1]] = 1 if flatten else i + 1

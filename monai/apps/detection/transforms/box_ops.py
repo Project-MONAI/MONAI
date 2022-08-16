@@ -342,10 +342,10 @@ def select_labels(
 
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
-    for i in range(len(labels_tuple)):
-        labels_t: torch.Tensor = convert_data_type(labels_tuple[i], torch.Tensor)[0]
+    for item in labels_tuple:
+        labels_t: torch.Tensor = convert_data_type(item, torch.Tensor)[0]
         labels_t = labels_t[keep_t, ...]
-        labels_select_list.append(convert_to_dst_type(src=labels_t, dst=labels_tuple[i])[0])
+        labels_select_list.append(convert_to_dst_type(src=labels_t, dst=item)[0])
 
     if isinstance(labels, (torch.Tensor, np.ndarray)):
         return labels_select_list[0]  # type: ignore
