@@ -31,14 +31,14 @@ class TestHandlerMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg, details_shape):
-        dice_metric = MeanIoUHandler(**input_params)
+        iou_metric = MeanIoUHandler(**input_params)
         # set up engine
 
         def _val_func(engine, batch):
             pass
 
         engine = Engine(_val_func)
-        dice_metric.attach(engine=engine, name="mean_iou")
+        iou_metric.attach(engine=engine, name="mean_iou")
         # test input a list of channel-first tensor
         y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
         y = torch.Tensor([[[0], [1]], [[0], [1]]])
@@ -56,16 +56,16 @@ class TestHandlerMeanIoU(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape_mismatch(self, input_params, _expected_avg, _details_shape):
-        dice_metric = MeanIoUHandler(**input_params)
+        iou_metric = MeanIoUHandler(**input_params)
         with self.assertRaises((AssertionError, ValueError)):
             y_pred = torch.Tensor([[0, 1], [1, 0]])
             y = torch.ones((3, 30))
-            dice_metric.update([y_pred, y])
+            iou_metric.update([y_pred, y])
 
         with self.assertRaises((AssertionError, ValueError)):
             y_pred = torch.Tensor([[0, 1], [1, 0]])
             y = torch.ones((8, 30))
-            dice_metric.update([y_pred, y])
+            iou_metric.update([y_pred, y])
 
 
 if __name__ == "__main__":
