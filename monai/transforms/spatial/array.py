@@ -1987,10 +1987,10 @@ class Resample(Transform):
         self.device = device
         self.dtype = dtype
 
-    def __call__(  # type: ignore
+    def __call__(
         self,
         img: torch.Tensor,
-        grid: torch.Tensor,
+        grid: Optional[torch.Tensor] = None,
         mode: Optional[str] = None,
         padding_mode: Optional[str] = None,
         dtype: DtypeLike = None,
@@ -2017,9 +2017,11 @@ class Resample(Transform):
         See also:
             :py:const:`monai.config.USE_COMPILED`
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if grid is None:
+            return img
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
-        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t)
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
