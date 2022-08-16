@@ -2,6 +2,8 @@
 
 * **apps**: high level medical domain specific deep learning applications.
 
+* **auto3dseg**: modules to run the Auto3D segmentation pipeline.
+
 * **bundle**: components to build the portable self-descriptive model bundle.
 
 * **config**: for system configuration and diagnostic output.
