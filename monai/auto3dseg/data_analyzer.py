@@ -243,7 +243,7 @@ class DataAnalyzer:
         Statistics values are stored under the key "image_stats".
 
         Returns:
-            a dictionary of the images stats in format of {"image_stats": {"shape":[], 
+            a dictionary of the images stats in format of {"image_stats": {"shape":[],
                 "channel":[], "cropped_shape":[], "spacing":[], "intensity":[]}}
         """
         # retrieve transformed data from self.data
@@ -396,7 +396,7 @@ class DataAnalyzer:
         Define the summary function for the pixel percentage over the whole dataset.
 
         Args
-            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The 
+            xs: list of dictionaries dict = {'label1': percent, 'label2': percent}. The
                 dict may miss some labels. Length of xs is number of data samples.
 
         Returns:
@@ -515,11 +515,11 @@ class DataAnalyzer:
 
         Args:
             image: ndarray image to segment.
-        
+
         Returns:
-            ndarray of foreground image by removing all-zero edges. 
-        
-        Notes: 
+            ndarray of foreground image by removing all-zero edges.
+
+        Notes:
             the size of the ouput is smaller than the input.
         """
         crop_foreground = transforms.CropForeground(select_fn=lambda x: x > 0)
@@ -583,7 +583,7 @@ class DataAnalyzer:
     def get_case_stats(self, batch_data) -> Dict:
         """
         Get stats for each case {'image', 'label'} in the datalist. The data case is stored in self.data
-        
+
         Args:
             batch_data: from monai dataloader batch data, with keys "images", "labels", "image_meta_dict",
                 "label_meta_dict"
@@ -599,7 +599,7 @@ class DataAnalyzer:
 
         Notes:
             nan/inf: since the backend of the statistics computation are torch/numpy, nan/inf value
-                may be generated and carried over in the computation. In such cases, the output 
+                may be generated and carried over in the computation. In such cases, the output
                 dictionary will include .nan/.inf in the statistics.
 
 
@@ -670,15 +670,15 @@ class DataAnalyzer:
         call get_case_stats to generate stats. Then get_case_summary is called to combine results.
 
         Returns:
-            A data statistics dictionary containing 
+            A data statistics dictionary containing
                 "stats_summary" (summary statistics of the entire datasets). Within stats_summary
-                there are "image_stats"  (summarizing info of shape, channel, spacing, and etc 
-                using operations_summary), "image_foreground_stats" (info of the intensity for the 
-                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentange, 
+                there are "image_stats"  (summarizing info of shape, channel, spacing, and etc
+                using operations_summary), "image_foreground_stats" (info of the intensity for the
+                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentange,
                 image_intensity, and each  invidiual label)
-                "stats_by_cases" (List type value. Each element of the list is statistics of 
-                a image-label info. Within each each element, there are: "image" (value is the 
-                path to an image), "label" (value is the path to the corresponding label), "image_stats" 
+                "stats_by_cases" (List type value. Each element of the list is statistics of
+                a image-label info. Within each each element, there are: "image" (value is the
+                path to an image), "label" (value is the path to the corresponding label), "image_stats"
                 (summarizing info of shape, channel, spacing, and etc using operations),
                 "image_foreground_stats" (similar to the previous one but one foreground image), and
                 "label_stats" (stats of the individual labels )
@@ -688,7 +688,7 @@ class DataAnalyzer:
 
         Notes:
             Since the backend of the statistics computation are torch/numpy, nan/inf value
-            may be generated and carried over in the computation. In such cases, the output 
+            may be generated and carried over in the computation. In such cases, the output
             dictionary will include .nan/.inf in the statistics.
 
         """
