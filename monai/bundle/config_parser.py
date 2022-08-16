@@ -473,15 +473,11 @@ class ConfigParser:
         Args:
             key_chain: a list of string keys
 
-        Return:
+        Returns:
             a formated string
 
         """
-        id_str = ""
-        for key in key_chain:
-            id_str += key + ID_SEP_KEY
-        id_str = id_str[:-1]
-        return id_str
+        return ID_SEP_KEY.join(key_chain)
 
     def recursive_get_key_chains(self) -> List:
         """
@@ -492,7 +488,7 @@ class ConfigParser:
 
         Examples:
             self.config = {'key1':{'key2':{'key3':1},'key4':2}},
-            recursive_getkey(dicts) will return [['key1','key2','key3'], ['key1','key4']]
+            recursive_getkey(dicts) will return ['key1#key2#key3', 'key1#key4']
         """
 
         def recursive_getkey(dicts: Dict) -> List:
