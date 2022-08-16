@@ -109,8 +109,7 @@ class SegResNet(nn.Module):
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv,
-                *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(item)],
+                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(item)]
             )
             down_layers.append(down_layer)
         return down_layers
