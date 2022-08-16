@@ -24,8 +24,8 @@ import numpy as np
 import torch
 
 from monai import data, transforms
-from monai.apps.auto3d.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
 from monai.apps.utils import get_logger
+from monai.auto3dseg.data_utils import datafold_read, recursive_getkey, recursive_getvalue, recursive_setvalue
 from monai.bundle.config_parser import ConfigParser
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
@@ -72,7 +72,7 @@ class DataAnalyzer:
 
     .. code-block:: python
 
-        from monai.apps.auto3d.data_analyzer import DataAnalyzer
+        from monai.auto3dseg.data_analyzer import DataAnalyzer
 
         datalist = {
             "testing": [{"image": "image_003.nii.gz"}],
@@ -94,7 +94,7 @@ class DataAnalyzer:
 
     .. code-block:: bash
 
-        python -m monai.apps.auto3d \
+        python -m monai.auto3dseg \
             DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \
