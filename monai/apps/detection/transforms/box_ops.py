@@ -342,7 +342,7 @@ def select_labels(
 
     labels_select_list = []
     keep_t: torch.Tensor = convert_data_type(keep, torch.Tensor)[0]
-    for i, item in enumerate(labels_tuple):
+    for item in labels_tuple:
         labels_t: torch.Tensor = convert_data_type(item, torch.Tensor)[0]
         labels_t = labels_t[keep_t, ...]
         labels_select_list.append(convert_to_dst_type(src=labels_t, dst=item)[0])

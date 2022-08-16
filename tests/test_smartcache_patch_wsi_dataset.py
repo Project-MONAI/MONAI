@@ -152,7 +152,7 @@ class TestSmartCachePatchWSIDataset(unittest.TestCase):
         dataset.start()
         i = 0
         for _ in range(num_epochs):
-            for j, samples in enumerate(dataset):
+            for samples in dataset:
                 n_patches = len(samples)
                 self.assert_samples_expected(samples, expected[i : i + n_patches])
                 i += n_patches
