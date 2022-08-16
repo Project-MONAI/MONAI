@@ -679,7 +679,7 @@ class Affined(MapTransform, InvertibleTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -791,7 +791,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -944,7 +944,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -1087,7 +1087,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.

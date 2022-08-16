@@ -503,13 +503,13 @@ class Spacing(InvertibleTransform):
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+                Interpolation mode to calculate output values. Defaults to ``"self.mode"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"self.padding_mode"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -2182,7 +2182,7 @@ class Affine(InvertibleTransform):
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -2357,13 +2357,13 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
             mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
-                Interpolation mode to calculate output values. Defaults to ``self.mode``.
+                Interpolation mode to calculate output values. Defaults to ``bilinear``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+                Padding mode for outside grid values. Defaults to ``reflection``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -2611,7 +2611,7 @@ class Rand2DElastic(RandomizableTransform):
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
@@ -2777,7 +2777,7 @@ class Rand3DElastic(RandomizableTransform):
                 and the value represents the order of the spline interpolation.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
