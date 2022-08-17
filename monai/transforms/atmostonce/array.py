@@ -1,20 +1,126 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor
+from monai.data import get_track_meta
 
-from monai.transforms import Transform
+from monai.transforms import Transform, InvertibleTransform, RandomizableTransform
+
+from monai.transforms.atmostonce.apply import apply
+from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing
+from monai.transforms.atmostonce.lazy_transform import LazyTransform, push_transform
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
-                         InterpolateMode, NumpyPadMode, PytorchPadMode)
-from monai.utils.mapping_stack import MappingStack, MatrixFactory
-from monai.utils.misc import get_backend_from_data, get_device_from_data
+                         InterpolateMode, NumpyPadMode, PytorchPadMode, convert_to_tensor)
+from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
+from monai.utils.misc import get_backend_from_data, get_device_from_data, ensure_tuple
 
 
-class Rotate(Transform):
+# TODO: these transforms are intended to replace array transforms once development is done
+
+# TODO: why doesn't Spacing have antialiasing options?
+class Spacing(LazyTransform, InvertibleTransform):
+
+    def __init__(
+        self,
+        pixdim: Union[Sequence[float], float, np.ndarray],
+        src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]],
+        diagonal: Optional[bool] = False,
+        mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+        align_corners: Optional[bool] = False,
+        dtype: Optional[DtypeLike] = np.float64,
+        image_only: Optional[bool] = False,
+        lazy_evaluation: Optional[bool] = False
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.pixdim = pixdim
+        self.diagonal = diagonal
+        self.mode = mode
+        self.padding_mode = padding_mode
+        self.align_corners = align_corners
+        self.dtype = dtype
+        self.image_only = image_only
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        dtype: DtypeLike = None
+    ):
+
+        mode_ = mode or self.mode
+        padding_mode_ = padding_mode or self.padding_mode
+        align_corners_ = align_corners or self.align_corners
+        dtype_ = dtype or self.dtype
+
+        img_t, transform, metadata = spacing(img, self.pixdim, self.src_pixdim, self.diagonal,
+                                             mode_, padding_mode_, align_corners_, dtype_)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(self, data):
+        raise NotImplementedError()
+
+
+class Resize(LazyTransform, InvertibleTransform):
+
+    def __init__(
+        self,
+        spatial_size: Union[Sequence[int], int],
+        size_mode: Optional[str] = "all",
+        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+        align_corners: Optional[bool] = False,
+        anti_aliasing: Optional[bool] = False,
+        anti_aliasing_sigma: Optional[Union[Sequence[float], float, None]] = None,
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+        lazy_evaluation: Optional[bool] = False
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.spatial_size = spatial_size
+        self.size_mode = size_mode
+        self.mode = mode,
+        self.align_corners = align_corners
+        self.anti_aliasing = anti_aliasing
+        self.anti_aliasing_sigma = anti_aliasing_sigma
+        self.dtype = dtype
+
+    def __call__(
+        self,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        align_corners: Optional[bool] = None,
+        anti_aliasing: Optional[bool] = None,
+        anti_aliasing_sigma: Union[Sequence[float], float, None] = None
+    ) -> NdarrayOrTensor:
+        mode_ = mode or self.mode
+        align_corners_ = align_corners or self.align_corners
+        anti_aliasing_ = anti_aliasing or self.anti_aliasing
+        anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
+
+        img_t, transform, metadata = resize(img, self.spatial_size, self.size_mode, mode_,
+                                            align_corners_, anti_aliasing_, anti_aliasing_sigma_,
+                                            self.dtype)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+
+class Rotate(LazyTransform, InvertibleTransform):
 
     def __init__(
         self,
@@ -23,8 +129,10 @@ class Rotate(Transform):
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        lazy_evaluation: Optional[bool] = False
     ):
+        LazyTransform.__init__(self, lazy_evaluation)
         self.angle = angle
         self.keep_size = keep_size
         self.mode = mode
@@ -35,32 +143,32 @@ class Rotate(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        mapping_stack: Optional[MappingStack] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
     ) -> NdarrayOrTensor:
-        mode = self.mode if mode is None else mode
-        padding_mode = self.padding_mode if padding_mode is None else padding_mode
-        align_corners = self.align_corners if align_corners is None else align_corners
+        angle = self.angle
+        mode = mode or self.mode
+        padding_mode = padding_mode or self.padding_mode
+        align_corners = align_corners or self.align_corners
         keep_size = self.keep_size
         dtype = self.dtype
-        matrix_factory = MatrixFactory(len(img.shape)-1,
-                                       get_backend_from_data(img),
-                                       get_device_from_data(img))
-        if mapping_stack is None:
-            mapping_stack = MappingStack(matrix_factory)
-        mapping_stack.push(matrix_factory.rotate_euler(self.angle,
-                                                       **{
-                                                           "padding_mode": padding_mode,
-                                                           "mode": mode,
-                                                           "align_corners": align_corners,
-                                                           "keep_size": keep_size,
-                                                           "dtype": dtype
-                                                       }))
+
+        img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
+                                            align_corners, dtype)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
-class Zoom(Transform):
+class Zoom(LazyTransform, InvertibleTransform):
     """
     Zoom into / out of the image applying the `zoom` factor as a scalar, or if `zoom` is a tuple of
     values, apply each zoom factor to the appropriate dimension.
@@ -87,109 +195,128 @@ class Zoom(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        mapping_stack: Optional[MappingStack] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None
     ) -> NdarrayOrTensor:
 
-        mode = self.mode if mode is None else mode
-        padding_mode = self.padding_mode if padding_mode is None else padding_mode
-        align_corners = self.align_corners if align_corners is None else align_corners
+        mode = self.mode or mode
+        padding_mode = self.padding_mode or padding_mode
+        align_corners = self.align_corners or align_corners
         keep_size = self.keep_size
         dtype = self.dtype
-        matrix_factory = MatrixFactory(len(img.shape)-1,
-                                       get_backend_from_data(img),
-                                       get_device_from_data(img))
-        if mapping_stack is None:
-            mapping_stack = MappingStack(matrix_factory)
-        mapping_stack.push(matrix_factory.scale(self.zoom,
-                                                **{
-                                                    "padding_mode": padding_mode,
-                                                    "mode": mode,
-                                                    "align_corners": align_corners,
-                                                    "keep_size": keep_size,
-                                                    "dtype": dtype
-                                                }))
-        img.add
+
+        img_t, transform, metadata = zoom(img, self.zoom, mode, padding_mode, align_corners,
+                                          keep_size, dtype)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
-class Resize(Transform):
+class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def __init__(
         self,
-        spatial_size: Union[Sequence[int], int],
-        size_mode: str = "all",
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
-        anti_aliasing: bool = False,
-        anti_aliasing_sigma: Union[Sequence[float], float, None] = None
-    ):
-        self.spatial_size = spatial_size
-        self.size_mode = size_mode
-        self.mode = mode,
-        self.align_corners = align_corners
-        self.anti_aliasing = anti_aliasing
-        self.anti_aliasing_sigma = anti_aliasing_sigma
-
-    def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mapping_stack: Optional[MappingStack] = None,
-        mode: Optional[Union[InterpolateMode, str]] = None,
-        align_corners: Optional[bool] = None,
-        anti_aliasing: Optional[bool] = None,
-        anti_aliasing_sigma: Union[Sequence[float], float, None] = None
-    ) -> NdarrayOrTensor:
-        mode = self.mode if mode is None else mode
-        align_corners = self.align_corners if align_corners is None else align_corners
-        keep_size = self.keep_size
-        dtype = self.dtype
-        matrix_factory = MatrixFactory(len(img.shape)-1,
-                                       get_backend_from_data(img),
-                                       get_device_from_data(img))
-        if mapping_stack is None:
-            mapping_stack = MappingStack(matrix_factory)
-        mapping_stack.push(matrix_factory.scale(self.zoom,
-                                                **{
-                                                    "mode": mode,
-                                                    "align_corners": align_corners,
-                                                    "keep_size": keep_size,
-                                                    "dtype": dtype
-                                                }))
-
-
-class Spacing(Transform):
-
-    def __init__(
-        self,
-        pixdim: Union[Sequence[float], float, np.ndarray],
-        diagonal: bool = False,
+        range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
+        range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
+        range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
+        prob: Optional[float] = 0.1,
+        keep_size: bool = True,
         mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
         padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
-        image_only: bool = False
+        dtype: Union[DtypeLike, torch.dtype] = np.float32
     ):
-        self.pixdim = pixdim
-        self.diagonal = diagonal
+        RandomizableTransform.__init__(self, prob)
+        self.range_x = ensure_tuple(range_x)
+        if len(self.range_x) == 1:
+            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
+        self.range_y = ensure_tuple(range_y)
+        if len(self.range_y) == 1:
+            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
+        self.range_z = ensure_tuple(range_z)
+        if len(self.range_z) == 1:
+            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
+
+        self.keep_size = keep_size
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-        self.image_only = image_only
+
+        self.x = 0.0
+        self.y = 0.0
+        self.z = 0.0
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(
         self,
         img: NdarrayOrTensor,
-        mapping_stack: Optional[MappingStack] = None,
-        affine: Optional[NdarrayOrTensor] = None,
-        mode: Optional[Union[GridSampleMode, str]] = None,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: DtypeLike = None,
-        output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None
-    ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
-        pass
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        randomize: Optional[bool] = True,
+        get_matrix: Optional[bool] = False
+
+    ) -> NdarrayOrTensor:
+
+        if randomize:
+            self.randomize()
+
+        img_dims = len(img.shape) - 1
+        if self._do_transform:
+            angle = self.x if img_dims == 2 else (self.x, self.y, self.z)
+        else:
+            angle = 0 if img_dims == 2 else (0, 0, 0)
+
+        mode = self.mode or mode
+        padding_mode = self.padding_mode or padding_mode
+        align_corners = self.align_corners or align_corners
+        keep_size = self.keep_size
+        dtype = self.dtype
+
+        img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
+                                            align_corners, dtype)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor,
+    ):
+        raise NotImplementedError()
 
 
+# Snippet of code for pushing transform to metadata - pulled from Rotate
+        # img = self._post_process(img, img.spatial_shape, sp_size, *args)
+        # img.spatial_shape = sp_size  # type: ignore
+        # self.update_meta(img, orig_size, sp_size)
+        # self.push_transform(
+        #     img,
+        #     orig_size=orig_size,
+        #     extra_info={
+        #         "mode": mode,
+        #         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+        #         "new_dim": len(orig_size) - ndim,  # additional dims appended
+        #     },
+        # )

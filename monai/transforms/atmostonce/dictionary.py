@@ -1,14 +1,19 @@
-from typing import Mapping, Optional, Sequence, Union
+from typing import Any, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
 import torch
 
-from monai.config import KeysCollection
+from monai.transforms.atmostonce.functional import rotate
+from monai.utils import ensure_tuple, ensure_tuple_rep
+
+from monai.config import KeysCollection, DtypeLike, SequenceStr
+from monai.transforms.atmostonce.apply import apply
+from monai.transforms.atmostonce.lazy_transform import LazyTransform
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
-from monai.utils.enums import TransformBackends
-from monai.utils.mapping_stack import MappingStack, MatrixFactory
+from monai.utils.enums import TransformBackends, GridSampleMode, GridSamplePadMode
+from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
 from monai.utils.type_conversion import expand_scalar_to_tuple
 
 
@@ -56,7 +61,7 @@ class MappingStackTransformd(MapTransform, InvertibleTransform):
             dims = len(data.shape)-1
             device = get_device_from_data(data)
             backend = get_backend_from_data(data)
-            v = mappings.get(k, MappingStack(MatrixFactory(dims, backend, device)))
+            v = None # mappings.get(k, MappingStack(MatrixFactory(dims, backend, device)))
             v.push(self.get_matrix(dims, backend, device, *args, **kwargs))
             mappings[k] = v
             rd[k] = data
@@ -70,32 +75,54 @@ class MappingStackTransformd(MapTransform, InvertibleTransform):
         raise NotImplementedError(msg)
 
 
-class RotateEulerd(MapTransform, InvertibleTransform):
+class Rotated(LazyTransform, MapTransform, InvertibleTransform):
 
     def __init__(self,
                  keys: KeysCollection,
-                 euler_radians: Union[Sequence[float], float]):
+                 angle: Union[Sequence[float], float],
+                 keep_size: bool = True,
+                 mode: Optional[SequenceStr] = GridSampleMode.BILINEAR,
+                 padding_mode: Optional[SequenceStr] = GridSamplePadMode.BORDER,
+                 align_corners: Optional[Union[Sequence[bool], bool]] = False,
+                 dtype: Optional[Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype]] = np.float32,
+                 allow_missing_keys: Optional[bool] = False,
+                 lazy_evaluation: Optional[bool] = False
+                 ):
         super().__init__(self)
         self.keys = keys
-        self.euler_radians = expand_scalar_to_tuple(euler_radians, len(keys))
+        self.angle = angle
+        self.keep_size = keep_size
+        self.modes = ensure_tuple_rep(mode, len(keys))
+        self.padding_modes = ensure_tuple_rep(padding_mode, len(keys))
+        self.align_corners = align_corners
+        self.dtypes = ensure_tuple_rep(dtype, len(keys))
+        self.allow_missing_keys = allow_missing_keys
 
     def __call__(self, d: Mapping):
-        mappings = d.get("mappings", dict())
-        rd = dict()
-        for k in self.keys:
-            data = d[k]
-            dims = len(data.shape)-1
-            device = get_device_from_data(data)
-            backend = get_backend_from_data(data)
-            matrix_factory = MatrixFactory(dims, backend, device)
-            v = mappings.get(k, MappingStack(matrix_factory))
-            v.push(matrix_factory.rotate_euler(self.euler_radians))
-            mappings[k] = v
-            rd[k] = data
+        rd = dict(d)
+        if self.allow_missing_keys is True:
+            keys_present = {k for k in self.keys if k in d}
+        else:
+            keys_present = self.keys
 
-        rd["mappings"] = mappings
+        for ik, k in enumerate(keys_present):
+            img = d[k]
+
+            img_t, transform, metadata = rotate(img, self.angle, self.keep_size,
+                                                self.modes[ik], self.padding_modes[ik],
+                                                self.align_corners, self.dtypes[ik])
+
+            # TODO: candidate for refactoring into a LazyTransform method
+            img_t.push_pending_transform(MetaMatrix(transform, metadata))
+            if not self.lazy_evaluation:
+                img_t = apply(img_t)
+
+            rd[k] = img_t
 
         return rd
+
+    def inverse(self, data: Any):
+        raise NotImplementedError()
 
 
 class Translated(MapTransform, InvertibleTransform):
@@ -116,12 +143,10 @@ class Translated(MapTransform, InvertibleTransform):
             device = get_device_from_data(data)
             backend = get_backend_from_data(data)
             matrix_factory = MatrixFactory(dims, backend, device)
-            v = mappings.get(k, MappingStack(matrix_factory))
+            v = None # mappings.get(k, MappingStack(matrix_factory))
             v.push(matrix_factory.translate(self.translate))
             mappings[k] = v
             rd[k] = data
-
-        rd["mappings"] = mappings
 
         return rd
 
@@ -144,7 +169,7 @@ class Zoomd(MapTransform, InvertibleTransform):
             device = get_device_from_data(data)
             backend = get_backend_from_data(data)
             matrix_factory = MatrixFactory(dims, backend, device)
-            v = mappings.get(k, MappingStack(matrix_factory))
+            v = None # mappings.get(k, MappingStack(matrix_factory))
             v.push(matrix_factory.scale(self.scale))
             mappings[k] = v
             rd[k] = data
@@ -153,40 +178,3 @@ class Zoomd(MapTransform, InvertibleTransform):
 
         return rd
 
-
-# class RotateEulerd(MappingStackTransformd):
-#
-#     def __init__(self,
-#                  keys: KeysCollection,
-#                  euler_radians: Union[Sequence[float], float]):
-#         super().__init__(keys)
-#         self.euler_radians = euler_radians
-#
-#     def get_matrix(self, dims, backend, device, *args, **kwargs):
-#         euler_radians = args[0] if len(args) > 0 else None
-#         euler_radians = kwargs.get("euler_radians", None) if euler_radians is None
-#         euler_radians = self.euler_radians if euler_radians is None else self.euler_radians
-#         if euler_radians is None:
-#             raise ValueError("'euler_radians' must be set during initialisation or passed in"
-#                              "during __call__")
-#         arg = euler_radians if self.euler_radians is None else euler_radians
-#         return MatrixFactory(dims, backend, device).rotate_euler(arg)
-#
-#
-# class ScaleEulerd(MappingStackTransformd):
-#
-#     def __init__(self,
-#                  keys: KeysCollection,
-#                  scale: Union[Sequence[float], float]):
-#         super().__init__(keys)
-#         self.scale = scale
-#
-#     def get_matrix(self, dims, backend, device, *args, **kwargs):
-#         scale = args[0] if len(args) > 0 else None
-#         scale = kwargs.get("scale", None) if scale is None
-#         scale = self.scale if scale is None else self.euler_radians
-#         if scale is None:
-#             raise ValueError("'scale' must be set during initialisation or passed in"
-#                              "during __call__")
-#         arg = scale if self.scale is None else scale
-#         return MatrixFactory(dims, backend, device).scale(arg)

@@ -18,6 +18,8 @@ import torch
 from monai.utils.enums import TransformBackends
 from monai.transforms.utils import (_create_rotate, _create_scale, _create_shear,
                                     _create_translate)
+from monai.utils.misc import get_backend_from_data, get_device_from_data
+
 
 class MatrixFactory:
 
@@ -50,58 +52,130 @@ class MatrixFactory:
         self._backend = backend
         self._dims = dims
 
+    @staticmethod
+    def from_tensor(data):
+        return MatrixFactory(len(data.shape)-1,
+                             get_backend_from_data(data),
+                             get_device_from_data(data))
+
     def identity(self):
-        return self._eye(self._dims + 1)
+        matrix = self._eye(self._dims + 1)
+        return MetaMatrix(matrix, {})
 
     def rotate_euler(self, radians: Union[Sequence[float], float], **extra_args):
         matrix = _create_rotate(self._dims, radians, self._sin, self._cos, self._eye)
-        return {"matrix": matrix, "args": extra_args}
+        return MetaMatrix(matrix, extra_args)
 
-    def shear(self, coefs: Union[Sequence[float], float]):
-        return _create_shear(self._dims, coefs, self._eye)
+    def shear(self, coefs: Union[Sequence[float], float], **extra_args):
+        matrix = _create_shear(self._dims, coefs, self._eye)
+        return MetaMatrix(matrix, extra_args)
 
     def scale(self, factors: Union[Sequence[float], float], **extra_args):
         matrix = _create_scale(self._dims, factors, self._diag)
-        return {"matrix": matrix, "args": extra_args}
+        return MetaMatrix(matrix, extra_args)
 
-    def translate(self, offsets: Union[Sequence[float], float]):
-        return _create_translate(self._dims, offsets, self._eye)
-
-
-class Mapping:
-
-    def __init__(self, matrix):
-        self._matrix = matrix
-
-    def apply(self, other):
-        return Mapping(other @ self._matrix)
+    def translate(self, offsets: Union[Sequence[float], float], **extra_args):
+        matrix = _create_translate(self._dims, offsets, self._eye)
+        return MetaMatrix(matrix, extra_args)
 
 
-class MappingStack:
-    """
-    This class keeps track of a series of mappings and apply them / calculate their inverse (if
-    mappings are invertible). Mapping stacks are used to generate a mapping that gets applied during a `Resample` /
-    `Resampled` transform.
+# class Mapping:
+#
+#     def __init__(self, matrix):
+#         self._matrix = matrix
+#
+#     def apply(self, other):
+#         return Mapping(other @ self._matrix)
 
-    A mapping is one of:
-    - a description of a change to a numpy array that only requires index manipulation instead of an actual resample.
-    - a homogeneous matrix representing a geometric transform to be applied during a resample
-    - a field representing a deformation to be applied during a resample
-    """
 
-    def __init__(self, factory: MatrixFactory):
-        self.factory = factory
-        self.stack = []
-        self.applied_stack = []
+class Dimensions:
 
-    def push(self, mapping):
-        self.stack.append(mapping)
-
-    def pop(self):
+    def __init__(self, flips, permutes):
         raise NotImplementedError()
 
-    def transform(self):
-        m = Mapping(self.factory.identity())
-        for t in self.stack:
-            m = m.apply(t)
-        return m
+    def __matmul__(self, other):
+        raise NotImplementedError()
+
+    def __rmatmul__(self, other):
+        raise NotImplementedError()
+
+
+class Matrix:
+
+    def __init__(self, matrix):
+        self.matrix = matrix
+
+    def __matmul__(self, other):
+        if isinstance(other, Matrix):
+            other_matrix = other.matrix
+        else:
+            other_matrix = other
+        return self.matrix @ other_matrix
+
+    def __rmatmul__(self, other):
+        return other.__matmul__(self.matrix)
+
+
+# TODO: remove if the existing Grid is fine for our purposes
+class Grid:
+    def __init__(self, grid):
+        raise NotImplementedError()
+
+    def __matmul__(self, other):
+        raise NotImplementedError()
+
+
+class MetaMatrix:
+
+    def __init__(self, matrix, metadata=None):
+        if not isinstance(matrix, (Matrix, Grid)):
+            matrix_ = Matrix(matrix)
+        else:
+            matrix_ = matrix
+        self.matrix = matrix_
+
+        self.metadata = metadata or {}
+
+    def __matmul__(self, other):
+        if isinstance(other, MetaMatrix):
+            other_ = other.matrix
+        else:
+            other_ = other
+        return MetaMatrix(self.matrix @ other_)
+
+    def __rmatmul__(self, other):
+        if isinstance(other, MetaMatrix):
+            other_ = other.matrix
+        else:
+            other_ = other
+        return MetaMatrix(other_ @ self.matrix)
+
+
+# class MappingStack:
+#     """
+#     This class keeps track of a series of mappings and apply them / calculate their inverse (if
+#     mappings are invertible). Mapping stacks are used to generate a mapping that gets applied during a `Resample` /
+#     `Resampled` transform.
+#
+#     A mapping is one of:
+#     - a description of a change to a numpy array that only requires index manipulation instead of an actual resample.
+#     - a homogeneous matrix representing a geometric transform to be applied during a resample
+#     - a field representing a deformation to be applied during a resample
+#     """
+#
+#     def __init__(self, factory: MatrixFactory):
+#         self.factory = factory
+#         self.stack = []
+#         self.applied_stack = []
+#
+#     def push(self, mapping):
+#         self.stack.append(mapping)
+#
+#     def pop(self):
+#         raise NotImplementedError()
+#
+#     def transform(self):
+#         m = Mapping(self.factory.identity())
+#         for t in self.stack:
+#             m = m.apply(t)
+#         return m

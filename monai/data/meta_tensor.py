@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import copy
+
 import warnings
 from copy import deepcopy
 from typing import Any, Sequence
@@ -150,6 +152,26 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         if MetaKeys.SPACE not in self.meta:
             self.meta[MetaKeys.SPACE] = SpaceKeys.RAS  # defaulting to the right-anterior-superior space
+
+        self._pending_transforms = list()
+
+    def push_pending_transform(self, meta_matrix):
+        self._pending_transforms.append(meta_matrix)
+
+    def peek_pending_transform(self):
+        return copy.deepcopy(self._pending_transforms[0])
+
+    def pop_pending_transform(self):
+        transform = self._pending_transforms[0]
+        self._pending_transforms.pop(0)
+        return transform
+
+    @property
+    def pending_transforms(self):
+        return copy.deepcopy(self._pending_transforms)
+
+    def clear_pending_transforms(self):
+        self._pending_transforms = list()
 
     @staticmethod
     def update_meta(rets: Sequence, func, args, kwargs) -> Sequence:
