@@ -40,7 +40,7 @@ class ExchangeObject(dict):
         self.metrics = metrics
         self.weight_type = weight_type
         self.statistics = statistics
-        self._summary = {}
+        self._summary: Dict = {}
 
     @property
     def metrics(self):
