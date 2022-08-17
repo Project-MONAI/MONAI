@@ -75,7 +75,7 @@ def run(config_file: Union[str, Sequence[str]]):
         world_size = 1
     print("[info] world_size:", world_size)
 
-    with open(data_list_file_path) as f:
+    with open(data_list_file_path, "r") as f:
         json_data = json.load(f)
 
     list_train = json_data["training"]
@@ -217,7 +217,7 @@ def run(config_file: Union[str, Sequence[str]]):
         if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
             print("-" * 10)
             print(f"epoch {epoch + 1}/{num_epochs}")
-            print(f"learning rate is set to {lr}")
+            print("learning rate is set to {}".format(lr))
 
         model.train()
         epoch_loss = 0
@@ -267,7 +267,7 @@ def run(config_file: Union[str, Sequence[str]]):
             idx_iter += 1
 
             if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
-                print(f"[{str(datetime.now())[:19]}] " + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+                print("[{0}] ".format(str(datetime.now())[:19]) + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
                 writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
 
             if epoch < num_epochs_warmup:
@@ -349,7 +349,7 @@ def run(config_file: Union[str, Sequence[str]]):
 
             if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
                 print(
-                    f"[{str(datetime.now())[:19]}] "
+                    "[{0}] ".format(str(datetime.now())[:19])
                     + f"{step}/{epoch_len}, train_loss_arch: {loss.item():.4f}"
                 )
                 writer.add_scalar("train_loss_arch", loss.item(), epoch_len * epoch + step)
@@ -449,7 +449,7 @@ def run(config_file: Union[str, Sequence[str]]):
                 metric = metric.tolist()
                 if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
                     for _c in range(output_classes - 1):
-                        print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
+                        print("evaluation metric - class {0:d}:".format(_c + 1), metric[2 * _c] / metric[2 * _c + 1])
                     avg_metric = 0
                     for _c in range(output_classes - 1):
                         avg_metric += metric[2 * _c] / metric[2 * _c + 1]
@@ -494,7 +494,7 @@ def run(config_file: Union[str, Sequence[str]]):
                     elapsed_time = (current_time - start_time) / 60.0
                     with open(os.path.join(arch_ckpt_path, "accuracy_history.csv"), "a") as f:
                         f.write(
-                            "{:d}\t{:.5f}\t{:.5f}\t{:.5f}\t{:.1f}\t{:d}\n".format(
+                            "{0:d}\t{1:.5f}\t{2:.5f}\t{3:.5f}\t{4:.1f}\t{5:d}\n".format(
                                 epoch + 1, avg_metric, loss_torch_epoch, lr, elapsed_time, idx_iter
                             )
                         )
