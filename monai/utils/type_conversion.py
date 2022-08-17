@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import re
-from typing import Any, SupportsInt, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import Any, Optional, Sequence, Tuple, Type, TypeVar, Union
 
 import numpy as np
 import torch

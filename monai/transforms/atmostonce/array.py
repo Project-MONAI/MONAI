@@ -136,5 +136,3 @@ class Spacing(Transform):
         output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None
     ) -> Union[NdarrayOrTensor, Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor]]:
         pass
-
-

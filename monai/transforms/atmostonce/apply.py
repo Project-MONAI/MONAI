@@ -4,7 +4,7 @@ import numpy as np
 
 import torch
 
-from monai.config import USE_COMPILED, DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import Resample
@@ -14,7 +14,6 @@ from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import (convert_data_type, convert_to_dst_type,
                                          expand_scalar_to_tuple)
-from monai.utils.mapping_stack import MappingStack
 
 # TODO: This should move to a common place to be shared with dictionary
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]

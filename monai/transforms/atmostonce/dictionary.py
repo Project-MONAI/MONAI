@@ -1,4 +1,4 @@
-from typing import Mapping, Optional, Sequence, Union
+from typing import Mapping, Sequence, Union
 
 import numpy as np
 

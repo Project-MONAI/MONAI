@@ -13,7 +13,7 @@ import unittest
 
 from monai.transforms.utils import TransformBackends
 
-from monai.utils.mapping_stack import MappingStack, Mapping, MatrixFactory
+from monai.utils.mapping_stack import MappingStack, MatrixFactory
 
 
 class MappingStackTest(unittest.TestCase):
