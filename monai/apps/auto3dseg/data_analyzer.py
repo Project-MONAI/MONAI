@@ -137,7 +137,9 @@ class DataAnalyzer:
 
         if not self.IMAGE_ONLY:
             transform_list += [
-                transforms.Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True)),
+                transforms.Lambdad(
+                    keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
+                ),
                 transforms.SqueezeDimd(keys=["label"], dim=0),
             ]
 
@@ -604,6 +606,7 @@ class DataAnalyzer:
 
 
         """
+        self.data = {}
         self.data["image"] = batch_data["image"].to(self.device)
         self.data["image_meta_dict"] = batch_data["image_meta_dict"]
         if not self.IMAGE_ONLY:
