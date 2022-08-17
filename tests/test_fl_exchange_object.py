@@ -29,7 +29,7 @@ if has_torchvision:
     TEST_INIT_2.append(
         {
             "weights": network.state_dict(),
-            "optim": torch.optim.Adam(lr=1, params=network.parameters()),
+            "optim": torch.optim.Adam(lr=1, params=network.parameters()).state_dict(),
             "metrics": {"accuracy": 1},
             "weight_type": WeightType.WEIGHT_DIFF,
             "statistics": {"some_stat": 1},
@@ -48,6 +48,7 @@ class TestFLExchangeObject(unittest.TestCase):
     def test_init(self, input_params):
         eo = ExchangeObject(**input_params)
         self.assertIsInstance(eo, ExchangeObject)
+        eo.summary()
 
     @parameterized.expand([TEST_FAILURE_METRICS, TEST_FAILURE_STATISTICS, TEST_FAILURE_WEIGHT_TYPE])
     def test_failures(self, input_params):
