@@ -2077,9 +2077,9 @@ class Resample(Transform):
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
             grid_t = grid_t[:sr]
-            if USE_COMPILED:
+            if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
-                bound = 1 if _padding_mode == "reflection" else GridSamplePadMode(_padding_mode)
+                bound = 1 if _padding_mode == "reflection" else _padding_mode
                 if _interp_mode == "bicubic":
                     interp = 3
                 elif _interp_mode == "bilinear":

@@ -15,6 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data import MetaTensor
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
@@ -24,14 +25,14 @@ from tests.utils import assert_allclose, is_tf32_env
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
 TEST_IDENTITY = []
-for interp in GridSampleMode:
+for interp in GridSampleMode if not USE_COMPILED else ("nearest", "bilinear"):  # type: ignore
     for pad in GridSamplePadMode:
         for p in (np.float32, np.float64):
             for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
                 TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 4)])
                 if interp != "bicubic":
                     TEST_IDENTITY.append([dict(device=device), p, interp, pad, (1, 3, 5, 8)])
-for interp_s in SplineMode:
+for interp_s in SplineMode if not USE_COMPILED else []:  # type: ignore
     for pad_s in NdimageMode:
         for p_s in (int, float, np.float32, np.float64):
             for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
