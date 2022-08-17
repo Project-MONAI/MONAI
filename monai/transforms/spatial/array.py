@@ -42,7 +42,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis, where
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
@@ -2059,9 +2059,11 @@ class Resample(Transform):
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
-        grid_t, *_ = convert_to_dst_type(grid, img_t)
+        grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
         if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
-            grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+            grid_t = grid_t.clone(memory_format=torch.contiguous_format)  # type: ignore
+        if self.norm_coords:
+            grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.shape[1:]), 3)
 
         _interp_mode = self.mode if mode is None else mode
@@ -2095,7 +2097,7 @@ class Resample(Transform):
                 out = (cupy if is_cuda else np).stack(
                     [
                         (cupy_ndi if is_cuda else np_ndi).map_coordinates(
-                            c, grid_np, order=_interp_mode, mode=look_up_option(_padding_mode, NdimageMode)
+                            c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode)
                         )
                         for c in img_np
                     ]
@@ -2109,7 +2111,7 @@ class Resample(Transform):
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid_t.unsqueeze(0),
+                grid_t.unsqueeze(0).to(img_t),
                 mode=GridSampleMode(_interp_mode),
                 padding_mode=GridSamplePadMode(_padding_mode),
                 align_corners=True,
