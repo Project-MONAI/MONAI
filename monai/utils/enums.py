@@ -96,7 +96,7 @@ class NumpyPadMode(StrEnum):
 
 class NdimageMode(StrEnum):
     """
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
     """
 
     REFLECT = "reflect"
