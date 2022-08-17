@@ -2060,8 +2060,7 @@ class Resample(Transform):
         _dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
-        if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
-            grid_t = grid_t.clone(memory_format=torch.contiguous_format)  # type: ignore
+        grid_t = grid_t.clone(memory_format=torch.contiguous_format)  # type: ignore
         if self.norm_coords:
             grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.shape[1:]), 3)
@@ -2094,11 +2093,10 @@ class Resample(Transform):
                 is_cuda = img_t.is_cuda
                 img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
                 grid_np, *_ = convert_to_dst_type(grid_t, img_np, wrap_sequence=True)
+                _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
                 out = (cupy if is_cuda else np).stack(
                     [
-                        (cupy_ndi if is_cuda else np_ndi).map_coordinates(
-                            c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode)
-                        )
+                        _map_coord(c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode))
                         for c in img_np
                     ]
                 )
