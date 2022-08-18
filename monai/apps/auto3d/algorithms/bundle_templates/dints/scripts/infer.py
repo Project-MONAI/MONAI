@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import sys
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 import torch
 
