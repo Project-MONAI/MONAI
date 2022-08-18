@@ -26,9 +26,7 @@ from monai.inferers import sliding_window_inference
 
 
 class InferClass:
-    def __init__(
-        self, config_file: Optional[Union[str, Sequence[str]]] = None, **override
-    ):
+    def __init__(self, config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
         _args = _update_args(config_file=config_file, **override)
@@ -75,12 +73,8 @@ class InferClass:
 
         self.infer_loader = None
         if self.fast:
-            infer_ds = monai.data.Dataset(
-                data=self.infer_files, transform=self.infer_transforms
-            )
-            self.infer_loader = ThreadDataLoader(
-                infer_ds, num_workers=8, batch_size=1, shuffle=False
-            )
+            infer_ds = monai.data.Dataset(data=self.infer_files, transform=self.infer_transforms)
+            self.infer_loader = ThreadDataLoader(infer_ds, num_workers=8, batch_size=1, shuffle=False)
 
         self.device = torch.device("cuda:0")
         torch.cuda.set_device(self.device)
@@ -104,12 +98,8 @@ class InferClass:
                 nearest_interp=False,
                 to_tensor=True,
             ),
-            transforms.Activationsd(
-                keys="pred", softmax=softmax, sigmoid=not softmax
-            ),
-            transforms.CopyItemsd(
-                keys="pred", times=1, names="pred_final"
-            ),
+            transforms.Activationsd(keys="pred", softmax=softmax, sigmoid=not softmax),
+            transforms.CopyItemsd(keys="pred", times=1, names="pred_final"),
         ]
 
         if softmax:
