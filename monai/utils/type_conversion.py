@@ -180,7 +180,7 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
         # than (convert dtype) -> (convert to contiguous array) when src dtype (e.g., uint8) is smaller than
         # target dtype(e.g., float32) and we are going to convert it to contiguous array anyway later in this
         # method.
-        if data.ndim > 0 and data.dtype.itemsize < np.dtype(dtype).itemsize:
+        if isinstance(data, np.ndarray) and data.ndim > 0 and data.dtype.itemsize < np.dtype(dtype).itemsize:
             data = np.ascontiguousarray(data)
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
