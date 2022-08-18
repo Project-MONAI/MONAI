@@ -1,19 +1,18 @@
 ---
 amp: true
 bundle_root: "/home/dongy/Project/MONAI/auto3d/Task05_Prostate"
-ckpt_path: "$@bundle_root + '/model_fold' + str(@fold)"
+arch_path: "$@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)"
 data_file_base_dir: "/workspace/data/msd/Task05_Prostate"
 data_list_file_path: "$@bundle_root + '/../datafolds/msd_task05_prostate_folds.json'"
 determ: false
-finetune:
-  activate: false
-  pretrained_ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
 fold: 0
 input_channels: 2
 learning_rate: 0.025
+learning_rate_arch: 0.001
 num_images_per_batch: 2
 num_iterations: 400
 num_iterations_per_validation: 50
+num_warmup_iterations: 200
 num_patches_per_image: 1
 num_sw_batch_size: 2
 output_classes: 3
@@ -26,6 +25,7 @@ patch_size_valid:
 - 160
 - 160
 - 32
+ram_cost_factor: 0.8
 softmax: true
 loss:
   _target_: DiceFocalLoss
@@ -42,16 +42,21 @@ optimizer:
   lr: "@learning_rate"
   momentum: 0.9
   weight_decay: 4.0e-05
+arch_optimizer_a:
+  _target_: torch.optim.Adam
+  lr: "@learning_rate_arch"
+  betas:
+  - 0.5
+  - 0.999
+  weight_decay: 0
+arch_optimizer_c:
+  _target_: torch.optim.Adam
+  lr: "@learning_rate_arch"
+  betas:
+  - 0.5
+  - 0.999
+  weight_decay: 0
 lr_scheduler:
   _target_: torch.optim.lr_scheduler.StepLR
-  optimizer: "$@optimizer"
-  step_size: "$@num_iterations // 5"
+  step_size: "$int(float(@num_iterations - @num_warmup_iterations) * 0.4)"
   gamma: 0.5
-validate:
-  ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
-  save_mask: true
-  ouptut_path: "$@bundle_root + '/prediction_fold' + str(@fold)"
-infer:
-  ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
-  data_list_key: testing
-  ouptut_path: "$@bundle_root + '/prediction_' + @infer#data_list_key"

@@ -1,6 +1,6 @@
 ---
 image_key: image
-transforms_validate:
+transforms_infer:
   _target_: Compose
   transforms:
   - _target_: LoadImaged
