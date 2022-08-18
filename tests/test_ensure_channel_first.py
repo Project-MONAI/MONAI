@@ -38,6 +38,8 @@ TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz", "test_image2.nii.g
 
 TEST_CASE_7 = [{"reader": ITKReader(pixel_type=itk.UC)}, "tests/testing_data/CT_DICOM", None]
 
+itk.ProcessObject.SetGlobalWarningDisplay(False)
+
 
 class TestEnsureChannelFirst(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
@@ -74,14 +76,26 @@ class TestEnsureChannelFirst(unittest.TestCase):
 
     def test_check(self):
         im = torch.zeros(1, 2, 3)
+        im_nodim = MetaTensor(im, meta={"original_channel_dim": None})
+
         with self.assertRaises(ValueError):  # not MetaTensor
-            EnsureChannelFirst()(im)
+            EnsureChannelFirst(add_channel_default=False)(im)
         with self.assertRaises(ValueError):  # no meta
-            EnsureChannelFirst()(MetaTensor(im))
+            EnsureChannelFirst(add_channel_default=False)(MetaTensor(im))
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirst()(MetaTensor(im, meta={"original_channel_dim": None}))
-        EnsureChannelFirst(strict_check=False)(im)
-        EnsureChannelFirst(strict_check=False)(MetaTensor(im, meta={"original_channel_dim": None}))
+            EnsureChannelFirst(add_channel_default=False)(im_nodim)
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirst(strict_check=False, add_channel_default=False)(im)
+
+        with self.assertWarns(Warning):
+            EnsureChannelFirst(strict_check=False, add_channel_default=False)(im_nodim)
+
+    def test_default_channel_first(self):
+        im = torch.rand(4, 4)
+        result = EnsureChannelFirst(add_channel_default=True)(im)
+
+        self.assertEqual(result.shape, (1, 4, 4))
 
 
 if __name__ == "__main__":

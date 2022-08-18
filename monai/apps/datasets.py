@@ -201,7 +201,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             "Task08_HepaticVessel", "Task09_Spleen", "Task10_Colon").
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
-            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
+            for further usage, use `EnsureChannelFirstd` to convert the shape to [C, H, W, D].
         download: whether to download and extract the Decathlon from resource link, default is False.
             if expected file already exists, skip downloading even set it to True.
             user can manually copy tar file or dataset folder to the root directory.
@@ -236,7 +236,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys=["image", "label"]),
             ]
@@ -414,7 +414,7 @@ class TciaDataset(Randomizable, CacheDataset):
             https://www.cancerimagingarchive.net/collections/
         section: expected data section, can be: `training`, `validation` or `test`.
         transform: transforms to execute operations on input data.
-            for further usage, use `AddChanneld` or `AsChannelFirstd` to convert the shape to [C, H, W, D].
+            for further usage, use `EnsureChannelFirstd` to convert the shape to [C, H, W, D].
             If not specified, `LoadImaged(reader="PydicomReader", keys=["image"])` will be used as the default
             transform. In addition, we suggest to set the argument `labels` for `PydicomReader` if segmentations
             are needed to be loaded. The original labels for each dicom series may be different, using this argument

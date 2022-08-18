@@ -202,44 +202,57 @@ class AddChannel(Transform):
 class EnsureChannelFirst(Transform):
     """
     Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
-    It extracts the `original_channel_dim` info from provided meta_data dictionary.
-    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
-    Convert the data to `channel_first` based on the `original_channel_dim` information.
+
+    This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
+    should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
+    state no dimension is the channel and so a 1-size first dimension is to be added.
+
+    Args:
+        strict_check: whether to raise an error when the meta information is insufficient.
+        add_channel_default: If True and the input image `img` is not a MetaTensor and `meta_dict` is not given,
+            or `img` is a MetaTensor but doesn't specify channel dimension, use the value is `no_channel`
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True):
-        """
-        Args:
-            strict_check: whether to raise an error when the meta information is insufficient.
-        """
+    def __init__(self, strict_check: bool = True, add_channel_default=True):
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
+        self.add_channel_default = add_channel_default
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            msg = "metadata not available, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if not self.add_channel_default:
+                msg = "Metadata not available and default add channel is disabled, EnsureChannelFirst is not in use."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            else:
+                img = MetaTensor(img)
+
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
+
         channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
 
         if channel_dim is None:
-            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if not self.add_channel_default:
+                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict`."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            meta_dict["original_channel_dim"] = channel_dim = "no_channel"  # type: ignore
+
         if channel_dim == "no_channel":
-            return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+            result = img[None]
+        else:
+            result = moveaxis(img, channel_dim, 0)  # type: ignore
+
+        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -402,8 +415,8 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor`, default to `False`, output type will be `torch.Tensor`.
-            if `None`, use the return value of ``get_track_meta``.
+        track_meta: whether to convert to `MetaTensor` or regular tensor, default to `None`,
+            use the return value of ``get_track_meta``.
 
     """
 
@@ -414,7 +427,7 @@ class ToTensor(Transform):
         dtype: Optional[torch.dtype] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
-        track_meta: Optional[bool] = False,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
@@ -446,8 +459,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
-            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 

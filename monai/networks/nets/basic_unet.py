@@ -118,6 +118,7 @@ class UpCat(nn.Module):
         align_corners: Optional[bool] = True,
         halves: bool = True,
         dim: Optional[int] = None,
+        is_pad: bool = True,
     ):
         """
         Args:
@@ -139,6 +140,7 @@ class UpCat(nn.Module):
                 Only used in the "nontrainable" mode.
             halves: whether to halve the number of channels during upsampling.
                 This parameter does not work on ``nontrainable`` mode if ``pre_conv`` is `None`.
+            is_pad: whether to pad upsampling features to fit features from encoder. Defaults to True.
 
         .. deprecated:: 0.6.0
             ``dim`` is deprecated, use ``spatial_dims`` instead.
@@ -161,6 +163,7 @@ class UpCat(nn.Module):
             align_corners=align_corners,
         )
         self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
+        self.is_pad = is_pad
 
     def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
@@ -172,13 +175,14 @@ class UpCat(nn.Module):
         x_0 = self.upsample(x)
 
         if x_e is not None:
-            # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
-            dimensions = len(x.shape) - 2
-            sp = [0] * (dimensions * 2)
-            for i in range(dimensions):
-                if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
-                    sp[i * 2 + 1] = 1
-            x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
+            if self.is_pad:
+                # handling spatial shapes due to the 2x maxpooling with odd edge lengths.
+                dimensions = len(x.shape) - 2
+                sp = [0] * (dimensions * 2)
+                for i in range(dimensions):
+                    if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
+                        sp[i * 2 + 1] = 1
+                x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
             x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
         else:
             x = self.convs(x_0)
