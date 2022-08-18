@@ -13,19 +13,16 @@ transforms_infer:
   - _target_: Spacingd
     keys: "@image_key"
     pixdim:
-    - 1
-    - 1
-    - 1
+    - null
+    - null
+    - null
     mode: bilinear
     align_corners:
     - true
   - _target_: CastToTyped
     keys: "@image_key"
     dtype: "$torch.float32"
-  - _target_: NormalizeIntensityd
-    keys: "@image_key"
-    nonzero: true
-    channel_wise: true
+  - PLACEHOLDER_INTENSITY_NORMALIZATION
   - _target_: CastToTyped
     keys:
     - "@image_key"
