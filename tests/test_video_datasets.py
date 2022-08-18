@@ -11,7 +11,6 @@
 
 import os
 import unittest
-from contextlib import nullcontext
 from typing import Type, Union
 
 import torch
@@ -49,15 +48,11 @@ class Base:
 
         @unittest.skipUnless(has_cv2, "OpenCV required.")
         def test_multiprocessing(self):
-            for multiprocessing in (True, False):
-                for num_workers in (0, 2):
-                    # we only expect an error if num_workers > 0 and not using
-                    # multiprocessing
-                    expect_raise = num_workers == 2 and not multiprocessing
-                    ds = self.get_ds(max_num_frames=100, multiprocessing=multiprocessing)
-                    dl = DataLoader(ds, num_workers=num_workers, batch_size=2)
-                    with self.assertRaises((TypeError, RuntimeError)) if expect_raise else nullcontext():
-                        _ = next(iter(dl))
+            for num_workers in (0, 2):
+                multiprocessing = num_workers > 0
+                ds = self.get_ds(max_num_frames=100, multiprocessing=multiprocessing)
+                dl = DataLoader(ds, num_workers=num_workers, batch_size=2)
+                _ = next(iter(dl))
 
         @unittest.skipUnless(has_cv2, "OpenCV required.")
         def test_multiple_sources(self, should_match: bool = True):
