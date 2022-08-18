@@ -1,12 +1,12 @@
 ---
 amp: true
-bundle_root: "/home/dongy/Project/MONAI/auto3d/Task05_Prostate"
-arch_path: "$@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)"
-data_file_base_dir: "/workspace/data/msd/Task05_Prostate"
-data_list_file_path: "$@bundle_root + '/../datafolds/msd_task05_prostate_folds.json'"
+bundle_root: null
+arch_path: null
+data_file_base_dir: null
+data_list_file_path: null
 determ: false
 fold: 0
-input_channels: 2
+input_channels: null
 learning_rate: 0.025
 learning_rate_arch: 0.001
 num_images_per_batch: 2
@@ -15,18 +15,18 @@ num_iterations_per_validation: 50
 num_warmup_iterations: 200
 num_patches_per_image: 1
 num_sw_batch_size: 2
-output_classes: 3
+output_classes: null
 overlap_ratio: 0.625
 patch_size:
-- 160
-- 160
-- 32
+- null
+- null
+- null
 patch_size_valid:
-- 160
-- 160
-- 32
+- null
+- null
+- null
 ram_cost_factor: 0.8
-softmax: true
+softmax: null
 loss:
   _target_: DiceFocalLoss
   include_background: true
