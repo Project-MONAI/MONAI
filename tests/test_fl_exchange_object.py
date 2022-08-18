@@ -23,7 +23,7 @@ models, has_torchvision = optional_import("torchvision.models")
 
 
 TEST_INIT_1 = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": None}, "{}"]
-TEST_INIT_2 = []
+TEST_INIT_2: list = []
 if has_torchvision:
     network = models.resnet18()
     TEST_INIT_2.append(
@@ -33,7 +33,7 @@ if has_torchvision:
             "metrics": {"accuracy": 1},
             "weight_type": WeightType.WEIGHT_DIFF,
             "statistics": {"some_stat": 1},
-        },
+        }
     )
     TEST_INIT_2.append("{'weights': 122, 'optim': 2, 'metrics': 1, 'weight_type': fl_weight_diff, 'statistics': 1}")
 
