@@ -177,4 +177,3 @@ class Zoomd(MapTransform, InvertibleTransform):
         rd["mappings"] = mappings
 
         return rd
-

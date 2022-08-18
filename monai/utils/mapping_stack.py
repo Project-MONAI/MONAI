@@ -79,13 +79,13 @@ class MatrixFactory:
         return MetaMatrix(matrix, extra_args)
 
 
-# class Mapping:
-#
-#     def __init__(self, matrix):
-#         self._matrix = matrix
-#
-#     def apply(self, other):
-#         return Mapping(other @ self._matrix)
+class Mapping:
+
+    def __init__(self, matrix):
+        self._matrix = matrix
+
+    def apply(self, other):
+        return Mapping(other @ self._matrix)
 
 
 class Dimensions:
@@ -151,31 +151,31 @@ class MetaMatrix:
         return MetaMatrix(other_ @ self.matrix)
 
 
-# class MappingStack:
-#     """
-#     This class keeps track of a series of mappings and apply them / calculate their inverse (if
-#     mappings are invertible). Mapping stacks are used to generate a mapping that gets applied during a `Resample` /
-#     `Resampled` transform.
-#
-#     A mapping is one of:
-#     - a description of a change to a numpy array that only requires index manipulation instead of an actual resample.
-#     - a homogeneous matrix representing a geometric transform to be applied during a resample
-#     - a field representing a deformation to be applied during a resample
-#     """
-#
-#     def __init__(self, factory: MatrixFactory):
-#         self.factory = factory
-#         self.stack = []
-#         self.applied_stack = []
-#
-#     def push(self, mapping):
-#         self.stack.append(mapping)
-#
-#     def pop(self):
-#         raise NotImplementedError()
-#
-#     def transform(self):
-#         m = Mapping(self.factory.identity())
-#         for t in self.stack:
-#             m = m.apply(t)
-#         return m
+class MappingStack:
+    """
+    This class keeps track of a series of mappings and apply them / calculate their inverse (if
+    mappings are invertible). Mapping stacks are used to generate a mapping that gets applied during a `Resample` /
+    `Resampled` transform.
+
+    A mapping is one of:
+    - a description of a change to a numpy array that only requires index manipulation instead of an actual resample.
+    - a homogeneous matrix representing a geometric transform to be applied during a resample
+    - a field representing a deformation to be applied during a resample
+    """
+
+    def __init__(self, factory: MatrixFactory):
+        self.factory = factory
+        self.stack = []
+        self.applied_stack = []
+
+    def push(self, mapping):
+        self.stack.append(mapping)
+
+    def pop(self):
+        raise NotImplementedError()
+
+    def transform(self):
+        m = Mapping(self.factory.identity())
+        for t in self.stack:
+            m = m.apply(t)
+        return m

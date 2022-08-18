@@ -82,6 +82,18 @@ def spacing(
     return img_, transform, metadata
 
 
+def orientation(
+        img: torch.Tensor
+):
+    pass
+
+
+def flip(
+        img: torch.Tensor
+):
+    pass
+
+
 def resize(
     img: torch.Tensor,
     spatial_size: Union[Sequence[int], int],
@@ -276,3 +288,9 @@ def zoom(
         "dtype": dtype_
     }
     return img_, transform, metadata
+
+
+def rotate90(
+        img: torch.Tensor
+):
+    pass
