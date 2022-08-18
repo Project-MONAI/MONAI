@@ -312,7 +312,7 @@ class EnsureChannelFirstd(MapTransform):
             channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
                 this argument can be used to specify the original channel dimension (integer) of the input array.
                 If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
-                If this is set to `None`, rely on the input `img` or `meta_dict` to provide the channel dimension.
+                If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
         """
         super().__init__(keys, allow_missing_keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)

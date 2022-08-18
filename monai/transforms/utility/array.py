@@ -201,7 +201,7 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
 
     This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
     should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
@@ -212,7 +212,7 @@ class EnsureChannelFirst(Transform):
         channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
             this argument can be used to specify the original channel dimension (integer) of the input array.
             If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
-            If this is set to `None`, rely on the input `img` or `meta_dict` to provide the channel dimension.
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
