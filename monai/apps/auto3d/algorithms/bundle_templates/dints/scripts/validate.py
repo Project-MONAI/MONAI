@@ -115,19 +115,19 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             meta_key_postfix="meta_dict",
             nearest_interp=False,
             to_tensor=True,
-        )
+        ),
     ]
 
     if softmax:
-        post_transforms += [transforms.AsDiscreted(keys="pred", argmax=True)]
+        post_transforms += [transforms.AsDiscreted(keys="pred", argmax=True),]
     else:
-        post_transforms += [transforms.AsDiscreted(keys="pred", threshold=0.5)]
+        post_transforms += [transforms.AsDiscreted(keys="pred", threshold=0.5),]
 
     if save_mask:
         post_transforms += [
             transforms.SaveImaged(
                 keys="pred", meta_keys="pred_meta_dict", output_dir=output_path, output_postfix="seg", resample=False
-            )
+            ),
         ]
 
     post_transforms = transforms.Compose(post_transforms)
