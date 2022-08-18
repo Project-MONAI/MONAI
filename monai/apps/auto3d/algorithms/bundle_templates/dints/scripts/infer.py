@@ -9,20 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import csv
 import json
 import logging
 import monai
-import numpy as np
 import os
 import sys
 import torch
-import yaml
 
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
-from monai.data import Dataset, ThreadDataLoader, decollate_batch
+from monai.data import ThreadDataLoader, decollate_batch
 from monai.inferers import sliding_window_inference
 from typing import Sequence, Union
 
@@ -59,7 +56,7 @@ def run(
 
     infer_transforms = parser.get_parsed_content("transforms_infer")
 
-    with open(data_list_file_path, "r") as f:
+    with open(data_list_file_path) as f:
         json_data = json.load(f)
 
     list_data = []
@@ -89,7 +86,7 @@ def run(
 
     pretrained_ckpt = torch.load(ckpt_name, map_location=device)
     model.load_state_dict(pretrained_ckpt)
-    print("[info] checkpoint {0:s} loaded".format(ckpt_name))
+    print(f"[info] checkpoint {ckpt_name:s} loaded")
 
     post_transforms = [
         transforms.Invertd(

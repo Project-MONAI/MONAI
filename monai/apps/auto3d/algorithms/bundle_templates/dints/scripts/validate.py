@@ -22,7 +22,7 @@ import yaml
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
-from monai.data import Dataset, ThreadDataLoader, decollate_batch
+from monai.data import ThreadDataLoader, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from typing import Sequence, Union
@@ -68,7 +68,7 @@ def run(
         ]
     )
 
-    with open(data_list_file_path, "r") as f:
+    with open(data_list_file_path) as f:
         json_data = json.load(f)
 
     list_valid = []
@@ -101,7 +101,7 @@ def run(
 
     pretrained_ckpt = torch.load(ckpt_name, map_location=device)
     model.load_state_dict(pretrained_ckpt)
-    print("[info] checkpoint {0:s} loaded".format(ckpt_name))
+    print(f"[info] checkpoint {ckpt_name:s} loaded")
 
     if softmax:
         post_pred = transforms.Compose(
@@ -206,9 +206,9 @@ def run(
             print_message += ", "
             for _k in range(metric_dim):
                 if output_classes == 2:
-                    print_message += "{0:.5f}".format(metric_vals.squeeze())
+                    print_message += f"{metric_vals.squeeze():.5f}"
                 else:
-                    print_message += "{0:.5f}".format(metric_vals.squeeze()[_k])
+                    print_message += f"{metric_vals.squeeze()[_k]:.5f}"
                 print_message += ", "
             print(print_message)
 
@@ -230,7 +230,7 @@ def run(
 
         metric = metric.tolist()
         for _c in range(metric_dim):
-            print("evaluation metric - class {0:d}:".format(_c + 1), metric[2 * _c] / metric[2 * _c + 1])
+            print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
         avg_metric = 0
         for _c in range(metric_dim):
             avg_metric += metric[2 * _c] / metric[2 * _c + 1]
