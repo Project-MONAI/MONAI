@@ -238,7 +238,7 @@ class EnsureChannelFirst(Transform):
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
 
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+        channel_dim = meta_dict.get("original_channel_dim", None)  # type: ignore
 
         if channel_dim is None:
             if self.input_channel_dim is None:
