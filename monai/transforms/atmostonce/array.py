@@ -5,18 +5,17 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor
-from monai.data import get_track_meta
 
-from monai.transforms import Transform, InvertibleTransform, RandomizableTransform
+from monai.transforms import InvertibleTransform, RandomizableTransform
 
 from monai.transforms.atmostonce.apply import apply
 from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing
-from monai.transforms.atmostonce.lazy_transform import LazyTransform, push_transform
+from monai.transforms.atmostonce.lazy_transform import LazyTransform
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
-                         InterpolateMode, NumpyPadMode, PytorchPadMode, convert_to_tensor)
-from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
-from monai.utils.misc import get_backend_from_data, get_device_from_data, ensure_tuple
+                         InterpolateMode, NumpyPadMode, PytorchPadMode)
+from monai.utils.mapping_stack import MetaMatrix
+from monai.utils.misc import ensure_tuple
 
 
 # TODO: these transforms are intended to replace array transforms once development is done

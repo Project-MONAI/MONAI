@@ -4,7 +4,6 @@ import math
 
 import numpy as np
 
-import matplotlib.pyplot as plt
 
 import torch
 
@@ -18,7 +17,7 @@ from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
-from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
+from monai.utils.mapping_stack import MatrixFactory
 
 
 def enumerate_results_of_op(results):

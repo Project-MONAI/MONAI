@@ -1,17 +1,16 @@
 from typing import Optional, Sequence, Union
 
-import numpy as np
 
 import torch
-from monai.transforms import create_rotate, create_translate, GaussianSmooth
+from monai.transforms import create_rotate
 
 from monai.data import get_track_meta
 from monai.transforms.atmostonce.apply import extents_from_shape, shape_from_extents
-from monai.utils import convert_to_tensor, get_equivalent_dtype, ensure_tuple_rep, convert_to_dst_type, look_up_option, \
+from monai.utils import convert_to_tensor, get_equivalent_dtype, ensure_tuple_rep, look_up_option, \
     GridSampleMode, GridSamplePadMode, fall_back_tuple, ensure_tuple_size, ensure_tuple, InterpolateMode, NumpyPadMode
 
 from monai.config import DtypeLike
-from monai.utils.mapping_stack import MetaMatrix, MatrixFactory
+from monai.utils.mapping_stack import MatrixFactory
 
 
 def spacing(

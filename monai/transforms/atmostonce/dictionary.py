@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from monai.transforms.atmostonce.functional import rotate
-from monai.utils import ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 from monai.config import KeysCollection, DtypeLike, SequenceStr
 from monai.transforms.atmostonce.apply import apply

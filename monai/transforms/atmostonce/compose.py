@@ -3,7 +3,6 @@ from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 
-import torch
 
 from monai.transforms.atmostonce.lazy_transform import LazyTransform, compile_transforms, flatten_sequences
 from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, get_seed, MAX_SEED

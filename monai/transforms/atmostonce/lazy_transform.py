@@ -1,9 +1,7 @@
-import itertools as it
 
 from monai.config import NdarrayOrTensor
 
 from monai.data import MetaTensor
-from monai.transforms import Transform
 from monai.transforms.atmostonce.apply import Applyd
 from monai.utils.mapping_stack import MetaMatrix
 

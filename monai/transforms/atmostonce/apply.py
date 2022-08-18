@@ -1,23 +1,16 @@
-from typing import Dict, Hashable, Mapping, Optional, Sequence, Union
+from typing import Sequence, Union
 
 import itertools as it
 
 import numpy as np
 
-import torch
 
-from monai.config import USE_COMPILED, DtypeLike, KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config import DtypeLike
 from monai.data import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.spatial.array import Resample
 from monai.transforms.transform import MapTransform
-from monai.transforms.utils import create_grid
 from monai.utils import GridSampleMode, GridSamplePadMode
-from monai.utils.enums import TransformBackends
 from monai.utils.misc import get_backend_from_data, get_device_from_data
-from monai.utils.type_conversion import (convert_data_type, convert_to_dst_type,
-                                         expand_scalar_to_tuple)
 from monai.utils.mapping_stack import MatrixFactory
 
 # TODO: This should move to a common place to be shared with dictionary
@@ -79,14 +72,12 @@ class Apply(InvertibleTransform):
 
     def __init__(self):
         super().__init__()
-        pass
 
 
 class Applyd(MapTransform, InvertibleTransform):
 
     def __init__(self):
         super().__init__()
-        pass
 
 # class Applyd(MapTransform, InvertibleTransform):
 #
