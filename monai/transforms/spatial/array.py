@@ -482,10 +482,7 @@ class Spacing(InvertibleTransform):
         self.diagonal = diagonal
 
         self.sp_resample = SpatialResample(
-            mode=look_up_option(mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode, GridSamplePadMode),
-            align_corners=align_corners,
-            dtype=dtype,
+            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
         )
 
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
@@ -2010,7 +2007,7 @@ class Resample(Transform):
 
         """
         self.mode = mode
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.padding_mode = padding_mode
         self.norm_coords = norm_coords
         self.device = device
         self.dtype = dtype
@@ -2222,8 +2219,8 @@ class Affine(InvertibleTransform):
         self.norm_coord = not normalized
         self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype)
         self.spatial_size = spatial_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode: str = padding_mode
 
     def __call__(
         self,
