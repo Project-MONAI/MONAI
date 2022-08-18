@@ -11,6 +11,7 @@
 
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -52,8 +53,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     data_list_file_path = parser.get_parsed_content("data_list_file_path")
     determ = parser.get_parsed_content("determ")
     fold = parser.get_parsed_content("fold")
-    learning_rate = parser.get_parsed_content("learning_rate")
-    learning_rate_arch = parser.get_parsed_content("learning_rate_arch")
     num_images_per_batch = parser.get_parsed_content("num_images_per_batch")
     num_iterations = parser.get_parsed_content("num_iterations")
     num_iterations_per_validation = parser.get_parsed_content("num_iterations_per_validation")

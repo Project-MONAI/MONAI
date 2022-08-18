@@ -14,7 +14,7 @@ import json
 import logging
 import os
 import sys
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -42,7 +42,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
     data_list_file_path = parser.get_parsed_content("data_list_file_path")
     fold = parser.get_parsed_content("fold")
-    input_channels = parser.get_parsed_content("input_channels")
     num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
     output_classes = parser.get_parsed_content("output_classes")
     overlap_ratio = parser.get_parsed_content("overlap_ratio")
@@ -104,7 +103,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     if softmax:
         post_pred = transforms.Compose([transforms.EnsureType(), transforms.AsDiscrete(to_onehot=output_classes)])
     else:
-        post_pred = transforms.Compose([EnsureType()])
+        post_pred = transforms.Compose([transforms.EnsureType()])
 
     post_transforms = [
         transforms.Invertd(
@@ -225,7 +224,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             dict_file["acc_class" + str(_c + 1)] = metric[2 * _c] / metric[2 * _c + 1]
 
         with open(os.path.join(output_path, "summary.yaml"), "w") as out_file:
-            documents = yaml.dump(dict_file, stream=out_file)
+            yaml.dump(dict_file, stream=out_file)
 
     return
 

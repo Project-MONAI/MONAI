@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import sys
-from typing import Sequence, Union
+from typing import Optional, Sequence, Union
 
 import torch
 
@@ -37,10 +37,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
     data_list_file_path = parser.get_parsed_content("data_list_file_path")
-    fold = parser.get_parsed_content("fold")
-    input_channels = parser.get_parsed_content("input_channels")
     num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
-    output_classes = parser.get_parsed_content("output_classes")
     overlap_ratio = parser.get_parsed_content("overlap_ratio")
     patch_size_valid = parser.get_parsed_content("patch_size_valid")
     softmax = parser.get_parsed_content("softmax")

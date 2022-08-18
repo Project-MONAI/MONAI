@@ -11,6 +11,7 @@
 
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -52,7 +53,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     determ = parser.get_parsed_content("determ")
     finetune = parser.get_parsed_content("finetune")
     fold = parser.get_parsed_content("fold")
-    learning_rate = parser.get_parsed_content("learning_rate")
     num_images_per_batch = parser.get_parsed_content("num_images_per_batch")
     num_iterations = parser.get_parsed_content("num_iterations")
     num_iterations_per_validation = parser.get_parsed_content("num_iterations_per_validation")
@@ -359,7 +359,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                         dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                         dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
                         with open(os.path.join(ckpt_path, "progress.yaml"), "a") as out_file:
-                            documents = yaml.dump(dict_file, stream=out_file)
+                            yaml.dump(dict_file, stream=out_file)
 
                     print(
                         "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
