@@ -53,5 +53,6 @@ validate:
   ouptut_path: null
 infer:
   ckpt_name: null
+  fast: false
   data_list_key: testing
   ouptut_path: "$@bundle_root + '/prediction_' + @infer#data_list_key"
