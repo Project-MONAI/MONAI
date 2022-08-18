@@ -11,17 +11,21 @@
 
 import json
 import logging
-import monai
-import numpy as np
 import os
 import random
 import sys
 import time
+from datetime import datetime
+from typing import Optional, Sequence, Union
+
+import numpy as np
 import torch
 import torch.distributed as dist
 import yaml
+from torch.nn.parallel import DistributedDataParallel
+from torch.utils.tensorboard import SummaryWriter
 
-from datetime import datetime
+import monai
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
@@ -29,15 +33,9 @@ from monai.data import ThreadDataLoader, partition_dataset
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.utils import set_determinism
-from torch.nn.parallel import DistributedDataParallel
-from torch.utils.tensorboard import SummaryWriter
-from typing import Optional, Sequence, Union
 
 
-def run(
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    **override,
-):
+def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     _args = _update_args(config_file=config_file, **override)
@@ -108,12 +106,9 @@ def run(
     random.shuffle(train_files)
 
     if torch.cuda.device_count() > 1:
-        train_files = partition_dataset(
-            data=train_files,
-            shuffle=True,
-            num_partitions=world_size,
-            even_divisible=True,
-        )[dist.get_rank()]
+        train_files = partition_dataset(data=train_files, shuffle=True, num_partitions=world_size, even_divisible=True)[
+            dist.get_rank()
+        ]
     print("train_files:", len(train_files))
 
     files = []
@@ -132,21 +127,14 @@ def run(
         if len(val_files) < world_size:
             val_files = val_files * math.ceil(float(world_size) / float(len(val_files)))
 
-        val_files = partition_dataset(
-            data=val_files,
-            shuffle=False,
-            num_partitions=world_size,
-            even_divisible=False,
-        )[dist.get_rank()]
+        val_files = partition_dataset(data=val_files, shuffle=False, num_partitions=world_size, even_divisible=False)[
+            dist.get_rank()
+        ]
     print("val_files:", len(val_files))
 
     if torch.cuda.device_count() >= 4:
-        train_ds = monai.data.CacheDataset(
-            data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8
-        )
-        val_ds = monai.data.CacheDataset(
-            data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2
-        )
+        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
+        val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2)
     else:
         train_ds = monai.data.CacheDataset(
             data=train_files,
@@ -155,15 +143,10 @@ def run(
             num_workers=8,
         )
         val_ds = monai.data.CacheDataset(
-            data=val_files,
-            transform=val_transforms,
-            cache_rate=float(torch.cuda.device_count()) / 4.0,
-            num_workers=2,
+            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
         )
 
-    train_loader = ThreadDataLoader(
-        train_ds, num_workers=12, batch_size=num_images_per_batch, shuffle=True
-    )
+    train_loader = ThreadDataLoader(train_ds, num_workers=12, batch_size=num_images_per_batch, shuffle=True)
     val_loader = ThreadDataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
 
     device = torch.device(f"cuda:{dist.get_rank()}") if torch.cuda.device_count() > 1 else torch.device("cuda:0")
@@ -175,24 +158,12 @@ def run(
 
     if softmax:
         post_pred = transforms.Compose(
-            [
-                transforms.EnsureType(),
-                transforms.AsDiscrete(argmax=True, to_onehot=output_classes),
-            ]
+            [transforms.EnsureType(), transforms.AsDiscrete(argmax=True, to_onehot=output_classes)]
         )
-        post_label = transforms.Compose(
-            [
-                transforms.EnsureType(),
-                transforms.AsDiscrete(to_onehot=output_classes),
-            ]
-        )
+        post_label = transforms.Compose([transforms.EnsureType(), transforms.AsDiscrete(to_onehot=output_classes)])
     else:
         post_pred = transforms.Compose(
-            [
-                transforms.EnsureType(),
-                transforms.Activations(sigmoid=True),
-                transforms.AsDiscrete(threshold=0.5),
-            ]
+            [transforms.EnsureType(), transforms.Activations(sigmoid=True), transforms.AsDiscrete(threshold=0.5)]
         )
 
     loss_function = parser.get_parsed_content("loss")
@@ -202,9 +173,7 @@ def run(
 
     num_epochs_per_validation = num_iterations_per_validation // len(train_loader)
     num_epochs_per_validation = max(num_epochs_per_validation, 1)
-    num_epochs = num_epochs_per_validation * (
-        num_iterations // num_iterations_per_validation
-    )
+    num_epochs = num_epochs_per_validation * (num_iterations // num_iterations_per_validation)
 
     if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
         print("num_epochs", num_epochs)
@@ -214,9 +183,7 @@ def run(
     lr_scheduler = lr_scheduler_part.instantiate(optimizer=optimizer)
 
     if torch.cuda.device_count() > 1:
-        model = DistributedDataParallel(
-            model, device_ids=[device], find_unused_parameters=True
-        )
+        model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=True)
 
     if finetune["activate"] and os.path.isfile(finetune["pretrained_ckpt_name"]):
         print("[info] fine-tuning pre-trained checkpoint {:s}".format(finetune["pretrained_ckpt_name"]))
@@ -261,9 +228,7 @@ def run(
 
         for batch_data in train_loader:
             step += 1
-            inputs, labels = batch_data["image"].to(device), batch_data["label"].to(
-                device
-            )
+            inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
 
             for param in model.parameters():
                 param.grad = None
@@ -293,10 +258,7 @@ def run(
             idx_iter += 1
 
             if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
-                print(
-                    f"[{str(datetime.now())[:19]}] "
-                    + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}"
-                )
+                print(f"[{str(datetime.now())[:19]}] " + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
                 writer.add_scalar("Loss/train", loss.item(), epoch_len * epoch + step)
 
             lr_scheduler.step()
@@ -347,9 +309,7 @@ def run(
                         val_labels = post_label(val_labels[0, ...])
                         val_labels = val_labels[None, ...]
 
-                    value = compute_meandice(
-                        y_pred=val_outputs, y=val_labels, include_background=not softmax
-                    )
+                    value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=not softmax)
 
                     print(_index + 1, "/", len(val_loader), value)
 
@@ -376,10 +336,7 @@ def run(
                 metric = metric.tolist()
                 if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
                     for _c in range(metric_dim):
-                        print(
-                            f"evaluation metric - class {_c + 1:d}:",
-                            metric[2 * _c] / metric[2 * _c + 1],
-                        )
+                        print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
                     avg_metric = 0
                     for _c in range(metric_dim):
                         avg_metric += metric[2 * _c] / metric[2 * _c + 1]
@@ -392,24 +349,16 @@ def run(
                         best_metric = avg_metric
                         best_metric_epoch = epoch + 1
                         if torch.cuda.device_count() > 1:
-                            torch.save(
-                                model.module.state_dict(),
-                                os.path.join(ckpt_path, "best_metric_model.pt"),
-                            )
+                            torch.save(model.module.state_dict(), os.path.join(ckpt_path, "best_metric_model.pt"))
                         else:
-                            torch.save(
-                                model.state_dict(),
-                                os.path.join(ckpt_path, "best_metric_model.pt"),
-                            )
+                            torch.save(model.state_dict(), os.path.join(ckpt_path, "best_metric_model.pt"))
                         print("saved new best metric model")
 
                         dict_file = {}
                         dict_file["best_avg_dice_score"] = float(best_metric)
                         dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                         dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
-                        with open(
-                            os.path.join(ckpt_path, "progress.yaml"), "a"
-                        ) as out_file:
+                        with open(os.path.join(ckpt_path, "progress.yaml"), "a") as out_file:
                             documents = yaml.dump(dict_file, stream=out_file)
 
                     print(
@@ -420,17 +369,10 @@ def run(
 
                     current_time = time.time()
                     elapsed_time = (current_time - start_time) / 60.0
-                    with open(
-                        os.path.join(ckpt_path, "accuracy_history.csv"), "a"
-                    ) as f:
+                    with open(os.path.join(ckpt_path, "accuracy_history.csv"), "a") as f:
                         f.write(
                             "{:d}\t{:.5f}\t{:.5f}\t{:.5f}\t{:.1f}\t{:d}\n".format(
-                                epoch + 1,
-                                avg_metric,
-                                loss_torch_epoch,
-                                lr,
-                                elapsed_time,
-                                idx_iter,
+                                epoch + 1, avg_metric, loss_torch_epoch, lr, elapsed_time, idx_iter
                             )
                         )
 
@@ -439,9 +381,7 @@ def run(
 
             torch.cuda.empty_cache()
 
-    print(
-        f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}"
-    )
+    print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 
     if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
         writer.flush()

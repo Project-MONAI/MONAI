@@ -12,26 +12,24 @@
 import csv
 import json
 import logging
-import monai
-import numpy as np
 import os
 import sys
+from typing import Sequence, Union
+
+import numpy as np
 import torch
 import yaml
 
+import monai
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
 from monai.data import ThreadDataLoader, decollate_batch
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
-from typing import Sequence, Union
 
 
-def run(
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    **override,
-):
+def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     _args = _update_args(config_file=config_file, **override)
@@ -104,12 +102,7 @@ def run(
     print(f"[info] checkpoint {ckpt_name:s} loaded")
 
     if softmax:
-        post_pred = transforms.Compose(
-            [
-                transforms.EnsureType(),
-                transforms.AsDiscrete(to_onehot=output_classes),
-            ]
-        )
+        post_pred = transforms.Compose([transforms.EnsureType(), transforms.AsDiscrete(to_onehot=output_classes)])
     else:
         post_pred = transforms.Compose([EnsureType()])
 
@@ -123,7 +116,7 @@ def run(
             meta_key_postfix="meta_dict",
             nearest_interp=False,
             to_tensor=True,
-        ),
+        )
     ]
 
     if softmax:
@@ -134,11 +127,7 @@ def run(
     if save_mask:
         post_transforms += [
             transforms.SaveImaged(
-                keys="pred",
-                meta_keys="pred_meta_dict",
-                output_dir=output_path,
-                output_postfix="seg",
-                resample=False,
+                keys="pred", meta_keys="pred_meta_dict", output_dir=output_path, output_postfix="seg", resample=False
             )
         ]
 
@@ -153,7 +142,7 @@ def run(
     for _i in range(metric_dim):
         row.append("class_" + str(_i + 1))
 
-    with open(os.path.join(output_path, "raw.csv"), "w", encoding='UTF8') as f:
+    with open(os.path.join(output_path, "raw.csv"), "w", encoding="UTF8") as f:
         writer = csv.writer(f)
         writer.writerow(row)
 
@@ -170,12 +159,7 @@ def run(
 
             with torch.cuda.amp.autocast():
                 d["pred"] = sliding_window_inference(
-                    val_images,
-                    patch_size_valid,
-                    num_sw_batch_size,
-                    model,
-                    mode="gaussian",
-                    overlap=overlap_ratio,
+                    val_images, patch_size_valid, num_sw_batch_size, model, mode="gaussian", overlap=overlap_ratio
                 )
 
             d = [post_transforms(i) for i in decollate_batch(d)]
@@ -187,9 +171,7 @@ def run(
                 val_labels = post_pred(val_labels[0, ...])
                 val_labels = val_labels[None, ...]
 
-            value = compute_meandice(
-                y_pred=val_outputs, y=val_labels, include_background=not softmax
-            )
+            value = compute_meandice(y_pred=val_outputs, y=val_labels, include_background=not softmax)
 
             metric_count += len(value)
             metric_sum += value.sum().item()
@@ -216,7 +198,7 @@ def run(
             for _i in range(metric_dim):
                 row.append(metric_vals[0, _i])
 
-            with open(os.path.join(output_path, "raw.csv"), "a", encoding='UTF8') as f:
+            with open(os.path.join(output_path, "raw.csv"), "a", encoding="UTF8") as f:
                 writer = csv.writer(f)
                 writer.writerow(row)
 

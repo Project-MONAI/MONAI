@@ -11,23 +11,21 @@
 
 import json
 import logging
-import monai
 import os
 import sys
+from typing import Sequence, Union
+
 import torch
 
+import monai
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
 from monai.data import ThreadDataLoader, decollate_batch
 from monai.inferers import sliding_window_inference
-from typing import Sequence, Union
 
 
-def run(
-    config_file: Optional[Union[str, Sequence[str]]] = None,
-    **override,
-):
+def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     _args = _update_args(config_file=config_file, **override)
@@ -108,11 +106,7 @@ def run(
 
     post_transforms += [
         transforms.SaveImaged(
-            keys="pred",
-            meta_keys="pred_meta_dict",
-            output_dir=output_path,
-            output_postfix="seg",
-            resample=False,
+            keys="pred", meta_keys="pred_meta_dict", output_dir=output_path, output_postfix="seg", resample=False
         )
     ]
 
@@ -127,12 +121,7 @@ def run(
 
             with torch.cuda.amp.autocast():
                 d["pred"] = sliding_window_inference(
-                    infer_images,
-                    patch_size_valid,
-                    num_sw_batch_size,
-                    model,
-                    mode="gaussian",
-                    overlap=overlap_ratio,
+                    infer_images, patch_size_valid, num_sw_batch_size, model, mode="gaussian", overlap=overlap_ratio
                 )
 
             d = [post_transforms(i) for i in decollate_batch(d)]
