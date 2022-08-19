@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import warnings
-from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 import torch
