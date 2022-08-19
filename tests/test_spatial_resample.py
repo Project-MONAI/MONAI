@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -19,6 +20,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
+from monai.utils import optional_import
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
@@ -53,6 +55,9 @@ for dst, expct in zip(destinations_3d, expected_3d):
                             expct,
                         ]
                     )
+if optional_import("cupy")[1] and optional_import("scipy.ndimage")[1]:
+    TESTS.append(deepcopy(TESTS[-1]))
+    TESTS[-1][2].update({"align_corners": True, "mode": 1, "padding_mode": "reflect"})  # type: ignore
 
 
 destinations_2d = [

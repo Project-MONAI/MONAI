@@ -295,7 +295,7 @@ class SpatialResample(InvertibleTransform):
             for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
             xform = xform @ _t_r
-            if not USE_COMPILED:
+            if not USE_COMPILED and not isinstance(mode, int):
                 _t_l = normalize_transform(
                     in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
                 )[0]
