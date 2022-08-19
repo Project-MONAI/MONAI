@@ -175,6 +175,13 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
     elif has_cp and isinstance(data, cp_ndarray):
         data = cp.asnumpy(data).astype(dtype, copy=False)
     elif isinstance(data, (np.ndarray, float, int, bool)):
+        # Convert into a contiguous array first if the current dtype's size is smaller than the target dtype's size.
+        # This help improve the performance because (convert to contiguous array) -> (convert dtype) is faster
+        # than (convert dtype) -> (convert to contiguous array) when src dtype (e.g., uint8) is smaller than
+        # target dtype(e.g., float32) and we are going to convert it to contiguous array anyway later in this
+        # method.
+        if isinstance(data, np.ndarray) and data.ndim > 0 and data.dtype.itemsize < np.dtype(dtype).itemsize:
+            data = np.ascontiguousarray(data)
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
         list_ret = [convert_to_numpy(i, dtype=dtype) for i in data]
