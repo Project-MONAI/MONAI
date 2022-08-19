@@ -11,13 +11,26 @@ from monai.transforms.atmostonce import array as amoa
 from monai.transforms.atmostonce.lazy_transform import compile_transforms
 from monai.utils import TransformBackends
 
-from monai.transforms import Affined
-from monai.transforms.atmostonce.functional import resize, rotate, spacing
+from monai.transforms import Affined, Affine
+from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing
 from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory
+
+
+def get_img(size):
+  img = torch.zeros(size, dtype=torch.float32)
+  if len(size) == 2:
+    for j in range(size[0]):
+      for i in range(size[1]):
+        img[j, i] = i + j * size[1]
+  else:
+    for k in range(size[-1]):
+      for j in range(size[-2]):
+        img[..., j, k] = j + k * size[0]
+  return np.expand_dims(img, 0)
 
 
 def enumerate_results_of_op(results):
@@ -167,6 +180,20 @@ class TestFunctional(unittest.TestCase):
                          "bilinear",
                          "border")
         enumerate_results_of_op(results)
+
+    def test_croppad(self):
+        img = get_img((16, 16)).astype(int)
+        results = croppad(img,
+                          (slice(3, 8), slice(3, 9)))
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=[1] + result_size)
+        img_, _ = a(img)
+        print(img_.numpy().astype(int))
 
 
 class TestArrayTransforms(unittest.TestCase):

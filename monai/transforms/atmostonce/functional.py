@@ -284,7 +284,9 @@ def zoom(
         "padding_mode": padding_mode_,
         "align_corners": align_corners,
         "keep_size": keep_size,
-        "dtype": dtype_
+        "dtype": dtype_,
+        "im_extents": im_extents,
+        "spatial_shape": spatial_shape_
     }
     return img_, transform, metadata
 
@@ -293,3 +295,33 @@ def rotate90(
         img: torch.Tensor
 ):
     pass
+
+
+def croppad(
+        img: torch.Tensor,
+        slices: Union[Sequence[slice], slice],
+        pad_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE
+):
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    input_ndim = len(img.shape) - 1
+    if len(slices) != input_ndim:
+        raise ValueError(f"'slices' length {len(slices)} must be equal to 'img' "
+                         f"spatial dimensions of {input_ndim}")
+
+    img_centers = [i // 2 for i in img.shape[1:]]
+    slice_centers = [s.stop - s.start for s in slices]
+    # img_centers = [0 for _ in img.shape[1:]]
+    # slice_centers = [s.end - s.start for s in slices]
+    deltas = [s - i for i, s in zip(img_centers, slice_centers)]
+    transform = MatrixFactory.from_tensor(img).translate(deltas)
+    im_extents = extents_from_shape([img.shape[0]] + [s.stop - s.start for s in slices])
+    im_extents = [transform.matrix.matrix @ e for e in im_extents]
+    spatial_shape_ = shape_from_extents(im_extents)
+
+    metadata = {
+        "slices": slices,
+        "dtype": img.dtype,
+        "im_extents": im_extents,
+        "spatial_shape": spatial_shape_
+    }
+    return img_, transform, metadata

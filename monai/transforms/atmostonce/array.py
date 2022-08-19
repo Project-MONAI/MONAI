@@ -32,17 +32,16 @@ class Spacing(LazyTransform, InvertibleTransform):
         padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
         align_corners: Optional[bool] = False,
         dtype: Optional[DtypeLike] = np.float64,
-        image_only: Optional[bool] = False,
         lazy_evaluation: Optional[bool] = False
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.pixdim = pixdim
+        self.src_pixdim = src_pixdim
         self.diagonal = diagonal
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
-        self.image_only = image_only
 
     def __call__(
         self,
@@ -306,16 +305,4 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         raise NotImplementedError()
 
 
-# Snippet of code for pushing transform to metadata - pulled from Rotate
-        # img = self._post_process(img, img.spatial_shape, sp_size, *args)
-        # img.spatial_shape = sp_size  # type: ignore
-        # self.update_meta(img, orig_size, sp_size)
-        # self.push_transform(
-        #     img,
-        #     orig_size=orig_size,
-        #     extra_info={
-        #         "mode": mode,
-        #         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-        #         "new_dim": len(orig_size) - ndim,  # additional dims appended
-        #     },
-        # )
+
