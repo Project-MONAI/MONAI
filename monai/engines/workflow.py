@@ -249,7 +249,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                     )
                     return
 
-                if engine.state.best_metric_epoch == 1 or self.metric_cmp_fn(
+                if engine.state.best_metric_epoch == -1 or self.metric_cmp_fn(
                     current_val_metric, engine.state.best_metric
                 ):
                     self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
