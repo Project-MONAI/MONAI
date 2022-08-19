@@ -51,7 +51,7 @@ V_MAP[14, 13:] = 0.0
 V_MAP[15, 13:] = 1.0
 HV_MAPS = torch.stack([H_MAP, V_MAP])
 TEST_CASE_0 = [{}, INSTANCE_MASK, HV_MAPS]
-TEST_CASE_1 = [{"dtype": torch.float64}, INSTANCE_MASK, HV_MAPS]
+TEST_CASE_1 = [{"dtype": "float64"}, INSTANCE_MASK, HV_MAPS]
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -65,7 +65,7 @@ class ComputeHoVerMapsTests(unittest.TestCase):
         input_image = in_type(mask)
         result = ComputeHoVerMaps(**arguments)(input_image)
         self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(result.dtype == arguments.get("dtype", torch.float32))
+        self.assertTrue(str(result.dtype).split(".")[1] == arguments.get("dtype", "float32"))
         assert_allclose(result, hv_mask, type_test="tensor")
 
 
