@@ -586,6 +586,9 @@ def create_grid(
     """
     compute a `spatial_size` mesh.
 
+        - when ``homogeneous=True``, the output shape is (N+1, dim_size_1, dim_size_2, ..., dim_size_N)
+        - when ``homogeneous=False``, the output shape is (N, dim_size_1, dim_size_2, ..., dim_size_N)
+
     Args:
         spatial_size: spatial size of the grid.
         spacing: same len as ``spatial_size``, defaults to 1.0 (dense grid).
