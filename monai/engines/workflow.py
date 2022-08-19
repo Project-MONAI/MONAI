@@ -38,18 +38,6 @@ else:
     EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
 
 
-class BaseWorkflow(ABC):
-    """
-    Base class for any MONAI style workflow.
-    `run()` is designed to execute the train, evaluation or inference logic.
-
-    """
-
-    @abstractmethod
-    def run(self, *args, **kwargs):
-        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-
 class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optional_import
     """
     Workflow defines the core work process inheriting from Ignite engine.
@@ -133,7 +121,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
         else:
             super().__init__(self._iteration)
         if not isinstance(device, torch.device):
-            raise TypeError(f"device must be a torch.device but is {type(device).__name__}.")
+            raise TypeError(f"Device must be a torch.device but is {type(device).__name__}.")
 
         if isinstance(data_loader, DataLoader):
             sampler = data_loader.__dict__["sampler"]
@@ -147,7 +135,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 epoch_length = len(data_loader)
         else:
             if epoch_length is None:
-                raise ValueError("if data_loader is not PyTorch DataLoader, must specify the epoch_length.")
+                raise ValueError("If data_loader is not PyTorch DataLoader, must specify the epoch_length.")
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state = State(
@@ -180,7 +168,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             event_names = [IterationEvents]  # type: ignore
         else:
             if not isinstance(event_names, list):
-                raise ValueError("event_names must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list or string or EventEnum.")
             event_names += [IterationEvents]  # type: ignore
         for name in event_names:
             if isinstance(name, str):
@@ -188,7 +176,7 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
             elif issubclass(name, EventEnum):  # type: ignore
                 self.register_events(*name, event_to_attr=event_to_attr)
             else:
-                raise ValueError("event_names must be a list or string or EventEnum.")
+                raise ValueError("`event_names` must be a list or string or EventEnum.")
 
         if decollate:
             self._register_decollate()
@@ -239,12 +227,12 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
         if not isinstance(k_metric, dict):
-            raise TypeError(f"key_metric must be None or a dict but is {type(k_metric).__name__}.")
+            raise TypeError(f"`key_metric` must be None or a dict but is {type(k_metric).__name__}.")
         self.state.key_metric_name = list(k_metric.keys())[0]
         metrics = dict(k_metric)
         if add_metrics is not None and len(add_metrics) > 0:
             if not isinstance(add_metrics, dict):
-                raise TypeError(f"additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
+                raise TypeError(f"Additional metrics must be None or a dict but is {type(add_metrics).__name__}.")
             metrics.update(add_metrics)
         for name, metric in metrics.items():
             metric.attach(self, name)
@@ -256,12 +244,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
                 current_val_metric = engine.state.metrics[key_metric_name]
                 if not is_scalar(current_val_metric):
                     warnings.warn(
-                        "key metric is not a scalar value, skip the metric comparison with the current best metric."
-                        "please set other metrics as the key metric, or change the `reduction` mode to 'mean'."
+                        "Key metric is not a scalar value, skip the metric comparison with the current best metric."
+                        "Please set other metrics as the key metric, or change the `reduction` mode to 'mean'."
                     )
                     return
 
-                if self.metric_cmp_fn(current_val_metric, engine.state.best_metric):
+                if engine.state.best_metric_epoch == 1 or self.metric_cmp_fn(
+                    current_val_metric, engine.state.best_metric
+                ):
                     self.logger.info(f"Got new best metric of {key_metric_name}: {current_val_metric}")
                     engine.state.best_metric = current_val_metric
                     engine.state.best_metric_epoch = engine.state.epoch
@@ -278,12 +268,11 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
     def run(self) -> None:
         """
         Execute training, validation or evaluation based on Ignite Engine.
-
         """
         if self.state.epoch_length == 0:
             warnings.warn(
                 "`dataloader` is empty or the specified `epoch_length` is 0, skip the `run`."
-                " if running distributed training, the program may hang in `all-gather`, `all-reduce`, etc."
+                " If running distributed training, the program may hang in `all-gather`, `all-reduce`, etc."
                 " because not all the ranks run the same computation logic."
             )
             return
