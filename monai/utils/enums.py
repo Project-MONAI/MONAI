@@ -19,10 +19,12 @@ __all__ = [
     "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
+    "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
     "BlendMode",
     "PytorchPadMode",
+    "NdimageMode",
     "GridSamplePadMode",
     "Average",
     "MetricReduction",
@@ -92,6 +94,22 @@ class NumpyPadMode(StrEnum):
     EMPTY = "empty"
 
 
+class NdimageMode(StrEnum):
+    """
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    REFLECT = "reflect"
+    GRID_MIRROR = "grid-mirror"
+    CONSTANT = "constant"
+    GRID_CONSTANT = "grid-constant"
+    NEAREST = "nearest"
+    MIRROR = "mirror"
+    GRID_WRAP = "grid-wrap"
+    WRAP = "wrap"
+
+
 class GridSampleMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -108,6 +126,21 @@ class GridSampleMode(StrEnum):
     NEAREST = "nearest"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
+
+
+class SplineMode(StrEnum):
+    """
+    Order of spline interpolation.
+
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
 
 
 class InterpolateMode(StrEnum):
@@ -493,4 +526,4 @@ class EngineStatsKeys(StrEnum):
     TOTAL_EPOCHS = "total_epochs"
     TOTAL_ITERATIONS = "total_iterations"
     BEST_VALIDATION_EPOCH = "best_validation_epoch"
-    BEST_VALIDATION_METRTC = "best_validation_metric"
+    BEST_VALIDATION_METRIC = "best_validation_metric"
