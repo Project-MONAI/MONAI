@@ -303,11 +303,11 @@ class TestPatchWSIDatasetDeprecated(unittest.TestCase):
     def test_read_patches_cucim(self, input_parameters, expected):
         dataset = PatchWSIDatasetDeprecated(**input_parameters)
         samples = dataset[0]
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+        for i, item in enumerate(samples):
+            self.assertTupleEqual(item["label"].shape, expected[i]["label"].shape)
+            self.assertTupleEqual(item["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item["label"], expected[i]["label"]))
+            self.assertIsNone(assert_array_equal(item["image"], expected[i]["image"]))
 
     @parameterized.expand(
         [
@@ -322,11 +322,11 @@ class TestPatchWSIDatasetDeprecated(unittest.TestCase):
     def test_read_patches_openslide(self, input_parameters, expected):
         dataset = PatchWSIDatasetDeprecated(**input_parameters)
         samples = dataset[0]
-        for i in range(len(samples)):
-            self.assertTupleEqual(samples[i]["label"].shape, expected[i]["label"].shape)
-            self.assertTupleEqual(samples[i]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(samples[i]["label"], expected[i]["label"]))
-            self.assertIsNone(assert_array_equal(samples[i]["image"], expected[i]["image"]))
+        for i, item in enumerate(samples):
+            self.assertTupleEqual(item["label"].shape, expected[i]["label"].shape)
+            self.assertTupleEqual(item["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item["label"], expected[i]["label"]))
+            self.assertIsNone(assert_array_equal(item["image"], expected[i]["image"]))
 
 
 class PatchWSIDatasetTests:
@@ -375,11 +375,11 @@ class PatchWSIDatasetTests:
         @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
         def test_read_patches_str_multi(self, input_parameters, expected):
             dataset = PatchWSIDataset(reader=self.backend, **input_parameters)
-            for i in range(len(dataset)):
-                self.assertTupleEqual(dataset[i]["label"].shape, expected[i]["label"].shape)
-                self.assertTupleEqual(dataset[i]["image"].shape, expected[i]["image"].shape)
-                self.assertIsNone(assert_array_equal(dataset[i]["label"], expected[i]["label"]))
-                self.assertIsNone(assert_array_equal(dataset[i]["image"], expected[i]["image"]))
+            for i, item in enumerate(dataset):
+                self.assertTupleEqual(item["label"].shape, expected[i]["label"].shape)
+                self.assertTupleEqual(item["image"].shape, expected[i]["image"].shape)
+                self.assertIsNone(assert_array_equal(item["label"], expected[i]["label"]))
+                self.assertIsNone(assert_array_equal(item["image"], expected[i]["image"]))
 
 
 @skipUnless(has_cim, "Requires cucim")

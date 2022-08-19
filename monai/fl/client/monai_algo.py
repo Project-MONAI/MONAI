@@ -254,7 +254,7 @@ class MonaiAlgo(ClientAlgo):
         if self.trainer:
             weights = get_state_dict(self.trainer.network)
             weigh_type = WeightType.WEIGHTS
-            stats = self.trainer.get_train_stats()
+            stats = self.trainer.get_stats()
             # calculate current iteration and epoch data after training.
             stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
             # compute weight differences

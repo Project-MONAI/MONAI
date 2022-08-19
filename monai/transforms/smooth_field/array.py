@@ -19,7 +19,7 @@ from torch.nn.functional import grid_sample, interpolate
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.networks.utils import meshgrid_ij
+from monai.networks.utils import meshgrid_xy
 from monai.transforms.transform import Randomizable, RandomizableTransform
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
@@ -407,7 +407,7 @@ class RandSmoothDeform(RandomizableTransform):
         grid_space = spatial_size if spatial_size is not None else self.sfield.field.shape[2:]
         grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
 
-        grid = meshgrid_ij(*grid_ranges)
+        grid = meshgrid_xy(*grid_ranges)
 
         self.grid = torch.stack(grid).unsqueeze(0).to(self.device, self.grid_dtype)
 
