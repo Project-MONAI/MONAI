@@ -525,4 +525,4 @@ class EngineStatsKeys(StrEnum):
     TOTAL_EPOCHS = "total_epochs"
     TOTAL_ITERATIONS = "total_iterations"
     BEST_VALIDATION_EPOCH = "best_validation_epoch"
-    BEST_VALIDATION_METRTC = "best_validation_metric"
+    BEST_VALIDATION_METRIC = "best_validation_metric"
