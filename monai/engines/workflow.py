@@ -303,3 +303,14 @@ class Workflow(IgniteEngine):  # type: ignore[valid-type, misc] # due to optiona
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    def get_stats(self, *vars):
+        """
+        Get the statistics information of the workflow process.
+
+        Args:
+            vars: variables name in the `self.state`, will use the variable name as the key
+                and the state content as the value. if the variable doesn't exist, default value is `None`.
+
+        """
+        return {k: getattr(self.state, k, None) for k in vars}

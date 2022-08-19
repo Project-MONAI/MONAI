@@ -52,7 +52,7 @@ from monai.transforms import (
 )
 from monai.utils import optional_import, set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, assert_allclose, pytorch_after, skip_if_quick
 
 SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -205,7 +205,12 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
     trainer.run()
 
-    return evaluator.state.best_metric
+    # test train and validation stats
+    train_stats = trainer.get_stats("output")
+    assert_allclose(train_stats["output"][0]["loss"], trainer.state.output[0]["loss"])
+    val_stats = evaluator.get_stats("metrics")
+
+    return val_stats["best_validation_metric"]
 
 
 def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_workers=4):

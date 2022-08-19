@@ -283,10 +283,25 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print`. So please try to use `f-string` if you need to define any string object.
 
 #### Backwards compatibility
-MONAI is currently under active development, and with major version zero (following the [Semantic Versioning](https://semver.org/)).
-The backwards compatibility of the API is not always guaranteed at this initial development stage.
-However, utility functions are provided in the `monai.utils.deprecated` modules to help users migrate to the new API.
-The use of these functions is encouraged.
+MONAI in general follows [PyTorch's policy for backward compatibility](https://github.com/pytorch/pytorch/wiki/PyTorch's-Python-Frontend-Backward-and-Forward-Compatibility-Policy).
+Utility functions are provided in `monai.utils.deprecated` to help migrate from the deprecated to new APIs. The use of these utilities is encouraged.
+The pull request [template contains checkboxes](https://github.com/Project-MONAI/MONAI/blame/dev/.github/pull_request_template.md#L11-L12) that
+the contributor should use accordingly to clearly indicate breaking changes.
+
+The process of releasing backwards incompatible API changes is as follows:
+1. discuss the breaking changes during pull requests or in dev meetings with a feature proposal if needed.
+1. add a warning message in the upcoming release (version `X.Y`), the warning message should include a forecast of removing the deprecated API in:
+   1. `X+1.0` -- major version `X+1` and minor version `0` the next major version if it's a significant change,
+   1. `X.Y+2` -- major version `X` and minor version `Y+2` (the minor version after the next one), if it's a minor API change.
+   1. Note that the versioning policy is similar to PyTorch's approach which does not precisely follow [the semantic versioning](https://semver.org/) definition.
+      Major version numbers are instead used to represent major product version (which is currently not planned to be greater than 1),
+      minor version for both compatible and incompatible, and patch version for bug fixes.
+   1. when recommending new API to use in place of a deprecated API, the recommended version should
+      provide exact feature-like behaviour otherwise users will have a harder time migrating.
+1. add new test cases by extending the existing unit tests to cover both the deprecated and updated APIs.
+1. collect feedback from the users during the subsequent few releases, and reconsider step 1 if needed.
+1. before each release, review the deprecating APIs and relevant tests, and clean up the removed APIs described in step 2.
+
 
 
 ### Submitting pull requests
@@ -349,12 +364,11 @@ When major features are ready for a milestone, to prepare for a new release:
 - Merge `releasing/[version number]` to `dev`, this step must make sure that the tagging commit unchanged on `dev`.
 - Publish the release note.
 
-Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
-[semantic versioning](https://semver.org/spec/v2.0.0.html) number.
+Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant version number.
 
 If any error occurs during the release process, first check out a new hotfix branch from the `releasing/[version number]`,
 then make PRs to the `releasing/[version number]` to fix the bugs via the regular contribution procedure.
 
 If any error occurs after the release process, first check out a new hotfix branch from the `main` branch,
-make a minor version release following the semantic versioning, for example, `releasing/0.1.1`.
+make a patch version release following the semantic versioning, for example, `releasing/0.1.1`.
 Make sure the `releasing/0.1.1` is merged back into both `dev` and `main` and all the test pipelines succeed.
