@@ -364,8 +364,9 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+    def __init__(self, level: int = 0, channel_dim: int = 0, num_workers: int = 0, **kwargs):
         super().__init__(level, channel_dim, **kwargs)
+        self.num_workers = num_workers
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -448,7 +449,9 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         # Extract a patch or the entire image
         # (reverse the order of location and size to become WxH for cuCIM)
-        patch: np.ndarray = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
+        patch: np.ndarray = wsi.read_region(
+            location=location[::-1], size=size[::-1], level=level, num_workers=self.num_workers
+        )
 
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
