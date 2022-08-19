@@ -2308,22 +2308,22 @@ class ComputeHoVerMaps(Transform):
     """Compute horizontal and vertical maps from an instance mask
     It generates normalized horizontal and vertical distances to the center of mass of each region.
     Args:
-        dtype: the type of output Tensor. Defaults to `"float32"`.
+        dtype: the data type of output Tensor. Defaults to `"torch.float32"`.
 
     Return:
         A torch.Tensor with the size of [2xHxW[xD]], which is stack horizontal and vertical maps
 
     """
 
-    def __init__(self, dtype: DtypeLike = "float32") -> None:
+    def __init__(self, dtype: DtypeLike = torch.float32) -> None:
         super().__init__()
         self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor):
         mask, *_ = convert_data_type(mask, np.ndarray)
 
-        h_map = mask.astype(self.dtype)
-        v_map = mask.astype(self.dtype)
+        h_map = mask.astype("float32")
+        v_map = mask.astype("float32")
 
         for region in skimage.measure.regionprops(mask):
             v_dist = region.coords[:, 0] - region.centroid[0]
@@ -2338,4 +2338,5 @@ class ComputeHoVerMaps(Transform):
             h_map[h_map == region.label] = h_dist
             v_map[v_map == region.label] = v_dist
 
-        return torch.stack(h_map, v_map)
+        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta(), dtype=self.dtype)
+        return hv_maps

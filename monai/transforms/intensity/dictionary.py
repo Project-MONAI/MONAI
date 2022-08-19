@@ -17,6 +17,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
+import torch
 import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
@@ -1750,7 +1751,7 @@ class ComputeHoVerMapsd(MapTransform):
     It generates normalized horizontal and vertical distances to the center of mass of each region.
     Args:
         keys: keys of the corresponding items to be transformed.
-        dtype: the type of output Tensor. Defaults to `"float32"`.
+        dtype: the type of output Tensor. Defaults to `torch.float32`.
         new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
             key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "mask_hover".
         allow_missing_keys: do not raise exception if key is missing.
@@ -1760,7 +1761,7 @@ class ComputeHoVerMapsd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        dtype: DtypeLike = "float32",
+        dtype: DtypeLike = torch.float32,
         new_key_prefix: str = "_hover",
         allow_missing_keys: bool = False,
     ) -> None:
