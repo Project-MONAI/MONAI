@@ -96,6 +96,7 @@ class NumpyPadMode(StrEnum):
 
 class NdimageMode(StrEnum):
     """
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
     See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
     """
 
