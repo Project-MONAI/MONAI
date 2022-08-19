@@ -9,38 +9,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from monai.utils.enums import StrEnum
 
-class WeightType:
+
+class WeightType(StrEnum):
     WEIGHTS = "fl_weights_full"
     WEIGHT_DIFF = "fl_weight_diff"
 
 
-class ExtraItems:
+class ExtraItems(StrEnum):
     ABORT = "fl_abort"
     MODEL_NAME = "fl_model_name"
     CLIENT_NAME = "fl_client_name"
+    APP_ROOT = "fl_app_root"
 
 
-class FlPhase:
+class FlPhase(StrEnum):
     IDLE = "fl_idle"
     TRAIN = "fl_train"
     EVALUATE = "fl_evaluate"
     GET_WEIGHTS = "fl_get_weights"
 
 
-class FlStatistics:
-    # TODO: currently uses hardcoded strings from. Might move to MONAI core?
-    #  https://github.com/Project-MONAI/MONAI/blob/df4a7d72e1d231b898f88d92cf981721c49ceaeb/monai/engines/trainer.py#L60
-    TOTAL_EPOCHS = "total_epochs"
-    TOTAL_ITERATIONS = "total_iterations"
+class FlStatistics(StrEnum):
+    NUM_EXECUTED_ITERATIONS = "num_executed_iterations"
 
 
-class BundleConst:
-    KEY_TRAINER = "train#trainer"
-    KEY_EVALUATOR = "validate#evaluator"
+class RequiredBundleKeys(StrEnum):
+    BUNDLE_ROOT = "bundle_root"
 
 
-class FiltersType:
+class BundleKeys(StrEnum):
+    TRAINER = "train#trainer"
+    EVALUATOR = "validate#evaluator"
+    TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
+
+
+class FiltersType(StrEnum):
     PRE_FILTERS = "pre_filters"
     POST_WEIGHT_FILTERS = "post_weight_filters"
     POST_EVALUATE_FILTERS = "post_evaluate_filters"

@@ -142,7 +142,7 @@ jobs:
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage

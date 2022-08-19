@@ -15,7 +15,6 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.config import USE_COMPILED
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
@@ -37,7 +36,7 @@ expected_3d = [
 for dst, expct in zip(destinations_3d, expected_3d):
     for device in TEST_DEVICES:
         for align in (False, True):
-            interp = ("nearest", "bilinear", 0, 1) if align and USE_COMPILED else ("nearest", "bilinear")
+            interp = ("nearest", "bilinear")
             for interp_mode in interp:
                 for padding_mode in ("zeros", "border", "reflection"):
                     TESTS.append(
