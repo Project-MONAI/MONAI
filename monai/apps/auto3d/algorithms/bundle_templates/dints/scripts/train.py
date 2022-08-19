@@ -179,7 +179,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         print("num_epochs", num_epochs)
         print("num_epochs_per_validation", num_epochs_per_validation)
 
-    lr_scheduler_part = parser.get_parsed_content("lr_scheduler", instantiate=True)
+    lr_scheduler_part = parser.get_parsed_content("lr_scheduler", instantiate=False)
     lr_scheduler = lr_scheduler_part.instantiate(optimizer=optimizer)
 
     if torch.cuda.device_count() > 1:
@@ -389,6 +389,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     if torch.cuda.device_count() > 1:
         dist.destroy_process_group()
+
+    return best_metric
 
 
 if __name__ == "__main__":
