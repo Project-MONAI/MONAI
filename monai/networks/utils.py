@@ -570,6 +570,12 @@ def meshgrid_ij(*tensors):
     return torch.meshgrid(*tensors)
 
 
+def meshgrid_xy(*tensors):
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="xy")  # new api pytorch after 1.10
+    return torch.meshgrid(*tensors)
+
+
 def _replace_modules(
     parent: torch.nn.Module,
     name: str,
