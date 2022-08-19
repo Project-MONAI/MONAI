@@ -14,11 +14,19 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 import torch
+from monai.config import NdarrayOrTensor
 
 from monai.utils.enums import TransformBackends
 from monai.transforms.utils import (_create_rotate, _create_scale, _create_shear,
                                     _create_translate)
 from monai.utils.misc import get_backend_from_data, get_device_from_data
+
+
+def ensure_tensor(data: NdarrayOrTensor):
+    if isinstance(data, torch.Tensor):
+        return data
+
+    return torch.as_tensor(data)
 
 
 class MatrixFactory:
@@ -102,8 +110,8 @@ class Dimensions:
 
 class Matrix:
 
-    def __init__(self, matrix):
-        self.matrix = matrix
+    def __init__(self, matrix: NdarrayOrTensor):
+        self.matrix = ensure_tensor(matrix)
 
     def __matmul__(self, other):
         if isinstance(other, Matrix):

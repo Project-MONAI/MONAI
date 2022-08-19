@@ -8,29 +8,31 @@ import numpy as np
 import torch
 
 from monai.transforms.atmostonce import array as amoa
+from monai.transforms.atmostonce.array import Rotate, CropPad
 from monai.transforms.atmostonce.lazy_transform import compile_transforms
 from monai.utils import TransformBackends
 
 from monai.transforms import Affined, Affine
 from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing
-from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents
+from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory
 
 
-def get_img(size):
-  img = torch.zeros(size, dtype=torch.float32)
-  if len(size) == 2:
-    for j in range(size[0]):
-      for i in range(size[1]):
-        img[j, i] = i + j * size[1]
-  else:
-    for k in range(size[-1]):
-      for j in range(size[-2]):
-        img[..., j, k] = j + k * size[0]
-  return np.expand_dims(img, 0)
+def get_img(size, offset = 0):
+    img = torch.zeros(size, dtype=torch.float32)
+    if len(size) == 2:
+        for j in range(size[0]):
+            for i in range(size[1]):
+                img[j, i] = i + j * size[1] + offset
+    else:
+        for k in range(size[0]):
+            for j in range(size[1]):
+                for i in range(size[2]):
+                    img[..., j, k] = j * size[0] + k * size[0] * size[1] + offset
+    return np.expand_dims(img, 0)
 
 
 def enumerate_results_of_op(results):
@@ -241,18 +243,36 @@ class TestFunctional(unittest.TestCase):
                                     [115., 116., 117., 118., 119., 120.]])
         self._croppad_impl((16, 16), (slice(4, 8), slice(3, 9)), expected)
 
+    # TODO: amo: add tests for matrix and result size
     def test_croppad(self):
         img = get_img((15, 15)).astype(int)
         results = croppad(img, (slice(4, 8), slice(3, 9)))
         enumerate_results_of_op(results)
         m = results[1].matrix.matrix
-        print(m)
+        # print(m)
         result_size = results[2]['spatial_shape']
         a = Affine(affine=m,
                    padding_mode=GridSamplePadMode.ZEROS,
                    spatial_size=result_size)
         img_, _ = a(img)
-        print(img_.numpy())
+        # print(img_.numpy())
+
+    def test_apply(self):
+        img = get_img((16, 16))
+        r = Rotate(torch.pi / 4,
+                   keep_size=False,
+                   mode="bilinear",
+                   padding_mode="zeros",
+                   lazy_evaluation=True)
+        c = CropPad((slice(4, 12), slice(6, 14)),
+                    lazy_evaluation=True)
+
+        img_r = r(img)
+        cur_op = img_r.peek_pending_transform()
+        img_rc = c(img_r,
+                   shape_override=cur_op.metadata.get("shape_override", None))
+
+        img_rca = apply(img_rc)
 
 
 class TestArrayTransforms(unittest.TestCase):

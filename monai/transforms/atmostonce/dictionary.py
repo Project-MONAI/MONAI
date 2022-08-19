@@ -241,6 +241,7 @@ class Zoomd(LazyTransform, MapTransform, InvertibleTransform):
     def inverse(self, data: Any):
         raise NotImplementedError()
 
+
 class Translated(MapTransform, InvertibleTransform):
 
     def __init__(self,
