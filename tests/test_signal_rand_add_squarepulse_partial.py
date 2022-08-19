@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import SignalRandAddSquarePulsePartial
 from monai.utils import optional_import
+from monai.utils.type_conversion import convert_to_tensor
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
@@ -25,13 +26,26 @@ VALID_CASES = [([0.0, 1.0], [0.001, 0.2], [0.0, 0.4])]
 
 
 @skipUnless(has_scipy, "scipy required")
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalRandDropNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(
             SignalRandAddSquarePulsePartial(boundaries, frequencies, fraction), SignalRandAddSquarePulsePartial
         )
         sig = np.load(TEST_SIGNAL)
+        partialsquare = SignalRandAddSquarePulsePartial(boundaries, frequencies, fraction)
+        partialsquaresignal = partialsquare(sig)
+        self.assertEqual(partialsquaresignal.shape[1], sig.shape[1])
+
+
+@skipUnless(has_scipy, "scipy required")
+class TestSignalRandDropTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
+        self.assertIsInstance(
+            SignalRandAddSquarePulsePartial(boundaries, frequencies, fraction), SignalRandAddSquarePulsePartial
+        )
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         partialsquare = SignalRandAddSquarePulsePartial(boundaries, frequencies, fraction)
         partialsquaresignal = partialsquare(sig)
         self.assertEqual(partialsquaresignal.shape[1], sig.shape[1])

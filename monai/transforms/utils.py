@@ -58,7 +58,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 ndimage, _ = optional_import("scipy.ndimage")
@@ -1721,9 +1721,9 @@ def squarepulse(sig, duty: float = 0.5):
     equivalent to numpy implementation from
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.square.html
     """
-    t, w = torch.tensor(sig), torch.tensor(duty)
-    w = torch.tensor(w + (t - t))
-    t = torch.tensor(t + (w - w))
+    t, w = convert_to_tensor(sig), convert_to_tensor(duty)
+    w = convert_to_tensor(w)
+    t = convert_to_tensor(t)
 
     y = torch.zeros(t.shape)
 

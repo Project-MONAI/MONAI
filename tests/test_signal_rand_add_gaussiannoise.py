@@ -16,16 +16,27 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SignalRandAddGaussianNoise
+from monai.utils.type_conversion import convert_to_tensor
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 0.02],)]
 
 
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalRandDropNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
         sig = np.load(TEST_SIGNAL)
+        gaussian = SignalRandAddGaussianNoise(boundaries)
+        gaussiansignal = gaussian(sig)
+        self.assertEqual(gaussiansignal.shape[1], sig.shape[1])
+
+
+class TestSignalRandDropTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, boundaries):
+        self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         gaussian = SignalRandAddGaussianNoise(boundaries)
         gaussiansignal = gaussian(sig)
         self.assertEqual(gaussiansignal.shape[1], sig.shape[1])

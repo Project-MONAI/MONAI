@@ -16,16 +16,27 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SignalRandAddSinePartial
+from monai.utils.type_conversion import convert_to_tensor
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 1.0], [0.1, 0.6], [0.0, 0.4])]
 
 
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalRandDropNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(SignalRandAddSinePartial(boundaries, frequencies, fraction), SignalRandAddSinePartial)
         sig = np.load(TEST_SIGNAL)
+        partialsine = SignalRandAddSinePartial(boundaries, frequencies, fraction)
+        partialsinesignal = partialsine(sig)
+        self.assertEqual(partialsinesignal.shape[1], sig.shape[1])
+
+
+class TestSignalRandDropTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
+        self.assertIsInstance(SignalRandAddSinePartial(boundaries, frequencies, fraction), SignalRandAddSinePartial)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         partialsine = SignalRandAddSinePartial(boundaries, frequencies, fraction)
         partialsinesignal = partialsine(sig)
         self.assertEqual(partialsinesignal.shape[1], sig.shape[1])

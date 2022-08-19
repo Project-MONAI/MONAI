@@ -632,12 +632,6 @@ Signal
     :members:
     :special-members: __call__
 
-`SignalShortTimeFourier`
-""""""""""""""""""""""""
-.. autoclass:: SignalShortTimeFourier
-    :members:
-    :special-members: __call__
-
 `SignalContinousWavelet`
 """"""""""""""""""""""""
 .. autoclass:: SignalContinousWavelet

@@ -27,8 +27,7 @@ from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
-filtfilt, has_filtfilt = optional_import("scipy.signal", name="filtfilt")
-spectrogram, has_spectrogram = optional_import("scipy.signal", name="spectrogram")
+filtfilt, has_filtfilt = optional_import("torchaudio.functional", name="filtfilt")
 central_frequency, has_central_frequency = optional_import("pywt", name="central_frequency")
 cwt, has_cwt = optional_import("pywt", name="cwt")
 
@@ -44,7 +43,6 @@ __all__ = [
     "SignalRandAddSquarePulsePartial",
     "SignalFillEmpty",
     "SignalRemoveFrequency",
-    "SignalShortTimeFourier",
     "SignalContinousWavelet",
 ]
 
@@ -387,7 +385,7 @@ class SignalRemoveFrequency(Transform):
     Remove a frequency from a signal
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -412,54 +410,12 @@ class SignalRemoveFrequency(Transform):
         Args:
             signal: signal to be frequency removed
         """
-
-        b_notch, a_notch = iirnotch(self.frequency, self.quality_factor, self.sampling_freq)
-        y_notched = filtfilt(b_notch, a_notch, signal)
+        b_notch, a_notch = convert_to_tensor(
+            iirnotch(self.frequency, self.quality_factor, self.sampling_freq), dtype=torch.float
+        )
+        y_notched = filtfilt(convert_to_tensor(signal), a_notch, b_notch)
 
         return y_notched
-
-
-class SignalShortTimeFourier(Transform):
-    """
-    Generate short time Fourier transform of a signal.
-    """
-
-    backend = [TransformBackends.NUMPY]
-
-    def __init__(
-        self, frequency: Optional[int] = None, nperseg: Optional[int] = None, noverlap: Optional[int] = None
-    ) -> None:
-        """
-        Args:
-            frequency: signal frequency
-            nperseg: length of each segment for Short Time Fourier analysis
-            noverlap: overlaping section between each segments
-        """
-        super().__init__()
-        self.frequency = frequency
-        self.nperseg = nperseg
-        self.noverlap = noverlap
-
-    def __call__(self, signal: np.ndarray) -> np.ndarray:
-        """
-        Args:
-            signal: signal to be processed with Short Time Fourier transform
-        """
-        f, t, sxx = spectrogram(signal, fs=self.frequency, nperseg=self.nperseg, noverlap=self.noverlap)
-
-        sxx = np.transpose(sxx, [0, 2, 1])
-
-        sxx = np.abs(sxx)
-        mask = sxx > 0
-        sxx[mask] = np.log(sxx[mask])
-
-        sxx = (sxx - np.mean(sxx)) / np.std(sxx)
-
-        sx_norm = np.transpose(sxx)
-
-        sx_norm = np.transpose(sx_norm, [2, 0, 1])
-
-        return sx_norm
 
 
 class SignalContinousWavelet(Transform):

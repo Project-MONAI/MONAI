@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms.signal.array import SignalRandShift
 from monai.utils import optional_import
+from monai.utils.type_conversion import convert_to_tensor
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
@@ -25,11 +26,22 @@ VALID_CASES = [("wrap", 0.0, [-1.0, 1.0])]
 
 
 @skipUnless(has_scipy, "scipy required")
-class TestSignalRandShift(unittest.TestCase):
+class TestSignalRandShiftNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
         self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)
         sig = np.load(TEST_SIGNAL)
+        shifted = SignalRandShift(mode, filling, boundaries)
+        shiftedsignal = shifted(sig)
+        self.assertEqual(shiftedsignal.shape[1], sig.shape[1])
+
+
+@skipUnless(has_scipy, "scipy required")
+class TestSignalRandShiftTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
+        self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         shifted = SignalRandShift(mode, filling, boundaries)
         shiftedsignal = shifted(sig)
         self.assertEqual(shiftedsignal.shape[1], sig.shape[1])

@@ -16,16 +16,27 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SignalRandScale
+from monai.utils.type_conversion import convert_to_tensor
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [([-1.0, 1.0],), ([0.01, 0.1],)]
 
 
-class TestSignalRandScale(unittest.TestCase):
+class TestSignalRandScaleNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandScale(boundaries), SignalRandScale)
         sig = np.load(TEST_SIGNAL)
+        scaled = SignalRandScale(boundaries)
+        scaledsignal = scaled(sig)
+        self.assertEqual(scaledsignal.shape[1], sig.shape[1])
+
+
+class TestSignalRandScaleTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, boundaries):
+        self.assertIsInstance(SignalRandScale(boundaries), SignalRandScale)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         scaled = SignalRandScale(boundaries)
         scaledsignal = scaled(sig)
         self.assertEqual(scaledsignal.shape[1], sig.shape[1])

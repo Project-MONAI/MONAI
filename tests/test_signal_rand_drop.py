@@ -16,16 +16,27 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import SignalRandDrop
+from monai.utils.type_conversion import convert_to_tensor
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 1.0],), ([0.01, 0.1],)]
 
 
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalRandDropNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)
         sig = np.load(TEST_SIGNAL)
+        droped = SignalRandDrop(boundaries)
+        dropedsignal = droped(sig)
+        self.assertEqual(dropedsignal.shape[1], sig.shape[1])
+
+
+class TestSignalRandDropTorch(unittest.TestCase):
+    @parameterized.expand(VALID_CASES)
+    def test_correct_parameters_multi_channels(self, boundaries):
+        self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
         droped = SignalRandDrop(boundaries)
         dropedsignal = droped(sig)
         self.assertEqual(dropedsignal.shape[1], sig.shape[1])

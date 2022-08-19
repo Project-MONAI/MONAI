@@ -13,13 +13,16 @@ import os
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms import SignalFillEmpty
+from monai.utils.type_conversion import convert_to_tensor
+from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 
 
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalRandDropNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = np.load(TEST_SIGNAL)
@@ -27,6 +30,17 @@ class TestSignalRandDrop(unittest.TestCase):
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
         self.assertTrue(not np.isnan(fillemptysignal.any()))
+
+
+@SkipIfBeforePyTorchVersion((1, 9))
+class TestSignalRandDropTorch(unittest.TestCase):
+    def test_correct_parameters_multi_channels(self):
+        self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
+        sig = convert_to_tensor(np.load(TEST_SIGNAL))
+        sig[:, 123] = torch.nan
+        fillempty = SignalFillEmpty(replacement=0.0)
+        fillemptysignal = fillempty(sig)
+        self.assertTrue(not torch.isnan(fillemptysignal.any()))
 
 
 if __name__ == "__main__":
