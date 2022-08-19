@@ -172,7 +172,7 @@ class TestSpatialResample(unittest.TestCase):
             img.affine = torch.eye(4)
             dst_affine = torch.eye(4) * 0.1
             SpatialResample(mode=None)(img=img, dst_affine=dst_affine)
-        if not optional_import("scipy")[1]:
+        if not (optional_import("scipy")[1] and optional_import("cupy")[1]):
             return
         with self.assertRaises(ValueError):  # requires scipy
             SpatialResample(mode=1, align_corners=True)(img=img, dst_affine=dst_affine)
