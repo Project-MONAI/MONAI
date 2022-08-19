@@ -1753,7 +1753,7 @@ class ComputeHoVerMapsd(MapTransform):
         keys: keys of the corresponding items to be transformed.
         dtype: the type of output Tensor. Defaults to `torch.float32`.
         new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
-            key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "mask_hover".
+            key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "hover_mask".
         allow_missing_keys: do not raise exception if key is missing.
 
     """
@@ -1762,7 +1762,7 @@ class ComputeHoVerMapsd(MapTransform):
         self,
         keys: KeysCollection,
         dtype: DtypeLike = torch.float32,
-        new_key_prefix: str = "_hover",
+        new_key_prefix: str = "hover_",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
