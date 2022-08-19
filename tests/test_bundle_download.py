@@ -11,7 +11,6 @@
 
 import json
 import os
-import subprocess
 import tempfile
 import unittest
 
@@ -21,7 +20,13 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, load
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_quick, skip_if_windows
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    command_line_tests,
+    skip_if_downloading_fails,
+    skip_if_quick,
+    skip_if_windows,
+)
 
 TEST_CASE_1 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
@@ -64,7 +69,7 @@ class TestDownload(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tempdir:
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "github"]
                 cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
-                subprocess.check_call(cmd)
+                command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
@@ -83,7 +88,7 @@ class TestDownload(unittest.TestCase):
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
                 cmd += ["--url", url]
-                subprocess.check_call(cmd)
+                command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
