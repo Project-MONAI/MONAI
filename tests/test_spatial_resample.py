@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -19,6 +20,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
+from monai.utils import optional_import
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
@@ -53,6 +55,9 @@ for dst, expct in zip(destinations_3d, expected_3d):
                             expct,
                         ]
                     )
+if optional_import("cupy")[1] and optional_import("scipy.ndimage")[1]:
+    TESTS.append(deepcopy(TESTS[-1]))
+    TESTS[-1][2].update({"align_corners": True, "mode": 1, "padding_mode": "reflect"})  # type: ignore
 
 
 destinations_2d = [
@@ -147,7 +152,7 @@ class TestSpatialResample(unittest.TestCase):
 
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype)
-        out = SpatialResample(dtype=dtype)(img=img, dst_affine=dst)
+        out = SpatialResample(dtype=dtype, align_corners=True)(img=img, dst_affine=dst, align_corners=False)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
         assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
 
@@ -167,6 +172,12 @@ class TestSpatialResample(unittest.TestCase):
             img.affine = torch.eye(4)
             dst_affine = torch.eye(4) * 0.1
             SpatialResample(mode=None)(img=img, dst_affine=dst_affine)
+        if not (optional_import("scipy")[1] and optional_import("cupy")[1]):
+            return
+        with self.assertRaises(ValueError):  # requires scipy
+            SpatialResample(mode=1, align_corners=True)(img=img, dst_affine=dst_affine)
+        with self.assertRaises(ValueError):
+            SpatialResample(mode=1, align_corners=False)(img=img, dst_affine=dst_affine)
 
     @parameterized.expand(TEST_TORCH_INPUT)
     def test_input_torch(self, new_shape, tile, device, dtype, expected_data, track_meta):
