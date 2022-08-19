@@ -152,7 +152,7 @@ class TestSpatialResample(unittest.TestCase):
 
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype)
-        out = SpatialResample(dtype=dtype)(img=img, dst_affine=dst)
+        out = SpatialResample(dtype=dtype, align_corners=True)(img=img, dst_affine=dst, align_corners=False)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
         assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
 
@@ -172,6 +172,10 @@ class TestSpatialResample(unittest.TestCase):
             img.affine = torch.eye(4)
             dst_affine = torch.eye(4) * 0.1
             SpatialResample(mode=None)(img=img, dst_affine=dst_affine)
+        with self.assertRaises(ValueError):
+            SpatialResample(mode=1, align_corners=True)(img=img, dst_affine=dst_affine)
+        with self.assertRaises(ValueError):
+            SpatialResample(mode=1, align_corners=False)(img=img, dst_affine=dst_affine)
 
     @parameterized.expand(TEST_TORCH_INPUT)
     def test_input_torch(self, new_shape, tile, device, dtype, expected_data, track_meta):
