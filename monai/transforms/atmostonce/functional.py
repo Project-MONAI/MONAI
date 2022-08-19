@@ -308,10 +308,8 @@ def croppad(
         raise ValueError(f"'slices' length {len(slices)} must be equal to 'img' "
                          f"spatial dimensions of {input_ndim}")
 
-    img_centers = [i // 2 for i in img.shape[1:]]
-    slice_centers = [s.stop - s.start for s in slices]
-    # img_centers = [0 for _ in img.shape[1:]]
-    # slice_centers = [s.end - s.start for s in slices]
+    img_centers = [i / 2 for i in img.shape[1:]]
+    slice_centers = [(s.stop + s.start) / 2 for s in slices]
     deltas = [s - i for i, s in zip(img_centers, slice_centers)]
     transform = MatrixFactory.from_tensor(img).translate(deltas)
     im_extents = extents_from_shape([img.shape[0]] + [s.stop - s.start for s in slices])
@@ -320,6 +318,7 @@ def croppad(
 
     metadata = {
         "slices": slices,
+        "pad_mode": pad_mode,
         "dtype": img.dtype,
         "im_extents": im_extents,
         "spatial_shape": spatial_shape_

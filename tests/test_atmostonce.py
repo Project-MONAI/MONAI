@@ -181,19 +181,78 @@ class TestFunctional(unittest.TestCase):
                          "border")
         enumerate_results_of_op(results)
 
-    def test_croppad(self):
+    def test_croppad_identity(self):
         img = get_img((16, 16)).astype(int)
         results = croppad(img,
-                          (slice(3, 8), slice(3, 9)))
+                          (slice(0, 16), slice(0, 16)))
         enumerate_results_of_op(results)
         m = results[1].matrix.matrix
         print(m)
         result_size = results[2]['spatial_shape']
         a = Affine(affine=m,
                    padding_mode=GridSamplePadMode.ZEROS,
-                   spatial_size=[1] + result_size)
+                   spatial_size=result_size)
         img_, _ = a(img)
-        print(img_.numpy().astype(int))
+        print(img_)
+
+    def _croppad_impl(self, img_ext, slices, expected):
+        img = get_img(img_ext).astype(int)
+        results = croppad(img, slices)
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=result_size)
+        img_, _ = a(img)
+        if expected is None:
+            print(img_.numpy())
+        else:
+            self.assertTrue(torch.allclose(img_, expected))
+
+    def test_croppad_img_odd_crop_odd(self):
+        expected = torch.as_tensor([[63., 64., 65., 66., 67., 68., 69.],
+                                    [78., 79., 80., 81., 82., 83., 84.],
+                                    [93., 94., 95., 96., 97., 98., 99.],
+                                    [108., 109., 110., 111., 112., 113., 114.],
+                                    [123., 124., 125., 126., 127., 128., 129.]])
+        self._croppad_impl((15, 15), (slice(4, 9), slice(3, 10)), expected)
+
+    def test_croppad_img_odd_crop_even(self):
+        expected = torch.as_tensor([[63., 64., 65., 66., 67., 68.],
+                                    [78., 79., 80., 81., 82., 83.],
+                                    [93., 94., 95., 96., 97., 98.],
+                                    [108., 109., 110., 111., 112., 113.]])
+        self._croppad_impl((15, 15), (slice(4, 8), slice(3, 9)), expected)
+
+    def test_croppad_img_even_crop_odd(self):
+        expected = torch.as_tensor([[67., 68., 69., 70., 71., 72., 73.],
+                                    [83., 84., 85., 86., 87., 88., 89.],
+                                    [99., 100., 101., 102., 103., 104., 105.],
+                                    [115., 116., 117., 118., 119., 120., 121.],
+                                    [131., 132., 133., 134., 135., 136., 137.]])
+        self._croppad_impl((16, 16), (slice(4, 9), slice(3, 10)), expected)
+
+    def test_croppad_img_even_crop_even(self):
+        expected = torch.as_tensor([[67., 68., 69., 70., 71., 72.],
+                                    [83., 84., 85., 86., 87., 88.],
+                                    [99., 100., 101., 102., 103., 104.],
+                                    [115., 116., 117., 118., 119., 120.]])
+        self._croppad_impl((16, 16), (slice(4, 8), slice(3, 9)), expected)
+
+    def test_croppad(self):
+        img = get_img((15, 15)).astype(int)
+        results = croppad(img, (slice(4, 8), slice(3, 9)))
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=result_size)
+        img_, _ = a(img)
+        print(img_.numpy())
 
 
 class TestArrayTransforms(unittest.TestCase):
