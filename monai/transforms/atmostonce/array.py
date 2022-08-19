@@ -303,6 +303,3 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             data: NdarrayOrTensor,
     ):
         raise NotImplementedError()
-
-
-

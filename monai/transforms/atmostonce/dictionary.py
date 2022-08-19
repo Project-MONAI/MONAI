@@ -8,13 +8,12 @@ from monai.transforms.atmostonce.array import Rotate, Resize, Spacing, Zoom
 from monai.utils import ensure_tuple_rep
 
 from monai.config import KeysCollection, DtypeLike, SequenceStr
-from monai.transforms.atmostonce.apply import apply
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import TransformBackends, GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode, \
     PytorchPadMode
-from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
+from monai.utils.mapping_stack import MatrixFactory
 from monai.utils.type_conversion import expand_scalar_to_tuple
 
 

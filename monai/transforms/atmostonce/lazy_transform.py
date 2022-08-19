@@ -1,4 +1,3 @@
-
 from monai.config import NdarrayOrTensor
 
 from monai.data import MetaTensor
