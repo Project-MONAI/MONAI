@@ -201,7 +201,7 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
 
     This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
     should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
@@ -209,23 +209,25 @@ class EnsureChannelFirst(Transform):
 
     Args:
         strict_check: whether to raise an error when the meta information is insufficient.
-        add_channel_default: If True and the input image `img` is not a MetaTensor and `meta_dict` is not given,
-            or `img` is a MetaTensor but doesn't specify channel dimension, use the value is `no_channel`
+        channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
+            this argument can be used to specify the original channel dimension (integer) of the input array.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, add_channel_default=True):
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = "no_channel"):
         self.strict_check = strict_check
-        self.add_channel_default = add_channel_default
+        self.input_channel_dim = channel_dim
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            if not self.add_channel_default:
-                msg = "Metadata not available and default add channel is disabled, EnsureChannelFirst is not in use."
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
                 if self.strict_check:
                     raise ValueError(msg)
                 warnings.warn(msg)
@@ -236,16 +238,18 @@ class EnsureChannelFirst(Transform):
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
 
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
 
         if channel_dim is None:
-            if not self.add_channel_default:
-                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict`."
+            if self.input_channel_dim is None:
+                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
                 if self.strict_check:
                     raise ValueError(msg)
                 warnings.warn(msg)
                 return img
-            meta_dict["original_channel_dim"] = channel_dim = "no_channel"  # type: ignore
+            channel_dim = self.input_channel_dim
+            if isinstance(meta_dict, dict):
+                meta_dict["original_channel_dim"] = self.input_channel_dim
 
         if channel_dim == "no_channel":
             result = img[None]
