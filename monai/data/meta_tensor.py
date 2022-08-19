@@ -180,7 +180,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         resampler = monai.transforms.SpatialResample(mode=mode, padding_mode=padding_mode)
         dst_affine, self.affine = self.affine, self.meta[MetaKeys.ORIGINAL_AFFINE]
         with resampler.trace_transform(False):
-            output = resampler(self, dst_affine=dst_affine, spatial_size=self.spatial_shape)
+            output = resampler(self, dst_affine=dst_affine, spatial_size=self.spatial_shape, align_corners=True)
         self.array = output.array
         self.spatial_shape = self.array.shape[1:]
         self.affine = dst_affine

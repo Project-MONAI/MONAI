@@ -51,11 +51,12 @@ def eval_lazy_stack(
     if isinstance(data, Mapping):
         if isinstance(upcoming, MapTransform):
             return {
-                k: eval_lazy_stack(v, upcoming, lazy_resample) if k in upcoming.keys else v for k, v in data.items()
+                k: eval_lazy_stack(v, upcoming, lazy_resample, mode, padding_mode) if k in upcoming.keys else v
+                for k, v in data.items()
             }
-        return {k: eval_lazy_stack(v, upcoming, lazy_resample) for k, v in data.items()}
+        return {k: eval_lazy_stack(v, upcoming, lazy_resample, mode, padding_mode) for k, v in data.items()}
     if isinstance(data, (list, tuple)):
-        return [eval_lazy_stack(v, upcoming, lazy_resample) for v in data]
+        return [eval_lazy_stack(v, upcoming, lazy_resample, mode, padding_mode) for v in data]
     return data
 
 
