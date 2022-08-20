@@ -262,6 +262,7 @@ class WSIReader(BaseWSIReader):
         backend: the name of backend whole slide image reader library, the default is cuCIM.
         level: the level at which patches are extracted.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        num_workers: number of workers for multi-thread image loading (cucim backend only).
         kwargs: additional arguments to be passed to the backend library
 
     """
@@ -356,6 +357,7 @@ class CuCIMWSIReader(BaseWSIReader):
         level: the whole slide image level at which the image is extracted. (default=0)
             This is overridden if the level argument is provided in `get_data`.
         channel_dim: the desired dimension for color channel. Default to 0 (channel first).
+        num_workers: number of workers for multi-thread image loading
         kwargs: additional args for `cucim.CuImage` module:
             https://github.com/rapidsai/cucim/blob/main/cpp/include/cucim/cuimage.h
 
@@ -364,8 +366,9 @@ class CuCIMWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "cucim"
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
+    def __init__(self, level: int = 0, channel_dim: int = 0, num_workers: int = 0, **kwargs):
         super().__init__(level, channel_dim, **kwargs)
+        self.num_workers = num_workers
 
     @staticmethod
     def get_level_count(wsi) -> int:
@@ -448,7 +451,9 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         # Extract a patch or the entire image
         # (reverse the order of location and size to become WxH for cuCIM)
-        patch: np.ndarray = wsi.read_region(location=location[::-1], size=size[::-1], level=level)
+        patch: np.ndarray = wsi.read_region(
+            location=location[::-1], size=size[::-1], level=level, num_workers=self.num_workers
+        )
 
         # Convert to numpy
         patch = np.asarray(patch, dtype=dtype)
