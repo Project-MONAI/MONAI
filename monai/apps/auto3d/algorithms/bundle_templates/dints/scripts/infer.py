@@ -33,7 +33,7 @@ class InferClass:
         config_file_ = _pop_args(_args, "config_file")[0]
 
         parser = ConfigParser()
-        parser.read_config(config_file)
+        parser.read_config(config_file_)
         parser.update(pairs=_args)
 
         data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
@@ -145,7 +145,7 @@ class InferClass:
     def infer_all(self):
         for _i in range(len(self.infer_files)):
             infer_filename = self.infer_files[_i]
-            pred = self.infer(infer_filename)
+            _ = self.infer(infer_filename)
 
         return
 
