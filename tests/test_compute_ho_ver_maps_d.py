@@ -11,8 +11,8 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms.intensity.dictionary import ComputeHoVerMapsd
