@@ -14,12 +14,12 @@ import unittest
 
 from monai.utils.misc import MONAIEnvVars
 
+
 class TestMONAIEnvVars(unittest.TestCase):
     def test_monai_env_vars(self):
         os.environ["MONAI_DEBUG"] = "42"
         self.assertEqual(os.environ.get("MONAI_DEBUG"), "42")
         self.assertEqual(MONAIEnvVars.debug(), "42")
-
 
 
 if __name__ == "__main__":

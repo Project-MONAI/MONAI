@@ -46,6 +46,8 @@ __all__ = [
     "list_to_dict",
     "MAX_SEED",
     "copy_to_device",
+    "str2bool",
+    "MONAIEnvVars",
     "ImageMetaKey",
     "is_module_ver_at_least",
     "has_option",
@@ -360,21 +362,21 @@ def copy_to_device(
     return obj
 
 
-def str2bool(value: str, default=False, raise_exc=True) -> bool:
+def str2bool(value: str, default: bool = False, raise_exc: bool = True) -> bool:
     """
     Convert a string to a boolean. Case insensitive.
     True: yes, true, t, y, 1. False: no, false, f, n, 0.
 
     Args:
         value: string to be converted to a boolean.
-        raise_exc: if value not in sets of expected true or false inputs,
+        raise_exc: if value not in tuples of expected true or false inputs,
             should we raise an exception? If not, return `None`.
     Raises
-        ValueError: value not in sets of expected true or false inputs and
+        ValueError: value not in tuples of expected true or false inputs and
             `raise_exc` is `True`.
     """
-    true_set = {"yes", "true", "t", "y", "1"}
-    false_set = {"no", "false", "f", "n", "0"}
+    true_set = ("yes", "true", "t", "y", "1")
+    false_set = ("no", "false", "f", "n", "0")
     if isinstance(value, str):
         value = value.lower()
         if value in true_set:
@@ -383,7 +385,7 @@ def str2bool(value: str, default=False, raise_exc=True) -> bool:
             return False
 
     if raise_exc:
-        raise ValueError('Expected "%s"' % '", "'.join(true_set | false_set))
+        raise ValueError(f"Got \"{value}\", expected a value from: {', '.join(true_set + false_set)}")
     return default
 
 

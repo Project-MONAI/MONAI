@@ -11,6 +11,7 @@
 
 import os
 import unittest
+
 import monai.transforms as mt
 from monai.data import Dataset
 
@@ -18,6 +19,7 @@ from monai.data import Dataset
 class FaultyTransform(mt.Transform):
     def __call__(self, _):
         raise RuntimeError
+
 
 def faulty_lambda(_):
     raise RuntimeError

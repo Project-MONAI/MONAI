@@ -75,6 +75,7 @@ from .misc import (
     save_obj,
     set_determinism,
     star_zip_with,
+    str2bool,
     zip_with,
 )
 from .module import (
