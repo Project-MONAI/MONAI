@@ -34,6 +34,8 @@ def run_testsuit():
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
         "test_contrastive_loss",
+        "test_compute_ho_ver_maps.py",
+        "test_compute_ho_ver_maps_d.py",
         "test_check_missing_files",
         "test_csv_dataset",
         "test_csv_iterable_dataset",

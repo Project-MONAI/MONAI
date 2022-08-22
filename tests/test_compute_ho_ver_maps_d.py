@@ -19,7 +19,7 @@ from monai.transforms.intensity.dictionary import ComputeHoVerMapsd
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-skimage, has_skimage = optional_import("skimage", "0.19.0", min_version)
+_, has_skimage = optional_import("skimage", "0.19.0", min_version)
 
 
 INSTANCE_MASK = np.zeros((16, 16), dtype="int16")
@@ -60,8 +60,8 @@ for p in TEST_NDARRAYS:
     TESTS.append([p, *TEST_CASE_1])
 
 
+@unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class ComputeHoVerMapsDictTests(unittest.TestCase):
-    @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
     @parameterized.expand(TESTS)
     def test_horizontal_certical_maps(self, in_type, arguments, mask, hv_mask):
         hv_key = list(hv_mask.keys())[0]
