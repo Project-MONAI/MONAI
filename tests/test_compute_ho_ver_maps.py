@@ -60,6 +60,7 @@ for p in TEST_NDARRAYS:
 
 
 class ComputeHoVerMapsTests(unittest.TestCase):
+    @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
     @parameterized.expand(TESTS)
     def test_horizontal_certical_maps(self, in_type, arguments, mask, hv_mask):
         input_image = in_type(mask)
