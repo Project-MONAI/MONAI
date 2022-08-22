@@ -13,13 +13,10 @@
 Step 1 of the AutoML pipeline. The dataset is analysized with this script.
 """
 
-import copy
-import time
 import warnings
 from os import path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Dict, Union
 
-import numpy as np
 import torch
 
 from monai import data
@@ -120,35 +117,35 @@ class DataAnalyzer:
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
             logger.debug(f"{output_path} will be overwritten by a new datastat.")
-        
+
         self.image_key = image_key
         self.label_key = label_key
 
         self.output_path = output_path
         self.IMAGE_ONLY = True if label_key is None else False
-        
+
         self.datalist = datalist
         self.dataroot = dataroot
         self.device = device
         self.worker = worker
 
     def get_all_case_stats(self):
-        
+
         keys = list(filter(None, [self.image_key, self.label_key]))
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
 
         result = {
-            DATA_STATS.SUMMARY: {}, 
+            DATA_STATS.SUMMARY: {},
             DATA_STATS.BY_CASE: [],
         }
 
         for batch_data in self.dataset:
             case_engine = SegAnalyzeCaseEngine(batch_data[0], self.image_key, self.label_key, device=self.device)
             result[DATA_STATS.BY_CASE].append(case_engine())
-        
+
         summary_engine = SegAnalyzeSummaryEngine(result[DATA_STATS.BY_CASE])
         result[DATA_STATS.SUMMARY] = summary_engine()
-        
+
         return result

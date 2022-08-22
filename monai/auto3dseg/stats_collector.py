@@ -1,28 +1,24 @@
-from operator import concat
-from pydoc import resolve
-import re
-from tkinter import E
 import numpy as np
 from abc import abstractmethod, ABC
 from copy import deepcopy
 from collections import UserDict
 
 import torch
-from typing import Any, Dict, List, Tuple, Union, Optional
+from typing import Any, Dict, List, Tuple
 from functools import partial
-from monai.utils.enums import Enum, StrEnum
+from monai.utils.enums import StrEnum
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
 from monai.data.meta_tensor import MetaTensor
 
-from monai.transforms import (  
-    Compose, 
-    LoadImaged, 
-    EnsureChannelFirstd, 
-    Orientationd, 
-    EnsureTyped, 
-    Lambdad, 
-    SqueezeDimd, 
+from monai.transforms import (
+    Compose,
+    LoadImaged,
+    EnsureChannelFirstd,
+    Orientationd,
+    EnsureTyped,
+    Lambdad,
+    SqueezeDimd,
     CropForeground,
     ToDeviced,
     ToCupy,
@@ -31,7 +27,6 @@ from monai.transforms import (
 
 from monai.utils import min_version, optional_import
 from monai.utils.misc import label_union
-from monai.config.type_definitions import TensorOrList
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
@@ -139,7 +134,7 @@ class LABEL_STATS(StrEnum):
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
 
-class Operations(UserDict): 
+class Operations(UserDict):
     def evaluate(self, data: Any, **kwargs) -> dict:
         return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
 
@@ -160,7 +155,7 @@ class SampleOperations(Operations):
             "percentile_90_0": ("percentile", 2),
             "percentile_99_5": ("percentile", 3),
         }
-    
+
     def evaluate(self, data: Any, **kwargs) -> dict:
         ret = super().evaluate(data, **kwargs)
         for k, v in self.data_addon.items():
@@ -184,9 +179,9 @@ class SummaryOperations(Operations):
                 "percentile_90_0": mean,
                 "percentile_99_5": mean,
             }
-    
+
     def evaluate(self, data: Any, **kwargs) -> dict:
-        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)} 
+        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)}
 
 class Analyzer(transform.MapTransform, ABC):
     def __init__(self, report_format):
@@ -212,11 +207,11 @@ class Analyzer(transform.MapTransform, ABC):
         for k, v in self.report_format.items():
             if issubclass(v.__class__, Operations):
                 self.report_format[k] = self.resolve_ops(v)
-            else: 
+            else:
                 self.report_format[k] = v
-        
+
         return self.report_format
-    
+
     @abstractmethod
     def __call__(self, data):
         """Analyze the dict format dataset, return the summary report"""
@@ -277,7 +272,7 @@ class FgImageStatsCasesAnalyzer(Analyzer):
 
         super().__init__(report_format)
         self.update_ops(IMAGE_STATS.INTENSITY, SampleOperations())
-    
+
     def __call__(self, data):
 
         ndas = data[self.image_key] # (1,H,W,D) or (C,H,W,D)
@@ -318,7 +313,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
     def update_ops_label_list(self, key, op):
         self.ops[key] = op
         # todo: add support for the list-type item print-out
-    
+
     def __call__(self, data):
         ndas = data[self.image_key] # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
@@ -339,19 +334,19 @@ class LabelStatsCaseAnalyzer(Analyzer):
                 shape_list, ncomponents = get_label_ccp(mask_index)
                 label_dict[LABEL_STATS.LABEL_SHAPE] = shape_list
                 label_dict[LABEL_STATS.LABEL_NCOMP] = ncomponents
-            
+
             label_stats.append(label_dict)
 
         total_percent = np.sum(list(pixel_percentage.values()))
         for key, value in pixel_percentage.items():
             pixel_percentage[key] = float(value / total_percent)
-        
+
         analysis = deepcopy(self.get_report_format())
         analysis[LABEL_STATS.LABEL_UID] = unique_label
         analysis[LABEL_STATS.IMAGE_INT] = [self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds]
         analysis[LABEL_STATS.LABEL] = label_stats
         analysis[LABEL_STATS.PIXEL_PCT] = pixel_percentage
-        
+
         # logger.debug(f"Get label stats spent {time.time()-start}")
         return analysis
 
@@ -374,11 +369,11 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         self.update_ops(IMAGE_STATS.CROPPED_SHAPE, SampleOperations())
         self.update_ops(IMAGE_STATS.SPACING, SampleOperations())
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
-    
-   
+
+
     def concat_np(self, key: str, data):
         return np.concatenate([[np.array(d[self.case_analyzer_name][key]) for d in data]])
-    
+
     def concat_to_dict(self, key: str, ld_data):
         """
         Pinpointing the key in data structure: list of dicts and concat the value
@@ -388,12 +383,12 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         key_values = {}
         for k in values[0][0]:
             key_values[k] = np.concatenate([[val[0][k].cpu().numpy() for val in values]]) #gpu/cpu issue
-        
+
         return key_values
 
     def __call__(self, data):
         analysis = deepcopy(self.get_report_format())
-        
+
         axis = 0 # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
         for key in [IMAGE_STATS.SHAPE, IMAGE_STATS.CHANNELS, IMAGE_STATS.CROPPED_SHAPE, IMAGE_STATS.SPACING]:
             analysis[key] = self.ops[key].evaluate(self.concat_np(key, data), dim=axis)
@@ -415,7 +410,7 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         }
         super().__init__(report_format)
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
-    
+
     def concat_to_dict(self, key: str, ld_data):
         """
         Pinpointing the key in data structure: list of dicts and concat the value
@@ -425,16 +420,16 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         key_values = {}
         for k in values[0][0]:
             key_values[k] = np.concatenate([[val[0][k].cpu().numpy() for val in values]]) #gpu/cpu issue
-        
+
         return key_values
-    
+
     def __call__(self, data):
         analysis = deepcopy(self.get_report_format())
         axis = None if self.summary_average else 0
         analysis[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
             self.concat_to_dict(IMAGE_STATS.INTENSITY, data), dim=axis)
-        
-        
+
+
         return analysis
 
 
@@ -469,11 +464,11 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         key_values = {}
         for k in values[0][0]:
             key_values[k] = np.concatenate([[val[0][k].cpu().numpy() for val in values]]) #gpu/cpu issue
-        
+
         return key_values
 
     def concat_label_to_dict(self, label_id: int, key: str, data):
-        
+
         values = []
         for d in data:
             if label_id in d[self.case_analyzer_name][LABEL_STATS.LABEL_UID]:
@@ -496,24 +491,24 @@ class LabelStatsSummaryAnalyzer(Analyzer):
 
     def __call__(self, data):
         analysis = deepcopy(self.get_report_format())
-        
+
         unique_label = label_union(self.concat_np(LABEL_STATS.LABEL_UID, data))
         pixel_summary = self.concat_ldd(LABEL_STATS.PIXEL_PCT, data)
-        
+
         axis = None if self.summary_average else 0
 
         analysis[LABEL_STATS.LABEL_UID] = unique_label
         analysis[LABEL_STATS.PIXEL_PCT] = [{k: mean(v)} for k, v in pixel_summary.items()]
         analysis[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
             self.concat_to_dict(LABEL_STATS.IMAGE_INT, data), dim=axis)
-        
+
         analysis[LABEL_STATS.LABEL] = []
         for label_id in unique_label:
             stats = {}
             for key in [LABEL_STATS.IMAGE_INT, LABEL_STATS.LABEL_SHAPE, LABEL_STATS.LABEL_NCOMP]:
                 stats[key] = self.ops[key].evaluate(self.concat_label_to_dict(label_id, key, data), dim=axis)
             analysis[LABEL_STATS.LABEL].append(stats)
-            
+
         return analysis
 
 
@@ -521,13 +516,13 @@ class AnalyzeEngine:
     def __init__(self, data) -> None:
         self.data = data
         self.analyzers = {}
-    
+
     def update(self, analyzer: Dict[str, callable]):
         self.analyzers.update(analyzer)
 
     def __call__(self):
         ret = {}
-        for k, analyzer in self.analyzers.items(): 
+        for k, analyzer in self.analyzers.items():
             if callable(analyzer):
                 ret.update({k: analyzer(self.data)})
             elif isinstance(analyzer, str):
@@ -535,20 +530,20 @@ class AnalyzeEngine:
         return ret
 
 class SegAnalyzeCaseEngine(AnalyzeEngine):
-    def __init__(self, 
+    def __init__(self,
         data: Dict,
-        image_key: str, 
-        label_key: str, 
+        image_key: str,
+        label_key: str,
         meta_post_fix: str = "_meta_dict",
         device: str = "cuda",
         ) -> None:
-        
+
         keys = [image_key] if label_key is None else [image_key, label_key]
 
         transform_list = [
             LoadImaged(keys=keys),
             EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=keys, device=device, non_blocking=True), 
+            ToDeviced(keys=keys, device=device, non_blocking=True),
             Orientationd(keys=keys, axcodes="RAS"),
             EnsureTyped(keys=keys, data_type="tensor"),
             Lambdad(
@@ -558,7 +553,7 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
         ]
 
         transform = Compose(list(filter(None, transform_list)))
-        
+
         image_meta_key = image_key + meta_post_fix
         label_meta_key = label_key + meta_post_fix if label_key else None
 
@@ -579,4 +574,3 @@ class SegAnalyzeSummaryEngine(AnalyzeEngine):
             "image_foreground_stats": FgImageStatsSummaryAnalyzer("image_foreground_stats", average=average),
             "label_stats": LabelStatsSummaryAnalyzer("label_stats", average=average)
         })
-
