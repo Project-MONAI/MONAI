@@ -20,6 +20,13 @@ from monai.utils import LossReduction
 
 
 class AUCMLoss(_Loss):
+    """
+    AUCM Loss with squared-hinge function: a novel loss function to directly optimize AUROC
+    
+    The original paper: Large-scale Robust Deep AUC Maximization: A
+    New Surrogate Loss and Empirical Studies on Medical Image Classification
+    https://arxiv.org/abs/2012.03173
+    """
     def __init__(
         self,
         margin: float = 1.0,
@@ -32,9 +39,35 @@ class AUCMLoss(_Loss):
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         gpu: bool = False,
     ):
+        """
+        Args:
+            margin: margin term for AUCM loss, default 1.0, range [0, 1]
+            imratio: imbalance ratio, ratio of positive and negative samples, default None
+            num_classes: number of classes, default 2
+            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            sigmoid: if True, apply a sigmoid function to the prediction.
+            softmax: if True, apply a softmax function to the prediction.
+            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
+                other activation layers, Defaults to ``None``. for example:
+                `other_act = torch.tanh`.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+            gpu: if True, use GPU to calculate. Defaults to False.
+            
+
+        Raises:
+            ValueError: margin must be in [0, 1]
+            TypeError: When ``other_act`` is not an ``Optional[Callable]``.
+            ValueError: and When more than 1 of [``sigmoid=True``, ``softmax=True``, ``other_act is not None``].
+                Incompatible values.
+        """
         super().__init__(reduction=LossReduction(reduction).value)
 
-        if margin < 0 or margin > 1:
+        if margin <= 0 or margin >= 1:
             raise ValueError("imratio must be between 0 and 1")
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
@@ -69,7 +102,14 @@ class AUCMLoss(_Loss):
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, auto=True) -> torch.Tensor:
         """
         Args:
-            y_pred
+            y_pred: predicted tensor of shape [batch_size, num_classes, ...]
+            y_true: ground truth tensor of shape [batch_size, num_classes, ...]
+            auto: if True, automatically calculate imbalance ratio. Defaults to True.
+        
+        Raises:
+            ValueError: When y_pred and num_classes have different sizes.
+            ValueError: When y_true and num_classes have different sizes.
+            ValueError: When y_pred and y_true have different sizes.
         """
         if y_pred.shape[1] != self.num_classes:
             raise ValueError(
