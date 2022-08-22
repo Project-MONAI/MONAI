@@ -8,3 +8,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from abc import (
+    ABC,
+    abstractmethod,
+)
+
+
+class Configurator(ABC):
+    def __init__(
+        self,
+        data_stats_filename: str = None,
+        input_filename: str = None,
+    ):
+        self.data_stats_filename = data_stats_filename
+        self.input_filename = input_filename
+
+    @property
+    @abstractmethod
+    def load(self):
+        pass
+
+    @property
+    @abstractmethod
+    def update(self):
+        pass
+
+    @property
+    @abstractmethod
+    def write(self):
+        pass
