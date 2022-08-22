@@ -22,7 +22,7 @@ from monai.utils import LossReduction
 class AUCMLoss(_Loss):
     """
     AUCM Loss with squared-hinge function: a novel loss function to directly optimize AUROC
-    
+
     The original paper: Large-scale Robust Deep AUC Maximization: A
     New Surrogate Loss and Empirical Studies on Medical Image Classification
     https://arxiv.org/abs/2012.03173
@@ -57,7 +57,7 @@ class AUCMLoss(_Loss):
                 - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
                 - ``"sum"``: the output will be summed.
             gpu: if True, use GPU to calculate. Defaults to False.
-            
+
 
         Raises:
             ValueError: margin must be in [0, 1]
@@ -105,7 +105,7 @@ class AUCMLoss(_Loss):
             y_pred: predicted tensor of shape [batch_size, num_classes, ...]
             y_true: ground truth tensor of shape [batch_size, num_classes, ...]
             auto: if True, automatically calculate imbalance ratio. Defaults to True.
-        
+
         Raises:
             ValueError: When y_pred and num_classes have different sizes.
             ValueError: When y_true and num_classes have different sizes.
