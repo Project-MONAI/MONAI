@@ -72,7 +72,7 @@ class TestDataAnalyzer(unittest.TestCase):
     #     )
     #     datastat = analyser.get_all_case_stats()
 
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+    #     assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
 
     def test_data_analyzer_from_yaml(self):
         dataroot = self.test_dir.name

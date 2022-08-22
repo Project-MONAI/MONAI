@@ -1,6 +1,7 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 from monai.data.meta_tensor import MetaTensor
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,8 +14,22 @@ from monai.data.meta_tensor import MetaTensor
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
+
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
+
+from numbers import Number
+
+from typing import Dict, List
+
+__all__ = [
+    "get_foreground_image",
+    "get_foreground_label",
+    "get_label_ccp",
+    "concat_val_to_np",
+]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
@@ -39,6 +54,7 @@ def get_foreground_image(image: MetaTensor):
     image_foreground = copper(image)
     return image_foreground
 
+
 def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
     """
     Get foreground image pixel values and mask out the non-labeled area.
@@ -53,6 +69,7 @@ def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
     # todo(mingxin): type check
     label_foreground = MetaTensor(image[label > 0])
     return label_foreground
+
 
 def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[Any], int]:
     """
@@ -92,3 +109,57 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
         raise RuntimeError("Cannot find one of the following required dependencies: {cuPy+cuCIM} or {scikit-image}")
 
     return shape_list, ncomponents
+
+
+def concat_val_to_np(
+        data_list: List[Dict], 
+        keys: List[Union[str, int]], 
+        flatten=False
+    ):
+    """
+    Get the nested value in a list of dictionary that shares the same structure
+
+    Args:
+       key1: the first key in the dict.
+       key2: the second key nested under the first.
+       data_list: a list of dictionary {key1: {key2: np.ndarray}}.
+       flatten: if True, numbers are flattened before concat
+    
+    Returns:
+        nd.array of concatanated array
+
+    """
+
+    np_list = []
+    for data in data_list:
+        from monai.bundle.config_parser import ConfigParser
+        from monai.bundle.utils import ID_SEP_KEY
+
+        parser = ConfigParser(data)
+        for i, key in enumerate(keys):
+            if isinstance(key, int):
+                keys[i] = str(key)
+            
+        val = parser.get(ID_SEP_KEY.join(keys))
+
+        if val is None:
+            raise AttributeError(f"{keys} is not nested in the dictionary")
+        elif isinstance(val, list):  # only list of number/ndarray/tensor
+            if any(isinstance(v, (torch.Tensor, MetaTensor)) for v in val):
+                raise NotImplementedError('list of MetaTensor is not supported for concat')
+            np_list.append(np.array(val))
+        elif isinstance(val, (torch.Tensor)):
+            np_list.append(val.cpu().nump())
+        elif isinstance(val, np.ndarray):
+            np_list.appen(val)
+        elif isinstance(val, Number):
+            np_list.append(np.array(val))
+        else:
+            raise NotImplementedError(f'{val.__class__} concat is not supported.' )
+    
+    if flatten:
+        ret = np.concatenate(np_list, axis=None)  # when axis is None, numbers are flatten before use
+    else:
+        ret = np.concatenate([np_list])
+
+    return ret

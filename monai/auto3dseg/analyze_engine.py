@@ -34,7 +34,7 @@ from monai.transforms import (
 )
 
 from monai.utils.enums import DATA_STATS
-
+from monai.utils.misc import ImageMetaKey
 
 class AnalyzeEngine:
     def __init__(self, data) -> None:
@@ -83,8 +83,8 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
 
         super().__init__(data=transform(data))
         super().update({
-            DATA_STATS.BY_CASE_IMAGE_PATH: self.data[image_meta_key]["filename_or_obj"],
-            DATA_STATS.BY_CASE_LABEL_PATH: self.data[label_meta_key]["filename_or_obj"] if label_meta_key else "",
+            DATA_STATS.BY_CASE_IMAGE_PATH: self.data[image_meta_key][ImageMetaKey.FILENAME_OR_OBJ],
+            DATA_STATS.BY_CASE_LABEL_PATH: self.data[label_meta_key][ImageMetaKey.FILENAME_OR_OBJ] if label_meta_key else "",
             "image_stats": ImageStatsCaseAnalyzer(image_key, label_key),
             "image_foreground_stats": FgImageStatsCasesAnalyzer(image_key, label_key),
             "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),

@@ -21,7 +21,7 @@ from ast import literal_eval
 from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast, Dict
 
 import numpy as np
 import torch
@@ -483,4 +483,4 @@ def label_union(x: List) -> List:
     Returns
         a list showing the union (the union the class IDs)
     """
-    return list(set.union(*[set(np.array(_).tolist()) for _ in x]))
+    return list(set.union(set(np.array(x))))

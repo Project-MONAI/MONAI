@@ -18,9 +18,10 @@ from copy import deepcopy
 from monai.transforms import transform
 from monai.utils.misc import label_union
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS
-from monai.auto3dseg.utils import get_foreground_image, get_foreground_label, get_label_ccp
+from monai.auto3dseg.utils import get_foreground_image, get_foreground_label, get_label_ccp, concat_val_to_np
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 
+from typing import Any, Dict
 
 class Analyzer(transform.MapTransform, ABC):
     def __init__(self, report_format):
@@ -191,7 +192,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
 
 class ImageStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average: bool = True):
-        self.case_analyzer_name = case_analyzer_name
+        self.case = case_analyzer_name
         self.summary_average = average
         report_format = {
             IMAGE_STATS.SHAPE: None,
@@ -208,15 +209,12 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         self.update_ops(IMAGE_STATS.SPACING, SampleOperations())
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
     
-   
-    def concat_np(self, key: str, data):
-        return np.concatenate([[np.array(d[self.case_analyzer_name][key]) for d in data]])
     
     def concat_to_dict(self, key: str, ld_data):
         """
         Pinpointing the key in data structure: list of dicts and concat the value
         """
-        values = [d[self.case_analyzer_name][key] for d in ld_data]  # ld: list of dicts
+        values = [d[self.case][key] for d in ld_data]  # ld: list of dicts
         # analysis is a list of list
         key_values = {}
         for k in values[0][0]:
@@ -228,8 +226,12 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         analysis = deepcopy(self.get_report_format())
         
         axis = 0 # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
-        for key in [IMAGE_STATS.SHAPE, IMAGE_STATS.CHANNELS, IMAGE_STATS.CROPPED_SHAPE, IMAGE_STATS.SPACING]:
-            analysis[key] = self.ops[key].evaluate(self.concat_np(key, data), dim=axis)
+        analysis[IMAGE_STATS.SHAPE] = self.ops[IMAGE_STATS.SHAPE].evaluate(
+            concat_val_to_np(data, [self.case, IMAGE_STATS.SHAPE]), dim=axis)
+        analysis[IMAGE_STATS.CROPPED_SHAPE] = self.ops[IMAGE_STATS.CROPPED_SHAPE].evaluate(
+            concat_val_to_np(data, [self.case, IMAGE_STATS.CROPPED_SHAPE]), dim=axis)
+        analysis[IMAGE_STATS.SPACING] = self.ops[IMAGE_STATS.SPACING].evaluate(
+            concat_val_to_np(data, [self.case, IMAGE_STATS.SPACING]), dim=axis)
 
         axis = None if self.summary_average else 0
         analysis[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
@@ -239,7 +241,7 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
 class FgImageStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average=True):
-        self.case_analyzer_name = case_analyzer_name
+        self.case = case_analyzer_name
         self.summary_average = average
 
         report_format = {
@@ -252,7 +254,7 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         """
         Pinpointing the key in data structure: list of dicts and concat the value
         """
-        values = [d[self.case_analyzer_name][key] for d in ld_data]  # ld: list of dicts
+        values = [d[self.case][key] for d in ld_data]  # ld: list of dicts
         # analysis is a list of list
         key_values = {}
         for k in values[0][0]:
@@ -266,12 +268,11 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         analysis[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
             self.concat_to_dict(IMAGE_STATS.INTENSITY, data), dim=axis)
         
-        
         return analysis
 
 class LabelStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average: bool = True, do_ccp: bool = True):
-        self.case_analyzer_name = case_analyzer_name
+        self.case = case_analyzer_name
         self.summary_average = average
         self.do_ccp = do_ccp
 
@@ -290,11 +291,8 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         self.update_ops(LABEL_STATS.LABEL_SHAPE, SampleOperations())
         self.update_ops(LABEL_STATS.LABEL_NCOMP, SampleOperations())
 
-    def concat_np(self, key: str, data):
-        return np.concatenate([[np.array(d[self.case_analyzer_name][key]) for d in data]])
-    
     def concat_label_np(self, label_id, key: str, data):
-        values = [d[self.case_analyzer_name][key] for d in data]
+        values = [d[self.case][key] for d in data]
         # analysis is a list of list
         return np.concatenate([[val[label_id] for val in values if label_id in val]]) #gpu/cpu issue
 
@@ -302,7 +300,7 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         """
         Pinpointing the key in data structure: list of dicts and concat the value
         """
-        values = [d[self.case_analyzer_name][key] for d in data]
+        values = [d[self.case][key] for d in data]
         # analysis is a list of list
         key_values = {}
         for k in values[0][0]:
@@ -311,12 +309,11 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         return key_values
 
     def concat_label_to_dict(self, label_id: int, key: str, data):
-        
         values = []
         for d in data:
-            if label_id in d[self.case_analyzer_name][LABEL_STATS.LABEL_UID]:
-                idx = d[self.case_analyzer_name][LABEL_STATS.LABEL_UID].index(label_id)
-                values.append(d[self.case_analyzer_name][LABEL_STATS.LABEL][idx][key])
+            if label_id in d[self.case][LABEL_STATS.LABEL_UID]:
+                idx = d[self.case][LABEL_STATS.LABEL_UID].index(label_id)
+                values.append(d[self.case][LABEL_STATS.LABEL][idx][key])
 
         if isinstance(values[0], list):
             if isinstance(values[0][0], list):
@@ -335,7 +332,7 @@ class LabelStatsSummaryAnalyzer(Analyzer):
     def __call__(self, data):
         analysis = deepcopy(self.get_report_format())
         
-        unique_label = label_union(self.concat_np(LABEL_STATS.LABEL_UID, data))
+        unique_label = label_union(concat_val_to_np(data, [self.case, LABEL_STATS.LABEL_UID], flatten=True))
         
         pixel_summary = {}
         for label_id in unique_label:
