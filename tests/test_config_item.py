@@ -47,6 +47,7 @@ TEST_CASE_9 = ["collate_fn", "$monai.data.list_data_collate"]
 TEST_CASE_10 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
 # test regular expression with reference
 TEST_CASE_11 = ["collate_fn", "$var + 100"]
+TEST_CASE_12 = [{"_target_": "LoadImaged", "keys": ["image"], "_desc_": "an image reader for 'image'"}, LoadImaged]
 
 
 class TestConfigItem(unittest.TestCase):
