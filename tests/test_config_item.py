@@ -26,7 +26,7 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 TEST_CASE_1 = [{"lr": 0.001}, 0.0001]
 
-TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"]}, LoadImaged]
+TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"], "_desc_": "an image reader for 'image'"}, LoadImaged]
 # test full module path
 TEST_CASE_3 = [{"_target_": "monai.transforms.LoadImaged", "keys": ["image"]}, LoadImaged]
 # test `_disabled_`
@@ -47,7 +47,6 @@ TEST_CASE_9 = ["collate_fn", "$monai.data.list_data_collate"]
 TEST_CASE_10 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
 # test regular expression with reference
 TEST_CASE_11 = ["collate_fn", "$var + 100"]
-TEST_CASE_12 = [{"_target_": "LoadImaged", "keys": ["image"], "_desc_": "an image reader for 'image'"}, LoadImaged]
 
 
 class TestConfigItem(unittest.TestCase):
