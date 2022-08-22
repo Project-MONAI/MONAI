@@ -399,7 +399,7 @@ class MONAIEnvVars:
     @staticmethod
     def debug() -> bool:
         val = os.environ.get("MONAI_DEBUG", False)
-        return str2bool(val) if isinstance(val, str) else val
+        return val if isinstance(val, bool) else str2bool(val)
 
     @staticmethod
     def doc_images() -> Optional[str]:
