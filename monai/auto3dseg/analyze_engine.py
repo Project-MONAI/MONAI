@@ -21,6 +21,7 @@ from monai.auto3dseg.analyzer import (
     LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
 )
+from monai.auto3dseg.utils import get_filename
 from monai.transforms import (
     Compose,
     EnsureChannelFirstd,
@@ -32,32 +33,55 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils.enums import DATA_STATS
-from monai.utils.misc import ImageMetaKey
 
 
 class AnalyzeEngine:
-    def __init__(self, data) -> None:
-        self.data = data
+    """
+    AnalyzeEngine is a base class to serialize the operations for data analysis in Auto3Dseg pipeline.
+
+    Args:
+        data: a dict-type data to run analysis on
+
+    Examples:
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.auto3dseg.analyze_engine import AnalyzeEngine
+
+        engine = AnalyzeEngine()
+        engine.update({"max": np.max})
+        engine.update({"min": np.min})
+
+        input = np.array([1,2,3,4])
+        print(engine(input))
+
+    """
+
+    def __init__(self) -> None:
         self.analyzers = {}
+        self.transform = None
 
     def update(self, analyzer: Dict[str, callable]):
         self.analyzers.update(analyzer)
 
-    def __call__(self):
+    def __call__(self, data):
+        if self.transform:
+            data = self.transform(data)
+
         ret = {}
         for k, analyzer in self.analyzers.items():
             if callable(analyzer):
-                ret.update({k: analyzer(self.data)})
+                ret.update({k: analyzer(data)})
             elif isinstance(analyzer, str):
                 ret.update({k: analyzer})
         return ret
 
 
 class SegAnalyzeCaseEngine(AnalyzeEngine):
-    def __init__(
-        self, data: Dict, image_key: str, label_key: str, meta_post_fix: str = "_meta_dict", device: str = "cuda"
-    ) -> None:
+    def __init__(self, image_key: str, label_key: str, meta_post_fix: str = "_meta_dict", device: str = "cuda") -> None:
 
+        super().__init__()
         keys = [image_key] if label_key is None else [image_key, label_key]
 
         transform_list = [
@@ -72,18 +96,15 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
             SqueezeDimd(keys=["label"], dim=0) if label_key else None,
         ]
 
-        transform = Compose(list(filter(None, transform_list)))
+        self.transform = Compose(list(filter(None, transform_list)))
 
         image_meta_key = image_key + meta_post_fix
         label_meta_key = label_key + meta_post_fix if label_key else None
 
-        super().__init__(data=transform(data))
         super().update(
             {
-                DATA_STATS.BY_CASE_IMAGE_PATH: self.data[image_meta_key][ImageMetaKey.FILENAME_OR_OBJ],
-                DATA_STATS.BY_CASE_LABEL_PATH: self.data[label_meta_key][ImageMetaKey.FILENAME_OR_OBJ]
-                if label_meta_key
-                else "",
+                DATA_STATS.BY_CASE_IMAGE_PATH: lambda data: get_filename(data, meta_key=image_meta_key),
+                DATA_STATS.BY_CASE_LABEL_PATH: lambda data: get_filename(data, meta_key=label_meta_key),
                 "image_stats": ImageStatsCaseAnalyzer(image_key),
             }
         )
@@ -98,8 +119,8 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
 
 
 class SegAnalyzeSummaryEngine(AnalyzeEngine):
-    def __init__(self, data: Dict, image_key: str, label_key: str, average=True):
-        super().__init__(data=data)
+    def __init__(self, image_key: str, label_key: str, average=True):
+        super().__init__()
         super().update({"image_stats": ImageStatsSummaryAnalyzer("image_stats", average=average)})
 
         if label_key is not None:

@@ -18,8 +18,10 @@ import torch
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
+from monai.utils.misc import ImageMetaKey
 
 __all__ = [
+    "get_filename",
     "get_foreground_image",
     "get_foreground_label",
     "get_label_ccp",
@@ -30,6 +32,20 @@ __all__ = [
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
 cucim, has_cucim = optional_import("cucim")
+
+
+def get_filename(data, meta_key="image_meta_dict"):
+    """
+    Get the filenames for image/labels
+
+    Args:
+        data: data from the dataloader
+        meta_key: key to access the file names
+
+    Returns:
+        a str (filename) if the key is valid. Otherwise, an empty string.
+    """
+    return data[meta_key][ImageMetaKey.FILENAME_OR_OBJ] if meta_key else ""
 
 
 def get_foreground_image(image: MetaTensor):

@@ -133,11 +133,11 @@ class DataAnalyzer:
 
         result = {DATA_STATS.SUMMARY: {}, DATA_STATS.BY_CASE: []}
 
+        case_engine = SegAnalyzeCaseEngine(self.image_key, self.label_key, device=self.device)
         for batch_data in self.dataset:
-            case_engine = SegAnalyzeCaseEngine(batch_data[0], self.image_key, self.label_key, device=self.device)
-            result[DATA_STATS.BY_CASE].append(case_engine())
+            result[DATA_STATS.BY_CASE].append(case_engine(batch_data[0]))
 
-        summary_engine = SegAnalyzeSummaryEngine(result[DATA_STATS.BY_CASE], self.image_key, self.label_key)
-        result[DATA_STATS.SUMMARY] = summary_engine()
+        summary_engine = SegAnalyzeSummaryEngine(self.image_key, self.label_key)
+        result[DATA_STATS.SUMMARY] = summary_engine(result[DATA_STATS.BY_CASE])
 
         return result
