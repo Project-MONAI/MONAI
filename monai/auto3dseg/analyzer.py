@@ -1,192 +1,26 @@
-from operator import concat
-from pydoc import resolve
-import re
-from tkinter import E
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy as np
+import torch
+
 from abc import abstractmethod, ABC
 from copy import deepcopy
-from collections import UserDict
 
-import torch
-from typing import Any, Dict, List, Tuple, Union, Optional
-from functools import partial
-from monai.utils.enums import Enum, StrEnum
-from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
-
-from monai.data.meta_tensor import MetaTensor
-
-from monai.transforms import (  
-    Compose, 
-    LoadImaged, 
-    EnsureChannelFirstd, 
-    Orientationd, 
-    EnsureTyped, 
-    Lambdad, 
-    SqueezeDimd, 
-    CropForeground,
-    ToDeviced,
-    ToCupy,
-    transform,
-)
-
-from monai.utils import min_version, optional_import
+from monai.transforms import transform
 from monai.utils.misc import label_union
-from monai.config.type_definitions import TensorOrList
+from monai.utils.enums import IMAGE_STATS, LABEL_STATS
+from monai.auto3dseg.utils import get_foreground_image, get_foreground_label, get_label_ccp
+from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 
-measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
-cp, has_cp = optional_import("cupy")
-cucim, has_cucim = optional_import("cucim")
-
-def get_foreground_image(image: MetaTensor) -> np.ndarray:
-    """
-    Get a foreground image by removing all-zero rectangles on the edges of the image
-    Note for the developer: update select_fn if the foreground is defined differently.
-
-    Args:
-        image: ndarray image to segment.
-
-    Returns:
-        ndarray of foreground image by removing all-zero edges.
-
-    Notes:
-        the size of the ouput is smaller than the input.
-    """
-    copper = CropForeground(select_fn=lambda x: x > 0)
-    image_foreground = copper(image)
-    return image_foreground
-
-def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
-    """
-    Get foreground image pixel values and mask out the non-labeled area.
-
-    Args
-        image: ndarray image to segment.
-        label: ndarray the image input and annotated with class IDs.
-
-    Returns:
-        1D array of foreground image with label > 0
-    """
-    label_foreground = MetaTensor(image[label > 0])
-    return label_foreground
-
-def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[Any], int]:
-    """
-    Find all connected components and their bounding shape. Backend can be cuPy/cuCIM or Numpy
-    depending on the hardware.
-
-    Args:
-        mask_index: a binary mask
-        use_gpu: a switch to use GPU/CUDA or not. If GPU is unavailable, CPU will be used
-            regardless of this setting
-
-    """
-    shape_list = []
-    if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
-        mask_cupy = ToCupy()(mask_index.short())
-        labeled = cucim.skimage.measure.label(mask_cupy)
-        vals = cp.unique(labeled[cp.nonzero(labeled)])
-
-        for ncomp in vals:
-            comp_idx = cp.argwhere(labeled == ncomp)
-            comp_idx_min = cp.min(comp_idx, axis=0).tolist()
-            comp_idx_max = cp.max(comp_idx, axis=0).tolist()
-            bbox_shape = [comp_idx_max[i] - comp_idx_min[i] + 1 for i in range(len(comp_idx_max))]
-            shape_list.append(bbox_shape)
-        ncomponents = len(vals)
-
-    elif has_measure:
-        labeled, ncomponents = measure_np.label(mask_index.data.cpu().numpy(), background=-1, return_num=True)
-        for ncomp in range(1, ncomponents + 1):
-            comp_idx = np.argwhere(labeled == ncomp)
-            comp_idx_min = np.min(comp_idx, axis=0).tolist()
-            comp_idx_max = np.max(comp_idx, axis=0).tolist()
-            bbox_shape = [comp_idx_max[i] - comp_idx_min[i] + 1 for i in range(len(comp_idx_max))]
-            shape_list.append(bbox_shape)
-    else:
-        raise RuntimeError("Cannot find one of the following required dependencies: {cuPy+cuCIM} or {scikit-image}")
-
-    return shape_list, ncomponents
-
-
-class DATA_STATS(StrEnum):
-    """
-    A set of keys for dataset statistical analysis module
-
-    """
-    SUMMARY = "stats_summary"
-    BY_CASE = "stats_by_cases"
-    BY_CASE_IMAGE_PATH = "image"
-    BY_CASE_LABEL_PATH = "label"
-
-class IMAGE_STATS(StrEnum):
-    """
-
-    """
-    SHAPE = "shape"
-    CHANNELS = "channels"
-    CROPPED_SHAPE = "cropped_shape"
-    SPACING = "spacing"
-    INTENSITY = "intensity"
-
-class LABEL_STATS(StrEnum):
-    """
-
-    """
-    LABEL_UID = "labels"
-    PIXEL_PCT = "pixel_percentage"
-    IMAGE_INT = "image_intensity"
-    LABEL = "label"
-    LABEL_SHAPE = "shape"
-    LABEL_NCOMP = "ncomponents"
-
-class Operations(UserDict): 
-    def evaluate(self, data: Any, **kwargs) -> dict:
-        return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
-
-class SampleOperations(Operations):
-    # todo: missing value/nan/inf
-    def __init__(self) -> None:
-        self.data = {
-            "max": max,
-            "mean": mean,
-            "median": median,
-            "min": min,
-            "stdev": std,
-            "percentile": partial(percentile, q=[0.5, 10, 90, 99.5])
-        }
-        self.data_addon = {
-            "percentile_00_5": ("percentile", 0),
-            "percentile_10_0": ("percentile", 1),
-            "percentile_90_0": ("percentile", 2),
-            "percentile_99_5": ("percentile", 3),
-        }
-    
-    def evaluate(self, data: Any, **kwargs) -> dict:
-        ret = super().evaluate(data, **kwargs)
-        for k, v in self.data_addon.items():
-            cache = v[0]
-            idx = v[1]
-            if isinstance(v, tuple) and cache in ret:
-                ret.update({k: ret[cache][idx]})
-
-        return ret
-
-class SummaryOperations(Operations):
-    def __init__(self) -> None:
-        self.data = {
-                "max": max,
-                "mean": mean,
-                "median": mean,
-                "min": min,
-                "stdev": mean,
-                "percentile_00_5": mean,
-                "percentile_10_0": mean,
-                "percentile_90_0": mean,
-                "percentile_99_5": mean,
-            }
-    
-    def evaluate(self, data: Any, **kwargs) -> dict:
-        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)} 
 
 class Analyzer(transform.MapTransform, ABC):
     def __init__(self, report_format):
@@ -355,7 +189,6 @@ class LabelStatsCaseAnalyzer(Analyzer):
         # logger.debug(f"Get label stats spent {time.time()-start}")
         return analysis
 
-
 class ImageStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average: bool = True):
         self.case_analyzer_name = case_analyzer_name
@@ -404,7 +237,6 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
         return analysis
 
-
 class FgImageStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average=True):
         self.case_analyzer_name = case_analyzer_name
@@ -437,8 +269,6 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         
         return analysis
 
-
-
 class LabelStatsSummaryAnalyzer(Analyzer):
     def __init__(self, case_analyzer_name: str, average: bool = True, do_ccp: bool = True):
         self.case_analyzer_name = case_analyzer_name
@@ -459,6 +289,14 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         self.update_ops(LABEL_STATS.IMAGE_INT, SummaryOperations())
         self.update_ops(LABEL_STATS.LABEL_SHAPE, SampleOperations())
         self.update_ops(LABEL_STATS.LABEL_NCOMP, SampleOperations())
+
+    def concat_np(self, key: str, data):
+        return np.concatenate([[np.array(d[self.case_analyzer_name][key]) for d in data]])
+    
+    def concat_label_np(self, label_id, key: str, data):
+        values = [d[self.case_analyzer_name][key] for d in data]
+        # analysis is a list of list
+        return np.concatenate([[val[label_id] for val in values if label_id in val]]) #gpu/cpu issue
 
     def concat_to_dict(self, key: str, data):
         """
@@ -498,12 +336,15 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         analysis = deepcopy(self.get_report_format())
         
         unique_label = label_union(self.concat_np(LABEL_STATS.LABEL_UID, data))
-        pixel_summary = self.concat_ldd(LABEL_STATS.PIXEL_PCT, data)
+        
+        pixel_summary = {}
+        for label_id in unique_label:
+            pixel_summary.update({label_id: self.concat_label_np(label_id, LABEL_STATS.PIXEL_PCT, data)})
         
         axis = None if self.summary_average else 0
 
         analysis[LABEL_STATS.LABEL_UID] = unique_label
-        analysis[LABEL_STATS.PIXEL_PCT] = [{k: mean(v)} for k, v in pixel_summary.items()]
+        analysis[LABEL_STATS.PIXEL_PCT] = [{k: np.mean(v)} for k, v in pixel_summary.items()]
         analysis[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
             self.concat_to_dict(LABEL_STATS.IMAGE_INT, data), dim=axis)
         
@@ -515,68 +356,3 @@ class LabelStatsSummaryAnalyzer(Analyzer):
             analysis[LABEL_STATS.LABEL].append(stats)
             
         return analysis
-
-
-class AnalyzeEngine:
-    def __init__(self, data) -> None:
-        self.data = data
-        self.analyzers = {}
-    
-    def update(self, analyzer: Dict[str, callable]):
-        self.analyzers.update(analyzer)
-
-    def __call__(self):
-        ret = {}
-        for k, analyzer in self.analyzers.items(): 
-            if callable(analyzer):
-                ret.update({k: analyzer(self.data)})
-            elif isinstance(analyzer, str):
-                ret.update({k: analyzer})
-        return ret
-
-class SegAnalyzeCaseEngine(AnalyzeEngine):
-    def __init__(self, 
-        data: Dict,
-        image_key: str, 
-        label_key: str, 
-        meta_post_fix: str = "_meta_dict",
-        device: str = "cuda",
-        ) -> None:
-        
-        keys = [image_key] if label_key is None else [image_key, label_key]
-
-        transform_list = [
-            LoadImaged(keys=keys),
-            EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=keys, device=device, non_blocking=True), 
-            Orientationd(keys=keys, axcodes="RAS"),
-            EnsureTyped(keys=keys, data_type="tensor"),
-            Lambdad(
-                keys=label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
-                ) if label_key else None,
-            SqueezeDimd(keys=["label"], dim=0) if label_key else None,
-        ]
-
-        transform = Compose(list(filter(None, transform_list)))
-        
-        image_meta_key = image_key + meta_post_fix
-        label_meta_key = label_key + meta_post_fix if label_key else None
-
-        super().__init__(data=transform(data))
-        super().update({
-            DATA_STATS.BY_CASE_IMAGE_PATH: self.data[image_meta_key]["filename_or_obj"],
-            DATA_STATS.BY_CASE_LABEL_PATH: self.data[label_meta_key]["filename_or_obj"] if label_meta_key else "",
-            "image_stats": ImageStatsCaseAnalyzer(image_key, label_key),
-            "image_foreground_stats": FgImageStatsCasesAnalyzer(image_key, label_key),
-            "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),
-        })
-
-class SegAnalyzeSummaryEngine(AnalyzeEngine):
-    def __init__(self, data: Dict, average=True):
-        super().__init__(data=data)
-        super().update({
-            "image_stats": ImageStatsSummaryAnalyzer("image_stats", average=average),
-            "image_foreground_stats": FgImageStatsSummaryAnalyzer("image_foreground_stats", average=average),
-            "label_stats": LabelStatsSummaryAnalyzer("label_stats", average=average)
-        })
-

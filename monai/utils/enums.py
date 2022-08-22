@@ -483,3 +483,35 @@ class EngineStatsKeys(StrEnum):
     TOTAL_ITERATIONS = "total_iterations"
     BEST_VALIDATION_EPOCH = "best_validation_epoch"
     BEST_VALIDATION_METRTC = "best_validation_metric"
+
+
+class DATA_STATS(StrEnum):
+    """
+    A set of keys for dataset statistical analysis module
+
+    """
+    SUMMARY = "stats_summary"
+    BY_CASE = "stats_by_cases"
+    BY_CASE_IMAGE_PATH = "image"
+    BY_CASE_LABEL_PATH = "label"
+
+class IMAGE_STATS(StrEnum):
+    """
+
+    """
+    SHAPE = "shape"
+    CHANNELS = "channels"
+    CROPPED_SHAPE = "cropped_shape"
+    SPACING = "spacing"
+    INTENSITY = "intensity"
+
+class LABEL_STATS(StrEnum):
+    """
+
+    """
+    LABEL_UID = "labels"
+    PIXEL_PCT = "pixel_percentage"
+    IMAGE_INT = "image_intensity"
+    LABEL = "label"
+    LABEL_SHAPE = "shape"
+    LABEL_NCOMP = "ncomponents"

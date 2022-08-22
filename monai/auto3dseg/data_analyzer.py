@@ -9,10 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Step 1 of the AutoML pipeline. The dataset is analysized with this script.
-"""
-
 import copy
 import time
 import warnings
@@ -39,9 +35,9 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
-from monai.auto3dseg.stats_collector import DATA_STATS
+from monai.auto3dseg.analyze_engine import DATA_STATS
 
-from monai.auto3dseg.stats_collector import SegAnalyzeCaseEngine, SegAnalyzeSummaryEngine
+from monai.auto3dseg.analyze_engine import SegAnalyzeCaseEngine, SegAnalyzeSummaryEngine
 
 
 
