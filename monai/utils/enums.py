@@ -490,25 +490,26 @@ class DATA_STATS(StrEnum):
     A set of keys for dataset statistical analysis module
 
     """
+
     SUMMARY = "stats_summary"
     BY_CASE = "stats_by_cases"
     BY_CASE_IMAGE_PATH = "image"
     BY_CASE_LABEL_PATH = "label"
 
-class IMAGE_STATS(StrEnum):
-    """
 
-    """
+class IMAGE_STATS(StrEnum):
+    """ """
+
     SHAPE = "shape"
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
     INTENSITY = "intensity"
 
-class LABEL_STATS(StrEnum):
-    """
 
-    """
+class LABEL_STATS(StrEnum):
+    """ """
+
     LABEL_UID = "labels"
     PIXEL_PCT = "pixel_percentage"
     IMAGE_INT = "image_intensity"

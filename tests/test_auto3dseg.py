@@ -35,6 +35,7 @@ fake_datalist = {
     ],
 }
 
+
 class TestDataAnalyzer(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()

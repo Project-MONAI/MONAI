@@ -11,12 +11,15 @@
 
 from collections import UserDict
 from functools import partial
-from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 from typing import Any
 
-class Operations(UserDict): 
+from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
+
+
+class Operations(UserDict):
     def evaluate(self, data: Any, **kwargs) -> dict:
         return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
+
 
 class SampleOperations(Operations):
     # todo: missing value/nan/inf
@@ -27,7 +30,7 @@ class SampleOperations(Operations):
             "median": median,
             "min": min,
             "stdev": std,
-            "percentile": partial(percentile, q=[0.5, 10, 90, 99.5])
+            "percentile": partial(percentile, q=[0.5, 10, 90, 99.5]),
         }
         self.data_addon = {
             "percentile_00_5": ("percentile", 0),
@@ -35,7 +38,7 @@ class SampleOperations(Operations):
             "percentile_90_0": ("percentile", 2),
             "percentile_99_5": ("percentile", 3),
         }
-    
+
     def evaluate(self, data: Any, **kwargs) -> dict:
         ret = super().evaluate(data, **kwargs)
         for k, v in self.data_addon.items():
@@ -46,19 +49,20 @@ class SampleOperations(Operations):
 
         return ret
 
+
 class SummaryOperations(Operations):
     def __init__(self) -> None:
         self.data = {
-                "max": max,
-                "mean": mean,
-                "median": mean,
-                "min": min,
-                "stdev": mean,
-                "percentile_00_5": mean,
-                "percentile_10_0": mean,
-                "percentile_90_0": mean,
-                "percentile_99_5": mean,
-            }
-    
+            "max": max,
+            "mean": mean,
+            "median": mean,
+            "min": min,
+            "stdev": mean,
+            "percentile_00_5": mean,
+            "percentile_10_0": mean,
+            "percentile_90_0": mean,
+            "percentile_99_5": mean,
+        }
+
     def evaluate(self, data: Any, **kwargs) -> dict:
-        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)} 
+        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)}

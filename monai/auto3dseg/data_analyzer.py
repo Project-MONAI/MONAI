@@ -32,10 +32,7 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
-from monai.auto3dseg.analyze_engine import DATA_STATS
-
-from monai.auto3dseg.analyze_engine import SegAnalyzeCaseEngine, SegAnalyzeSummaryEngine
-
+from monai.auto3dseg.analyze_engine import DATA_STATS, SegAnalyzeCaseEngine, SegAnalyzeSummaryEngine
 
 
 class DataAnalyzer:
@@ -130,12 +127,11 @@ class DataAnalyzer:
         keys = list(filter(None, [self.image_key, self.label_key]))
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
         ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
+        self.dataset = data.DataLoader(
+            ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation
+        )
 
-        result = {
-            DATA_STATS.SUMMARY: {},
-            DATA_STATS.BY_CASE: [],
-        }
+        result = {DATA_STATS.SUMMARY: {}, DATA_STATS.BY_CASE: []}
 
         for batch_data in self.dataset:
             case_engine = SegAnalyzeCaseEngine(batch_data[0], self.image_key, self.label_key, device=self.device)

@@ -21,7 +21,7 @@ from ast import literal_eval
 from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast, Dict
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
