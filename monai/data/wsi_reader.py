@@ -143,13 +143,11 @@ class BaseWSIReader(ImageReader):
             "backend": self.backend,
             "original_channel_dim": channel_dim,
             "spatial_shape": np.array(patch.shape[:channel_dim] + patch.shape[channel_dim + 1 :]),
-            "patch": {
-                WSIPatchKeys.COUNT.value: 1,
-                WSIPatchKeys.PATH.value: self.get_file_path(wsi),
-                WSIPatchKeys.LOCATION.value: np.asarray(location),
-                WSIPatchKeys.SIZE.value: np.asarray(size),
-                WSIPatchKeys.LEVEL.value: level,
-            },
+            "num_patches": 1,
+            WSIPatchKeys.PATH.value: self.get_file_path(wsi),
+            WSIPatchKeys.LOCATION.value: np.asarray(location),
+            WSIPatchKeys.SIZE.value: np.asarray(size),
+            WSIPatchKeys.LEVEL.value: level,
         }
         return metadata
 
