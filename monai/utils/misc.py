@@ -360,6 +360,52 @@ def copy_to_device(
     return obj
 
 
+def str2bool(value: str, raise_exc=True):
+    """
+    Convert a string to a boolean. Case insensitive.
+    True: yes, true, t, y, 1. False: no, false, f, n, 0.
+
+    Args:
+        value: string to be converted to a boolean.
+        raise_exc: if value not in sets of expected true or false inputs,
+            should we raise an exception? If not, return `None`.
+    Raises
+        ValueError: value not in sets of expected true or false inputs and
+            `raise_exc` is `True`.
+    """
+    true_set = {"yes", "true", "t", "y", "1"}
+    false_set = {"no", "false", "f", "n", "0"}
+    if isinstance(value, str):
+        value = value.lower()
+        if value in true_set:
+            return True
+        if value in false_set:
+            return False
+
+    if raise_exc:
+        raise ValueError('Expected "%s"' % '", "'.join(true_set | false_set))
+    return None
+
+
+class MONAIEnvVars:
+    """
+    Environment variables used by MONAI.
+    """
+
+    @staticmethod
+    def data_dir() -> Optional[str]:
+        return os.environ.get("MONAI_DATA_DIRECTORY", None)
+
+    @staticmethod
+    def debug() -> bool:
+        val = os.environ.get("MONAI_DEBUG", False)
+        return str2bool(val) if isinstance(val, str) else val
+
+    @staticmethod
+    def doc_images() -> Optional[str]:
+        return os.environ.get("MONAI_DOC_IMAGES", None)
+
+
 class ImageMetaKey:
     """
     Common key names in the metadata header of images

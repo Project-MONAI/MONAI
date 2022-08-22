@@ -178,6 +178,7 @@ from monai.transforms.spatial.dictionary import (
     Spacingd,
 )
 from monai.utils.enums import CommonKeys
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
@@ -195,7 +196,7 @@ def get_data(keys):
     Use MarsAtlas as it only contains 1 image for quick download and
     that image is parcellated.
     """
-    cache_dir = os.environ.get("MONAI_DATA_DIRECTORY") or tempfile.mkdtemp()
+    cache_dir = MONAIEnvVars.data_dir() or tempfile.mkdtemp()
     fname = "MarsAtlas-MNI-Colin27.zip"
     url = "https://www.dropbox.com/s/ndz8qtqblkciole/" + fname + "?dl=1"
     out_path = os.path.join(cache_dir, "MarsAtlas-MNI-Colin27")
@@ -420,7 +421,9 @@ def create_transform_im(
         seed = seed + 1 if isinstance(transform, MapTransform) else seed
         transform.set_random_state(seed)
 
-    out_dir = os.environ.get("MONAI_DOC_IMAGES")
+    from monai.utils.misc import MONAIEnvVars
+
+    out_dir = MONAIEnvVars.doc_images()
     if out_dir is None:
         raise RuntimeError(
             "Please git clone https://github.com/Project-MONAI/DocImages"
