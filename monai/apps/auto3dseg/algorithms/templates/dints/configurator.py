@@ -14,24 +14,15 @@ import glob
 import inspect
 import os
 import shutil
+
 import yaml
 
 from monai.apps.auto3dseg.algorithms.algorithm_configurator import AlgorithmConfigurator
 
 
 class Configurator(AlgorithmConfigurator):
-    def __init__(
-        self,
-        data_stats_filename: str = None,
-        input_filename: str = None,
-        output_path: str = None,
-    ):
-        AlgorithmConfigurator.__init__(
-            self,
-            data_stats_filename,
-            input_filename,
-            output_path,
-        )
+    def __init__(self, data_stats_filename: str = None, input_filename: str = None, output_path: str = None):
+        AlgorithmConfigurator.__init__(self, data_stats_filename, input_filename, output_path)
 
     def load(self):
         with open(self.data_stats_filename) as f:
@@ -41,9 +32,7 @@ class Configurator(AlgorithmConfigurator):
             self.input = yaml.full_load(f)
 
         self.source_path = os.path.dirname(inspect.getfile(self.__class__))
-        config_filenames = glob.glob(
-            os.path.join(self.source_path, "configs", "*.yaml")
-        )
+        config_filenames = glob.glob(os.path.join(self.source_path, "configs", "*.yaml"))
 
         self.config = {}
         for _i in range(len(config_filenames)):
@@ -57,15 +46,9 @@ class Configurator(AlgorithmConfigurator):
         patch_size = [160, 160, 96]
         max_shape = self.data_stats["stats_summary"]["image_stats"]["shape"]["max"][0]
         for _k in range(3):
-            patch_size[_k] = (
-                max(32, max_shape[_k] // 32 * 32)
-                if max_shape[_k] < patch_size[_k]
-                else patch_size[_k]
-            )
+            patch_size[_k] = max(32, max_shape[_k] // 32 * 32) if max_shape[_k] < patch_size[_k] else patch_size[_k]
         modality = self.input["modality"].lower()
-        spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]["median"][
-            0
-        ]
+        spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]["median"][0]
 
         for _key in ["hyper_parameters.yaml", "hyper_parameters_search.yaml"]:
             self.config[_key]["bundle_root"] = os.path.join(self.output_path, "dints")
@@ -74,20 +57,12 @@ class Configurator(AlgorithmConfigurator):
             self.config[_key]["input_channels"] = int(
                 self.data_stats["stats_summary"]["image_stats"]["channels"]["max"]
             )
-            self.config[_key]["output_classes"] = len(
-                self.data_stats["stats_summary"]["label_stats"]["labels"]
-            )
+            self.config[_key]["output_classes"] = len(self.data_stats["stats_summary"]["label_stats"]["labels"])
             self.config[_key]["patch_size"] = patch_size
             self.config[_key]["patch_size_valid"] = copy.deepcopy(patch_size)
 
-        for _key in [
-            "transforms_infer.yaml",
-            "transforms_train.yaml",
-            "transforms_validate.yaml",
-        ]:
-            _t_key = [
-                _item for _item in self.config[_key].keys() if "transforms" in _item
-            ][0]
+        for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
+            _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
 
             _i_intensity = -1
             for _i in range(len(self.config[_key][_t_key]["transforms"])):
@@ -103,14 +78,10 @@ class Configurator(AlgorithmConfigurator):
             _t_intensity = []
             if "ct" in modality:
                 intensity_upper_bound = float(
-                    self.data_stats["stats_summary"]["image_foreground_stats"][
-                        "intensity"
-                    ]["percentile_99_5"][0]
+                    self.data_stats["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_99_5"][0]
                 )
                 intensity_lower_bound = float(
-                    self.data_stats["stats_summary"]["image_foreground_stats"][
-                        "intensity"
-                    ]["percentile_00_5"][0]
+                    self.data_stats["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_00_5"][0]
                 )
                 _t_intensity.append(
                     {
@@ -124,20 +95,11 @@ class Configurator(AlgorithmConfigurator):
                     }
                 )
                 _t_intensity.append(
-                    {
-                        "_target_": "CropForegroundd",
-                        "keys": ["@image_key", "@label_key"],
-                        "source_key": "'@image_key'",
-                    }
+                    {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "'@image_key'"}
                 )
             elif "mr" in modality:
                 _t_intensity.append(
-                    {
-                        "_target_": "NormalizeIntensityd",
-                        "keys": "@image_key",
-                        "nonzero": True,
-                        "channel_wise": True,
-                    }
+                    {"_target_": "NormalizeIntensityd", "keys": "@image_key", "nonzero": True, "channel_wise": True}
                 )
 
             self.config[_key][_t_key]["transforms"] = (
@@ -154,10 +116,7 @@ class Configurator(AlgorithmConfigurator):
         if os.path.exists(os.path.join(write_path, "scripts")):
             shutil.rmtree(os.path.join(write_path, "scripts"))
 
-        shutil.copytree(
-            os.path.join(self.source_path, "scripts"),
-            os.path.join(write_path, "scripts"),
-        )
+        shutil.copytree(os.path.join(self.source_path, "scripts"), os.path.join(write_path, "scripts"))
 
         if os.path.exists(os.path.join(write_path, "configs")):
             shutil.rmtree(os.path.join(write_path, "configs"))
