@@ -360,7 +360,7 @@ def copy_to_device(
     return obj
 
 
-def str2bool(value: str, raise_exc=True):
+def str2bool(value: str, default=False, raise_exc=True) -> bool:
     """
     Convert a string to a boolean. Case insensitive.
     True: yes, true, t, y, 1. False: no, false, f, n, 0.
@@ -384,7 +384,7 @@ def str2bool(value: str, raise_exc=True):
 
     if raise_exc:
         raise ValueError('Expected "%s"' % '", "'.join(true_set | false_set))
-    return None
+    return default
 
 
 class MONAIEnvVars:
