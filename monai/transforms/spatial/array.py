@@ -203,7 +203,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         spatial_size: Optional[Union[Sequence[int], torch.Tensor, int]] = None,
         mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = False,
+        align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -232,6 +232,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
@@ -378,7 +379,7 @@ class ResampleToMatch(SpatialResample):
         dst_meta: Optional[Dict] = None,
         mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = False,
+        align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -406,7 +407,7 @@ class ResampleToMatch(SpatialResample):
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                Defaults to ``False``.
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
@@ -530,6 +531,7 @@ class Spacing(InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
