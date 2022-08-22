@@ -141,7 +141,7 @@ class DataAnalyzer:
             case_engine = SegAnalyzeCaseEngine(batch_data[0], self.image_key, self.label_key, device=self.device)
             result[DATA_STATS.BY_CASE].append(case_engine())
 
-        summary_engine = SegAnalyzeSummaryEngine(result[DATA_STATS.BY_CASE])
+        summary_engine = SegAnalyzeSummaryEngine(result[DATA_STATS.BY_CASE], self.image_key, self.label_key)
         result[DATA_STATS.SUMMARY] = summary_engine()
 
         return result

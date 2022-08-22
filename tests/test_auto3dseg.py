@@ -64,15 +64,15 @@ class TestDataAnalyzer(unittest.TestCase):
 
         assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
 
-    # def test_data_analyzer_image_only(self):
-    #     dataroot = self.test_dir.name
-    #     yaml_fpath = path.join(dataroot, "data_stats.yaml")
-    #     analyser = DataAnalyzer(
-    #         fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
-    #     )
-    #     datastat = analyser.get_all_case_stats()
+    def test_data_analyzer_image_only(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(
+            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
+        )
+        datastat = analyser.get_all_case_stats()
 
-    #     assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
 
     def test_data_analyzer_from_yaml(self):
         dataroot = self.test_dir.name

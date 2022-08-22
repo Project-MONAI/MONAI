@@ -85,17 +85,29 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
         super().update({
             DATA_STATS.BY_CASE_IMAGE_PATH: self.data[image_meta_key][ImageMetaKey.FILENAME_OR_OBJ],
             DATA_STATS.BY_CASE_LABEL_PATH: self.data[label_meta_key][ImageMetaKey.FILENAME_OR_OBJ] if label_meta_key else "",
-            "image_stats": ImageStatsCaseAnalyzer(image_key, label_key),
-            "image_foreground_stats": FgImageStatsCasesAnalyzer(image_key, label_key),
-            "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),
+            "image_stats": ImageStatsCaseAnalyzer(image_key),
         })
 
+        if label_key is not None:
+            super().update({
+                "image_foreground_stats": FgImageStatsCasesAnalyzer(image_key, label_key),
+                "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),
+            })
+
 class SegAnalyzeSummaryEngine(AnalyzeEngine):
-    def __init__(self, data: Dict, average=True):
+    def __init__(self, 
+        data: Dict, 
+        image_key: str, 
+        label_key: str, 
+        average=True):
         super().__init__(data=data)
         super().update({
             "image_stats": ImageStatsSummaryAnalyzer("image_stats", average=average),
-            "image_foreground_stats": FgImageStatsSummaryAnalyzer("image_foreground_stats", average=average),
-            "label_stats": LabelStatsSummaryAnalyzer("label_stats", average=average)
         })
+
+        if label_key is not None:
+            super().update({
+                "image_foreground_stats": FgImageStatsSummaryAnalyzer("image_foreground_stats", average=average),
+                "label_stats": LabelStatsSummaryAnalyzer("label_stats", average=average)
+            })
 

@@ -109,12 +109,10 @@ class Analyzer(transform.MapTransform, ABC):
 
 
 class ImageStatsCaseAnalyzer(Analyzer):
-    def __init__(self, image_key, label_key, meta_key_postfix = "_meta_dict"):
+    def __init__(self, image_key, meta_key_postfix = "_meta_dict"):
 
         self.image_key = image_key
-        self.label_key = label_key
         self.image_meta_key = self.image_key + meta_key_postfix
-        self.label_meta_key = self.label_key + meta_key_postfix
 
         report_format = {
             IMAGE_STATS.SHAPE: None,
