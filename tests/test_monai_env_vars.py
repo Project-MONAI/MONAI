@@ -16,10 +16,25 @@ from monai.utils.misc import MONAIEnvVars
 
 
 class TestMONAIEnvVars(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(__class__, cls).setUpClass()
+        cls.orig_value = os.environ.get("MONAI_DEBUG", None)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.orig_value is not None:
+            os.environ["MONAI_DEBUG"] = cls.orig_value
+        else:
+            os.environ.pop("MONAI_DEBUG")
+        print("MONAI debug value:", os.environ.get("MONAI_DEBUG"))
+        super(__class__, cls).tearDownClass()
+
     def test_monai_env_vars(self):
-        os.environ["MONAI_DEBUG"] = "42"
-        self.assertEqual(os.environ.get("MONAI_DEBUG"), "42")
-        self.assertEqual(MONAIEnvVars.debug(), "42")
+        for debug in (False, True):
+            os.environ["MONAI_DEBUG"] = str(debug)
+            self.assertEqual(os.environ.get("MONAI_DEBUG"), str(debug))
+            self.assertEqual(MONAIEnvVars.debug(), debug)
 
 
 if __name__ == "__main__":

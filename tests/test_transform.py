@@ -26,6 +26,19 @@ def faulty_lambda(_):
 
 
 class TestTransform(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(__class__, cls).setUpClass()
+        cls.orig_value = os.environ.get("MONAI_DEBUG", None)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.orig_value is not None:
+            os.environ["MONAI_DEBUG"] = cls.orig_value
+        else:
+            os.environ.pop("MONAI_DEBUG")
+        super(__class__, cls).tearDownClass()
+
     def test_raise(self):
         for transform in (FaultyTransform(), mt.Lambda(faulty_lambda)):
             ds = Dataset([None] * 10, transform)
