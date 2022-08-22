@@ -29,6 +29,7 @@ __all__ = [
     "get_foreground_label",
     "get_label_ccp",
     "concat_val_to_np",
+    "concat_val_to_formatted_dict",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -117,13 +118,12 @@ def concat_val_to_np(
         flatten=False
     ):
     """
-    Get the nested value in a list of dictionary that shares the same structure
+    Get the nested value in a list of dictionary that shares the same structure.
 
     Args:
-       key1: the first key in the dict.
-       key2: the second key nested under the first.
        data_list: a list of dictionary {key1: {key2: np.ndarray}}.
-       flatten: if True, numbers are flattened before concat
+       keys: a list of keys that records to path to the value in the dict elements.
+       flatten: if True, numbers are flattened before concat.
     
     Returns:
         nd.array of concatanated array
@@ -148,8 +148,8 @@ def concat_val_to_np(
             if any(isinstance(v, (torch.Tensor, MetaTensor)) for v in val):
                 raise NotImplementedError('list of MetaTensor is not supported for concat')
             np_list.append(np.array(val))
-        elif isinstance(val, (torch.Tensor)):
-            np_list.append(val.cpu().nump())
+        elif isinstance(val, (torch.Tensor, MetaTensor)):
+            np_list.append(val.cpu().numpy())
         elif isinstance(val, np.ndarray):
             np_list.appen(val)
         elif isinstance(val, Number):
@@ -163,3 +163,30 @@ def concat_val_to_np(
         ret = np.concatenate([np_list])
 
     return ret
+
+
+def concat_val_to_formatted_dict(
+        data_list: List[Dict],
+        keys: List[Union[str, int]], 
+        op_keys: List[str],
+        **kwargs,
+    ):
+    """
+    Get the nested value in a list of dictionary that shares the same structure iteratively on all op_keys.
+    It returns a dictionary with op_keys with the found values in nd.ndarray.
+
+    Args:
+        data_list: a list of dictionary {key1: {key2: np.ndarray}}.
+        keys: a list of keys that records to path to the value in the dict elements.
+        flatten: if True, numbers are flattened before concat.
+    
+    Returns:
+        a dict with op_keys - nd.array of concatanated array pair
+    """
+
+    ret_dict = {}
+    for op_key in op_keys:
+        val = concat_val_to_np(data_list, keys + [0, op_key], **kwargs)
+        ret_dict.update({op_key: val})
+    
+    return ret_dict

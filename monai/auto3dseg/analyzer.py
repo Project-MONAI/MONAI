@@ -18,7 +18,7 @@ from copy import deepcopy
 from monai.transforms import transform
 from monai.utils.misc import label_union
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS
-from monai.auto3dseg.utils import get_foreground_image, get_foreground_label, get_label_ccp, concat_val_to_np
+from monai.auto3dseg.utils import get_foreground_image, get_foreground_label, get_label_ccp, concat_val_to_np, concat_val_to_formatted_dict
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 
 from typing import Any, Dict
@@ -234,8 +234,9 @@ class ImageStatsSummaryAnalyzer(Analyzer):
             concat_val_to_np(data, [self.case, IMAGE_STATS.SPACING]), dim=axis)
 
         axis = None if self.summary_average else 0
+        op_keys = analysis[IMAGE_STATS.INTENSITY].keys()  # template, max/min/...
         analysis[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
-            self.concat_to_dict(IMAGE_STATS.INTENSITY, data), dim=axis)
+            concat_val_to_formatted_dict(data, [self.case, IMAGE_STATS.INTENSITY], op_keys), dim=axis)
 
         return analysis
 
@@ -249,24 +250,14 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         }
         super().__init__(report_format)
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
-    
-    def concat_to_dict(self, key: str, ld_data):
-        """
-        Pinpointing the key in data structure: list of dicts and concat the value
-        """
-        values = [d[self.case][key] for d in ld_data]  # ld: list of dicts
-        # analysis is a list of list
-        key_values = {}
-        for k in values[0][0]:
-            key_values[k] = np.concatenate([[val[0][k].cpu().numpy() for val in values]]) #gpu/cpu issue
-        
-        return key_values
+
     
     def __call__(self, data):
         analysis = deepcopy(self.get_report_format())
         axis = None if self.summary_average else 0
+        op_keys = analysis[IMAGE_STATS.INTENSITY].keys()  # template, max/min/...
         analysis[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
-            self.concat_to_dict(IMAGE_STATS.INTENSITY, data), dim=axis)
+            concat_val_to_formatted_dict(data, [self.case, IMAGE_STATS.INTENSITY], op_keys), dim=axis)
         
         return analysis
 
@@ -291,22 +282,12 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         self.update_ops(LABEL_STATS.LABEL_SHAPE, SampleOperations())
         self.update_ops(LABEL_STATS.LABEL_NCOMP, SampleOperations())
 
+
     def concat_label_np(self, label_id, key: str, data):
         values = [d[self.case][key] for d in data]
         # analysis is a list of list
         return np.concatenate([[val[label_id] for val in values if label_id in val]]) #gpu/cpu issue
 
-    def concat_to_dict(self, key: str, data):
-        """
-        Pinpointing the key in data structure: list of dicts and concat the value
-        """
-        values = [d[self.case][key] for d in data]
-        # analysis is a list of list
-        key_values = {}
-        for k in values[0][0]:
-            key_values[k] = np.concatenate([[val[0][k].cpu().numpy() for val in values]]) #gpu/cpu issue
-        
-        return key_values
 
     def concat_label_to_dict(self, label_id: int, key: str, data):
         values = []
@@ -342,9 +323,11 @@ class LabelStatsSummaryAnalyzer(Analyzer):
 
         analysis[LABEL_STATS.LABEL_UID] = unique_label
         analysis[LABEL_STATS.PIXEL_PCT] = [{k: np.mean(v)} for k, v in pixel_summary.items()]
+        op_keys = analysis[LABEL_STATS.IMAGE_INT].keys()  # template, max/min/...
         analysis[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
-            self.concat_to_dict(LABEL_STATS.IMAGE_INT, data), dim=axis)
+            concat_val_to_formatted_dict(data, [self.case, LABEL_STATS.IMAGE_INT], op_keys), dim=axis)
         
+
         analysis[LABEL_STATS.LABEL] = []
         for label_id in unique_label:
             stats = {}
