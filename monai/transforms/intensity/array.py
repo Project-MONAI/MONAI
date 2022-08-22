@@ -2322,8 +2322,8 @@ class ComputeHoVerMaps(Transform):
     def __call__(self, mask: NdarrayOrTensor):
         instance_mask = convert_data_type(mask, np.ndarray)[0]
 
-        h_map = instance_mask.astype(self.dtype)
-        v_map = instance_mask.astype(self.dtype)
+        h_map = instance_mask.astype(self.dtype, copy=True)
+        v_map = instance_mask.astype(self.dtype, copy=True)
 
         for region in skimage.measure.regionprops(instance_mask):
             v_dist = region.coords[:, 0] - region.centroid[0]
