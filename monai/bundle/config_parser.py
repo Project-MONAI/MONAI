@@ -173,7 +173,7 @@ class ConfigParser:
         """
         try:
             return self[id]
-        except KeyError:
+        except (KeyError, IndexError):
             return default
 
     def set(self, config: Any, id: str = ""):

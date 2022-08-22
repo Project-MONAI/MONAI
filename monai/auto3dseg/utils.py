@@ -1,8 +1,4 @@
-from multiprocessing.sharedctypes import Value
-import numpy as np
 
-from typing import Any, List, Tuple, Union
-from monai.data.meta_tensor import MetaTensor
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +10,24 @@ from monai.data.meta_tensor import MetaTensor
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 import torch
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
 
 from numbers import Number
 
-from typing import Dict, List
+from typing import Any, List, Dict, Tuple, Union
 
 __all__ = [
     "get_foreground_image",
     "get_foreground_label",
     "get_label_ccp",
     "concat_val_to_np",
-    "concat_val_to_formatted_dict",
+    "concat_multikeys_to_dict",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -50,7 +48,7 @@ def get_foreground_image(image: MetaTensor):
     Notes:
         the size of the ouput is smaller than the input.
     """
-    # todo(mingxin): type check
+
     copper = CropForeground(select_fn=lambda x: x > 0)
     image_foreground = copper(image)
     return image_foreground
@@ -67,7 +65,7 @@ def get_foreground_label(image: MetaTensor, label: MetaTensor) -> MetaTensor:
     Returns:
         1D array of foreground image with label > 0
     """
-    # todo(mingxin): type check
+
     label_foreground = MetaTensor(image[label > 0])
     return label_foreground
 
@@ -83,7 +81,7 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
             regardless of this setting
 
     """
-    # todo(mingxin): type check
+
     shape_list = []
     if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
         mask_cupy = ToCupy()(mask_index.short())
@@ -114,16 +112,18 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
 
 def concat_val_to_np(
         data_list: List[Dict], 
-        keys: List[Union[str, int]], 
-        flatten=False
+        fixed_keys: List[Union[str, int]], 
+        flatten=False,
+        allow_missing=False,
     ):
     """
     Get the nested value in a list of dictionary that shares the same structure.
 
     Args:
        data_list: a list of dictionary {key1: {key2: np.ndarray}}.
-       keys: a list of keys that records to path to the value in the dict elements.
+       fixed_keys: a list of keys that records to path to the value in the dict elements.
        flatten: if True, numbers are flattened before concat.
+       allow_missing: if True, it will return a None if the value cannot be found
     
     Returns:
         nd.array of concatanated array
@@ -136,27 +136,34 @@ def concat_val_to_np(
         from monai.bundle.utils import ID_SEP_KEY
 
         parser = ConfigParser(data)
-        for i, key in enumerate(keys):
-            if isinstance(key, int):
-                keys[i] = str(key)
+        for i, key in enumerate(fixed_keys):
+            if isinstance(key, (int, np.integer)):
+                fixed_keys[i] = str(key)
             
-        val = parser.get(ID_SEP_KEY.join(keys))
+        val = parser.get(ID_SEP_KEY.join(fixed_keys))
 
         if val is None:
-            raise AttributeError(f"{keys} is not nested in the dictionary")
-        elif isinstance(val, list):  # only list of number/ndarray/tensor
+            if allow_missing:
+                np_list.append(None)
+            else:
+                raise AttributeError(f"{fixed_keys} is not nested in the dictionary")
+        elif isinstance(val, list): 
+            # only list of number/np.ndrray
             if any(isinstance(v, (torch.Tensor, MetaTensor)) for v in val):
                 raise NotImplementedError('list of MetaTensor is not supported for concat')
             np_list.append(np.array(val))
         elif isinstance(val, (torch.Tensor, MetaTensor)):
             np_list.append(val.cpu().numpy())
         elif isinstance(val, np.ndarray):
-            np_list.appen(val)
+            np_list.append(val)
         elif isinstance(val, Number):
             np_list.append(np.array(val))
         else:
             raise NotImplementedError(f'{val.__class__} concat is not supported.' )
     
+    if allow_missing:
+        np_list = [x for x in np_list if x is not None]
+
     if flatten:
         ret = np.concatenate(np_list, axis=None)  # when axis is None, numbers are flatten before use
     else:
@@ -165,28 +172,32 @@ def concat_val_to_np(
     return ret
 
 
-def concat_val_to_formatted_dict(
+def concat_multikeys_to_dict(
         data_list: List[Dict],
-        keys: List[Union[str, int]], 
-        op_keys: List[str],
+        fixed_keys: List[Union[str, int]], 
+        keys: List[str],
+        zero_insert: bool = True,
         **kwargs,
     ):
     """
-    Get the nested value in a list of dictionary that shares the same structure iteratively on all op_keys.
-    It returns a dictionary with op_keys with the found values in nd.ndarray.
+    Get the nested value in a list of dictionary that shares the same structure iteratively on all keys.
+    It returns a dictionary with keys with the found values in nd.ndarray.
 
     Args:
         data_list: a list of dictionary {key1: {key2: np.ndarray}}.
-        keys: a list of keys that records to path to the value in the dict elements.
+        fixed_keys: a list of keys that records to path to the value in the dict elements.
+        keys: a list of string keys that will be iterated to generate a dict output
+        zero_insert: insert a zero in the list so that it can find the value in element 0 before getting the keys
         flatten: if True, numbers are flattened before concat.
     
     Returns:
-        a dict with op_keys - nd.array of concatanated array pair
+        a dict with keys - nd.array of concatanated array pair
     """
 
     ret_dict = {}
-    for op_key in op_keys:
-        val = concat_val_to_np(data_list, keys + [0, op_key], **kwargs)
-        ret_dict.update({op_key: val})
+    for key in keys:
+        addon = [0, key] if zero_insert else [key]
+        val = concat_val_to_np(data_list, fixed_keys + addon, **kwargs)
+        ret_dict.update({key: val})
     
     return ret_dict
