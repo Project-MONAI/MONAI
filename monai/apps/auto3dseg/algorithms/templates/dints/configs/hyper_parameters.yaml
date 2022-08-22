@@ -1,32 +1,26 @@
 ---
 amp: true
 bundle_root: null
-ckpt_path: null
+ckpt_path: "$@bundle_root + '/model_fold' + str(@fold)"
 data_file_base_dir: null
 data_list_file_path: null
 determ: false
 finetune:
   activate: false
-  pretrained_ckpt_name: null
+  pretrained_ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
 fold: 0
 input_channels: null
 learning_rate: 0.025
 num_images_per_batch: 2
-num_iterations: 400
-num_iterations_per_validation: 50
+num_iterations: 40000
+num_iterations_per_validation: 500
 num_patches_per_image: 1
 num_sw_batch_size: 2
 output_classes: null
 overlap_ratio: 0.625
-patch_size:
-- null
-- null
-- null
-patch_size_valid:
-- null
-- null
-- null
-softmax: null
+patch_size: null
+patch_size_valid: null
+softmax: true
 loss:
   _target_: DiceFocalLoss
   include_background: true
@@ -48,11 +42,11 @@ lr_scheduler:
   step_size: "$@num_iterations // 5"
   gamma: 0.5
 validate:
-  ckpt_name: null
+  ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
   save_mask: true
-  ouptut_path: null
+  ouptut_path: "$@bundle_root + '/prediction_fold' + str(@fold)"
 infer:
-  ckpt_name: null
+  ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
   fast: false
   data_list_key: testing
   ouptut_path: "$@bundle_root + '/prediction_' + @infer#data_list_key"

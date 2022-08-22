@@ -1,7 +1,7 @@
 ---
 amp: true
 bundle_root: null
-arch_path: null
+arch_path: "$@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)"
 data_file_base_dir: null
 data_list_file_path: null
 determ: false
@@ -10,23 +10,17 @@ input_channels: null
 learning_rate: 0.025
 learning_rate_arch: 0.001
 num_images_per_batch: 2
-num_iterations: 400
-num_iterations_per_validation: 50
-num_warmup_iterations: 200
+num_iterations: 20000
+num_iterations_per_validation: 500
+num_warmup_iterations: 10000
 num_patches_per_image: 1
 num_sw_batch_size: 2
 output_classes: null
 overlap_ratio: 0.625
-patch_size:
-- null
-- null
-- null
-patch_size_valid:
-- null
-- null
-- null
+patch_size: null
+patch_size_valid: null
 ram_cost_factor: 0.8
-softmax: null
+softmax: true
 loss:
   _target_: DiceFocalLoss
   include_background: true

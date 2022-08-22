@@ -21,10 +21,7 @@ transforms_train:
     keys:
     - "@image_key"
     - "@label_key"
-    pixdim:
-    - null
-    - null
-    - null
+    pixdim: null
     mode:
     - bilinear
     - nearest

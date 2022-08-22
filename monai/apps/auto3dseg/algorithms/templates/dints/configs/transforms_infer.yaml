@@ -12,10 +12,7 @@ transforms_infer:
     axcodes: RAS
   - _target_: Spacingd
     keys: "@image_key"
-    pixdim:
-    - null
-    - null
-    - null
+    pixdim: null
     mode: bilinear
     align_corners:
     - true

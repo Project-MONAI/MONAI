@@ -15,14 +15,16 @@ from abc import (
 )
 
 
-class Configurator(ABC):
+class AlgorithmConfigurator(ABC):
     def __init__(
         self,
         data_stats_filename: str = None,
         input_filename: str = None,
+        output_path: str = None,
     ):
         self.data_stats_filename = data_stats_filename
         self.input_filename = input_filename
+        self.output_path = output_path
 
     @property
     @abstractmethod
