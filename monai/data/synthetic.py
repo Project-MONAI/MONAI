@@ -50,7 +50,7 @@ def create_test_image_2d(
         random_state: the random generator to use. Defaults to `np.random`.
 
     Returns:
-        Randomised Numpy array with shape (`width`, `height`) 
+        Randomised Numpy array with shape (`width`, `height`)
     """
 
     if rad_max <= rad_min:
@@ -124,7 +124,7 @@ def create_test_image_3d(
         random_state: the random generator to use. Defaults to `np.random`.
 
     Returns:
-        Randomised Numpy array with shape (`width`, `height`, `depth`) 
+        Randomised Numpy array with shape (`width`, `height`, `depth`)
 
     See also:
         :py:meth:`~create_test_image_2d`
