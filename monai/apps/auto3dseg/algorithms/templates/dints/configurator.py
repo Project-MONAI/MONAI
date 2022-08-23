@@ -43,7 +43,7 @@ class Configurator(AlgorithmConfigurator):
                 self.config[_key] = yaml.full_load(f)
 
     def update(self):
-        patch_size = [160, 160, 96]
+        patch_size = [128, 128, 96]
         max_shape = self.data_stats["stats_summary"]["image_stats"]["shape"]["max"][0]
         for _k in range(3):
             patch_size[_k] = max(32, max_shape[_k] // 32 * 32) if max_shape[_k] < patch_size[_k] else patch_size[_k]
@@ -58,8 +58,13 @@ class Configurator(AlgorithmConfigurator):
                 self.data_stats["stats_summary"]["image_stats"]["channels"]["max"]
             )
             self.config[_key]["output_classes"] = len(self.data_stats["stats_summary"]["label_stats"]["labels"])
-            self.config[_key]["patch_size"] = patch_size
-            self.config[_key]["patch_size_valid"] = copy.deepcopy(patch_size)
+
+            if _key == "hyper_parameters.yaml":
+                self.config[_key]["patch_size"] = patch_size
+                self.config[_key]["patch_size_valid"] = copy.deepcopy(patch_size)
+            elif _key == "hyper_parameters_search.yaml":
+                self.config[_key]["patch_size"] = [96, 96, 96]
+                self.config[_key]["patch_size_valid"] = [96, 96, 96]
 
         for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
             _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
@@ -95,7 +100,7 @@ class Configurator(AlgorithmConfigurator):
                     }
                 )
                 _t_intensity.append(
-                    {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "'@image_key'"}
+                    {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"}
                 )
             elif "mr" in modality:
                 _t_intensity.append(
