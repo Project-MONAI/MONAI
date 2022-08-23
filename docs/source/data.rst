@@ -318,6 +318,12 @@ OpenSlideWSIReader
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
 
+TiffFileWSIReader
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TiffFileWSIReader
+  :members:
+
+
 Whole slide image datasets
 --------------------------
 
