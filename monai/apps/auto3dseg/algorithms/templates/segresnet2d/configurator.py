@@ -60,8 +60,8 @@ class Configurator(AlgorithmConfigurator):
             self.config[_key]["output_classes"] = len(self.data_stats["stats_summary"]["label_stats"]["labels"])
 
             for _j in range(2):
-                self.config[_key]["patch_size"] = patch_size[_j]
-                self.config[_key]["patch_size_valid"] = patch_size[_j]
+                self.config[_key]["patch_size"][_j] = patch_size[_j]
+                self.config[_key]["patch_size_valid"][_j] = patch_size[_j]
 
         for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
             _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
