@@ -175,11 +175,11 @@ class InferClass:
 
                 infer_outputs[..., :, :, _k] = sliding_window_inference(
                     infer_images_slices,
-                    patch_size_valid[:2],
-                    num_sw_batch_size,
-                    model,
+                    self.patch_size_valid[:2],
+                    self.num_sw_batch_size,
+                    self.model,
                     mode="gaussian",
-                    overlap=overlap_ratio,
+                    overlap=self.overlap_ratio,
                     padding_mode="reflect",
                 )
 
@@ -250,11 +250,11 @@ class InferClass:
 
                         infer_outputs[..., :, :, _k] = sliding_window_inference(
                             infer_images_slices,
-                            patch_size_valid[:2],
-                            num_sw_batch_size,
-                            model,
+                            self.patch_size_valid[:2],
+                            self.num_sw_batch_size,
+                            self.model,
                             mode="gaussian",
-                            overlap=overlap_ratio,
+                            overlap=self.overlap_ratio,
                             padding_mode="reflect",
                         )
 
