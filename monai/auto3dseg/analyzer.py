@@ -396,18 +396,18 @@ class LabelStatsCaseAnalyzer(Analyzer):
             label_dict: Dict[str, Any] = {}
             mask_index = ndas_label == index
 
-            label_dict[LABEL_STATS.IMAGE_INT] = [
+            label_dict[str(LABEL_STATS.IMAGE_INT)] = [
                 self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda[mask_index]) for nda in ndas
             ]
             pixel_num = sum(mask_index)
             if isinstance(pixel_num, (MetaTensor, torch.Tensor)):
                 pixel_num = pixel_num.data.cpu().numpy()  # pixel_percentage[index]
-            label_dict[LABEL_STATS.PIXEL_PCT] = pixel_num.astype(np.float64)
+            label_dict[str(LABEL_STATS.PIXEL_PCT)] = pixel_num.astype(np.float64)
             pixel_sum += pixel_num
             if self.do_ccp:  # apply connected component
                 shape_list, ncomponents = get_label_ccp(mask_index)
-                label_dict[LABEL_STATS.LABEL_SHAPE] = shape_list
-                label_dict[LABEL_STATS.LABEL_NCOMP] = ncomponents
+                label_dict[str(LABEL_STATS.LABEL_SHAPE)] = shape_list
+                label_dict[str(LABEL_STATS.LABEL_NCOMP)] = ncomponents
 
             detailed_label_stats.append(label_dict)
             # logger.debug(f" label {index} stats takes {time.time() - s}")
