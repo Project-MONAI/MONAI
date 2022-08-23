@@ -233,7 +233,9 @@ class MonaiAlgo(ClientAlgo):
         # get current iteration when a round starts
         self.iter_of_start_time = self.trainer.state.iteration
 
-        copy_model_state(src=self.global_weights, dst=self.trainer.network)
+        _, updated_keys, _ = copy_model_state(src=self.global_weights, dst=self.trainer.network)
+        if len(updated_keys) == 0:
+            self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} training...")
         self.trainer.run()
 
@@ -311,7 +313,9 @@ class MonaiAlgo(ClientAlgo):
             global_weights=data.weights, local_var_dict=get_state_dict(self.evaluator.network)
         )
 
-        copy_model_state(src=global_weights, dst=self.evaluator.network)
+        _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
+        if len(updated_keys) == 0:
+            self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} evaluating...")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.evaluator.run(self.trainer.state.epoch + 1)
