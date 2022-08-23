@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import torch
 from collections import UserDict
 from functools import partial
-from typing import Any
+from typing import Any, Optional
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
 
@@ -23,7 +25,14 @@ class Operations(UserDict):
 
 class SampleOperations(Operations):
     # todo: missing value/nan/inf
-    def __init__(self) -> None:
+    """
+    Apply statistical operation to a sample (image/ndarray/tensor)
+
+    Args:
+        to_list: all numerical values in the output dict will be list of basic types (int, floats, ...) if to_list is True
+    """
+    def __init__(self, to_list: Optional[bool] = True) -> None:
+        self.convert_to_np = True
         self.data = {
             "max": max,
             "mean": mean,
@@ -47,6 +56,8 @@ class SampleOperations(Operations):
             if isinstance(v, tuple) and cache in ret:
                 ret.update({k: ret[cache][idx]})
 
+        for k, v in ret.items():
+            ret[k] = v.tolist()
         return ret
 
 
