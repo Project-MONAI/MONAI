@@ -42,6 +42,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
     data_list_file_path = parser.get_parsed_content("data_list_file_path")
     fold = parser.get_parsed_content("fold")
+    num_adjacent_slices = parser.get_parsed_content("num_adjacent_slices")
     num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
     output_classes = parser.get_parsed_content("output_classes")
     overlap_ratio = parser.get_parsed_content("overlap_ratio")
@@ -156,10 +157,60 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             val_images = d["image"].to(device)
             val_labels = d["label"]
 
+            img_size = val_images.size()
+            val_outputs = torch.zeros(
+                (1, output_classes, img_size[-3], img_size[-2], img_size[-1])
+            ).to(device)
+
             with torch.cuda.amp.autocast():
-                d["pred"] = sliding_window_inference(
-                    val_images, patch_size_valid, num_sw_batch_size, model, mode="gaussian", overlap=overlap_ratio
-                )
+                for _k in range(val_images.size()[-1]):
+                    if _k < num_adjacent_slices:
+                        val_images_slices = torch.stack(
+                            [
+                                val_images[..., 0],
+                            ]
+                            * num_adjacent_slices
+                            + [
+                                val_images[..., _r]
+                                for _r in range(num_adjacent_slices + 1)
+                            ],
+                            dim=-1,
+                        )
+                    elif _k >= val_images.size()[-1] - num_adjacent_slices:
+                        val_images_slices = torch.stack(
+                            [
+                                val_images[..., _r - num_adjacent_slices - 1]
+                                for _r in range(num_adjacent_slices + 1)
+                            ]
+                            + [
+                                val_images[..., -1],
+                            ]
+                            * num_adjacent_slices,
+                            dim=-1,
+                        )
+                    else:
+                        val_images_slices = val_images[
+                            ...,
+                            _k
+                            - num_adjacent_slices : _k
+                            + num_adjacent_slices
+                            + 1,
+                        ]
+                    val_images_slices = val_images_slices.permute(
+                        0, 1, 4, 2, 3
+                    ).flatten(1, 2)
+
+                    val_outputs[..., :, :, _k] = sliding_window_inference(
+                        val_images_slices,
+                        patch_size_valid[:2],
+                        num_sw_batch_size,
+                        model,
+                        mode="gaussian",
+                        overlap=overlap_ratio,
+                        padding_mode="reflect",
+                    )
+
+                d["pred"] = val_outputs
 
             d = [post_transforms(i) for i in decollate_batch(d)]
 
