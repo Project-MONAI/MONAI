@@ -1,9 +1,0 @@
-name: Task09_Spleen
-task: segmentation
-
-modality: CT
-datalist: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/datafolds/msd_task09_spleen_folds.json # list of files
-dataroot: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/Task09_Spleen # data location
-
-multigpu: True
-
