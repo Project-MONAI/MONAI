@@ -210,7 +210,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                         padding_mode="reflect",
                     )
 
-                d["pred"] = val_outputs
+                d["pred"] = monai.utils.convert_to_dst_type(val_outputs, val_images)[0]
 
             d = [post_transforms(i) for i in decollate_batch(d)]
 
