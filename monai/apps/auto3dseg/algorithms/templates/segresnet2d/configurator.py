@@ -111,7 +111,7 @@ class Configurator(AlgorithmConfigurator):
             )
 
     def write(self):
-        write_path = os.path.join(self.output_path, "dints")
+        write_path = os.path.join(self.output_path, "segresnet2d")
         if not os.path.exists(write_path):
             os.makedirs(write_path, exist_ok=True)
 
