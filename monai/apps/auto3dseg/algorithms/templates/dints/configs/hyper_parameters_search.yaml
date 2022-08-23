@@ -1,4 +1,5 @@
 ---
+# hyper-parameters
 amp: true
 bundle_root: null
 arch_path: "$@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)"
@@ -21,6 +22,8 @@ patch_size: null
 patch_size_valid: null
 ram_cost_factor: 0.8
 softmax: true
+
+# architecture searching
 loss:
   _target_: DiceFocalLoss
   include_background: true

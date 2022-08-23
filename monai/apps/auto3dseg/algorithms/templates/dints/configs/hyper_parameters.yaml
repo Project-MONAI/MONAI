@@ -1,13 +1,11 @@
 ---
+# hyper-parameters
 amp: true
 bundle_root: null
 ckpt_path: "$@bundle_root + '/model_fold' + str(@fold)"
 data_file_base_dir: null
 data_list_file_path: null
 determ: false
-finetune:
-  activate: false
-  pretrained_ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
 fold: 0
 input_channels: null
 learning_rate: 0.025
@@ -21,6 +19,8 @@ overlap_ratio: 0.625
 patch_size: null
 patch_size_valid: null
 softmax: true
+
+# training
 loss:
   _target_: DiceFocalLoss
   include_background: true
@@ -41,10 +41,19 @@ lr_scheduler:
   optimizer: "$@optimizer"
   step_size: "$@num_iterations // 5"
   gamma: 0.5
+
+# fine-tuning
+finetune:
+  activate: false
+  pretrained_ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
+
+# validation
 validate:
   ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
   save_mask: true
   ouptut_path: "$@bundle_root + '/prediction_fold' + str(@fold)"
+
+# inference
 infer:
   ckpt_name: "$@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'"
   fast: false
