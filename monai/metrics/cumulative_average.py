@@ -51,7 +51,7 @@ class CumulativeAverage(Cumulative):
         self.sum = None
         self.not_nans = None
 
-    def aggregate(self):  # type: ignore
+    def aggregate(self):
         """
         Sync data from all the ranks and compute the average value with previous sum value.
 

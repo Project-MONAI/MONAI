@@ -109,8 +109,6 @@ class TestNumpyReader(unittest.TestCase):
                     num_workers=num_workers,
                 )
                 for d in loader:
-                    for s in d["image_meta_dict"]["spatial_shape"]:
-                        torch.testing.assert_allclose(s, torch.as_tensor([3, 4, 5]))
                     for c in d["image"]:
                         torch.testing.assert_allclose(c, test_data)
 

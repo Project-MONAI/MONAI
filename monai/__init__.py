@@ -39,7 +39,7 @@ from .utils.module import load_submodules  # noqa: E402
 
 # handlers_* have some external decorators the users may not have installed
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
-excludes = "(^(monai.handlers))|((\\.so)$)|(^(monai._C))"
+excludes = "(^(monai.handlers))|(^(monai.bundle))|(^(monai.fl))|((\\.so)$)|(^(monai._C))"
 
 # load directory modules only, skip loading individual files
 load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
@@ -49,9 +49,11 @@ load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
 
 __all__ = [
     "apps",
+    "bundle",
     "config",
     "data",
     "engines",
+    "fl",
     "handlers",
     "inferers",
     "losses",

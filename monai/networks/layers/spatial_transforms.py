@@ -14,8 +14,16 @@ from typing import Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
+import monai
 from monai.networks import to_norm_affine
-from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    GridSampleMode,
+    GridSamplePadMode,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 _C, _ = optional_import("monai._C")
 
@@ -70,13 +78,13 @@ def grid_pull(
     `bound` can be an int, a string or a BoundType.
     Possible values are::
 
-        - 0 or 'replicate' or 'nearest'      or BoundType.replicate
+        - 0 or 'replicate' or 'nearest'      or BoundType.replicate or 'border'
         - 1 or 'dct1'      or 'mirror'       or BoundType.dct1
         - 2 or 'dct2'      or 'reflect'      or BoundType.dct2
         - 3 or 'dst1'      or 'antimirror'   or BoundType.dst1
         - 4 or 'dst2'      or 'antireflect'  or BoundType.dst2
         - 5 or 'dft'       or 'wrap'         or BoundType.dft
-        - 7 or 'zero'                        or BoundType.zero
+        - 7 or 'zero'      or 'zeros'        or BoundType.zero
 
     A list of values can be provided, in the order [W, H, D],
     to specify dimension-specific boundary conditions.
@@ -115,7 +123,9 @@ def grid_pull(
         for i in ensure_tuple(interpolation)
     ]
     out: torch.Tensor
-    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)  # type: ignore
+    out = _GridPull.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
     return out
 
 
@@ -217,7 +227,10 @@ def grid_push(
     if shape is None:
         shape = tuple(input.shape[2:])
 
-    return _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridPush.apply(input, grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class _GridCount(torch.autograd.Function):
@@ -313,7 +326,10 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
     if shape is None:
         shape = tuple(grid.shape[2:])
 
-    return _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridCount.apply(grid, shape, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class _GridGrad(torch.autograd.Function):
@@ -408,7 +424,10 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
         for i in ensure_tuple(interpolation)
     ]
 
-    return _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    out: torch.Tensor = _GridGrad.apply(input, grid, interpolation, bound, extrapolate)
+    if isinstance(input, monai.data.MetaTensor):
+        out = convert_to_dst_type(out, dst=input)[0]
+    return out
 
 
 class AffineTransform(nn.Module):
@@ -416,10 +435,11 @@ class AffineTransform(nn.Module):
         self,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         normalized: bool = False,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.ZEROS,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.ZEROS,
         align_corners: bool = False,
         reverse_indexing: bool = True,
+        zero_centered: Optional[bool] = None,
     ) -> None:
         """
         Apply affine transformations with a batch of affine matrices.
@@ -446,22 +466,31 @@ class AffineTransform(nn.Module):
                 coordinates.
             mode: {``"bilinear"``, ``"nearest"``}
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"zeros"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-            align_corners: see also https://pytorch.org/docs/stable/nn.functional.html#grid-sample.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            align_corners: see also https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html.
             reverse_indexing: whether to reverse the spatial indexing of image and coordinates.
                 set to `False` if `theta` follows pytorch's default "D, H, W" convention.
                 set to `True` if `theta` follows `scipy.ndimage` default "i, j, k" convention.
+            zero_centered: whether the affine is applied to coordinates in a zero-centered value range.
+                With `zero_centered=True`, for example, the center of rotation will be the
+                spatial center of the input; with `zero_centered=False`, the center of rotation will be the
+                origin of the input. This option is only available when `normalized=False`,
+                where the default behaviour is `False` if unspecified.
+                See also: :py:func:`monai.networks.utils.normalize_transform`.
         """
         super().__init__()
         self.spatial_size = ensure_tuple(spatial_size) if spatial_size is not None else None
         self.normalized = normalized
-        self.mode: GridSampleMode = look_up_option(mode, GridSampleMode)
-        self.padding_mode: GridSamplePadMode = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.reverse_indexing = reverse_indexing
+        if zero_centered is not None and self.normalized:
+            raise ValueError("`normalized=True` is not compatible with the `zero_centered` option.")
+        self.zero_centered = zero_centered if zero_centered is not None else False
 
     def forward(
         self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Optional[Union[Sequence[int], int]] = None
@@ -525,7 +554,11 @@ class AffineTransform(nn.Module):
         # reverse and normalize theta if needed
         if not self.normalized:
             theta = to_norm_affine(
-                affine=theta, src_size=src_size[2:], dst_size=dst_size[2:], align_corners=self.align_corners
+                affine=theta,
+                src_size=src_size[2:],
+                dst_size=dst_size[2:],
+                align_corners=self.align_corners,
+                zero_centered=self.zero_centered,
             )
         if self.reverse_indexing:
             rev_idx = torch.as_tensor(range(sr - 1, -1, -1), device=src.device)
@@ -543,8 +576,8 @@ class AffineTransform(nn.Module):
         dst = nn.functional.grid_sample(
             input=src.contiguous(),
             grid=grid,
-            mode=self.mode.value,
-            padding_mode=self.padding_mode.value,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
             align_corners=self.align_corners,
         )
         return dst

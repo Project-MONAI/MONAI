@@ -9,20 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections.abc
 import inspect
 import itertools
+import os
 import random
+import shutil
+import tempfile
 import types
 import warnings
 from ast import literal_eval
+from collections.abc import Iterable
 from distutils.util import strtobool
+from pathlib import Path
 from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.utils.module import version_leq
 
 __all__ = [
@@ -42,16 +46,21 @@ __all__ = [
     "list_to_dict",
     "MAX_SEED",
     "copy_to_device",
+    "str2bool",
+    "MONAIEnvVars",
     "ImageMetaKey",
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
+    "check_parent_dir",
+    "save_obj",
 ]
 
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
 _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
-MAX_SEED = np.iinfo(np.uint32).max + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
+NP_MAX = np.iinfo(np.uint32).max
+MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -81,19 +90,27 @@ def issequenceiterable(obj: Any) -> bool:
     """
     Determine if the object is an iterable sequence and is not a string.
     """
-    if isinstance(obj, torch.Tensor):
-        return int(obj.dim()) > 0  # a 0-d tensor is not iterable
-    return isinstance(obj, collections.abc.Iterable) and not isinstance(obj, (str, bytes))
+    try:
+        if hasattr(obj, "ndim") and obj.ndim == 0:
+            return False  # a 0-d tensor is not iterable
+    except Exception:
+        return False
+    return isinstance(obj, Iterable) and not isinstance(obj, (str, bytes))
 
 
-def ensure_tuple(vals: Any) -> Tuple[Any, ...]:
+def ensure_tuple(vals: Any, wrap_array: bool = False) -> Tuple[Any, ...]:
     """
     Returns a tuple of `vals`.
-    """
-    if not issequenceiterable(vals):
-        return (vals,)
 
-    return tuple(vals)
+    Args:
+        vals: input data to convert to a tuple.
+        wrap_array: if `True`, treat the input numerical array (ndarray/tensor) as one item of the tuple.
+            if `False`, try to convert the array with `tuple(vals)`, default to `False`.
+
+    """
+    if wrap_array and isinstance(vals, (np.ndarray, torch.Tensor)):
+        return (vals,)
+    return tuple(vals) if issequenceiterable(vals) else (vals,)
 
 
 def ensure_tuple_size(tup: Any, dim: int, pad_val: Any = 0) -> Tuple[Any, ...]:
@@ -140,7 +157,7 @@ def ensure_tuple_rep(tup: Any, dim: int) -> Tuple[Any, ...]:
 
 
 def fall_back_tuple(
-    user_provided: Any, default: Union[Sequence, np.ndarray], func: Callable = lambda x: x and x > 0
+    user_provided: Any, default: Union[Sequence, NdarrayTensor], func: Callable = lambda x: x and x > 0
 ) -> Tuple[Any, ...]:
     """
     Refine `user_provided` according to the `default`, and returns as a validated tuple.
@@ -219,7 +236,7 @@ def get_seed() -> Optional[int]:
 
 
 def set_determinism(
-    seed: Optional[int] = np.iinfo(np.uint32).max,
+    seed: Optional[int] = NP_MAX,
     use_deterministic_algorithms: Optional[bool] = None,
     additional_settings: Optional[Union[Sequence[Callable[[int], Any]], Callable[[int], Any]]] = None,
 ) -> None:
@@ -234,10 +251,17 @@ def set_determinism(
         use_deterministic_algorithms: Set whether PyTorch operations must use "deterministic" algorithms.
         additional_settings: additional settings that need to set random seed.
 
+    Note:
+
+        This function will not affect the randomizable objects in :py:class:`monai.transforms.Randomizable`, which
+        have independent random states. For those objects, the ``set_random_state()`` method should be used to
+        ensure the deterministic behavior (alternatively, :py:class:`monai.data.DataLoader` by default sets the seeds
+        according to the global random state, please see also: :py:class:`monai.data.utils.worker_init_fn` and
+        :py:class:`monai.data.utils.set_rnd`).
     """
     if seed is None:
         # cast to 32 bit seed for CUDA
-        seed_ = torch.default_generator.seed() % (np.iinfo(np.int32).max + 1)
+        seed_ = torch.default_generator.seed() % MAX_SEED
         torch.manual_seed(seed_)
     else:
         seed = int(seed) % MAX_SEED
@@ -338,13 +362,60 @@ def copy_to_device(
     return obj
 
 
+def str2bool(value: str, default: bool = False, raise_exc: bool = True) -> bool:
+    """
+    Convert a string to a boolean. Case insensitive.
+    True: yes, true, t, y, 1. False: no, false, f, n, 0.
+
+    Args:
+        value: string to be converted to a boolean.
+        raise_exc: if value not in tuples of expected true or false inputs,
+            should we raise an exception? If not, return `None`.
+    Raises
+        ValueError: value not in tuples of expected true or false inputs and
+            `raise_exc` is `True`.
+    """
+    true_set = ("yes", "true", "t", "y", "1")
+    false_set = ("no", "false", "f", "n", "0")
+    if isinstance(value, str):
+        value = value.lower()
+        if value in true_set:
+            return True
+        if value in false_set:
+            return False
+
+    if raise_exc:
+        raise ValueError(f"Got \"{value}\", expected a value from: {', '.join(true_set + false_set)}")
+    return default
+
+
+class MONAIEnvVars:
+    """
+    Environment variables used by MONAI.
+    """
+
+    @staticmethod
+    def data_dir() -> Optional[str]:
+        return os.environ.get("MONAI_DATA_DIRECTORY", None)
+
+    @staticmethod
+    def debug() -> bool:
+        val = os.environ.get("MONAI_DEBUG", False)
+        return val if isinstance(val, bool) else str2bool(val)
+
+    @staticmethod
+    def doc_images() -> Optional[str]:
+        return os.environ.get("MONAI_DOC_IMAGES", None)
+
+
 class ImageMetaKey:
     """
-    Common key names in the meta data header of images
+    Common key names in the metadata header of images
     """
 
     FILENAME_OR_OBJ = "filename_or_obj"
     PATCH_INDEX = "patch_index"
+    SPATIAL_SHAPE = "spatial_shape"
 
 
 def has_option(obj, keywords: Union[str, Sequence[str]]) -> bool:
@@ -386,3 +457,65 @@ def sample_slices(data: NdarrayOrTensor, dim: int = 1, as_indices: bool = True, 
     slices[dim] = slicevals if as_indices else slice(*slicevals)  # type: ignore
 
     return data[tuple(slices)]
+
+
+def check_parent_dir(path: PathLike, create_dir: bool = True):
+    """
+    Utility to check whether the parent directory of the `path` exists.
+
+    Args:
+        path: input path to check the parent directory.
+        create_dir: if True, when the parent directory doesn't exist, create the directory,
+            otherwise, raise exception.
+
+    """
+    path = Path(path)
+    path_dir = path.parent
+    if not path_dir.exists():
+        if create_dir:
+            path_dir.mkdir(parents=True)
+        else:
+            raise ValueError(f"the directory of specified path does not exist: `{path_dir}`.")
+
+
+def save_obj(
+    obj, path: PathLike, create_dir: bool = True, atomic: bool = True, func: Optional[Callable] = None, **kwargs
+):
+    """
+    Save an object to file with specified path.
+    Support to serialize to a temporary file first, then move to final destination,
+    so that files are guaranteed to not be damaged if exception occurs.
+
+    Args:
+        obj: input object data to save.
+        path: target file path to save the input object.
+        create_dir: whether to create dictionary of the path if not existng, default to `True`.
+        atomic: if `True`, state is serialized to a temporary file first, then move to final destination.
+            so that files are guaranteed to not be damaged if exception occurs. default to `True`.
+        func: the function to save file, if None, default to `torch.save`.
+        kwargs: other args for the save `func` except for the checkpoint and filename.
+            default `func` is `torch.save()`, details of other args:
+            https://pytorch.org/docs/stable/generated/torch.save.html.
+
+    """
+    path = Path(path)
+    check_parent_dir(path=path, create_dir=create_dir)
+    if path.exists():
+        # remove the existing file
+        os.remove(path)
+
+    if func is None:
+        func = torch.save
+
+    if not atomic:
+        func(obj=obj, f=path, **kwargs)
+        return
+    try:
+        # writing to a temporary directory and then using a nearly atomic rename operation
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_path: Path = Path(tempdir) / path.name
+            func(obj=obj, f=temp_path, **kwargs)
+            if temp_path.is_file():
+                shutil.move(str(temp_path), path)
+    except PermissionError:  # project-monai/monai issue #3613
+        pass

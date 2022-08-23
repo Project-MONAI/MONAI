@@ -105,6 +105,12 @@ Crop and Pad
     :members:
     :special-members: __call__
 
+`Crop`
+""""""
+.. autoclass:: Crop
+    :members:
+    :special-members: __call__
+
 `SpatialCrop`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
@@ -446,6 +452,15 @@ Intensity
     :members:
     :special-members: __call__
 
+
+`ForegroundMask`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+    :alt: example of ForegroundMask
+.. autoclass:: ForegroundMask
+    :members:
+    :special-members: __call__
+
 IO
 ^^
 
@@ -543,8 +558,8 @@ Post-processing
     :members:
     :special-members: __call__
 
-`Prob NMS`
-""""""""""
+`ProbNMS`
+"""""""""
 .. autoclass:: ProbNMS
   :members:
 
@@ -556,6 +571,18 @@ Post-processing
 
 Spatial
 ^^^^^^^
+
+`SpatialResample`
+"""""""""""""""""
+.. autoclass:: SpatialResample
+    :members:
+    :special-members: __call__
+
+`ResampleToMatch`
+"""""""""""""""""
+.. autoclass:: ResampleToMatch
+    :members:
+    :special-members: __call__
 
 `Spacing`
 """""""""
@@ -725,6 +752,25 @@ Spatial
     :members:
     :special-members: __call__
 
+`GridPatch`
+"""""""""""
+.. autoclass:: GridPatch
+    :members:
+    :special-members: __call__
+
+`RandGridPatch`
+"""""""""""""""
+.. autoclass:: RandGridPatch
+    :members:
+    :special-members: __call__
+
+`GridSplit`
+"""""""""""
+.. autoclass:: GridSplit
+    :members:
+    :special-members: __call__
+
+
 Smooth Field
 ^^^^^^^^^^^^
 
@@ -751,6 +797,23 @@ Smooth Field
 .. autoclass:: RandSmoothDeform
     :members:
     :special-members: __call__
+
+
+MRI Transforms
+^^^^^^^^^^^^^^
+
+`Kspace under-sampling`
+"""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.array.KspaceMask
+    :members:
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.RandomKspaceMask
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.array.EquispacedKspaceMask
+    :special-members: __call__
+
 
 Utility
 ^^^^^^^
@@ -791,6 +854,12 @@ Utility
     :members:
     :special-members: __call__
 
+`SplitDim`
+""""""""""
+.. autoclass:: SplitDim
+    :members:
+    :special-members: __call__
+
 `SplitChannel`
 """"""""""""""
 .. autoclass:: SplitChannel
@@ -821,7 +890,6 @@ Utility
     :members:
     :special-members: __call__
 
-
 `Transpose`
 """""""""""
 .. autoclass:: Transpose
@@ -845,6 +913,7 @@ Utility
 .. autoclass:: SimulateDelay
     :members:
     :special-members: __call__
+
 
 `Lambda`
 """"""""
@@ -949,6 +1018,12 @@ Dictionary Transforms
 Crop and Pad (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
+`Padd`
+""""""
+.. autoclass:: Padd
+    :members:
+    :special-members: __call__
+
 `SpatialPadd`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
@@ -970,6 +1045,18 @@ Crop and Pad (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
+    :members:
+    :special-members: __call__
+
+`Cropd`
+"""""""
+.. autoclass:: Cropd
+    :members:
+    :special-members: __call__
+
+`RandCropd`
+"""""""""""
+.. autoclass:: RandCropd
     :members:
     :special-members: __call__
 
@@ -1302,6 +1389,13 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ForegroundMaskd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+    :alt: example of ForegroundMaskd
+.. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
 
 IO (Dict)
 ^^^^^^^^^
@@ -1395,8 +1489,26 @@ Post-processing (Dict)
     :members:
     :special-members: __call__
 
+`ProbNMSd`
+""""""""""
+.. autoclass:: ProbNMSd
+  :members:
+  :special-members: __call__
+
 Spatial (Dict)
 ^^^^^^^^^^^^^^
+
+`SpatialResampled`
+""""""""""""""""""
+.. autoclass:: SpatialResampled
+    :members:
+    :special-members: __call__
+
+`ResampleToMatchd`
+""""""""""""""""""
+.. autoclass:: ResampleToMatchd
+    :members:
+    :special-members: __call__
 
 `Spacingd`
 """"""""""
@@ -1469,6 +1581,25 @@ Spatial (Dict)
 .. autoclass:: RandZoomd
     :members:
     :special-members: __call__
+
+`GridPatchd`
+""""""""""""
+.. autoclass:: GridPatchd
+    :members:
+    :special-members: __call__
+
+`RandGridPatchd`
+""""""""""""""""
+.. autoclass:: RandGridPatchd
+    :members:
+    :special-members: __call__
+
+`GridSplitd`
+""""""""""""
+.. autoclass:: GridSplitd
+    :members:
+    :special-members: __call__
+
 
 `RandRotate90d`
 """""""""""""""
@@ -1569,6 +1700,34 @@ Smooth Field (Dict)
     :members:
     :special-members: __call__
 
+
+`MRI transforms (Dict)`
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`Kspace under-sampling (Dict)`
+""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.RandomKspaceMaskd
+    :special-members: __call__
+
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.EquispacedKspaceMaskd
+    :special-members: __call__
+
+`ExtractDataKeyFromMetaKeyd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ExtractDataKeyFromMetaKeyd
+    :special-members: __call__
+
+`ReferenceBasedSpatialCropd`
+""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedSpatialCropd
+    :special-members: __call__
+
+`ReferenceBasedNormalizeIntensityd`
+"""""""""""""""""""""""""""""""""""
+.. autoclass:: monai.apps.reconstruction.transforms.dictionary.ReferenceBasedNormalizeIntensityd
+    :special-members: __call__
+
+
 Utility (Dict)
 ^^^^^^^^^^^^^^
 
@@ -1608,6 +1767,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SplitDimd`
+"""""""""""
+.. autoclass:: SplitDimd
+    :members:
+    :special-members: __call__
+
 `SplitChanneld`
 """""""""""""""
 .. autoclass:: SplitChanneld
@@ -1644,6 +1809,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ToPILd`
+""""""""
+.. autoclass:: ToPILd
+    :members:
+    :special-members: __call__
+
 `DeleteItemsd`
 """"""""""""""
 .. autoclass:: DeleteItemsd
@@ -1653,6 +1824,12 @@ Utility (Dict)
 `SelectItemsd`
 """"""""""""""
 .. autoclass:: SelectItemsd
+    :members:
+    :special-members: __call__
+
+`Transposed`
+""""""""""""
+.. autoclass:: Transposed
     :members:
     :special-members: __call__
 
@@ -1695,6 +1872,12 @@ Utility (Dict)
 `RandLambdad`
 """""""""""""
 .. autoclass:: RandLambdad
+    :members:
+    :special-members: __call__
+
+`RemoveRepeatedChanneld`
+""""""""""""""""""""""""
+.. autoclass:: RemoveRepeatedChanneld
     :members:
     :special-members: __call__
 
@@ -1779,6 +1962,21 @@ Utility (Dict)
 `AddCoordinateChannelsd`
 """"""""""""""""""""""""
 .. autoclass:: AddCoordinateChannelsd
+    :members:
+    :special-members: __call__
+
+MetaTensor
+^^^^^^^^^^
+
+`ToMetaTensord`
+"""""""""""""""
+.. autoclass:: ToMetaTensord
+    :members:
+    :special-members: __call__
+
+`FromMetaTensord`
+"""""""""""""""""
+.. autoclass:: FromMetaTensord
     :members:
     :special-members: __call__
 

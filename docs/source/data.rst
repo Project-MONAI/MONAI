@@ -107,15 +107,22 @@ Patch-based dataset
 .. autoclass:: GridPatchDataset
   :members:
 
-`PatchIter`
-~~~~~~~~~~~
-.. autoclass:: PatchIter
-  :members:
-
 `PatchDataset`
 ~~~~~~~~~~~~~~
 .. autoclass:: PatchDataset
   :members:
+
+`PatchIter`
+"""""""""""
+.. autoclass:: PatchIter
+    :members:
+    :special-members: __call__
+
+`PatchIterd`
+""""""""""""
+.. autoclass:: PatchIterd
+    :members:
+    :special-members: __call__
 
 Image reader
 ------------
@@ -145,9 +152,42 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
-WSIReader
+
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
+
+Image writer
+------------
+
+resolve_writer
+~~~~~~~~~~~~~~
+.. autofunction:: resolve_writer
+
+register_writer
+~~~~~~~~~~~~~~~
+.. autofunction:: register_writer
+
+ImageWriter
+~~~~~~~~~~~
+.. autoclass:: ImageWriter
+  :members:
+
+ITKWriter
 ~~~~~~~~~
-.. autoclass:: WSIReader
+.. autoclass:: ITKWriter
+  :members:
+
+NibabelWriter
+~~~~~~~~~~~~~
+.. autoclass:: NibabelWriter
+  :members:
+
+PILWriter
+~~~~~~~~~
+.. autoclass:: PILWriter
   :members:
 
 Nifti format handling
@@ -175,6 +215,12 @@ Writing PNG
 Synthetic
 ---------
 .. automodule:: monai.data.synthetic
+  :members:
+
+
+Ouput folder layout
+-------------------
+.. automodule:: monai.data.folder_layout
   :members:
 
 
@@ -227,3 +273,85 @@ ThreadDataLoader
 TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
+
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.fft_utils
+.. autofunction:: monai.data.fft_utils.fftn_centered
+.. autofunction:: monai.data.fft_utils.ifftn_centered
+
+
+Meta Object
+-----------
+.. automodule:: monai.data.meta_obj
+  :members:
+
+MetaTensor
+----------
+.. autoclass:: monai.data.MetaTensor
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
+
+
+
+Whole slide image reader
+------------------------
+
+BaseWSIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.BaseWSIReader
+  :members:
+
+WSIReader
+~~~~~~~~~
+.. autoclass:: monai.data.WSIReader
+  :members:
+
+CuCIMWSIReader
+~~~~~~~~~~~~~~
+.. autoclass:: monai.data.CuCIMWSIReader
+  :members:
+
+OpenSlideWSIReader
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.OpenSlideWSIReader
+  :members:
+
+Whole slide image datasets
+--------------------------
+
+PatchWSIDataset
+~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.PatchWSIDataset
+    :members:
+
+MaskedPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.MaskedPatchWSIDataset
+    :members:
+
+SlidingPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.SlidingPatchWSIDataset
+    :members:
+
+Bounding box
+------------
+.. automodule:: monai.data.box_utils
+    :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.CameraDataset

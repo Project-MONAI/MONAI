@@ -22,11 +22,11 @@ import torch
 
 from monai.apps import download_and_extract
 from monai.transforms import (
-    AddChanneld,
     Affine,
     Affined,
     AsDiscrete,
     Compose,
+    EnsureChannelFirstd,
     Flip,
     Flipd,
     LoadImaged,
@@ -85,6 +85,7 @@ from monai.transforms.croppad.dictionary import (
 )
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
@@ -115,6 +116,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.intensity.dictionary import (
     AdjustContrastd,
+    ForegroundMaskd,
     GaussianSharpend,
     GaussianSmoothd,
     GibbsNoised,
@@ -176,6 +178,7 @@ from monai.transforms.spatial.dictionary import (
     Spacingd,
 )
 from monai.utils.enums import CommonKeys
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
@@ -193,7 +196,7 @@ def get_data(keys):
     Use MarsAtlas as it only contains 1 image for quick download and
     that image is parcellated.
     """
-    cache_dir = os.environ.get("MONAI_DATA_DIRECTORY") or tempfile.mkdtemp()
+    cache_dir = MONAIEnvVars.data_dir() or tempfile.mkdtemp()
     fname = "MarsAtlas-MNI-Colin27.zip"
     url = "https://www.dropbox.com/s/ndz8qtqblkciole/" + fname + "?dl=1"
     out_path = os.path.join(cache_dir, "MarsAtlas-MNI-Colin27")
@@ -206,7 +209,12 @@ def get_data(keys):
     data = {CommonKeys.IMAGE: image, CommonKeys.LABEL: label}
 
     transforms = Compose(
-        [LoadImaged(keys), AddChanneld(keys), ScaleIntensityd(CommonKeys.IMAGE), Rotate90d(keys, spatial_axes=[0, 2])]
+        [
+            LoadImaged(keys),
+            EnsureChannelFirstd(keys),
+            ScaleIntensityd(CommonKeys.IMAGE),
+            Rotate90d(keys, spatial_axes=[0, 2]),
+        ]
     )
     data = transforms(data)
     max_size = max(data[keys[0]].shape)
@@ -244,7 +252,8 @@ def update_docstring(code_path, transform_name):
     contents.insert(image_line + 1, "    :alt: example of " + transform_name + "\n")
 
     # check that we've only added two lines
-    assert len(contents) == len(contents_orig) + 2
+    if len(contents) != len(contents_orig) + 2:
+        raise AssertionError
 
     # write the updated doc to overwrite the original
     with open(code_path, "w") as f:
@@ -382,7 +391,7 @@ def get_images(data, is_label=False):
         # we might need to panel the images. this happens if a transform produces e.g. 4 output images.
         # In this case, we create a 2-by-2 grid from them. Output will be a list containing n_orthog_views,
         # each element being either the image (if num_samples is 1) or the panelled image.
-        nrows = int(np.floor(num_samples ** 0.5))
+        nrows = int(np.floor(num_samples**0.5))
         for view in range(num_orthog_views):
             result = np.asarray([d[view] for d in data])
             nindex, height, width = result.shape
@@ -412,7 +421,9 @@ def create_transform_im(
         seed = seed + 1 if isinstance(transform, MapTransform) else seed
         transform.set_random_state(seed)
 
-    out_dir = os.environ.get("MONAI_DOC_IMAGES")
+    from monai.utils.misc import MONAIEnvVars
+
+    out_dir = MONAIEnvVars.doc_images()
     if out_dir is None:
         raise RuntimeError(
             "Please git clone https://github.com/Project-MONAI/DocImages"
@@ -456,7 +467,6 @@ if __name__ == "__main__":
     create_transform_im(RandFlip, dict(prob=1, spatial_axis=1), data)
     create_transform_im(RandFlipd, dict(keys=keys, prob=1, spatial_axis=2), data)
     create_transform_im(Flip, dict(spatial_axis=1), data)
-    create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Flipd, dict(keys=keys, spatial_axis=2), data)
     create_transform_im(Orientation, dict(axcodes="RPI", image_only=True), data)
     create_transform_im(Orientationd, dict(keys=keys, axcodes="RPI"), data)
@@ -583,6 +593,8 @@ if __name__ == "__main__":
     create_transform_im(
         MaskIntensityd, dict(keys=CommonKeys.IMAGE, mask_key=CommonKeys.IMAGE, select_fn=lambda x: x > 0.3), data
     )
+    create_transform_im(ForegroundMask, dict(invert=True), data)
+    create_transform_im(ForegroundMaskd, dict(keys=CommonKeys.IMAGE, invert=True), data)
     create_transform_im(GaussianSmooth, dict(sigma=2), data)
     create_transform_im(GaussianSmoothd, dict(keys=CommonKeys.IMAGE, sigma=2), data)
     create_transform_im(RandGaussianSmooth, dict(prob=1.0, sigma_x=(1, 2)), data)
@@ -717,7 +729,7 @@ if __name__ == "__main__":
 
     create_transform_im(
         RandSmoothDeform,
-        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="blinear"),
+        dict(spatial_size=(217, 217, 217), rand_size=(10, 10, 10), prob=1.0, def_range=0.05, grid_mode="bilinear"),
         data,
     )
     create_transform_im(
@@ -728,7 +740,7 @@ if __name__ == "__main__":
             rand_size=(10, 10, 10),
             prob=1.0,
             def_range=0.05,
-            grid_mode="blinear",
+            grid_mode="bilinear",
         ),
         data,
     )

@@ -10,21 +10,29 @@
 # limitations under the License.
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.transforms import Affined
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
                 dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0), device=device),
                 {"img": p(np.arange(9).reshape((1, 3, 3)))},
+                p(np.arange(9).reshape(1, 3, 3)),
+            ]
+        )
+        TESTS.append(
+            [
+                dict(keys="img", padding_mode="zeros", spatial_size=(-1, 0), device=device, dtype=None),
+                {"img": p(np.arange(9, dtype=float).reshape((1, 3, 3)))},
                 p(np.arange(9).reshape(1, 3, 3)),
             ]
         )
@@ -152,9 +160,11 @@ for p in TEST_NDARRAYS:
 class TestAffined(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_affine(self, input_param, input_data, expected_val):
+        input_copy = deepcopy(input_data)
         g = Affined(**input_param)
-        result = g(input_data)["img"]
-        assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
+        result = g(input_data)
+        test_local_inversion(g, result, input_copy, dict_key="img")
+        assert_allclose(result["img"], expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
 
 
 if __name__ == "__main__":

@@ -41,6 +41,12 @@ Mean Dice metrics handler
     :members:
 
 
+Mean IoU metric handler
+-----------------------
+.. autoclass:: MeanIoUHandler
+    :members:
+
+
 ROC AUC metrics handler
 -----------------------
 .. autoclass:: ROCAUC
@@ -92,12 +98,6 @@ Peak signal to noise ratio metrics handler
 Metric logger
 -------------
 .. autoclass:: MetricLogger
-    :members:
-
-
-Segmentation saver
-------------------
-.. autoclass:: SegmentationSaver
     :members:
 
 
@@ -173,4 +173,9 @@ NVTX Handlers
 Utilities
 ---------
 .. automodule:: monai.handlers.utils
+  :members:
+
+Probability Map Handlers
+------------------------
+.. automodule:: monai.handlers.probability_maps
   :members:

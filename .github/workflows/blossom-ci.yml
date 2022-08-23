@@ -29,9 +29,12 @@ jobs:
       args: ${{ env.args }}
 
     # This job only runs for pull request comments
-    if: |
-         contains( 'madil90,Nic-Ma,wyli,', format('{0},', github.actor)) &&
-         github.event.comment.body == '/build'
+    if: contains('\
+      Nic-Ma,\
+      wyli,\
+      pxLi,\
+      YanxuanLiu,\
+      ', format('{0},', github.actor)) && github.event.comment.body == '/build'
     steps:
       - name: Check if comment is issued by authorized person
         run: blossom-ci

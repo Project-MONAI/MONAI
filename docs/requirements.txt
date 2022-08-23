@@ -1,6 +1,6 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.6.0%2Bcpu-cp37-cp37m-linux_x86_64.whl
 torch>=1.6
-pytorch-ignite==0.4.7
+pytorch-ignite==0.4.9
 numpy>=1.17
 itk>=5.2
 nibabel
@@ -25,3 +25,9 @@ mlflow
 tensorboardX
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
+pyyaml
+fire
+jsonschema
+pynrrd
+pydicom
+h5py

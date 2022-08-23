@@ -37,6 +37,7 @@ class ImageDataset(Dataset, Randomizable):
         labels: Optional[Sequence[float]] = None,
         transform: Optional[Callable] = None,
         seg_transform: Optional[Callable] = None,
+        label_transform: Optional[Callable] = None,
         image_only: bool = True,
         transform_with_metadata: bool = False,
         dtype: DtypeLike = np.float32,
@@ -49,19 +50,20 @@ class ImageDataset(Dataset, Randomizable):
         to the images and `seg_transform` to the segmentations.
 
         Args:
-            image_files: list of image filenames
-            seg_files: if in segmentation task, list of segmentation filenames
-            labels: if in classification task, list of classification labels
-            transform: transform to apply to image arrays
-            seg_transform: transform to apply to segmentation arrays
-            image_only: if True return only the image volume, otherwise, return image volume and the metadata
+            image_files: list of image filenames.
+            seg_files: if in segmentation task, list of segmentation filenames.
+            labels: if in classification task, list of classification labels.
+            transform: transform to apply to image arrays.
+            seg_transform: transform to apply to segmentation arrays.
+            label_transform: transform to apply to the label data.
+            image_only: if True return only the image volume, otherwise, return image volume and the metadata.
             transform_with_metadata: if True, the metadata will be passed to the transforms whenever possible.
-            dtype: if not None convert the loaded image to this data type
-            reader: register reader to load image file and meta data, if None, will use the default readers.
+            dtype: if not None convert the loaded image to this data type.
+            reader: register reader to load image file and metadata, if None, will use the default readers.
                 If a string of reader name provided, will construct a reader object with the `*args` and `**kwargs`
                 parameters, supported reader name: "NibabelReader", "PILReader", "ITKReader", "NumpyReader"
-            args: additional parameters for reader if providing a reader name
-            kwargs: additional parameters for reader if providing a reader name
+            args: additional parameters for reader if providing a reader name.
+            kwargs: additional parameters for reader if providing a reader name.
 
         Raises:
             ValueError: When ``seg_files`` length differs from ``image_files``
@@ -79,6 +81,7 @@ class ImageDataset(Dataset, Randomizable):
         self.labels = labels
         self.transform = transform
         self.seg_transform = seg_transform
+        self.label_transform = label_transform
         if image_only and transform_with_metadata:
             raise ValueError("transform_with_metadata=True requires image_only=False.")
         self.image_only = image_only
@@ -117,7 +120,7 @@ class ImageDataset(Dataset, Randomizable):
             else:
                 img = apply_transform(self.transform, img, map_items=False)
 
-        if self.seg_transform is not None:
+        if self.seg_files is not None and self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
                 self.seg_transform.set_random_state(seed=self._seed)
 
@@ -130,6 +133,8 @@ class ImageDataset(Dataset, Randomizable):
 
         if self.labels is not None:
             label = self.labels[index]
+            if self.label_transform is not None:
+                label = apply_transform(self.label_transform, label, map_items=False)  # type: ignore
 
         # construct outputs
         data = [img]

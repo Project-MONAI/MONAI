@@ -101,16 +101,15 @@ class SegResNet(nn.Module):
     def _make_down_layers(self):
         down_layers = nn.ModuleList()
         blocks_down, spatial_dims, filters, norm = (self.blocks_down, self.spatial_dims, self.init_filters, self.norm)
-        for i in range(len(blocks_down)):
-            layer_in_channels = filters * 2 ** i
+        for i, item in enumerate(blocks_down):
+            layer_in_channels = filters * 2**i
             pre_conv = (
                 get_conv_layer(spatial_dims, layer_in_channels // 2, layer_in_channels, stride=2)
                 if i > 0
                 else nn.Identity()
             )
             down_layer = nn.Sequential(
-                pre_conv,
-                *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(blocks_down[i])],
+                pre_conv, *[ResBlock(spatial_dims, layer_in_channels, norm=norm, act=self.act) for _ in range(item)]
             )
             down_layers.append(down_layer)
         return down_layers
@@ -299,12 +298,12 @@ class SegResNetVAE(SegResNet):
         if self.vae_estimate_std:
             z_sigma = self.vae_fc2(x_vae)
             z_sigma = F.softplus(z_sigma)
-            vae_reg_loss = 0.5 * torch.mean(z_mean ** 2 + z_sigma ** 2 - torch.log(1e-8 + z_sigma ** 2) - 1)
+            vae_reg_loss = 0.5 * torch.mean(z_mean**2 + z_sigma**2 - torch.log(1e-8 + z_sigma**2) - 1)
 
             x_vae = z_mean + z_sigma * z_mean_rand
         else:
             z_sigma = self.vae_default_std
-            vae_reg_loss = torch.mean(z_mean ** 2)
+            vae_reg_loss = torch.mean(z_mean**2)
 
             x_vae = z_mean + z_sigma * z_mean_rand
 

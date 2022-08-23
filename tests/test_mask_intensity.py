@@ -16,6 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MaskIntensity
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"mask_data": np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])},
@@ -54,8 +55,9 @@ TEST_CASE_5 = [
 class TestMaskIntensity(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, argments, image, expected_data):
-        result = MaskIntensity(**argments)(image)
-        np.testing.assert_allclose(result, expected_data)
+        for p in TEST_NDARRAYS:
+            result = MaskIntensity(**argments)(p(image))
+            assert_allclose(result, p(expected_data), type_test="tensor")
 
     def test_runtime_mask(self):
         mask_data = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])
@@ -63,7 +65,7 @@ class TestMaskIntensity(unittest.TestCase):
         expected = np.array([[[0, 0, 0], [0, 2, 0], [0, 0, 0]], [[0, 0, 0], [0, 5, 0], [0, 0, 0]]])
 
         result = MaskIntensity()(img=img, mask_data=mask_data)
-        np.testing.assert_allclose(result, expected)
+        assert_allclose(result, expected, type_test="tensor")
 
 
 if __name__ == "__main__":

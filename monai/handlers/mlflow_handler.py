@@ -50,6 +50,8 @@ class MLFlowHandler:
             a HTTP/HTTPS URI for a remote server, a database connection string, or a local path
             to log data to a directory. The URI defaults to path `mlruns`.
             for more details: https://mlflow.org/docs/latest/python_api/mlflow.html#mlflow.set_tracking_uri.
+        iteration_log: whether to log data to MLFlow when iteration completed, default to `True`.
+        epoch_log: whether to log data to MLFlow when epoch completed, default to `True`.
         epoch_logger: customized callable logger for epoch level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
@@ -76,6 +78,8 @@ class MLFlowHandler:
     def __init__(
         self,
         tracking_uri: Optional[str] = None,
+        iteration_log: bool = True,
+        epoch_log: bool = True,
         epoch_logger: Optional[Callable[[Engine], Any]] = None,
         iteration_logger: Optional[Callable[[Engine], Any]] = None,
         output_transform: Callable = lambda x: x[0],
@@ -86,6 +90,8 @@ class MLFlowHandler:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
 
+        self.iteration_log = iteration_log
+        self.epoch_log = epoch_log
         self.epoch_logger = epoch_logger
         self.iteration_logger = iteration_logger
         self.output_transform = output_transform
@@ -103,9 +109,9 @@ class MLFlowHandler:
         """
         if not engine.has_event_handler(self.start, Events.STARTED):
             engine.add_event_handler(Events.STARTED, self.start)
-        if not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
+        if self.iteration_log and not engine.has_event_handler(self.iteration_completed, Events.ITERATION_COMPLETED):
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
-        if not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
+        if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
 
     def start(self) -> None:

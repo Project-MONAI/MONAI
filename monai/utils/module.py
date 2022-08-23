@@ -14,12 +14,14 @@ import os
 import re
 import sys
 import warnings
-from functools import wraps
+from functools import partial, wraps
 from importlib import import_module
+from inspect import isclass, isfunction, ismethod
 from pkgutil import walk_packages
+from pydoc import locate
 from re import match
 from types import FunctionType
-from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, cast
+from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping, Tuple, Union, cast
 
 import torch
 
@@ -36,6 +38,7 @@ __all__ = [
     "optional_import",
     "require_pkg",
     "load_submodules",
+    "instantiate",
     "get_full_type_name",
     "get_package_version",
     "get_torch_version_tuple",
@@ -44,7 +47,7 @@ __all__ = [
 ]
 
 
-def look_up_option(opt_str, supported: Collection, default="no_default"):
+def look_up_option(opt_str, supported: Union[Collection, enum.EnumMeta], default="no_default", print_all_options=True):
     """
     Look up the option in the supported collection and return the matched item.
     Raise a value error possibly with a guess of the closest match.
@@ -55,6 +58,7 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         default: If it is given, this method will return `default` when `opt_str` is not found,
             instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
             so that the method may raise a `ValueError`.
+        print_all_options: whether to print all available options when `opt_str` is not found. Defaults to True
 
     Examples:
 
@@ -110,12 +114,12 @@ def look_up_option(opt_str, supported: Collection, default="no_default"):
         if edit_dist <= 3:
             edit_dists[key] = edit_dist
 
-    supported_msg = f"Available options are {set_to_check}.\n"
+    supported_msg = f"Available options are {set_to_check}.\n" if print_all_options else ""
     if edit_dists:
         guess_at_spelling = min(edit_dists, key=edit_dists.get)  # type: ignore
         raise ValueError(
             f"By '{opt_str}', did you mean '{guess_at_spelling}'?\n"
-            + f"'{opt_str}' is not a valid option.\n"
+            + f"'{opt_str}' is not a valid value.\n"
             + supported_msg
         )
     raise ValueError(f"Unsupported option '{opt_str}', " + supported_msg)
@@ -193,7 +197,40 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
     return submodules, err_mod
 
 
+def instantiate(path: str, **kwargs):
+    """
+    Create an object instance or partial function from a class or function represented by string.
+    `kwargs` will be part of the input arguments to the class constructor or function.
+    The target component must be a class or a function, if not, return the component directly.
+
+    Args:
+        path: full path of the target class or function component.
+        kwargs: arguments to initialize the class instance or set default args
+            for `partial` function.
+
+    """
+
+    component = locate(path)
+    if component is None:
+        raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
+    try:
+        if isclass(component):
+            return component(**kwargs)
+        # support regular function, static method and class method
+        if isfunction(component) or (ismethod(component) and isclass(getattr(component, "__self__", None))):
+            return partial(component, **kwargs)
+    except Exception as e:
+        raise RuntimeError(f"Failed to instantiate '{path}' with kwargs: {kwargs}") from e
+
+    warnings.warn(f"Component to instantiate must represent a valid class or function, but got {path}.")
+    return component
+
+
 def get_full_type_name(typeobj):
+    """
+    Utility to get the full path name of a class or object type.
+
+    """
     module = typeobj.__module__
     if module is None or module == str.__class__.__module__:
         return typeobj.__name__  # Avoid reporting __builtin__
@@ -421,9 +458,12 @@ def version_leq(lhs: str, rhs: str):
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    ver, has_ver = optional_import("pkg_resources", name="parse_version")
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
-        return ver(lhs) <= ver(rhs)
+        try:
+            return pkging.version.Version(lhs) <= pkging.version.Version(rhs)
+        except pkging.version.InvalidVersion:
+            return True
 
     def _try_cast(val: str):
         val = val.strip()

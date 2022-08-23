@@ -96,6 +96,7 @@ TEST_CASE_5 = [  # 4-channel 3D, batch 16, LeakyReLU activation
         "strides": (2, 2),
         "num_res_units": 1,
         "act": (Act.LEAKYRELU, {"negative_slope": 0.2}),
+        "adn_ordering": "NA",
     },
     (16, 4, 32, 64, 48),
     (16, 3, 32, 64, 48),
@@ -198,7 +199,7 @@ class TestUNET(unittest.TestCase):
     @parameterized.expand(ILL_CASES)
     def test_ill_input_hyper_params(self, input_param):
         with self.assertRaises(ValueError):
-            net = UNet(**input_param)
+            _ = UNet(**input_param)
 
 
 if __name__ == "__main__":

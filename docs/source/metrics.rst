@@ -39,6 +39,20 @@ Metrics
 .. autoclass:: DiceMetric
     :members:
 
+`Mean IoU`
+----------
+.. autofunction:: compute_meaniou
+
+.. autoclass:: MeanIoU
+    :members:
+
+`Generalized Dice Score`
+------------------------
+.. autofunction:: compute_generalized_dice
+
+.. autoclass:: GeneralizedDiceScore
+    :members:
+
 `Area under the ROC curve`
 --------------------------
 .. autofunction:: compute_roc_auc
@@ -69,6 +83,13 @@ Metrics
 .. autoclass:: SurfaceDistanceMetric
     :members:
 
+`Surface dice`
+--------------
+.. autofunction:: compute_surface_dice
+
+.. autoclass:: SurfaceDiceMetric
+    :members:
+
 `Mean squared error`
 --------------------
 .. autoclass:: MSEMetric
@@ -88,6 +109,10 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`
 --------------------

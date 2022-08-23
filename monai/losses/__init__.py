@@ -16,16 +16,21 @@ from .dice import (
     DiceCELoss,
     DiceFocalLoss,
     DiceLoss,
+    GeneralizedDiceFocalLoss,
     GeneralizedDiceLoss,
     GeneralizedWassersteinDiceLoss,
     MaskedDiceLoss,
     dice_ce,
     dice_focal,
     generalized_dice,
+    generalized_dice_focal,
     generalized_wasserstein_dice,
 )
 from .focal_loss import FocalLoss
+from .giou_loss import BoxGIoULoss, giou
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
 from .spatial_mask import MaskedLoss
+from .ssim_loss import SSIMLoss
 from .tversky import TverskyLoss
+from .unified_focal_loss import AsymmetricUnifiedFocalLoss

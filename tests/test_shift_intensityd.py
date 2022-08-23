@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import IntensityStatsd, ShiftIntensityd
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -24,13 +25,13 @@ class TestShiftIntensityd(NumpyImageTestCase2D):
             shifter = ShiftIntensityd(keys=[key], offset=1.0)
             result = shifter({key: p(self.imt)})
             expected = self.imt + 1.0
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_factor(self):
         key = "img"
         stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
         shifter = ShiftIntensityd(keys=[key], offset=1.0, factor_key=["orig_max"])
-        data = {key: self.imt, key + "_meta_dict": {"affine": None}}
+        data = {key: self.imt, PostFix.meta(key): {"affine": None}}
 
         result = shifter(stats(data))
         expected = self.imt + 1.0 * np.nanmax(self.imt)

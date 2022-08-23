@@ -4,13 +4,14 @@
 1. [From PyPI](#from-pypi)
 	1. [Milestone release](#milestone-release)
 	2. [Weekly preview release](#weekly-preview-release)
+1. [From conda-forge](#from-conda-forge)
 2. [From GitHub](#from-github)
 	1. [System-wide](#milestone-release)
 	2. [Editable](#weekly-preview-release)
 3. [Validating the install](#validating-the-install)
 4. [MONAI version string](#monai-version-string)
 5. [From DockerHub](#from-dockerhub)
-6. [Installing the recommended dependencies](#Installing-the-recommended-dependencies)
+6. [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
 ---
 
@@ -47,6 +48,13 @@ To report any issues on the weekly preview, please include the version and commi
 python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
 ```
 
+## From conda-forge
+
+To install the [current milestone release](https://anaconda.org/conda-forge/monai):
+```bash
+conda install -c conda-forge monai
+```
+
 ## From GitHub
 (_If you have installed the
 PyPI release version using ``pip install monai``, please run ``pip uninstall
@@ -61,7 +69,7 @@ for the latest features:
 ```bash
 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
-or, to build with MONAI Cpp/CUDA extensions:
+or, to build with MONAI C++/CUDA extensions:
 ```bash
 BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=monai
 ```
@@ -87,7 +95,7 @@ You can install it by running:
 cd MONAI/
 python setup.py develop
 ```
-or, to build with MONAI Cpp/CUDA extensions and install:
+or, to build with MONAI C++/CUDA extensions and install:
 ```bash
 cd MONAI/
 BUILD_MONAI=1 python setup.py develop
@@ -106,6 +114,12 @@ python setup.py develop --uninstall
 
 Alternatively, simply adding the root directory of the cloned source code (e.g., ``/workspace/Documents/MONAI``) to your ``$PYTHONPATH``
 and the codebase is ready to use (without the additional features of MONAI C++/CUDA extensions).
+
+> The C++/CUDA extension features are currently experimental, a pre-compiled version is made available via
+> [the recent docker image releases](https://hub.docker.com/r/projectmonai/monai).
+> Building the extensions from source may require [Ninja](https://ninja-build.org/) and [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit).
+> By default, CUDA extension is built if `torch.cuda.is_available()`. It's possible to force building by
+> setting ``FORCE_CUDA=1`` environment variable.
 
 
 ## Validating the install
@@ -163,21 +177,28 @@ cd MONAI/
 pip install -e '.[all]'
 ```
 
-To install all optional dependencies for MONAI development:
+To install all optional dependencies with `pip` based on MONAI development environment settings:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
 pip install -r requirements-dev.txt
 ```
 
+To install all optional dependencies with `conda` based on MONAI development environment settings:
+```bash
+git clone https://github.com/Project-MONAI/MONAI.git
+cd MONAI/
+conda create -n <name> python=<ver>  # eg 3.9
+conda env update -n <name> -f environment-dev.yml
+```
+
 Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is available via PyPI.
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom, h5py]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`,
-`tifffile`, `imagecodecs`, respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, h5py , respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

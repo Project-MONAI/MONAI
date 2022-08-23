@@ -12,10 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import AsChannelFirst
+from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
@@ -32,13 +32,11 @@ class TestAsChannelFirst(unittest.TestCase):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))
         result = AsChannelFirst(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
-        if isinstance(test_data, torch.Tensor):
-            test_data = test_data.cpu().numpy()
         if isinstance(input_param["channel_dim"], int):
-            expected = np.moveaxis(test_data, input_param["channel_dim"], 0)
+            expected = moveaxis(test_data, input_param["channel_dim"], 0)
         else:  # sequence
-            expected = np.moveaxis(test_data, input_param["channel_dim"], tuple(range(len(input_param["channel_dim"]))))
-        assert_allclose(result, expected, type_test=False)
+            expected = moveaxis(test_data, input_param["channel_dim"], tuple(range(len(input_param["channel_dim"]))))
+        assert_allclose(result, expected, type_test="tensor")
 
 
 if __name__ == "__main__":

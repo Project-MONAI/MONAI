@@ -20,7 +20,7 @@ class TestAdaptors(unittest.TestCase):
         def foo(image, label=None, *a, **kw):
             pass
 
-        f = FunctionSignature(foo)
+        _ = FunctionSignature(foo)
 
     def test_single_in_single_out(self):
         def foo(image):

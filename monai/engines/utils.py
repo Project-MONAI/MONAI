@@ -17,7 +17,7 @@ import torch
 from monai.config import IgniteInfo
 from monai.transforms import apply_transform
 from monai.utils import ensure_tuple, min_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import CommonKeys, GanKeys
 
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
@@ -26,7 +26,6 @@ else:
 
 __all__ = [
     "IterationEvents",
-    "GanKeys",
     "get_devices_spec",
     "default_prepare_batch",
     "PrepareBatch",
@@ -57,19 +56,6 @@ class IterationEvents(EventEnum):
     MODEL_COMPLETED = "model_completed"
     INNER_ITERATION_STARTED = "inner_iteration_started"
     INNER_ITERATION_COMPLETED = "inner_iteration_completed"
-
-
-class GanKeys:
-    """
-    A set of common keys for generative adversarial networks.
-
-    """
-
-    REALS = "reals"
-    FAKES = "fakes"
-    LATENTS = "latents"
-    GLOSS = "g_loss"
-    DLOSS = "d_loss"
 
 
 def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[torch.device]:
@@ -104,12 +90,16 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor], device: Optional[Union[str, torch.device]] = None, non_blocking: bool = False
+    batchdata: Dict[str, torch.Tensor],
+    device: Optional[Union[str, torch.device]] = None,
+    non_blocking: bool = False,
+    **kwargs,
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
-    Refer to ignite: https://pytorch.org/ignite/v0.4.5/generated/ignite.engine.create_supervised_trainer.html
-    #ignite.engine.create_supervised_trainer.
+    Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
+    https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
+    `kwargs` supports other args for `Tensor.to()` API.
 
     Returns:
         image, label(optional).
@@ -119,18 +109,21 @@ def default_prepare_batch(
         raise AssertionError("default prepare_batch expects dictionary input data.")
     if isinstance(batchdata.get(CommonKeys.LABEL), torch.Tensor):
         return (
-            batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking),
-            batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking),
+            batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking, **kwargs),
+            batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking, **kwargs),
         )
     if GanKeys.REALS in batchdata:
-        return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking)
-    return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking), None
+        return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking, **kwargs)
+    return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking, **kwargs), None
 
 
 class PrepareBatch(ABC):
     """
     Interface of customized prepare_batch in the trainer or evaluator workflows.
     It takes the data of current batch, target device and non_blocking flag as input.
+    Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
+    https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
+    `kwargs` supports other args for `Tensor.to()` API.
 
     """
 
@@ -140,6 +133,7 @@ class PrepareBatch(ABC):
         batchdata: Dict[str, torch.Tensor],
         device: Optional[Union[str, torch.device]] = None,
         non_blocking: bool = False,
+        **kwargs,
     ):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
@@ -155,8 +149,15 @@ class PrepareBatchDefault(PrepareBatch):
         batchdata: Dict[str, torch.Tensor],
         device: Optional[Union[str, torch.device]] = None,
         non_blocking: bool = False,
+        **kwargs,
     ):
-        return default_prepare_batch(batchdata, device, non_blocking)
+        """
+        Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
+        https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
+        `kwargs` supports other args for `Tensor.to()` API.
+
+        """
+        return default_prepare_batch(batchdata, device, non_blocking, **kwargs)
 
 
 class PrepareBatchExtraInput(PrepareBatch):
@@ -181,29 +182,42 @@ class PrepareBatchExtraInput(PrepareBatch):
         batchdata: Dict[str, torch.Tensor],
         device: Optional[Union[str, torch.device]] = None,
         non_blocking: bool = False,
+        **kwargs,
     ):
-        image, label = default_prepare_batch(batchdata, device, non_blocking)
-        args = list()
-        kwargs = dict()
+        """
+        Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
+        https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
+        `kwargs` supports other args for `Tensor.to()` API.
+
+        """
+        image, label = default_prepare_batch(batchdata, device, non_blocking, **kwargs)
+        args_ = list()
+        kwargs_ = dict()
 
         def _get_data(key: str):
             data = batchdata[key]
-            return data.to(device=device, non_blocking=non_blocking) if isinstance(data, torch.Tensor) else data
+            return (
+                data.to(device=device, non_blocking=non_blocking, **kwargs) if isinstance(data, torch.Tensor) else data
+            )
 
         if isinstance(self.extra_keys, (str, list, tuple)):
             for k in ensure_tuple(self.extra_keys):
-                args.append(_get_data(k))
+                args_.append(_get_data(k))
         elif isinstance(self.extra_keys, dict):
             for k, v in self.extra_keys.items():
-                kwargs.update({k: _get_data(v)})
+                kwargs_.update({k: _get_data(v)})
 
-        return image, label, tuple(args), kwargs
+        return image, label, tuple(args_), kwargs_
 
 
 def default_make_latent(
-    num_latents: int, latent_size: int, device: Optional[Union[str, torch.device]] = None, non_blocking: bool = False
+    num_latents: int,
+    latent_size: int,
+    device: Optional[Union[str, torch.device]] = None,
+    non_blocking: bool = False,
+    **kwargs,
 ) -> torch.Tensor:
-    return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking)
+    return torch.randn(num_latents, latent_size).to(device=device, non_blocking=non_blocking, **kwargs)
 
 
 def engine_apply_transform(batch: Any, output: Any, transform: Callable[..., Dict]):

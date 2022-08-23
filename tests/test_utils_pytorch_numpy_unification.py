@@ -13,10 +13,17 @@ import unittest
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
-from monai.transforms.utils_pytorch_numpy_unification import percentile
+from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
+
+TEST_MODE = []
+for p in TEST_NDARRAYS:
+    TEST_MODE.append([p(np.array([1, 2, 3, 4, 4, 5])), p(4), False])
+    TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4.1), False])
+    TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4), True])
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
@@ -27,13 +34,22 @@ class TestPytorchNumpyUnification(unittest.TestCase):
         for size in (1, 100):
             q = np.random.randint(0, 100, size=size)
             results = []
-            for p in TEST_NDARRAYS:
-                arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(np.float32))
+            for idx, p in enumerate(TEST_NDARRAYS):
+                dtype = [np.float32, float][idx % 2]
+                arr = p(np.arange(100 * 101).reshape(1, 100, 101).astype(dtype))
                 results.append(percentile(arr, q))
-                # pre torch 1.7, no `quantile`. Our own method doesn't interpolate,
-                # so we can only be accurate to 0.5
-                atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
-                assert_allclose(results[0], results[-1], type_test=False, atol=atol)
+                assert_allclose(results[0], results[-1], type_test=False, atol=1e-4, rtol=1e-4)
+
+    @skip_if_quick
+    def test_many_elements_quantile(self):  # pytorch#64947
+        for p in TEST_NDARRAYS:
+            for elements in (1000, 17_000_000):
+                for t in [*TEST_NDARRAYS, list]:
+                    x = p(np.random.randn(elements))
+                    q = percentile(x, t([10, 50]))
+                    if isinstance(x, torch.Tensor):
+                        self.assertIsInstance(q, torch.Tensor)
+                    assert_allclose(q.shape, [2], type_test=False)
 
     def test_fails(self):
         for p in TEST_NDARRAYS:
@@ -42,17 +58,18 @@ class TestPytorchNumpyUnification(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     percentile(arr, q)
 
-    @SkipIfBeforePyTorchVersion((1, 7))
     def test_dim(self):
         q = np.random.randint(0, 100, size=50)
         results = []
         for p in TEST_NDARRAYS:
             arr = p(np.arange(6).reshape(1, 2, 3).astype(np.float32))
             results.append(percentile(arr, q, dim=1))
-            # pre torch 1.7, no `quantile`. Our own method doesn't interpolate,
-            # so we can only be accurate to 0.5
-            atol = 0.5 if not hasattr(torch, "quantile") else 1e-4
-            assert_allclose(results[0], results[-1], type_test=False, atol=atol)
+            assert_allclose(results[0], results[-1], type_test=False, atol=1e-4)
+
+    @parameterized.expand(TEST_MODE)
+    def test_mode(self, array, expected, to_long):
+        res = mode(array, to_long=to_long)
+        assert_allclose(res, expected)
 
 
 if __name__ == "__main__":

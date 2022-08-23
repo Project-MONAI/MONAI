@@ -13,12 +13,18 @@ import unittest
 
 import torch
 from ignite.engine import EventEnum, Events
+from parameterized import parameterized
 
 from monai.engines import EnsembleEvaluator
 
+TEST_CASE_1 = [["pred_0", "pred_1", "pred_2", "pred_3", "pred_4"]]
+
+TEST_CASE_2 = [None]
+
 
 class TestEnsembleEvaluator(unittest.TestCase):
-    def test_content(self):
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_content(self, pred_keys):
         device = torch.device("cpu:0")
 
         class TestDataset(torch.utils.data.Dataset):
@@ -52,7 +58,7 @@ class TestEnsembleEvaluator(unittest.TestCase):
             device=device,
             val_data_loader=val_loader,
             networks=[net0, net1, net2, net3, net4],
-            pred_keys=["pred0", "pred1", "pred2", "pred3", "pred4"],
+            pred_keys=pred_keys,
             event_names=["bwd_event", "opt_event", CustomEvents],
             event_to_attr={CustomEvents.FOO_EVENT: "foo", "opt_event": "opt"},
         )
@@ -61,7 +67,7 @@ class TestEnsembleEvaluator(unittest.TestCase):
         def run_transform(engine):
             for i in range(5):
                 expected_value = engine.state.iteration + i
-                torch.testing.assert_allclose(engine.state.output[0][f"pred{i}"].item(), expected_value)
+                torch.testing.assert_allclose(engine.state.output[0][f"pred_{i}"].item(), expected_value)
 
         @val_engine.on(Events.EPOCH_COMPLETED)
         def trigger_custom_event():

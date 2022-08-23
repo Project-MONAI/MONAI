@@ -13,18 +13,23 @@ import copy
 import datetime
 import functools
 import importlib
+import json
+import operator
 import os
 import queue
+import ssl
+import subprocess
 import sys
 import tempfile
 import time
 import traceback
 import unittest
 import warnings
-from functools import partial
+from contextlib import contextmanager
+from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from typing import Callable, Optional, Tuple, Union
+from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
 import torch
@@ -35,6 +40,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
+from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
@@ -44,6 +50,17 @@ nib, _ = optional_import("nibabel")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
+_test_data_config: dict = {}
+
+
+def testing_data_config(*keys):
+    """get _test_data_config[keys0][keys1]...[keysN]"""
+    if not _test_data_config:
+        with open(os.path.join(os.path.dirname(__file__), "testing_data", "data_config.json")) as c:
+            _config = json.load(c)
+            for k, v in _config.items():
+                _test_data_config[k] = v
+    return reduce(operator.getitem, keys, _test_data_config)
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -62,7 +79,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: bool = True,
+    type_test: Union[bool, str] = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -74,13 +91,22 @@ def assert_allclose(
         actual: Pytorch Tensor or numpy array for comparison.
         desired: Pytorch Tensor or numpy array to compare against.
         type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+            if type_test == "tensor", it checks whether the `actual` is a torch.tensor or metatensor according to
+            `get_track_meta`.
         device_test: whether to test the device property.
         args: extra arguments to pass on to `np.testing.assert_allclose`.
         kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
 
 
     """
-    if type_test:
+    if isinstance(type_test, str) and type_test == "tensor":
+        if get_track_meta():
+            np.testing.assert_equal(isinstance(actual, MetaTensor), True, "must be a MetaTensor")
+        else:
+            np.testing.assert_equal(
+                isinstance(actual, torch.Tensor) and not isinstance(actual, MetaTensor), True, "must be a torch.Tensor"
+            )
+    elif type_test:
         # check both actual and desired are of the same type
         np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
         np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
@@ -88,20 +114,35 @@ def assert_allclose(
     if isinstance(desired, torch.Tensor) or isinstance(actual, torch.Tensor):
         if device_test:
             np.testing.assert_equal(str(actual.device), str(desired.device), "torch device check")  # type: ignore
-        actual = actual.cpu().numpy() if isinstance(actual, torch.Tensor) else actual
-        desired = desired.cpu().numpy() if isinstance(desired, torch.Tensor) else desired
+        actual = actual.detach().cpu().numpy() if isinstance(actual, torch.Tensor) else actual
+        desired = desired.detach().cpu().numpy() if isinstance(desired, torch.Tensor) else desired
     np.testing.assert_allclose(actual, desired, *args, **kwargs)
 
 
-def test_pretrained_networks(network, input_param, device):
+@contextmanager
+def skip_if_downloading_fails():
     try:
+        yield
+    except (ContentTooShortError, HTTPError, ConnectionError) as e:
+        raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
+    except RuntimeError as rt_e:
+        if "unexpected EOF" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
+        if "network issue" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "gdown dependency" in str(rt_e):  # no gdown installed
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        if "md5 check" in str(rt_e):
+            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
+        raise rt_e
+
+
+def test_pretrained_networks(network, input_param, device):
+    with skip_if_downloading_fails():
         return network(**input_param).to(device)
-    except (URLError, HTTPError) as e:
-        raise unittest.SkipTest(e) from e
-    except RuntimeError as r_error:
-        if "unexpected EOF" in f"{r_error}":  # The file might be corrupted.
-            raise unittest.SkipTest(f"{r_error}") from r_error
-        raise
 
 
 def test_is_quick():
@@ -172,23 +213,30 @@ class SkipIfModule:
 
 def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extension is not available
+    Skip the unit tests if the cpp extension is not available.
     """
     return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
-    Skip the unit tests if torch.cuda.is_available is False
+    Skip the unit tests if torch.cuda.is_available is False.
     """
     return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
     """
-    Skip the unit tests if platform is win32
+    Skip the unit tests if platform is win32.
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+def skip_if_darwin(obj):
+    """
+    Skip the unit tests if platform is macOS (Darwin).
+    """
+    return unittest.skipIf(sys.platform == "darwin", "Skipping tests on macOS/Darwin")(obj)
 
 
 class SkipIfBeforePyTorchVersion:
@@ -219,11 +267,20 @@ class SkipIfAtLeastPyTorchVersion:
         )(obj)
 
 
+def is_main_test_process():
+    ps = torch.multiprocessing.current_process()
+    if not ps or not hasattr(ps, "name"):
+        return False
+    return ps.name.startswith("Main")
+
+
 def has_cupy():
     """
     Returns True if the user has installed a version of cupy.
     """
     cp, has_cp = optional_import("cupy")
+    if not is_main_test_process():
+        return has_cp  # skip the check if we are running in subprocess
     if not has_cp:
         return False
     try:  # test cupy installation with a basic example
@@ -232,7 +289,10 @@ def has_cupy():
         kernel = cp.ElementwiseKernel(
             "float32 x, float32 y", "float32 z", """ if (x - 2 > y) { z = x * y; } else { z = x + y; } """, "my_kernel"
         )
-        return kernel(x, y)[0, 0] == 0
+        flag = kernel(x, y)[0, 0] == 0
+        del x, y, kernel
+        cp.get_default_memory_pool().free_all_blocks()
+        return flag
     except Exception:
         return False
 
@@ -240,7 +300,7 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None):
+def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -253,10 +313,23 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None):
         affine = np.eye(4)
     test_image = nib.Nifti1Image(array, affine)
 
-    temp_f, image_name = tempfile.mkstemp(suffix=".nii.gz")
-    nib.save(test_image, image_name)
-    os.close(temp_f)
-    return image_name
+    # if dir not given, create random. Else, make sure it exists.
+    if dir is None:
+        dir = tempfile.mkdtemp()
+    else:
+        os.makedirs(dir, exist_ok=True)
+
+    # If fname not given, get random one. Else, concat dir, fname and suffix.
+    if fname is None:
+        temp_f, fname = tempfile.mkstemp(suffix=suffix, dir=dir)
+        os.close(temp_f)
+    else:
+        fname = os.path.join(dir, fname + suffix)
+
+    nib.save(test_image, fname)
+    if verbose:
+        print(f"File written: {fname}.")
+    return fname
 
 
 def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
@@ -535,13 +608,11 @@ _original_funcs = {}
 
 def _cache_original_func(obj) -> None:
     """cache the original function by name, so that the decorator doesn't shadow it."""
-    global _original_funcs
     _original_funcs[obj.__name__] = obj
 
 
 def _del_original_func(obj):
     """pop the original function from cache."""
-    global _original_funcs
     _original_funcs.pop(obj.__name__, None)
     if torch.cuda.is_available():  # clean up the cached function
         torch.cuda.synchronize()
@@ -636,14 +707,8 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
 
 def download_url_or_skip_test(*args, **kwargs):
     """``download_url`` and skip the tests if any downloading error occurs."""
-    try:
+    with skip_if_downloading_fails():
         download_url(*args, **kwargs)
-    except (ContentTooShortError, HTTPError) as e:
-        raise unittest.SkipTest(f"error while downloading: {e}") from e
-    except RuntimeError as rt_e:
-        if "network issue" in str(rt_e):
-            raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        raise rt_e
 
 
 def query_memory(n=2):
@@ -664,10 +729,52 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
+    """test that invertible_xform can bring to_invert back to im"""
+    im_item = im if dict_key is None else im[dict_key]
+    if not isinstance(im_item, MetaTensor):
+        return
+    im_ref = copy.deepcopy(im)
+    im_inv = invertible_xform.inverse(to_invert)
+    if dict_key:
+        im_inv = im_inv[dict_key]
+        im_ref = im_ref[dict_key]
+    np.testing.assert_array_equal(im_inv.applied_operations, [])
+    assert_allclose(im_inv.shape, im_ref.shape)
+    assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
+
+
+def command_line_tests(cmd, copy_env=True):
+    test_env = os.environ.copy() if copy_env else os.environ
+    print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+    try:
+        normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+    except subprocess.CalledProcessError as e:
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
+    TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
+
+DEFAULT_TEST_AFFINE = torch.tensor(
+    [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+)
+_metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
+TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+# alias for branch tests
+TEST_NDARRAYS_ALL = TEST_NDARRAYS
+
+
+TEST_DEVICES = [[torch.device("cpu")]]
+if torch.cuda.is_available():
+    TEST_DEVICES.append([torch.device("cuda")])
 
 
 if __name__ == "__main__":

@@ -39,9 +39,9 @@ def default_normalizer(x: NdarrayTensor) -> NdarrayTensor:
         return np.stack([scaler(i) for i in data], axis=0)
 
     if isinstance(x, torch.Tensor):
-        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)
+        return torch.as_tensor(_compute(x.detach().cpu().numpy()), device=x.device)  # type: ignore
 
-    return _compute(x)
+    return _compute(x)  # type: ignore
 
 
 class ModelWithHooks:
@@ -89,7 +89,7 @@ class ModelWithHooks:
                     mod.register_backward_hook(self.backward_hook(name))
             if self.register_forward:
                 mod.register_forward_hook(self.forward_hook(name))
-        if len(_registered) != len(self.target_layers):
+        if self.target_layers and (len(_registered) != len(self.target_layers)):
             warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
 
     def backward_hook(self, name):
@@ -139,10 +139,10 @@ class ModelWithHooks:
             self.score.sum().backward(retain_graph=retain_graph)
             for layer in self.target_layers:
                 if layer not in self.gradients:
-                    raise RuntimeError(
+                    warnings.warn(
                         f"Backward hook for {layer} is not triggered; `requires_grad` of {layer} should be `True`."
                     )
-            grad = tuple(self.gradients[layer] for layer in self.target_layers)
+            grad = tuple(self.gradients[layer] for layer in self.target_layers if layer in self.gradients)
         if train:
             self.model.train()
         return logits, acti, grad

@@ -32,8 +32,9 @@ from monai.transforms import (
     RandScaleIntensityd,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
+from monai.transforms.spatial.dictionary import RandFlipd
 from monai.utils import optional_import, set_determinism
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
 
 if TYPE_CHECKING:
@@ -57,12 +58,10 @@ class TestTestTimeAugmentation(unittest.TestCase):
         data = []
         for i in range(num_examples):
             im, label = custom_create_test_image_2d()
-            d = {}
-            d["image"] = data_type(im[:, i:])
-            d["image_meta_dict"] = {"affine": np.eye(4)}
+            d = {"image": data_type(im[:, i:])}
             if include_label:
                 d["label"] = data_type(label[:, i:])
-                d["label_meta_dict"] = {"affine": np.eye(4)}
+                d[PostFix.meta("label")] = {"affine": np.eye(4)}
             data.append(d)
         return data[0] if num_examples == 1 else data
 
@@ -73,12 +72,13 @@ class TestTestTimeAugmentation(unittest.TestCase):
         set_determinism(None)
 
     def test_test_time_augmentation(self):
-        input_size = (20, 20)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        input_size = (20, 40)  # test different input data shape to pad list collate
         keys = ["image", "label"]
         num_training_ims = 10
+
         train_data = self.get_data(num_training_ims, input_size)
         test_data = self.get_data(1, input_size)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         transforms = Compose(
             [
@@ -124,21 +124,28 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
         post_trans = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
 
-        def inferrer_fn(x):
-            return post_trans(model(x))
-
-        tt_aug = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=inferrer_fn, device=device)
+        tt_aug = TestTimeAugmentation(
+            transform=transforms,
+            batch_size=5,
+            num_workers=0,
+            inferrer_fn=model,
+            device=device,
+            to_tensor=True,
+            output_device="cpu",
+            post_func=post_trans,
+        )
         mode, mean, std, vvc = tt_aug(test_data)
         self.assertEqual(mode.shape, (1,) + input_size)
         self.assertEqual(mean.shape, (1,) + input_size)
         self.assertTrue(all(np.unique(mode) == (0, 1)))
-        self.assertEqual((mean.min(), mean.max()), (0.0, 1.0))
+        self.assertGreaterEqual(mean.min(), 0.0)
+        self.assertLessEqual(mean.max(), 1.0)
         self.assertEqual(std.shape, (1,) + input_size)
         self.assertIsInstance(vvc, float)
 
-    def test_fail_non_random(self):
+    def test_warn_non_random(self):
         transforms = Compose([AddChanneld("im"), SpatialPadd("im", 1)])
-        with self.assertRaises(RuntimeError):
+        with self.assertWarns(UserWarning):
             TestTimeAugmentation(transforms, None, None, None)
 
     def test_warn_random_but_has_no_invertible(self):
@@ -164,12 +171,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_image_no_label(self):
         transforms = RandFlipd(["image"], prob=1.0)
-        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
-        tta(self.get_data(1, (20, 20), include_label=False))
-
-    @unittest.skipUnless(has_nib, "Requires nibabel")
-    def test_requires_meta_dict(self):
-        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

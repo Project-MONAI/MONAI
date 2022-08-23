@@ -78,7 +78,7 @@ class SeparableFilterTestCase(unittest.TestCase):
 
     def test_wrong_args(self):
         with self.assertRaisesRegex(TypeError, ""):
-            separable_filtering(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))  # type: ignore
+            separable_filtering(((1, 1, 1, 2, 3, 2)), torch.ones((2,)))
 
 
 if __name__ == "__main__":

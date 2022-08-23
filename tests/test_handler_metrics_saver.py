@@ -18,6 +18,7 @@ import torch
 from ignite.engine import Engine, Events
 
 from monai.handlers import MetricsSaver
+from monai.utils.enums import PostFix
 
 
 class TestHandlerMetricsSaver(unittest.TestCase):
@@ -27,13 +28,14 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 save_dir=tempdir,
                 metrics=["metric1", "metric2"],
                 metric_details=["metric3", "metric4"],
-                batch_transform=lambda x: x["image_meta_dict"],
+                batch_transform=lambda x: x[PostFix.meta("image")],
                 summary_ops=["mean", "median", "max", "5percentile", "95percentile", "notnans"],
+                delimiter="\t",
             )
             # set up engine
             data = [
-                {"image_meta_dict": {"filename_or_obj": ["filepath1"]}},
-                {"image_meta_dict": {"filename_or_obj": ["filepath2"]}},
+                {PostFix.meta("image"): {"filename_or_obj": ["filepath1"]}},
+                {PostFix.meta("image"): {"filename_or_obj": ["filepath2"]}},
             ]
 
             def _val_func(engine, batch):
@@ -64,7 +66,7 @@ class TestHandlerMetricsSaver(unittest.TestCase):
                 f_csv = csv.reader(f)
                 for i, row in enumerate(f_csv):
                     if i > 0:
-                        self.assertEqual(row, [f"filepath{i}\t{float(i)}\t{float(i + 1)}\t{i + 0.5}"])
+                        self.assertEqual(row, [f"filepath{i}\t{float(i):.4f}\t{float(i + 1):.4f}\t{i + 0.5:.4f}"])
             self.assertTrue(os.path.exists(os.path.join(tempdir, "metric3_summary.csv")))
             # check the metric_summary.csv and content
             with open(os.path.join(tempdir, "metric4_summary.csv")) as f:

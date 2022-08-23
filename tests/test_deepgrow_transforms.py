@@ -27,11 +27,12 @@ from monai.apps.deepgrow.transforms import (
     SpatialCropForegroundd,
     SpatialCropGuidanced,
 )
+from monai.utils.enums import PostFix
 
 IMAGE = np.array([[[[1, 0, 2, 0, 1], [0, 1, 2, 1, 0], [2, 2, 3, 2, 2], [0, 1, 2, 1, 0], [1, 0, 2, 0, 1]]]])
 LABEL = np.array([[[[0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [0, 0, 1, 0, 0], [0, 1, 0, 1, 0], [0, 0, 0, 0, 0]]]])
 
-DATA_1 = {"image": IMAGE, "label": LABEL, "image_meta_dict": {}, "label_meta_dict": {}}
+DATA_1 = {"image": IMAGE, "label": LABEL, PostFix.meta("image"): {}, PostFix.meta("label"): {}}
 
 DATA_2 = {
     "image": np.array(
@@ -74,21 +75,21 @@ DATA_4 = {
 
 DATA_5 = {
     "image": np.arange(25).reshape((1, 5, 5)),
-    "image_meta_dict": {"spatial_shape": [5, 5, 1]},
+    PostFix.meta("image"): {"spatial_shape": [5, 5, 1]},
     "foreground": [[2, 2, 0]],
     "background": [],
 }
 
 DATA_6 = {
     "image": np.arange(25).reshape((1, 5, 5)),
-    "image_meta_dict": {"spatial_shape": [5, 2, 1]},
+    PostFix.meta("image"): {"spatial_shape": [5, 2, 1]},
     "foreground": [[2, 1, 0]],
     "background": [[1, 0, 0]],
 }
 
 DATA_7 = {
     "image": np.arange(500).reshape((5, 10, 10)),
-    "image_meta_dict": {"spatial_shape": [20, 20, 10]},
+    PostFix.meta("image"): {"spatial_shape": [20, 20, 10]},
     "foreground": [[10, 14, 6], [10, 14, 8]],
     "background": [[10, 16, 8]],
     "slice": 6,
@@ -96,19 +97,19 @@ DATA_7 = {
 
 DATA_8 = {
     "image": np.arange(500).reshape((1, 5, 10, 10)),
-    "image_meta_dict": {"spatial_shape": [20, 20, 10]},
+    PostFix.meta("image"): {"spatial_shape": [20, 20, 10]},
     "guidance": [[[3, 5, 7], [4, 5, 7]], [[4, 5, 8]]],
 }
 
 DATA_9 = {
     "image": np.arange(1000).reshape((1, 5, 10, 20)),
-    "image_meta_dict": {"foreground_cropped_shape": (1, 10, 20, 40)},
+    PostFix.meta("image"): {"foreground_cropped_shape": (1, 10, 20, 40)},
     "guidance": [[[6, 10, 14], [8, 10, 14]], [[8, 10, 16]]],
 }
 
 DATA_10 = {
     "image": np.arange(9).reshape((1, 1, 3, 3)),
-    "image_meta_dict": {
+    PostFix.meta("image"): {
         "spatial_shape": [3, 3, 1],
         "foreground_start_coord": np.array([0, 0, 0]),
         "foreground_end_coord": np.array([1, 3, 3]),
@@ -123,7 +124,7 @@ DATA_10 = {
 
 DATA_11 = {
     "image": np.arange(500).reshape((1, 5, 10, 10)),
-    "image_meta_dict": {
+    PostFix.meta("image"): {
         "spatial_shape": [20, 20, 10],
         "foreground_start_coord": np.array([2, 2, 2]),
         "foreground_end_coord": np.array([4, 4, 4]),
@@ -136,7 +137,7 @@ DATA_11 = {
     "pred": np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
 }
 
-DATA_12 = {"image": np.arange(27).reshape(3, 3, 3), "image_meta_dict": {}, "guidance": [[0, 0, 0], [0, 1, 1], 1]}
+DATA_12 = {"image": np.arange(27).reshape(3, 3, 3), PostFix.meta("image"): {}, "guidance": [[0, 0, 0], [0, 1, 1], 1]}
 
 FIND_SLICE_TEST_CASE_1 = [{"label": "label", "sids": "sids"}, DATA_1, [0]]
 
@@ -354,14 +355,14 @@ class TestSpatialCropForegroundd(unittest.TestCase):
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_foreground_position(self, arguments, input_data, _):
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["image_meta_dict"]["foreground_start_coord"], np.array([0, 1, 1]))
-        np.testing.assert_allclose(result["image_meta_dict"]["foreground_end_coord"], np.array([1, 4, 4]))
+        np.testing.assert_allclose(result[PostFix.meta("image")]["foreground_start_coord"], np.array([0, 1, 1]))
+        np.testing.assert_allclose(result[PostFix.meta("image")]["foreground_end_coord"], np.array([1, 4, 4]))
 
         arguments["start_coord_key"] = "test_start_coord"
         arguments["end_coord_key"] = "test_end_coord"
         result = SpatialCropForegroundd(**arguments)(input_data)
-        np.testing.assert_allclose(result["image_meta_dict"]["test_start_coord"], np.array([0, 1, 1]))
-        np.testing.assert_allclose(result["image_meta_dict"]["test_end_coord"], np.array([1, 4, 4]))
+        np.testing.assert_allclose(result[PostFix.meta("image")]["test_start_coord"], np.array([0, 1, 1]))
+        np.testing.assert_allclose(result[PostFix.meta("image")]["test_end_coord"], np.array([1, 4, 4]))
 
 
 class TestAddInitialSeedPointd(unittest.TestCase):

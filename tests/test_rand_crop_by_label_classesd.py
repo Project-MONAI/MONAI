@@ -15,10 +15,10 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TESTS.append(
         [
             # One-Hot label
@@ -126,6 +126,8 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         result = RandCropByLabelClassesd(**input_param)(input_data)
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0]["img"].shape, expected_shape)
+        _len = len(tuple(input_data.keys())) - 1  # except for the indices_key
+        self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys())[:-1])
 
 
 if __name__ == "__main__":

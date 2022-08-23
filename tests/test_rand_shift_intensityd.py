@@ -14,6 +14,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import IntensityStatsd, RandShiftIntensityd
+from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -28,13 +29,13 @@ class TestRandShiftIntensityd(NumpyImageTestCase2D):
             # simulate the randomize() of transform
             np.random.random()
             expected = self.imt + np.random.uniform(low=-1.0, high=1.0)
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_factor(self):
         key = "img"
         stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
         shifter = RandShiftIntensityd(keys=[key], offsets=1.0, factor_key=["orig_max"], prob=1.0)
-        data = {key: self.imt, key + "_meta_dict": {"affine": None}}
+        data = {key: self.imt, PostFix.meta(key): {"affine": None}}
         shifter.set_random_state(seed=0)
         result = shifter(stats(data))
         np.random.seed(0)

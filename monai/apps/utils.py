@@ -27,7 +27,7 @@ from urllib.request import urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
-gdown, has_gdown = optional_import("gdown", "3.6")
+gdown, has_gdown = optional_import("gdown", "4.4")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -147,7 +147,12 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 
 
 def download_url(
-    url: str, filepath: PathLike = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
+    url: str,
+    filepath: PathLike = "",
+    hash_val: Optional[str] = None,
+    hash_type: str = "md5",
+    progress: bool = True,
+    **gdown_kwargs,
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
@@ -160,6 +165,10 @@ def download_url(
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
         progress: whether to display a progress bar.
+        gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
+            these args will only be used if download from google drive.
+            details of the args of it:
+            https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` existing file fails.
@@ -183,24 +192,26 @@ def download_url(
             )
         logger.info(f"File exists: {filepath}, skipped downloading.")
         return
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_name = Path(tmp_dir, _basename(filepath))
-        if urlparse(url).netloc == "drive.google.com":
-            if not has_gdown:
-                raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-            gdown.download(url, f"{tmp_name}", quiet=not progress)
-        else:
-            _download_with_progress(url, tmp_name, progress=progress)
-        if not tmp_name.exists():
-            raise RuntimeError(
-                f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
-            )
-        file_dir = filepath.parent
-        if file_dir:
-            os.makedirs(file_dir, exist_ok=True)
-        shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
-        logger.info(f"Downloaded: {filepath}")
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_name = Path(tmp_dir, _basename(filepath))
+            if urlparse(url).netloc == "drive.google.com":
+                if not has_gdown:
+                    raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
+                gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
+            else:
+                _download_with_progress(url, tmp_name, progress=progress)
+            if not tmp_name.exists():
+                raise RuntimeError(
+                    f"Download of file from {url} to {filepath} failed due to network issue or denied permission."
+                )
+            file_dir = filepath.parent
+            if file_dir:
+                os.makedirs(file_dir, exist_ok=True)
+            shutil.move(f"{tmp_name}", f"{filepath}")  # copy the downloaded to a user-specified cache.
+    except (PermissionError, NotADirectoryError):  # project-monai/monai issue #3613 #3757 for windows
+        pass
+    logger.info(f"Downloaded: {filepath}")
     if not check_hash(filepath, hash_val, hash_type):
         raise RuntimeError(
             f"{hash_type} check of downloaded file failed: URL={url}, "

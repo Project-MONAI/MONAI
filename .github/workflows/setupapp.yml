@@ -21,17 +21,17 @@ jobs:
   coverage-py3:
     if: github.repository == 'Project-MONAI/MONAI'
     container:
-      image: nvcr.io/nvidia/pytorch:20.03-py3  # CUDA 10.2
+      image: nvcr.io/nvidia/pytorch:21.06-py3  # CUDA 11.3
       options: --gpus all
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: cache weekly timestamp
       id: pip-cache
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -44,7 +44,7 @@ jobs:
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
-        python -m pip install torch==1.10.1 torchvision==0.11.2
+        python -m pip install torch==1.12.0+cu113 torchvision==0.13.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
       run: |
@@ -61,7 +61,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
@@ -76,11 +76,11 @@ jobs:
       matrix:
         python-version: [3.7, 3.8, 3.9]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
     - name: cache weekly timestamp
@@ -88,7 +88,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -98,14 +98,14 @@ jobs:
     - name: Install the dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.10.1 torchvision==0.11.2
+        python -m pip install torch==1.12.0 torchvision==0.13.0
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         BUILD_MONAI=1 ./runtests.sh --build --quick --unittests --disttests
-        coverage xml
+        coverage xml --ignore-errors
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: 3.8
     - name: cache weekly timestamp
@@ -124,7 +124,7 @@ jobs:
       run: |
         echo "::set-output name=datew::$(date '+%Y-%V')"
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -146,7 +146,7 @@ jobs:
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)
       if: github.ref == 'refs/heads/dev'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: dev
     - name: Quick test installed (dev branch only)

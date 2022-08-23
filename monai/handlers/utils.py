@@ -11,7 +11,7 @@
 
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -56,7 +56,7 @@ def write_metrics_reports(
     metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
     summary_ops: Optional[Union[str, Sequence[str]]],
-    deli: str = "\t",
+    deli: str = ",",
     output_type: str = "csv",
 ):
     """
@@ -88,7 +88,8 @@ def write_metrics_reports(
                 class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
-        deli: the delimiter character in the file, default to "\t".
+        deli: the delimiter character in the saved file, default to "," as the default output type is `csv`.
+            to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
 
     """
@@ -120,7 +121,10 @@ def write_metrics_reports(
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
                 f.write(f"filename{deli}{deli.join(class_labels)}\n")
                 for i, b in enumerate(v):
-                    f.write(f"{images[i] if images is not None else str(i)}{deli}{deli.join([str(c) for c in b])}\n")
+                    f.write(
+                        f"{images[i] if images is not None else str(i)}{deli}"
+                        f"{deli.join([f'{c:.4f}' if isinstance(c, (int, float)) else str(c) for c in b])}\n"
+                    )
 
             if summary_ops is not None:
                 supported_ops = OrderedDict(
@@ -193,3 +197,12 @@ def from_engine(keys: KeysCollection, first: bool = False):
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper
+
+
+def ignore_data(x: Any):
+    """
+    Always return `None` for any input data.
+    A typical usage is to avoid logging the engine output of every iteration during evaluation.
+
+    """
+    return None

@@ -67,16 +67,19 @@ class InputTransition(nn.Module):
     ):
         super().__init__()
 
-        if 16 % in_channels != 0:
-            raise ValueError(f"16 should be divisible by in_channels, got in_channels={in_channels}.")
+        if out_channels % in_channels != 0:
+            raise ValueError(
+                f"out channels should be divisible by in_channels. Got in_channels={in_channels}, out_channels={out_channels}."
+            )
 
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
-        self.act_function = get_acti_layer(act, 16)
+        self.out_channels = out_channels
+        self.act_function = get_acti_layer(act, out_channels)
         self.conv_block = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=16,
+            out_channels=out_channels,
             kernel_size=5,
             act=None,
             norm=Norm.BATCH,
@@ -85,7 +88,7 @@ class InputTransition(nn.Module):
 
     def forward(self, x):
         out = self.conv_block(x)
-        repeat_num = 16 // self.in_channels
+        repeat_num = self.out_channels // self.in_channels
         x16 = x.repeat([1, repeat_num, 1, 1, 1][: self.spatial_dims + 2])
         out = self.act_function(torch.add(out, x16))
         return out
@@ -213,7 +216,7 @@ class VNet(nn.Module):
             The value should meet the condition that ``16 % in_channels == 0``.
         out_channels: number of output channels for the network. Defaults to 1.
         act: activation type in the network. Defaults to ``("elu", {"inplace": True})``.
-        dropout_prob: dropout ratio. Defaults to 0.5. Defaults to 3.
+        dropout_prob: dropout ratio. Defaults to 0.5.
         dropout_dim: determine the dimensions of dropout. Defaults to 3.
 
             - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.

@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoised
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for shape in ((128, 64), (64, 48, 80)):
@@ -57,9 +57,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         out2 = t(deepcopy(data))
 
         for k in KEYS:
-            self.assertEqual(type(out1[k]), type(data[k]))
             if isinstance(out1[k], torch.Tensor):
-                self.assertEqual(out1[k].device, data[k].device)
                 out1[k] = out1[k].cpu()
                 out2[k] = out2[k].cpu()
             np.testing.assert_allclose(out1[k], out2[k])
@@ -75,9 +73,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         out = t(data)
 
         for k in KEYS:
-            self.assertEqual(type(out[k]), type(data[k]))
             if isinstance(out[k], torch.Tensor):
-                self.assertEqual(out[k].device, data[k].device)
                 out[k] = out[k].cpu()
 
             n_dims = len(im_shape)
@@ -95,14 +91,7 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
 
         t = KSpaceSpikeNoised(KEYS, loc, k_intensity)
         out = t(deepcopy(data))
-
-        for k in KEYS:
-            self.assertEqual(type(out[k]), type(data[k]))
-            if isinstance(out[k], torch.Tensor):
-                self.assertEqual(out[k].device, data[k].device)
-                out[k] = out[k].cpu()
-
-        np.testing.assert_allclose(out[KEYS[0]], out[KEYS[1]])
+        assert_allclose(out[KEYS[0]], out[KEYS[1]], type_test=False)
 
 
 if __name__ == "__main__":

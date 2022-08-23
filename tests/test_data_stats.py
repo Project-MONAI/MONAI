@@ -14,6 +14,8 @@ import os
 import sys
 import tempfile
 import unittest
+from io import StringIO
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -29,7 +31,7 @@ TEST_CASE_1 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:",
@@ -43,7 +45,7 @@ TEST_CASE_2 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>",
@@ -57,7 +59,7 @@ TEST_CASE_3 = [
         "value_range": False,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)",
@@ -71,7 +73,7 @@ TEST_CASE_4 = [
         "value_range": True,
         "data_value": False,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)",
@@ -85,7 +87,7 @@ TEST_CASE_5 = [
         "value_range": True,
         "data_value": True,
         "additional_info": None,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'>\nShape: (2, 2)\nValue range: (0, 2)\nValue: [[0 1]\n [1 2]]",
@@ -99,7 +101,7 @@ TEST_CASE_6 = [
         "value_range": True,
         "data_value": True,
         "additional_info": np.mean,
-        "logger_handler": None,
+        "name": "DataStats",
     },
     np.array([[0, 1], [1, 2]]),
     (
@@ -116,7 +118,7 @@ TEST_CASE_7 = [
         "value_range": True,
         "data_value": True,
         "additional_info": lambda x: torch.mean(x.float()),
-        "logger_handler": None,
+        "name": "DataStats",
     },
     torch.tensor([[0, 1], [1, 2]]).to("cuda" if torch.cuda.is_available() else "cpu"),
     (
@@ -137,7 +139,6 @@ class TestDataStats(unittest.TestCase):
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStats(**input_param)
         _ = transform(input_data)
-        # self.assertEqual(transform.output, expected_print)
 
     @parameterized.expand([TEST_CASE_8])
     def test_file(self, input_data, expected_print):
@@ -145,6 +146,9 @@ class TestDataStats(unittest.TestCase):
             filename = os.path.join(tempdir, "test_data_stats.log")
             handler = logging.FileHandler(filename, mode="w")
             handler.setLevel(logging.INFO)
+            name = "DataStats"
+            logger = logging.getLogger(name)
+            logger.addHandler(handler)
             input_param = {
                 "prefix": "test data",
                 "data_type": True,
@@ -152,18 +156,25 @@ class TestDataStats(unittest.TestCase):
                 "value_range": True,
                 "data_value": True,
                 "additional_info": np.mean,
-                "logger_handler": handler,
+                "name": name,
             }
             transform = DataStats(**input_param)
             _ = transform(input_data)
-            _logger = logging.getLogger(transform._logger_name)
-            for h in _logger.handlers[:]:
+            for h in logger.handlers[:]:
                 h.close()
-                _logger.removeHandler(h)
+                logger.removeHandler(h)
             with open(filename) as f:
                 content = f.read()
             if sys.platform != "win32":
                 self.assertEqual(content, expected_print)
+
+    def test_multiple_data_stats(self):
+        with patch("sys.stdout", new=StringIO()) as out:
+            input_data = np.array([[0, 1], [1, 2]])
+            transform = DataStats()
+            _ = DataStats()
+            _ = transform(input_data)
+            print(out.getvalue().strip())
 
 
 if __name__ == "__main__":

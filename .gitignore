@@ -69,6 +69,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+_build/
 
 # PyBuilder
 target/
@@ -129,6 +130,10 @@ temp/
 tests/testing_data/MedNIST*
 tests/testing_data/*Hippocampus*
 tests/testing_data/*.tiff
+tests/testing_data/schema.json
+tests/testing_data/endo.mp4
+tests/testing_data/ultrasound.avi
+*.svg
 
 # clang format tool
 .clang-format-bin/
@@ -136,3 +141,6 @@ tests/testing_data/*.tiff
 # VSCode
 .vscode/
 *.zip
+
+# profiling results
+*.prof

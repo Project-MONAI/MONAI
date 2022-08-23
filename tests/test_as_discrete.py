@@ -66,7 +66,7 @@ class TestAsDiscrete(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
-        assert_allclose(result, out, rtol=1e-3)
+        assert_allclose(result, out, rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result.shape, expected_shape)
 
 

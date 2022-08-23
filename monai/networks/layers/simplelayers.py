@@ -20,19 +20,11 @@ from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
-from monai.utils import (
-    ChannelMatching,
-    InvalidPyTorchVersionError,
-    SkipMode,
-    look_up_option,
-    optional_import,
-    pytorch_after,
-)
+from monai.utils import ChannelMatching, SkipMode, look_up_option, optional_import, pytorch_after
 from monai.utils.misc import issequenceiterable
 
 _C, _ = optional_import("monai._C")
-if pytorch_after(1, 7):
-    fft, _ = optional_import("torch.fft")
+fft, _ = optional_import("torch.fft")
 
 __all__ = [
     "ChannelPad",
@@ -344,7 +336,7 @@ class SavitzkyGolayFilter(nn.Module):
         x = x.to(dtype=torch.float)
 
         if (self.axis < 0) or (self.axis > len(x.shape) - 1):
-            raise ValueError("Invalid axis for shape of x.")
+            raise ValueError(f"Invalid axis for shape of x, got axis {self.axis} and shape {x.shape}.")
 
         # Create list of filter kernels (1 per spatial dimension). The kernel for self.axis will be the savgol coeffs,
         # while the other kernels will be set to [1].
@@ -377,7 +369,6 @@ class SavitzkyGolayFilter(nn.Module):
 class HilbertTransform(nn.Module):
     """
     Determine the analytical signal of a Tensor along a particular axis.
-    Requires PyTorch 1.7.0+ and the PyTorch FFT module (which is not included in NVIDIA PyTorch Release 20.10).
 
     Args:
         axis: Axis along which to apply Hilbert transform. Default 2 (first spatial dimension).
@@ -385,9 +376,6 @@ class HilbertTransform(nn.Module):
     """
 
     def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
-
-        if not pytorch_after(1, 7):
-            raise InvalidPyTorchVersionError("1.7.0", self.__class__.__name__)
 
         super().__init__()
         self.axis = axis
@@ -409,7 +397,7 @@ class HilbertTransform(nn.Module):
         x = x.to(dtype=torch.float)
 
         if (self.axis < 0) or (self.axis > len(x.shape) - 1):
-            raise ValueError("Invalid axis for shape of x.")
+            raise ValueError(f"Invalid axis for shape of x, got axis {self.axis} and shape {x.shape}.")
 
         n = x.shape[self.axis] if self.n is None else self.n
         if n <= 0:

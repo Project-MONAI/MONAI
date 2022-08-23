@@ -9,21 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import random
 from enum import Enum
+from typing import Optional
 
 from monai.utils.deprecate_utils import deprecated
 
 __all__ = [
+    "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
+    "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
     "BlendMode",
     "PytorchPadMode",
+    "NdimageMode",
     "GridSamplePadMode",
     "Average",
     "MetricReduction",
     "LossReduction",
+    "DiceCEReduction",
     "Weight",
     "ChannelMatching",
     "SkipMode",
@@ -31,12 +37,46 @@ __all__ = [
     "TraceKeys",
     "InverseKeys",
     "CommonKeys",
+    "GanKeys",
+    "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "BoxModeName",
+    "GridPatchSort",
+    "FastMRIKeys",
+    "SpaceKeys",
+    "MetaKeys",
+    "ColorOrder",
+    "EngineStatsKeys",
 ]
 
 
-class NumpyPadMode(Enum):
+class StrEnum(str, Enum):
+    """
+    Enum subclass that converts its value to a string.
+
+    .. code-block:: python
+
+        from monai.utils import StrEnum
+
+        class Example(StrEnum):
+            MODE_A = "A"
+            MODE_B = "B"
+
+        assert (list(Example) == ["A", "B"])
+        assert Example.MODE_A == "A"
+        assert str(Example.MODE_A) == "A"
+        assert monai.utils.look_up_option("A", Example) == "A"
+    """
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return self.value
+
+
+class NumpyPadMode(StrEnum):
     """
     See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
@@ -54,9 +94,25 @@ class NumpyPadMode(Enum):
     EMPTY = "empty"
 
 
-class GridSampleMode(Enum):
+class NdimageMode(StrEnum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    REFLECT = "reflect"
+    GRID_MIRROR = "grid-mirror"
+    CONSTANT = "constant"
+    GRID_CONSTANT = "grid-constant"
+    NEAREST = "nearest"
+    MIRROR = "mirror"
+    GRID_WRAP = "grid-wrap"
+    WRAP = "wrap"
+
+
+class GridSampleMode(StrEnum):
+    """
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
     interpolation mode of `torch.nn.functional.grid_sample`
 
@@ -72,12 +128,28 @@ class GridSampleMode(Enum):
     BICUBIC = "bicubic"
 
 
-class InterpolateMode(Enum):
+class SplineMode(StrEnum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#interpolate
+    Order of spline interpolation.
+
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
+
+
+class InterpolateMode(StrEnum):
+    """
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
     """
 
     NEAREST = "nearest"
+    NEAREST_EXACT = "nearest-exact"
     LINEAR = "linear"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
@@ -85,7 +157,7 @@ class InterpolateMode(Enum):
     AREA = "area"
 
 
-class UpsampleMode(Enum):
+class UpsampleMode(StrEnum):
     """
     See also: :py:class:`monai.networks.blocks.UpSample`
     """
@@ -95,7 +167,7 @@ class UpsampleMode(Enum):
     PIXELSHUFFLE = "pixelshuffle"
 
 
-class BlendMode(Enum):
+class BlendMode(StrEnum):
     """
     See also: :py:class:`monai.data.utils.compute_importance_map`
     """
@@ -104,9 +176,9 @@ class BlendMode(Enum):
     GAUSSIAN = "gaussian"
 
 
-class PytorchPadMode(Enum):
+class PytorchPadMode(StrEnum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#pad
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     """
 
     CONSTANT = "constant"
@@ -115,9 +187,9 @@ class PytorchPadMode(Enum):
     CIRCULAR = "circular"
 
 
-class GridSamplePadMode(Enum):
+class GridSamplePadMode(StrEnum):
     """
-    See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
+    See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
     """
 
     ZEROS = "zeros"
@@ -125,7 +197,7 @@ class GridSamplePadMode(Enum):
     REFLECTION = "reflection"
 
 
-class Average(Enum):
+class Average(StrEnum):
     """
     See also: :py:class:`monai.metrics.rocauc.compute_roc_auc`
     """
@@ -136,9 +208,9 @@ class Average(Enum):
     NONE = "none"
 
 
-class MetricReduction(Enum):
+class MetricReduction(StrEnum):
     """
-    See also: :py:class:`monai.metrics.meandice.DiceMetric`
+    See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
 
     NONE = "none"
@@ -150,7 +222,7 @@ class MetricReduction(Enum):
     SUM_CHANNEL = "sum_channel"
 
 
-class LossReduction(Enum):
+class LossReduction(StrEnum):
     """
     See also:
         - :py:class:`monai.losses.dice.DiceLoss`
@@ -164,7 +236,17 @@ class LossReduction(Enum):
     SUM = "sum"
 
 
-class Weight(Enum):
+class DiceCEReduction(StrEnum):
+    """
+    See also:
+        - :py:class:`monai.losses.dice.DiceCELoss`
+    """
+
+    MEAN = "mean"
+    SUM = "sum"
+
+
+class Weight(StrEnum):
     """
     See also: :py:class:`monai.losses.dice.GeneralizedDiceLoss`
     """
@@ -174,7 +256,7 @@ class Weight(Enum):
     UNIFORM = "uniform"
 
 
-class ChannelMatching(Enum):
+class ChannelMatching(StrEnum):
     """
     See also: :py:class:`monai.networks.nets.HighResBlock`
     """
@@ -183,7 +265,7 @@ class ChannelMatching(Enum):
     PROJECT = "project"
 
 
-class SkipMode(Enum):
+class SkipMode(StrEnum):
     """
     See also: :py:class:`monai.networks.layers.SkipConnection`
     """
@@ -193,7 +275,7 @@ class SkipMode(Enum):
     MUL = "mul"
 
 
-class Method(Enum):
+class Method(StrEnum):
     """
     See also: :py:class:`monai.transforms.croppad.array.SpatialPad`
     """
@@ -202,7 +284,7 @@ class Method(Enum):
     END = "end"
 
 
-class ForwardMode(Enum):
+class ForwardMode(StrEnum):
     """
     See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
     """
@@ -211,22 +293,22 @@ class ForwardMode(Enum):
     EVAL = "eval"
 
 
-class TraceKeys:
-    """Extra meta data keys used for traceable transforms."""
+class TraceKeys(StrEnum):
+    """Extra metadata keys used for traceable transforms."""
 
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    CLASS_NAME: str = "class"
+    ID: str = "id"
+    ORIG_SIZE: str = "orig_size"
+    EXTRA_INFO: str = "extra_info"
+    DO_TRANSFORM: str = "do_transforms"
+    KEY_SUFFIX: str = "_transforms"
+    NONE: str = "none"
 
 
 @deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
 class InverseKeys:
     """
-    Extra meta data keys used for inverse transforms.
+    Extra metadata keys used for inverse transforms.
 
     .. deprecated:: 0.8.0
         Use :class:`monai.utils.enums.TraceKeys` instead.
@@ -242,7 +324,7 @@ class InverseKeys:
     NONE = "none"
 
 
-class CommonKeys:
+class CommonKeys(StrEnum):
     """
     A set of common keys for dictionary based supervised training process.
     `IMAGE` is the input image data.
@@ -257,9 +339,43 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+    METADATA = "metadata"
 
 
-class TransformBackends(Enum):
+class GanKeys(StrEnum):
+    """
+    A set of common keys for generative adversarial networks.
+
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
+class PostFix(StrEnum):
+    """Post-fixes."""
+
+    @staticmethod
+    def _get_str(prefix, suffix):
+        return suffix if prefix is None else f"{prefix}_{suffix}"
+
+    @staticmethod
+    def meta(key: Optional[str] = None):
+        return PostFix._get_str(key, "meta_dict")
+
+    @staticmethod
+    def orig_meta(key: Optional[str] = None):
+        return PostFix._get_str(key, "orig_meta_dict")
+
+    @staticmethod
+    def transforms(key: Optional[str] = None):
+        return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
+
+
+class TransformBackends(StrEnum):
     """
     Transform backends.
     """
@@ -268,7 +384,7 @@ class TransformBackends(Enum):
     NUMPY = "numpy"
 
 
-class JITMetadataKeys(Enum):
+class JITMetadataKeys(StrEnum):
     """
     Keys stored in the metadata file for saved Torchscript models. Some of these are generated by the routines
     and others are optionally provided by users.
@@ -278,3 +394,135 @@ class JITMetadataKeys(Enum):
     TIMESTAMP = "timestamp"
     VERSION = "version"
     DESCRIPTION = "description"
+
+
+class BoxModeName(StrEnum):
+    """
+    Box mode names.
+    """
+
+    XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
+    XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
+    XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    XYXYZZ = "xyxyzz"  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    XYWH = "xywh"  # [xmin, ymin, xsize, ysize]
+    XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
+    CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+
+
+class ProbMapKeys(StrEnum):
+    """
+    The keys to be used for generating the probability maps from patches
+    """
+
+    LOCATION = "mask_location"
+    SIZE = "mask_size"
+    COUNT = "num_patches"
+    NAME = "name"
+
+
+class GridPatchSort(StrEnum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    RANDOM = "random"
+    MIN = "min"
+    MAX = "max"
+
+    @staticmethod
+    def min_fn(x):
+        return x[0].sum()
+
+    @staticmethod
+    def max_fn(x):
+        return -x[0].sum()
+
+    @staticmethod
+    def get_sort_fn(sort_fn):
+        if sort_fn == GridPatchSort.RANDOM:
+            return random.random
+        elif sort_fn == GridPatchSort.MIN:
+            return GridPatchSort.min_fn
+        elif sort_fn == GridPatchSort.MAX:
+            return GridPatchSort.max_fn
+        else:
+            raise ValueError(
+                f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                [e.value for e in GridPatchSort],
+            )
+
+
+class WSIPatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from whole slide images
+    """
+
+    LOCATION = "patch_location"
+    LEVEL = "patch_level"
+    SIZE = "patch_size"
+    COUNT = "num_patches"
+    PATH = "path"
+
+
+class FastMRIKeys(StrEnum):
+    """
+    The keys to be used for extracting data from the fastMRI dataset
+    """
+
+    KSPACE = "kspace"
+    MASK = "mask"
+    FILENAME = "filename"
+    RECON = "reconstruction_rss"
+    ACQUISITION = "acquisition"
+    MAX = "max"
+    NORM = "norm"
+    PID = "patient_id"
+
+
+class SpaceKeys(StrEnum):
+    """
+    The coordinate system keys, for example, Nifti1 uses Right-Anterior-Superior or "RAS",
+    DICOM (0020,0032) uses Left-Posterior-Superior or "LPS". This type does not distinguish spatial 1/2/3D.
+    """
+
+    RAS = "RAS"
+    LPS = "LPS"
+
+
+class MetaKeys(StrEnum):
+    """
+    Typical keys for MetaObj.meta
+    """
+
+    AFFINE = "affine"  # MetaTensor.affine
+    ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
+    SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
+    SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+
+
+class ColorOrder(StrEnum):
+    """
+    Enums for color order. Expand as necessary.
+    """
+
+    RGB = "RGB"
+    BGR = "BGR"
+
+
+class EngineStatsKeys(StrEnum):
+    """
+    Default keys for the statistics of trainer and evaluator engines.
+
+    """
+
+    RANK = "rank"
+    CURRENT_ITERATION = "current_iteration"
+    CURRENT_EPOCH = "current_epoch"
+    TOTAL_EPOCHS = "total_epochs"
+    TOTAL_ITERATIONS = "total_iterations"
+    BEST_VALIDATION_EPOCH = "best_validation_epoch"
+    BEST_VALIDATION_METRIC = "best_validation_metric"

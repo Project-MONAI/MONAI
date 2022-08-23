@@ -19,14 +19,15 @@ from parameterized import parameterized
 
 from monai.apps.pathology.data import MaskedInferenceWSIDataset
 from monai.utils import optional_import
-from tests.utils import download_url_or_skip_test, skip_if_quick
+from tests.utils import download_url_or_skip_test, skip_if_quick, testing_data_config
 
 _, has_cim = optional_import("cucim", name="CuImage")
 _, has_osl = optional_import("openslide")
 
-FILE_URL = "https://drive.google.com/uc?id=1sGTKZlJBIz53pfqTxoTqiIQzIoEzHLAe"
-base_name, extension = FILE_URL.split("id=")[1], ".tiff"
-FILE_NAME = "temp_" + base_name
+FILE_KEY = "wsi_img"
+FILE_URL = testing_data_config("images", FILE_KEY, "url")
+base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
+FILE_NAME = f"temp_{base_name}"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
 
 MASK1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask1.npy")
@@ -159,7 +160,9 @@ TEST_CASE_OPENSLIDE_1 = [
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def setUp(self):
         prepare_data()
-        download_url_or_skip_test(FILE_URL, FILE_PATH, "5a3cfd4fd725c50578ddb80b517b759f")
+        hash_type = testing_data_config("images", FILE_KEY, "hash_type")
+        hash_val = testing_data_config("images", FILE_KEY, "hash_val")
+        download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @skipUnless(has_cim, "Requires CuCIM")
@@ -176,11 +179,11 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
         self.compare_samples_expected(dataset, expected)
 
     def compare_samples_expected(self, dataset, expected):
-        for i in range(len(dataset)):
-            self.assertTupleEqual(dataset[i][0]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(dataset[i][0]["image"], expected[i]["image"]))
-            self.assertEqual(dataset[i][0]["name"], expected[i]["name"])
-            self.assertListEqual(dataset[i][0]["mask_location"], expected[i]["mask_location"])
+        for i, item in enumerate(dataset):
+            self.assertTupleEqual(item[0]["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item[0]["image"], expected[i]["image"]))
+            self.assertEqual(item[0]["name"], expected[i]["name"])
+            self.assertListEqual(item[0]["mask_location"], expected[i]["mask_location"])
 
 
 if __name__ == "__main__":

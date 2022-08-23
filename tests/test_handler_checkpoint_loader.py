@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-import sys
 import tempfile
 import unittest
 
@@ -23,7 +21,6 @@ from monai.handlers import CheckpointLoader, CheckpointSaver
 
 class TestHandlerCheckpointLoader(unittest.TestCase):
     def test_one_save_one_load(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()
         data1["weight"] = torch.tensor([0.1])
@@ -58,7 +55,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
                 self.assertEqual(engine3.state.max_epochs, 5)
 
     def test_two_save_one_load(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         optimizer = optim.SGD(net1.parameters(), lr=0.02)
         data1 = net1.state_dict()
@@ -80,7 +76,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
 
     def test_save_single_device_load_multi_devices(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()
         data1["weight"] = torch.tensor([0.1])
@@ -101,7 +96,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             torch.testing.assert_allclose(net2.state_dict()["module.weight"].cpu(), torch.tensor([0.1]))
 
     def test_partial_under_load(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
         data1 = net1.state_dict()
         data1["0.weight"] = torch.tensor([0.1])
@@ -124,7 +118,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
     def test_partial_over_load(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.Sequential(*[torch.nn.PReLU()])
         data1 = net1.state_dict()
         data1["0.weight"] = torch.tensor([0.1])
@@ -147,7 +140,6 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
     def test_strict_shape(self):
-        logging.basicConfig(stream=sys.stdout, level=logging.INFO)
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(num_parameters=5)])
         data1 = net1.state_dict()
         data1["0.weight"] = torch.tensor([1, 2, 3, 4, 5])

@@ -17,6 +17,7 @@ See Also:
 """
 
 import os
+from typing import Any, Dict, Tuple
 
 __all__ = ["MODEL_DESC", "RemoteMMARKeys"]
 
@@ -39,7 +40,7 @@ class RemoteMMARKeys:
     VERSION = "version"  # version of the MMAR
 
 
-MODEL_DESC = (
+MODEL_DESC: Tuple[Dict[Any, Any], ...] = (
     {
         RemoteMMARKeys.ID: "clara_pt_spleen_ct_segmentation_1",
         RemoteMMARKeys.NAME: "clara_pt_spleen_ct_segmentation",
@@ -193,5 +194,35 @@ MODEL_DESC = (
         RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
         RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
         RemoteMMARKeys.VERSION: 1,
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_unetr_ct_btcv_segmentation",
+        RemoteMMARKeys.NAME: "clara_pt_unetr_ct_btcv_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 4.1,
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_chest_xray_classification",
+        RemoteMMARKeys.NAME: "clara_pt_chest_xray_classification",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models", "model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 4.1,
+    },
+    {
+        RemoteMMARKeys.ID: "clara_pt_self_supervised_learning_segmentation",
+        RemoteMMARKeys.NAME: "clara_pt_self_supervised_learning_segmentation",
+        RemoteMMARKeys.FILE_TYPE: "zip",
+        RemoteMMARKeys.HASH_TYPE: "md5",
+        RemoteMMARKeys.HASH_VAL: None,
+        RemoteMMARKeys.MODEL_FILE: os.path.join("models_2gpu", "best_metric_model.pt"),
+        RemoteMMARKeys.CONFIG_FILE: os.path.join("config", "config_train.json"),
+        RemoteMMARKeys.VERSION: 4.1,
     },
 )

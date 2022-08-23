@@ -12,7 +12,6 @@
 import unittest
 from typing import Any, Dict, List
 
-import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -22,20 +21,24 @@ from monai.metrics import (
     do_metric_reduction,
     get_confusion_matrix,
 )
+from tests.utils import assert_allclose
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # input data
 data: Dict[Any, Any] = {
     "y_pred": torch.tensor(
         [
             [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 0.0]]],
-        ]
+        ],
+        device=_device,
     ),
     "y": torch.tensor(
         [
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 0.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]]],
             [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
-        ]
+        ],
+        device=_device,
     ),
 }
 
@@ -141,12 +144,12 @@ metric_names = [
     "mk",
 ]
 result: Any = None
-for idx in range(len(metric_names)):
+for idx, item in enumerate(metric_names):
     for reduction in ["mean", "mean_batch"]:
         TEST_CASE: List[Any] = [data.copy()]
         TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
-        TEST_CASE[0]["metric_name"] = metric_names[idx]
+        TEST_CASE[0]["metric_name"] = item
         TEST_CASE[0]["reduction"] = reduction
         TEST_CASE[0]["get_not_nans"] = True
         if reduction == "mean_batch":
@@ -211,10 +214,10 @@ class TestConfusionMatrix(unittest.TestCase):
         # include or ignore background
         input_data["include_background"] = True
         result = get_confusion_matrix(**input_data)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
         input_data["include_background"] = False
         result = get_confusion_matrix(**input_data)
-        np.testing.assert_allclose(result, expected_value[:, 1:, :], atol=1e-4, rtol=1e-4)
+        assert_allclose(result, expected_value[:, 1:, :], atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):
@@ -225,7 +228,7 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         metric(**vals)
         result, _ = metric.aggregate()[0]
-        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_MULTI_METRICS)
     def test_compute_sample_multiple_metrics(self, input_data, expected_values):
@@ -236,10 +239,10 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         metric(**vals)
         results = metric.aggregate()
-        for idx in range(len(results)):
-            result = results[idx][0]
+        for idx, item in enumerate(results):
+            result = item[0]
             expected_value = expected_values[idx]
-            np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+            assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE_NAN)
     def test_compute_sample_with_nan(self, input_data, expected_value, expected_not_nans):
@@ -250,8 +253,8 @@ class TestConfusionMatrix(unittest.TestCase):
         metric = ConfusionMatrixMetric(**params)
         metric(**vals)
         result, not_nans = metric.aggregate()[0]
-        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
-        np.testing.assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        assert_allclose(not_nans, expected_not_nans, atol=1e-4, rtol=1e-4)
 
     @parameterized.expand([TEST_CASES_CLF])
     def test_clf_with_nan(self, input_data, expected_value):
@@ -261,11 +264,11 @@ class TestConfusionMatrix(unittest.TestCase):
         vals["y"] = params.pop("y")
         metric = ConfusionMatrixMetric(**params)
         result = metric(**vals)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
-        result, _ = metric.aggregate()[0]
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        result, _ = metric.aggregate(reduction="mean_channel")[0]
         expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
         expected_value = compute_confusion_matrix_metric("tpr", expected_value)
-        np.testing.assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":

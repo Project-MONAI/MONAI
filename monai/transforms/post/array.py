@@ -20,12 +20,27 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
-from monai.transforms.utils import fill_holes, get_largest_connected_component_mask
+from monai.transforms.utils import (
+    convert_applied_interp_mode,
+    fill_holes,
+    get_largest_connected_component_mask,
+    get_unique_labels,
+)
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import (
+    TransformBackends,
+    convert_data_type,
+    convert_to_tensor,
+    deprecated_arg,
+    ensure_tuple,
+    look_up_option,
+)
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -38,6 +53,7 @@ __all__ = [
     "MeanEnsemble",
     "ProbNMS",
     "VoteEnsemble",
+    "Invert",
 ]
 
 
@@ -95,8 +111,8 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if sigmoid or self.sigmoid:
             img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
@@ -231,9 +247,8 @@ class AsDiscrete(Transform):
         if isinstance(threshold, bool):
             warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
             threshold = logit_thresh if threshold else None
-
-        img_t: torch.Tensor
-        img_t, *_ = convert_data_type(img, torch.Tensor)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
             img_t = torch.argmax(img_t, dim=0, keepdim=True)
 
@@ -262,21 +277,19 @@ class KeepLargestConnectedComponent(Transform):
     This transform can be used as a post-processing step to clean up over-segment areas in model output.
 
     The input is assumed to be a channel-first PyTorch Tensor:
-      1) With shape (1, spatial_dim1[, spatial_dim2, ...]) and the values correspond to expected labels.
-      2) With shape (C, spatial_dim1[, spatial_dim2, ...]) and the values should be 0, 1 on each labels.
-
-    Note:
-        For single channel data, 0 will be treated as background and the over-segment pixels will be set to 0.
-        For one-hot data, the over-segment pixels will be set to 0 in its channel.
+      1) For not OneHot format data, the values correspond to expected labels,
+      0 will be treated as background and the over-segment pixels will be set to 0.
+      2) For OneHot format data, the values should be 0, 1 on each labels,
+      the over-segment pixels will be set to 0 in its channel.
 
     For example:
-    Use KeepLargestConnectedComponent with applied_labels=[1], connectivity=1::
+    Use with applied_labels=[1], is_onehot=False, connectivity=1::
 
        [1, 0, 0]         [0, 0, 0]
        [0, 1, 1]    =>   [0, 1 ,1]
        [0, 1, 1]         [0, 1, 1]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=1::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=False, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -284,7 +297,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [1, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=True, connectivity=1::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=True, connectivity=1::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -292,7 +305,7 @@ class KeepLargestConnectedComponent(Transform):
       [1, 2, 0, 1 ,0]           [0, 2, 0, 0 ,0]
       [2, 2, 0, 0 ,2]           [2, 2, 0, 0 ,0]
 
-    Use KeepLargestConnectedComponent with applied_labels[1, 2], independent=False, connectivity=2::
+    Use with applied_labels=[1, 2], is_onehot=False, independent=False, connectivity=2::
 
       [0, 0, 1, 0 ,0]           [0, 0, 1, 0 ,0]
       [0, 2, 1, 1 ,1]           [0, 2, 1, 1 ,1]
@@ -305,13 +318,19 @@ class KeepLargestConnectedComponent(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, applied_labels: Union[Sequence[int], int], independent: bool = True, connectivity: Optional[int] = None
+        self,
+        applied_labels: Optional[Union[Sequence[int], int]] = None,
+        is_onehot: Optional[bool] = None,
+        independent: bool = True,
+        connectivity: Optional[int] = None,
     ) -> None:
         """
         Args:
             applied_labels: Labels for applying the connected component analysis on.
-                If only one channel. The pixel whose value is in this list will be analyzed.
-                If the data is in one-hot format, this is used to determine which channels to apply.
+                If given, voxels whose value is in this list will be analyzed.
+                If `None`, all non-zero values will be analyzed.
+            is_onehot: if `True`, treat the input data as OneHot format data, otherwise, not OneHot format data.
+                default to None, which treats multi-channel data as OneHot and single channel data as not OneHot.
             independent: whether to treat ``applied_labels`` as a union of foreground labels.
                 If ``True``, the connected component analysis will be performed on each foreground label independently
                 and return the intersection of the largest components.
@@ -319,10 +338,13 @@ class KeepLargestConnectedComponent(Transform):
                 default is `True`.
             connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
-                connectivity of ``input.ndim`` is used.
+                connectivity of ``input.ndim`` is used. for more details:
+                https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+
         """
         super().__init__()
-        self.applied_labels = ensure_tuple(applied_labels)
+        self.applied_labels = ensure_tuple(applied_labels) if applied_labels is not None else None
+        self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
 
@@ -334,29 +356,34 @@ class KeepLargestConnectedComponent(Transform):
         Returns:
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-
-        is_onehot = img.shape[0] > 1
+        is_onehot = img.shape[0] > 1 if self.is_onehot is None else self.is_onehot
+        if self.applied_labels is not None:
+            applied_labels = self.applied_labels
+        else:
+            applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         if self.independent:
-            for i in self.applied_labels:
-                foreground = img[i] > 0 if is_onehot else img[0] == i
+            for i in applied_labels:
+                foreground = img_[i] > 0 if is_onehot else img_[0] == i
                 mask = get_largest_connected_component_mask(foreground, self.connectivity)
                 if is_onehot:
-                    img[i][foreground != mask] = 0
+                    img_[i][foreground != mask] = 0
                 else:
-                    img[0][foreground != mask] = 0
-            return img
+                    img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         if not is_onehot:  # not one-hot, union of labels
-            labels, *_ = convert_to_dst_type(self.applied_labels, dst=img, wrap_sequence=True)
-            foreground = (img[..., None] == labels).any(-1)[0]
+            labels, *_ = convert_to_dst_type(applied_labels, dst=img_, wrap_sequence=True)
+            foreground = (img_[..., None] == labels).any(-1)[0]
             mask = get_largest_connected_component_mask(foreground, self.connectivity)
-            img[0][foreground != mask] = 0
-            return img
+            img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         # one-hot, union of labels
-        foreground = (img[self.applied_labels, ...] == 1).any(0)
+        foreground = (img_[applied_labels, ...] == 1).any(0)
         mask = get_largest_connected_component_mask(foreground, self.connectivity)
-        for i in self.applied_labels:
-            img[i][foreground != mask] = 0
-        return img
+        for i in applied_labels:
+            img_[i][foreground != mask] = 0
+        return convert_to_dst_type(img_, dst=img)[0]
 
 
 class LabelFilter:
@@ -405,13 +432,15 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
+            img = convert_to_tensor(img, track_meta=get_track_meta())
+            img_ = convert_to_tensor(img, track_meta=False)
             if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
-                appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
-                return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
-            else:
-                out = self(img.detach().cpu().numpy())
-                out, *_ = convert_to_dst_type(out, img)
-                return out
+                appl_lbls = torch.as_tensor(self.applied_labels, device=img_.device)
+                out = torch.where(torch.isin(img_, appl_lbls), img_, torch.tensor(0.0).to(img_))
+                return convert_to_dst_type(out, dst=img)[0]
+            out: NdarrayOrTensor = self(img_.detach().cpu().numpy())  # type: ignore
+            out = convert_to_dst_type(out, img)[0]  # type: ignore
+            return out
         return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
 
@@ -488,10 +517,8 @@ class FillHoles(Transform):
         Returns:
             Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         """
-        if not isinstance(img, (np.ndarray, torch.Tensor)):
-            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_np, *_ = convert_data_type(img, np.ndarray)
         out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
         out, *_ = convert_to_dst_type(out_np, img)
         return out
@@ -533,7 +560,8 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
@@ -725,7 +753,7 @@ class ProbNMS(Transform):
         if self.sigma != 0:
             if not isinstance(prob_map, torch.Tensor):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
-            self.filter.to(prob_map)
+            self.filter.to(prob_map.device)
             prob_map = self.filter(prob_map)
 
         prob_map_shape = prob_map.shape
@@ -745,3 +773,45 @@ class ProbNMS(Transform):
             prob_map[slices] = 0
 
         return outputs
+
+
+class Invert(Transform):
+    """
+    Utility transform to automatically invert the previously applied transforms.
+    """
+
+    def __init__(
+        self,
+        transform: Optional[InvertibleTransform] = None,
+        nearest_interp: Union[bool, Sequence[bool]] = True,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
+        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+    ) -> None:
+        """
+        Args:
+            transform: the previously applied transform.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
+            device: move the inverted results to a target device before `post_func`, default to "cpu".
+            post_func: postprocessing for the inverted MetaTensor, should be a callable function.
+        """
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
+        self.transform = transform
+        self.nearest_interp = nearest_interp
+        self.device = device
+        self.post_func = post_func
+
+    def __call__(self, data):
+        if not isinstance(data, MetaTensor):
+            return data
+
+        if self.nearest_interp:
+            data.applied_operations = convert_applied_interp_mode(
+                trans_info=data.applied_operations, mode="nearest", align_corners=None
+            )
+
+        data = data.detach()
+        inverted = self.transform.inverse(data)
+        inverted = self.post_func(inverted.to(self.device))
+        return inverted

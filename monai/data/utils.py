@@ -11,11 +11,12 @@
 
 import hashlib
 import json
+import logging
 import math
 import os
 import pickle
 import warnings
-from collections import defaultdict
+from collections import abc, defaultdict
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap, zip_longest
@@ -26,12 +27,18 @@ import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
-from monai.config.type_definitions import PathLike
+from monai import config
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
+from monai.data.meta_obj import MetaObj
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
+    Method,
     NumpyPadMode,
+    TraceKeys,
+    convert_data_type,
+    convert_to_dst_type,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -41,7 +48,6 @@ from monai.utils import (
     look_up_option,
     optional_import,
 )
-from monai.utils.enums import Method
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -49,38 +55,50 @@ nib, _ = optional_import("nibabel")
 
 
 __all__ = [
-    "get_random_patch",
-    "iter_patch_slices",
-    "dense_patch_slices",
-    "iter_patch",
-    "get_valid_patch_size",
-    "list_data_collate",
-    "worker_init_fn",
-    "set_rnd",
-    "correct_nifti_header_if_necessary",
-    "rectify_header_sform_qform",
-    "zoom_affine",
-    "compute_shape_offset",
-    "to_affine_nd",
-    "create_file_basename",
+    "AFFINE_TOL",
+    "SUPPORTED_PICKLE_MOD",
+    "affine_to_spacing",
     "compute_importance_map",
+    "compute_shape_offset",
+    "convert_tables_to_dicts",
+    "correct_nifti_header_if_necessary",
+    "create_file_basename",
+    "decollate_batch",
+    "dense_patch_slices",
+    "get_random_patch",
+    "get_valid_patch_size",
     "is_supported_format",
+    "iter_patch",
+    "iter_patch_position",
+    "iter_patch_slices",
+    "json_hashing",
+    "list_data_collate",
+    "no_collation",
+    "orientation_ras_lps",
+    "pad_list_data_collate",
     "partition_dataset",
     "partition_dataset_classes",
+    "pickle_hashing",
+    "rectify_header_sform_qform",
+    "reorient_spatial_axes",
     "resample_datalist",
     "select_cross_validation_folds",
-    "json_hashing",
-    "pickle_hashing",
+    "set_rnd",
     "sorted_dict",
-    "decollate_batch",
-    "pad_list_data_collate",
-    "no_collation",
-    "convert_tables_to_dicts",
-    "SUPPORTED_PICKLE_MOD",
+    "to_affine_nd",
+    "worker_init_fn",
+    "zoom_affine",
+    "remove_keys",
+    "remove_extra_metadata",
+    "get_extra_metadata_keys",
+    "PICKLE_KEY_SUFFIX",
 ]
 
 # module to be used by `torch.save`
 SUPPORTED_PICKLE_MOD = {"pickle": pickle}
+
+# tolerance for affine matrix computation
+AFFINE_TOL = 1e-3
 
 
 def get_random_patch(
@@ -109,33 +127,37 @@ def get_random_patch(
 
 
 def iter_patch_slices(
-    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
+    padded: bool = True,
 ) -> Generator[Tuple[slice, ...], None, None]:
     """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
-    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
 
     Args:
-        dims: dimensions of array to iterate over
+        image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:
         Tuples of slice objects defining each patch
     """
 
-    # ensure patchSize and startPos are the right length
-    ndim = len(dims)
-    patch_size_ = get_valid_patch_size(dims, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
+    # ensure patch_size has the right length
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
 
-    # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
-
-    # choose patches by applying product to the ranges
-    for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
+    # create slices based on start position of each patch
+    for position in iter_patch_position(
+        image_size=image_size, patch_size=patch_size_, start_pos=start_pos, overlap=overlap, padded=padded
+    ):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
 
 
 def dense_patch_slices(
@@ -178,12 +200,56 @@ def dense_patch_slices(
     return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
 
 
+def iter_patch_position(
+    image_size: Sequence[int],
+    patch_size: Union[Sequence[int], int],
+    start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
+    padded: bool = False,
+):
+    """
+    Yield successive tuples of upper left corner of patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
+
+    Args:
+        image_size: dimensions of array to iterate over
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+
+    Yields:
+        Tuples of positions defining the upper left corner of each patch
+    """
+
+    # ensure patchSize and startPos are the right length
+    ndim = len(image_size)
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
+    start_pos = ensure_tuple_size(start_pos, ndim)
+    overlap = ensure_tuple_rep(overlap, ndim)
+
+    # calculate steps, which depends on the amount of overlap
+    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+
+    # calculate the last starting location (depending on the padding)
+    end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
+
+    # collect the ranges to step over each dimension
+    ranges = starmap(range, zip(start_pos, end_pos, steps))
+
+    # choose patches by applying product to the ranges
+    return product(*ranges)
+
+
 def iter_patch(
     arr: np.ndarray,
     patch_size: Union[Sequence[int], int] = 0,
     start_pos: Sequence[int] = (),
+    overlap: Union[Sequence[float], float] = 0.0,
     copy_back: bool = True,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+    mode: Optional[str] = NumpyPadMode.WRAP,
     **pad_opts: Dict,
 ):
     """
@@ -195,11 +261,11 @@ def iter_patch(
         arr: array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: One of the listed string values in ``monai.utils.NumpyPadMode`` or ``monai.utils.PytorchPadMode``,
+            or a user supplied function. If None, no wrapping is performed. Defaults to ``"wrap"``.
         pad_opts: padding options, see `numpy.pad`
 
     Yields:
@@ -219,19 +285,28 @@ def iter_patch(
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
+    # set padded flag to false if pad mode is None
+    padded = bool(mode)
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+    if padded:
+        arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+        # choose a start position in the padded image
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
 
-    # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        # choose a size to iterate over which is smaller than the actual padded image to prevent producing
+        # patches which are only in the padded regions
+        iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
+    else:
+        arrpad = arr
+        start_pos_padded = start_pos
+        iter_size = arr.shape
 
-    # choose a size to iterate over which is smaller than the actual padded image to prevent producing
-    # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
-
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, overlap, padded=padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        if padded:
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        else:
+            coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
@@ -254,6 +329,117 @@ def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[i
     return tuple(min(ms, ps or ms) for ms, ps in zip(image_size, patch_size_))
 
 
+def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
+    """
+    Recursively run collate logic and provide detailed loggings for debugging purposes.
+    It reports results at the 'critical' level, is therefore suitable in the context of exception handling.
+
+    Args:
+        batch: batch input to collate
+        level: current level of recursion for logging purposes
+        logger_name: name of logger to use for logging
+
+    See also: https://pytorch.org/docs/stable/data.html#working-with-collate-fn
+    """
+    elem = batch[0]
+    elem_type = type(elem)
+    l_str = ">" * level
+    batch_str = f"{batch[:10]}{' ... ' if len(batch) > 10 else ''}"
+    if isinstance(elem, torch.Tensor):
+        try:
+            logging.getLogger(logger_name).critical(f"{l_str} collate/stack a list of tensors")
+            return torch.stack(batch, 0)
+        except TypeError as e:
+            logging.getLogger(logger_name).critical(
+                f"{l_str} E: {e}, type {[type(elem).__name__ for elem in batch]} in collate({batch_str})"
+            )
+            return
+        except RuntimeError as e:
+            logging.getLogger(logger_name).critical(
+                f"{l_str} E: {e}, shape {[elem.shape for elem in batch]} in collate({batch_str})"
+            )
+            return
+    elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
+        if elem_type.__name__ in ["ndarray", "memmap"]:
+            logging.getLogger(logger_name).critical(f"{l_str} collate/stack a list of numpy arrays")
+            return dev_collate([torch.as_tensor(b) for b in batch], level=level, logger_name=logger_name)
+        elif elem.shape == ():  # scalars
+            return batch
+    elif isinstance(elem, (float, int, str, bytes)):
+        return batch
+    elif isinstance(elem, abc.Mapping):
+        out = {}
+        for key in elem:
+            logging.getLogger(logger_name).critical(f'{l_str} collate dict key "{key}" out of {len(elem)} keys')
+            out[key] = dev_collate([d[key] for d in batch], level=level + 1, logger_name=logger_name)
+        return out
+    elif isinstance(elem, abc.Sequence):
+        it = iter(batch)
+        els = list(it)
+        try:
+            sizes = [len(elem) for elem in els]  # may not have `len`
+        except TypeError:
+            types = [type(elem).__name__ for elem in els]
+            logging.getLogger(logger_name).critical(f"{l_str} E: type {types} in collate({batch_str})")
+            return
+        logging.getLogger(logger_name).critical(f"{l_str} collate list of sizes: {sizes}.")
+        if any(s != sizes[0] for s in sizes):
+            logging.getLogger(logger_name).critical(
+                f"{l_str} collate list inconsistent sizes, got size: {sizes}, in collate({batch_str})"
+            )
+        transposed = zip(*batch)
+        return [dev_collate(samples, level=level + 1, logger_name=logger_name) for samples in transposed]
+    logging.getLogger(logger_name).critical(f"{l_str} E: unsupported type in collate {batch_str}.")
+    return
+
+
+PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
+
+
+def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
+    """
+    Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
+
+    Args:
+        data: a list or dictionary with substructures to be pickled/unpickled.
+        key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
+        is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
+    """
+    if isinstance(data, Mapping):
+        data = dict(data)
+        for k in data:
+            if f"{k}".endswith(key):
+                if is_encode and not isinstance(data[k], bytes):
+                    data[k] = pickle.dumps(data[k], 0)
+                if not is_encode and isinstance(data[k], bytes):
+                    data[k] = pickle.loads(data[k])
+        return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
+    return data
+
+
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    if isinstance(elem_0, (tuple, list)):
+        return [collate_meta_tensor([d[i] for d in batch]) for i in range(len(elem_0))]
+
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -268,14 +454,17 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
-        elem = batch[0]
+        if config.USE_META_DICT:
+            data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
-                ret[k] = default_collate([d[k] for d in data])
-            return ret
-        return default_collate(data)
+                data_for_batch = [d[key] for d in data]
+                ret[key] = collate_meta_tensor(data_for_batch)
+        else:
+            ret = collate_meta_tensor(data)
+        return ret
     except RuntimeError as re:
         re_str = str(re)
         if "equal size" in re_str:
@@ -286,6 +475,7 @@ def list_data_collate(batch: Sequence):
                 + "`DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem (check its "
                 + "documentation)."
             )
+        _ = dev_collate(data)
         raise RuntimeError(re_str) from re
     except TypeError as re:
         re_str = str(re)
@@ -297,6 +487,7 @@ def list_data_collate(batch: Sequence):
                 + "creating your `DataLoader` with `collate_fn=pad_list_data_collate` might solve this problem "
                 + "(check its documentation)."
             )
+        _ = dev_collate(data)
         raise TypeError(re_str) from re
 
 
@@ -344,14 +535,14 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
 
         batch_data = {
             "image": torch.rand((2,1,10,10)),
-            "image_meta_dict": {"scl_slope": torch.Tensor([0.0, 0.0])}
+            DictPostFix.meta("image"): {"scl_slope": torch.Tensor([0.0, 0.0])}
         }
         out = decollate_batch(batch_data)
         print(len(out))
         >>> 2
 
         print(out[0])
-        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), 'image_meta_dict': {'scl_slope': 0.0}}
+        >>> {'image': tensor([[[4.3549e-01...43e-01]]]), DictPostFix.meta("image"): {'scl_slope': 0.0}}
 
         batch_data = [torch.rand((2,1,10,10)), torch.rand((2,3,5,5))]
         out = decollate_batch(batch_data)
@@ -383,7 +574,9 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """
     if batch is None:
         return batch
-    if isinstance(batch, (float, int, str, bytes)):
+    if isinstance(batch, (float, int, str, bytes)) or (
+        type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
+    ):
         return batch
     if isinstance(batch, torch.Tensor):
         if detach:
@@ -391,6 +584,16 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
         if batch.ndim == 0:
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
+        # if of type MetaObj, decollate the metadata
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, batch.applied_operations):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
@@ -403,19 +606,20 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             deco[k] = [deepcopy(deco[k]) for _ in range(b)]
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
-        return [dict(zip(deco, item)) for item in _gen]
+        ret = [dict(zip(deco, item)) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret
+        return pickle_operations(ret, is_encode=False)  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
-        return [list(item) for item in _gen]
+        ret_list = [list(item) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret_list
+        return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def pad_list_data_collate(
-    batch: Sequence,
-    method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-    **np_kwargs,
-):
+def pad_list_data_collate(batch: Sequence, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
 
@@ -423,22 +627,22 @@ def pad_list_data_collate(
     tensor in each dimension. This transform is useful if some of the applied transforms generate batch data of
     different sizes.
 
-    This can be used on both list and dictionary data. In the case of the dictionary data, this transform will be added
-    to the list of invertible transforms.
-
-    The inverse can be called using the static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse`.
+    This can be used on both list and dictionary data.
+    Note that in the case of the dictionary data, this decollate function may add the transform information of
+    `PadListDataCollate` to the list of invertible transforms if input batch have different spatial shape, so need to
+    call static method: `monai.transforms.croppad.batch.PadListDataCollate.inverse` before inverting other transforms.
 
     Args:
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
+    return PadListDataCollate(method=method, mode=mode, **kwargs)(batch)
 
 
 def no_collation(x):
@@ -478,6 +682,32 @@ def set_rnd(obj, seed: int) -> int:
     return seed
 
 
+def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_zeros: bool = True) -> NdarrayTensor:
+    """
+    Computing the current spacing from the affine matrix.
+
+    Args:
+        affine: a d x d affine matrix.
+        r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
+        dtype: data type of the output.
+        suppress_zeros: whether to surpress the zeros with ones.
+
+    Returns:
+        an `r` dimensional vector of spacing.
+    """
+    if len(affine.shape) != 2 or affine.shape[0] != affine.shape[1]:
+        raise ValueError(f"affine must be a square matrix, got {affine.shape}.")
+    _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
+    if isinstance(_affine, torch.Tensor):
+        spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
+    else:
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+    if suppress_zeros:
+        spacing[spacing == 0] = 1.0
+    spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
+    return spacing_
+
+
 def correct_nifti_header_if_necessary(img_nii):
     """
     Check nifti object header's format, update the header if needed.
@@ -493,7 +723,7 @@ def correct_nifti_header_if_necessary(img_nii):
         return img_nii  # do nothing for high-dimensional array
     # check that affine matches zooms
     pixdim = np.asarray(img_nii.header.get_zooms())[:dim]
-    norm_affine = np.sqrt(np.sum(np.square(img_nii.affine[:dim, :dim]), 0))
+    norm_affine = affine_to_spacing(img_nii.affine, r=dim)
     if np.allclose(pixdim, norm_affine):
         return img_nii
     if hasattr(img_nii, "get_sform"):
@@ -514,8 +744,8 @@ def rectify_header_sform_qform(img_nii):
     d = img_nii.header["dim"][0]
     pixdim = np.asarray(img_nii.header.get_zooms())[:d]
     sform, qform = img_nii.get_sform(), img_nii.get_qform()
-    norm_sform = np.sqrt(np.sum(np.square(sform[:d, :d]), 0))
-    norm_qform = np.sqrt(np.sum(np.square(qform[:d, :d]), 0))
+    norm_sform = affine_to_spacing(sform, r=d)
+    norm_qform = affine_to_spacing(qform, r=d)
     sform_mismatch = not np.allclose(norm_sform, pixdim)
     qform_mismatch = not np.allclose(norm_qform, pixdim)
 
@@ -532,7 +762,7 @@ def rectify_header_sform_qform(img_nii):
             img_nii.set_qform(img_nii.get_sform())
             return img_nii
 
-    norm = np.sqrt(np.sum(np.square(img_nii.affine[:d, :d]), 0))
+    norm = affine_to_spacing(img_nii.affine, r=d)
     warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
@@ -572,7 +802,7 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
     d = len(affine) - 1
     # compute original pixdim
-    norm = np.sqrt(np.sum(np.square(affine), 0))[:-1]
+    norm = affine_to_spacing(affine, r=d)
     if len(scale_np) < d:  # defaults based on affine
         scale_np = np.append(scale_np, norm[len(scale_np) :])
     scale_np = scale_np[:d]
@@ -592,7 +822,7 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: np.ndarray, out_affine: np.ndarray
+    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -607,67 +837,98 @@ def compute_shape_offset(
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
-    in_affine = to_affine_nd(sr, in_affine)
-    out_affine = to_affine_nd(sr, out_affine)
+    in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
+    out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
     in_coords = [(0.0, dim - 1.0) for dim in shape]
-    corners = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
+    corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine @ corners
-    corners_out = np.linalg.inv(out_affine) @ corners
+    corners = in_affine_ @ corners
+    try:
+        inv_mat = np.linalg.inv(out_affine_)
+    except np.linalg.LinAlgError as e:
+        raise ValueError(f"Affine {out_affine_} is not invertible") from e
+    corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
-    if np.allclose(nib.io_orientation(in_affine), nib.io_orientation(out_affine)):
-        # same orientation, get translate from the origin
-        offset = in_affine @ ([0] * sr + [1])
-        offset = offset[:-1] / offset[-1]
-    else:
-        # different orientation, the min is the origin
-        corners = corners[:-1] / corners[-1]
-        offset = np.min(corners, 1)
+    mat = inv_mat[:-1, :-1]
+    k = 0
+    for i in range(corners.shape[1]):
+        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
+            k = i
+            break
+    offset = corners[:-1, k]
     return out_shape.astype(int, copy=False), offset
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: np.ndarray) -> np.ndarray:
+def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
 
-    when ``r`` is an integer, output is an (r+1)x(r+1) matrix,
+    When ``r`` is an integer, output is an (r+1)x(r+1) matrix,
     where the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(r, len(affine) - 1)`.
 
-    when ``r`` is an affine matrix, the output has the same as ``r``,
-    the top left kxk elements are  copied from ``affine``,
+    When ``r`` is an affine matrix, the output has the same shape as ``r``,
+    and the top left kxk elements are copied from ``affine``,
     the last column of the output affine is copied from ``affine``'s last column.
     `k` is determined by `min(len(r) - 1, len(affine) - 1)`.
 
     Args:
         r (int or matrix): number of spatial dimensions or an output affine to be filled.
         affine (matrix): 2D affine matrix
+        dtype: data type of the output array.
 
     Raises:
         ValueError: When ``affine`` dimensions is not 2.
         ValueError: When ``r`` is nonpositive.
 
     Returns:
-        an (r+1) x (r+1) matrix
+        an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
-    affine_np = np.array(affine, dtype=np.float64)
+    affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
+    affine_np = affine_np.copy()
     if affine_np.ndim != 2:
         raise ValueError(f"affine must have 2 dimensions, got {affine_np.ndim}.")
-    new_affine = np.array(r, dtype=np.float64, copy=True)
+    new_affine = np.array(r, dtype=dtype, copy=True)
     if new_affine.ndim == 0:
         sr: int = int(new_affine.astype(np.uint))
         if not np.isfinite(sr) or sr < 0:
             raise ValueError(f"r must be positive, got {sr}.")
-        new_affine = np.eye(sr + 1, dtype=np.float64)
+        new_affine = np.eye(sr + 1, dtype=dtype)
     d = max(min(len(new_affine) - 1, len(affine_np) - 1), 1)
     new_affine[:d, :d] = affine_np[:d, :d]
     if d > 1:
         new_affine[:d, -1] = affine_np[:d, -1]
-    return new_affine
+    output, *_ = convert_to_dst_type(new_affine, affine, dtype=dtype)
+    return output
+
+
+def reorient_spatial_axes(
+    data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
+) -> Tuple[np.ndarray, NdarrayOrTensor]:
+    """
+    Given the input ``init_affine``, compute the orientation transform between
+    it and ``target_affine`` by rearranging/flipping the axes.
+
+    Returns the orientation transform and the updated affine (tensor or ndarray
+    depends on the input ``affine`` data type).
+    Note that this function requires external module ``nibabel.orientations``.
+    """
+    init_affine_, *_ = convert_data_type(init_affine, np.ndarray)
+    target_affine_, *_ = convert_data_type(target_affine, np.ndarray)
+    start_ornt = nib.orientations.io_orientation(init_affine_)
+    target_ornt = nib.orientations.io_orientation(target_affine_)
+    try:
+        ornt_transform = nib.orientations.ornt_transform(start_ornt, target_ornt)
+    except ValueError as e:
+        raise ValueError(f"The input affine {init_affine} and target affine {target_affine} are not compatible.") from e
+    new_affine = init_affine_ @ nib.orientations.inv_ornt_aff(ornt_transform, data_shape)
+    new_affine, *_ = convert_to_dst_type(new_affine, init_affine)
+    return ornt_transform, new_affine
 
 
 def create_file_basename(
@@ -682,16 +943,23 @@ def create_file_basename(
     """
     Utility function to create the path to the output file based on the input
     filename (file name extension is not added by this function).
-    When `data_root_dir` is not specified, the output file name is:
+    When ``data_root_dir`` is not specified, the output file name is:
 
         `folder_path/input_file_name (no ext.) /input_file_name (no ext.)[_postfix][_patch_index]`
 
-    otherwise the relative path with respect to `data_root_dir` will be inserted, for example:
-    input_file_name: /foo/bar/test1/image.png,
-    postfix: seg
-    folder_path: /output,
-    data_root_dir: /foo/bar,
-    output will be: /output/test1/image/image_seg
+    otherwise the relative path with respect to ``data_root_dir`` will be inserted, for example:
+
+    .. code-block:: python
+
+        from monai.data import create_file_basename
+        create_file_basename(
+            postfix="seg",
+            input_file_name="/foo/bar/test1/image.png",
+            folder_path="/output",
+            data_root_dir="/foo/bar",
+            separate_folder=True,
+            makedirs=False)
+        # output: /output/test1/image/image_seg
 
     Args:
         postfix: output name's postfix
@@ -730,7 +998,7 @@ def create_file_basename(
         os.makedirs(output, exist_ok=True)
 
     # add the sub-folder plus the postfix name to become the file basename in the output path
-    output = os.path.join(output, (filename + "_" + postfix) if len(postfix) > 0 else filename)
+    output = os.path.join(output, filename + "_" + postfix if postfix != "" else filename)
 
     if patch_index is not None:
         output += f"_{patch_index}"
@@ -766,9 +1034,9 @@ def compute_importance_map(
 
     """
     mode = look_up_option(mode, BlendMode)
-    device = torch.device(device)  # type: ignore[arg-type]
+    device = torch.device(device)
     if mode == BlendMode.CONSTANT:
-        importance_map = torch.ones(patch_size, device=device).float()
+        importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
         center_coords = [i // 2 for i in patch_size]
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
@@ -781,15 +1049,10 @@ def compute_importance_map(
         importance_map = importance_map.squeeze(0).squeeze(0)
         importance_map = importance_map / torch.max(importance_map)
         importance_map = importance_map.float()
-
-        # importance_map cannot be 0, otherwise we may end up with nans!
-        min_non_zero = importance_map[importance_map != 0].min().item()
-        importance_map = torch.clamp(importance_map, min=min_non_zero)
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
-
     return importance_map
 
 
@@ -1152,3 +1415,82 @@ def convert_tables_to_dicts(
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
     return data
+
+
+def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
+    """
+    Convert the ``affine`` between the `RAS` and `LPS` orientation
+    by flipping the first two spatial dimensions.
+
+    Args:
+        affine: a 2D affine matrix.
+    """
+    sr = max(affine.shape[0] - 1, 1)  # spatial rank is at least 1
+    flip_d = [[-1, 1], [-1, -1, 1], [-1, -1, 1, 1]]
+    flip_diag = flip_d[min(sr - 1, 2)] + [1] * (sr - 3)
+    if isinstance(affine, torch.Tensor):
+        return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
+    return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore
+
+
+def remove_keys(data: dict, keys: List[str]) -> None:
+    """
+    Remove keys from a dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        data: dictionary to be modified.
+        keys: keys to be deleted from dictionary.
+
+    Returns:
+        `None`
+    """
+    for k in keys:
+        _ = data.pop(k, None)
+
+
+def remove_extra_metadata(meta: dict) -> None:
+    """
+    Remove extra metadata from the dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        meta: dictionary containing metadata to be modified.
+
+    Returns:
+        `None`
+    """
+    keys = get_extra_metadata_keys()
+    remove_keys(data=meta, keys=keys)
+
+
+def get_extra_metadata_keys() -> List[str]:
+    """
+    Get a list of unnecessary keys for metadata that can be removed.
+
+    Returns:
+        List of keys to be removed.
+    """
+    keys = [
+        "srow_x",
+        "srow_y",
+        "srow_z",
+        "quatern_b",
+        "quatern_c",
+        "quatern_d",
+        "qoffset_x",
+        "qoffset_y",
+        "qoffset_z",
+        "dim",
+        "pixdim",
+        *[f"dim[{i}]" for i in range(8)],
+        *[f"pixdim[{i}]" for i in range(8)],
+    ]
+
+    # TODO: it would be good to remove these, but they are currently being used in the
+    # codebase.
+    # keys += [
+    #     "original_affine",
+    #     "spatial_shape",
+    #     "spacing",
+    # ]
+
+    return keys

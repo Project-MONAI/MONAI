@@ -65,13 +65,14 @@ grid_4 = [
         [0.0, 0.0, 0.0, 0.0, 0.0],
     ],
 ]
+grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
 
 VALID_CASES = []
 for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "value_1",
-            {"keys": ["img"], "independent": False, "applied_labels": 1},
+            {"keys": ["img"], "independent": False, "applied_labels": 1, "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -80,7 +81,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "value_2",
-            {"keys": ["img"], "independent": False, "applied_labels": [2]},
+            {"keys": ["img"], "independent": False, "applied_labels": [2], "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -89,7 +90,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "independent_value_1_2",
-            {"keys": ["img"], "independent": True, "applied_labels": [1, 2]},
+            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -98,7 +99,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "dependent_value_1_2",
-            {"keys": ["img"], "independent": False, "applied_labels": [1, 2]},
+            {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 1, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -107,7 +108,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "value_1",
-            {"keys": ["img"], "independent": True, "applied_labels": [1]},
+            {"keys": ["img"], "independent": True, "applied_labels": [1], "is_onehot": False},
             {"img": p(grid_2)},
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
         ]
@@ -116,7 +117,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "independent_value_1_2",
-            {"keys": ["img"], "independent": True, "applied_labels": [1, 2]},
+            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "is_onehot": False},
             {"img": p(grid_2)},
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 0]]]),
         ]
@@ -125,7 +126,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "dependent_value_1_2",
-            {"keys": ["img"], "independent": False, "applied_labels": [1, 2]},
+            {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "is_onehot": False},
             {"img": p(grid_2)},
             torch.tensor([[[0, 0, 0, 0, 1], [0, 0, 1, 1, 1], [0, 0, 1, 1, 2], [0, 0, 1, 2, 2], [0, 0, 0, 0, 1]]]),
         ]
@@ -134,7 +135,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "value_1_connect_1",
-            {"keys": ["img"], "independent": False, "applied_labels": [1], "connectivity": 1},
+            {"keys": ["img"], "independent": False, "applied_labels": [1], "connectivity": 1, "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 2]]]),
         ]
@@ -143,7 +144,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "independent_value_1_2_connect_1",
-            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "connectivity": 1},
+            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "connectivity": 1, "is_onehot": False},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
         ]
@@ -151,7 +152,7 @@ for p in TEST_NDARRAYS:
 
     VALID_CASES.append(
         [
-            "dependent_value_1_2_connect_1",
+            "onehot_none_dependent_value_1_2_connect_1",
             {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "connectivity": 1},
             {"img": p(grid_1)},
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [1, 2, 1, 0, 0], [1, 2, 0, 0, 0], [2, 2, 0, 0, 0]]]),
@@ -161,7 +162,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "onehot_independent_batch_2_apply_label_1_connect_1",
-            {"keys": ["img"], "independent": True, "applied_labels": [1], "connectivity": 1},
+            {"keys": ["img"], "independent": True, "applied_labels": [1], "connectivity": 1, "is_onehot": True},
             {"img": p(grid_3)},
             torch.tensor(
                 [
@@ -194,7 +195,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "onehot_independent_batch_2_apply_label_1_connect_2",
-            {"keys": ["img"], "independent": True, "applied_labels": [1], "connectivity": 2},
+            {"keys": ["img"], "independent": True, "applied_labels": [1], "connectivity": 2, "is_onehot": True},
             {"img": p(grid_3)},
             torch.tensor(
                 [
@@ -227,7 +228,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "onehot_independent_batch_2_apply_label_1_2_connect_2",
-            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "connectivity": 2},
+            {"keys": ["img"], "independent": True, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
             {"img": p(grid_3)},
             torch.tensor(
                 [
@@ -260,7 +261,7 @@ for p in TEST_NDARRAYS:
     VALID_CASES.append(
         [
             "onehot_dependent_batch_2_apply_label_1_2_connect_2",
-            {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "connectivity": 2},
+            {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "connectivity": 2, "is_onehot": True},
             {"img": p(grid_4)},
             torch.tensor(
                 [
@@ -292,7 +293,7 @@ for p in TEST_NDARRAYS:
 
     VALID_CASES.append(
         [
-            "onehot_dependent_batch_2_apply_label_1_2_connect_1",
+            "onehot_none_dependent_batch_2_apply_label_1_2_connect_1",
             {"keys": ["img"], "independent": False, "applied_labels": [1, 2], "connectivity": 1},
             {"img": p(grid_4)},
             torch.tensor(
@@ -323,13 +324,13 @@ for p in TEST_NDARRAYS:
         ]
     )
 
-INVALID_CASES = []
-for p in TEST_NDARRAYS:
-    INVALID_CASES.append(
-        ["no_applied_labels_for_single_channel", {"keys": ["img"], "independent": False}, {"img": p(grid_1)}, TypeError]
-    )
-    INVALID_CASES.append(
-        ["no_applied_labels_for_multi_channel", {"keys": ["img"], "independent": False}, {"img": p(grid_3)}, TypeError]
+    VALID_CASES.append(
+        [
+            "single_channel_onehot",
+            {"keys": ["img"], "independent": False, "applied_labels": 0, "connectivity": 1, "is_onehot": True},
+            {"img": p(grid_5)},
+            torch.tensor([[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 0, 0], [1, 1, 0, 0, 0]]]),
+        ]
     )
 
 
@@ -338,13 +339,7 @@ class TestKeepLargestConnectedComponentd(unittest.TestCase):
     def test_correct_results(self, _, args, input_dict, expected):
         converter = KeepLargestConnectedComponentd(**args)
         result = converter(input_dict)
-        assert_allclose(result["img"], expected, type_test=False)
-
-    @parameterized.expand(INVALID_CASES)
-    def test_raise_exception(self, _, args, input_dict, expected_error):
-        with self.assertRaises(expected_error):
-            converter = KeepLargestConnectedComponentd(**args)
-            _ = converter(input_dict)
+        assert_allclose(result["img"], expected, type_test="tensor")
 
 
 if __name__ == "__main__":

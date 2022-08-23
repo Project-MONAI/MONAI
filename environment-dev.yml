@@ -9,8 +9,8 @@ dependencies:
   - coverage>=5.5
   - parameterized
   - setuptools>=50.3.0,!=60.0.0
-  - ignite==0.4.7
-  - gdown>=3.6.4
+  - ignite==0.4.8
+  - gdown>=4.4.0
   - scipy
   - nibabel
   - pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
@@ -21,15 +21,13 @@ dependencies:
   - flake8>=3.8.1
   - flake8-bugbear
   - flake8-comprehensions
-  - flake8-pyi
+  - pylint
   - mccabe
   - pep8-naming
   - pycodestyle
   - pyflakes
-  - black
   - isort
   - types-pkg_resources
-  - mypy>=0.790
   - ninja
   - torchvision
   - psutil
@@ -43,10 +41,20 @@ dependencies:
   - transformers
   - mlflow
   - tensorboardX
+  - pyyaml
+  - fire
+  - jsonschema
+  - pynrrd
+  - pydicom
+  - h5py
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1
     - itk>=5.2
+    # black currently at v19 on conda vs v21 on pip
+    - black
+    # conda mypy v. slow
+    - mypy>=0.790
     # OS-specific needs to be done via pip:
     #   https://github.com/conda/conda/issues/8089
     - pytype>=2020.6.1; platform_system != "Windows"

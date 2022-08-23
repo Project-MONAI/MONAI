@@ -40,6 +40,8 @@ exclude_patterns = [
     "engines",
     "data",
     "apps",
+    "fl",
+    "bundle",
     "config",
     "handlers",
     "losses",
@@ -86,7 +88,7 @@ extensions = [
     "sphinx_autodoc_typehints",
 ]
 
-autoclass_content = "both"
+autoclass_content = "class"
 add_module_names = True
 source_encoding = "utf-8"
 autosectionlabel_prefix_document = True

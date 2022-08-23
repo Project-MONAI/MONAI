@@ -42,24 +42,12 @@ class TestCacheDataset(unittest.TestCase):
     def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
-            nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
-            nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
-            nib.save(test_image, os.path.join(tempdir, "test_extra1.nii.gz"))
-            nib.save(test_image, os.path.join(tempdir, "test_image2.nii.gz"))
-            nib.save(test_image, os.path.join(tempdir, "test_label2.nii.gz"))
-            nib.save(test_image, os.path.join(tempdir, "test_extra2.nii.gz"))
-            test_data = [
-                {
-                    "image": os.path.join(tempdir, "test_image1.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label1.nii.gz"),
-                    "extra": os.path.join(tempdir, "test_extra1.nii.gz"),
-                },
-                {
-                    "image": os.path.join(tempdir, "test_image2.nii.gz"),
-                    "label": os.path.join(tempdir, "test_label2.nii.gz"),
-                    "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
-                },
-            ]
+            test_data = []
+            for i in ["1", "2"]:
+                for k in ["image", "label", "extra"]:
+                    nib.save(test_image, os.path.join(tempdir, f"{k}{i}.nii.gz"))
+                test_data.append({k: os.path.join(tempdir, f"{k}{i}.nii.gz") for k in ["image", "label", "extra"]})
+
             dataset = CacheDataset(data=test_data, transform=transform, cache_rate=0.5, as_contiguous=True)
             data1 = dataset[0]
             data2 = dataset[1]
@@ -67,10 +55,16 @@ class TestCacheDataset(unittest.TestCase):
             data4 = dataset[-1]
             self.assertEqual(len(data3), 1)
 
+            if transform is None:
+                # Check without providing transfrom
+                dataset2 = CacheDataset(data=test_data, cache_rate=0.5, as_contiguous=True)
+                for k in ["image", "label", "extra"]:
+                    self.assertEqual(dataset[0][k], dataset2[0][k])
+
         if transform is None:
-            self.assertEqual(data1["image"], os.path.join(tempdir, "test_image1.nii.gz"))
-            self.assertEqual(data2["label"], os.path.join(tempdir, "test_label2.nii.gz"))
-            self.assertEqual(data4["image"], os.path.join(tempdir, "test_image2.nii.gz"))
+            self.assertEqual(data1["image"], os.path.join(tempdir, "image1.nii.gz"))
+            self.assertEqual(data2["label"], os.path.join(tempdir, "label2.nii.gz"))
+            self.assertEqual(data4["image"], os.path.join(tempdir, "image2.nii.gz"))
         else:
             self.assertTupleEqual(data1["image"].shape, expected_shape)
             self.assertTupleEqual(data1["label"].shape, expected_shape)
@@ -92,7 +86,7 @@ class TestCacheDataset(unittest.TestCase):
             cache_rate=1.0,
             num_workers=4,
             progress=True,
-            copy_cache=False if sys.platform == "linux" else True,
+            copy_cache=not sys.platform == "linux",
         )
 
         num_workers = 2 if sys.platform == "linux" else 0
@@ -194,6 +188,46 @@ class TestCacheThread(unittest.TestCase):
             )
             self.assertListEqual(expected, [y.item() for y in loader])
             self.assertListEqual(expected, [y.item() for y in loader])
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_hash_as_key(self, transform, expected_shape):
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        with tempfile.TemporaryDirectory() as tempdir:
+            test_data = []
+            for i in ["1", "2", "2", "3", "3"]:
+                for k in ["image", "label", "extra"]:
+                    nib.save(test_image, os.path.join(tempdir, f"{k}{i}.nii.gz"))
+                test_data.append({k: os.path.join(tempdir, f"{k}{i}.nii.gz") for k in ["image", "label", "extra"]})
+
+            dataset = CacheDataset(data=test_data, transform=transform, cache_num=4, num_workers=2, hash_as_key=True)
+            self.assertEqual(len(dataset), 5)
+            # ensure no duplicated cache content
+            self.assertEqual(len(dataset._cache), 3)
+            self.assertEqual(dataset.cache_num, 3)
+            data1 = dataset[0]
+            data2 = dataset[1]
+            data3 = dataset[-1]
+            # test slice indices
+            data4 = dataset[0:-1]
+            self.assertEqual(len(data4), 4)
+
+            if transform is None:
+                self.assertEqual(data1["image"], os.path.join(tempdir, "image1.nii.gz"))
+                self.assertEqual(data2["label"], os.path.join(tempdir, "label2.nii.gz"))
+                self.assertEqual(data3["image"], os.path.join(tempdir, "image3.nii.gz"))
+            else:
+                self.assertTupleEqual(data1["image"].shape, expected_shape)
+                self.assertTupleEqual(data2["label"].shape, expected_shape)
+                self.assertTupleEqual(data3["image"].shape, expected_shape)
+                for d in data4:
+                    self.assertTupleEqual(d["image"].shape, expected_shape)
+
+            test_data2 = test_data[:3]
+            dataset.set_data(data=test_data2)
+            self.assertEqual(len(dataset), 3)
+            # ensure no duplicated cache content
+            self.assertEqual(len(dataset._cache), 2)
+            self.assertEqual(dataset.cache_num, 2)
 
 
 if __name__ == "__main__":

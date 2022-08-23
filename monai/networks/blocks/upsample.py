@@ -46,7 +46,7 @@ class UpSample(nn.Sequential):
         size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
-        interp_mode: Union[InterpolateMode, str] = InterpolateMode.LINEAR,
+        interp_mode: str = InterpolateMode.LINEAR,
         align_corners: Optional[bool] = True,
         bias: bool = True,
         apply_pad_pool: bool = True,
@@ -72,7 +72,7 @@ class UpSample(nn.Sequential):
                 If ends with ``"linear"`` will use ``spatial dims`` to determine the correct interpolation.
                 This corresponds to linear, bilinear, trilinear for 1D, 2D, and 3D respectively.
                 The interpolation mode. Defaults to ``"linear"``.
-                See also: https://pytorch.org/docs/stable/nn.html#upsample
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.Upsample.html
             align_corners: set the align_corners parameter of `torch.nn.Upsample`. Defaults to True.
                 Only used in the "nontrainable" mode.
             bias: whether to have a bias term in the default preconv and deconv layers. Defaults to True.
@@ -219,7 +219,7 @@ class SubpixelUpsample(nn.Module):
             out_channels = out_channels or in_channels
             if not out_channels:
                 raise ValueError("in_channels need to be specified.")
-            conv_out_channels = out_channels * (scale_factor ** self.dimensions)
+            conv_out_channels = out_channels * (scale_factor**self.dimensions)
             self.conv_block = Conv[Conv.CONV, self.dimensions](
                 in_channels=in_channels, out_channels=conv_out_channels, kernel_size=3, stride=1, padding=1, bias=bias
             )
@@ -247,7 +247,7 @@ class SubpixelUpsample(nn.Module):
             x: Tensor in shape (batch, channel, spatial_1[, spatial_2, ...).
         """
         x = self.conv_block(x)
-        if x.shape[1] % (self.scale_factor ** self.dimensions) != 0:
+        if x.shape[1] % (self.scale_factor**self.dimensions) != 0:
             raise ValueError(
                 f"Number of channels after `conv_block` ({x.shape[1]}) must be evenly "
                 "divisible by scale_factor ** dimensions "

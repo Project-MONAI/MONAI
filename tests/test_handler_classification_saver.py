@@ -35,8 +35,8 @@ class TestHandlerClassificationSaver(unittest.TestCase):
             engine = Engine(_train_func)
 
             # set up testing handler
-            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv")
-            ClassificationSaver(output_dir=tempdir, filename="predictions1.csv").attach(engine)
+            saver = CSVSaver(output_dir=tempdir, filename="predictions2.csv", delimiter="\t")
+            ClassificationSaver(output_dir=tempdir, filename="predictions1.csv", delimiter="\t").attach(engine)
             ClassificationSaver(saver=saver).attach(engine)
 
             data = [{"filename_or_obj": ["testfile" + str(i) for i in range(8)]}]
@@ -46,7 +46,7 @@ class TestHandlerClassificationSaver(unittest.TestCase):
                 filepath = os.path.join(tempdir, filename)
                 self.assertTrue(os.path.exists(filepath))
                 with open(filepath) as f:
-                    reader = csv.reader(f)
+                    reader = csv.reader(f, delimiter="\t")
                     i = 0
                     for row in reader:
                         self.assertEqual(row[0], "testfile" + str(i))

@@ -17,12 +17,13 @@ from numpy.lib.stride_tricks import as_strided
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.transform import Randomizable, Transform
-from monai.utils import convert_data_type, convert_to_dst_type
+from monai.utils import convert_data_type, convert_to_dst_type, deprecated
 from monai.utils.enums import TransformBackends
 
 __all__ = ["SplitOnGrid", "TileOnGrid"]
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridSplit` instead.")
 class SplitOnGrid(Transform):
     """
     Split the image into patches based on the provided grid shape.
@@ -107,6 +108,7 @@ class SplitOnGrid(Transform):
         return patch_size, steps
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.transforms.GridPatch` or `monai.transforms.RandGridPatch` instead.")
 class TileOnGrid(Randomizable, Transform):
     """
     Tile the 2D image into patches on a grid and maintain a subset of it.
@@ -190,8 +192,7 @@ class TileOnGrid(Randomizable, Transform):
             self.random_idxs = np.array((0,))
 
     def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
-        img_np: np.ndarray
-        img_np, *_ = convert_data_type(image, np.ndarray)  # type: ignore
+        img_np, *_ = convert_data_type(image, np.ndarray)
 
         # add random offset
         self.randomize(img_size=img_np.shape)
@@ -204,13 +205,13 @@ class TileOnGrid(Randomizable, Transform):
             c, h, w = img_np.shape
             pad_h = (self.tile_size - h % self.tile_size) % self.tile_size
             pad_w = (self.tile_size - w % self.tile_size) % self.tile_size
-            img_np = np.pad(
+            img_np = np.pad(  # type: ignore
                 img_np,
                 [[0, 0], [pad_h // 2, pad_h - pad_h // 2], [pad_w // 2, pad_w - pad_w // 2]],
                 constant_values=self.background_val,
             )
 
-        # extact tiles
+        # extract tiles
         x_step, y_step = self.step, self.step
         h_tile, w_tile = self.tile_size, self.tile_size
         c_image, h_image, w_image = img_np.shape
@@ -221,7 +222,7 @@ class TileOnGrid(Randomizable, Transform):
             strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
             writeable=False,
         )
-        img_np = llw.reshape(-1, c_image, h_tile, w_tile)
+        img_np = llw.reshape(-1, c_image, h_tile, w_tile)  # type: ignore
 
         # if keeping all patches
         if self.tile_count is None:
@@ -252,7 +253,7 @@ class TileOnGrid(Randomizable, Transform):
                         img_np = img_np[self.random_idxs]
 
             elif len(img_np) < self.tile_count:
-                img_np = np.pad(
+                img_np = np.pad(  # type: ignore
                     img_np,
                     [[0, self.tile_count - len(img_np)], [0, 0], [0, 0], [0, 0]],
                     constant_values=self.background_val,

@@ -14,7 +14,7 @@ import torch.nn as nn
 
 from monai.utils import optional_import
 
-einops, _ = optional_import("einops")
+Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 
 class SABlock(nn.Module):
@@ -43,17 +43,20 @@ class SABlock(nn.Module):
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
         self.qkv = nn.Linear(hidden_size, hidden_size * 3, bias=False)
+        self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
+        self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.head_dim = hidden_size // num_heads
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
 
     def forward(self, x):
-        q, k, v = einops.rearrange(self.qkv(x), "b h (qkv l d) -> qkv b l h d", qkv=3, l=self.num_heads)
+        output = self.input_rearrange(self.qkv(x))
+        q, k, v = output[0], output[1], output[2]
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
         att_mat = self.drop_weights(att_mat)
         x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
-        x = einops.rearrange(x, "b h l d -> b l (h d)")
+        x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x

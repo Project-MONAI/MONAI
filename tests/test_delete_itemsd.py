@@ -16,6 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import DeleteItemsd
+from monai.utils.enums import PostFix
 
 TEST_CASE_1 = [{"keys": [str(i) for i in range(30)]}, 20]
 
@@ -44,10 +45,10 @@ class TestDeleteItemsd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_3])
     def test_re(self, input_param):
-        input_data = {"image": [1, 2, 3], "meta_dict": {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
+        input_data = {"image": [1, 2, 3], PostFix.meta(): {"0008|0005": 1, "0008|1050": 2, "0008test": 3}}
         result = DeleteItemsd(**input_param)(input_data)
-        self.assertEqual(result["meta_dict"]["0008test"], 3)
-        self.assertTrue(len(result["meta_dict"]), 1)
+        self.assertEqual(result[PostFix.meta()]["0008test"], 3)
+        self.assertEqual(len(result[PostFix.meta()]), 1)
 
 
 if __name__ == "__main__":

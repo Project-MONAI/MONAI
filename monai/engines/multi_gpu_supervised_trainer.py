@@ -74,8 +74,8 @@ def create_multigpu_supervised_trainer(
             tuple of tensors `(batch_x, batch_y)`.
         output_transform: function that receives 'x', 'y', 'y_pred', 'loss' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `loss.item()`.
-        distributed: whether convert model to `DistributedDataParallel`, if have multiple devices, use
-            the first device as output device.
+        distributed: whether convert model to `DistributedDataParallel`, if `True`, `devices` must contain
+            only 1 GPU or CPU for current distributed rank.
 
     Returns:
         Engine: a trainer engine with supervised update function.
@@ -87,6 +87,8 @@ def create_multigpu_supervised_trainer(
 
     devices_ = get_devices_spec(devices)
     if distributed:
+        if len(devices_) > 1:
+            raise ValueError(f"for distributed training, `devices` must contain only 1 GPU or CPU, but got {devices_}.")
         net = DistributedDataParallel(net, device_ids=devices_)
     elif len(devices_) > 1:
         net = DataParallel(net)
@@ -122,8 +124,8 @@ def create_multigpu_supervised_evaluator(
         output_transform: function that receives 'x', 'y', 'y_pred' and returns value
             to be assigned to engine's state.output after each iteration. Default is returning `(y_pred, y,)`
             which fits output expected by metrics. If you change it you should use `output_transform` in metrics.
-        distributed: whether convert model to `DistributedDataParallel`, if have multiple devices, use
-            the first device as output device.
+        distributed: whether convert model to `DistributedDataParallel`, if `True`, `devices` must contain
+            only 1 GPU or CPU for current distributed rank.
 
     Note:
         `engine.state.output` for this engine is defined by `output_transform` parameter and is
@@ -137,6 +139,10 @@ def create_multigpu_supervised_evaluator(
 
     if distributed:
         net = DistributedDataParallel(net, device_ids=devices_)
+        if len(devices_) > 1:
+            raise ValueError(
+                f"for distributed evaluation, `devices` must contain only 1 GPU or CPU, but got {devices_}."
+            )
     elif len(devices_) > 1:
         net = DataParallel(net)
 
