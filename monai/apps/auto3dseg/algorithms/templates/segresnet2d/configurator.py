@@ -110,6 +110,12 @@ class Configurator(AlgorithmConfigurator):
                 + self.config[_key][_t_key]["transforms"][(_i_intensity + 1) :]
             )
 
+        self.training_commands = []
+        self.training_commands.append(
+            "scripts/train.py"
+        )
+        self.inference_script = "scripts/infer.py"
+
     def write(self):
         write_path = os.path.join(self.output_path, "segresnet2d")
         if not os.path.exists(write_path):
@@ -128,3 +134,10 @@ class Configurator(AlgorithmConfigurator):
         for _key in self.config.keys():
             with open(os.path.join(write_path, "configs", _key), "w") as f:
                 yaml.dump(self.config[_key], stream=f)
+
+            with open(os.path.join(write_path, "configs", _key), "r+") as f:
+                lines = f.readlines()
+                f.seek(0)
+                f.write("# generated automatically by monai.auto3dseg\n")
+                f.write("# for more information please visit: https://docs.monai.io/\n\n")
+                f.writelines(lines)
