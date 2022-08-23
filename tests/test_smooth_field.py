@@ -17,11 +17,18 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandSmoothDeformd, RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
+from monai.networks.utils import meshgrid_xy
 from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 
-INPUT_SHAPES = ((1, 8, 8), (2, 8, 8), (1, 8, 8, 8))
+x,y=meshgrid_xy(torch.linspace(-1,2,11),torch.linspace(-2.1,1.2,8))
+pattern2d=x.pow(2).add_(y.pow(2)).sqrt_()
+
+x,y,z=meshgrid_xy(torch.linspace(-1,2,11),torch.linspace(-2.1,1.2,8),torch.linspace(-0.1,10.2,6))
+pattern3d=x.pow(2).add_(y.pow(2)).add_(z.pow(2)).sqrt_()
+
+INPUT_SHAPES = ((1, 8, 8), (1, 12, 7), (2, 8, 8), (2, 13, 8), (1, 8, 8, 8), (3, 7, 4, 5))
 
 TESTS_CONTRAST = []
 TESTS_INTENSITY = []
@@ -130,6 +137,29 @@ class TestSmoothField(unittest.TestCase):
         for key, result in res.items():
             expected = expected_val[key]
             assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
+
+         
+    def test_rand_smooth_nodeformd(self):
+        """Test input is very close to output when deformation is very low, verifies there's no transposition."""
+        
+        for label,im in zip(("2D", "3D"),(pattern2d, pattern3d)):
+            with self.subTest(f"Testing {label} case with shape {im.shape}"):
+                rsize=(3,)*len(im.shape)
+                g = RandSmoothDeformd(
+                    keys=(KEY,),spatial_size=im.shape,rand_size=rsize,prob=1.0,device=device,def_range=1e-20
+                )
+                g.set_random_state(123)
+                
+                expected_val={KEY:im[None]}
+        
+                res = g(expected_val)
+                for key, result in res.items():
+                    expected = expected_val[key]
+                    
+                    self.assertSequenceEqual(tuple(result.shape), tuple(expected.shape))
+                    
+                    assert_allclose(result, expected, rtol=_rtol, atol=1e-1, type_test="tensor")
+            
 
     def test_rand_smooth_deformd_pad(self):
         input_param, input_data, expected_val = TESTS_DEFORM[0]
