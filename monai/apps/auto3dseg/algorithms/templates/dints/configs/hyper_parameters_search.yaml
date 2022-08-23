@@ -1,0 +1,55 @@
+---
+# hyper-parameters
+amp: true
+bundle_root: null
+arch_path: "$@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)"
+data_file_base_dir: null
+data_list_file_path: null
+determ: false
+fold: 0
+input_channels: null
+learning_rate: 0.025
+learning_rate_arch: 0.001
+num_images_per_batch: 2
+num_iterations: 20000
+num_iterations_per_validation: 500
+num_warmup_iterations: 10000
+num_patches_per_image: 1
+num_sw_batch_size: 2
+output_classes: null
+overlap_ratio: 0.625
+patch_size: null
+patch_size_valid: null
+ram_cost_factor: 0.8
+softmax: true
+
+# architecture searching
+loss:
+  _target_: DiceFocalLoss
+  include_background: true
+  to_onehot_y: "$@softmax"
+  softmax: "$@softmax"
+  sigmoid: "$not @softmax"
+  squared_pred: true
+  batch: true
+  smooth_nr: 1.0e-05
+  smooth_dr: 1.0e-05
+optimizer:
+  _target_: torch.optim.SGD
+  lr: "@learning_rate"
+  momentum: 0.9
+  weight_decay: 4.0e-05
+arch_optimizer_a:
+  _target_: torch.optim.Adam
+  lr: "@learning_rate_arch"
+  betas: [0.5, 0.999]
+  weight_decay: 0
+arch_optimizer_c:
+  _target_: torch.optim.Adam
+  lr: "@learning_rate_arch"
+  betas: [0.5, 0.999]
+  weight_decay: 0
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  step_size: "$int(float(@num_iterations - @num_warmup_iterations) * 0.4)"
+  gamma: 0.5
