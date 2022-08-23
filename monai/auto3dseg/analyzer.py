@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Type
 
 import numpy as np
 import torch
@@ -26,7 +26,9 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
+from monai.transforms.utils_pytorch_numpy_unification import unique, sum
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS
 from monai.utils.misc import label_union
 
@@ -47,13 +49,13 @@ class Analyzer(MapTransform, ABC):
         self.report_format = report_format
         self.ops = ConfigParser({})
 
-    def update_ops(self, key: str, op):
+    def update_ops(self, key: str, op: Type[Operations]):
         """
         Register an statistical operation to the Analyzer and update the report_format
 
         Args:
             key: value key in the report.
-            op: Operation object.
+            op: Operation sub-class object that represents statistical operations.
 
         """
         self.ops[key] = op
@@ -64,14 +66,14 @@ class Analyzer(MapTransform, ABC):
 
         self.report_format = parser.config
 
-    def update_ops_nested_label(self, nested_key, op):
+    def update_ops_nested_label(self, nested_key: str, op: Type[Operations]):
         """
         Update operations for nested label format. Operation value in report_format will be resolved
         to a dict with only keys
 
         Args:
             nested_key: str that has format of 'key1#0#key2'.
-            op: statistical operation.
+            op: Operation sub-class object that represents statistical operations.
         """
         keys = nested_key.split(ID_SEP_KEY)
         if len(keys) != 3:
@@ -100,13 +102,13 @@ class Analyzer(MapTransform, ABC):
         return self.report_format
 
     @staticmethod
-    def unwrap_ops(func):
+    def unwrap_ops(func: Type[Operations]):
         """
         Unwrap a function value and generates the same set keys in a dict when the function is actually
         called in runtime
 
         Args:
-            func: Operation.
+            func: Operation sub-class object that represents statistical operations.
 
         Returns:
             a dict with a set of keys.
@@ -135,13 +137,34 @@ class Analyzer(MapTransform, ABC):
                 report[k] = v
 
     @abstractmethod
-    def __call__(self, data):
+    def __call__(self, data: Any):
         """Analyze the dict format dataset, return the summary report"""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
 class ImageStatsCaseAnalyzer(Analyzer):
-    def __init__(self, image_key, meta_key_postfix="_meta_dict"):
+    """
+    Analyzer to extract image stats properties for each case(image). 
+
+    Args:
+        image_key: the key to find image data in the callable function input (data) 
+        meta_key_postfix: the postfix to append for meta_dict ("image_meta_dict")
+    
+    Examples:
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.auto3dseg.analyzer import ImageStatsCaseAnalyzer
+
+        input = {}
+        input['image'] = np.random.rand(1,30,30,30)
+        input['image_meta_dict'] = {'affine': np.eye(4)}
+        analyzer = ImageStatsCaseAnalyzer(image_key="image")
+        print(analyzer(input))
+
+    """
+    def __init__(self, image_key: str, meta_key_postfix: Optional[str] = "_meta_dict"):
 
         self.image_key = image_key
         self.image_meta_key = self.image_key + meta_key_postfix
@@ -158,6 +181,19 @@ class ImageStatsCaseAnalyzer(Analyzer):
         self.update_ops(IMAGE_STATS.INTENSITY, SampleOperations())
 
     def __call__(self, data):
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format. The value of 
+            IMAGE_STATS.INTENSITY is in a list format. Each element of the value list 
+            has stats pre-defined by SampleOperations (max, min, ....)
+        
+        Note:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        
+        """
         # from time import time
         # start = time.time()
         ndas = data[self.image_key]
@@ -182,19 +218,50 @@ class ImageStatsCaseAnalyzer(Analyzer):
 
 
 class FgImageStatsCasesAnalyzer(Analyzer):
-    def __init__(self, image_key, label_key, meta_key_postfix="_meta_dict"):
+    """
+    Analyzer to extract foreground label properties for each case(image and label). 
+
+    Args:
+        image_key: the key to find image data in the callable function input (data) 
+        label_key: the key to find label data in the callable function input (data)
+
+    Examples:
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.auto3dseg.analyzer import FgImageStatsCasesAnalyzer
+
+        input = {}
+        input['image'] = np.random.rand(1,30,30,30)
+        input['label'] = np.ones([30,30,30])
+        analyzer = FgImageStatsCasesAnalyzer(image_key='image', label_key='label')
+        print(analyzer(input))
+    
+    """
+    def __init__(self, image_key, label_key):
 
         self.image_key = image_key
         self.label_key = label_key
-        self.image_meta_key = self.image_key + meta_key_postfix
-        self.label_meta_key = self.label_key + meta_key_postfix
 
         report_format = {IMAGE_STATS.INTENSITY: None}
 
         super().__init__(report_format)
         self.update_ops(IMAGE_STATS.INTENSITY, SampleOperations())
 
-    def __call__(self, data):
+    def __call__(self, data) -> dict:
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format and value
+            in a list format. Each element of the value list has stats pre-defined
+            by SampleOperations (max, min, ....)
+        
+        Note:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        """
 
         ndas = data[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
@@ -209,12 +276,32 @@ class FgImageStatsCasesAnalyzer(Analyzer):
 
 
 class LabelStatsCaseAnalyzer(Analyzer):
-    def __init__(self, image_key, label_key, meta_key_postfix="_meta_dict", do_ccp: bool = True):
+    """
+    Analyzer to extract label stats properties for each case(image and label). 
+
+    Args:
+        image_key: the key to find image data in the callable function input (data) 
+        label_key: the key to find label data in the callable function input (data) 
+        do_ccp: performs connected component analysis. Default is True.
+    
+    Examples:
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.auto3dseg.analyzer import LabelStatsCaseAnalyzer
+
+        input = {}
+        input['image'] = np.random.rand(1,30,30,30)
+        input['label'] = np.ones([30,30,30])
+        analyzer = LabelStatsCaseAnalyzer(image_key='image', label_key='label')
+        print(analyzer(input))
+    
+    """
+    def __init__(self, image_key: str, label_key: str, do_ccp: Optional[bool] = True):
 
         self.image_key = image_key
         self.label_key = label_key
-        self.image_meta_key = self.image_key + meta_key_postfix
-        self.label_meta_key = self.label_key + meta_key_postfix
         self.do_ccp = do_ccp
 
         report_format = {
@@ -234,11 +321,28 @@ class LabelStatsCaseAnalyzer(Analyzer):
         self.update_ops_nested_label(id_seq, SampleOperations())
 
     def __call__(self, data):
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format and value
+            in a list format. Each element of the value list has stats pre-defined
+            by SampleOperations (max, min, ....)
+        
+        Note:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        """
         ndas = data[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_label = data[self.label_key]  # (H,W,D)
         nda_foregrounds = [get_foreground_label(nda, ndas_label) for nda in ndas]
-        unique_label = torch.unique(ndas_label).data.cpu().numpy().astype(np.int8).tolist()
+
+        unique_label = unique(ndas_label)
+        if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
+            unique_label = unique_label.data.cpu().numpy()
+ 
+        unique_label = unique_label.astype(np.int8).tolist()
 
         # start = time.time()
         detailed_label_stats = []  # each element is one label
@@ -250,7 +354,9 @@ class LabelStatsCaseAnalyzer(Analyzer):
             label_dict[LABEL_STATS.IMAGE_INT] = [
                 self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda[mask_index]) for nda in ndas
             ]
-            pixel_num = torch.sum(mask_index).data.cpu().numpy()  # pixel_percentage[index]
+            pixel_num = sum(mask_index)
+            if isinstance(pixel_num, (MetaTensor, torch.Tensor)):
+                pixel_num = pixel_num.data.cpu().numpy()  # pixel_percentage[index]
             label_dict[LABEL_STATS.PIXEL_PCT] = pixel_num.astype(np.float64)
             pixel_sum += pixel_num
             if self.do_ccp:  # apply connected component

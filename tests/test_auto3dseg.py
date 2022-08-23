@@ -20,14 +20,24 @@ import numpy as np
 import torch
 
 from monai import data
-from monai.auto3dseg.analyzer import Analyzer
+from monai.auto3dseg import analyze_engine
+from monai.auto3dseg.analyzer import Analyzer, ImageStatsCaseAnalyzer, FgImageStatsCasesAnalyzer, LabelStatsCaseAnalyzer
 from monai.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg.operations import Operations
-from monai.auto3dseg.utils import datafold_read
+from monai.auto3dseg.utils import datafold_read, verify_report_format
 from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
 from monai.data.utils import no_collation
-from monai.transforms import Compose, LoadImaged
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirstd,
+    EnsureTyped,
+    Lambdad,
+    LoadImaged,
+    Orientationd,
+    SqueezeDimd,
+    ToDeviced,
+)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
@@ -158,6 +168,70 @@ class TestDataAnalyzer(unittest.TestCase):
             assert "max" in result["stats"]
             assert "min" in result["stats"]
             assert "mean" in result["stats"]
+
+    def test_image_stats_case_analyzer(self):
+        analyzer = ImageStatsCaseAnalyzer(image_key="image")
+        transform_list = [
+            LoadImaged(keys=["image"]), 
+            EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image"], device=device, non_blocking=True),
+            Orientationd(keys=["image"], axcodes="RAS"),
+            EnsureTyped(keys=["image"], data_type="tensor"),
+            analyzer,
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        for batch_data in self.dataset:
+            report = transform(batch_data[0])
+            report_format = analyzer.get_report_format()
+            assert verify_report_format(report, report_format)
+
+    def test_foreground_image_stats_cases_analyzer(self):
+        analyzer = FgImageStatsCasesAnalyzer(image_key="image", label_key="label")
+        transform_list = [
+            LoadImaged(keys=["image", "label"]), 
+            EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
+            Orientationd(keys=["image", "label"], axcodes="RAS"),
+            EnsureTyped(keys=["image", "label"], data_type="tensor"),
+            Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+            SqueezeDimd(keys=["label"], dim=0),
+            analyzer,
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        for batch_data in self.dataset:
+            report = transform(batch_data[0])
+            report_format = analyzer.get_report_format()
+            assert verify_report_format(report, report_format)
+
+    def test_label_stats_case_analyzer(self):
+        analyzer = LabelStatsCaseAnalyzer(image_key="image", label_key="label")
+        transform_list = [
+            LoadImaged(keys=["image", "label"]), 
+            EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
+            Orientationd(keys=["image", "label"], axcodes="RAS"),
+            EnsureTyped(keys=["image", "label"], data_type="tensor"),
+            Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+            SqueezeDimd(keys=["label"], dim=0),
+            analyzer,
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        for batch_data in self.dataset:
+            report = transform(batch_data[0])
+            report_format = analyzer.get_report_format()
+            assert verify_report_format(report, report_format)
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
