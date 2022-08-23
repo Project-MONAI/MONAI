@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from copy import deepcopy
 import sys
 import tempfile
 import unittest
@@ -19,8 +20,11 @@ import numpy as np
 import torch
 
 from monai.auto3dseg.data_analyzer import DataAnalyzer
+from monai.auto3dseg.analyzer import Analyzer
+from monai.auto3dseg.operations import Operations
 from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
+from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
@@ -34,6 +38,29 @@ fake_datalist = {
         {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
     ],
 }
+
+class TestOperations(Operations):
+    """
+    Test example for user operation
+    """
+    def __init__(self) -> None:
+        self.data = {
+            "max": np.max,
+            "mean": np.mean,
+            "min": np.min,
+        }
+        
+class TestAnalyzer(Analyzer):
+    """
+    Test example for a simple Analyzer
+    """
+    def __init__(self, report_format):
+        super().__init__(report_format)
+    
+    def __call__(self, data):
+        report = deepcopy(self.get_report_format())
+        report["stats"] = self.ops["stats"].evaluate(data)
+        return report
 
 
 class TestDataAnalyzer(unittest.TestCase):
@@ -84,6 +111,18 @@ class TestDataAnalyzer(unittest.TestCase):
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_basic_analyzer_class(self):
+        test_data = np.random.rand(10,10)
+        report_format = {
+            "stats": None
+        }
+        user_analyzer = TestAnalyzer(report_format)
+        user_analyzer.update_ops("stats", TestOperations())
+        result = user_analyzer(test_data)
+        assert result["stats"]["max"] == np.max(test_data)
+        assert result["stats"]['min'] == np.min(test_data)
+        assert result["stats"]['mean'] == np.mean(test_data)
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

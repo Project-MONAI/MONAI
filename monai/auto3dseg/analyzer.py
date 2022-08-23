@@ -26,13 +26,23 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
-from monai.transforms import transform
+from monai.transforms.transform import MapTransform
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS
 from monai.utils.misc import label_union
 
 
-class Analyzer(transform.MapTransform, ABC):
-    def __init__(self, report_format):
+class Analyzer(MapTransform, ABC):
+    """
+    The Analyzer component is a base class. Other classes inherit this class will provide a callable
+    with the same class name and produces one pre-formatted dictionary for the input data. The format
+    is pre-defined by the init function of the class that inherit this base class. Function operations
+    can also be registerred before the runtime of the callable.
+
+    Args:
+        report_format: a dictionary that outlines the key structures of the report format.
+
+    """
+    def __init__(self, report_format: dict) -> None:
         self.report_format = report_format
         self.ops = ConfigParser({})
 
@@ -41,8 +51,8 @@ class Analyzer(transform.MapTransform, ABC):
         Register an statistical operation to the Analyzer and update the report_format
 
         Args:
-            key: value key in the report
-            op: Operation object
+            key: value key in the report.
+            op: Operation object.
 
         """
         self.ops[key] = op
@@ -55,11 +65,12 @@ class Analyzer(transform.MapTransform, ABC):
 
     def update_ops_nested_label(self, nested_key, op):
         """
-        Update operations for nested label format. Operation value in report_format will be resolved to a dict with only keys
+        Update operations for nested label format. Operation value in report_format will be resolved 
+        to a dict with only keys
 
         Args:
-            nested_key: str that has format of 'key1#0#key2'
-            op: statistical operation
+            nested_key: str that has format of 'key1#0#key2'.
+            op: statistical operation.
         """
         keys = nested_key.split(ID_SEP_KEY)
         if len(keys) != 3:
@@ -78,29 +89,47 @@ class Analyzer(transform.MapTransform, ABC):
 
     def get_report_format(self):
         """
-        Get the report format by resolving the registered operations.
+        Get the report format by resolving the registered operations recursively.
 
         Returns:
-            a dictionary with keys-None pairs
+            a dictionary with {keys: None} pairs.
 
         """
-        self.resolve_ops(self.report_format)
+        self.resolve_format(self.report_format)
         return self.report_format
 
     @staticmethod
     def unwrap_ops(func):
+        """
+        Unwrap a function value and generates the same set keys in a dict when the function is actually
+        called in runtime
+
+        Args:
+            func: Operation.
+
+        Returns:
+            a dict with a set of keys.
+
+        """
         ret = dict.fromkeys([key for key in func.data])
         if hasattr(func, "data_addon"):
             for key in func.data_addon:
                 ret.update({key: None})
         return ret
 
-    def resolve_ops(self, report: dict):
+    def resolve_format(self, report: dict):
+        """
+        Resolve the format of the pre-defined report.
+
+        Args:
+            report: the dictionary to resolve. Values will be replaced in-place.
+        
+        """
         for k, v in report.items():
             if issubclass(v.__class__, Operations):
                 report[k] = self.unwrap_ops(v)
             elif isinstance(v, list) and len(v) > 0:
-                self.resolve_ops(v[0])
+                self.resolve_format(v[0])
             else:
                 report[k] = v
 
