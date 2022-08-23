@@ -30,7 +30,7 @@ import monai
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
-from monai.data import ThreadDataLoader, partition_dataset
+from monai.data import DataLoader, partition_dataset
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 from monai.utils import set_determinism
@@ -146,8 +146,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
         )
 
-    train_loader = ThreadDataLoader(train_ds, num_workers=12, batch_size=num_images_per_batch, shuffle=True)
-    val_loader = ThreadDataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
+    train_loader = DataLoader(train_ds, num_workers=8, batch_size=num_images_per_batch, shuffle=True)
+    val_loader = DataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
 
     device = torch.device(f"cuda:{dist.get_rank()}") if torch.cuda.device_count() > 1 else torch.device("cuda:0")
     torch.cuda.set_device(device)
