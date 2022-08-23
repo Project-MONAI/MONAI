@@ -102,9 +102,10 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: path of bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json"
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json"
+        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
+        disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to True.
     """
 
     def __init__(
