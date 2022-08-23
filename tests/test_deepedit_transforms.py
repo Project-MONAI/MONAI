@@ -79,9 +79,7 @@ DATA_4 = {
     "current_label": "spleen",
     "probability": 1.0,
     "label_names": LABEL_NAMES,
-    "guidance": {
-        "spleen": [[0, 4, 3], [0, 0, 3], [0, 1, 3]],
-    },
+    "guidance": {"spleen": [[0, 4, 3], [0, 0, 3], [0, 1, 3]]},
     "sids": {"spleen": []},
     "pred": PRED,
 }
