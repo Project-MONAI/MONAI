@@ -79,7 +79,9 @@ DATA_4 = {
     "current_label": "spleen",
     "probability": 1.0,
     "label_names": LABEL_NAMES,
-    "spleen": [[0, 4, 3], [0, 0, 3], [0, 1, 3]],
+    "guidance": {
+        "spleen": [[0, 4, 3], [0, 0, 3], [0, 1, 3]],
+    },
     "sids": {"spleen": []},
     "pred": PRED,
 }
@@ -139,7 +141,6 @@ DATA_10 = {
 }
 
 DATA_11 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES, "pred": PRED}
-
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE = [
     {"ref_image": "image", "guidance": "guidance", "label_names": LABEL_NAMES},  # arguments
