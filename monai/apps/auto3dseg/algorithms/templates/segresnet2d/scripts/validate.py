@@ -163,7 +163,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             ).to(device)
 
             with torch.cuda.amp.autocast():
-                for _k in range(val_images.size()[-1]):
+                for _k in range(img_size[-1]):
                     if _k < num_adjacent_slices:
                         val_images_slices = torch.stack(
                             [
@@ -176,7 +176,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                             ],
                             dim=-1,
                         )
-                    elif _k >= val_images.size()[-1] - num_adjacent_slices:
+                    elif _k >= img_size[-1] - num_adjacent_slices:
                         val_images_slices = torch.stack(
                             [
                                 val_images[..., _r - num_adjacent_slices - 1]
