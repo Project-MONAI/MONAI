@@ -131,7 +131,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -179,7 +179,6 @@ class Randomizable(ABC, ThreadUnsafe):
         self.R = np.random.RandomState()
         return self
 
-    @abstractmethod
     def randomize(self, data: Any) -> None:
         """
         Within this method, :py:attr:`self.R` should be used, instead of `np.random`, to introduce random factors.
