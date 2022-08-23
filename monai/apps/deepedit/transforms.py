@@ -608,7 +608,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
                     break
-
+        d[self.guidance] = self.tmp_guidance
         return d
 
 
@@ -673,7 +673,7 @@ class AddGuidanceFromPointsDeepEditd(Transform):
         # Creating guidance for all clicks
         all_guidances = {}
         for key_label in self.label_names.keys():
-            clicks = d.get(key_label, [])
+            clicks = d[self.guidance].get(key_label, [])
             clicks = list(np.array(clicks).astype(int))
             all_guidances[key_label] = self._apply(clicks, factor)
         d[self.guidance] = all_guidances
