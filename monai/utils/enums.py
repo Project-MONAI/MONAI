@@ -559,4 +559,3 @@ class LABEL_STATS(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
-

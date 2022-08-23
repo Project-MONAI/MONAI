@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import numpy as np
 import torch
@@ -26,7 +26,6 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
-from monai.config.type_definitions import KeysCollection
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS
 from monai.utils.misc import label_union
