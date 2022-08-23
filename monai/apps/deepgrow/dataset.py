@@ -85,12 +85,12 @@ def create_dataset(
 
     transforms = _default_transforms(image_key, label_key, pixdim) if transforms is None else transforms
     new_datalist = []
-    for idx in range(len(datalist)):
+    for idx, item in enumerate(datalist):
         if limit and idx >= limit:
             break
 
-        image = datalist[idx][image_key]
-        label = datalist[idx].get(label_key, None)
+        image = item[image_key]
+        label = item.get(label_key, None)
         if base_dir:
             image = os.path.join(base_dir, image)
             label = os.path.join(base_dir, label) if label else None

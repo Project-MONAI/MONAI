@@ -19,6 +19,7 @@ from .enums import (
     BlendMode,
     BoxModeName,
     ChannelMatching,
+    ColorOrder,
     CommonKeys,
     DiceCEReduction,
     EngineStatsKeys,

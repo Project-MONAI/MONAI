@@ -69,6 +69,7 @@ def run_testsuit():
         "test_handler_hausdorff_distance",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
+        "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_mlflow",

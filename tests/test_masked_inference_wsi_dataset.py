@@ -179,11 +179,11 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
         self.compare_samples_expected(dataset, expected)
 
     def compare_samples_expected(self, dataset, expected):
-        for i in range(len(dataset)):
-            self.assertTupleEqual(dataset[i][0]["image"].shape, expected[i]["image"].shape)
-            self.assertIsNone(assert_array_equal(dataset[i][0]["image"], expected[i]["image"]))
-            self.assertEqual(dataset[i][0]["name"], expected[i]["name"])
-            self.assertListEqual(dataset[i][0]["mask_location"], expected[i]["mask_location"])
+        for i, item in enumerate(dataset):
+            self.assertTupleEqual(item[0]["image"].shape, expected[i]["image"].shape)
+            self.assertIsNone(assert_array_equal(item[0]["image"], expected[i]["image"]))
+            self.assertEqual(item[0]["name"], expected[i]["name"])
+            self.assertListEqual(item[0]["mask_location"], expected[i]["mask_location"])
 
 
 if __name__ == "__main__":
