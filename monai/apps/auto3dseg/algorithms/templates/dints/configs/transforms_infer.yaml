@@ -14,14 +14,11 @@ transforms_infer:
     keys: "@image_key"
     pixdim: null
     mode: bilinear
-    align_corners:
-    - true
+    align_corners: true
   - _target_: CastToTyped
     keys: "@image_key"
     dtype: "$torch.float32"
   - PLACEHOLDER_INTENSITY_NORMALIZATION
   - _target_: CastToTyped
-    keys:
-    - "@image_key"
-    dtype:
-    - "$torch.float32"
+    keys: "@image_key"
+    dtype: "$torch.float32"
