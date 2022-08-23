@@ -114,9 +114,7 @@ class Configurator(AlgorithmConfigurator):
             )
 
         self.training_commands = []
-        self.training_commands.append(
-            "scripts/train.py"
-        )
+        self.training_commands.append("scripts/train.py")
         self.inference_script = "scripts/infer.py"
 
     def write(self):

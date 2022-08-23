@@ -297,22 +297,14 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                     val_labels = val_data["label"].to(device)
 
                     img_size = val_images.size()
-                    val_outputs = torch.zeros(
-                        (1, output_classes, img_size[-3], img_size[-2], img_size[-1])
-                    ).to(device)
+                    val_outputs = torch.zeros((1, output_classes, img_size[-3], img_size[-2], img_size[-1])).to(device)
 
                     with torch.cuda.amp.autocast(enabled=amp):
                         for _k in range(val_images.size()[-1]):
                             if _k < num_adjacent_slices:
                                 val_images_slices = torch.stack(
-                                    [
-                                        val_images[..., 0],
-                                    ]
-                                    * num_adjacent_slices
-                                    + [
-                                        val_images[..., _r]
-                                        for _r in range(num_adjacent_slices + 1)
-                                    ],
+                                    [val_images[..., 0]] * num_adjacent_slices
+                                    + [val_images[..., _r] for _r in range(num_adjacent_slices + 1)],
                                     dim=-1,
                                 )
                             elif _k >= val_images.size()[-1] - num_adjacent_slices:
@@ -321,23 +313,14 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                                         val_images[..., _r - num_adjacent_slices - 1]
                                         for _r in range(num_adjacent_slices + 1)
                                     ]
-                                    + [
-                                        val_images[..., -1],
-                                    ]
-                                    * num_adjacent_slices,
+                                    + [val_images[..., -1]] * num_adjacent_slices,
                                     dim=-1,
                                 )
                             else:
                                 val_images_slices = val_images[
-                                    ...,
-                                    _k
-                                    - num_adjacent_slices : _k
-                                    + num_adjacent_slices
-                                    + 1,
+                                    ..., _k - num_adjacent_slices : _k + num_adjacent_slices + 1,
                                 ]
-                            val_images_slices = val_images_slices.permute(
-                                0, 1, 4, 2, 3
-                            ).flatten(1, 2)
+                            val_images_slices = val_images_slices.permute(0, 1, 4, 2, 3).flatten(1, 2)
 
                             val_outputs[..., :, :, _k] = sliding_window_inference(
                                 val_images_slices,
