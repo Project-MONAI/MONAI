@@ -390,8 +390,9 @@ class LabelStatsCaseAnalyzer(Analyzer):
         unique_label = unique_label.astype(np.int8).tolist()
 
         # start = time.time()
-        detailed_label_stats = []  # each element is one label
+        label_substats = []  # each element is one label
         pixel_sum = 0
+        pixel_arr = []
         for index in unique_label:
             label_dict: Dict[str, Any] = {}
             mask_index = ndas_label == index
@@ -399,27 +400,24 @@ class LabelStatsCaseAnalyzer(Analyzer):
             label_dict[str(LABEL_STATS.IMAGE_INT)] = [
                 self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda[mask_index]) for nda in ndas
             ]
-            pixel_num = sum(mask_index)
-            if isinstance(pixel_num, (MetaTensor, torch.Tensor)):
-                pixel_num = pixel_num.data.cpu().numpy()  # pixel_percentage[index]
-            label_dict[str(LABEL_STATS.PIXEL_PCT)] = pixel_num.astype(np.float64)
-            pixel_sum += pixel_num
+            pixel_count = sum(mask_index)
+            pixel_arr.append(pixel_count)
+            pixel_sum += pixel_count
             if self.do_ccp:  # apply connected component
                 shape_list, ncomponents = get_label_ccp(mask_index)
                 label_dict[str(LABEL_STATS.LABEL_SHAPE)] = shape_list
                 label_dict[str(LABEL_STATS.LABEL_NCOMP)] = ncomponents
 
-            detailed_label_stats.append(label_dict)
+            label_substats.append(label_dict)
             # logger.debug(f" label {index} stats takes {time.time() - s}")
 
-        # total_percent = np.sum(list(pixel_percentage.values()))
         for i, _ in enumerate(unique_label):
-            detailed_label_stats[i][LABEL_STATS.PIXEL_PCT] /= pixel_sum
+            label_substats[i].update({str(LABEL_STATS.PIXEL_PCT): float(pixel_arr[i]/pixel_sum)})
 
         report = deepcopy(self.get_report_format())
         report[str(LABEL_STATS.LABEL_UID)] = unique_label
         report[str(LABEL_STATS.IMAGE_INT)] = [self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds]
-        report[str(LABEL_STATS.LABEL)] = detailed_label_stats
+        report[str(LABEL_STATS.LABEL)] = label_substats
 
         # logger.debug(f"Get label stats spent {time.time()-start}")
         return report
