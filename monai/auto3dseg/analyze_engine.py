@@ -103,8 +103,8 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
 
         super().update(
             {
-                DATA_STATS.BY_CASE_IMAGE_PATH: lambda data: get_filename(data, meta_key=image_meta_key),
-                DATA_STATS.BY_CASE_LABEL_PATH: lambda data: get_filename(data, meta_key=label_meta_key),
+                str(DATA_STATS.BY_CASE_IMAGE_PATH): lambda data: get_filename(data, meta_key=image_meta_key),
+                str(DATA_STATS.BY_CASE_LABEL_PATH): lambda data: get_filename(data, meta_key=label_meta_key),
                 "image_stats": ImageStatsCaseAnalyzer(image_key),
             }
         )

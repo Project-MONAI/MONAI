@@ -76,4 +76,4 @@ class SummaryOperations(Operations):
         }
 
     def evaluate(self, data: Any, **kwargs) -> dict:
-        return {k: v(data[k], **kwargs) for k, v in self.data.items() if callable(v)}
+        return {k: v(data[k], **kwargs).tolist() for k, v in self.data.items() if callable(v)}

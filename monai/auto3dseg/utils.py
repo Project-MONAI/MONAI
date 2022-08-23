@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from numbers import Number
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import os
 import numpy as np
@@ -128,14 +128,20 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
     return shape_list, ncomponents
 
 
-def concat_val_to_np(data_list: List[Dict], fixed_keys: List[Union[str, int]], flatten=False, allow_missing=False):
+def concat_val_to_np(
+        data_list: List[Dict], 
+        fixed_keys: List[Union[str, int]], 
+        ragged: Optional[bool] = False,
+        allow_missing: Optional[bool] = False,
+        **kwargs
+    ):
     """
     Get the nested value in a list of dictionary that shares the same structure.
 
     Args:
        data_list: a list of dictionary {key1: {key2: np.ndarray}}.
        fixed_keys: a list of keys that records to path to the value in the dict elements.
-       flatten: if True, numbers are flattened before concat.
+       ragged: if True, numbers can be in list of lists or ragged format so concat mode needs change.
        allow_missing: if True, it will return a None if the value cannot be found
 
     Returns:
@@ -176,10 +182,13 @@ def concat_val_to_np(data_list: List[Dict], fixed_keys: List[Union[str, int]], f
     if allow_missing:
         np_list = [x for x in np_list if x is not None]
 
-    if flatten:
-        ret = np.concatenate(np_list, axis=None)  # when axis is None, numbers are flatten before use, axis = 1 for ncomponent
+    if len(np_list) == 0:
+        return np.array(0)
+
+    if ragged:
+        ret = np.concatenate(np_list, **kwargs)
     else:
-        ret = np.concatenate([np_list])
+        ret = np.concatenate([np_list], **kwargs)
 
     return ret
 

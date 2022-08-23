@@ -242,8 +242,8 @@ class TestDataAnalyzer(unittest.TestCase):
             report_format = analyzer.get_report_format()
             assert verify_report_format(report, report_format)
 
-    def test_fg_image_stats_summary_analyzer(self):
-        summary_analyzer = FgImageStatsSummaryAnalyzer("image_stats")
+    def test_image_stats_summary_analyzer(self):
+        summary_analyzer = ImageStatsSummaryAnalyzer("image_stats")
 
         transform_list = [
             LoadImaged(keys=["image"]), 
@@ -266,8 +266,8 @@ class TestDataAnalyzer(unittest.TestCase):
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)
 
-    def image_stats_summary_analyzer(self):
-        summary_analyzer = ImageStatsSummaryAnalyzer("image_foreground_stats")
+    def test_fg_image_stats_summary_analyzer(self):
+        summary_analyzer = FgImageStatsSummaryAnalyzer("image_foreground_stats")
 
         transform_list = [
             LoadImaged(keys=["image", "label"]), 
@@ -288,6 +288,32 @@ class TestDataAnalyzer(unittest.TestCase):
         for batch_data in self.dataset:
             report = transform(batch_data[0])
             stats.append({"image_foreground_stats": report})
+        summary_report = summary_analyzer(stats)
+        report_format = summary_analyzer.get_report_format()
+        assert verify_report_format(summary_report, report_format)
+
+    def test_label_stats_summary_analyzer(self):
+        summary_analyzer = LabelStatsSummaryAnalyzer("label_stats")
+
+        transform_list = [
+            LoadImaged(keys=["image", "label"]), 
+            EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
+            Orientationd(keys=["image", "label"], axcodes="RAS"),
+            EnsureTyped(keys=["image", "label"], data_type="tensor"),
+            Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+            SqueezeDimd(keys=["label"], dim=0),
+            LabelStatsCaseAnalyzer(image_key="image", label_key="label"),
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        stats = []
+        for batch_data in self.dataset:
+            report = transform(batch_data[0])
+            stats.append({"label_stats": report})
         summary_report = summary_analyzer(stats)
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)

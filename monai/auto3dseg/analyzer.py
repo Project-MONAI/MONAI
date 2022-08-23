@@ -479,19 +479,13 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
         report = deepcopy(self.get_report_format())
 
-        shape_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.SHAPE])
-        crops_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.CROPPED_SHAPE])
-        space_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.SPACING])
+        for k in [IMAGE_STATS.SHAPE, IMAGE_STATS.CHANNELS, IMAGE_STATS.CROPPED_SHAPE, IMAGE_STATS.SPACING]:
+            v_np = concat_val_to_np(data, [self.key_case, k])
+            report[str(k)] = self.ops[k].evaluate(v_np,
+                dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
         op_keys = report[str(IMAGE_STATS.INTENSITY)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.key_case, IMAGE_STATS.INTENSITY], op_keys)
-
-        report[str(IMAGE_STATS.SHAPE)] = self.ops[IMAGE_STATS.SHAPE].evaluate(shape_np, 
-            dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0)
-        report[str(IMAGE_STATS.CROPPED_SHAPE)] = self.ops[IMAGE_STATS.CROPPED_SHAPE].evaluate(crops_np, 
-            dim=(0, 1) if crops_np.ndim > 2 and self.summary_average else 0)
-        report[str(IMAGE_STATS.SPACING)] = self.ops[IMAGE_STATS.SPACING].evaluate(space_np, 
-            dim=(0, 1) if space_np.ndim > 2 and self.summary_average else 0)
         report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(intst_dict,
             dim=None if self.summary_average else 0)
 
@@ -564,10 +558,10 @@ class LabelStatsSummaryAnalyzer(Analyzer):
             return ValueError(f"Callable {self.__class__} requires list inputs")
 
         report = deepcopy(self.get_report_format())
-        uid_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL_UID], flatten=True)
+        uid_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL_UID], axis=None, ragged=True)
         unique_label = label_union(uid_np)
-
         report[str(LABEL_STATS.LABEL_UID)] = unique_label
+
         op_keys = report[str(LABEL_STATS.IMAGE_INT)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.key_case, LABEL_STATS.IMAGE_INT], op_keys)
         report[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
@@ -578,15 +572,20 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         for label_id in unique_label:
             stats = {}
             axis = 0  # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
-            for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_SHAPE, LABEL_STATS.LABEL_NCOMP]:
+            for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_NCOMP]:
                 v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, k], 
-                    allow_missing=True, flatten=True)
+                    allow_missing=True)
                 stats[str(k)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(v_np,
+                    dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
+
+            v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.LABEL_SHAPE], 
+                    ragged=True, allow_missing=True)
+            stats[str(LABEL_STATS.LABEL_SHAPE)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(v_np,
                     dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
             intst_fixed_keys = [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.IMAGE_INT]
             op_keys = report[str(LABEL_STATS.LABEL)][0][LABEL_STATS.IMAGE_INT].keys()
-            intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True, flatten=True)
+            intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True)
             stats[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
                     dim=None if self.summary_average else 0)
 

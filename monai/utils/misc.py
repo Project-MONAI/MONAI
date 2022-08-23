@@ -526,9 +526,9 @@ def label_union(x: List) -> List:
     """
     Compute the union of class IDs in label and generate a list to include all class IDs
     Args:
-        x: a list of lists that has number (usually class_id) in each
+        x: a list of numbers (for example, class_IDs)
 
     Returns
         a list showing the union (the union the class IDs)
     """
-    return list(set.union(set(np.array(x))))
+    return list(set.union(set(np.array(x).tolist())))
