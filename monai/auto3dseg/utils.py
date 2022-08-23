@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from copy import deepcopy
 from numbers import Number
 from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import torch
 
+from monai.bundle.config_parser import ConfigParser
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
@@ -27,6 +30,7 @@ __all__ = [
     "get_label_ccp",
     "concat_val_to_np",
     "concat_multikeys_to_dict",
+    "datafold_read",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -206,3 +210,42 @@ def concat_multikeys_to_dict(
         ret_dict.update({key: val})
 
     return ret_dict
+
+
+def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: str = "training") -> Tuple[List, List]:
+    """
+    Read a list of data dictionary `datalist`
+
+    Args:
+        datalist: the name of a JSON file listing the data, or a dictionary
+        basedir: directory of image files
+        fold: which fold to use (0..1 if in training set)
+        key: usually 'training' , but can try 'validation' or 'testing' to get the list data without labels (used in challenges)
+
+    Returns:
+        A tuple of two arrays (training, validation)
+    """
+
+    if isinstance(datalist, str):
+        json_data = ConfigParser.load_config_file(datalist)
+    else:
+        json_data = datalist
+
+    dict_data = deepcopy(json_data[key])
+
+    for d in dict_data:
+        for k, _ in d.items():
+            if isinstance(d[k], list):
+                d[k] = [os.path.join(basedir, iv) for iv in d[k]]
+            elif isinstance(d[k], str):
+                d[k] = os.path.join(basedir, d[k]) if len(d[k]) > 0 else d[k]
+
+    tr = []
+    val = []
+    for d in dict_data:
+        if "fold" in d and d["fold"] == fold:
+            val.append(d)
+        else:
+            tr.append(d)
+
+    return tr, val
