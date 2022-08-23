@@ -1,5 +1,5 @@
 amp: true
-bundle_root: monai/apps/auto3dseg/algorithms/templates/swinUNETR
+bundle_root: monai/apps/auto3dseg/algorithms/templates/dints
 ckpt_path: $@bundle_root + '/model_fold' + str(@fold)
 data_file_base_dir: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/Task09_Spleen
 data_list_file_path: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/datafolds/msd_task09_spleen_folds.json

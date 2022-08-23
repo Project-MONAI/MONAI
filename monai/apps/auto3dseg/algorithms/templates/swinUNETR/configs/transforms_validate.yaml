@@ -3,24 +3,20 @@ label_key: label
 transforms_validate:
   _target_: Compose
   transforms:
-  - &id001
-    _target_: LoadImaged
+  - _target_: LoadImaged
     keys:
     - '@image_key'
     - '@label_key'
-  - &id002
-    _target_: EnsureChannelFirstd
+  - _target_: EnsureChannelFirstd
     keys:
     - '@image_key'
     - '@label_key'
-  - &id003
-    _target_: Orientationd
+  - _target_: Orientationd
     axcodes: RAS
     keys:
     - '@image_key'
     - '@label_key'
-  - &id004
-    _target_: Spacingd
+  - _target_: Spacingd
     align_corners:
     - true
     - true
@@ -31,19 +27,16 @@ transforms_validate:
     - bilinear
     - nearest
     pixdim:
-    - 1
-    - 1
-    - 1
-  - &id005
-    _target_: CastToTyped
+    - 1.0
+    - 1.0
+    - 1.0
+  - _target_: CastToTyped
     dtype: $torch.float32
     keys: '@image_key'
-  - &id006
-    _target_: NormalizeIntensityd
+  - _target_: NormalizeIntensityd
     channel_wise: true
     keys: '@image_key'
     nonzero: true
-  - &id007
   - _target_: ScaleIntensityRanged
     a_max: 147.5986
     a_min: -45.8736
@@ -51,13 +44,47 @@ transforms_validate:
     b_min: 0.0
     clip: true
     keys: '@image_key'
-  - &id008
   - _target_: CropForegroundd
     keys:
     - '@image_key'
     - '@label_key'
     source_key: '@image_key'
-  - &id009
+  - _target_: ScaleIntensityRanged
+    a_max: 147.5986
+    a_min: -45.8736
+    b_max: 1.0
+    b_min: 0.0
+    clip: true
+    keys: '@image_key'
+  - _target_: CropForegroundd
+    keys:
+    - '@image_key'
+    - '@label_key'
+    source_key: '@image_key'
+    _target_: ScaleIntensityRanged
+    a_max: 147.5986
+    a_min: -45.8736
+    b_max: 1.0
+    b_min: 0.0
+    clip: true
+    keys: '@image_key'
+  - _target_: CropForegroundd
+    keys:
+    - '@image_key'
+    - '@label_key'
+    source_key: '@image_key'
+  - _target_: ScaleIntensityRanged
+    a_max: 147.5986
+    a_min: -45.8736
+    b_max: 1.0
+    b_min: 0.0
+    clip: true
+    keys: '@image_key'
+  - _target_: CropForegroundd
+    keys:
+    - '@image_key'
+    - '@label_key'
+    source_key: '@image_key'
   - _target_: CastToTyped
     dtype:
     - $torch.float32

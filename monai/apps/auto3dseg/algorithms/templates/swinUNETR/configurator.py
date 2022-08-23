@@ -43,7 +43,7 @@ class Configurator(AlgorithmConfigurator):
                 self.config[_key] = yaml.full_load(f)
 
     def update(self):
-        patch_size = [96, 96, 96]
+        patch_size = [128, 128, 96]
         max_shape = self.data_stats["stats_summary"]["image_stats"]["shape"]["max"][0]
         for _k in range(3):
             patch_size[_k] = max(32, max_shape[_k] // 32 * 32) if max_shape[_k] < patch_size[_k] else patch_size[_k]
@@ -51,7 +51,7 @@ class Configurator(AlgorithmConfigurator):
         spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]["median"][0]
 
         for _key in ["hyper_parameters.yaml"]:
-            self.config[_key]["bundle_root"] = os.path.join(self.output_path, "swinUNETR")
+            self.config[_key]["bundle_root"] = os.path.join(self.output_path, "dints")
             self.config[_key]["data_file_base_dir"] = self.input["dataroot"]
             self.config[_key]["data_list_file_path"] = self.input["datalist"]
             self.config[_key]["input_channels"] = int(
@@ -62,9 +62,6 @@ class Configurator(AlgorithmConfigurator):
             if _key == "hyper_parameters.yaml":
                 self.config[_key]["patch_size"] = patch_size
                 self.config[_key]["patch_size_valid"] = copy.deepcopy(patch_size)
-            elif _key == "hyper_parameters_search.yaml":
-                self.config[_key]["patch_size"] = [96, 96, 96]
-                self.config[_key]["patch_size_valid"] = [96, 96, 96]
 
         for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
             _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
@@ -114,14 +111,14 @@ class Configurator(AlgorithmConfigurator):
             )
 
     def write(self):
-        write_path = os.path.join(self.output_path, "swinUNETR")
+        write_path = os.path.join(self.output_path, "dints")
         if not os.path.exists(write_path):
             os.makedirs(write_path, exist_ok=True)
 
-        if os.path.exists(os.path.join(write_path, "scripts")):
-            shutil.rmtree(os.path.join(write_path, "scripts"))
+        # if os.path.exists(os.path.join(write_path, "scripts")):
+        #     shutil.rmtree(os.path.join(write_path, "scripts"))
 
-        shutil.copytree(os.path.join(self.source_path, "scripts"), os.path.join(write_path, "scripts"))
+        # shutil.copytree(os.path.join(self.source_path, "scripts"), os.path.join(write_path, "scripts"))
 
         if os.path.exists(os.path.join(write_path, "configs")):
             shutil.rmtree(os.path.join(write_path, "configs"))
