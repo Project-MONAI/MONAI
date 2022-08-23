@@ -39,6 +39,7 @@ class InferClass:
         data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
         data_list_file_path = parser.get_parsed_content("data_list_file_path")
         self.fast = parser.get_parsed_content("infer")["fast"]
+        self.num_adjacent_slices = parser.get_parsed_content("num_adjacent_slices")
         self.num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
         self.output_classes = parser.get_parsed_content("output_classes")
         self.overlap_ratio = parser.get_parsed_content("overlap_ratio")
@@ -136,36 +137,36 @@ class InferClass:
 
         with torch.cuda.amp.autocast():
             for _k in range(img_size[-1]):
-                if _k < num_adjacent_slices:
+                if _k < self.num_adjacent_slices:
                     infer_images_slices = torch.stack(
                         [
                             infer_images[..., 0],
                         ]
-                        * num_adjacent_slices
+                        * self.num_adjacent_slices
                         + [
                             infer_images[..., _r]
-                            for _r in range(num_adjacent_slices + 1)
+                            for _r in range(self.num_adjacent_slices + 1)
                         ],
                         dim=-1,
                     )
-                elif _k >= img_size[-1] - num_adjacent_slices:
+                elif _k >= img_size[-1] - self.num_adjacent_slices:
                     infer_images_slices = torch.stack(
                         [
-                            infer_images[..., _r - num_adjacent_slices - 1]
-                            for _r in range(num_adjacent_slices + 1)
+                            infer_images[..., _r - self.num_adjacent_slices - 1]
+                            for _r in range(self.num_adjacent_slices + 1)
                         ]
                         + [
                             infer_images[..., -1],
                         ]
-                        * num_adjacent_slices,
+                        * self.num_adjacent_slices,
                         dim=-1,
                     )
                 else:
                     infer_images_slices = infer_images[
                         ...,
                         _k
-                        - num_adjacent_slices : _k
-                        + num_adjacent_slices
+                        - self.num_adjacent_slices : _k
+                        + self.num_adjacent_slices
                         + 1,
                     ]
                 infer_images_slices = infer_images_slices.permute(
@@ -211,36 +212,36 @@ class InferClass:
 
                 with torch.cuda.amp.autocast():
                     for _k in range(img_size[-1]):
-                        if _k < num_adjacent_slices:
+                        if _k < self.num_adjacent_slices:
                             infer_images_slices = torch.stack(
                                 [
                                     infer_images[..., 0],
                                 ]
-                                * num_adjacent_slices
+                                * self.num_adjacent_slices
                                 + [
                                     infer_images[..., _r]
-                                    for _r in range(num_adjacent_slices + 1)
+                                    for _r in range(self.num_adjacent_slices + 1)
                                 ],
                                 dim=-1,
                             )
-                        elif _k >= img_size[-1] - num_adjacent_slices:
+                        elif _k >= img_size[-1] - self.num_adjacent_slices:
                             infer_images_slices = torch.stack(
                                 [
-                                    infer_images[..., _r - num_adjacent_slices - 1]
-                                    for _r in range(num_adjacent_slices + 1)
+                                    infer_images[..., _r - self.num_adjacent_slices - 1]
+                                    for _r in range(self.num_adjacent_slices + 1)
                                 ]
                                 + [
                                     infer_images[..., -1],
                                 ]
-                                * num_adjacent_slices,
+                                * self.num_adjacent_slices,
                                 dim=-1,
                             )
                         else:
                             infer_images_slices = infer_images[
                                 ...,
                                 _k
-                                - num_adjacent_slices : _k
-                                + num_adjacent_slices
+                                - self.num_adjacent_slices : _k
+                                + self.num_adjacent_slices
                                 + 1,
                             ]
                         infer_images_slices = infer_images_slices.permute(
