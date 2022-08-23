@@ -67,7 +67,7 @@ or additionally, tune the input parameters then instantiate the component:
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
 
-For more details on the `ConfigParser` API, please see https://docs.monai.io/en/latest/bundle.html#config-parser.
+For more details on the `ConfigParser` API, please see [`monai.bundle.ConfigParser`](https://docs.monai.io/en/latest/bundle.html#config-parser).
 
 ## Syntax examples explained
 
@@ -153,7 +153,7 @@ _Description:_ `_requires_`, `_disabled_`, and `_desc_` are optional keys.
   It is useful when the component does not explicitly depend on the other ConfigItems via
   its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
 - `_disabled_` specifies a flag to indicate whether to skip the instantiation.
-- `_desc_` can be used for providing free text descriptions
+- `_desc_` can be used for providing free text descriptions.
 
 ## The command line interface
 
