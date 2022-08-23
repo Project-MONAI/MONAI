@@ -231,6 +231,9 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             step += 1
             inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
 
+            inputs = inputs.permute(0, 1, 4, 2, 3).flatten(1, 2)
+            labels = labels[..., num_adjacent_slices]
+
             for param in model.parameters():
                 param.grad = None
 
