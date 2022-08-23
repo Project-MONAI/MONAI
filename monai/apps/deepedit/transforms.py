@@ -608,7 +608,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
                     break
-
+        d[self.guidance] = self.tmp_guidance
         return d
 
 
