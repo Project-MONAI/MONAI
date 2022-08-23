@@ -81,6 +81,19 @@ def check_bundle_config(parser):
             raise KeyError(f"Bundle config misses required key `{k}`")
 
 
+def remove_ckpt_loader(parser):
+    if BundleKeys.VALIDATE_HANDLERS in parser:
+        _handlers = parser.get(BundleKeys.VALIDATE_HANDLERS)
+        _filtered_handlers = []
+        for _h in _handlers:
+            if isinstance(_h, dict):
+                if "_target_" in _h:
+                    if "CheckpointLoader" in _h.get("_target_"):
+                        continue
+                _filtered_handlers.append(_h)
+        parser[BundleKeys.VALIDATE_HANDLERS] = _filtered_handlers
+
+
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
@@ -102,6 +115,7 @@ class MonaiAlgo(ClientAlgo):
         config_train_filename: Optional[str] = "configs/train.json",
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
+        disable_ckpt_loader: bool = True,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -111,6 +125,7 @@ class MonaiAlgo(ClientAlgo):
         self.config_train_filename = config_train_filename
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
+        self.disable_ckpt_loader = disable_ckpt_loader
 
         self.app_root = None
         self.train_parser = None
@@ -178,9 +193,10 @@ class MonaiAlgo(ClientAlgo):
         if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
             self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
 
-        self.train_parser.parse()
-        self.eval_parser.parse()
-        self.filter_parser.parse()
+        # remove checkpoint loaders
+        if self.disable_ckpt_loader:
+            remove_ckpt_loader(self.train_parser)
+            remove_ckpt_loader(self.eval_parser)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(

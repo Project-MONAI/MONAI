@@ -43,6 +43,7 @@ class BundleKeys(StrEnum):
     TRAINER = "train#trainer"
     EVALUATOR = "validate#evaluator"
     TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
+    VALIDATE_HANDLERS = "validate#handlers"
 
 
 class FiltersType(StrEnum):
