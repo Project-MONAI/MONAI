@@ -50,7 +50,7 @@ class Configurator(AlgorithmConfigurator):
         spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]["median"][0]
         spacing[-1] = -1.0
 
-        for _key in ["hyper_parameters.yaml", "hyper_parameters_search.yaml"]:
+        if _key == "hyper_parameters.yaml":
             self.config[_key]["bundle_root"] = os.path.join(self.output_path, "dints")
             self.config[_key]["data_file_base_dir"] = self.input["dataroot"]
             self.config[_key]["data_list_file_path"] = self.input["datalist"]
