@@ -393,7 +393,7 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
     Args:
         x: array/tensor.
     """
-    return np.unique(x) if isinstance(x, np.ndarray) else torch.unique(x)  # type: ignore
+    return np.unique(x) if isinstance(x, (np.ndarray, list)) else torch.unique(x)  # type: ignore
 
 
 def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
@@ -414,9 +414,9 @@ def max(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -
         x: array/tensor.
     """
     if dim is None:
-        return np.max(x, **kwargs) if isinstance(x, np.ndarray) else torch.max(x, **kwargs)  # type: ignore
+        return np.max(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, **kwargs)  # type: ignore
     else:
-        return np.max(x, axis=dim, **kwargs) if isinstance(x, np.ndarray) else torch.max(x, dim, **kwargs)  # type: ignore
+        return np.max(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, dim, **kwargs)  # type: ignore
 
 
 def mean(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
@@ -426,9 +426,9 @@ def mean(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) 
         x: array/tensor.
     """
     if dim is None:
-        return np.mean(x, **kwargs) if isinstance(x, np.ndarray) else torch.mean(x, **kwargs)  # type: ignore
+        return np.mean(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, **kwargs)  # type: ignore
     else:
-        return np.mean(x, axis=dim, **kwargs) if isinstance(x, np.ndarray) else torch.mean(x, dim, **kwargs)  # type: ignore
+        return np.mean(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, dim, **kwargs)  # type: ignore
 
 
 def median(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
@@ -438,9 +438,9 @@ def median(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs
         x: array/tensor.
     """
     if dim is None:
-        return np.median(x, **kwargs) if isinstance(x, np.ndarray) else torch.median(x, **kwargs)  # type: ignore
+        return np.median(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.median(x, **kwargs)  # type: ignore
     else:
-        return np.median(x, axis=dim, **kwargs) if isinstance(x, np.ndarray) else torch.median(x, dim, **kwargs)  # type: ignore
+        return np.median(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.median(x, dim, **kwargs)  # type: ignore
 
 
 def min(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
@@ -450,9 +450,9 @@ def min(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -
         x: array/tensor.
     """
     if dim is None:
-        return np.min(x, **kwargs) if isinstance(x, np.ndarray) else torch.min(x, **kwargs)  # type: ignore
+        return np.min(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, **kwargs)  # type: ignore
     else:
-        return np.min(x, axis=dim, **kwargs) if isinstance(x, np.ndarray) else torch.min(x, dim, **kwargs) # type: ignore
+        return np.min(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, dim, **kwargs) # type: ignore
 
 
 def std(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, unbias: Optional[bool] = False) -> NdarrayTensor:
@@ -462,9 +462,9 @@ def std(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, unbias: Opt
         x: array/tensor.
     """
     if dim is None:
-        return np.std(x) if isinstance(x, np.ndarray) else torch.std(x, unbias)  # type: ignore
+        return np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbias)  # type: ignore
     else:
-        return np.std(x, axis=dim) if isinstance(x, np.ndarray) else torch.std(x, dim, unbias)  # type: ignore
+        return np.std(x, axis=dim) if isinstance(x, (np.ndarray, list)) else torch.std(x, dim, unbias)  # type: ignore
 
 def sum(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.sum` with equivalent implementation for numpy
@@ -473,6 +473,6 @@ def sum(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -
         x: array/tensor.
     """
     if dim is None:
-        return np.sum(x, **kwargs) if isinstance(x, np.ndarray) else torch.sum(x, **kwargs)  # type: ignore
+        return np.sum(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, **kwargs)  # type: ignore
     else:
-        return np.sum(x, axis=dim, **kwargs) if isinstance(x, np.ndarray) else torch.sum(x, dim, **kwargs) # type: ignore
+        return np.sum(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, dim, **kwargs) # type: ignore
