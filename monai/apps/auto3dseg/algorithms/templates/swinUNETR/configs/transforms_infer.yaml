@@ -24,14 +24,6 @@ transforms_infer:
     channel_wise: true
     keys: '@image_key'
     nonzero: true
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
   - _target_: CastToTyped
     dtype: $torch.float32
     keys: '@image_key'
