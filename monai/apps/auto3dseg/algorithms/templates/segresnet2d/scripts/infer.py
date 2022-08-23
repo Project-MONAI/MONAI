@@ -40,6 +40,7 @@ class InferClass:
         data_list_file_path = parser.get_parsed_content("data_list_file_path")
         self.fast = parser.get_parsed_content("infer")["fast"]
         self.num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
+        self.output_classes = parser.get_parsed_content("output_classes")
         self.overlap_ratio = parser.get_parsed_content("overlap_ratio")
         self.patch_size_valid = parser.get_parsed_content("patch_size_valid")
         softmax = parser.get_parsed_content("softmax")
@@ -126,17 +127,62 @@ class InferClass:
 
         batch_data = self.infer_transforms(image_file)
         batch_data = list_data_collate([batch_data])
-        infer_image = batch_data["image"].to(self.device)
+        infer_images = batch_data["image"].to(self.device)
+
+        img_size = infer_images.size()
+        infer_outputs = torch.zeros(
+            (1, self.output_classes, img_size[-3], img_size[-2], img_size[-1])
+        ).to(self.device)
 
         with torch.cuda.amp.autocast():
-            batch_data["pred"] = sliding_window_inference(
-                infer_image,
-                self.patch_size_valid,
-                self.num_sw_batch_size,
-                self.model,
-                mode="gaussian",
-                overlap=self.overlap_ratio,
-            )
+            for _k in range(img_size[-1]):
+                if _k < num_adjacent_slices:
+                    infer_images_slices = torch.stack(
+                        [
+                            infer_images[..., 0],
+                        ]
+                        * num_adjacent_slices
+                        + [
+                            infer_images[..., _r]
+                            for _r in range(num_adjacent_slices + 1)
+                        ],
+                        dim=-1,
+                    )
+                elif _k >= img_size[-1] - num_adjacent_slices:
+                    infer_images_slices = torch.stack(
+                        [
+                            infer_images[..., _r - num_adjacent_slices - 1]
+                            for _r in range(num_adjacent_slices + 1)
+                        ]
+                        + [
+                            infer_images[..., -1],
+                        ]
+                        * num_adjacent_slices,
+                        dim=-1,
+                    )
+                else:
+                    infer_images_slices = infer_images[
+                        ...,
+                        _k
+                        - num_adjacent_slices : _k
+                        + num_adjacent_slices
+                        + 1,
+                    ]
+                infer_images_slices = infer_images_slices.permute(
+                    0, 1, 4, 2, 3
+                ).flatten(1, 2)
+
+                infer_outputs[..., :, :, _k] = sliding_window_inference(
+                    infer_images_slices,
+                    patch_size_valid[:2],
+                    num_sw_batch_size,
+                    model,
+                    mode="gaussian",
+                    overlap=overlap_ratio,
+                    padding_mode="reflect",
+                )
+
+            batch_data["pred"] = monai.utils.convert_to_dst_type(infer_outputs, infer_images)[0]
 
         batch_data = [self.post_transforms(i) for i in decollate_batch(batch_data)]
 
@@ -158,15 +204,60 @@ class InferClass:
 
                 infer_images = d["image"].to(self.device)
 
+                img_size = infer_images.size()
+                infer_outputs = torch.zeros(
+                    (1, self.output_classes, img_size[-3], img_size[-2], img_size[-1])
+                ).to(self.device)
+
                 with torch.cuda.amp.autocast():
-                    d["pred"] = sliding_window_inference(
-                        infer_images,
-                        self.patch_size_valid,
-                        self.num_sw_batch_size,
-                        self.model,
-                        mode="gaussian",
-                        overlap=self.overlap_ratio,
-                    )
+                    for _k in range(img_size[-1]):
+                        if _k < num_adjacent_slices:
+                            infer_images_slices = torch.stack(
+                                [
+                                    infer_images[..., 0],
+                                ]
+                                * num_adjacent_slices
+                                + [
+                                    infer_images[..., _r]
+                                    for _r in range(num_adjacent_slices + 1)
+                                ],
+                                dim=-1,
+                            )
+                        elif _k >= img_size[-1] - num_adjacent_slices:
+                            infer_images_slices = torch.stack(
+                                [
+                                    infer_images[..., _r - num_adjacent_slices - 1]
+                                    for _r in range(num_adjacent_slices + 1)
+                                ]
+                                + [
+                                    infer_images[..., -1],
+                                ]
+                                * num_adjacent_slices,
+                                dim=-1,
+                            )
+                        else:
+                            infer_images_slices = infer_images[
+                                ...,
+                                _k
+                                - num_adjacent_slices : _k
+                                + num_adjacent_slices
+                                + 1,
+                            ]
+                        infer_images_slices = infer_images_slices.permute(
+                            0, 1, 4, 2, 3
+                        ).flatten(1, 2)
+
+                        infer_outputs[..., :, :, _k] = sliding_window_inference(
+                            infer_images_slices,
+                            patch_size_valid[:2],
+                            num_sw_batch_size,
+                            model,
+                            mode="gaussian",
+                            overlap=overlap_ratio,
+                            padding_mode="reflect",
+                        )
+
+                    d["pred"] = monai.utils.convert_to_dst_type(infer_outputs, infer_images)[0]
 
                 d = [self.post_transforms(i) for i in decollate_batch(d)]
 
