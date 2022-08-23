@@ -67,7 +67,7 @@ class AUCMLoss(_Loss):
         """
         super().__init__(reduction=LossReduction(reduction).value)
 
-        if margin <= 0 or margin >= 1:
+        if margin < 0 or margin > 1:
             raise ValueError("imratio must be between 0 and 1")
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")

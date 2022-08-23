@@ -20,8 +20,8 @@ from monai.losses import AUCMLoss
 TEST_CASES = [
     [   # shape: (2, 2, 2, 2), (2, 2, 2, 2)
         {
-            "y_pred": torch.tensor([[[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]], [[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]]]).cuda(),
-            "y_true": torch.tensor([[[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]], [[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]]]).cuda(),
+            "y_pred": torch.tensor([[[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]], [[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]]]),
+            "y_true": torch.tensor([[[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]], [[[0, 1.0], [0, 1.0]], [[0, 1.0], [0, 1.0]]]]),
         },
         -3.0,
     ],
@@ -57,15 +57,16 @@ class TestAUCMLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((2, 2, 2)), torch.ones((2, 2, 2, 2)))
 
-    def test_ill_shape_pred_equal_numclasses(self):
+    def test_ill_shape_pred_equal_numclasses_v1(self):
         loss = AUCMLoss(num_classes=1)
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((2, 2, 2)), torch.ones((2, 1, 2)))
 
-    def test_ill_shape_pred_equal_numclasses(self):
+    def test_ill_shape_pred_equal_numclasses_v2(self):
         loss = AUCMLoss(num_classes=1)
         with self.assertRaisesRegex(ValueError, ""):
             loss(torch.ones((2, 1, 2)), torch.ones((2, 2, 2)))
+
 
 if __name__ == "__main__":
     unittest.main()
