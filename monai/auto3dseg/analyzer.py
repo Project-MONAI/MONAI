@@ -11,7 +11,7 @@
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 import numpy as np
 import torch
@@ -217,7 +217,7 @@ class ImageStatsCaseAnalyzer(Analyzer):
         return report
 
 
-class FgImageStatsCasesAnalyzer(Analyzer):
+class FgImageStatsCaseAnalyzer(Analyzer):
     """
     Analyzer to extract foreground label properties for each case(image and label). 
 
@@ -230,12 +230,12 @@ class FgImageStatsCasesAnalyzer(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import FgImageStatsCasesAnalyzer
+        from monai.auto3dseg.analyzer import FgImageStatsCaseAnalyzer
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
-        analyzer = FgImageStatsCasesAnalyzer(image_key='image', label_key='label')
+        analyzer = FgImageStatsCaseAnalyzer(image_key='image', label_key='label')
         print(analyzer(input))
     
     """
@@ -329,7 +329,38 @@ class LabelStatsCaseAnalyzer(Analyzer):
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....)
         
-        Note:
+        Examples:
+            output dict contains {
+                LABEL_STATS.LABEL_UID:[0,1,3], 
+                LABEL_STATS.IMAGE_INT: {...},
+                LABEL_STATS.LABEL:[
+                    {
+                        LABEL_STATS.PIXEL_PCT: 0.8,
+                        LABEL_STATS.IMAGE_INT: {...},
+                        LABEL_STATS.LABEL_SHAPE: [...],
+                        LABEL_STATS.LABEL_NCOMP: 1
+                    }
+                    {
+                        LABEL_STATS.PIXEL_PCT: 0.1,
+                        LABEL_STATS.IMAGE_INT: {...},
+                        LABEL_STATS.LABEL_SHAPE: [...],
+                        LABEL_STATS.LABEL_NCOMP: 1
+                    }
+                    {
+                        LABEL_STATS.PIXEL_PCT: 0.1,
+                        LABEL_STATS.IMAGE_INT: {...},
+                        LABEL_STATS.LABEL_SHAPE: [...],
+                        LABEL_STATS.LABEL_NCOMP: 1
+                    }
+                ]
+                }
+        
+        Notes:
+            The label class_ID of the dictionary in LABEL_STATS.LABEL IS NOT the 
+            index. Instead, the class_ID is the LABEL_STATS.LABEL_UID with the same
+            index. For instance, the last dict in LABEL_STATS.LABEL in the Examples
+            is 3, which is the last element under LABEL_STATS.LABEL_UID.
+
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
@@ -381,8 +412,18 @@ class LabelStatsCaseAnalyzer(Analyzer):
 
 
 class ImageStatsSummaryAnalyzer(Analyzer):
-    def __init__(self, case_analyzer_name: str, average: bool = True):
-        self.case = case_analyzer_name
+    """
+    Analyzer to process the values of specific key `key_in_case` in a list of dict. 
+    Typically, the list of dict is the output of case analyzer under the same prefix
+    (ImageStatsCaseAnalyzer).
+
+    Args:
+        key_in_case: the key of the to-process value in the dict
+        average: whether to average the statistical value across different image modalities.
+
+    """
+    def __init__(self, key_in_case: str, average: bool = True):
+        self.key_case = key_in_case
         self.summary_average = average
         report_format = {
             IMAGE_STATS.SHAPE: None,
@@ -399,52 +440,78 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         self.update_ops(IMAGE_STATS.SPACING, SampleOperations())
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
 
-    def __call__(self, data):
+    def __call__(self, data: List[Dict]):
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format and value
+            in a list format. Each element of the value list has stats pre-defined
+            by SampleOperations (max, min, ....)
+        
+        Examples:
+            output dict contains a dictionary for all of the following keys{
+                IMAGE_STATS.SHAPE:{...} 
+                IMAGE_STATS.CHANNELS: {...},
+                IMAGE_STATS.CROPPED_SHAPE: {...},
+                IMAGE_STATS.SPACING: {...},
+                IMAGE_STATS.INTENSITY: {...},
+                }
+
+        Notes:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        """
+        if not isinstance(data, list):
+            return ValueError(f"Callable {self.__class__} requires list inputs")
+
         report = deepcopy(self.get_report_format())
 
-        axis = 0  # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
-        report[IMAGE_STATS.SHAPE] = self.ops[IMAGE_STATS.SHAPE].evaluate(
-            concat_val_to_np(data, [self.case, IMAGE_STATS.SHAPE]), dim=axis
-        )
-        report[IMAGE_STATS.CROPPED_SHAPE] = self.ops[IMAGE_STATS.CROPPED_SHAPE].evaluate(
-            concat_val_to_np(data, [self.case, IMAGE_STATS.CROPPED_SHAPE]), dim=axis
-        )
-        report[IMAGE_STATS.SPACING] = self.ops[IMAGE_STATS.SPACING].evaluate(
-            concat_val_to_np(data, [self.case, IMAGE_STATS.SPACING]), dim=axis
-        )
+        shape_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.SHAPE])
+        crops_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.CROPPED_SHAPE])
+        space_np = concat_val_to_np(data, [self.key_case, IMAGE_STATS.SPACING])
 
-        axis = None if self.summary_average else 0
         op_keys = report[IMAGE_STATS.INTENSITY].keys()  # template, max/min/...
-        report[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
-            concat_multikeys_to_dict(data, [self.case, IMAGE_STATS.INTENSITY], op_keys), dim=axis
-        )
+        intst_dict = concat_multikeys_to_dict(data, [self.key_case, IMAGE_STATS.INTENSITY], op_keys)
+
+        report[IMAGE_STATS.SHAPE] = self.ops[IMAGE_STATS.SHAPE].evaluate(shape_np, 
+            dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0)
+        report[IMAGE_STATS.CROPPED_SHAPE] = self.ops[IMAGE_STATS.CROPPED_SHAPE].evaluate(crops_np, 
+            dim=(0, 1) if crops_np.ndim > 2 and self.summary_average else 0)
+        report[IMAGE_STATS.SPACING] = self.ops[IMAGE_STATS.SPACING].evaluate(space_np, 
+            dim=(0, 1) if space_np.ndim > 2 and self.summary_average else 0)
+        report[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(intst_dict,
+            dim=None if self.summary_average else 0)
 
         return report
 
 
 class FgImageStatsSummaryAnalyzer(Analyzer):
-    def __init__(self, case_analyzer_name: str, average=True):
-        self.case = case_analyzer_name
+    def __init__(self, key_in_case: str, average=True):
+        self.key_case = key_in_case
         self.summary_average = average
 
         report_format = {IMAGE_STATS.INTENSITY: None}
         super().__init__(report_format)
         self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
 
-    def __call__(self, data):
+    def __call__(self, data: List[Dict]):
+        if not isinstance(data, list):
+            return ValueError(f"Callable {self.__class__} requires list inputs")
+
         report = deepcopy(self.get_report_format())
-        axis = None if self.summary_average else 0
         op_keys = report[IMAGE_STATS.INTENSITY].keys()  # template, max/min/...
-        report[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
-            concat_multikeys_to_dict(data, [self.case, IMAGE_STATS.INTENSITY], op_keys), dim=axis
-        )
+        intst_dict = concat_multikeys_to_dict(data, [self.key_case, IMAGE_STATS.INTENSITY], op_keys)
+
+        report[IMAGE_STATS.INTENSITY] = self.ops[IMAGE_STATS.INTENSITY].evaluate(intst_dict, 
+            dim=None if self.summary_average else 0)
 
         return report
 
 
 class LabelStatsSummaryAnalyzer(Analyzer):
-    def __init__(self, case_analyzer_name: str, average: bool = True, do_ccp: bool = True):
-        self.case = case_analyzer_name
+    def __init__(self, key_in_case: str, average: bool = True, do_ccp: bool = True):
+        self.key_case = key_in_case
         self.summary_average = average
         self.do_ccp = do_ccp
 
@@ -473,37 +540,36 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.LABEL_NCOMP])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
-    def __call__(self, data):
-        report = deepcopy(self.get_report_format())
-        unique_label = label_union(concat_val_to_np(data, [self.case, LABEL_STATS.LABEL_UID], flatten=True))
+    def __call__(self, data: List[Dict]):
+        if not isinstance(data, list):
+            return ValueError(f"Callable {self.__class__} requires list inputs")
 
-        axis = None if self.summary_average else 0
+        report = deepcopy(self.get_report_format())
+        uid_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL_UID], flatten=True)
+        unique_label = label_union(uid_np)
+
         report[LABEL_STATS.LABEL_UID] = unique_label
         op_keys = report[LABEL_STATS.IMAGE_INT].keys()  # template, max/min/...
-        report[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
-            concat_multikeys_to_dict(data, [self.case, LABEL_STATS.IMAGE_INT], op_keys), dim=axis
-        )
+        intst_dict = concat_multikeys_to_dict(data, [self.key_case, LABEL_STATS.IMAGE_INT], op_keys)
+        report[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
+            dim=None if self.summary_average else 0)
 
         detailed_label_list = []
 
         for label_id in unique_label:
             stats = {}
             axis = 0  # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
-            for key in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_SHAPE, LABEL_STATS.LABEL_NCOMP]:
-                stats[key] = self.ops[LABEL_STATS.LABEL][0][key].evaluate(
-                    concat_val_to_np(
-                        data, [self.case, LABEL_STATS.LABEL, label_id, key], allow_missing=True, flatten=True
-                    ),
-                    dim=axis,
-                )
+            for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_SHAPE, LABEL_STATS.LABEL_NCOMP]:
+                v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, k], 
+                    allow_missing=True, flatten=True)
+                stats[k] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(v_np,
+                    dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
-            axis = None
-            label_image_intensity = [self.case, LABEL_STATS.LABEL, label_id, LABEL_STATS.IMAGE_INT]
+            intst_fixed_keys = [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.IMAGE_INT]
             op_keys = report[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].keys()
-            stats[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(
-                concat_multikeys_to_dict(data, label_image_intensity, op_keys, allow_missing=True, flatten=True),
-                dim=axis,
-            )
+            intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True, flatten=True)
+            stats[LABEL_STATS.IMAGE_INT] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
+                    dim=None if self.summary_average else 0)
 
             detailed_label_list.append(stats)
 

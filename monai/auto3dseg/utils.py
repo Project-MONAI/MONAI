@@ -150,8 +150,7 @@ def concat_val_to_np(data_list: List[Dict], fixed_keys: List[Union[str, int]], f
 
         parser = ConfigParser(data)
         for i, key in enumerate(fixed_keys):
-            if isinstance(key, (int, np.integer)):
-                fixed_keys[i] = str(key)
+            fixed_keys[i] = str(key)
 
         val = parser.get(ID_SEP_KEY.join(fixed_keys))
 
@@ -178,7 +177,7 @@ def concat_val_to_np(data_list: List[Dict], fixed_keys: List[Union[str, int]], f
         np_list = [x for x in np_list if x is not None]
 
     if flatten:
-        ret = np.concatenate(np_list, axis=None)  # when axis is None, numbers are flatten before use
+        ret = np.concatenate(np_list, axis=None)  # when axis is None, numbers are flatten before use, axis = 1 for ncomponent
     else:
         ret = np.concatenate([np_list])
 

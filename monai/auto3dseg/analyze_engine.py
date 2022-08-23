@@ -14,7 +14,7 @@ from typing import Dict
 import torch
 
 from monai.auto3dseg.analyzer import (
-    FgImageStatsCasesAnalyzer,
+    FgImageStatsCaseAnalyzer,
     FgImageStatsSummaryAnalyzer,
     ImageStatsCaseAnalyzer,
     ImageStatsSummaryAnalyzer,
@@ -112,7 +112,7 @@ class SegAnalyzeCaseEngine(AnalyzeEngine):
         if label_key is not None:
             super().update(
                 {
-                    "image_foreground_stats": FgImageStatsCasesAnalyzer(image_key, label_key),
+                    "image_foreground_stats": FgImageStatsCaseAnalyzer(image_key, label_key),
                     "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),
                 }
             )
