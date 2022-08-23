@@ -137,6 +137,7 @@ def run_testsuit():
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",
