@@ -2307,6 +2307,7 @@ class ForegroundMask(Transform):
 class ComputeHoVerMaps(Transform):
     """Compute horizontal and vertical maps from an instance mask
     It generates normalized horizontal and vertical distances to the center of mass of each region.
+
     Args:
         dtype: the data type of output Tensor. Defaults to `"float32"`.
 

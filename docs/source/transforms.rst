@@ -462,7 +462,7 @@ Intensity
     :special-members: __call__
 
 `ComputeHoVerMaps`
-""""""""""""""""
+""""""""""""""""""
 .. autoclass:: ComputeHoVerMaps
     :members:
     :special-members: __call__
@@ -1405,7 +1405,7 @@ Intensity (Dict)
     :special-members: __call__
 
 `ComputeHoVerMapsd`
-"""""""""""""""""
+"""""""""""""""""""
 .. autoclass:: ComputeHoVerMapsd
     :members:
     :special-members: __call__
