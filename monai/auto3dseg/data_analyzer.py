@@ -16,17 +16,12 @@ from typing import Dict, Union
 import torch
 
 from monai import data
-from monai.apps.auto3dseg.data_utils import datafold_read
 from monai.apps.utils import get_logger
+from monai.auto3dseg.utils import datafold_read
 from monai.data.utils import no_collation
 from monai.utils import min_version, optional_import
 
-yaml, _ = optional_import("yaml")
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
-measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
-cp, has_cp = optional_import("cupy")
-cucim, has_cucim = optional_import("cucim")
-
 logger = get_logger(module_name=__name__)
 
 __all__ = ["DataAnalyzer"]
