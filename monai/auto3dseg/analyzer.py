@@ -609,10 +609,12 @@ class LabelStatsSummaryAnalyzer(Analyzer):
             return KeyError(f"{self.stats_name} is not in input data")
 
         report = deepcopy(self.get_report_format())
+        # unique class ID
         uid_np = concat_val_to_np(data, [self.stats_name, LABEL_STATS.LABEL_UID], axis=None, ragged=True)
         unique_label = label_union(uid_np)
         report[str(LABEL_STATS.LABEL_UID)] = unique_label
 
+        # image intensity
         op_keys = report[str(LABEL_STATS.IMAGE_INT)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.stats_name, LABEL_STATS.IMAGE_INT], op_keys)
         report[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
@@ -620,16 +622,18 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         )
 
         detailed_label_list = []
-
+        # iterate through each label 
         for label_id in unique_label:
             stats = {}
-            axis = 0  # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
+            # todo(check ccp)
             for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_NCOMP]:
+                # allow_missing value can be missing because label dist is not even
                 v_np = concat_val_to_np(data, [self.stats_name, LABEL_STATS.LABEL, label_id, k], allow_missing=True)
                 stats[str(k)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(
                     v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0
                 )
-
+            # label shape is a 3-element value, but the number of labels in each image
+            # can vary from 0 to N. So the value in a list format is "ragged"
             v_np = concat_val_to_np(
                 data,
                 [self.stats_name, LABEL_STATS.LABEL, label_id, LABEL_STATS.LABEL_SHAPE],
@@ -654,6 +658,16 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         return report
 
 class FilenameCaseAnalyzer(Analyzer):
+    """
+    Analyzer to process the values of specific key `stats_name` in a list of dict.
+    Typically, the list of dict is the output of case analyzer under the same prefix
+    (FgImageStatsCaseAnalyzer).
+
+    Args:
+        key: the key to fetch the filename (for example, "image", "label")
+        stats_name: the key to store the filename in the output stats report
+
+    """
     def __init__(
         self,
         key: str, 

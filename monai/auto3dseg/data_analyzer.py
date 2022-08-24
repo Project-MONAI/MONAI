@@ -69,24 +69,23 @@ class DataAnalyzer:
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
 
-    For example:
+    Examples:
+        .. code-block:: python
 
-    .. code-block:: python
+            from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 
-        from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+            datalist = {
+                "testing": [{"image": "image_003.nii.gz"}],
+                "training": [
+                    {"fold": 0, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
+                    {"fold": 0, "image": "image_002.nii.gz", "label": "label_002.nii.gz"},
+                    {"fold": 1, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
+                    {"fold": 1, "image": "image_004.nii.gz", "label": "label_004.nii.gz"},
+                ],
+            }
 
-        datalist = {
-            "testing": [{"image": "image_003.nii.gz"}],
-            "training": [
-                {"fold": 0, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
-                {"fold": 0, "image": "image_002.nii.gz", "label": "label_002.nii.gz"},
-                {"fold": 1, "image": "image_001.nii.gz", "label": "label_001.nii.gz"},
-                {"fold": 1, "image": "image_004.nii.gz", "label": "label_004.nii.gz"},
-            ],
-        }
-
-        dataroot = '/datasets' # the directory where you have the image files (nii.gz)
-        DataAnalyzer(datalist, dataroot)
+            dataroot = '/datasets' # the directory where you have the image files (nii.gz)
+            DataAnalyzer(datalist, dataroot)
 
     Notes:
         The module can also be called from the command line interface (CLI).
