@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import get_logger
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated, deprecated_arg
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
@@ -48,6 +49,8 @@ __all__ = [
     "look_up_named_module",
     "set_named_module",
 ]
+
+logger = get_logger(module_name=__name__)
 
 
 def look_up_named_module(name: str, mod, print_all_options=False):
@@ -519,7 +522,7 @@ def copy_model_state(
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
-    print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys

@@ -31,14 +31,13 @@ https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/sampler.py
 """
 
 import logging
-from abc import ABC
 from typing import List, Tuple
 
 import torch
 from torch import Tensor
 
 
-class HardNegativeSamplerBase(ABC):
+class HardNegativeSamplerBase:
     """
     Base class of hard negative sampler.
 
