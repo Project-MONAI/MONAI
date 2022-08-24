@@ -18,7 +18,7 @@ import torch
 
 import monai
 from monai.bundle import ConfigParser
-from monai.bundle.config_item import ConfigItem
+from monai.bundle.config_item import ConfigItem, ConfigComponent
 from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
@@ -83,15 +83,10 @@ def check_bundle_config(parser):
 
 def remove_ckpt_loader(parser):
     if BundleKeys.VALIDATE_HANDLERS in parser:
-        _handlers = parser.get(BundleKeys.VALIDATE_HANDLERS)
-        _filtered_handlers = []
-        for _h in _handlers:
-            if isinstance(_h, dict):
-                if "_target_" in _h:
-                    if "CheckpointLoader" in _h.get("_target_"):
-                        continue
-                _filtered_handlers.append(_h)
-        parser[BundleKeys.VALIDATE_HANDLERS] = _filtered_handlers
+        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
+            if ConfigComponent.is_instantiable(h):
+                if "CheckpointLoader" in h["_target_"]:
+                    h["_disabled_"] = True
 
 
 class MonaiAlgo(ClientAlgo):
