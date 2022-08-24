@@ -536,8 +536,11 @@ class DATA_STATS(StrEnum):
 
     SUMMARY = "stats_summary"
     BY_CASE = "stats_by_cases"
-    BY_CASE_IMAGE_PATH = "image"
-    BY_CASE_LABEL_PATH = "label"
+    BY_CASE_IMAGE_PATH = "image_filepath"
+    BY_CASE_LABEL_PATH = "label_filepath"
+    IMAGE_STATS = "image_stats"
+    FG_IMAGE_STATS = "image_foreground_stats"
+    LABEL_STATS = "label_stats"
 
 
 class IMAGE_STATS(StrEnum):

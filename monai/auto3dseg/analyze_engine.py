@@ -9,9 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
-
-import torch
+from typing import Dict, List
 
 from monai.auto3dseg.analyzer import (
     FgImageStatsCaseAnalyzer,
@@ -20,113 +18,77 @@ from monai.auto3dseg.analyzer import (
     ImageStatsSummaryAnalyzer,
     LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
+    FilenameCaseAnalyzer,
 )
 from monai.auto3dseg.utils import get_filename
-from monai.transforms import (
-    Compose,
-    EnsureChannelFirstd,
-    EnsureTyped,
-    Lambdad,
-    LoadImaged,
-    Orientationd,
-    SqueezeDimd,
-    ToDeviced,
-)
+from monai.transforms import Compose
 from monai.utils.enums import DATA_STATS
 
 
-class AnalyzeEngine:
+class SegAnalyzeEngine(Compose):
     """
-    AnalyzeEngine is a base class to serialize the operations for data analysis in Auto3Dseg pipeline.
+    SegAnalyzeEngine serializes the operations for data analysis in Auto3Dseg pipeline. It loads
+    two types of analyzer functions and execuate differently. The first type of analyzer is
+    CaseAnalyzer which is similar to traditional monai transforms. It can be composed with other
+    transforms to process the data dict which has image/label keys. The second type of analyzer
+    is SummaryAnalyzer which works only on a list of dictionary. Each dictionary is the output
+    of the case analyzers on a single dataset.
 
     Args:
-        data: a dict-type data to run analysis on
-
-    Examples:
-
-    .. code-block:: python
-
-        import numpy as np
-        from monai.auto3dseg.analyze_engine import AnalyzeEngine
-
-        engine = AnalyzeEngine()
-        engine.update({"max": np.max})
-        engine.update({"min": np.min})
-
-        input = np.array([1,2,3,4])
-        print(engine(input))
-
+        image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
+            datalist to locate the image files of the dataset.
+        label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
+            datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
+            will skip looking for labels and all label-related operations.
+        do_ccp: apply the connected component algorithm to process the labels/images
     """
 
-    def __init__(self) -> None:
-        self.analyzers = {}
-        self.transform = None
+    def __init__(self, image_key: str, label_key: str, do_ccp: bool = True) -> None:
 
-    def update(self, analyzer: Dict[str, callable]):
-        self.analyzers.update(analyzer)
+        self.image_key = image_key
+        self.label_key = label_key
 
-    def __call__(self, data):
-        if self.transform:
-            data = self.transform(data)
-
-        ret = {}
-        for k, analyzer in self.analyzers.items():
-            if callable(analyzer):
-                ret.update({k: analyzer(data)})
-            elif isinstance(analyzer, str):
-                ret.update({k: analyzer})
-        return ret
-
-
-class SegAnalyzeCaseEngine(AnalyzeEngine):
-    def __init__(self, image_key: str, label_key: str, meta_post_fix: str = "_meta_dict", device: str = "cuda") -> None:
-
+        self.summary_analyzers = []
         super().__init__()
-        keys = [image_key] if label_key is None else [image_key, label_key]
 
-        transform_list = [
-            LoadImaged(keys=keys),
-            EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=keys, device=device, non_blocking=True),
-            Orientationd(keys=keys, axcodes="RAS"),
-            EnsureTyped(keys=keys, data_type="tensor"),
-            Lambdad(keys=label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x)
-            if label_key
-            else None,
-            SqueezeDimd(keys=["label"], dim=0) if label_key else None,
-        ]
-
-        self.transform = Compose(list(filter(None, transform_list)))
-
-        image_meta_key = image_key + meta_post_fix
-        label_meta_key = label_key + meta_post_fix if label_key else None
-
-        super().update(
-            {
-                str(DATA_STATS.BY_CASE_IMAGE_PATH): lambda data: get_filename(data, meta_key=image_meta_key),
-                str(DATA_STATS.BY_CASE_LABEL_PATH): lambda data: get_filename(data, meta_key=label_meta_key),
-                "image_stats": ImageStatsCaseAnalyzer(image_key),
-            }
+        self.add_analyzer(
+            FilenameCaseAnalyzer(image_key, DATA_STATS.BY_CASE_IMAGE_PATH), None
+        )
+        self.add_analyzer(
+            FilenameCaseAnalyzer(label_key, DATA_STATS.BY_CASE_LABEL_PATH), None
+        )
+        self.add_analyzer(
+            ImageStatsCaseAnalyzer(image_key), ImageStatsSummaryAnalyzer()
         )
 
-        if label_key is not None:
-            super().update(
-                {
-                    "image_foreground_stats": FgImageStatsCaseAnalyzer(image_key, label_key),
-                    "label_stats": LabelStatsCaseAnalyzer(image_key, label_key),
-                }
-            )
+        if label_key is None:
+            return
 
+        self.add_analyzer(
+            FgImageStatsCaseAnalyzer(image_key, label_key), FgImageStatsSummaryAnalyzer()
+        )
 
-class SegAnalyzeSummaryEngine(AnalyzeEngine):
-    def __init__(self, image_key: str, label_key: str, average=True):
-        super().__init__()
-        super().update({"image_stats": ImageStatsSummaryAnalyzer("image_stats", average=average)})
+        self.add_analyzer(
+            LabelStatsCaseAnalyzer(image_key, label_key, do_ccp=do_ccp), LabelStatsSummaryAnalyzer(do_ccp=do_ccp)
+        )
 
-        if label_key is not None:
-            super().update(
-                {
-                    "image_foreground_stats": FgImageStatsSummaryAnalyzer("image_foreground_stats", average=average),
-                    "label_stats": LabelStatsSummaryAnalyzer("label_stats", average=average),
-                }
-            )
+    def add_analyzer(self, case_analyzer, summary_analzyer):
+        self.transforms += (case_analyzer, )
+        self.summary_analyzers.append(summary_analzyer)
+
+    def summarize(self, data: List[Dict]):
+        if not isinstance(data, list):
+            raise ValueError(f"{self.__class__} summarize function needs input to be a list of dict")
+
+        report = {}
+        if len(data) == 0:
+            return report
+        
+        if not isinstance(data[0], dict):
+            raise ValueError(f"{self.__class__} summarize function needs a list of dict. Now we have {type(data[0])}")
+
+        for analyzer in self.summary_analyzers:
+            if callable(analyzer):
+                report.update({analyzer.stats_name: analyzer(data)})
+        
+        return report

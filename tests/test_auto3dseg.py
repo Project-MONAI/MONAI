@@ -29,7 +29,9 @@ from monai.auto3dseg.analyzer import (
     ImageStatsSummaryAnalyzer,
     LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
+    FilenameCaseAnalyzer,
 )
+from monai.auto3dseg.analyze_engine import SegAnalyzeEngine
 from monai.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import datafold_read, verify_report_format
@@ -48,6 +50,8 @@ from monai.transforms import (
     ToDeviced,
 )
 from numbers import Number
+
+from monai.utils.enums import DATA_STATS
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
@@ -77,13 +81,16 @@ class TestAnalyzer(Analyzer):
     Test example for a simple Analyzer
     """
 
-    def __init__(self, report_format):
-        super().__init__(report_format)
+    def __init__(self, key, report_format, stats_name="test"):
+        self.key = key
+        super().__init__(stats_name, report_format)
 
     def __call__(self, data):
+        d = dict(data)
         report = deepcopy(self.get_report_format())
-        report["stats"] = self.ops["stats"].evaluate(data)
-        return report
+        report["stats"] = self.ops["stats"].evaluate(d[self.key])
+        d[self.stats_name] = report
+        return d
 
 
 class TestImageAnalyzer(Analyzer):
@@ -91,19 +98,20 @@ class TestImageAnalyzer(Analyzer):
     Test example for a simple Analyzer
     """
 
-    def __init__(self, image_key="image"):
+    def __init__(self, image_key="image", stats_name="test_image"):
 
         self.image_key = image_key
-        report_format = {"stats": None}
+        report_format = {"test_stats": None}
 
-        super().__init__(report_format)
-        self.update_ops("stats", TestOperations())
+        super().__init__(stats_name, report_format)
+        self.update_ops("test_stats", TestOperations())
 
     def __call__(self, data):
-        nda = data[self.image_key]
+        d = dict(data)
         report = deepcopy(self.get_report_format())
-        report["stats"] = self.ops["stats"].evaluate(nda)
-        return report
+        report["test_stats"] = self.ops["test_stats"].evaluate(d[self.image_key])
+        d[self.stats_name] = report
+        return d
 
 
 class TestDataAnalyzer(unittest.TestCase):
@@ -202,14 +210,15 @@ class TestDataAnalyzer(unittest.TestCase):
         assert isinstance(test_ret['sum'], Number)
 
     def test_basic_analyzer_class(self):
-        test_data = np.random.rand(10, 10)
+        test_data = {}
+        test_data['image_test'] = np.random.rand(10, 10)
         report_format = {"stats": None}
-        user_analyzer = TestAnalyzer(report_format)
+        user_analyzer = TestAnalyzer('image_test', report_format)
         user_analyzer.update_ops("stats", TestOperations())
         result = user_analyzer(test_data)
-        assert result["stats"]["max"] == np.max(test_data)
-        assert result["stats"]["min"] == np.min(test_data)
-        assert result["stats"]["mean"] == np.mean(test_data)
+        assert result["test"]["stats"]["max"] == np.max(test_data['image_test'])
+        assert result["test"]["stats"]["min"] == np.min(test_data['image_test'])
+        assert result["test"]["stats"]["mean"] == np.mean(test_data['image_test'])
 
     def test_transform_analyzer_class(self):
         transform_list = [LoadImaged(keys=["image"]), TestImageAnalyzer(image_key="image")]
@@ -219,11 +228,12 @@ class TestDataAnalyzer(unittest.TestCase):
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=no_collation)
         for batch_data in self.dataset:
-            result = transform(batch_data[0])
-            assert "stats" in result
-            assert "max" in result["stats"]
-            assert "min" in result["stats"]
-            assert "mean" in result["stats"]
+            d = transform(batch_data[0])
+            assert "test_image" in d
+            assert "test_stats" in d["test_image"]
+            assert "max" in d["test_image"]["test_stats"]
+            assert "min" in d["test_image"]["test_stats"]
+            assert "mean" in d["test_image"]["test_stats"]
 
     def test_image_stats_case_analyzer(self):
         analyzer = ImageStatsCaseAnalyzer(image_key="image")
@@ -241,9 +251,9 @@ class TestDataAnalyzer(unittest.TestCase):
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
+            d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
-            assert verify_report_format(report, report_format)
+            assert verify_report_format(d["image_stats"], report_format)
 
     def test_foreground_image_stats_cases_analyzer(self):
         analyzer = FgImageStatsCaseAnalyzer(image_key="image", label_key="label")
@@ -263,9 +273,9 @@ class TestDataAnalyzer(unittest.TestCase):
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
+            d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
-            assert verify_report_format(report, report_format)
+            assert verify_report_format(d["image_foreground_stats"], report_format)
 
     def test_label_stats_case_analyzer(self):
         analyzer = LabelStatsCaseAnalyzer(image_key="image", label_key="label")
@@ -285,9 +295,45 @@ class TestDataAnalyzer(unittest.TestCase):
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
+            d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
-            assert verify_report_format(report, report_format)
+            assert verify_report_format(d["label_stats"], report_format)
+
+    def test_filename_case_analyzer(self):
+        analyzer_image = FilenameCaseAnalyzer("image", DATA_STATS.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameCaseAnalyzer("label", DATA_STATS.BY_CASE_IMAGE_PATH)
+        transform_list = [
+            LoadImaged(keys=["image", "label"]),
+            analyzer_image,
+            analyzer_label
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        for batch_data in self.dataset:
+            d = transform(batch_data[0])
+            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
+            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
+    
+    def test_filename_case_analyzer(self):
+        analyzer_image = FilenameCaseAnalyzer("image", DATA_STATS.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameCaseAnalyzer(None, DATA_STATS.BY_CASE_IMAGE_PATH)
+        transform_list = [
+            LoadImaged(keys=["image"]),
+            analyzer_image,
+            analyzer_label
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        for batch_data in self.dataset:
+            d = transform(batch_data[0])
+            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
+            assert d[DATA_STATS.BY_CASE_IMAGE_PATH] == ""
 
     def test_image_stats_summary_analyzer(self):
         summary_analyzer = ImageStatsSummaryAnalyzer("image_stats")
@@ -307,8 +353,7 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
-            stats.append({"image_stats": report})
+            stats.append(transform(batch_data[0]))
         summary_report = summary_analyzer(stats)
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)
@@ -333,8 +378,7 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
-            stats.append({"image_foreground_stats": report})
+            stats.append(transform(batch_data[0]))
         summary_report = summary_analyzer(stats)
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)
@@ -359,11 +403,38 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
-            report = transform(batch_data[0])
-            stats.append({"label_stats": report})
+            stats.append(transform(batch_data[0]))
         summary_report = summary_analyzer(stats)
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)
+
+    def test_analyzer_engine(self):
+        analyze_engine = SegAnalyzeEngine("image", "label")
+        keys = ["image", "label"]
+        transform_list = [
+            LoadImaged(keys=keys),
+            EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=keys, device=device, non_blocking=True),
+            Orientationd(keys=keys, axcodes="RAS"),
+            EnsureTyped(keys=keys, data_type="tensor"),
+            Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+            SqueezeDimd(keys=["label"], dim=0),
+            analyze_engine,
+        ]
+        transform = Compose(transform_list)
+        dataroot = self.test_dir.name
+        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ds = data.Dataset(data=files)
+        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        stats = []
+        for batch_data in self.dataset:
+            d = transform(batch_data[0])
+            stats.append(d)
+        report = analyze_engine.summarize(stats)
+        assert str(DATA_STATS.IMAGE_STATS) in report
+        assert str(DATA_STATS.FG_IMAGE_STATS) in report
+        assert str(DATA_STATS.LABEL_STATS) in report
+        
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

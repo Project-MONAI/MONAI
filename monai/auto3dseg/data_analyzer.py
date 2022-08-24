@@ -9,25 +9,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from tkinter.tix import IMAGE
 import warnings
 from os import path
 from typing import Dict, Union
 
 import torch
+import numpy as np
 
 from monai import data
 from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import datafold_read
 from monai.data.utils import no_collation
 from monai.utils import min_version, optional_import
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirstd,
+    EnsureTyped,
+    Lambdad,
+    LoadImaged,
+    Orientationd,
+    SqueezeDimd,
+    ToDeviced,
+)
+
+from monai.auto3dseg.analyze_engine import DATA_STATS, SegAnalyzeEngine
+from monai.bundle.config_parser import ConfigParser
+from typing import List
+
+from monai.utils.enums import IMAGE_STATS
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
 
 __all__ = ["DataAnalyzer"]
-
-
-from monai.auto3dseg.analyze_engine import DATA_STATS, SegAnalyzeCaseEngine, SegAnalyzeSummaryEngine
 
 
 class DataAnalyzer:
@@ -99,40 +114,93 @@ class DataAnalyzer:
         image_key: str = "image",
         label_key: str = "label",
     ):
-        """
-        The initializer will load the data and register the functions for data statistics gathering.
-        """
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
             logger.debug(f"{output_path} will be overwritten by a new datastat.")
 
+        self.datalist = datalist
+        self.dataroot = dataroot
+        self.output_path = output_path
+        self.do_ccp = do_ccp
+        self.device = device
+        self.worker = worker
         self.image_key = image_key
         self.label_key = label_key
 
-        self.output_path = output_path
-        self.IMAGE_ONLY = True if label_key is None else False
+    def _check_data_uniformity(self, keys: List[str], result):
+        """
+        Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
+        affine matrices/spacings due to monai transforms.
 
-        self.datalist = datalist
-        self.dataroot = dataroot
-        self.device = device
-        self.worker = worker
+        Args:
+            keys: a list of string-type keys under image_stats dictionary.
+
+        Returns:
+            False if one of the selected key values is not constant across the dataset images.
+
+        """
+        
+        constant_props = [result[DATA_STATS.SUMMARY][DATA_STATS.IMAGE_STATS][key] for key in keys]
+        for prop in constant_props:
+            if "stdev" in prop:
+                if np.any(prop["stdev"]):
+                    return False
+
+        return True
 
     def get_all_case_stats(self):
 
-        keys = list(filter(None, [self.image_key, self.label_key]))
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
         ds = data.Dataset(data=files)
         self.dataset = data.DataLoader(
             ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation
         )
 
-        result = {str(DATA_STATS.SUMMARY): {}, str(DATA_STATS.BY_CASE): []}
+        analyze_engine = SegAnalyzeEngine(self.image_key, self.label_key, do_ccp=self.do_ccp)
+        keys = list(filter(None, [self.image_key, self.label_key]))
+        transform_list = [
+            LoadImaged(keys=keys),
+            EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
+            ToDeviced(keys=keys, device=self.device, non_blocking=True),
+            Orientationd(keys=keys, axcodes="RAS"),
+            EnsureTyped(keys=keys, data_type="tensor"),
+            Lambdad(keys=self.label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x)
+            if self.label_key
+            else None,
+            SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
+            analyze_engine,
+        ]
 
-        case_engine = SegAnalyzeCaseEngine(self.image_key, self.label_key, device=self.device)
-        for batch_data in self.dataset:
-            result[str(DATA_STATS.BY_CASE)].append(case_engine(batch_data[0]))
+        tranform = Compose(list(filter(None, transform_list)))
 
-        summary_engine = SegAnalyzeSummaryEngine(self.image_key, self.label_key)
-        result[str(DATA_STATS.SUMMARY)] = summary_engine(result[str(DATA_STATS.BY_CASE)])
+        result = {
+            str(DATA_STATS.SUMMARY): {}, 
+            str(DATA_STATS.BY_CASE): []
+        }
+
+        if not has_tqdm:
+            warnings.warn("tqdm is not installed. not displaying the caching progress.")
+
+        for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
+            d = tranform(batch_data[0])
+            stats_by_cases = {
+                str(DATA_STATS.BY_CASE_IMAGE_PATH): d[str(DATA_STATS.BY_CASE_IMAGE_PATH)],
+                str(DATA_STATS.BY_CASE_LABEL_PATH): d[str(DATA_STATS.BY_CASE_LABEL_PATH)],
+                str(DATA_STATS.IMAGE_STATS):        d[str(DATA_STATS.IMAGE_STATS)]
+            }
+            
+            if self.label_key is not None:
+                stats_by_cases.update({
+                    str(DATA_STATS.FG_IMAGE_STATS):     d[str(DATA_STATS.FG_IMAGE_STATS)],
+                    str(DATA_STATS.LABEL_STATS):        d[str(DATA_STATS.LABEL_STATS)],
+                })
+            result[str(DATA_STATS.BY_CASE)].append(stats_by_cases)
+
+        result[str(DATA_STATS.SUMMARY)] = analyze_engine.summarize(result[str(DATA_STATS.BY_CASE)])
+
+        if not self._check_data_uniformity([IMAGE_STATS.SPACING], result):
+            logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
+
+        ConfigParser.export_config_file(result, self.output_path, fmt="yaml", default_flow_style=None)
 
         return result
