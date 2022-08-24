@@ -670,6 +670,10 @@ def set_rnd(obj, seed: int) -> int:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
+    if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
+        for item in obj:
+            set_rnd(item, seed=seed)
+        return seed + 1
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if hasattr(obj, "set_random_state"):
