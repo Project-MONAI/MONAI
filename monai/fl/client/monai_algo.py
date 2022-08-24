@@ -106,6 +106,7 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
         disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to True.
+        best_model_filepath: location of best model checkpoint (defaults "model/model.pt" relative to `bundle_root`)
     """
 
     def __init__(
@@ -117,6 +118,7 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
         disable_ckpt_loader: bool = True,
+        best_model_filepath: Optional[str] = "models/model.pt",
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -127,6 +129,7 @@ class MonaiAlgo(ClientAlgo):
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loader = disable_ckpt_loader
+        self.best_model_filepath = best_model_filepath
 
         self.app_root = None
         self.train_parser = None
@@ -264,26 +267,46 @@ class MonaiAlgo(ClientAlgo):
             extra: Dict with additional information that can be provided by FL system.
 
         Returns:
-            return_weights: `ExchangeObject` containing current weights.
+            return_weights: `ExchangeObject` containing current weights (default)
+            or "best" local weights if `extra` has `ExtraItems.MODEL_NAME` with string containing "best".
 
         """
         if extra is None:
             extra = {}
+
+        # by default return current weights, return best if requested via model name.
+        return_best = False
+        if ExtraItems.MODEL_NAME in extra:
+            if "best" in extra.get(ExtraItems.MODEL_NAME).lower():
+                return_best = True
         self.phase = FlPhase.GET_WEIGHTS
-        if self.trainer:
-            weights = get_state_dict(self.trainer.network)
+
+        if return_best:
+            self.best_model_filepath = os.path.join(self.bundle_root, self.best_model_filepath)
+            if not os.path.isfile(self.best_model_filepath):
+                raise ValueError(f"No best model checkpoint exists at {self.best_model_filepath}")
+            weights = torch.load(self.best_model_filepath, map_location="cpu")
             weigh_type = WeightType.WEIGHTS
-            stats = self.trainer.get_stats()
-            # calculate current iteration and epoch data after training.
-            stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
-            # compute weight differences
-            if self.send_weight_diff:
-                weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
-                weigh_type = WeightType.WEIGHT_DIFF
-        else:
-            weights = None
-            weigh_type = None
             stats = dict()
+            self.logger.info(f"Returning best checkpoint weights from {self.best_model_filepath}.")
+        else:
+            if self.trainer:
+                weights = get_state_dict(self.trainer.network)
+                weigh_type = WeightType.WEIGHTS
+                stats = self.trainer.get_stats()
+                # calculate current iteration and epoch data after training.
+                stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
+                # compute weight differences
+                if self.send_weight_diff:
+                    weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
+                    weigh_type = WeightType.WEIGHT_DIFF
+                    self.logger.info("Returning current weight differences.")
+                else:
+                    self.logger.info("Returning current weights.")
+            else:
+                weights = None
+                weigh_type = None
+                stats = dict()
 
         if not isinstance(stats, dict):
             raise ValueError(f"stats is not a dict, {stats}")
