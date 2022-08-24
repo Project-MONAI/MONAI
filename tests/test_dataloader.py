@@ -16,9 +16,10 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data import CacheDataset, DataLoader, Dataset
+from monai.data import CacheDataset, DataLoader, Dataset, ZipDataset
 from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
-from monai.utils import set_determinism
+from monai.utils import convert_to_numpy, set_determinism
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [[{"image": np.asarray([1, 2, 3])}, {"image": np.asarray([4, 5])}]]
 
@@ -82,6 +83,15 @@ class TestLoaderRandom(unittest.TestCase):
             for batch in dataloader:
                 output.extend(batch.data.numpy().flatten().tolist())
         self.assertListEqual(output, [594, 170, 524, 778, 370, 906, 292, 589, 762, 763, 156, 886, 42, 405, 221, 166])
+
+    def test_zipdataset(self):
+        dataset = ZipDataset([_RandomDataset(), ZipDataset([_RandomDataset(), _RandomDataset()])])
+        dataloader = DataLoader(dataset, batch_size=2, num_workers=2)
+        output = []
+        for _ in range(2):
+            for batch in dataloader:
+                output.extend([convert_to_numpy(batch, wrap_sequence=False)])
+        assert_allclose(np.stack(output).flatten()[:7], np.array([594, 170, 594, 170, 594, 170, 524]))
 
 
 if __name__ == "__main__":
