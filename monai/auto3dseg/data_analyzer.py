@@ -90,7 +90,7 @@ class DataAnalyzer:
 
     .. code-block:: bash
 
-        python -m monai.apps.auto3dseg \
+        python -m monai.auto3dseg \
             DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \

@@ -24,6 +24,8 @@ from monai.auto3dseg.analyzer import (
 from monai.transforms import Compose
 from monai.utils.enums import DataStatsKeys
 
+__all__ = ["SegSummarizer"]
+
 
 class SegSummarizer(Compose):
     """
