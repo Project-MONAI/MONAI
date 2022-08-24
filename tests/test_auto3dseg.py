@@ -21,19 +21,19 @@ import numpy as np
 import torch
 
 from monai import data
-from monai.auto3dseg.seg_summarizer import SegSummarizer
 from monai.auto3dseg.analyzer import (
     Analyzer,
-    FgImageStatsCaseAnalyzer,
-    FgImageStatsSummaryAnalyzer,
+    FgImageStats,
+    FgImageStatsSumm,
     FilenameStats,
-    ImageStatsCaseAnalyzer,
-    ImageStatsSummaryAnalyzer,
-    LabelStatsCaseAnalyzer,
-    LabelStatsSummaryAnalyzer,
+    ImageStats,
+    ImageStatsSumm,
+    LabelStats,
+    LabelStatsSumm,
 )
 from monai.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
+from monai.auto3dseg.seg_summarizer import SegSummarizer
 from monai.auto3dseg.utils import datafold_read, verify_report_format
 from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
@@ -229,7 +229,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert "mean" in d["test_image"]["test_stats"]
 
     def test_image_stats_case_analyzer(self):
-        analyzer = ImageStatsCaseAnalyzer(image_key="image")
+        analyzer = ImageStats(image_key="image")
         transform_list = [
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
@@ -249,7 +249,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["image_stats"], report_format)
 
     def test_foreground_image_stats_cases_analyzer(self):
-        analyzer = FgImageStatsCaseAnalyzer(image_key="image", label_key="label")
+        analyzer = FgImageStats(image_key="image", label_key="label")
         transform_list = [
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
@@ -271,7 +271,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["image_foreground_stats"], report_format)
 
     def test_label_stats_case_analyzer(self):
-        analyzer = LabelStatsCaseAnalyzer(image_key="image", label_key="label")
+        analyzer = LabelStats(image_key="image", label_key="label")
         transform_list = [
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
@@ -321,7 +321,7 @@ class TestDataAnalyzer(unittest.TestCase):
             assert d[DATA_STATS.BY_CASE_IMAGE_PATH] == ""
 
     def test_image_stats_summary_analyzer(self):
-        summary_analyzer = ImageStatsSummaryAnalyzer("image_stats")
+        summary_analyzer = ImageStatsSumm("image_stats")
 
         transform_list = [
             LoadImaged(keys=["image"]),
@@ -329,7 +329,7 @@ class TestDataAnalyzer(unittest.TestCase):
             ToDeviced(keys=["image"], device=device, non_blocking=True),
             Orientationd(keys=["image"], axcodes="RAS"),
             EnsureTyped(keys=["image"], data_type="tensor"),
-            ImageStatsCaseAnalyzer(image_key="image"),
+            ImageStats(image_key="image"),
         ]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
@@ -344,7 +344,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(summary_report, report_format)
 
     def test_fg_image_stats_summary_analyzer(self):
-        summary_analyzer = FgImageStatsSummaryAnalyzer("image_foreground_stats")
+        summary_analyzer = FgImageStatsSumm("image_foreground_stats")
 
         transform_list = [
             LoadImaged(keys=["image", "label"]),
@@ -354,7 +354,7 @@ class TestDataAnalyzer(unittest.TestCase):
             EnsureTyped(keys=["image", "label"], data_type="tensor"),
             Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
             SqueezeDimd(keys=["label"], dim=0),
-            FgImageStatsCaseAnalyzer(image_key="image", label_key="label"),
+            FgImageStats(image_key="image", label_key="label"),
         ]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
@@ -369,7 +369,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert verify_report_format(summary_report, report_format)
 
     def test_label_stats_summary_analyzer(self):
-        summary_analyzer = LabelStatsSummaryAnalyzer("label_stats")
+        summary_analyzer = LabelStatsSumm("label_stats")
 
         transform_list = [
             LoadImaged(keys=["image", "label"]),
@@ -379,7 +379,7 @@ class TestDataAnalyzer(unittest.TestCase):
             EnsureTyped(keys=["image", "label"], data_type="tensor"),
             Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
             SqueezeDimd(keys=["label"], dim=0),
-            LabelStatsCaseAnalyzer(image_key="image", label_key="label"),
+            LabelStats(image_key="image", label_key="label"),
         ]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name

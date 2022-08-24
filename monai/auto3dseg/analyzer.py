@@ -146,7 +146,7 @@ class Analyzer(MapTransform, ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class ImageStatsCaseAnalyzer(Analyzer):
+class ImageStats(Analyzer):
     """
     Analyzer to extract image stats properties for each case(image).
 
@@ -159,12 +159,12 @@ class ImageStatsCaseAnalyzer(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import ImageStatsCaseAnalyzer
+        from monai.auto3dseg.analyzer import ImageStats
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['image_meta_dict'] = {'affine': np.eye(4)}
-        analyzer = ImageStatsCaseAnalyzer(image_key="image")
+        analyzer = ImageStats(image_key="image")
         print(analyzer(input))
 
     """
@@ -228,7 +228,7 @@ class ImageStatsCaseAnalyzer(Analyzer):
         return d
 
 
-class FgImageStatsCaseAnalyzer(Analyzer):
+class FgImageStats(Analyzer):
     """
     Analyzer to extract foreground label properties for each case(image and label).
 
@@ -241,12 +241,12 @@ class FgImageStatsCaseAnalyzer(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import FgImageStatsCaseAnalyzer
+        from monai.auto3dseg.analyzer import FgImageStats
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
-        analyzer = FgImageStatsCaseAnalyzer(image_key='image', label_key='label')
+        analyzer = FgImageStats(image_key='image', label_key='label')
         print(analyzer(input))
 
     """
@@ -293,7 +293,7 @@ class FgImageStatsCaseAnalyzer(Analyzer):
         return d
 
 
-class LabelStatsCaseAnalyzer(Analyzer):
+class LabelStats(Analyzer):
     """
     Analyzer to extract label stats properties for each case(image and label).
 
@@ -307,12 +307,12 @@ class LabelStatsCaseAnalyzer(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import LabelStatsCaseAnalyzer
+        from monai.auto3dseg.analyzer import LabelStats
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
-        analyzer = LabelStatsCaseAnalyzer(image_key='image', label_key='label')
+        analyzer = LabelStats(image_key='image', label_key='label')
         print(analyzer(input))
 
     """
@@ -434,11 +434,11 @@ class LabelStatsCaseAnalyzer(Analyzer):
         return d
 
 
-class ImageStatsSummaryAnalyzer(Analyzer):
+class ImageStatsSumm(Analyzer):
     """
-    Analyzer to process the values of specific key `stats_name` in a list of dict.
+    This summary analyzer processes the values of specific key `stats_name` in a list of dict.
     Typically, the list of dict is the output of case analyzer under the same prefix
-    (ImageStatsCaseAnalyzer).
+    (ImageStats).
 
     Args:
         stats_name: the key of the to-process value in the dict
@@ -509,11 +509,11 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         return report
 
 
-class FgImageStatsSummaryAnalyzer(Analyzer):
+class FgImageStatsSumm(Analyzer):
     """
-    Analyzer to process the values of specific key `stats_name` in a list of dict.
-    Typically, the list of dict is the output of case analyzer under the same prefix
-    (FgImageStatsCaseAnalyzer).
+    This summary analyzer processes the values of specific key `stats_name` in a list of
+    dict. Typically, the list of dict is the output of case analyzer under the similar name
+    (FgImageStats).
 
     Args:
         stats_name: the key of the to-process value in the dict
@@ -549,7 +549,7 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         return report
 
 
-class LabelStatsSummaryAnalyzer(Analyzer):
+class LabelStatsSumm(Analyzer):
     def __init__(
         self, stats_name: Optional[str] = "label_stats", average: Optional[bool] = True, do_ccp: Optional[bool] = True
     ):
@@ -646,7 +646,7 @@ class FilenameStats(Analyzer):
     """
     Analyzer to process the values of specific key `stats_name` in a list of dict.
     Typically, the list of dict is the output of case analyzer under the same prefix
-    (FgImageStatsCaseAnalyzer).
+    (FgImageStats).
 
     Args:
         key: the key to fetch the filename (for example, "image", "label")

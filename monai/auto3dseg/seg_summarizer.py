@@ -13,13 +13,13 @@ from typing import Dict, List, Type
 
 from monai.auto3dseg.analyzer import (
     Analyzer,
-    FgImageStatsCaseAnalyzer,
-    FgImageStatsSummaryAnalyzer,
+    FgImageStats,
+    FgImageStatsSumm,
     FilenameStats,
-    ImageStatsCaseAnalyzer,
-    ImageStatsSummaryAnalyzer,
-    LabelStatsCaseAnalyzer,
-    LabelStatsSummaryAnalyzer,
+    ImageStats,
+    ImageStatsSumm,
+    LabelStats,
+    LabelStatsSumm,
 )
 from monai.auto3dseg.utils import get_filename
 from monai.transforms import Compose
@@ -79,16 +79,14 @@ class SegSummarizer(Compose):
 
         self.add_analyzer(FilenameStats(image_key, DATA_STATS.BY_CASE_IMAGE_PATH), None)
         self.add_analyzer(FilenameStats(label_key, DATA_STATS.BY_CASE_LABEL_PATH), None)
-        self.add_analyzer(ImageStatsCaseAnalyzer(image_key), ImageStatsSummaryAnalyzer())
+        self.add_analyzer(ImageStats(image_key), ImageStatsSumm())
 
         if label_key is None:
             return
 
-        self.add_analyzer(FgImageStatsCaseAnalyzer(image_key, label_key), FgImageStatsSummaryAnalyzer())
+        self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm())
 
-        self.add_analyzer(
-            LabelStatsCaseAnalyzer(image_key, label_key, do_ccp=do_ccp), LabelStatsSummaryAnalyzer(do_ccp=do_ccp)
-        )
+        self.add_analyzer(LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(do_ccp=do_ccp))
 
     def add_analyzer(self, case_analyzer: Type[Analyzer], summary_analzyer: Type[Analyzer]) -> None:
         """
