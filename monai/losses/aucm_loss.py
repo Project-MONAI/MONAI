@@ -38,7 +38,6 @@ class AUCMLoss(_Loss):
         softmax: bool = False,
         other_act: Optional[Callable] = None,
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-        gpu: bool = False,
     ):
         """
         Args:
@@ -89,16 +88,9 @@ class AUCMLoss(_Loss):
         self.softmax = softmax
         self.other_act = other_act
 
-        self.device = torch.device("cuda" if gpu else "cpu")
-        self.a = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
-            self.device
-        )
-        self.b = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
-            self.device
-        )
-        self.alpha = torch.zeros(self.num_classes, dtype=torch.float32, device=self.device, requires_grad=True).to(
-            self.device
-        )
+        self.a = torch.zeros(self.num_classes, dtype=torch.float32, requires_grad=True)
+        self.b = torch.zeros(self.num_classes, dtype=torch.float32, requires_grad=True)
+        self.alpha = torch.zeros(self.num_classes, dtype=torch.float32, requires_grad=True)
 
     def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor, auto=True) -> torch.Tensor:
         """
@@ -147,6 +139,12 @@ class AUCMLoss(_Loss):
             )
 
         total_loss = 0
+
+        # let the device of the weights same as input
+        self.a.to(y_pred.device)
+        self.b.to(y_pred.device)
+        self.alpha.to(y_pred.device)
+
         for idx in range(self.num_classes):
             if len(y_pred[:, idx].shape) == 1:
                 y_pred = y_pred[:, idx].reshape(-1, 1)
