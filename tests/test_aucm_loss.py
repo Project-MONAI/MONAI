@@ -42,16 +42,6 @@ class TestAUCMLoss(unittest.TestCase):
         result = loss(y_p, y_t)
         np.testing.assert_allclose(result.detach().cpu().numpy(), 0.125, atol=1e-4, rtol=1e-4)
 
-    def test_with_cuda(self):
-        loss = AUCMLoss(num_classes=1, gpu=True)
-        i = torch.tensor([[[[1, 0], [0, 1.0]]], [[[0, 0], [0, 1.0]]]])
-        j = torch.tensor([[[[0, 0], [0, 1.0]]], [[[0, 0], [0, 1.0]]]])
-        if torch.cuda.is_available():
-            i = i.cuda()
-            j = j.cuda()
-        output = loss(i, j)
-        np.testing.assert_allclose(output.detach().cpu().numpy(), 0.125, atol=1e-4, rtol=1e-4)
-
     def test_ill_shape(self):
         loss = AUCMLoss()
         with self.assertRaisesRegex(ValueError, ""):
