@@ -11,11 +11,8 @@
 
 from collections import UserDict
 from functools import partial
-from typing import Any, Optional
+from typing import Any
 
-import torch
-
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
 
@@ -41,7 +38,6 @@ class Operations(UserDict):
 
 
 class SampleOperations(Operations):
-    # todo: missing value/nan/inf
     """
     Apply statistical operation to a sample (image/ndarray/tensor)
 

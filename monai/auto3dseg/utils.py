@@ -18,13 +18,12 @@ import numpy as np
 import torch
 
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
-from monai.utils.misc import ImageMetaKey
 
 __all__ = [
-    "get_filename",
     "get_foreground_image",
     "get_foreground_label",
     "get_label_ccp",
@@ -36,20 +35,6 @@ __all__ = [
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 cp, has_cp = optional_import("cupy")
 cucim, has_cucim = optional_import("cucim")
-
-
-def get_filename(data, meta_key="image_meta_dict"):
-    """
-    Get the filenames for image/labels
-
-    Args:
-        data: data from the dataloader
-        meta_key: key to access the file names
-
-    Returns:
-        a str (filename) if the key is valid. Otherwise, an empty string.
-    """
-    return data[meta_key][ImageMetaKey.FILENAME_OR_OBJ] if meta_key else ""
 
 
 def get_foreground_image(image: MetaTensor):
@@ -151,13 +136,11 @@ def concat_val_to_np(
 
     np_list = []
     for data in data_list:
-        from monai.bundle.config_parser import ConfigParser
-        from monai.bundle.utils import ID_SEP_KEY
-
         parser = ConfigParser(data)
         for i, key in enumerate(fixed_keys):
             fixed_keys[i] = str(key)
 
+        val: Any
         val = parser.get(ID_SEP_KEY.join(fixed_keys))
 
         if val is None:
@@ -166,9 +149,6 @@ def concat_val_to_np(
             else:
                 raise AttributeError(f"{fixed_keys} is not nested in the dictionary")
         elif isinstance(val, list):
-            # only list of number/np.ndrray
-            if any(isinstance(v, (torch.Tensor, MetaTensor)) for v in val):
-                raise NotImplementedError("list of MetaTensor is not supported for concat")
             np_list.append(np.array(val))
         elif isinstance(val, (torch.Tensor, MetaTensor)):
             np_list.append(val.cpu().numpy())

@@ -528,9 +528,9 @@ class EngineStatsKeys(StrEnum):
     BEST_VALIDATION_METRTC = "best_validation_metric"
 
 
-class DATA_STATS(StrEnum):
+class DataStatsKeys(StrEnum):
     """
-    A set of keys for dataset statistical analysis module
+    Defaults keys for dataset statistical analysis modules
 
     """
 
@@ -543,8 +543,11 @@ class DATA_STATS(StrEnum):
     LABEL_STATS = "label_stats"
 
 
-class IMAGE_STATS(StrEnum):
-    """ """
+class ImageStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis image modules
+
+    """
 
     SHAPE = "shape"
     CHANNELS = "channels"
@@ -553,8 +556,11 @@ class IMAGE_STATS(StrEnum):
     INTENSITY = "intensity"
 
 
-class LABEL_STATS(StrEnum):
-    """ """
+class LabelStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis label modules
+
+    """
 
     LABEL_UID = "labels"
     PIXEL_PCT = "pixel_percentage"

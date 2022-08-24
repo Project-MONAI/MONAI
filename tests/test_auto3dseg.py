@@ -49,7 +49,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-from monai.utils.enums import DATA_STATS
+from monai.utils.enums import DataStatsKeys
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
@@ -293,8 +293,8 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["label_stats"], report_format)
 
     def test_filename_case_analyzer(self):
-        analyzer_image = FilenameStats("image", DATA_STATS.BY_CASE_IMAGE_PATH)
-        analyzer_label = FilenameStats("label", DATA_STATS.BY_CASE_IMAGE_PATH)
+        analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameStats("label", DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image", "label"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
@@ -303,12 +303,12 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
-            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
-            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
+            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
+            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
 
-    def test_filename_case_analyzer(self):
-        analyzer_image = FilenameStats("image", DATA_STATS.BY_CASE_IMAGE_PATH)
-        analyzer_label = FilenameStats(None, DATA_STATS.BY_CASE_IMAGE_PATH)
+    def test_filename_case_analyzer_image_only(self):
+        analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameStats(None, DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
@@ -317,8 +317,8 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
-            assert DATA_STATS.BY_CASE_IMAGE_PATH in d
-            assert d[DATA_STATS.BY_CASE_IMAGE_PATH] == ""
+            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
+            assert d[DataStatsKeys.BY_CASE_IMAGE_PATH] == ""
 
     def test_image_stats_summary_analyzer(self):
         summary_analyzer = ImageStatsSumm("image_stats")
@@ -416,9 +416,9 @@ class TestDataAnalyzer(unittest.TestCase):
             d = transform(batch_data[0])
             stats.append(d)
         report = summarizer.summarize(stats)
-        assert str(DATA_STATS.IMAGE_STATS) in report
-        assert str(DATA_STATS.FG_IMAGE_STATS) in report
-        assert str(DATA_STATS.LABEL_STATS) in report
+        assert str(DataStatsKeys.IMAGE_STATS) in report
+        assert str(DataStatsKeys.FG_IMAGE_STATS) in report
+        assert str(DataStatsKeys.LABEL_STATS) in report
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

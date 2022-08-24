@@ -26,11 +26,10 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
-from monai.config.type_definitions import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils.enums import IMAGE_STATS, LABEL_STATS, StrEnum
+from monai.utils.enums import ImageStatsKeys, LabelStatsKeys, StrEnum
 from monai.utils.misc import ImageMetaKey, label_union
 
 
@@ -180,15 +179,15 @@ class ImageStats(Analyzer):
         self.image_meta_key = f"{self.image_key}_{meta_key_postfix}"
 
         report_format = {
-            str(IMAGE_STATS.SHAPE): None,
-            str(IMAGE_STATS.CHANNELS): None,
-            str(IMAGE_STATS.CROPPED_SHAPE): None,
-            str(IMAGE_STATS.SPACING): None,
-            str(IMAGE_STATS.INTENSITY): None,
+            str(ImageStatsKeys.SHAPE): None,
+            str(ImageStatsKeys.CHANNELS): None,
+            str(ImageStatsKeys.CROPPED_SHAPE): None,
+            str(ImageStatsKeys.SPACING): None,
+            str(ImageStatsKeys.INTENSITY): None,
         }
 
         super().__init__(stats_name, report_format)
-        self.update_ops(str(IMAGE_STATS.INTENSITY), SampleOperations())
+        self.update_ops(str(ImageStatsKeys.INTENSITY), SampleOperations())
 
     def __call__(self, data):
         """
@@ -196,7 +195,7 @@ class ImageStats(Analyzer):
 
         Returns:
             A dictionary. The dict has the key in self.report_format. The value of
-            IMAGE_STATS.INTENSITY is in a list format. Each element of the value list
+            ImageStatsKeys.INTENSITY is in a list format. Each element of the value list
             has stats pre-defined by SampleOperations (max, min, ....)
 
         Note:
@@ -215,13 +214,15 @@ class ImageStats(Analyzer):
         # perform calculation
         report = deepcopy(self.get_report_format())
 
-        report[str(IMAGE_STATS.SHAPE)] = [list(nda.shape) for nda in ndas]
-        report[str(IMAGE_STATS.CHANNELS)] = len(ndas)
-        report[str(IMAGE_STATS.CROPPED_SHAPE)] = [list(nda_c.shape) for nda_c in nda_croppeds]
-        report[str(IMAGE_STATS.SPACING)] = np.tile(
+        report[str(ImageStatsKeys.SHAPE)] = [list(nda.shape) for nda in ndas]
+        report[str(ImageStatsKeys.CHANNELS)] = len(ndas)
+        report[str(ImageStatsKeys.CROPPED_SHAPE)] = [list(nda_c.shape) for nda_c in nda_croppeds]
+        report[str(ImageStatsKeys.SPACING)] = np.tile(
             np.diag(data[self.image_meta_key]["affine"])[:3], [len(ndas), 1]
         ).tolist()
-        report[str(IMAGE_STATS.INTENSITY)] = [self.ops[IMAGE_STATS.INTENSITY].evaluate(nda_c) for nda_c in nda_croppeds]
+        report[str(ImageStatsKeys.INTENSITY)] = [
+            self.ops[ImageStatsKeys.INTENSITY].evaluate(nda_c) for nda_c in nda_croppeds
+        ]
 
         # logger.debug(f"Get image stats spent {time.time()-start}")
         d[self.stats_name] = report
@@ -256,10 +257,10 @@ class FgImageStats(Analyzer):
         self.image_key = image_key
         self.label_key = label_key
 
-        report_format = {str(IMAGE_STATS.INTENSITY): None}
+        report_format = {str(ImageStatsKeys.INTENSITY): None}
 
         super().__init__(stats_name, report_format)
-        self.update_ops(IMAGE_STATS.INTENSITY, SampleOperations())
+        self.update_ops(ImageStatsKeys.INTENSITY, SampleOperations())
 
     def __call__(self, data) -> dict:
         """
@@ -285,8 +286,8 @@ class FgImageStats(Analyzer):
         # perform calculation
         report = deepcopy(self.get_report_format())
 
-        report[str(IMAGE_STATS.INTENSITY)] = [
-            self.ops[IMAGE_STATS.INTENSITY].evaluate(nda_f) for nda_f in nda_foregrounds
+        report[str(ImageStatsKeys.INTENSITY)] = [
+            self.ops[ImageStatsKeys.INTENSITY].evaluate(nda_f) for nda_f in nda_foregrounds
         ]
 
         d[self.stats_name] = report
@@ -324,20 +325,20 @@ class LabelStats(Analyzer):
         self.do_ccp = do_ccp
 
         report_format = {
-            str(LABEL_STATS.LABEL_UID): None,
-            str(LABEL_STATS.IMAGE_INT): None,
-            str(LABEL_STATS.LABEL): [{str(LABEL_STATS.PIXEL_PCT): None, str(LABEL_STATS.IMAGE_INT): None}],
+            str(LabelStatsKeys.LABEL_UID): None,
+            str(LabelStatsKeys.IMAGE_INT): None,
+            str(LabelStatsKeys.LABEL): [{str(LabelStatsKeys.PIXEL_PCT): None, str(LabelStatsKeys.IMAGE_INT): None}],
         }
 
         if self.do_ccp:
-            report_format[str(LABEL_STATS.LABEL)][0].update(
-                {str(LABEL_STATS.LABEL_SHAPE): None, str(LABEL_STATS.LABEL_NCOMP): None}
+            report_format[str(LabelStatsKeys.LABEL)][0].update(
+                {str(LabelStatsKeys.LABEL_SHAPE): None, str(LabelStatsKeys.LABEL_NCOMP): None}
             )
 
         super().__init__(stats_name, report_format)
-        self.update_ops(LABEL_STATS.IMAGE_INT, SampleOperations())
+        self.update_ops(LabelStatsKeys.IMAGE_INT, SampleOperations())
 
-        id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.IMAGE_INT])
+        id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INT])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
     def __call__(self, data):
@@ -351,35 +352,35 @@ class LabelStats(Analyzer):
 
         Examples:
             output dict contains {
-                LABEL_STATS.LABEL_UID:[0,1,3],
-                LABEL_STATS.IMAGE_INT: {...},
-                LABEL_STATS.LABEL:[
+                LabelStatsKeys.LABEL_UID:[0,1,3],
+                LabelStatsKeys.IMAGE_INT: {...},
+                LabelStatsKeys.LABEL:[
                     {
-                        LABEL_STATS.PIXEL_PCT: 0.8,
-                        LABEL_STATS.IMAGE_INT: {...},
-                        LABEL_STATS.LABEL_SHAPE: [...],
-                        LABEL_STATS.LABEL_NCOMP: 1
+                        LabelStatsKeys.PIXEL_PCT: 0.8,
+                        LabelStatsKeys.IMAGE_INT: {...},
+                        LabelStatsKeys.LABEL_SHAPE: [...],
+                        LabelStatsKeys.LABEL_NCOMP: 1
                     }
                     {
-                        LABEL_STATS.PIXEL_PCT: 0.1,
-                        LABEL_STATS.IMAGE_INT: {...},
-                        LABEL_STATS.LABEL_SHAPE: [...],
-                        LABEL_STATS.LABEL_NCOMP: 1
+                        LabelStatsKeys.PIXEL_PCT: 0.1,
+                        LabelStatsKeys.IMAGE_INT: {...},
+                        LabelStatsKeys.LABEL_SHAPE: [...],
+                        LabelStatsKeys.LABEL_NCOMP: 1
                     }
                     {
-                        LABEL_STATS.PIXEL_PCT: 0.1,
-                        LABEL_STATS.IMAGE_INT: {...},
-                        LABEL_STATS.LABEL_SHAPE: [...],
-                        LABEL_STATS.LABEL_NCOMP: 1
+                        LabelStatsKeys.PIXEL_PCT: 0.1,
+                        LabelStatsKeys.IMAGE_INT: {...},
+                        LabelStatsKeys.LABEL_SHAPE: [...],
+                        LabelStatsKeys.LABEL_NCOMP: 1
                     }
                 ]
                 }
 
         Notes:
-            The label class_ID of the dictionary in LABEL_STATS.LABEL IS NOT the
-            index. Instead, the class_ID is the LABEL_STATS.LABEL_UID with the same
-            index. For instance, the last dict in LABEL_STATS.LABEL in the Examples
-            is 3, which is the last element under LABEL_STATS.LABEL_UID.
+            The label class_ID of the dictionary in LabelStatsKeys.LABEL IS NOT the
+            index. Instead, the class_ID is the LabelStatsKeys.LABEL_UID with the same
+            index. For instance, the last dict in LabelStatsKeys.LABEL in the Examples
+            is 3, which is the last element under LabelStatsKeys.LABEL_UID.
 
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
@@ -405,29 +406,29 @@ class LabelStats(Analyzer):
             label_dict: Dict[str, Any] = {}
             mask_index = ndas_label == index
 
-            label_dict[str(LABEL_STATS.IMAGE_INT)] = [
-                self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda[mask_index]) for nda in ndas
+            label_dict[str(LabelStatsKeys.IMAGE_INT)] = [
+                self.ops[LabelStatsKeys.IMAGE_INT].evaluate(nda[mask_index]) for nda in ndas
             ]
             pixel_count = sum(mask_index)
             pixel_arr.append(pixel_count)
             pixel_sum += pixel_count
             if self.do_ccp:  # apply connected component
                 shape_list, ncomponents = get_label_ccp(mask_index)
-                label_dict[str(LABEL_STATS.LABEL_SHAPE)] = shape_list
-                label_dict[str(LABEL_STATS.LABEL_NCOMP)] = ncomponents
+                label_dict[str(LabelStatsKeys.LABEL_SHAPE)] = shape_list
+                label_dict[str(LabelStatsKeys.LABEL_NCOMP)] = ncomponents
 
             label_substats.append(label_dict)
             # logger.debug(f" label {index} stats takes {time.time() - s}")
 
         for i, _ in enumerate(unique_label):
-            label_substats[i].update({str(LABEL_STATS.PIXEL_PCT): float(pixel_arr[i] / pixel_sum)})
+            label_substats[i].update({str(LabelStatsKeys.PIXEL_PCT): float(pixel_arr[i] / pixel_sum)})
 
         report = deepcopy(self.get_report_format())
-        report[str(LABEL_STATS.LABEL_UID)] = unique_label
-        report[str(LABEL_STATS.IMAGE_INT)] = [
-            self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds
+        report[str(LabelStatsKeys.LABEL_UID)] = unique_label
+        report[str(LabelStatsKeys.IMAGE_INT)] = [
+            self.ops[LabelStatsKeys.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds
         ]
-        report[str(LABEL_STATS.LABEL)] = label_substats
+        report[str(LabelStatsKeys.LABEL)] = label_substats
 
         d[self.stats_name] = report
         # logger.debug(f"Get label stats spent {time.time()-start}")
@@ -449,19 +450,19 @@ class ImageStatsSumm(Analyzer):
     def __init__(self, stats_name: Optional[str] = "image_stats", average: Optional[bool] = True):
         self.summary_average = average
         report_format = {
-            str(IMAGE_STATS.SHAPE): None,
-            str(IMAGE_STATS.CHANNELS): None,
-            str(IMAGE_STATS.CROPPED_SHAPE): None,
-            str(IMAGE_STATS.SPACING): None,
-            str(IMAGE_STATS.INTENSITY): None,
+            str(ImageStatsKeys.SHAPE): None,
+            str(ImageStatsKeys.CHANNELS): None,
+            str(ImageStatsKeys.CROPPED_SHAPE): None,
+            str(ImageStatsKeys.SPACING): None,
+            str(ImageStatsKeys.INTENSITY): None,
         }
         super().__init__(stats_name, report_format)
 
-        self.update_ops(IMAGE_STATS.SHAPE, SampleOperations())
-        self.update_ops(IMAGE_STATS.CHANNELS, SampleOperations())
-        self.update_ops(IMAGE_STATS.CROPPED_SHAPE, SampleOperations())
-        self.update_ops(IMAGE_STATS.SPACING, SampleOperations())
-        self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
+        self.update_ops(ImageStatsKeys.SHAPE, SampleOperations())
+        self.update_ops(ImageStatsKeys.CHANNELS, SampleOperations())
+        self.update_ops(ImageStatsKeys.CROPPED_SHAPE, SampleOperations())
+        self.update_ops(ImageStatsKeys.SPACING, SampleOperations())
+        self.update_ops(ImageStatsKeys.INTENSITY, SummaryOperations())
 
     def __call__(self, data: List[Dict]):
         """
@@ -474,11 +475,11 @@ class ImageStatsSumm(Analyzer):
 
         Examples:
             output dict contains a dictionary for all of the following keys{
-                IMAGE_STATS.SHAPE:{...}
-                IMAGE_STATS.CHANNELS: {...},
-                IMAGE_STATS.CROPPED_SHAPE: {...},
-                IMAGE_STATS.SPACING: {...},
-                IMAGE_STATS.INTENSITY: {...},
+                ImageStatsKeys.SHAPE:{...}
+                ImageStatsKeys.CHANNELS: {...},
+                ImageStatsKeys.CROPPED_SHAPE: {...},
+                ImageStatsKeys.SPACING: {...},
+                ImageStatsKeys.INTENSITY: {...},
                 }
 
         Notes:
@@ -496,13 +497,13 @@ class ImageStatsSumm(Analyzer):
 
         report = deepcopy(self.get_report_format())
 
-        for k in [IMAGE_STATS.SHAPE, IMAGE_STATS.CHANNELS, IMAGE_STATS.CROPPED_SHAPE, IMAGE_STATS.SPACING]:
+        for k in [ImageStatsKeys.SHAPE, ImageStatsKeys.CHANNELS, ImageStatsKeys.CROPPED_SHAPE, ImageStatsKeys.SPACING]:
             v_np = concat_val_to_np(data, [self.stats_name, k])
             report[str(k)] = self.ops[k].evaluate(v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
-        op_keys = report[str(IMAGE_STATS.INTENSITY)].keys()  # template, max/min/...
-        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, IMAGE_STATS.INTENSITY], op_keys)
-        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
+        op_keys = report[str(ImageStatsKeys.INTENSITY)].keys()  # template, max/min/...
+        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, ImageStatsKeys.INTENSITY], op_keys)
+        report[str(ImageStatsKeys.INTENSITY)] = self.ops[ImageStatsKeys.INTENSITY].evaluate(
             intst_dict, dim=None if self.summary_average else 0
         )
 
@@ -524,9 +525,9 @@ class FgImageStatsSumm(Analyzer):
     def __init__(self, stats_name: Optional[str] = "image_foreground_stats", average: Optional[bool] = True):
         self.summary_average = average
 
-        report_format = {str(IMAGE_STATS.INTENSITY): None}
+        report_format = {str(ImageStatsKeys.INTENSITY): None}
         super().__init__(stats_name, report_format)
-        self.update_ops(IMAGE_STATS.INTENSITY, SummaryOperations())
+        self.update_ops(ImageStatsKeys.INTENSITY, SummaryOperations())
 
     def __call__(self, data: List[Dict]):
         if not isinstance(data, list):
@@ -539,10 +540,10 @@ class FgImageStatsSumm(Analyzer):
             return KeyError(f"{self.stats_name} is not in input data")
 
         report = deepcopy(self.get_report_format())
-        op_keys = report[str(IMAGE_STATS.INTENSITY)].keys()  # template, max/min/...
-        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, IMAGE_STATS.INTENSITY], op_keys)
+        op_keys = report[str(ImageStatsKeys.INTENSITY)].keys()  # template, max/min/...
+        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, ImageStatsKeys.INTENSITY], op_keys)
 
-        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
+        report[str(ImageStatsKeys.INTENSITY)] = self.ops[ImageStatsKeys.INTENSITY].evaluate(
             intst_dict, dim=None if self.summary_average else 0
         )
 
@@ -557,29 +558,29 @@ class LabelStatsSumm(Analyzer):
         self.do_ccp = do_ccp
 
         report_format = {
-            str(LABEL_STATS.LABEL_UID): None,
-            str(LABEL_STATS.IMAGE_INT): None,
-            str(LABEL_STATS.LABEL): [{str(LABEL_STATS.PIXEL_PCT): None, str(LABEL_STATS.IMAGE_INT): None}],
+            str(LabelStatsKeys.LABEL_UID): None,
+            str(LabelStatsKeys.IMAGE_INT): None,
+            str(LabelStatsKeys.LABEL): [{str(LabelStatsKeys.PIXEL_PCT): None, str(LabelStatsKeys.IMAGE_INT): None}],
         }
         if self.do_ccp:
-            report_format[str(LABEL_STATS.LABEL)][0].update(
-                {str(LABEL_STATS.LABEL_SHAPE): None, str(LABEL_STATS.LABEL_NCOMP): None}
+            report_format[str(LabelStatsKeys.LABEL)][0].update(
+                {str(LabelStatsKeys.LABEL_SHAPE): None, str(LabelStatsKeys.LABEL_NCOMP): None}
             )
 
         super().__init__(stats_name, report_format)
-        self.update_ops(LABEL_STATS.IMAGE_INT, SummaryOperations())
+        self.update_ops(LabelStatsKeys.IMAGE_INT, SummaryOperations())
 
         # label-0-'pixel percentage'
-        id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.PIXEL_PCT])
+        id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.PIXEL_PCT])
         self.update_ops_nested_label(id_seq, SampleOperations())
         # label-0-'image intensity'
-        id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.IMAGE_INT])
+        id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.IMAGE_INT])
         self.update_ops_nested_label(id_seq, SummaryOperations())
         # label-0-shape
-        id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.LABEL_SHAPE])
+        id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.LABEL_SHAPE])
         self.update_ops_nested_label(id_seq, SampleOperations())
         # label-0-ncomponents
-        id_seq = ID_SEP_KEY.join([LABEL_STATS.LABEL, "0", LABEL_STATS.LABEL_NCOMP])
+        id_seq = ID_SEP_KEY.join([LabelStatsKeys.LABEL, "0", LabelStatsKeys.LABEL_NCOMP])
         self.update_ops_nested_label(id_seq, SampleOperations())
 
     def __call__(self, data: List[Dict]):
@@ -594,14 +595,14 @@ class LabelStatsSumm(Analyzer):
 
         report = deepcopy(self.get_report_format())
         # unique class ID
-        uid_np = concat_val_to_np(data, [self.stats_name, LABEL_STATS.LABEL_UID], axis=None, ragged=True)
+        uid_np = concat_val_to_np(data, [self.stats_name, LabelStatsKeys.LABEL_UID], axis=None, ragged=True)
         unique_label = label_union(uid_np)
-        report[str(LABEL_STATS.LABEL_UID)] = unique_label
+        report[str(LabelStatsKeys.LABEL_UID)] = unique_label
 
         # image intensity
-        op_keys = report[str(LABEL_STATS.IMAGE_INT)].keys()  # template, max/min/...
-        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, LABEL_STATS.IMAGE_INT], op_keys)
-        report[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
+        op_keys = report[str(LabelStatsKeys.IMAGE_INT)].keys()  # template, max/min/...
+        intst_dict = concat_multikeys_to_dict(data, [self.stats_name, LabelStatsKeys.IMAGE_INT], op_keys)
+        report[str(LabelStatsKeys.IMAGE_INT)] = self.ops[LabelStatsKeys.IMAGE_INT].evaluate(
             intst_dict, dim=None if self.summary_average else 0
         )
 
@@ -610,34 +611,34 @@ class LabelStatsSumm(Analyzer):
         for label_id in unique_label:
             stats = {}
             # todo(check ccp)
-            for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_NCOMP]:
+            for k in [LabelStatsKeys.PIXEL_PCT, LabelStatsKeys.LABEL_NCOMP]:
                 # allow_missing value can be missing because label dist is not even
-                v_np = concat_val_to_np(data, [self.stats_name, LABEL_STATS.LABEL, label_id, k], allow_missing=True)
-                stats[str(k)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(
+                v_np = concat_val_to_np(data, [self.stats_name, LabelStatsKeys.LABEL, label_id, k], allow_missing=True)
+                stats[str(k)] = self.ops[LabelStatsKeys.LABEL][0][k].evaluate(
                     v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0
                 )
             # label shape is a 3-element value, but the number of labels in each image
             # can vary from 0 to N. So the value in a list format is "ragged"
             v_np = concat_val_to_np(
                 data,
-                [self.stats_name, LABEL_STATS.LABEL, label_id, LABEL_STATS.LABEL_SHAPE],
+                [self.stats_name, LabelStatsKeys.LABEL, label_id, LabelStatsKeys.LABEL_SHAPE],
                 ragged=True,
                 allow_missing=True,
             )
-            stats[str(LABEL_STATS.LABEL_SHAPE)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(
+            stats[str(LabelStatsKeys.LABEL_SHAPE)] = self.ops[LabelStatsKeys.LABEL][0][k].evaluate(
                 v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0
             )
 
-            intst_fixed_keys = [self.stats_name, LABEL_STATS.LABEL, label_id, LABEL_STATS.IMAGE_INT]
-            op_keys = report[str(LABEL_STATS.LABEL)][0][LABEL_STATS.IMAGE_INT].keys()
+            intst_fixed_keys = [self.stats_name, LabelStatsKeys.LABEL, label_id, LabelStatsKeys.IMAGE_INT]
+            op_keys = report[str(LabelStatsKeys.LABEL)][0][LabelStatsKeys.IMAGE_INT].keys()
             intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True)
-            stats[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(
+            stats[str(LabelStatsKeys.IMAGE_INT)] = self.ops[LabelStatsKeys.LABEL][0][LabelStatsKeys.IMAGE_INT].evaluate(
                 intst_dict, dim=None if self.summary_average else 0
             )
 
             detailed_label_list.append(stats)
 
-        report[str(LABEL_STATS.LABEL)] = detailed_label_list
+        report[str(LabelStatsKeys.LABEL)] = detailed_label_list
 
         return report
 

@@ -18,7 +18,7 @@ import torch
 
 from monai import data
 from monai.apps.utils import get_logger
-from monai.auto3dseg.seg_summarizer import DATA_STATS, SegSummarizer
+from monai.auto3dseg.seg_summarizer import DataStatsKeys, SegSummarizer
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle.config_parser import ConfigParser
 from monai.data.utils import no_collation
@@ -33,7 +33,7 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils import min_version, optional_import
-from monai.utils.enums import IMAGE_STATS
+from monai.utils.enums import ImageStatsKeys
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
@@ -44,11 +44,11 @@ __all__ = ["DataAnalyzer"]
 class DataAnalyzer:
     """
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
-    The module expects file paths to the image data and utilizes the LoadImaged transform to read the files.
-    which supports nii, nii.gz, png, jpg, bmp, npz, npy, and dcm formats. Currently, only segmentation
-    problem is supported, so the user needs to provide paths to the image and label files. Also, label
-    data format is preferred to be (1,H,W,D), with the label index in the first dimension. If it is in
-    onehot format, it will be converted to the preferred format.
+    The module expects file paths to the image data and utilizes the LoadImaged transform to read the
+    files, which supports nii, nii.gz, png, jpg, bmp, npz, npy, and dcm formats. Currently, only
+    segmentation task is supported, so the user needs to provide paths to the image and label files
+    (if have). Also, label data format is preferred to be (1,H,W,D), with the label index in the
+    first dimension. If it is in onehot format, it will be converted to the preferred format.
 
     Args:
         datalist: a Python dictionary storing group, fold, and other information of the medical
@@ -122,7 +122,7 @@ class DataAnalyzer:
         self.image_key = image_key
         self.label_key = label_key
 
-    def _check_data_uniformity(self, keys: List[str], result):
+    def _check_data_uniformity(self, keys: List[str], result: Dict):
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -135,7 +135,7 @@ class DataAnalyzer:
 
         """
 
-        constant_props = [result[DATA_STATS.SUMMARY][DATA_STATS.IMAGE_STATS][key] for key in keys]
+        constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop:
                 if np.any(prop["stdev"]):
@@ -168,7 +168,7 @@ class DataAnalyzer:
 
         tranform = Compose(list(filter(None, transform_list)))
 
-        result = {str(DATA_STATS.SUMMARY): {}, str(DATA_STATS.BY_CASE): []}
+        result = {str(DataStatsKeys.SUMMARY): {}, str(DataStatsKeys.BY_CASE): []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -176,23 +176,23 @@ class DataAnalyzer:
         for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
             d = tranform(batch_data[0])
             stats_by_cases = {
-                str(DATA_STATS.BY_CASE_IMAGE_PATH): d[str(DATA_STATS.BY_CASE_IMAGE_PATH)],
-                str(DATA_STATS.BY_CASE_LABEL_PATH): d[str(DATA_STATS.BY_CASE_LABEL_PATH)],
-                str(DATA_STATS.IMAGE_STATS): d[str(DATA_STATS.IMAGE_STATS)],
+                str(DataStatsKeys.BY_CASE_IMAGE_PATH): d[str(DataStatsKeys.BY_CASE_IMAGE_PATH)],
+                str(DataStatsKeys.BY_CASE_LABEL_PATH): d[str(DataStatsKeys.BY_CASE_LABEL_PATH)],
+                str(DataStatsKeys.IMAGE_STATS): d[str(DataStatsKeys.IMAGE_STATS)],
             }
 
             if self.label_key is not None:
                 stats_by_cases.update(
                     {
-                        str(DATA_STATS.FG_IMAGE_STATS): d[str(DATA_STATS.FG_IMAGE_STATS)],
-                        str(DATA_STATS.LABEL_STATS): d[str(DATA_STATS.LABEL_STATS)],
+                        str(DataStatsKeys.FG_IMAGE_STATS): d[str(DataStatsKeys.FG_IMAGE_STATS)],
+                        str(DataStatsKeys.LABEL_STATS): d[str(DataStatsKeys.LABEL_STATS)],
                     }
                 )
-            result[str(DATA_STATS.BY_CASE)].append(stats_by_cases)
+            result[str(DataStatsKeys.BY_CASE)].append(stats_by_cases)
 
-        result[str(DATA_STATS.SUMMARY)] = summarizer.summarize(result[str(DATA_STATS.BY_CASE)])
+        result[str(DataStatsKeys.SUMMARY)] = summarizer.summarize(result[str(DataStatsKeys.BY_CASE)])
 
-        if not self._check_data_uniformity([IMAGE_STATS.SPACING], result):
+        if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
 
         ConfigParser.export_config_file(result, self.output_path, fmt="yaml", default_flow_style=None)

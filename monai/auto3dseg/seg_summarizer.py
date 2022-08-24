@@ -21,9 +21,8 @@ from monai.auto3dseg.analyzer import (
     LabelStats,
     LabelStatsSumm,
 )
-from monai.auto3dseg.utils import get_filename
 from monai.transforms import Compose
-from monai.utils.enums import DATA_STATS
+from monai.utils.enums import DataStatsKeys
 
 
 class SegSummarizer(Compose):
@@ -77,8 +76,8 @@ class SegSummarizer(Compose):
         self.summary_analyzers = []
         super().__init__()
 
-        self.add_analyzer(FilenameStats(image_key, DATA_STATS.BY_CASE_IMAGE_PATH), None)
-        self.add_analyzer(FilenameStats(label_key, DATA_STATS.BY_CASE_LABEL_PATH), None)
+        self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
+        self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
         self.add_analyzer(ImageStats(image_key), ImageStatsSumm())
 
         if label_key is None:
