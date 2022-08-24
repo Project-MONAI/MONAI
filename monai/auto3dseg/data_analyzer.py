@@ -11,7 +11,7 @@
 
 import warnings
 from os import path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import torch
@@ -107,7 +107,7 @@ class DataAnalyzer:
         device: Union[str, torch.device] = "cuda",
         worker: int = 2,
         image_key: str = "image",
-        label_key: str = "label",
+        label_key: Optional[str] = "label",
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
