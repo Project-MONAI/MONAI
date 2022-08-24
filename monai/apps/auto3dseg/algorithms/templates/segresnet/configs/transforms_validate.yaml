@@ -1,0 +1,24 @@
+image_key: image
+label_key: label
+transforms_validate:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys: ["@image_key", "@label_key"]
+  - _target_: EnsureChannelFirstd
+    keys: ["@image_key", "@label_key"]
+  - _target_: Orientationd
+    keys: ["@image_key", "@label_key"]
+    axcodes: RAS
+  - _target_: EnsureTyped
+    keys: ["@image_key", "@label_key"]
+    data_type: tensor
+  - _target_: Spacingd
+    keys: ["@image_key", "@label_key"]
+    pixdim: null
+    mode: [bilinear, nearest]
+    align_corners: [true, true]
+  - PLACEHOLDER_INTENSITY_NORMALIZATION
+  - _target_: ToDeviced
+    keys: ["@image_key", "@label_key"]
+    device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
