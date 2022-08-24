@@ -89,8 +89,9 @@ class TestLoaderRandom(unittest.TestCase):
         output = []
         for _ in range(2):
             for batch in dataloader:
+                print(batch)
                 output.extend([item.data.numpy().flatten().tolist() for item in batch])
-        self.assertListEqual(output[:4], [[594, 170], [594, 170], [524, 778], [524, 778]])
+        self.assertListEqual(output, [[594, 170], [594, 170], [524, 778], [524, 778]])
 
 
 if __name__ == "__main__":
