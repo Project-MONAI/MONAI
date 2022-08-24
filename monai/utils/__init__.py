@@ -36,12 +36,14 @@ from .enums import (
     MetaKeys,
     Method,
     MetricReduction,
+    NdimageMode,
     NumpyPadMode,
     PostFix,
     ProbMapKeys,
     PytorchPadMode,
     SkipMode,
     SpaceKeys,
+    SplineMode,
     StrEnum,
     TraceKeys,
     TransformBackends,
@@ -53,6 +55,7 @@ from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
+    MONAIEnvVars,
     check_parent_dir,
     copy_to_device,
     ensure_tuple,
@@ -72,6 +75,7 @@ from .misc import (
     save_obj,
     set_determinism,
     star_zip_with,
+    str2bool,
     zip_with,
 )
 from .module import (

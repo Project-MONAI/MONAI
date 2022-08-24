@@ -24,6 +24,7 @@ from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
 from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
+from monai.utils.misc import MONAIEnvVars
 from tests.utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
@@ -47,7 +48,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
 
-        self.root_dir = os.environ.get("MONAI_DATA_DIRECTORY")
+        self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
             self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
 
