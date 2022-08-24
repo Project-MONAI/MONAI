@@ -31,10 +31,11 @@ from monai.auto3dseg.analyzer import (
     LabelStatsSummaryAnalyzer,
 )
 from monai.auto3dseg.data_analyzer import DataAnalyzer
-from monai.auto3dseg.operations import Operations
+from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import datafold_read, verify_report_format
 from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms import (
     Compose,
@@ -46,6 +47,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
+from numbers import Number
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 n_workers = 0 if sys.platform in ("win32", "darwin") else 2
@@ -152,6 +154,52 @@ class TestDataAnalyzer(unittest.TestCase):
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_basic_operation_class(self):
+        op = TestOperations()
+        test_data = np.random.rand(10, 10).astype(np.float64)
+        test_ret_1 = op.evaluate(test_data)
+        test_ret_2 = op.evaluate(test_data, axis=0)
+        assert isinstance(test_ret_1, dict) and isinstance(test_ret_2, dict)
+        assert ("max" in test_ret_1) and ("max" in test_ret_2)
+        assert ("mean" in test_ret_1) and ("mean" in test_ret_2)
+        assert ("min" in test_ret_1) and ("min" in test_ret_2)
+        assert isinstance(test_ret_1['max'], np.float64)
+        assert isinstance(test_ret_2['max'], np.ndarray)
+        assert test_ret_1['max'].ndim == 0
+        assert test_ret_2['max'].ndim == 1
+
+    def test_sample_operations(self):
+        op = SampleOperations()
+        test_data_np = np.random.rand(10, 10).astype(np.float64)
+        test_data_mt = MetaTensor(test_data_np, device=device)
+        test_ret_np = op.evaluate(test_data_np)
+        test_ret_mt = op.evaluate(test_data_mt)
+        assert isinstance(test_ret_np['max'], Number)
+        assert isinstance(test_ret_np['percentile'], list)
+        assert isinstance(test_ret_mt['max'], Number)
+        assert isinstance(test_ret_mt['percentile'], list)
+
+        op.update({"sum": np.sum})
+        test_ret_np = op.evaluate(test_data_np)
+        assert "sum" in test_ret_np
+    
+    def test_summary_operations(self):
+        op = SummaryOperations()
+        test_dict = {
+            "min": [0, 1, 2, 3],
+            "max": [2, 3, 4, 5],
+            "mean": [1, 2, 3, 4],
+            "sum": [2, 4, 6, 8],
+        }
+        test_ret = op.evaluate(test_dict)
+        assert isinstance(test_ret['max'], Number)
+        assert isinstance(test_ret['min'], Number)
+
+        op.update({"sum": np.sum})
+        test_ret = op.evaluate(test_dict)
+        assert "sum" in test_ret
+        assert isinstance(test_ret['sum'], Number)
 
     def test_basic_analyzer_class(self):
         test_data = np.random.rand(10, 10)

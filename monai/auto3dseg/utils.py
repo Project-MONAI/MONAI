@@ -183,7 +183,7 @@ def concat_val_to_np(
         np_list = [x for x in np_list if x is not None]
 
     if len(np_list) == 0:
-        return np.array(0)
+        return np.array([0])
 
     if ragged:
         ret = np.concatenate(np_list, **kwargs)
