@@ -29,6 +29,7 @@ from monai.fl.utils.constants import (
     FlStatistics,
     RequiredBundleKeys,
     WeightType,
+    ModelType
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
@@ -101,7 +102,8 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
         disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to True.
-        best_model_filepath: location of best model checkpoint (defaults "model/model.pt" relative to `bundle_root`)
+        model_filepaths: dict of locations of best & final model checkpoints;
+            defaults "model/model.pt" and "models/model_final.pt" relative to `bundle_root` for the best and final model, respectively.
     """
 
     def __init__(
@@ -113,7 +115,7 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
         disable_ckpt_loader: bool = True,
-        best_model_filepath: Optional[str] = "models/model.pt",
+        model_filepaths: Optional[dict] = {ModelType.BEST_MODEL: "models/model.pt", ModelType.FINAL_MODEL: "models/model_final.pt"}
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -124,7 +126,7 @@ class MonaiAlgo(ClientAlgo):
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loader = disable_ckpt_loader
-        self.best_model_filepath = best_model_filepath
+        self.model_filepaths = model_filepaths
 
         self.app_root = None
         self.train_parser = None
@@ -147,7 +149,7 @@ class MonaiAlgo(ClientAlgo):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-            i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
 
         """
         if extra is None:
@@ -263,27 +265,29 @@ class MonaiAlgo(ClientAlgo):
 
         Returns:
             return_weights: `ExchangeObject` containing current weights (default)
-            or "best" local weights if `extra` has `ExtraItems.MODEL_NAME` with string containing "best".
+                or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
         if extra is None:
             extra = {}
 
-        # by default return current weights, return best if requested via model name.
-        return_best = False
-        if ExtraItems.MODEL_NAME in extra:
-            if "best" in extra.get(ExtraItems.MODEL_NAME).lower():
-                return_best = True
+        # by default return current weights, return best if requested via model type.
         self.phase = FlPhase.GET_WEIGHTS
-
-        if return_best:
-            self.best_model_filepath = os.path.join(self.bundle_root, self.best_model_filepath)
-            if not os.path.isfile(self.best_model_filepath):
-                raise ValueError(f"No best model checkpoint exists at {self.best_model_filepath}")
-            weights = torch.load(self.best_model_filepath, map_location="cpu")
-            weigh_type = WeightType.WEIGHTS
-            stats = dict()
-            self.logger.info(f"Returning best checkpoint weights from {self.best_model_filepath}.")
+        
+        if ExtraItems.MODEL_TYPE in extra:
+            model_type = extra.get(ExtraItems.MODEL_TYPE)
+            if not isinstance(model_type, ModelType):
+                raise ValueError(f"Expected requested model type to be of type `ModelType` but received {type(model_type)}")
+            if model_type in self.model_filepaths:
+                model_path = os.path.join(self.bundle_root, self.model_filepaths[model_type])
+                if not os.path.isfile(model_path):
+                    raise ValueError(f"No best model checkpoint exists at {model_path}")
+                weights = torch.load(model_path, map_location="cpu")
+                weigh_type = WeightType.WEIGHTS
+                stats = dict()
+                self.logger.info(f"Returning best checkpoint weights from {model_path}.")
+            else:
+                raise ValueError(f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}")
         else:
             if self.trainer:
                 weights = get_state_dict(self.trainer.network)
