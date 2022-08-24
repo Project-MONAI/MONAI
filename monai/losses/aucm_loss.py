@@ -27,6 +27,7 @@ class AUCMLoss(_Loss):
     New Surrogate Loss and Empirical Studies on Medical Image Classification
     https://arxiv.org/abs/2012.03173
     """
+
     def __init__(
         self,
         margin: float = 1.0,
