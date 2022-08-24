@@ -319,7 +319,7 @@ OpenSlideWSIReader
   :members:
 
 TiffFileWSIReader
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TiffFileWSIReader
   :members:
 
