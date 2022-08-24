@@ -15,20 +15,20 @@ from monai.auto3dseg.analyzer import (
     Analyzer,
     FgImageStatsCaseAnalyzer,
     FgImageStatsSummaryAnalyzer,
+    FilenameStats,
     ImageStatsCaseAnalyzer,
     ImageStatsSummaryAnalyzer,
     LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
-    FilenameCaseAnalyzer,
 )
 from monai.auto3dseg.utils import get_filename
 from monai.transforms import Compose
 from monai.utils.enums import DATA_STATS
 
 
-class SegAnalyzeEngine(Compose):
+class SegSummarizer(Compose):
     """
-    SegAnalyzeEngine serializes the operations for data analysis in Auto3Dseg pipeline. It loads
+    SegSummarizer serializes the operations for data analysis in Auto3Dseg pipeline. It loads
     two types of analyzer functions and execuate differently. The first type of analyzer is
     CaseAnalyzer which is similar to traditional monai transforms. It can be composed with other
     transforms to process the data dict which has image/label keys. The second type of analyzer
@@ -42,12 +42,12 @@ class SegAnalyzeEngine(Compose):
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
         do_ccp: apply the connected component algorithm to process the labels/images
-    
+
     Examples:
         .. code-block:: python
             # imports
 
-            analyze_engine = SegAnalyzeEngine("image", "label")
+            summarizer = SegSummarizer("image", "label")
             transform_list = [
                 LoadImaged(keys=keys),
                 EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
@@ -56,7 +56,7 @@ class SegAnalyzeEngine(Compose):
                 EnsureTyped(keys=keys, data_type="tensor"),
                 Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
                 SqueezeDimd(keys=["label"], dim=0),
-                analyze_engine,
+                summarizer,
             ]
             ...
             # skip some steps to set up data loader
@@ -66,7 +66,7 @@ class SegAnalyzeEngine(Compose):
             for batch_data in dataset:
                 d = transform(batch_data[0])
                 stats.append(d)
-            report = analyze_engine.summarize(stats)
+            report = summarizer.summarize(stats)
     """
 
     def __init__(self, image_key: str, label_key: str, do_ccp: bool = True) -> None:
@@ -77,22 +77,14 @@ class SegAnalyzeEngine(Compose):
         self.summary_analyzers = []
         super().__init__()
 
-        self.add_analyzer(
-            FilenameCaseAnalyzer(image_key, DATA_STATS.BY_CASE_IMAGE_PATH), None
-        )
-        self.add_analyzer(
-            FilenameCaseAnalyzer(label_key, DATA_STATS.BY_CASE_LABEL_PATH), None
-        )
-        self.add_analyzer(
-            ImageStatsCaseAnalyzer(image_key), ImageStatsSummaryAnalyzer()
-        )
+        self.add_analyzer(FilenameStats(image_key, DATA_STATS.BY_CASE_IMAGE_PATH), None)
+        self.add_analyzer(FilenameStats(label_key, DATA_STATS.BY_CASE_LABEL_PATH), None)
+        self.add_analyzer(ImageStatsCaseAnalyzer(image_key), ImageStatsSummaryAnalyzer())
 
         if label_key is None:
             return
 
-        self.add_analyzer(
-            FgImageStatsCaseAnalyzer(image_key, label_key), FgImageStatsSummaryAnalyzer()
-        )
+        self.add_analyzer(FgImageStatsCaseAnalyzer(image_key, label_key), FgImageStatsSummaryAnalyzer())
 
         self.add_analyzer(
             LabelStatsCaseAnalyzer(image_key, label_key, do_ccp=do_ccp), LabelStatsSummaryAnalyzer(do_ccp=do_ccp)
@@ -111,7 +103,7 @@ class SegAnalyzeEngine(Compose):
             .. code-block:: python
                 from monai.auto3dseg.analyzer import Analyzer
                 from monai.auto3dseg.utils import concat_val_to_np
-                from monai.auto3dseg.analyzer_engine import SegAnalyzeEngine
+                from monai.auto3dseg.analyzer_engine import SegSummarizer
 
                 class UserAnalyzer(Analyzer):
                     def __init__(self, image_key="image", stats_name="user_stats"):
@@ -125,24 +117,24 @@ class SegAnalyzeEngine(Compose):
                         report["ndims"] = d[self.image_key].ndim
                         d[self.stats_name] = report
                         return d
-                
+
                 class UserSummaryAnalyzer(Analyzer):
                     def __init__(stats_name="user_stats"):
                         report_format = {"ndims": None}
                         super().__init__(stats_name, report_format)
                         self.update_ops("ndims", SampleOperations())
-                    
+
                     def __call__(self, data):
                         report = deepcopy(self.get_report_format())
                         v_np = concat_val_to_np(data, [self.stats_name, "ndims"])
                         report["ndims"] = self.ops["ndims"].evaluate(v_np)
                         return report
-                
-                case_engine = SegAnalyzeEngine()
-                case_engine.add_analyzer(UserAnalyzer, UserSummaryAnalyzer)
-            
+
+                summarizer = SegSummarizer()
+                summarizer.add_analyzer(UserAnalyzer, UserSummaryAnalyzer)
+
         """
-        self.transforms += (case_analyzer, )
+        self.transforms += (case_analyzer,)
         self.summary_analyzers.append(summary_analzyer)
 
     def summarize(self, data: List[Dict]):
@@ -151,10 +143,10 @@ class SegAnalyzeEngine(Compose):
 
         Args:
             data: a list of data dicts.
-        
+
         Returns:
             a dict that summarizes the stats across data samples
-        
+
         Examples:
             stats_summary:
                 image_foreground_stats:
@@ -177,12 +169,12 @@ class SegAnalyzeEngine(Compose):
         report = {}
         if len(data) == 0:
             return report
-        
+
         if not isinstance(data[0], dict):
             raise ValueError(f"{self.__class__} summarize function needs a list of dict. Now we have {type(data[0])}")
 
         for analyzer in self.summary_analyzers:
             if callable(analyzer):
                 report.update({analyzer.stats_name: analyzer(data)})
-        
+
         return report

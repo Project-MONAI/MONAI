@@ -33,6 +33,7 @@ from monai.transforms.utils_pytorch_numpy_unification import sum, unique
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS, StrEnum
 from monai.utils.misc import ImageMetaKey, label_union
 
+
 class Analyzer(MapTransform, ABC):
     """
     The Analyzer component is a base class. Other classes inherit this class will provide a callable
@@ -168,10 +169,8 @@ class ImageStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
-        stats_name: str = "image_stats",
-        meta_key_postfix: Optional[str] = "meta_dict"
+    def __init__(
+        self, image_key: str, stats_name: str = "image_stats", meta_key_postfix: Optional[str] = "meta_dict"
     ) -> None:
 
         if not isinstance(image_key, str):
@@ -252,15 +251,11 @@ class FgImageStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
-        label_key: str,
-        stats_name: str = "image_foreground_stats",
-        ):
+    def __init__(self, image_key: str, label_key: str, stats_name: str = "image_foreground_stats"):
 
         self.image_key = image_key
         self.label_key = label_key
-        
+
         report_format = {str(IMAGE_STATS.INTENSITY): None}
 
         super().__init__(stats_name, report_format)
@@ -281,7 +276,7 @@ class FgImageStatsCaseAnalyzer(Analyzer):
         """
 
         d = dict(data)
-        
+
         ndas = d[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
@@ -322,11 +317,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
-        label_key: str, 
-        stats_name: str = "label_stats",
-        do_ccp: Optional[bool] = True):
+    def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: Optional[bool] = True):
 
         self.image_key = image_key
         self.label_key = label_key
@@ -394,7 +385,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
         d = dict(data)
-        
+
         ndas = d[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
@@ -455,10 +446,7 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        stats_name: Optional[str] = "image_stats", 
-        average: Optional[bool] = True
-    ):
+    def __init__(self, stats_name: Optional[str] = "image_stats", average: Optional[bool] = True):
         self.summary_average = average
         report_format = {
             str(IMAGE_STATS.SHAPE): None,
@@ -499,7 +487,7 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         """
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -532,10 +520,8 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         average: whether to average the statistical value across different image modalities.
 
     """
-    def __init__(self, 
-        stats_name: Optional[str] = "image_foreground_stats", 
-        average: Optional[bool] = True,
-    ):
+
+    def __init__(self, stats_name: Optional[str] = "image_foreground_stats", average: Optional[bool] = True):
         self.summary_average = average
 
         report_format = {str(IMAGE_STATS.INTENSITY): None}
@@ -545,7 +531,7 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
     def __call__(self, data: List[Dict]):
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -564,10 +550,8 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
 
 
 class LabelStatsSummaryAnalyzer(Analyzer):
-    def __init__(self, 
-        stats_name: Optional[str] = "label_stats", 
-        average: Optional[bool] = True, 
-        do_ccp: Optional[bool] = True
+    def __init__(
+        self, stats_name: Optional[str] = "label_stats", average: Optional[bool] = True, do_ccp: Optional[bool] = True
     ):
         self.summary_average = average
         self.do_ccp = do_ccp
@@ -601,7 +585,7 @@ class LabelStatsSummaryAnalyzer(Analyzer):
     def __call__(self, data: List[Dict]):
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -622,7 +606,7 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         )
 
         detailed_label_list = []
-        # iterate through each label 
+        # iterate through each label
         for label_id in unique_label:
             stats = {}
             # todo(check ccp)
@@ -657,7 +641,8 @@ class LabelStatsSummaryAnalyzer(Analyzer):
 
         return report
 
-class FilenameCaseAnalyzer(Analyzer):
+
+class FilenameStats(Analyzer):
     """
     Analyzer to process the values of specific key `stats_name` in a list of dict.
     Typically, the list of dict is the output of case analyzer under the same prefix
@@ -668,16 +653,12 @@ class FilenameCaseAnalyzer(Analyzer):
         stats_name: the key to store the filename in the output stats report
 
     """
-    def __init__(
-        self,
-        key: str, 
-        stats_name: str,
-        meta_key_postfix: Optional[str] = "meta_dict"
-    ) -> None:
+
+    def __init__(self, key: str, stats_name: str, meta_key_postfix: Optional[str] = "meta_dict") -> None:
         self.key = key
         self.meta_key = None if key is None else f"{key}_{meta_key_postfix}"
         super().__init__(stats_name, {})
-    
+
     def __call__(self, data):
         d = dict(data)
         d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ] if self.meta_key else ""

@@ -13,6 +13,7 @@ import sys
 import tempfile
 import unittest
 from copy import deepcopy
+from numbers import Number
 from os import path
 
 import nibabel as nib
@@ -20,18 +21,17 @@ import numpy as np
 import torch
 
 from monai import data
-from monai.auto3dseg import analyze_engine
+from monai.auto3dseg.seg_summarizer import SegSummarizer
 from monai.auto3dseg.analyzer import (
     Analyzer,
     FgImageStatsCaseAnalyzer,
     FgImageStatsSummaryAnalyzer,
+    FilenameStats,
     ImageStatsCaseAnalyzer,
     ImageStatsSummaryAnalyzer,
     LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
-    FilenameCaseAnalyzer,
 )
-from monai.auto3dseg.analyze_engine import SegAnalyzeEngine
 from monai.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import datafold_read, verify_report_format
@@ -49,8 +49,6 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-from numbers import Number
-
 from monai.utils.enums import DATA_STATS
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -172,10 +170,10 @@ class TestDataAnalyzer(unittest.TestCase):
         assert ("max" in test_ret_1) and ("max" in test_ret_2)
         assert ("mean" in test_ret_1) and ("mean" in test_ret_2)
         assert ("min" in test_ret_1) and ("min" in test_ret_2)
-        assert isinstance(test_ret_1['max'], np.float64)
-        assert isinstance(test_ret_2['max'], np.ndarray)
-        assert test_ret_1['max'].ndim == 0
-        assert test_ret_2['max'].ndim == 1
+        assert isinstance(test_ret_1["max"], np.float64)
+        assert isinstance(test_ret_2["max"], np.ndarray)
+        assert test_ret_1["max"].ndim == 0
+        assert test_ret_2["max"].ndim == 1
 
     def test_sample_operations(self):
         op = SampleOperations()
@@ -183,42 +181,37 @@ class TestDataAnalyzer(unittest.TestCase):
         test_data_mt = MetaTensor(test_data_np, device=device)
         test_ret_np = op.evaluate(test_data_np)
         test_ret_mt = op.evaluate(test_data_mt)
-        assert isinstance(test_ret_np['max'], Number)
-        assert isinstance(test_ret_np['percentile'], list)
-        assert isinstance(test_ret_mt['max'], Number)
-        assert isinstance(test_ret_mt['percentile'], list)
+        assert isinstance(test_ret_np["max"], Number)
+        assert isinstance(test_ret_np["percentile"], list)
+        assert isinstance(test_ret_mt["max"], Number)
+        assert isinstance(test_ret_mt["percentile"], list)
 
         op.update({"sum": np.sum})
         test_ret_np = op.evaluate(test_data_np)
         assert "sum" in test_ret_np
-    
+
     def test_summary_operations(self):
         op = SummaryOperations()
-        test_dict = {
-            "min": [0, 1, 2, 3],
-            "max": [2, 3, 4, 5],
-            "mean": [1, 2, 3, 4],
-            "sum": [2, 4, 6, 8],
-        }
+        test_dict = {"min": [0, 1, 2, 3], "max": [2, 3, 4, 5], "mean": [1, 2, 3, 4], "sum": [2, 4, 6, 8]}
         test_ret = op.evaluate(test_dict)
-        assert isinstance(test_ret['max'], Number)
-        assert isinstance(test_ret['min'], Number)
+        assert isinstance(test_ret["max"], Number)
+        assert isinstance(test_ret["min"], Number)
 
         op.update({"sum": np.sum})
         test_ret = op.evaluate(test_dict)
         assert "sum" in test_ret
-        assert isinstance(test_ret['sum'], Number)
+        assert isinstance(test_ret["sum"], Number)
 
     def test_basic_analyzer_class(self):
         test_data = {}
-        test_data['image_test'] = np.random.rand(10, 10)
+        test_data["image_test"] = np.random.rand(10, 10)
         report_format = {"stats": None}
-        user_analyzer = TestAnalyzer('image_test', report_format)
+        user_analyzer = TestAnalyzer("image_test", report_format)
         user_analyzer.update_ops("stats", TestOperations())
         result = user_analyzer(test_data)
-        assert result["test"]["stats"]["max"] == np.max(test_data['image_test'])
-        assert result["test"]["stats"]["min"] == np.min(test_data['image_test'])
-        assert result["test"]["stats"]["mean"] == np.mean(test_data['image_test'])
+        assert result["test"]["stats"]["max"] == np.max(test_data["image_test"])
+        assert result["test"]["stats"]["min"] == np.min(test_data["image_test"])
+        assert result["test"]["stats"]["mean"] == np.mean(test_data["image_test"])
 
     def test_transform_analyzer_class(self):
         transform_list = [LoadImaged(keys=["image"]), TestImageAnalyzer(image_key="image")]
@@ -300,13 +293,9 @@ class TestDataAnalyzer(unittest.TestCase):
             assert verify_report_format(d["label_stats"], report_format)
 
     def test_filename_case_analyzer(self):
-        analyzer_image = FilenameCaseAnalyzer("image", DATA_STATS.BY_CASE_IMAGE_PATH)
-        analyzer_label = FilenameCaseAnalyzer("label", DATA_STATS.BY_CASE_IMAGE_PATH)
-        transform_list = [
-            LoadImaged(keys=["image", "label"]),
-            analyzer_image,
-            analyzer_label
-        ]
+        analyzer_image = FilenameStats("image", DATA_STATS.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameStats("label", DATA_STATS.BY_CASE_IMAGE_PATH)
+        transform_list = [LoadImaged(keys=["image", "label"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
@@ -316,15 +305,11 @@ class TestDataAnalyzer(unittest.TestCase):
             d = transform(batch_data[0])
             assert DATA_STATS.BY_CASE_IMAGE_PATH in d
             assert DATA_STATS.BY_CASE_IMAGE_PATH in d
-    
+
     def test_filename_case_analyzer(self):
-        analyzer_image = FilenameCaseAnalyzer("image", DATA_STATS.BY_CASE_IMAGE_PATH)
-        analyzer_label = FilenameCaseAnalyzer(None, DATA_STATS.BY_CASE_IMAGE_PATH)
-        transform_list = [
-            LoadImaged(keys=["image"]),
-            analyzer_image,
-            analyzer_label
-        ]
+        analyzer_image = FilenameStats("image", DATA_STATS.BY_CASE_IMAGE_PATH)
+        analyzer_label = FilenameStats(None, DATA_STATS.BY_CASE_IMAGE_PATH)
+        transform_list = [LoadImaged(keys=["image"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
@@ -408,8 +393,8 @@ class TestDataAnalyzer(unittest.TestCase):
         report_format = summary_analyzer.get_report_format()
         assert verify_report_format(summary_report, report_format)
 
-    def test_analyzer_engine(self):
-        analyze_engine = SegAnalyzeEngine("image", "label")
+    def test_seg_summarizer(self):
+        summarizer = SegSummarizer("image", "label")
         keys = ["image", "label"]
         transform_list = [
             LoadImaged(keys=keys),
@@ -419,7 +404,7 @@ class TestDataAnalyzer(unittest.TestCase):
             EnsureTyped(keys=keys, data_type="tensor"),
             Lambdad(keys="label", func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
             SqueezeDimd(keys=["label"], dim=0),
-            analyze_engine,
+            summarizer,
         ]
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
@@ -430,11 +415,10 @@ class TestDataAnalyzer(unittest.TestCase):
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             stats.append(d)
-        report = analyze_engine.summarize(stats)
+        report = summarizer.summarize(stats)
         assert str(DATA_STATS.IMAGE_STATS) in report
         assert str(DATA_STATS.FG_IMAGE_STATS) in report
         assert str(DATA_STATS.LABEL_STATS) in report
-        
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

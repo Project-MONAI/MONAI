@@ -9,19 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tkinter.tix import IMAGE
 import warnings
 from os import path
-from typing import Dict, Union
+from typing import Dict, List, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai import data
 from monai.apps.utils import get_logger
+from monai.auto3dseg.seg_summarizer import DATA_STATS, SegSummarizer
 from monai.auto3dseg.utils import datafold_read
+from monai.bundle.config_parser import ConfigParser
 from monai.data.utils import no_collation
-from monai.utils import min_version, optional_import
 from monai.transforms import (
     Compose,
     EnsureChannelFirstd,
@@ -32,11 +32,7 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-
-from monai.auto3dseg.analyze_engine import DATA_STATS, SegAnalyzeEngine
-from monai.bundle.config_parser import ConfigParser
-from typing import List
-
+from monai.utils import min_version, optional_import
 from monai.utils.enums import IMAGE_STATS
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
@@ -138,7 +134,7 @@ class DataAnalyzer:
             False if one of the selected key values is not constant across the dataset images.
 
         """
-        
+
         constant_props = [result[DATA_STATS.SUMMARY][DATA_STATS.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop:
@@ -155,7 +151,7 @@ class DataAnalyzer:
             ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation
         )
 
-        analyze_engine = SegAnalyzeEngine(self.image_key, self.label_key, do_ccp=self.do_ccp)
+        summarizer = SegSummarizer(self.image_key, self.label_key, do_ccp=self.do_ccp)
         keys = list(filter(None, [self.image_key, self.label_key]))
         transform_list = [
             LoadImaged(keys=keys),
@@ -167,15 +163,12 @@ class DataAnalyzer:
             if self.label_key
             else None,
             SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
-            analyze_engine,
+            summarizer,
         ]
 
         tranform = Compose(list(filter(None, transform_list)))
 
-        result = {
-            str(DATA_STATS.SUMMARY): {}, 
-            str(DATA_STATS.BY_CASE): []
-        }
+        result = {str(DATA_STATS.SUMMARY): {}, str(DATA_STATS.BY_CASE): []}
 
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
@@ -185,17 +178,19 @@ class DataAnalyzer:
             stats_by_cases = {
                 str(DATA_STATS.BY_CASE_IMAGE_PATH): d[str(DATA_STATS.BY_CASE_IMAGE_PATH)],
                 str(DATA_STATS.BY_CASE_LABEL_PATH): d[str(DATA_STATS.BY_CASE_LABEL_PATH)],
-                str(DATA_STATS.IMAGE_STATS):        d[str(DATA_STATS.IMAGE_STATS)]
+                str(DATA_STATS.IMAGE_STATS): d[str(DATA_STATS.IMAGE_STATS)],
             }
-            
+
             if self.label_key is not None:
-                stats_by_cases.update({
-                    str(DATA_STATS.FG_IMAGE_STATS):     d[str(DATA_STATS.FG_IMAGE_STATS)],
-                    str(DATA_STATS.LABEL_STATS):        d[str(DATA_STATS.LABEL_STATS)],
-                })
+                stats_by_cases.update(
+                    {
+                        str(DATA_STATS.FG_IMAGE_STATS): d[str(DATA_STATS.FG_IMAGE_STATS)],
+                        str(DATA_STATS.LABEL_STATS): d[str(DATA_STATS.LABEL_STATS)],
+                    }
+                )
             result[str(DATA_STATS.BY_CASE)].append(stats_by_cases)
 
-        result[str(DATA_STATS.SUMMARY)] = analyze_engine.summarize(result[str(DATA_STATS.BY_CASE)])
+        result[str(DATA_STATS.SUMMARY)] = summarizer.summarize(result[str(DATA_STATS.BY_CASE)])
 
         if not self._check_data_uniformity([IMAGE_STATS.SPACING], result):
             logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
