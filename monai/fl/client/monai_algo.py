@@ -18,7 +18,7 @@ import torch
 
 import monai
 from monai.bundle import ConfigParser
-from monai.bundle.config_item import ConfigItem, ConfigComponent
+from monai.bundle.config_item import ConfigComponent, ConfigItem
 from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
@@ -27,9 +27,9 @@ from monai.fl.utils.constants import (
     FiltersType,
     FlPhase,
     FlStatistics,
+    ModelType,
     RequiredBundleKeys,
     WeightType,
-    ModelType
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
@@ -101,9 +101,15 @@ class MonaiAlgo(ClientAlgo):
         config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
         config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
-        disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to True.
+        disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         model_filepaths: dict of locations of best & final model checkpoints;
-            defaults "model/model.pt" and "models/model_final.pt" relative to `bundle_root` for the best and final model, respectively.
+            defaults "model/model.pt" and "models/model_final.pt" relative to `bundle_root`
+            for the best and final model, respectively.
+        seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
+            i.e., non-deterministic training.
+        benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
+            Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
+            e.g., the aggregator, which is not controlled by this class.
     """
 
     def __init__(
@@ -115,7 +121,12 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
         disable_ckpt_loader: bool = True,
-        model_filepaths: Optional[dict] = {ModelType.BEST_MODEL: "models/model.pt", ModelType.FINAL_MODEL: "models/model_final.pt"}
+        model_filepaths: Optional[dict] = {
+            ModelType.BEST_MODEL: "models/model.pt",
+            ModelType.FINAL_MODEL: "models/model_final.pt",
+        },
+        seed: Optional[int] = None,
+        benchmark: bool = True,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -127,6 +138,8 @@ class MonaiAlgo(ClientAlgo):
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loader = disable_ckpt_loader
         self.model_filepaths = model_filepaths
+        self.seed = seed
+        self.benchmark = benchmark
 
         self.app_root = None
         self.train_parser = None
@@ -154,8 +167,12 @@ class MonaiAlgo(ClientAlgo):
         """
         if extra is None:
             extra = {}
-        self.logger.info(f"Initializing {self.client_name} ...")
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        self.logger.info(f"Initializing {self.client_name} ...")
+
+        if self.seed:
+            monai.utils.set_determinism(seed=self.seed)
+        setattr(torch.backends.cudnn, "benchmark", self.benchmark)
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
@@ -273,11 +290,13 @@ class MonaiAlgo(ClientAlgo):
 
         # by default return current weights, return best if requested via model type.
         self.phase = FlPhase.GET_WEIGHTS
-        
+
         if ExtraItems.MODEL_TYPE in extra:
             model_type = extra.get(ExtraItems.MODEL_TYPE)
             if not isinstance(model_type, ModelType):
-                raise ValueError(f"Expected requested model type to be of type `ModelType` but received {type(model_type)}")
+                raise ValueError(
+                    f"Expected requested model type to be of type `ModelType` but received {type(model_type)}"
+                )
             if model_type in self.model_filepaths:
                 model_path = os.path.join(self.bundle_root, self.model_filepaths[model_type])
                 if not os.path.isfile(model_path):
@@ -287,7 +306,9 @@ class MonaiAlgo(ClientAlgo):
                 stats = dict()
                 self.logger.info(f"Returning best checkpoint weights from {model_path}.")
             else:
-                raise ValueError(f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}")
+                raise ValueError(
+                    f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}"
+                )
         else:
             if self.trainer:
                 weights = get_state_dict(self.trainer.network)
