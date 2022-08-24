@@ -74,7 +74,7 @@ These are the changes compared with nndetection:
 """
 
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Callable, Sequence, Tuple, TypeVar
 
 import torch
@@ -139,6 +139,7 @@ class Matcher(ABC):
             num_anchors_per_loc=num_anchors_per_loc,
         )
 
+    @abstractmethod
     def compute_matches(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:

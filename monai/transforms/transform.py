@@ -131,7 +131,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
