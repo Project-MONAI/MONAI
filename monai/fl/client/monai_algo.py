@@ -102,9 +102,8 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
         disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
-        model_filepaths: dict of locations of best & final model checkpoints;
-            defaults "model/model.pt" and "models/model_final.pt" relative to `bundle_root`
-            for the best and final model, respectively.
+        best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
+        final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
         seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
             i.e., non-deterministic training.
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
@@ -121,10 +120,8 @@ class MonaiAlgo(ClientAlgo):
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
         disable_ckpt_loader: bool = True,
-        model_filepaths: Optional[dict] = {
-            ModelType.BEST_MODEL: "models/model.pt",
-            ModelType.FINAL_MODEL: "models/model_final.pt",
-        },
+        best_model_filepath: Optional[str] = "models/model.pt",
+        final_model_filepath: Optional[str] = "models/model_final.pt",
         seed: Optional[int] = None,
         benchmark: bool = True,
     ):
@@ -137,7 +134,7 @@ class MonaiAlgo(ClientAlgo):
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loader = disable_ckpt_loader
-        self.model_filepaths = model_filepaths
+        self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.seed = seed
         self.benchmark = benchmark
 
@@ -172,7 +169,7 @@ class MonaiAlgo(ClientAlgo):
 
         if self.seed:
             monai.utils.set_determinism(seed=self.seed)
-        setattr(torch.backends.cudnn, "benchmark", self.benchmark)
+        torch.backends.cudnn.benchmark = self.benchmark
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
