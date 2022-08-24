@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from tkinter.tix import IMAGE
 import warnings
 from os import path
 from typing import Dict, Union
@@ -139,7 +138,7 @@ class DataAnalyzer:
             False if one of the selected key values is not constant across the dataset images.
 
         """
-        
+
         constant_props = [result[DATA_STATS.SUMMARY][DATA_STATS.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop:
@@ -174,7 +173,7 @@ class DataAnalyzer:
         tranform = Compose(list(filter(None, transform_list)))
 
         result = {
-            str(DATA_STATS.SUMMARY): {}, 
+            str(DATA_STATS.SUMMARY): {},
             str(DATA_STATS.BY_CASE): []
         }
 
@@ -188,7 +187,7 @@ class DataAnalyzer:
                 str(DATA_STATS.BY_CASE_LABEL_PATH): d[str(DATA_STATS.BY_CASE_LABEL_PATH)],
                 str(DATA_STATS.IMAGE_STATS):        d[str(DATA_STATS.IMAGE_STATS)]
             }
-            
+
             if self.label_key is not None:
                 stats_by_cases.update({
                     str(DATA_STATS.FG_IMAGE_STATS):     d[str(DATA_STATS.FG_IMAGE_STATS)],

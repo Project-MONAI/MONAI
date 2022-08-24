@@ -26,7 +26,6 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
-from monai.config.type_definitions import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
@@ -168,8 +167,8 @@ class ImageStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
+    def __init__(self,
+        image_key: str,
         stats_name: str = "image_stats",
         meta_key_postfix: Optional[str] = "meta_dict"
     ) -> None:
@@ -252,15 +251,15 @@ class FgImageStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
+    def __init__(self,
+        image_key: str,
         label_key: str,
         stats_name: str = "image_foreground_stats",
         ):
 
         self.image_key = image_key
         self.label_key = label_key
-        
+
         report_format = {str(IMAGE_STATS.INTENSITY): None}
 
         super().__init__(stats_name, report_format)
@@ -281,7 +280,7 @@ class FgImageStatsCaseAnalyzer(Analyzer):
         """
 
         d = dict(data)
-        
+
         ndas = d[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
@@ -322,9 +321,9 @@ class LabelStatsCaseAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        image_key: str, 
-        label_key: str, 
+    def __init__(self,
+        image_key: str,
+        label_key: str,
         stats_name: str = "label_stats",
         do_ccp: Optional[bool] = True):
 
@@ -394,7 +393,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
             functions. If the input has nan/inf, the stats results will be nan/inf.
         """
         d = dict(data)
-        
+
         ndas = d[self.image_key]  # (1,H,W,D) or (C,H,W,D)
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         ndas_label = d[self.label_key]  # (H,W,D)
@@ -455,8 +454,8 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
     """
 
-    def __init__(self, 
-        stats_name: Optional[str] = "image_stats", 
+    def __init__(self,
+        stats_name: Optional[str] = "image_stats",
         average: Optional[bool] = True
     ):
         self.summary_average = average
@@ -499,7 +498,7 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         """
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -532,8 +531,8 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         average: whether to average the statistical value across different image modalities.
 
     """
-    def __init__(self, 
-        stats_name: Optional[str] = "image_foreground_stats", 
+    def __init__(self,
+        stats_name: Optional[str] = "image_foreground_stats",
         average: Optional[bool] = True,
     ):
         self.summary_average = average
@@ -545,7 +544,7 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
     def __call__(self, data: List[Dict]):
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -564,9 +563,9 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
 
 
 class LabelStatsSummaryAnalyzer(Analyzer):
-    def __init__(self, 
-        stats_name: Optional[str] = "label_stats", 
-        average: Optional[bool] = True, 
+    def __init__(self,
+        stats_name: Optional[str] = "label_stats",
+        average: Optional[bool] = True,
         do_ccp: Optional[bool] = True
     ):
         self.summary_average = average
@@ -601,7 +600,7 @@ class LabelStatsSummaryAnalyzer(Analyzer):
     def __call__(self, data: List[Dict]):
         if not isinstance(data, list):
             return ValueError(f"Callable {self.__class__} requires list inputs")
-        
+
         if len(data) == 0:
             return ValueError(f"Callable {self.__class__} input list is empty")
 
@@ -656,14 +655,14 @@ class LabelStatsSummaryAnalyzer(Analyzer):
 class FilenameCaseAnalyzer(Analyzer):
     def __init__(
         self,
-        key: str, 
+        key: str,
         stats_name: str,
         meta_key_postfix: Optional[str] = "meta_dict"
     ) -> None:
         self.key = key
         self.meta_key = None if key is None else f"{key}_{meta_key_postfix}"
         super().__init__(stats_name, {})
-    
+
     def __call__(self, data):
         d = dict(data)
         d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ] if self.meta_key else ""

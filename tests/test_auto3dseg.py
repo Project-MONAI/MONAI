@@ -191,7 +191,7 @@ class TestDataAnalyzer(unittest.TestCase):
         op.update({"sum": np.sum})
         test_ret_np = op.evaluate(test_data_np)
         assert "sum" in test_ret_np
-    
+
     def test_summary_operations(self):
         op = SummaryOperations()
         test_dict = {
@@ -316,7 +316,7 @@ class TestDataAnalyzer(unittest.TestCase):
             d = transform(batch_data[0])
             assert DATA_STATS.BY_CASE_IMAGE_PATH in d
             assert DATA_STATS.BY_CASE_IMAGE_PATH in d
-    
+
     def test_filename_case_analyzer(self):
         analyzer_image = FilenameCaseAnalyzer("image", DATA_STATS.BY_CASE_IMAGE_PATH)
         analyzer_label = FilenameCaseAnalyzer(None, DATA_STATS.BY_CASE_IMAGE_PATH)
@@ -434,7 +434,7 @@ class TestDataAnalyzer(unittest.TestCase):
         assert str(DATA_STATS.IMAGE_STATS) in report
         assert str(DATA_STATS.FG_IMAGE_STATS) in report
         assert str(DATA_STATS.LABEL_STATS) in report
-        
+
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

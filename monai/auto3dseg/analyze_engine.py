@@ -20,7 +20,6 @@ from monai.auto3dseg.analyzer import (
     LabelStatsSummaryAnalyzer,
     FilenameCaseAnalyzer,
 )
-from monai.auto3dseg.utils import get_filename
 from monai.transforms import Compose
 from monai.utils.enums import DATA_STATS
 
@@ -83,12 +82,12 @@ class SegAnalyzeEngine(Compose):
         report = {}
         if len(data) == 0:
             return report
-        
+
         if not isinstance(data[0], dict):
             raise ValueError(f"{self.__class__} summarize function needs a list of dict. Now we have {type(data[0])}")
 
         for analyzer in self.summary_analyzers:
             if callable(analyzer):
                 report.update({analyzer.stats_name: analyzer(data)})
-        
+
         return report
