@@ -9,19 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+from copy import deepcopy
 from numbers import Number
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import os
 import numpy as np
 import torch
 
+from monai.bundle.config_parser import ConfigParser
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
 from monai.utils.misc import ImageMetaKey
-from monai.bundle.config_parser import ConfigParser
-from copy import deepcopy
 
 __all__ = [
     "get_filename",
@@ -30,7 +30,7 @@ __all__ = [
     "get_label_ccp",
     "concat_val_to_np",
     "concat_multikeys_to_dict",
-    "datafold_read"
+    "datafold_read",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -129,12 +129,12 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
 
 
 def concat_val_to_np(
-        data_list: List[Dict], 
-        fixed_keys: List[Union[str, int]], 
-        ragged: Optional[bool] = False,
-        allow_missing: Optional[bool] = False,
-        **kwargs
-    ):
+    data_list: List[Dict],
+    fixed_keys: List[Union[str, int]],
+    ragged: Optional[bool] = False,
+    allow_missing: Optional[bool] = False,
+    **kwargs,
+):
     """
     Get the nested value in a list of dictionary that shares the same structure.
 
@@ -272,13 +272,13 @@ def verify_report_format(report: dict, report_format: dict):
             return False
 
         v = report[k_fmt]
-        
+
         if isinstance(v_fmt, list) and isinstance(v, list):
             if len(v_fmt) != 1:
-                raise UserWarning('list length in report_format is not 1')
+                raise UserWarning("list length in report_format is not 1")
             if len(v_fmt) > 0 and len(v) > 0:
                 return verify_report_format(v[0], v_fmt[0])
             else:
                 return False
-        
+
         return True

@@ -22,15 +22,14 @@ import torch
 from monai import data
 from monai.auto3dseg import analyze_engine
 from monai.auto3dseg.analyzer import (
-    Analyzer, 
-    ImageStatsCaseAnalyzer, 
-    FgImageStatsCaseAnalyzer, 
-    LabelStatsCaseAnalyzer,
-    ImageStatsSummaryAnalyzer,
+    Analyzer,
+    FgImageStatsCaseAnalyzer,
     FgImageStatsSummaryAnalyzer,
+    ImageStatsCaseAnalyzer,
+    ImageStatsSummaryAnalyzer,
+    LabelStatsCaseAnalyzer,
     LabelStatsSummaryAnalyzer,
 )
-
 from monai.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg.operations import Operations
 from monai.auto3dseg.utils import datafold_read, verify_report_format
@@ -181,7 +180,7 @@ class TestDataAnalyzer(unittest.TestCase):
     def test_image_stats_case_analyzer(self):
         analyzer = ImageStatsCaseAnalyzer(image_key="image")
         transform_list = [
-            LoadImaged(keys=["image"]), 
+            LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image"], device=device, non_blocking=True),
             Orientationd(keys=["image"], axcodes="RAS"),
@@ -201,7 +200,7 @@ class TestDataAnalyzer(unittest.TestCase):
     def test_foreground_image_stats_cases_analyzer(self):
         analyzer = FgImageStatsCaseAnalyzer(image_key="image", label_key="label")
         transform_list = [
-            LoadImaged(keys=["image", "label"]), 
+            LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -223,7 +222,7 @@ class TestDataAnalyzer(unittest.TestCase):
     def test_label_stats_case_analyzer(self):
         analyzer = LabelStatsCaseAnalyzer(image_key="image", label_key="label")
         transform_list = [
-            LoadImaged(keys=["image", "label"]), 
+            LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -246,7 +245,7 @@ class TestDataAnalyzer(unittest.TestCase):
         summary_analyzer = ImageStatsSummaryAnalyzer("image_stats")
 
         transform_list = [
-            LoadImaged(keys=["image"]), 
+            LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image"], device=device, non_blocking=True),
             Orientationd(keys=["image"], axcodes="RAS"),
@@ -270,7 +269,7 @@ class TestDataAnalyzer(unittest.TestCase):
         summary_analyzer = FgImageStatsSummaryAnalyzer("image_foreground_stats")
 
         transform_list = [
-            LoadImaged(keys=["image", "label"]), 
+            LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -296,7 +295,7 @@ class TestDataAnalyzer(unittest.TestCase):
         summary_analyzer = LabelStatsSummaryAnalyzer("label_stats")
 
         transform_list = [
-            LoadImaged(keys=["image", "label"]), 
+            LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
             Orientationd(keys=["image", "label"], axcodes="RAS"),

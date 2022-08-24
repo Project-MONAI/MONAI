@@ -28,7 +28,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
-from monai.transforms.utils_pytorch_numpy_unification import unique, sum
+from monai.transforms.utils_pytorch_numpy_unification import sum, unique
 from monai.utils.enums import IMAGE_STATS, LABEL_STATS, StrEnum
 from monai.utils.misc import label_union
 
@@ -44,16 +44,14 @@ class Analyzer(MapTransform, ABC):
         report_format: a dictionary that outlines the key structures of the report format.
 
     """
+
     def __init__(self, report_format: dict) -> None:
         super().__init__(None)
         parser = ConfigParser(report_format)
         self.report_format = parser.config
         self.ops = ConfigParser({})
 
-    def update_ops(
-        self, 
-        key: Union[str, Type[StrEnum]], 
-        op: Type[Operations]):
+    def update_ops(self, key: Union[str, Type[StrEnum]], op: Type[Operations]):
         """
         Register an statistical operation to the Analyzer and update the report_format
 
@@ -70,10 +68,7 @@ class Analyzer(MapTransform, ABC):
 
         self.report_format = parser.config
 
-    def update_ops_nested_label(
-        self, 
-        nested_key: Union[str, Type[StrEnum]], 
-        op: Type[Operations]):
+    def update_ops_nested_label(self, nested_key: Union[str, Type[StrEnum]], op: Type[Operations]):
         """
         Update operations for nested label format. Operation value in report_format will be resolved
         to a dict with only keys
@@ -151,12 +146,12 @@ class Analyzer(MapTransform, ABC):
 
 class ImageStatsCaseAnalyzer(Analyzer):
     """
-    Analyzer to extract image stats properties for each case(image). 
+    Analyzer to extract image stats properties for each case(image).
 
     Args:
-        image_key: the key to find image data in the callable function input (data) 
+        image_key: the key to find image data in the callable function input (data)
         meta_key_postfix: the postfix to append for meta_dict ("image_meta_dict")
-    
+
     Examples:
 
     .. code-block:: python
@@ -171,6 +166,7 @@ class ImageStatsCaseAnalyzer(Analyzer):
         print(analyzer(input))
 
     """
+
     def __init__(self, image_key: str, meta_key_postfix: Optional[str] = "_meta_dict"):
 
         self.image_key = image_key
@@ -192,14 +188,14 @@ class ImageStatsCaseAnalyzer(Analyzer):
         Callable to execute the pre-defined functions
 
         Returns:
-            A dictionary. The dict has the key in self.report_format. The value of 
-            IMAGE_STATS.INTENSITY is in a list format. Each element of the value list 
+            A dictionary. The dict has the key in self.report_format. The value of
+            IMAGE_STATS.INTENSITY is in a list format. Each element of the value list
             has stats pre-defined by SampleOperations (max, min, ....)
-        
+
         Note:
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
-        
+
         """
         # from time import time
         # start = time.time()
@@ -226,10 +222,10 @@ class ImageStatsCaseAnalyzer(Analyzer):
 
 class FgImageStatsCaseAnalyzer(Analyzer):
     """
-    Analyzer to extract foreground label properties for each case(image and label). 
+    Analyzer to extract foreground label properties for each case(image and label).
 
     Args:
-        image_key: the key to find image data in the callable function input (data) 
+        image_key: the key to find image data in the callable function input (data)
         label_key: the key to find label data in the callable function input (data)
 
     Examples:
@@ -244,8 +240,9 @@ class FgImageStatsCaseAnalyzer(Analyzer):
         input['label'] = np.ones([30,30,30])
         analyzer = FgImageStatsCaseAnalyzer(image_key='image', label_key='label')
         print(analyzer(input))
-    
+
     """
+
     def __init__(self, image_key, label_key):
 
         self.image_key = image_key
@@ -264,7 +261,7 @@ class FgImageStatsCaseAnalyzer(Analyzer):
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....)
-        
+
         Note:
             The stats operation uses numpy and torch to compute max, min, and other
             functions. If the input has nan/inf, the stats results will be nan/inf.
@@ -278,19 +275,21 @@ class FgImageStatsCaseAnalyzer(Analyzer):
         # perform calculation
         report = deepcopy(self.get_report_format())
 
-        report[str(IMAGE_STATS.INTENSITY)] = [self.ops[IMAGE_STATS.INTENSITY].evaluate(nda_f) for nda_f in nda_foregrounds]
+        report[str(IMAGE_STATS.INTENSITY)] = [
+            self.ops[IMAGE_STATS.INTENSITY].evaluate(nda_f) for nda_f in nda_foregrounds
+        ]
         return report
 
 
 class LabelStatsCaseAnalyzer(Analyzer):
     """
-    Analyzer to extract label stats properties for each case(image and label). 
+    Analyzer to extract label stats properties for each case(image and label).
 
     Args:
-        image_key: the key to find image data in the callable function input (data) 
-        label_key: the key to find label data in the callable function input (data) 
+        image_key: the key to find image data in the callable function input (data)
+        label_key: the key to find label data in the callable function input (data)
         do_ccp: performs connected component analysis. Default is True.
-    
+
     Examples:
 
     .. code-block:: python
@@ -303,8 +302,9 @@ class LabelStatsCaseAnalyzer(Analyzer):
         input['label'] = np.ones([30,30,30])
         analyzer = LabelStatsCaseAnalyzer(image_key='image', label_key='label')
         print(analyzer(input))
-    
+
     """
+
     def __init__(self, image_key: str, label_key: str, do_ccp: Optional[bool] = True):
 
         self.image_key = image_key
@@ -314,19 +314,13 @@ class LabelStatsCaseAnalyzer(Analyzer):
         report_format = {
             str(LABEL_STATS.LABEL_UID): None,
             str(LABEL_STATS.IMAGE_INT): None,
-            str(LABEL_STATS.LABEL): [
-                {
-                    str(LABEL_STATS.PIXEL_PCT): None, 
-                    str(LABEL_STATS.IMAGE_INT): None
-                }],
+            str(LABEL_STATS.LABEL): [{str(LABEL_STATS.PIXEL_PCT): None, str(LABEL_STATS.IMAGE_INT): None}],
         }
 
         if self.do_ccp:
             report_format[str(LABEL_STATS.LABEL)][0].update(
-                {
-                    str(LABEL_STATS.LABEL_SHAPE): None,
-                    str(LABEL_STATS.LABEL_NCOMP): None
-                })
+                {str(LABEL_STATS.LABEL_SHAPE): None, str(LABEL_STATS.LABEL_NCOMP): None}
+            )
 
         super().__init__(report_format)
         self.update_ops(LABEL_STATS.IMAGE_INT, SampleOperations())
@@ -342,10 +336,10 @@ class LabelStatsCaseAnalyzer(Analyzer):
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....)
-        
+
         Examples:
             output dict contains {
-                LABEL_STATS.LABEL_UID:[0,1,3], 
+                LABEL_STATS.LABEL_UID:[0,1,3],
                 LABEL_STATS.IMAGE_INT: {...},
                 LABEL_STATS.LABEL:[
                     {
@@ -368,9 +362,9 @@ class LabelStatsCaseAnalyzer(Analyzer):
                     }
                 ]
                 }
-        
+
         Notes:
-            The label class_ID of the dictionary in LABEL_STATS.LABEL IS NOT the 
+            The label class_ID of the dictionary in LABEL_STATS.LABEL IS NOT the
             index. Instead, the class_ID is the LABEL_STATS.LABEL_UID with the same
             index. For instance, the last dict in LABEL_STATS.LABEL in the Examples
             is 3, which is the last element under LABEL_STATS.LABEL_UID.
@@ -386,7 +380,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
             unique_label = unique_label.data.cpu().numpy()
- 
+
         unique_label = unique_label.astype(np.int8).tolist()
 
         # start = time.time()
@@ -412,11 +406,13 @@ class LabelStatsCaseAnalyzer(Analyzer):
             # logger.debug(f" label {index} stats takes {time.time() - s}")
 
         for i, _ in enumerate(unique_label):
-            label_substats[i].update({str(LABEL_STATS.PIXEL_PCT): float(pixel_arr[i]/pixel_sum)})
+            label_substats[i].update({str(LABEL_STATS.PIXEL_PCT): float(pixel_arr[i] / pixel_sum)})
 
         report = deepcopy(self.get_report_format())
         report[str(LABEL_STATS.LABEL_UID)] = unique_label
-        report[str(LABEL_STATS.IMAGE_INT)] = [self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds]
+        report[str(LABEL_STATS.IMAGE_INT)] = [
+            self.ops[LABEL_STATS.IMAGE_INT].evaluate(nda_f) for nda_f in nda_foregrounds
+        ]
         report[str(LABEL_STATS.LABEL)] = label_substats
 
         # logger.debug(f"Get label stats spent {time.time()-start}")
@@ -425,7 +421,7 @@ class LabelStatsCaseAnalyzer(Analyzer):
 
 class ImageStatsSummaryAnalyzer(Analyzer):
     """
-    Analyzer to process the values of specific key `key_in_case` in a list of dict. 
+    Analyzer to process the values of specific key `key_in_case` in a list of dict.
     Typically, the list of dict is the output of case analyzer under the same prefix
     (ImageStatsCaseAnalyzer).
 
@@ -434,6 +430,7 @@ class ImageStatsSummaryAnalyzer(Analyzer):
         average: whether to average the statistical value across different image modalities.
 
     """
+
     def __init__(self, key_in_case: str, average: bool = True):
         self.key_case = key_in_case
         self.summary_average = average
@@ -460,10 +457,10 @@ class ImageStatsSummaryAnalyzer(Analyzer):
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....)
-        
+
         Examples:
             output dict contains a dictionary for all of the following keys{
-                IMAGE_STATS.SHAPE:{...} 
+                IMAGE_STATS.SHAPE:{...}
                 IMAGE_STATS.CHANNELS: {...},
                 IMAGE_STATS.CROPPED_SHAPE: {...},
                 IMAGE_STATS.SPACING: {...},
@@ -481,13 +478,13 @@ class ImageStatsSummaryAnalyzer(Analyzer):
 
         for k in [IMAGE_STATS.SHAPE, IMAGE_STATS.CHANNELS, IMAGE_STATS.CROPPED_SHAPE, IMAGE_STATS.SPACING]:
             v_np = concat_val_to_np(data, [self.key_case, k])
-            report[str(k)] = self.ops[k].evaluate(v_np,
-                dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
+            report[str(k)] = self.ops[k].evaluate(v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
 
         op_keys = report[str(IMAGE_STATS.INTENSITY)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.key_case, IMAGE_STATS.INTENSITY], op_keys)
-        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(intst_dict,
-            dim=None if self.summary_average else 0)
+        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
+            intst_dict, dim=None if self.summary_average else 0
+        )
 
         return report
 
@@ -509,8 +506,9 @@ class FgImageStatsSummaryAnalyzer(Analyzer):
         op_keys = report[str(IMAGE_STATS.INTENSITY)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.key_case, IMAGE_STATS.INTENSITY], op_keys)
 
-        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(intst_dict, 
-            dim=None if self.summary_average else 0)
+        report[str(IMAGE_STATS.INTENSITY)] = self.ops[IMAGE_STATS.INTENSITY].evaluate(
+            intst_dict, dim=None if self.summary_average else 0
+        )
 
         return report
 
@@ -524,18 +522,12 @@ class LabelStatsSummaryAnalyzer(Analyzer):
         report_format = {
             str(LABEL_STATS.LABEL_UID): None,
             str(LABEL_STATS.IMAGE_INT): None,
-            str(LABEL_STATS.LABEL): [
-                {
-                    str(LABEL_STATS.PIXEL_PCT): None, 
-                    str(LABEL_STATS.IMAGE_INT): None
-                }],
+            str(LABEL_STATS.LABEL): [{str(LABEL_STATS.PIXEL_PCT): None, str(LABEL_STATS.IMAGE_INT): None}],
         }
         if self.do_ccp:
             report_format[str(LABEL_STATS.LABEL)][0].update(
-                {
-                    str(LABEL_STATS.LABEL_SHAPE): None,
-                    str(LABEL_STATS.LABEL_NCOMP): None
-                })
+                {str(LABEL_STATS.LABEL_SHAPE): None, str(LABEL_STATS.LABEL_NCOMP): None}
+            )
 
         super().__init__(report_format)
         self.update_ops(LABEL_STATS.IMAGE_INT, SummaryOperations())
@@ -564,8 +556,9 @@ class LabelStatsSummaryAnalyzer(Analyzer):
 
         op_keys = report[str(LABEL_STATS.IMAGE_INT)].keys()  # template, max/min/...
         intst_dict = concat_multikeys_to_dict(data, [self.key_case, LABEL_STATS.IMAGE_INT], op_keys)
-        report[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
-            dim=None if self.summary_average else 0)
+        report[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.IMAGE_INT].evaluate(
+            intst_dict, dim=None if self.summary_average else 0
+        )
 
         detailed_label_list = []
 
@@ -573,21 +566,27 @@ class LabelStatsSummaryAnalyzer(Analyzer):
             stats = {}
             axis = 0  # todo: if self.summary_average and data[...].shape > 2, axis = (0, 1)
             for k in [LABEL_STATS.PIXEL_PCT, LABEL_STATS.LABEL_NCOMP]:
-                v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, k], 
-                    allow_missing=True)
-                stats[str(k)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(v_np,
-                    dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
+                v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, k], allow_missing=True)
+                stats[str(k)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(
+                    v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0
+                )
 
-            v_np = concat_val_to_np(data, [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.LABEL_SHAPE], 
-                    ragged=True, allow_missing=True)
-            stats[str(LABEL_STATS.LABEL_SHAPE)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(v_np,
-                    dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0)
+            v_np = concat_val_to_np(
+                data,
+                [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.LABEL_SHAPE],
+                ragged=True,
+                allow_missing=True,
+            )
+            stats[str(LABEL_STATS.LABEL_SHAPE)] = self.ops[LABEL_STATS.LABEL][0][k].evaluate(
+                v_np, dim=(0, 1) if v_np.ndim > 2 and self.summary_average else 0
+            )
 
             intst_fixed_keys = [self.key_case, LABEL_STATS.LABEL, label_id, LABEL_STATS.IMAGE_INT]
             op_keys = report[str(LABEL_STATS.LABEL)][0][LABEL_STATS.IMAGE_INT].keys()
             intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True)
-            stats[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(intst_dict,
-                    dim=None if self.summary_average else 0)
+            stats[str(LABEL_STATS.IMAGE_INT)] = self.ops[LABEL_STATS.LABEL][0][LABEL_STATS.IMAGE_INT].evaluate(
+                intst_dict, dim=None if self.summary_average else 0
+            )
 
             detailed_label_list.append(stats)
 

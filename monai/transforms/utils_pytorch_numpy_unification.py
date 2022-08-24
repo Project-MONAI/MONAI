@@ -452,7 +452,7 @@ def min(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -
     if dim is None:
         return np.min(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, **kwargs)  # type: ignore
     else:
-        return np.min(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, dim, **kwargs) # type: ignore
+        return np.min(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, dim, **kwargs)  # type: ignore
 
 
 def std(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, unbias: Optional[bool] = False) -> NdarrayTensor:
@@ -466,6 +466,7 @@ def std(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, unbias: Opt
     else:
         return np.std(x, axis=dim) if isinstance(x, (np.ndarray, list)) else torch.std(x, dim, unbias)  # type: ignore
 
+
 def sum(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.sum` with equivalent implementation for numpy
 
@@ -475,4 +476,4 @@ def sum(x: NdarrayOrTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -
     if dim is None:
         return np.sum(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, **kwargs)  # type: ignore
     else:
-        return np.sum(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, dim, **kwargs) # type: ignore
+        return np.sum(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, dim, **kwargs)  # type: ignore

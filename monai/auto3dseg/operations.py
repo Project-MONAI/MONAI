@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
 from collections import UserDict
 from functools import partial
 from typing import Any, Optional
+
+import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
@@ -31,6 +32,7 @@ class SampleOperations(Operations):
     Args:
         to_list: all numerical values in the output dict will be list of basic types (int, floats, ...) if to_list is True
     """
+
     def __init__(self, to_list: Optional[bool] = True) -> None:
         self.convert_to_np = True
         self.data = {
