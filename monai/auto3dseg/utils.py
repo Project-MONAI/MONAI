@@ -12,7 +12,7 @@
 import os
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 import numpy as np
 import torch

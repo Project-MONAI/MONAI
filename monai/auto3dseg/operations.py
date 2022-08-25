@@ -11,9 +11,8 @@
 
 from collections import UserDict
 from functools import partial
-from typing import Any, TypeVar
+from typing import Any
 
-from monai.config.type_definitions import NdarrayTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
 __all__ = ["Operations", "SampleOperations", "SummaryOperations"]
@@ -21,7 +20,7 @@ __all__ = ["Operations", "SampleOperations", "SummaryOperations"]
 
 class Operations(UserDict):
     """
-    Base class of operation
+    Base class of operation interface
     """
 
     def evaluate(self, data: Any, **kwargs) -> dict:
@@ -31,18 +30,18 @@ class Operations(UserDict):
         The result will be written under the same key under the output dict.
 
         Args:
-            data: input data
+            data: input data.
 
         Returns:
             a dictionary which has same keys as the self.data if the value
-                is callable
+                is callable.
         """
         return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
 
 
 class SampleOperations(Operations):
     """
-    Apply statistical operation to a sample (image/ndarray/tensor)
+    Apply statistical operation to a sample (image/ndarray/tensor).
 
     Notes:
         Percentile operation uses a partial function that embeds different kwargs (q).
@@ -142,8 +141,8 @@ class SummaryOperations(Operations):
 
     def evaluate(self, data: Any, **kwargs) -> dict:
         """
-        Applies the callables to the data, and convert the
-        numerics to list or Python numeric types (int/float).
+        Applies the callables to the data, and convert the numerics to list or Python
+        numeric types (int/float).
 
         Args:
             data: input data

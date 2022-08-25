@@ -16,22 +16,13 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from monai import data
 from monai.apps.utils import get_logger
 from monai.auto3dseg.seg_summarizer import DataStatsKeys, SegSummarizer
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle.config_parser import ConfigParser
+from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
-from monai.transforms import (
-    Compose,
-    EnsureChannelFirstd,
-    EnsureTyped,
-    Lambdad,
-    LoadImaged,
-    Orientationd,
-    SqueezeDimd,
-    ToDeviced,
-)
+from monai.transforms import Compose, EnsureChannelFirstd, EnsureTyped, Lambdad, LoadImaged, Orientationd, SqueezeDimd
 from monai.utils import min_version, optional_import
 from monai.utils.enums import ImageStatsKeys
 
@@ -144,17 +135,40 @@ class DataAnalyzer:
         return True
 
     def get_all_case_stats(self):
+        """
+        Get all case stats. Caller of the DataAnalyser class. The function iterates datalist and
+        call get_case_stats to generate stats. Then get_case_summary is called to combine results.
 
-        files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
+        Returns:
+            A data statistics dictionary containing
+                "stats_summary" (summary statistics of the entire datasets). Within stats_summary
+                there are "image_stats"  (summarizing info of shape, channel, spacing, and etc
+                using operations_summary), "image_foreground_stats" (info of the intensity for the
+                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentange,
+                image_intensity, and each invidiual label in a list)
+                "stats_by_cases" (List type value. Each element of the list is statistics of
+                a image-label info. Within each each element, there are: "image" (value is the
+                path to an image), "label" (value is the path to the corresponding label), "image_stats"
+                (summarizing info of shape, channel, spacing, and etc using operations),
+                "image_foreground_stats" (similar to the previous one but one foreground image), and
+                "label_stats" (stats of the individual labels )
+
+        Raises:
+            ValueError: if the user sent image_only to False but there is no label found
+
+        Notes:
+            Since the backend of the statistics computation are torch/numpy, nan/inf value
+            may be generated and carried over in the computation. In such cases, the output
+            dictionary will include .nan/.inf in the statistics.
+
+        """
 
         summarizer = SegSummarizer(self.image_key, self.label_key, do_ccp=self.do_ccp)
         keys = list(filter(None, [self.image_key, self.label_key]))
         transform_list = [
             LoadImaged(keys=keys),
             EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=keys, device=self.device, non_blocking=True),
+            # ToDeviced(keys=keys, device=self.device, non_blocking=True),
             Orientationd(keys=keys, axcodes="RAS"),
             EnsureTyped(keys=keys, data_type="tensor"),
             Lambdad(keys=self.label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x)
@@ -164,15 +178,18 @@ class DataAnalyzer:
             summarizer,
         ]
 
-        tranform = Compose(list(filter(None, transform_list)))
+        tranform = Compose(transforms=list(filter(None, transform_list)))
 
+        files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
+        dataset = Dataset(data=files, transform=tranform)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
         result = {str(DataStatsKeys.SUMMARY): {}, str(DataStatsKeys.BY_CASE): []}
-
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
-        for batch_data in tqdm(dataset) if has_tqdm else dataset:
-            d = tranform(batch_data[0])
+        for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
+            # d = tranform(batch_data[0])
+            d = batch_data[0]
             stats_by_cases = {
                 str(DataStatsKeys.BY_CASE_IMAGE_PATH): d[str(DataStatsKeys.BY_CASE_IMAGE_PATH)],
                 str(DataStatsKeys.BY_CASE_LABEL_PATH): d[str(DataStatsKeys.BY_CASE_LABEL_PATH)],
