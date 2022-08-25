@@ -12,7 +12,7 @@
 import os
 from copy import deepcopy
 from numbers import Number
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
@@ -115,7 +115,7 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
 
 def concat_val_to_np(
     data_list: List[Dict],
-    fixed_keys: List[Union[str, int]],
+    fixed_keys: Sequence[Union[str, int]],
     ragged: Optional[bool] = False,
     allow_missing: Optional[bool] = False,
     **kwargs,
@@ -134,7 +134,7 @@ def concat_val_to_np(
 
     """
 
-    np_list = []
+    np_list: List[Optional[np.ndarray]] = []
     for data in data_list:
         parser = ConfigParser(data)
         for i, key in enumerate(fixed_keys):
@@ -193,7 +193,7 @@ def concat_multikeys_to_dict(
 
     ret_dict = {}
     for key in keys:
-        addon = [0, key] if zero_insert else [key]
+        addon: List[Union[str, int]] = [0, key] if zero_insert else [key]
         val = concat_val_to_np(data_list, fixed_keys + addon, **kwargs)
         ret_dict.update({key: val})
 

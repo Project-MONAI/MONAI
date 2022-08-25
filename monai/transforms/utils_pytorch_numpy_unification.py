@@ -19,8 +19,6 @@ from monai.data.meta_tensor import MetaTensor
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-NumberArray = Union[List, np.ndarray, torch.Tensor, MetaTensor]
-
 __all__ = [
     "allclose",
     "moveaxis",
@@ -410,7 +408,7 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
 
 
-def max(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NumberArray:
+def max(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.max` with equivalent implementation for numpy
 
     Args:
@@ -420,13 +418,20 @@ def max(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> Nu
         the maximum of x.
 
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.max(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, **kwargs)
+        ret = np.max(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, **kwargs)
     else:
-        return np.max(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, dim, **kwargs)
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.max(x, axis=dim, **kwargs)
+        else:
+            ret = torch.max(x, int(dim), **kwargs)
+
+    return ret
 
 
-def mean(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NumberArray:
+def mean(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.mean` with equivalent implementation for numpy
 
     Args:
@@ -435,13 +440,20 @@ def mean(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> N
     Returns:
         the mean of x
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.mean(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, **kwargs)
+        ret = np.mean(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, **kwargs)
     else:
-        return np.mean(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, dim, **kwargs)
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.mean(x, axis=dim, **kwargs)
+        else:
+            ret = torch.mean(x, int(dim), **kwargs)
+
+    return ret
 
 
-def median(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NumberArray:
+def median(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.median` with equivalent implementation for numpy
 
     Args:
@@ -450,16 +462,20 @@ def median(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) ->
     Returns
         the median of x.
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.median(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.median(x, **kwargs)
+        ret = np.median(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.median(x, **kwargs)
     else:
         if isinstance(x, (np.ndarray, list)):
-            return np.median(x, axis=dim, **kwargs)
+            ret = np.median(x, axis=dim, **kwargs)
         else:
-            return torch.median(x, dim, **kwargs)
+            ret = torch.median(x, int(dim), **kwargs)
+
+    return ret
 
 
-def min(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NumberArray:
+def min(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.min` with equivalent implementation for numpy
 
     Args:
@@ -468,13 +484,20 @@ def min(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> Nu
     Returns:
         the minimum of x.
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.min(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, **kwargs)
+        ret = np.min(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, **kwargs)
     else:
-        return np.min(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, dim, **kwargs)
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.min(x, axis=dim, **kwargs)
+        else:
+            ret = torch.min(x, int(dim), **kwargs)
+
+    return ret
 
 
-def std(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, unbias: Optional[bool] = False) -> NumberArray:
+def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbias: bool = False) -> NdarrayTensor:
     """`torch.std` with equivalent implementation for numpy
 
     Args:
@@ -483,13 +506,20 @@ def std(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, unbias: Optiona
     Returns:
         the standard deviation of x.
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbias)
+        ret = np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbias)
     else:
-        return np.std(x, axis=dim) if isinstance(x, (np.ndarray, list)) else torch.std(x, dim, unbias)
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.std(x, axis=dim)
+        else:
+            ret = torch.std(x, int(dim), unbias)
+
+    return ret
 
 
-def sum(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NumberArray:
+def sum(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
     """`torch.sum` with equivalent implementation for numpy
 
     Args:
@@ -498,7 +528,14 @@ def sum(x: NumberArray, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> Nu
     Returns:
         the sum of x.
     """
+
+    ret: NdarrayTensor
     if dim is None:
-        return np.sum(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, **kwargs)
+        ret = np.sum(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, **kwargs)
     else:
-        return np.sum(x, axis=dim, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, dim, **kwargs)
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.sum(x, axis=dim, **kwargs)
+        else:
+            ret = torch.sum(x, int(dim), **kwargs)
+
+    return ret

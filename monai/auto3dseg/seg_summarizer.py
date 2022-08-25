@@ -21,6 +21,7 @@ from monai.auto3dseg.analyzer import (
     LabelStats,
     LabelStatsSumm,
 )
+from monai.auto3dseg.operations import OperationType
 from monai.transforms import Compose
 from monai.utils.enums import DataStatsKeys
 
@@ -76,7 +77,7 @@ class SegSummarizer(Compose):
         self.image_key = image_key
         self.label_key = label_key
 
-        self.summary_analyzers = []
+        self.summary_analyzers: List[OperationType] = []
         super().__init__()
 
         self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
@@ -168,7 +169,7 @@ class SegSummarizer(Compose):
         if not isinstance(data, list):
             raise ValueError(f"{self.__class__} summarize function needs input to be a list of dict")
 
-        report = {}
+        report: Dict[str, Dict] = {}
         if len(data) == 0:
             return report
 
