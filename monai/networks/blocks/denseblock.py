@@ -88,7 +88,7 @@ class ConvDenseBlock(DenseBlock):
         l_channels = in_channels
         dilations = dilations if dilations is not None else ([1] * len(channels))
         layers = []
-        
+
         if len(channels) != len(dilations):
             raise ValueError("Length of `channels` and `dilations` must match")
 
