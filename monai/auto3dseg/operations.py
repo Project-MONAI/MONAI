@@ -40,7 +40,7 @@ class Operations(UserDict):
         return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
 
 
-OperationType = TypeVar('OperationType', bound=Operations)
+OperationType = TypeVar("OperationType", bound=Operations)
 
 
 class SampleOperations(Operations):

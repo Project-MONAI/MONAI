@@ -18,13 +18,7 @@ import numpy as np
 import torch
 
 from monai.apps.utils import get_logger
-from monai.auto3dseg.operations import (
-    Operations,
-    OperationType,
-    SampleOperations,
-    SummaryOperations
-)
-
+from monai.auto3dseg.operations import Operations, OperationType, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import (
     concat_multikeys_to_dict,
     concat_val_to_np,
@@ -166,7 +160,9 @@ class Analyzer(MapTransform, ABC):
         """Analyze the dict format dataset, return the summary report"""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-AnalyzerType = TypeVar('AnalyzerType', bound=Analyzer)
+
+AnalyzerType = TypeVar("AnalyzerType", bound=Analyzer)
+
 
 class ImageStats(Analyzer):
     """
@@ -573,9 +569,7 @@ class FgImageStatsSumm(Analyzer):
 
 
 class LabelStatsSumm(Analyzer):
-    def __init__(
-        self, stats_name: str = "label_stats", average: Optional[bool] = True, do_ccp: Optional[bool] = True
-    ):
+    def __init__(self, stats_name: str = "label_stats", average: Optional[bool] = True, do_ccp: Optional[bool] = True):
         self.summary_average = average
         self.do_ccp = do_ccp
 
@@ -637,24 +631,21 @@ class LabelStatsSumm(Analyzer):
             pct_fixed_keys = [self.stats_name, label_str, label_id, pct_str]
             pct_np = concat_val_to_np(data, pct_fixed_keys, allow_missing=True)
             stats[pct_str] = self.ops[label_str][0][pct_str].evaluate(
-                pct_np,
-                dim=(0, 1) if pct_np.ndim > 2 and self.summary_average else 0
+                pct_np, dim=(0, 1) if pct_np.ndim > 2 and self.summary_average else 0
             )
 
             ncomp_str = str(LabelStatsKeys.LABEL_NCOMP)
             ncomp_fixed_keys = [self.stats_name, LabelStatsKeys.LABEL, label_id, ncomp_str]
             ncomp_np = concat_val_to_np(data, ncomp_fixed_keys, allow_missing=True)
             stats[ncomp_str] = self.ops[label_str][0][ncomp_str].evaluate(
-                ncomp_np,
-                dim=(0, 1) if ncomp_np.ndim > 2 and self.summary_average else 0
+                ncomp_np, dim=(0, 1) if ncomp_np.ndim > 2 and self.summary_average else 0
             )
 
             shape_str = str(LabelStatsKeys.LABEL_SHAPE)
             shape_fixed_keys = [self.stats_name, label_str, label_id, LabelStatsKeys.LABEL_SHAPE]
             shape_np = concat_val_to_np(data, shape_fixed_keys, ragged=True, allow_missing=True)
             stats[shape_str] = self.ops[label_str][0][shape_str].evaluate(
-                shape_np,
-                dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0
+                shape_np, dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0
             )
             # label shape is a 3-element value, but the number of labels in each image
             # can vary from 0 to N. So the value in a list format is "ragged"
@@ -664,8 +655,7 @@ class LabelStatsSumm(Analyzer):
             op_keys = report[label_str][0][intst_str].keys()
             intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True)
             stats[intst_str] = self.ops[label_str][0][intst_str].evaluate(
-                intst_dict,
-                dim=None if self.summary_average else 0
+                intst_dict, dim=None if self.summary_average else 0
             )
 
             detailed_label_list.append(stats)
