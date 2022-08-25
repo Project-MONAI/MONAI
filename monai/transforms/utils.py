@@ -1022,7 +1022,7 @@ def remove_small_objects(
     out = morphology.remove_small_objects(img_np, min_size, connectivity)
     # convert back by multiplying
     if not independent_channels:
-        out = img * out
+        out = img_np * out
     return convert_to_dst_type(out, img)[0]
 
 
