@@ -19,9 +19,9 @@ import torch
 
 from monai.apps.utils import get_logger
 from monai.auto3dseg.operations import (
-    Operations, 
+    Operations,
     OperationType,
-    SampleOperations, 
+    SampleOperations,
     SummaryOperations
 )
 
@@ -37,7 +37,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils.enums import ImageStatsKeys, LabelStatsKeys, StrEnum
+from monai.utils.enums import ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
 logger = get_logger(module_name=__name__)
@@ -632,12 +632,12 @@ class LabelStatsSumm(Analyzer):
         label_str = str(LabelStatsKeys.LABEL)
         for label_id in unique_label:
             stats = {}
-            
+
             pct_str = str(LabelStatsKeys.PIXEL_PCT)
             pct_fixed_keys = [self.stats_name, label_str, label_id, pct_str]
             pct_np = concat_val_to_np(data, pct_fixed_keys, allow_missing=True)
             stats[pct_str] = self.ops[label_str][0][pct_str].evaluate(
-                pct_np, 
+                pct_np,
                 dim=(0, 1) if pct_np.ndim > 2 and self.summary_average else 0
             )
 
@@ -645,7 +645,7 @@ class LabelStatsSumm(Analyzer):
             ncomp_fixed_keys = [self.stats_name, LabelStatsKeys.LABEL, label_id, ncomp_str]
             ncomp_np = concat_val_to_np(data, ncomp_fixed_keys, allow_missing=True)
             stats[ncomp_str] = self.ops[label_str][0][ncomp_str].evaluate(
-                ncomp_np, 
+                ncomp_np,
                 dim=(0, 1) if ncomp_np.ndim > 2 and self.summary_average else 0
             )
 
@@ -653,7 +653,7 @@ class LabelStatsSumm(Analyzer):
             shape_fixed_keys = [self.stats_name, label_str, label_id, LabelStatsKeys.LABEL_SHAPE]
             shape_np = concat_val_to_np(data, shape_fixed_keys, ragged=True, allow_missing=True)
             stats[shape_str] = self.ops[label_str][0][shape_str].evaluate(
-                shape_np, 
+                shape_np,
                 dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0
             )
             # label shape is a 3-element value, but the number of labels in each image
@@ -664,7 +664,7 @@ class LabelStatsSumm(Analyzer):
             op_keys = report[label_str][0][intst_str].keys()
             intst_dict = concat_multikeys_to_dict(data, intst_fixed_keys, op_keys, allow_missing=True)
             stats[intst_str] = self.ops[label_str][0][intst_str].evaluate(
-                intst_dict, 
+                intst_dict,
                 dim=None if self.summary_average else 0
             )
 

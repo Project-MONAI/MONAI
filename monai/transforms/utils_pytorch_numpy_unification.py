@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
-from monai.data.meta_tensor import MetaTensor
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
