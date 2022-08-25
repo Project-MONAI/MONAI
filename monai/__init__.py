@@ -35,6 +35,18 @@ if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_RE
         category=RuntimeWarning,
     )
 
+from .utils.module import load_submodules  # noqa: E402
+
+# handlers_* have some external decorators the users may not have installed
+# *.so files and folder "_C" may not exist when the cpp extensions are not compiled
+excludes = "(^(monai.handlers))|(^(monai.bundle))|(^(monai.fl))|((\\.so)$)|(^(monai._C))"
+
+# load directory modules only, skip loading individual files
+load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
+
+# load all modules, this will trigger all export decorations
+load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
+
 __all__ = [
     "apps",
     "bundle",
@@ -52,16 +64,3 @@ __all__ = [
     "utils",
     "visualize",
 ]
-
-from .utils.module import load_submodules  # noqa: E402
-
-# the following `mods` are the list of modules we want to import,
-# any folders in 'monai/' not in `mods` will be imported lazily later
-mods = "|".join(f"monai.{mod}" for mod in __all__ if mod not in ("handlers", "bundle", "fl"))
-excludes = f"^(?!({mods}).*)"
-
-# load directory modules only, skip loading individual files
-load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
-
-# load all modules, this will trigger all export decorations
-load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
