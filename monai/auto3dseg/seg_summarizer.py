@@ -46,6 +46,7 @@ class SegSummarizer(Compose):
 
     Examples:
         .. code-block:: python
+
             # imports
 
             summarizer = SegSummarizer("image", "label")
@@ -99,7 +100,9 @@ class SegSummarizer(Compose):
             summary_analyzer: analyzer that works on list of stats dict (output from case_analyzers)
 
         Examples:
+
             .. code-block:: python
+
                 from monai.auto3dseg.analyzer import Analyzer
                 from monai.auto3dseg.utils import concat_val_to_np
                 from monai.auto3dseg.analyzer_engine import SegSummarizer

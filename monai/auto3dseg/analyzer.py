@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Type, Union
@@ -16,6 +17,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 import numpy as np
 import torch
 
+from monai.apps.utils import get_logger
 from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import (
     concat_multikeys_to_dict,
@@ -31,6 +33,8 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
 from monai.utils.enums import ImageStatsKeys, LabelStatsKeys, StrEnum
 from monai.utils.misc import ImageMetaKey, label_union
+
+logger = get_logger(module_name=__name__)
 
 __all__ = [
     "Analyzer",
@@ -128,7 +132,7 @@ class Analyzer(MapTransform, ABC):
             a dict with a set of keys.
 
         """
-        ret = dict.fromkeys([key for key in func.data])
+        ret = dict.fromkeys(list(func.data))
         if hasattr(func, "data_addon"):
             for key in func.data_addon:
                 ret.update({key: None})
@@ -215,8 +219,7 @@ class ImageStats(Analyzer):
 
         """
         d = dict(data)
-        # from time import time
-        # start = time.time()
+        start = time.time()
         ndas = data[self.image_key]
         ndas = [ndas[i] for i in range(ndas.shape[0])]
         if "nda_croppeds" not in d:
@@ -235,7 +238,7 @@ class ImageStats(Analyzer):
             self.ops[ImageStatsKeys.INTENSITY].evaluate(nda_c) for nda_c in nda_croppeds
         ]
 
-        # logger.debug(f"Get image stats spent {time.time()-start}")
+        logger.debug(f"Get image stats spent {time.time()-start}")
         d[self.stats_name] = report
         return d
 
@@ -409,11 +412,12 @@ class LabelStats(Analyzer):
 
         unique_label = unique_label.astype(np.int8).tolist()
 
-        # start = time.time()
+        start = time.time()
         label_substats = []  # each element is one label
         pixel_sum = 0
         pixel_arr = []
         for index in unique_label:
+            start_label = time.time()
             label_dict: Dict[str, Any] = {}
             mask_index = ndas_label == index
 
@@ -429,7 +433,7 @@ class LabelStats(Analyzer):
                 label_dict[str(LabelStatsKeys.LABEL_NCOMP)] = ncomponents
 
             label_substats.append(label_dict)
-            # logger.debug(f" label {index} stats takes {time.time() - s}")
+            logger.debug(f" label {index} stats takes {time.time() - start_label}")
 
         for i, _ in enumerate(unique_label):
             label_substats[i].update({str(LabelStatsKeys.PIXEL_PCT): float(pixel_arr[i] / pixel_sum)})
@@ -442,7 +446,7 @@ class LabelStats(Analyzer):
         report[str(LabelStatsKeys.LABEL)] = label_substats
 
         d[self.stats_name] = report
-        # logger.debug(f"Get label stats spent {time.time()-start}")
+        logger.debug(f"Get label stats spent {time.time()-start}")
         return d
 
 

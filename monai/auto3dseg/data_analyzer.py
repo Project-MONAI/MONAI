@@ -122,7 +122,8 @@ class DataAnalyzer:
         self.image_key = image_key
         self.label_key = label_key
 
-    def _check_data_uniformity(self, keys: List[str], result: Dict):
+    @staticmethod
+    def _check_data_uniformity(keys: List[str], result: Dict):
         """
         Check data uniformity since DataAnalyzer provides no support to multi-modal images with different
         affine matrices/spacings due to monai transforms.
@@ -137,9 +138,8 @@ class DataAnalyzer:
 
         constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
-            if "stdev" in prop:
-                if np.any(prop["stdev"]):
-                    return False
+            if "stdev" in prop and np.any(prop["stdev"]):
+                return False
 
         return True
 
@@ -147,9 +147,7 @@ class DataAnalyzer:
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
         ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(
-            ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation
-        )
+        dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
 
         summarizer = SegSummarizer(self.image_key, self.label_key, do_ccp=self.do_ccp)
         keys = list(filter(None, [self.image_key, self.label_key]))
@@ -173,7 +171,7 @@ class DataAnalyzer:
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
-        for batch_data in tqdm(self.dataset) if has_tqdm else self.dataset:
+        for batch_data in tqdm(dataset) if has_tqdm else dataset:
             d = tranform(batch_data[0])
             stats_by_cases = {
                 str(DataStatsKeys.BY_CASE_IMAGE_PATH): d[str(DataStatsKeys.BY_CASE_IMAGE_PATH)],

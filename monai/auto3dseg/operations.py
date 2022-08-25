@@ -53,6 +53,7 @@ class SampleOperations(Operations):
     Example:
 
         .. code-block:: python
+
             # use the existing operations
             import numpy as np
             op = SampleOperations()
@@ -110,6 +111,7 @@ class SummaryOperations(Operations):
     Examples:
 
         .. code-block:: python
+
             import numpy as np
             data = {
                 "min": np.random.rand(4),
