@@ -9,8 +9,7 @@ fold: 0
 input_channels: null
 learning_rate: 0.025
 num_images_per_batch: 2
-num_iterations: 40000
-num_iterations_per_validation: 500
+num_epochs: 1250
 num_patches_per_image: 1
 num_sw_batch_size: 2
 output_classes: null
@@ -18,6 +17,7 @@ overlap_ratio: 0.625
 patch_size: null
 patch_size_valid: null
 softmax: true
+resample: false
 
 # training
 loss:

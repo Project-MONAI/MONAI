@@ -19,5 +19,5 @@ transforms_infer:
     align_corners: true
   - PLACEHOLDER_INTENSITY_NORMALIZATION
   - _target_: ToDeviced
-    keys: ["@image_key", "@label_key"]
+    keys: "@image_key"
     device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
