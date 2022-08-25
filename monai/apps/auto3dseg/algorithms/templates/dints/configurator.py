@@ -113,8 +113,7 @@ class Configurator(AlgorithmConfigurator):
                 + self.config[_key][_t_key]["transforms"][(_i_intensity + 1) :]
             )
 
-        self.training_commands = []
-        self.training_commands.append("scripts/train.py")
+        self.algorithm_dir = os.path.join(self.output_path, "dints")
         self.inference_script = "scripts/infer.py"
 
     def write(self):
