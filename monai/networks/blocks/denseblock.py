@@ -66,7 +66,7 @@ class ConvDenseBlock(DenseBlock):
         spatial_dims: int,
         in_channels: int,
         channels: Sequence[int],
-        dilations: Sequence[int] = None,
+        dilations: Optional[Sequence[int]] = None,
         kernel_size: Union[Sequence[int], int] = 3,
         num_res_units: int = 0,
         adn_ordering: str = "NDA",
@@ -86,8 +86,11 @@ class ConvDenseBlock(DenseBlock):
         self.bias = bias
 
         l_channels = in_channels
-        dilations = dilations or ([1] * len(channels))
+        dilations = dilations if dilations is not None else ([1] * len(channels))
         layers = []
+        
+        if len(channels) != len(dilations):
+            raise ValueError("Length of `channels` and `dilations` must match")
 
         for c, d in zip(channels, dilations):
             layer = self._get_layer(l_channels, c, d)
