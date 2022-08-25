@@ -193,6 +193,12 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
+            except ImportError as e:
+                raise ImportError(
+                    "Multiple versions of MONAI may have been installed,\n"
+                    "please uninstall existing packages (both monai and monai-weekly) and install a version again.\n"
+                    "See also: https://docs.monai.io/en/stable/installation.html\n"
+                ) from e
 
     return submodules, err_mod
 
