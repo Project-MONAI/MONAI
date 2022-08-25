@@ -227,6 +227,60 @@ def download(
         )
 
 
+def _get_all_bundles_info(
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+):
+    if has_requests:
+        request_url = f"https://api.github.com/repos/{repo}/releases"
+        resp = requests_get(request_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("requests package is required, please install it.")
+    releases_list = json.loads(resp.text)
+    bundle_name_pattern = re.compile(r"_v\d*.")
+    bundles_info: Dict = {}
+
+    for release in releases_list:
+        if release["tag_name"] == tag:
+            for asset in release["assets"]:
+                asset_name = bundle_name_pattern.split(asset["name"])[0]
+                if asset_name not in bundles_info:
+                    bundles_info[asset_name] = {}
+                asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
+                bundles_info[asset_name][asset_version] = {
+                    "id": asset["id"],
+                    "name": asset["name"],
+                    "size": asset["size"],
+                    "download_count": asset["size"],
+                    "browser_download_url": asset["browser_download_url"],
+                }
+            return bundles_info
+    return bundles_info
+
+
+def get_bundles_list(
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+):
+    """
+    Get all bundles that are stored in a repository's release that has the provided tag.
+    The default values of arguments correspond to the release of MONAI model zoo.
+
+    Args:
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+
+    Returns:
+        a list of bundle names.
+
+    """
+
+    bundle_info = _get_all_bundles_info(repo=repo, tag=tag)
+
+    return list(bundle_info.keys())
+
+
 def load(
     name: str,
     model_file: Optional[str] = None,
