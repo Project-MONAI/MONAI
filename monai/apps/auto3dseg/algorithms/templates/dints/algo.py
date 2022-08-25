@@ -11,7 +11,6 @@
 
 import importlib
 import os
-import sys
 
 from monai.apps.auto3dseg.algorithms.algorithm import Algorithm
 
@@ -35,7 +34,7 @@ class Algo(Algorithm):
 
     def train(self, module_path: str = ""):
         if module_path == "":
-            module_path = "{0:s}.scripts.train".format(
+            module_path = "{:s}.scripts.train".format(
                 self.algorithm_dir.split(os.sep)[-1]
             )
 
