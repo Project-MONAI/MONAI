@@ -227,10 +227,7 @@ def download(
         )
 
 
-def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
-):
+def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
     if has_requests:
         request_url = f"https://api.github.com/repos/{repo}/releases"
         resp = requests_get(request_url)
@@ -259,10 +256,7 @@ def _get_all_bundles_info(
     return bundles_info
 
 
-def get_bundles_list(
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
-):
+def get_bundles_list(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
     """
     Get all bundles that are stored in a repository's release that has the provided tag.
     The default values of arguments correspond to the release of MONAI model zoo.
