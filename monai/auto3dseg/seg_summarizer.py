@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Type
+from typing import Any, Dict, List
 
 from monai.auto3dseg.analyzer import (
     Analyzer,
@@ -21,7 +21,6 @@ from monai.auto3dseg.analyzer import (
     LabelStats,
     LabelStatsSumm,
 )
-from monai.auto3dseg.operations import OperationType
 from monai.transforms import Compose
 from monai.utils.enums import DataStatsKeys
 
@@ -77,7 +76,7 @@ class SegSummarizer(Compose):
         self.image_key = image_key
         self.label_key = label_key
 
-        self.summary_analyzers: List[OperationType] = []
+        self.summary_analyzers: List[Any] = []
         super().__init__()
 
         self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
@@ -91,7 +90,7 @@ class SegSummarizer(Compose):
 
         self.add_analyzer(LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(do_ccp=do_ccp))
 
-    def add_analyzer(self, case_analyzer: Type[Analyzer], summary_analzyer: Type[Analyzer]) -> None:
+    def add_analyzer(self, case_analyzer, summary_analzyer) -> None:
         """
         Add new analyzers to the engine so that the callable and summarize functions will
         utilize the new analyzers for stats computations.

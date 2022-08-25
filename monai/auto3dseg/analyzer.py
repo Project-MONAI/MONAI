@@ -12,13 +12,13 @@
 import time
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
 
 from monai.apps.utils import get_logger
-from monai.auto3dseg.operations import Operations, OperationType, SampleOperations, SummaryOperations
+from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
 from monai.auto3dseg.utils import (
     concat_multikeys_to_dict,
     concat_val_to_np,
@@ -67,7 +67,7 @@ class Analyzer(MapTransform, ABC):
         self.stats_name = stats_name
         self.ops = ConfigParser({})
 
-    def update_ops(self, key: str, op: OperationType):
+    def update_ops(self, key: str, op):
         """
         Register an statistical operation to the Analyzer and update the report_format
 
@@ -84,7 +84,7 @@ class Analyzer(MapTransform, ABC):
 
         self.report_format = parser.config
 
-    def update_ops_nested_label(self, nested_key: str, op: OperationType):
+    def update_ops_nested_label(self, nested_key: str, op):
         """
         Update operations for nested label format. Operation value in report_format will be resolved
         to a dict with only keys
@@ -121,7 +121,7 @@ class Analyzer(MapTransform, ABC):
         return self.report_format
 
     @staticmethod
-    def unwrap_ops(func: OperationType):
+    def unwrap_ops(func):
         """
         Unwrap a function value and generates the same set keys in a dict when the function is actually
         called in runtime
@@ -159,9 +159,6 @@ class Analyzer(MapTransform, ABC):
     def __call__(self, data: Any):
         """Analyze the dict format dataset, return the summary report"""
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-
-
-AnalyzerType = TypeVar("AnalyzerType", bound=Analyzer)
 
 
 class ImageStats(Analyzer):
@@ -342,7 +339,7 @@ class LabelStats(Analyzer):
         self.label_key = label_key
         self.do_ccp = do_ccp
 
-        report_format = {
+        report_format: Dict[str, Any] = {
             str(LabelStatsKeys.LABEL_UID): None,
             str(LabelStatsKeys.IMAGE_INTST): None,
             str(LabelStatsKeys.LABEL): [{str(LabelStatsKeys.PIXEL_PCT): None, str(LabelStatsKeys.IMAGE_INTST): None}],
@@ -573,7 +570,7 @@ class LabelStatsSumm(Analyzer):
         self.summary_average = average
         self.do_ccp = do_ccp
 
-        report_format = {
+        report_format: Dict[str, Any] = {
             str(LabelStatsKeys.LABEL_UID): None,
             str(LabelStatsKeys.IMAGE_INTST): None,
             str(LabelStatsKeys.LABEL): [{str(LabelStatsKeys.PIXEL_PCT): None, str(LabelStatsKeys.IMAGE_INTST): None}],

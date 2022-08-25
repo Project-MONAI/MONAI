@@ -16,7 +16,7 @@ from typing import Any, TypeVar
 from monai.config.type_definitions import NdarrayTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
-__all__ = ["Operations", "OperationType", "SampleOperations", "SummaryOperations"]
+__all__ = ["Operations", "SampleOperations", "SummaryOperations"]
 
 
 class Operations(UserDict):
@@ -38,9 +38,6 @@ class Operations(UserDict):
                 is callable
         """
         return {k: v(data, **kwargs) for k, v in self.data.items() if callable(v)}
-
-
-OperationType = TypeVar("OperationType", bound=Operations)
 
 
 class SampleOperations(Operations):
@@ -101,8 +98,7 @@ class SampleOperations(Operations):
                 ret.update({k: ret[cache][idx]})
 
         for k, v in ret.items():
-            v: NdarrayTensor
-            ret[k] = v.tolist()
+            ret[k] = v.tolist()  # type: ignore
         return ret
 
 
