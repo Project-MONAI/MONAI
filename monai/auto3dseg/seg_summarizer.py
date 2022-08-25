@@ -70,7 +70,7 @@ class SegSummarizer(Compose):
             report = summarizer.summarize(stats)
     """
 
-    def __init__(self, image_key: str, label_key: str, do_ccp: bool = True) -> None:
+    def __init__(self, image_key: str, label_key: str, average=True, do_ccp: bool = True) -> None:
 
         self.image_key = image_key
         self.label_key = label_key
@@ -80,14 +80,16 @@ class SegSummarizer(Compose):
 
         self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
         self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
-        self.add_analyzer(ImageStats(image_key), ImageStatsSumm())
+        self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
 
         if label_key is None:
             return
 
-        self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm())
+        self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm(average=average))
 
-        self.add_analyzer(LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(do_ccp=do_ccp))
+        self.add_analyzer(
+            LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
+        )
 
     def add_analyzer(self, case_analyzer, summary_analzyer) -> None:
         """

@@ -94,6 +94,7 @@ class DataAnalyzer:
         datalist: Union[str, Dict],
         dataroot: str = "",
         output_path: str = "./data_stats.yaml",
+        average: bool = True,
         do_ccp: bool = True,
         device: Union[str, torch.device] = "cuda",
         worker: int = 2,
@@ -107,6 +108,7 @@ class DataAnalyzer:
         self.datalist = datalist
         self.dataroot = dataroot
         self.output_path = output_path
+        self.average = average
         self.do_ccp = do_ccp
         self.device = device
         self.worker = worker
@@ -162,13 +164,11 @@ class DataAnalyzer:
             dictionary will include .nan/.inf in the statistics.
 
         """
-
-        summarizer = SegSummarizer(self.image_key, self.label_key, do_ccp=self.do_ccp)
+        summarizer = SegSummarizer(self.image_key, self.label_key, average=self.average, do_ccp=self.do_ccp)
         keys = list(filter(None, [self.image_key, self.label_key]))
         transform_list = [
             LoadImaged(keys=keys),
             EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
-            # ToDeviced(keys=keys, device=self.device, non_blocking=True),
             Orientationd(keys=keys, axcodes="RAS"),
             EnsureTyped(keys=keys, data_type="tensor"),
             Lambdad(keys=self.label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x)

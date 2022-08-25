@@ -716,21 +716,22 @@ class LabelStatsSumm(Analyzer):
                 pct_np, dim=(0, 1) if pct_np.ndim > 2 and self.summary_average else 0
             )
 
-            ncomp_str = str(LabelStatsKeys.LABEL_NCOMP)
-            ncomp_fixed_keys = [self.stats_name, LabelStatsKeys.LABEL, label_id, ncomp_str]
-            ncomp_np = concat_val_to_np(data, ncomp_fixed_keys, allow_missing=True)
-            stats[ncomp_str] = self.ops[label_str][0][ncomp_str].evaluate(
-                ncomp_np, dim=(0, 1) if ncomp_np.ndim > 2 and self.summary_average else 0
-            )
+            if self.do_ccp:
+                ncomp_str = str(LabelStatsKeys.LABEL_NCOMP)
+                ncomp_fixed_keys = [self.stats_name, LabelStatsKeys.LABEL, label_id, ncomp_str]
+                ncomp_np = concat_val_to_np(data, ncomp_fixed_keys, allow_missing=True)
+                stats[ncomp_str] = self.ops[label_str][0][ncomp_str].evaluate(
+                    ncomp_np, dim=(0, 1) if ncomp_np.ndim > 2 and self.summary_average else 0
+                )
 
-            shape_str = str(LabelStatsKeys.LABEL_SHAPE)
-            shape_fixed_keys = [self.stats_name, label_str, label_id, LabelStatsKeys.LABEL_SHAPE]
-            shape_np = concat_val_to_np(data, shape_fixed_keys, ragged=True, allow_missing=True)
-            stats[shape_str] = self.ops[label_str][0][shape_str].evaluate(
-                shape_np, dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0
-            )
-            # label shape is a 3-element value, but the number of labels in each image
-            # can vary from 0 to N. So the value in a list format is "ragged"
+                shape_str = str(LabelStatsKeys.LABEL_SHAPE)
+                shape_fixed_keys = [self.stats_name, label_str, label_id, LabelStatsKeys.LABEL_SHAPE]
+                shape_np = concat_val_to_np(data, shape_fixed_keys, ragged=True, allow_missing=True)
+                stats[shape_str] = self.ops[label_str][0][shape_str].evaluate(
+                    shape_np, dim=(0, 1) if shape_np.ndim > 2 and self.summary_average else 0
+                )
+                # label shape is a 3-element value, but the number of labels in each image
+                # can vary from 0 to N. So the value in a list format is "ragged"
 
             intst_str = str(LabelStatsKeys.IMAGE_INTST)
             intst_fixed_keys = [self.stats_name, label_str, label_id, intst_str]
