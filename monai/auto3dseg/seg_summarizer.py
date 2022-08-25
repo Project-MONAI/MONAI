@@ -12,7 +12,6 @@
 from typing import Any, Dict, List
 
 from monai.auto3dseg.analyzer import (
-    Analyzer,
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,

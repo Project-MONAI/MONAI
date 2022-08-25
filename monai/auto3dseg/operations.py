@@ -11,9 +11,8 @@
 
 from collections import UserDict
 from functools import partial
-from typing import Any, TypeVar
+from typing import Any
 
-from monai.config.type_definitions import NdarrayTensor
 from monai.transforms.utils_pytorch_numpy_unification import max, mean, median, min, percentile, std
 
 __all__ = ["Operations", "SampleOperations", "SummaryOperations"]
