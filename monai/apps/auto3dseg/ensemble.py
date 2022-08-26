@@ -16,23 +16,23 @@ import importlib
 from monai.auto3dseg.ensemble_methods import EnsembleMethods, EnsembleBestN
 import torch
 from monai.bundle import ConfigParser
-from typing import List, Dict, Any, Optional, Union
+from typing import Dict, Optional, Union
 from monai.losses import DiceCELoss
 
 logger = logging.getLogger(__name__)
 
 class Ensemble:
     """Build ensemble workflow from configs and arguments."""
-    
-    def __init__(self, 
-        algo_folder_paths, 
-        device: Union[str, torch.device], 
+
+    def __init__(self,
+        algo_folder_paths,
+        device: Union[str, torch.device],
         best_metrics: Optional[Dict[str, float]] = None,
         emsemble_weights=None,
-        ensemble_nbest=5, 
+        ensemble_nbest=5,
         metric=DiceCELoss
-    ): 
-        
+    ):
+
         inference_default_configs = {}
         self.inferers = []
         self.best_metrics = best_metrics
@@ -43,7 +43,7 @@ class Ensemble:
             # load inference_config_paths
             # raise warning/error if not found
             self.add_inferer(os.path.join(f, "Inferer.py"))
-            
+
             parser = ConfigParser(os.path.join(f, "validate.yaml"))
             model_name = parser['name']
             if model_name not in best_metrics:
@@ -71,7 +71,7 @@ class Ensemble:
         """Get the score if it hasn't yet, and ensemble."""
         for (name, model) in self.validate_tasks:
             self.best_metrics.update({name, model(self.datsets['validate'])})
-        
+
         for i, _network in enumerate(self.inferers):
             _network.load_state_dict(torch.load(self.bundle_path+f"/models/model{i}.pt"))
             self.ensemble.get_model(_network)

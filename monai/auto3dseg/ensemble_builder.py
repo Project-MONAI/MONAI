@@ -9,20 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import logging
 import os
-import argparse
-import subprocess
 
 import importlib
-from monai import inferers
-import monai.bundle
-from monai.auto3dseg.ensemble import Ensemble, EnsembleBestN
 import torch
 from monai.bundle import ConfigParser
 from monai.engines import EnsembleEvaluator
-from monai.utils import optional_import
 from typing import List, Dict, Any, Optional, Union
 from monai.losses import DiceCELoss
 logger = logging.getLogger(__name__)
@@ -32,21 +25,21 @@ class EnsembleBuilder:
     Examples:
 
         ..code-block::python
-            
+
             # init
             Ensemble(algo_folder_paths: List[str])
 
 
     """
-    def __init__(self, 
-        algo_folder_paths, 
-        algo_metric_results: List[Dict[str, Any]], 
-        device: Union[str, torch.device], 
-        ensemble_nbest=5, 
+    def __init__(self,
+        algo_folder_paths,
+        algo_metric_results: List[Dict[str, Any]],
+        device: Union[str, torch.device],
+        ensemble_nbest=5,
         performances: Optional[Dict[str, float]] = None,
         metric=DiceCELoss
-    ): 
-        
+    ):
+
         inference_default_configs = {}
         self.inferers = []
         self.performances = performances
@@ -57,14 +50,14 @@ class EnsembleBuilder:
             # load inference_config_paths
             # raise warning/error if not found
             self.add_inferer(os.path.join(f, "Inferer.py"))
-            
+
             parser = ConfigParser(os.path.join(f, "validate.yaml"))
             model_name = parser['name']
             if model_name not in performances:
                 self.validate_tasks.append((model_name, self.inferers[-1]))
             self.bundle_inference_config.update[{model_name, os.path.join(f, "infer.yaml")}]
 
-    
+
     def add_inferer(self, path_to_inference_wrapper, **kwargs):
         """
         """
@@ -77,7 +70,7 @@ class EnsembleBuilder:
     def run(self):
         for (name, model) in self.validate_tasks:
             self.performances.update({name, model(self.datsets['validate'])})
-        
+
         networks = []
         for i, _network in enumerate(self.inferers):
             _network.load_state_dict(torch.load(self.bundle_path+f"/models/model{i}.pt"))

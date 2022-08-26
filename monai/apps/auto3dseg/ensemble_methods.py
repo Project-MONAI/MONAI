@@ -2,8 +2,8 @@ from typing import Optional
 
 class EnsembleMethods():
     def __init__(self,
-        validation_data, 
-        test_data, 
+        validation_data,
+        test_data,
         model_paths
     ):
         self.validation_data = validation_data
@@ -32,7 +32,7 @@ class EnsembleMethods():
 
 class EnsembleBestN():
     def __init__(self, *args, n_best=5):
-        super().__init__(*args)    
+        super().__init__(*args)
 
     def get_validation_result(self):
         pass
@@ -45,7 +45,7 @@ class EnsembleBestN():
 
 class EnsembleWeightedBestN():
     def __init__(self, *args, n_best=5):
-        super().__init__(*args)    
+        super().__init__(*args)
 
     def get_validation_result(self):
         pass

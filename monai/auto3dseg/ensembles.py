@@ -19,7 +19,7 @@ class Ensemble():
 class EnsembleBestN():
     def __init__(self, *args, n_best=5):
         super().__init__(*args)
-    
+
     def predict(self):
         pass
 

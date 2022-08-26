@@ -14,7 +14,6 @@ import os
 import argparse
 import subprocess
 
-import monai.bundle
 import torch
 from monai.bundle import ConfigParser
 from monai.engines import EnsembleEvaluator
