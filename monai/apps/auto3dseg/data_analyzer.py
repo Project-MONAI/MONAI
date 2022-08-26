@@ -19,6 +19,7 @@ import torch
 from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
 from monai.auto3dseg.utils import datafold_read
+from monai.bundle import config_parser
 from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
@@ -32,8 +33,15 @@ from monai.transforms import (
     SqueezeDimd,
     ToDeviced,
 )
-from monai.utils import min_version, optional_import
+from monai.utils import StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
+
+
+def strenum_representer(dumper, data):
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
+
+
+config_parser.yaml.SafeDumper.add_multi_representer(StrEnum, strenum_representer)
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
@@ -197,7 +205,7 @@ class DataAnalyzer:
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
         dataset = Dataset(data=files, transform=tranform)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
-        result = {str(DataStatsKeys.SUMMARY): {}, str(DataStatsKeys.BY_CASE): []}
+        result = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
@@ -205,21 +213,21 @@ class DataAnalyzer:
             # d = tranform(batch_data[0])
             d = batch_data[0]
             stats_by_cases = {
-                str(DataStatsKeys.BY_CASE_IMAGE_PATH): d[str(DataStatsKeys.BY_CASE_IMAGE_PATH)],
-                str(DataStatsKeys.BY_CASE_LABEL_PATH): d[str(DataStatsKeys.BY_CASE_LABEL_PATH)],
-                str(DataStatsKeys.IMAGE_STATS): d[str(DataStatsKeys.IMAGE_STATS)],
+                DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
+                DataStatsKeys.BY_CASE_LABEL_PATH: d[DataStatsKeys.BY_CASE_LABEL_PATH],
+                DataStatsKeys.IMAGE_STATS: d[DataStatsKeys.IMAGE_STATS],
             }
 
             if self.label_key is not None:
                 stats_by_cases.update(
                     {
-                        str(DataStatsKeys.FG_IMAGE_STATS): d[str(DataStatsKeys.FG_IMAGE_STATS)],
-                        str(DataStatsKeys.LABEL_STATS): d[str(DataStatsKeys.LABEL_STATS)],
+                        DataStatsKeys.FG_IMAGE_STATS: d[DataStatsKeys.FG_IMAGE_STATS],
+                        DataStatsKeys.LABEL_STATS: d[DataStatsKeys.LABEL_STATS],
                     }
                 )
-            result[str(DataStatsKeys.BY_CASE)].append(stats_by_cases)
+            result[DataStatsKeys.BY_CASE].append(stats_by_cases)
 
-        result[str(DataStatsKeys.SUMMARY)] = summarizer.summarize(result[str(DataStatsKeys.BY_CASE)])
+        result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
