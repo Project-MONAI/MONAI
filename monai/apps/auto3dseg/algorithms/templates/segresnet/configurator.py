@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
+sys.path.append('/workspace/Code/MONAI/monai/apps/auto3dseg/algorithms/templates')
 import copy
 import glob
 import inspect
@@ -18,7 +20,8 @@ import shutil
 import yaml
 
 from monai.utils import optional_import
-from monai.apps.auto3dseg.algorithms.algorithm_configurator import AlgorithmConfigurator
+from algorithm_configurator import AlgorithmConfigurator
+from segresnet.scripts import roi_ensure_divisible, roi_ensure_levels
 
 np, _ = optional_import("numpy")
 
@@ -59,26 +62,12 @@ class Configurator(AlgorithmConfigurator):
         intensity_upper_bound = float(
             self.data_stats["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_99_5"][0]
         )
-        spacing_lower_bound = float(
+        spacing_lower_bound = np.array(
             self.data_stats["stats_summary"]["image_stats"]["spacing"]["percentile_00_5"][0]
         )
-        spacing_upper_bound = float(
+        spacing_upper_bound = np.array(
             self.data_stats["stats_summary"]["image_stats"]["spacing"]["percentile_99_5"][0]
         )
-
-        if 'class_names' in self.input and isinstance(self.input['class_names'], list):
-            if isinstance(self.input['class_names'][0], str):
-                self.config[_key]['class_names'] = self.input['class_names']
-            else:
-                self.config[_key]['class_names'] = [x['name'] for x in self.input['class_names']]
-                self.config[_key]['class_index'] = [x['index'] for x in self.input['class_names']]
-                #check for overlap
-                all_ind = []
-                for a in self.config[_key]['class_index']:
-                    if bool(set(all_ind) & set(a)): # overlap found
-                        self.config[_key]['softmax'] = False
-                        break
-                    all_ind = all_ind + a
 
         # adjust to image size 
         patch_size = [min(r, i) for r,i in zip(patch_size, image_size)]  # min for each of spatial dims
@@ -99,7 +88,7 @@ class Configurator(AlgorithmConfigurator):
         else:
             raise ValueError('Strange number of levels'+str(levels))
 
-        for _key in ["hyper_parameters.yaml", "hyper_parameters_search.yaml"]:
+        for _key in ["hyper_parameters.yaml"]:
             self.config[_key]["bundle_root"] = os.path.join(self.output_path, "segresnet")
             self.config[_key]["data_file_base_dir"] = self.input["dataroot"]
             self.config[_key]["data_list_file_path"] = self.input["datalist"]
@@ -111,8 +100,21 @@ class Configurator(AlgorithmConfigurator):
             self.config[_key]["patch_size"] = patch_size
             self.config[_key]["patch_size_valid"] = copy.deepcopy(patch_size)
 
-            if "ct" in modality:
+            if 'class_names' in self.input and isinstance(self.input['class_names'], list):
+                if isinstance(self.input['class_names'][0], str):
+                    self.config[_key]['class_names'] = self.input['class_names']
+                else:
+                    self.config[_key]['class_names'] = [x['name'] for x in self.input['class_names']]
+                    self.config[_key]['class_index'] = [x['index'] for x in self.input['class_names']]
+                    #check for overlap
+                    all_ind = []
+                    for a in self.config[_key]['class_index']:
+                        if bool(set(all_ind) & set(a)): # overlap found
+                            self.config[_key]['softmax'] = False
+                            break
+                        all_ind = all_ind + a
 
+            if "ct" in modality:
                 spacing = [1.0, 1.0, 1.0]
 
                 #make sure intensity range is a valid CT range
@@ -126,7 +128,7 @@ class Configurator(AlgorithmConfigurator):
                     intensity_upper_bound = min(intensity_upper_bound, 1500)
 
             elif "mr" in modality:
-                spacing = self.data_stats["stats_summary"]["image_stats"]['median'][0]
+                spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]['median'][0]
 
             self.config[_key]["resolution"] = spacing # resample on the fly to this resolution    
             self.config[_key]['intensity_bounds'] = [intensity_lower_bound, intensity_upper_bound]
@@ -147,27 +149,27 @@ class Configurator(AlgorithmConfigurator):
 
             
         for _key in ["network.yaml"]:
-            self.config[_key]["blocks_down"] = tuple(num_blocks)
-            self.config[_key]["blocks_up"] = (1,)* (len(num_blocks)-1) # (1,1,1,1..)
+            self.config[_key]["network"]["blocks_down"] = num_blocks
+            self.config[_key]["network"]["blocks_up"] = [1]* (len(num_blocks)-1) # [1,1,1,1..]
             if self.input['multigpu']:
-                self.config[_key]['norm'] = ('BATCH', {'affine': True}) # use batchnorm with multi gpu
+                self.config[_key]["network"]['norm'] = ['BATCH', {'affine': True}] # use batchnorm with multi gpu
             else:
-                self.config[_key]['norm'] = ("INSTANCE", {"affine": True}) # use instancenorm with single gpu
+                self.config[_key]["network"]['norm'] = ["INSTANCE", {"affine": True}] # use instancenorm with single gpu
 
         for _key in ["transforms_train.yaml", "transforms_validate.yaml"]:
             _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
             if 'class_index' not in self.config[_key] or not isinstance(self.config[_key]['class_index'], list):
-                return
+                pass
+            else:
+                self.config[_key][_t_key]["transforms"].append(
+                    {
+                        "_target_": "LabelMapping",
+                        "keys": "@label_key",
+                        "class_index": self.config[_key]['class_index'],
+                    }
+                )
 
-            self.config[_key][_t_key]["transforms"].append(
-                {
-                    "_target_": "LabelMapping",
-                    "keys": "@label_key",
-                    "class_index": self.config[_key]['class_index'],
-                }
-            )
-
-        for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
+        for _key in ["transforms_train.yaml"]:
             # get crop transform
             _t_crop = []
             should_crop_based_on_foreground = any([r < 0.5*i for r,i in zip(patch_size, image_size) ]) # if any patch_size less tehn 0.5*image size
@@ -196,6 +198,23 @@ class Configurator(AlgorithmConfigurator):
                     }
                 )
 
+            _i_crop = -1
+            for _i in range(len(self.config[_key]["transforms_train"]["transforms"])):
+                _t = self.config[_key]["transforms_train"]["transforms"][_i]
+
+                if type(_t) is str and _t == "PLACEHOLDER_CROP":
+                    _i_crop = _i
+
+                self.config[_key]["transforms_train"]["transforms"][_i] = _t
+
+            self.config[_key]["transforms_train"]["transforms"] = (
+                self.config[_key]["transforms_train"]["transforms"][:_i_crop]
+                + _t_crop
+                + self.config[_key]["transforms_train"]["transforms"][(_i_crop + 1) :]
+            )
+        
+
+        for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
             # get intensity transform
             _t_intensity = []
             if "ct" in modality:
@@ -226,28 +245,23 @@ class Configurator(AlgorithmConfigurator):
                         _t["pixdim"] = spacing
                     else:
                         self.config[_key][_t_key]["transforms"].pop(_i)
+                    break 
 
             _i_intensity = -1
-            _i_crop = -1
             for _i in range(len(self.config[_key][_t_key]["transforms"])):
                 _t = self.config[_key][_t_key]["transforms"][_i]
 
                 if type(_t) is str and _t == "PLACEHOLDER_INTENSITY_NORMALIZATION":
                     _i_intensity = _i
-                elif type(_t) is str and _t == "PLACEHOLDER_CROP":
-                    _i_crop = _i
 
                 self.config[_key][_t_key]["transforms"][_i] = _t
 
             self.config[_key][_t_key]["transforms"] = (
                 self.config[_key][_t_key]["transforms"][:_i_intensity]
                 + _t_intensity
-                + self.config[_key][_t_key]["transforms"][(_i_intensity + 1) :_i_crop]
-                + _t_crop
-                + self.config[_key][_t_key]["transforms"][(_i_crop + 1) :]
+                + self.config[_key][_t_key]["transforms"][(_i_intensity + 1) :]
             )
         
-
 
     def write(self):
         write_path = os.path.join(self.output_path, "segresnet")
@@ -267,3 +281,18 @@ class Configurator(AlgorithmConfigurator):
         for _key in self.config.keys():
             with open(os.path.join(write_path, "configs", _key), "w") as f:
                 yaml.dump(self.config[_key], stream=f)
+
+            with open(os.path.join(write_path, "configs", _key), "r+") as f:
+                lines = f.readlines()
+                f.seek(0)
+                f.write("# generated automatically by monai.auto3dseg\n")
+                f.write("# for more information please visit: https://docs.monai.io/\n\n")
+                f.writelines(lines)
+
+if __name__ == '__main__':
+    configurator = Configurator(data_stats_filename='/workspace/Code/Bundles/Task09/datastats.yaml', \
+                                input_filename='/workspace/Code/Bundles/Task09/input.yaml', \
+                                output_path='/workspace/Code/Bundles/Task09')
+    configurator.load()
+    configurator.update()
+    configurator.write()
