@@ -24,7 +24,7 @@ import monai
 from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
-from monai.data import ThreadDataLoader, decollate_batch, DataLoader
+from monai.data import decollate_batch, DataLoader
 from monai.inferers import sliding_window_inference
 from monai.metrics import compute_meandice
 
