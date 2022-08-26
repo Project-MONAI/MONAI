@@ -18,7 +18,5 @@ transforms_validate:
     pixdim: null
     mode: [bilinear, nearest]
     align_corners: [true, true]
+<<<<<<< HEAD
   - PLACEHOLDER_INTENSITY_NORMALIZATION
-  - _target_: ToDeviced
-    keys: ["@image_key", "@label_key"]
-    device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"

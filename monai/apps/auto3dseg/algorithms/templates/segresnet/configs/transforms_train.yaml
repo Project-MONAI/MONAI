@@ -23,14 +23,11 @@ transforms_train:
     keys: ["@image_key", "@label_key"]
     spatial_size: "@patch_size"
     mode: [constant, constant]
-  - _target_: ToDeviced
-    keys: ["@image_key", "@label_key"]
-    device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
   - PLACEHOLDER_CROP
   # data augmentation
   - _target_: RandAffined
     keys: ["@image_key", "@label_key"]
-    rob: 0.2
+    prob: 0.2
     rotate_range: [0.26, 0.26, 0.26]
     scale_range: [0.2, 0.2, 0.2]
     mode: [bilinear, nearest]

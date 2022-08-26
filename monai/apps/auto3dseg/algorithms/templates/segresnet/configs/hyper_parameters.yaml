@@ -4,13 +4,15 @@ bundle_root: null
 ckpt_path: "$@bundle_root + '/model_fold' + str(@fold)"
 data_file_base_dir: null
 data_list_file_path: null
+class_names: null
+class_index: null
 determ: false
 fold: 0
 input_channels: null
-learning_rate: 0.025
+learning_rate: 2.0e-4
 num_images_per_batch: 2
-num_iterations: 40000
-num_iterations_per_validation: 500
+num_epochs: 1250
+num_epochs_per_validation: 1
 num_patches_per_image: 1
 num_sw_batch_size: 2
 output_classes: null
@@ -18,10 +20,11 @@ overlap_ratio: 0.625
 patch_size: null
 patch_size_valid: null
 softmax: true
+resample: false
 
 # training
 loss:
-  _target_: DiceCELoss2
+  _target_: scripts.loss.DiceCELoss2
   include_background: true
   sigmoid: $not @softmax
   smooth_dr: 1.0e-05
@@ -32,15 +35,13 @@ loss:
 optimizer:
   _target_: torch.optim.AdamW
   lr: "@learning_rate"
-  momentum: 0.9
   weight_decay: 1.0e-05
-  params: "$@network.parameters()"
 lr_scheduler:
-  _target_: CosineAnnealingLRWithWarmup
+  _target_: scripts.flow_cosinelr.CosineAnnealingLRWithWarmup
   optimizer: "$@optimizer"
   warmup_epochs: 20
   warmup_multiplier: 0.1
-  T_max: "@num_iterations"
+  T_max: "@num_epochs"
 
 # fine-tuning
 finetune:

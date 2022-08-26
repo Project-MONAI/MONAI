@@ -54,8 +54,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     finetune = parser.get_parsed_content("finetune")
     fold = parser.get_parsed_content("fold")
     num_images_per_batch = parser.get_parsed_content("num_images_per_batch")
-    num_iterations = parser.get_parsed_content("num_iterations")
-    num_iterations_per_validation = parser.get_parsed_content("num_iterations_per_validation")
+    num_epochs = parser.get_parsed_content("num_epochs")
+    num_epochs_per_validation = parser.get_parsed_content("num_epochs_per_validation")
     num_sw_batch_size = parser.get_parsed_content("num_sw_batch_size")
     output_classes = parser.get_parsed_content("output_classes")
     overlap_ratio = parser.get_parsed_content("overlap_ratio")
@@ -138,16 +138,22 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
         val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2)
     else:
-        train_ds = monai.data.CacheDataset(
+        train_ds = monai.data.Dataset(
             data=train_files,
             transform=train_transforms,
-            cache_rate=float(torch.cuda.device_count()) / 4.0,
-            num_workers=8,
         )
-        val_ds = monai.data.CacheDataset(
-            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
+        val_ds = monai.data.Dataset(
+            data=val_files, transform=val_transforms
         )
-
+        # train_ds = monai.data.CacheDataset(
+        #     data=train_files,
+        #     transform=train_transforms,
+        #     cache_rate=float(torch.cuda.device_count()) / 4.0,
+        #     num_workers=8,
+        # )
+        # val_ds = monai.data.CacheDataset(
+        #     data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
+        # )
     train_loader = DataLoader(train_ds, num_workers=8, batch_size=num_images_per_batch, shuffle=True)
     val_loader = DataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
 
@@ -172,10 +178,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     optimizer_part = parser.get_parsed_content("optimizer", instantiate=False)
     optimizer = optimizer_part.instantiate(params=model.parameters())
-
-    num_epochs_per_validation = num_iterations_per_validation // len(train_loader)
-    num_epochs_per_validation = max(num_epochs_per_validation, 1)
-    num_epochs = num_epochs_per_validation * (num_iterations // num_iterations_per_validation)
 
     if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
         print("num_epochs", num_epochs)
