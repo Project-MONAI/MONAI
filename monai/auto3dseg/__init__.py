@@ -9,4 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .algo_generator import AlgoGenerator
+from .algo_generator import AlgoGen, Algo

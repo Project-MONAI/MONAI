@@ -9,5 +9,5 @@ auto3dseg
 `AlgoGenerator`
 ---------------
 
-.. autoclass:: AlgoGenerator
+.. autoclass:: AlgoGen
     :members:
