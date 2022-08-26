@@ -7,3 +7,4 @@ auto3dseg
 
 .. automodule:: monai.auto3dseg
   :members:
+  :imported-members:
