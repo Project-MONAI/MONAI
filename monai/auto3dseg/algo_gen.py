@@ -19,7 +19,7 @@ class Algo:
     """
 
     def set_data_stats(self, *args, **kwargs):
-        """Provide dataset (and summaries) so that the """
+        """Provide dataset (and summaries) so that the"""
         pass
 
     def train(self, params: dict):
@@ -53,6 +53,7 @@ class AlgoGen(Randomizable):
     It maintains a history of previously generated Algo, and their corresponding validation scores.
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state.)
     """
+
     def set_data_stats(self, *args, **kwargs):
         """Provide dataset summaries/properties so that the generator can be conditioned on the input datasets."""
         pass

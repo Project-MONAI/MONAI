@@ -4,10 +4,7 @@
 
 auto3dseg
 =========
-.. currentmodule:: monai.auto3dseg
 
-`AlgoGenerator`
----------------
-
-.. autoclass:: AlgoGen
-    :members:
+.. automodule:: monai.auto3dseg
+  :members:
+  :imported-members:
