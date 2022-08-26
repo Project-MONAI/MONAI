@@ -263,6 +263,7 @@ from .post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    SobelGradients,
     RemoveSmallObjects,
     VoteEnsemble,
 )
@@ -303,6 +304,9 @@ from .post.dictionary import (
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
+    SobelGradientsd,
+    SobelGradientsD,
+    SobelGradientsDict,
     VoteEnsembleD,
     VoteEnsembled,
     VoteEnsembleDict,
