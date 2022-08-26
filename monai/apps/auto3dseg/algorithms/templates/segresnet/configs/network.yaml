@@ -1,0 +1,11 @@
+network:
+  _target_: SegResNet
+  init_filters: 32
+  blocks_down: [1, 2, 2, 4, 4]
+  blocks_up: [1, 1, 1, 1]
+  norm:
+  - BATCH
+  - {affine: true}
+  in_channels: "@input_channels"
+  out_channels: "@output_classes"
+  upsample_mode: deconv

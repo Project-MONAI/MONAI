@@ -1,0 +1,70 @@
+image_key: image
+label_key: label
+transforms_train:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys: ["@image_key", "@label_key"]
+  - _target_: EnsureChannelFirstd
+    keys: ["@image_key", "@label_key"]
+  - _target_: Orientationd
+    keys: ["@image_key", "@label_key"]
+    axcodes: RAS
+  - _target_: EnsureTyped
+    keys: ["@image_key", "@label_key"]
+    data_type: tensor
+  - _target_: Spacingd
+    keys: ["@image_key", "@label_key"]
+    pixdim: null
+    mode: [bilinear, nearest]
+    align_corners: [true, true]
+  - PLACEHOLDER_INTENSITY_NORMALIZATION
+  - _target_: SpatialPadd
+    keys: ["@image_key", "@label_key"]
+    spatial_size: "@patch_size"
+    mode: [constant, constant]
+  - _target_: ToDeviced
+    keys: ["@image_key", "@label_key"]
+    device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
+  - PLACEHOLDER_CROP
+  # data augmentation
+  - _target_: RandAffined
+    keys: ["@image_key", "@label_key"]
+    rob: 0.2
+    rotate_range: [0.26, 0.26, 0.26]
+    scale_range: [0.2, 0.2, 0.2]
+    mode: [bilinear, nearest]
+    spatial_size: "@patch_size"
+    cache_grid: True
+    padding_mode: 'border'
+  - _target_: RandGaussianSmoothd
+    keys: "@image_key"
+    sigma_x: [0.5, 1.0]
+    sigma_y: [0.5, 1.0]
+    sigma_z: [0.5, 1.0]
+    prob: 0.2
+  - _target_: RandScaleIntensityd
+    keys: "@image_key"
+    factors: 0.3
+    prob: 0.5
+  - _target_: RandShiftIntensityd
+    keys: "@image_key"
+    offsets: 0.1
+    prob: 0.5
+  - _target_: RandGaussianNoised
+    keys: "@image_key"
+    std: 0.1
+    mean: 0.0
+    prob: 0.2
+  - _target_: RandFlipd
+    keys: ["@image_key", "@label_key"]
+    spatial_axis: 0
+    prob: 0.5
+  - _target_: RandFlipd
+    keys: ["@image_key", "@label_key"]
+    spatial_axis: 1
+    prob: 0.5
+  - _target_: RandFlipd
+    keys: ["@image_key", "@label_key"]
+    spatial_axis: 2
+    prob: 0.5
