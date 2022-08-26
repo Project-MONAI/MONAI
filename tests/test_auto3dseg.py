@@ -19,7 +19,7 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg import DataAnalyzer
+from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
 from monai.auto3dseg import (
     Operations,
     SampleOperations,
