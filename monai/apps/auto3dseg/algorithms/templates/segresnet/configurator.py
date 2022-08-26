@@ -229,9 +229,14 @@ class Configurator(AlgorithmConfigurator):
                         "clip": True,
                     }
                 )
-                _t_intensity.append(
-                    {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"}
-                )
+                if "infer" in _key:
+                    _t_intensity.append(
+                        {"_target_": "CropForegroundd", "keys": "@image_key", "source_key": "@image_key"}
+                    )
+                else:
+                    _t_intensity.append(
+                        {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"}
+                    )
             elif "mr" in modality:
                 _t_intensity.append(
                     {"_target_": "NormalizeIntensityd", "keys": "@image_key", "nonzero": True, "channel_wise": True}
@@ -290,9 +295,9 @@ class Configurator(AlgorithmConfigurator):
                 f.writelines(lines)
 
 if __name__ == '__main__':
-    configurator = Configurator(data_stats_filename='/workspace/Code/Bundles/Task09/datastats.yaml', \
-                                input_filename='/workspace/Code/Bundles/Task09/input.yaml', \
-                                output_path='/workspace/Code/Bundles/Task09')
+    configurator = Configurator(data_stats_filename='/workspace/Code/Bundles/Task09-validate/datastats.yaml', \
+                                input_filename='/workspace/Code/Bundles/Task09-validate/input.yaml', \
+                                output_path='/workspace/Code/Bundles/Task09-validate')
     configurator.load()
     configurator.update()
     configurator.write()
