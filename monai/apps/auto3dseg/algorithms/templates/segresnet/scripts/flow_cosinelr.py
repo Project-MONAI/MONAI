@@ -1,5 +1,5 @@
 from torch.optim.lr_scheduler import _LRScheduler
-import math, warnings
+import math
 
 class CosineAnnealingLRWithWarmup(_LRScheduler):
 
