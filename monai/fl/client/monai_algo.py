@@ -47,6 +47,7 @@ def convert_global_weights(global_weights, local_var_dict):
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
+    n_converted = 0
     for var_name in local_var_dict:
         if var_name in model_keys:
             weights = global_weights[var_name]
@@ -55,9 +56,12 @@ def convert_global_weights(global_weights, local_var_dict):
                 weights = torch.reshape(torch.as_tensor(weights), local_var_dict[var_name].shape)
                 # update the local dict
                 local_var_dict[var_name] = weights
+                n_converted += 1
             except Exception as e:
                 raise ValueError(f"Convert weight from {var_name} failed.") from e
-    return local_var_dict
+    if n_converted == 0:
+        raise ValueError(f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}")
+    return local_var_dict, n_converted
 
 
 def compute_weight_diff(global_weights, local_var_dict):
@@ -255,9 +259,11 @@ class MonaiAlgo(ClientAlgo):
                 data = _filter(data, extra)
         self.phase = FlPhase.TRAIN
         self.logger.info(f"Load {self.client_name} weights...")
-        self.global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.trainer.network)
+        local_var_dict = get_state_dict(self.trainer.network)
+        self.global_weights, n_converted = convert_global_weights(
+            global_weights=data.weights, local_var_dict=local_var_dict
         )
+        self.logger.info(f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables.")
 
         # set engine state max epochs.
         self.trainer.state.max_epochs = self.trainer.state.epoch + self.local_epochs
@@ -366,9 +372,9 @@ class MonaiAlgo(ClientAlgo):
 
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
-        global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.evaluator.network)
-        )
+        local_var_dict = get_state_dict(self.evaluator.network)
+        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        self.logger.info(f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables.")
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
         if len(updated_keys) == 0:
