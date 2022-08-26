@@ -173,7 +173,7 @@ class ConfigParser:
         """
         try:
             return self[id]
-        except KeyError:
+        except (KeyError, IndexError):  # Index error for integer indexing
             return default
 
     def set(self, config: Any, id: str = ""):
@@ -209,7 +209,7 @@ class ConfigParser:
         try:
             _ = self[id]
             return True
-        except KeyError:
+        except (KeyError, IndexError):  # Index error for integer indexing
             return False
 
     def parse(self, reset: bool = True):
