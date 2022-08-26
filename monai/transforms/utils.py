@@ -1019,11 +1019,13 @@ def remove_small_objects(
         # if binary, convert to boolean, else int
         img_np = img_np.astype(bool if img_np.max() <= 1 else np.int32)
 
-    out = morphology.remove_small_objects(img_np, min_size, connectivity)
+    out_np = morphology.remove_small_objects(img_np, min_size, connectivity)
+    out, *_ = convert_to_dst_type(out_np, img)
+
     # convert back by multiplying
     if not independent_channels:
-        out = img_np * out
-    return convert_to_dst_type(out, img)[0]
+        return img * out
+    return out
 
 
 def get_unique_labels(
