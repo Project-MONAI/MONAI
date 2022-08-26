@@ -136,7 +136,7 @@ class ConfigParser:
             config = config[indexing]
         return config
 
-    def __setitem__(self, id: Union[str, int], config: Any):
+    def __setitem__(self, id: Union[str, int], config: Any, recursive: bool = True):
         """
         Set config by ``id``.  Note that this method should be used before ``parse()`` or ``get_parsed_content()``
         to ensure the updates are included in the parsed content.
@@ -154,9 +154,25 @@ class ConfigParser:
             self.ref_resolver.reset()
             return
         keys = str(id).split(ID_SEP_KEY)
-        # get the last parent level config item and replace it
-        last_id = ID_SEP_KEY.join(keys[:-1])
-        conf_ = self[last_id]
+        conf_ = self.get()
+        if recursive:
+            if conf_ is None:
+                conf_ = [] if keys[0] == "0" else {}
+            for i, k in enumerate(keys[:-1]):
+                if isinstance(conf_, dict):
+                    if k not in conf_:
+                        conf_[k] = [] if keys[i + 1] == "0" else {}
+                if isinstance(conf_, list):
+                    if int(k) == len(conf_):
+                        conf_[int(k)] = [] if keys[i + 1] == "0" else {}
+                    elif int(k) > len(conf_):
+                        raise ValueError("can only set new item with index = the max index + 1.")
+                conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
+        else:
+            # get the last parent level config item and replace it
+            last_id = ID_SEP_KEY.join(keys[:-1])
+            conf_ = self[last_id]
+
         indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
         conf_[indexing] = config
         self.ref_resolver.reset()
