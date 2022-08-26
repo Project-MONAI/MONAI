@@ -17,7 +17,7 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg import DataAnalyzer
+from monai.apps.auto3dsegmentation import DataAnalyzer
 from monai.bundle import ConfigParser
 from monai.data import create_test_image_3d
 
