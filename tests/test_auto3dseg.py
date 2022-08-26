@@ -19,6 +19,7 @@ import nibabel as nib
 import numpy as np
 import torch
 
+from monai.apps.auto3dseg import DataAnalyzer
 from monai.auto3dseg import (
     Operations,
     SampleOperations,
@@ -134,6 +135,34 @@ class TestDataAnalyzer(unittest.TestCase):
         # write to a json file
         self.fake_json_datalist = path.join(dataroot, "fake_input.json")
         ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
+
+    def test_data_analyzer(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
+        datastat = analyser.get_all_case_stats()
+
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_data_analyzer_image_only(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(
+            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
+        )
+        datastat = analyser.get_all_case_stats()
+
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+
+    def test_data_analyzer_from_yaml(self):
+        dataroot = self.test_dir.name
+        yaml_fpath = path.join(dataroot, "data_stats.yaml")
+        analyser = DataAnalyzer(
+            self.fake_json_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers
+        )
+        datastat = analyser.get_all_case_stats()
+
+        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
 
     def test_basic_operation_class(self):
         op = TestOperations()

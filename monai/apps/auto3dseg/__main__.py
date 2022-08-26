@@ -10,7 +10,7 @@
 # limitations under the License.
 
 
-from monai.apps.auto3dsegmentation import DataAnalyzer
+from monai.apps.auto3dseg import DataAnalyzer
 
 if __name__ == "__main__":
     from monai.utils import optional_import
