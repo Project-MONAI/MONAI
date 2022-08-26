@@ -34,8 +34,8 @@ class AlgoGen(Randomizable):
     """
     A data-driven algorithm generator optionally takes the following inputs:
 
-        - training dataset properties (such as data statistics),
-        - previous algorithm's scores,
+        - training dataset properties (such as data statistics from ``monai.auto3dseg.analyzer``),
+        - previous algorithm's scores measuring the model's quality,
         - computational budgets.
 
     It generates ``Algo`` to be trained with the training datasets.
