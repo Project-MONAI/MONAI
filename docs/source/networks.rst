@@ -89,6 +89,11 @@ Blocks
 .. autoclass:: UnetOutBlock
     :members:
 
+`DenseBlock`
+~~~~~~~~~~~~~
+.. autoclass:: DenseBlock
+   :members:
+
 `SegResnet Block`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: ResBlock
@@ -237,7 +242,6 @@ Blocks
 ~~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
    :members:
-
 
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
