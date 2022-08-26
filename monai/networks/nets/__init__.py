@@ -40,6 +40,7 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
+from .flexible_unet import FlexibleUNet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
@@ -81,7 +82,7 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .swin_unetr import SwinUNETR
+from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .unet import UNet, Unet

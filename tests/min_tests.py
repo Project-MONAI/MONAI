@@ -68,6 +68,7 @@ def run_testsuit():
         "test_handler_hausdorff_distance",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
+        "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_mlflow",
@@ -98,6 +99,7 @@ def run_testsuit():
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
+        "test_invert",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",
@@ -134,6 +136,7 @@ def run_testsuit():
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",
@@ -161,7 +164,6 @@ def run_testsuit():
         "test_vitautoenc",
         "test_write_metrics_reports",
         "test_wsireader",
-        "test_wsireader_new",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
@@ -172,6 +174,7 @@ def run_testsuit():
         "test_bundle_ckpt_export",
         "test_bundle_utils",
         "test_bundle_init_bundle",
+        "test_fastmri_reader",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

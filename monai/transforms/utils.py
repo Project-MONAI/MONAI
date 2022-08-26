@@ -13,6 +13,7 @@ import itertools
 import random
 import warnings
 from contextlib import contextmanager
+from functools import wraps
 from inspect import getmembers, isclass
 from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
 
@@ -42,6 +43,7 @@ from monai.utils import (
     GridSampleMode,
     InterpolateMode,
     NumpyPadMode,
+    PostFix,
     PytorchPadMode,
     TraceKeys,
     deprecated_arg,
@@ -106,6 +108,9 @@ __all__ = [
     "convert_to_contiguous",
     "get_unique_labels",
     "scale_affine",
+    "attach_hook",
+    "sync_meta_info",
+    "reset_ops_id",
 ]
 
 
@@ -580,6 +585,9 @@ def create_grid(
 ) -> NdarrayOrTensor:
     """
     compute a `spatial_size` mesh.
+
+        - when ``homogeneous=True``, the output shape is (N+1, dim_size_1, dim_size_2, ..., dim_size_N)
+        - when ``homogeneous=False``, the output shape is (N, dim_size_1, dim_size_2, ..., dim_size_N)
 
     Args:
         spatial_size: spatial size of the grid.
@@ -1282,6 +1290,21 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
     return trans_info
 
 
+def reset_ops_id(data):
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    if isinstance(data, (list, tuple)):
+        return [reset_ops_id(d) for d in data]
+    if isinstance(data, monai.data.MetaTensor):
+        data.applied_operations = reset_ops_id(data.applied_operations)
+        return data
+    if not isinstance(data, Mapping):
+        return data
+    data = dict(data)
+    if TraceKeys.ID in data:
+        data[TraceKeys.ID] = TraceKeys.NONE
+    return {k: reset_ops_id(v) for k, v in data.items()}
+
+
 def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):
     """
     Compute the target spatial size which should be divisible by `k`.
@@ -1598,6 +1621,62 @@ def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
     if centered:
         scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
     return affine @ convert_to_dst_type(scale, affine)[0]
+
+
+def attach_hook(func, hook, mode="pre"):
+    """
+    Adds `hook` before or after a `func` call. If mode is "pre", the wrapper will call hook then func.
+    If the mode is "post", the wrapper will call func then hook.
+    """
+    supported = {"pre", "post"}
+    if look_up_option(mode, supported) == "pre":
+        _hook, _func = hook, func
+    else:
+        _hook, _func = func, hook
+
+    @wraps(func)
+    def wrapper(inst, data):
+        data = _hook(inst, data)
+        return _func(inst, data)
+
+    return wrapper
+
+
+def sync_meta_info(key, data_dict, t: bool = True):
+    """
+    Given the key, sync up between metatensor `data_dict[key]` and meta_dict `data_dict[key_transforms/meta_dict]`.
+    t=True: the one with more applied_operations in metatensor vs meta_dict is the output, False: less is the output.
+    """
+    if not isinstance(data_dict, Mapping):
+        return data_dict
+    d = dict(data_dict)
+
+    # update meta dicts
+    meta_dict_key = PostFix.meta(key)
+    if meta_dict_key not in d:
+        d[meta_dict_key] = monai.data.MetaTensor.get_default_meta()
+    if not isinstance(d[key], monai.data.MetaTensor):
+        d[key] = monai.data.MetaTensor(data_dict[key])
+        d[key].meta = d[meta_dict_key]
+    d[meta_dict_key].update(d[key].meta)  # prefer metatensor's data
+
+    # update xform info
+    xform_key = monai.transforms.TraceableTransform.trace_key(key)
+    if xform_key not in d:
+        d[xform_key] = monai.data.MetaTensor.get_default_applied_operations()
+    from_meta, from_dict = d[key].applied_operations, d[xform_key]
+    if not from_meta:  # avoid []
+        d[key].applied_operations = d[xform_key] = from_dict
+        return d
+    if not from_dict:
+        d[key].applied_operations = d[xform_key] = from_meta
+        return d
+    if t:  # larger transform info stack is used as the result
+        ref = from_meta if len(from_meta) > len(from_dict) else from_dict
+    else:  # smaller transform info stack is used as the result
+        ref = from_dict if len(from_meta) > len(from_dict) else from_meta
+    d[key].applied_operations = d[xform_key] = ref
+    return d
 
 
 if __name__ == "__main__":

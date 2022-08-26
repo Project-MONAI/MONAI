@@ -17,11 +17,12 @@ import numpy as np
 
 from monai.data import Dataset, SmartCacheDataset
 from monai.data.image_reader import WSIReader
-from monai.utils import ensure_tuple_rep
+from monai.utils import deprecated, ensure_tuple_rep
 
 __all__ = ["PatchWSIDataset", "SmartCachePatchWSIDataset", "MaskedInferenceWSIDataset"]
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.PatchWSIDataset` instead.")
 class PatchWSIDataset(Dataset):
     """
     This dataset reads whole slide images, extracts regions, and creates patches.
@@ -103,6 +104,7 @@ class PatchWSIDataset(Dataset):
         return patches
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.SmartCacheDataset` with `monai.data.PatchWSIDataset` instead.")
 class SmartCachePatchWSIDataset(SmartCacheDataset):
     """Add SmartCache functionality to `PatchWSIDataset`.
 
@@ -177,6 +179,7 @@ class SmartCachePatchWSIDataset(SmartCacheDataset):
         )
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.data.MaskedPatchWSIDataset` instead.")
 class MaskedInferenceWSIDataset(Dataset):
     """
     This dataset load the provided foreground masks at an arbitrary resolution level,

@@ -98,17 +98,17 @@ def percentile(
     Returns:
         Resulting value (scalar)
     """
-    if np.isscalar(q):
-        if not 0 <= q <= 100:  # type: ignore
-            raise ValueError
-    elif any(q < 0) or any(q > 100):
-        raise ValueError
+    q_np = convert_data_type(q, output_type=np.ndarray, wrap_sequence=True)[0]
+    if ((q_np < 0) | (q_np > 100)).any():
+        raise ValueError(f"q values must be in [0, 100], got values: {q}.")
     result: Union[NdarrayOrTensor, float, int]
-    if isinstance(x, np.ndarray):
-        result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
+    if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
+        _x = convert_data_type(x, output_type=np.ndarray)[0]
+        result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
+        result = convert_to_dst_type(result, x)[0]
     else:
-        q = torch.tensor(q, device=x.device)
-        result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
+        q = convert_to_dst_type(q_np / 100.0, x)[0]
+        result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
 
 
@@ -285,7 +285,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
 def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
-        return np.isfinite(x)
+        return np.isfinite(x)  # type: ignore
     return torch.isfinite(x)
 
 
@@ -333,7 +333,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
 
     """
     if isinstance(x, np.ndarray):
-        return np.isnan(x)
+        return np.isnan(x)  # type: ignore
     return torch.isnan(x)
 
 

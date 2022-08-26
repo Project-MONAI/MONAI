@@ -104,6 +104,8 @@ class TestConfigParser(unittest.TestCase):
         # test nested ids
         parser["dataset#_target_"] = "Dataset"
         self.assertEqual(parser["dataset#_target_"], "Dataset")
+        parser.update({"dataset#_target_1": "Dataset1"})
+        self.assertEqual(parser["dataset#_target_1"], "Dataset1")
         # test int id
         parser.set(["test1", "test2", "test3"])
         parser[1] = "test4"
@@ -202,7 +204,7 @@ class TestConfigParser(unittest.TestCase):
         empty_parser = ConfigParser({})
         empty_parser.parse()
 
-        parser = ConfigParser({"value": 1, "entry": "string content"})
+        parser = ConfigParser({"value": 1, "entry": "string content", "array": [1, 2]})
         parser.parse()
 
         with self.subTest("Testing empty parser"):
@@ -213,6 +215,7 @@ class TestConfigParser(unittest.TestCase):
             self.assertFalse("value1" in parser)
             self.assertTrue("entry" in parser)
             self.assertFalse("entr" in parser)
+            self.assertFalse("array#2" in parser)
 
     def test_lambda_reference(self):
         configs = {

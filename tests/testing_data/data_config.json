@@ -56,6 +56,18 @@
             "hash_val": "eb4f1e596ca85aadaefc359d409fb9a3e27d733e6def04b996953b7c54bc26d4"
         }
     },
+    "videos": {
+        "endovis": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/d1_im.mp4",
+            "hash_type": "md5",
+            "hash_val": "9b103c07326439b0ea376018d7189384"
+        },
+        "ultrasound": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/example_data_Ultrasound_Q000_04_tu_segmented_ultrasound_256.avi",
+            "hash_type": "md5",
+            "hash_val": "f0755960cc4a08a958561cda9a79a157"
+        }
+    },
     "models": {
         "senet154-c7b49a05": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/senet154-c7b49a05.pth",

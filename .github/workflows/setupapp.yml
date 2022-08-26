@@ -61,7 +61,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
@@ -105,7 +105,7 @@ jobs:
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         BUILD_MONAI=1 ./runtests.sh --build --quick --unittests --disttests
-        coverage xml
+        coverage xml --ignore-errors
     - name: Upload coverage
       uses: codecov/codecov-action@v1
       with:

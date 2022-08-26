@@ -404,7 +404,8 @@ class RandSmoothDeform(RandomizableTransform):
             device=device,
         )
 
-        grid_space = spatial_size if spatial_size is not None else self.sfield.field.shape[2:]
+        grid_space = tuple(spatial_size) if spatial_size is not None else self.sfield.field.shape[2:]
+        # grid_space = grid_space[1::-1]+grid_space[2:]
         grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
 
         grid = meshgrid_ij(*grid_ranges)
@@ -446,6 +447,7 @@ class RandSmoothDeform(RandomizableTransform):
 
         dgrid = self.grid + field.to(self.grid_dtype)
         dgrid = moveaxis(dgrid, 1, -1)  # type: ignore
+        dgrid = dgrid[..., list(range(dgrid.shape[-1] - 1, -1, -1))]  # invert order of coordinates
 
         img_t = convert_to_tensor(img[None], torch.float32, device)
 
