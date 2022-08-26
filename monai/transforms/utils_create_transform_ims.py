@@ -145,8 +145,14 @@ from monai.transforms.intensity.dictionary import (
     StdShiftIntensityd,
     ThresholdIntensityd,
 )
-from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
-from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
+from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour, RemoveSmallObjects
+from monai.transforms.post.dictionary import (
+    AsDiscreted,
+    KeepLargestConnectedComponentd,
+    LabelFilterd,
+    LabelToContourd,
+    RemoveSmallObjectsd,
+)
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
@@ -691,6 +697,10 @@ if __name__ == "__main__":
     create_transform_im(KeepLargestConnectedComponent, dict(applied_labels=1), data_binary, is_post=True, ndim=2)
     create_transform_im(
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
+    )
+    create_transform_im(RemoveSmallObjects, dict(min_size=100), data_binary, is_post=True, ndim=2)
+    create_transform_im(
+        RemoveSmallObjectsd, dict(keys=CommonKeys.LABEL, min_size=100), data_binary, is_post=True, ndim=2
     )
     create_transform_im(
         GridDistortion, dict(num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode="nearest", padding_mode="zeros"), data
