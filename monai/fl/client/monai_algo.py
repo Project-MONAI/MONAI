@@ -431,6 +431,10 @@ class MonaiAlgo(ClientAlgo):
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
-            self.logger.warning(f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}")
+            self.logger.warning(
+                f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}"
+            )
         else:
-            self.logger.info(f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables.")
+            self.logger.info(
+                f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
+            )
