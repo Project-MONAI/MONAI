@@ -164,7 +164,7 @@ class ConfigParser:
                         conf_[k] = [] if keys[i + 1] == "0" else {}
                 if isinstance(conf_, list):
                     if int(k) == len(conf_):
-                        conf_[int(k)] = [] if keys[i + 1] == "0" else {}
+                        conf_.append([] if keys[i + 1] == "0" else {})
                     elif int(k) > len(conf_):
                         raise ValueError("can only set new item with index = the max index + 1.")
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
