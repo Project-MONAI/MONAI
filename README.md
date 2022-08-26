@@ -46,6 +46,10 @@ Examples and notebook tutorials are located at [Project-MONAI/tutorials](https:/
 
 Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 
+## Model Zoo
+[The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and great models from the community.
+Utilizing [the MONAI Bundle format](https://docs.monai.io/en/latest/bundle_intro.html) makes it easy to [get started]((https://github.com/Project-MONAI/tutorials/tree/main/bundle)) building workflows with MONAI.
+
 ## Contributing
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md).
 
