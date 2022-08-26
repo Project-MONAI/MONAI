@@ -76,6 +76,7 @@ class ConfigParser:
             The current supported globals and alias names are
             ``{"monai": "monai", "torch": "torch", "np": "numpy", "numpy": "numpy"}``.
             These are MONAI's minimal dependencies. Additional packages could be included with `globals={"itk": "itk"}`.
+            Set it to ``False`` to disable `self.globals` module importing.
 
     See also:
 
@@ -95,14 +96,14 @@ class ConfigParser:
         self,
         config: Any = None,
         excludes: Optional[Union[Sequence[str], str]] = None,
-        globals: Optional[Dict[str, Any]] = None,
+        globals: Union[Dict[str, Any], None, bool] = None,
     ):
         self.config = None
         self.globals: Dict[str, Any] = {}
         _globals = _default_globals.copy()
-        if isinstance(_globals, dict) and globals is not None:
-            _globals.update(globals)
-        if _globals is not None:
+        if isinstance(_globals, dict) and globals not in (None, False):
+            _globals.update(globals)  # type: ignore
+        if _globals is not None and globals is not False:
             for k, v in _globals.items():
                 self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
 
