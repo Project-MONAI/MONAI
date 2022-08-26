@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import tempfile
 import unittest
 from copy import deepcopy
@@ -20,7 +19,14 @@ import nibabel as nib
 import numpy as np
 import torch
 
-from monai import data
+from monai.auto3dseg import (
+    Operations,
+    SampleOperations,
+    SegSummarizer,
+    SummaryOperations,
+    datafold_read,
+    verify_report_format,
+)
 from monai.auto3dseg.analyzer import (
     Analyzer,
     FgImageStats,
@@ -31,12 +37,8 @@ from monai.auto3dseg.analyzer import (
     LabelStats,
     LabelStatsSumm,
 )
-from monai.auto3dseg.data_analyzer import DataAnalyzer
-from monai.auto3dseg.operations import Operations, SampleOperations, SummaryOperations
-from monai.auto3dseg.seg_summarizer import SegSummarizer
-from monai.auto3dseg.utils import datafold_read, verify_report_format
 from monai.bundle import ConfigParser
-from monai.data import create_test_image_3d
+from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms import (
@@ -52,7 +54,7 @@ from monai.transforms import (
 from monai.utils.enums import DataStatsKeys
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-n_workers = 0 if sys.platform in ("win32", "darwin") else 2
+n_workers = 2 if device == "cpu" else 0
 
 fake_datalist = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -133,34 +135,6 @@ class TestDataAnalyzer(unittest.TestCase):
         self.fake_json_datalist = path.join(dataroot, "fake_input.json")
         ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
 
-    def test_data_analyzer(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
-        analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
-        datastat = analyser.get_all_case_stats()
-
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
-
-    def test_data_analyzer_image_only(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
-        analyser = DataAnalyzer(
-            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
-        )
-        datastat = analyser.get_all_case_stats()
-
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
-
-    def test_data_analyzer_from_yaml(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
-        analyser = DataAnalyzer(
-            self.fake_json_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers
-        )
-        datastat = analyser.get_all_case_stats()
-
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
-
     def test_basic_operation_class(self):
         op = TestOperations()
         test_data = np.random.rand(10, 10).astype(np.float64)
@@ -218,8 +192,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             assert "test_image" in d
@@ -241,8 +215,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
@@ -263,8 +237,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
@@ -285,8 +259,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             report_format = analyzer.get_report_format()
@@ -299,8 +273,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
@@ -313,8 +287,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
@@ -334,8 +308,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
             stats.append(transform(batch_data[0]))
@@ -359,8 +333,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
             stats.append(transform(batch_data[0]))
@@ -384,8 +358,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
             stats.append(transform(batch_data[0]))
@@ -409,8 +383,8 @@ class TestDataAnalyzer(unittest.TestCase):
         transform = Compose(transform_list)
         dataroot = self.test_dir.name
         files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
-        ds = data.Dataset(data=files)
-        self.dataset = data.DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
+        ds = Dataset(data=files)
+        self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
         for batch_data in self.dataset:
             d = transform(batch_data[0])

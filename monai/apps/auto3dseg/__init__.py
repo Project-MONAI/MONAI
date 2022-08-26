@@ -9,11 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from monai.auto3dseg.data_analyzer import DataAnalyzer
-
-if __name__ == "__main__":
-    from monai.utils import optional_import
-
-    fire, _ = optional_import("fire")
-    fire.Fire({"DataAnalyzer": DataAnalyzer})
+from .data_analyzer import DataAnalyzer

@@ -17,14 +17,23 @@ import numpy as np
 import torch
 
 from monai.apps.utils import get_logger
-from monai.auto3dseg.seg_summarizer import DataStatsKeys, SegSummarizer
+from monai.auto3dseg import SegSummarizer
 from monai.auto3dseg.utils import datafold_read
 from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset
 from monai.data.utils import no_collation
-from monai.transforms import Compose, EnsureChannelFirstd, EnsureTyped, Lambdad, LoadImaged, Orientationd, SqueezeDimd
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirstd,
+    EnsureTyped,
+    Lambdad,
+    LoadImaged,
+    Orientationd,
+    SqueezeDimd,
+    ToDeviced,
+)
 from monai.utils import min_version, optional_import
-from monai.utils.enums import ImageStatsKeys
+from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
@@ -49,12 +58,16 @@ class DataAnalyzer:
         average: whether to average the statistical value across different image modalities.
         do_ccp: apply the connected component algorithm to process the labels/images
         device: a string specifying hardware (CUDA/CPU) utilized for the operations.
-        worker: number of workers to use for parallel processing.
+        worker: number of workers to use for parallel processing. If device is cuda/GPU, worker has
+            to be 0.
         image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
             datalist to locate the image files of the dataset.
         label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
+
+    Raises:
+        ValueError if device is GPU and worker > 0.
 
     Examples:
         .. code-block:: python
@@ -81,7 +94,7 @@ class DataAnalyzer:
 
     .. code-block:: bash
 
-        python -m monai.auto3dseg \
+        python -m monai.apps.auto3dseg \
             DataAnalyzer \
             get_all_case_stats \
             --datalist="my_datalist.json" \
@@ -97,7 +110,7 @@ class DataAnalyzer:
         average: bool = True,
         do_ccp: bool = True,
         device: Union[str, torch.device] = "cuda",
-        worker: int = 2,
+        worker: int = 0,
         image_key: str = "image",
         label_key: Optional[str] = "label",
     ):
@@ -110,10 +123,13 @@ class DataAnalyzer:
         self.output_path = output_path
         self.average = average
         self.do_ccp = do_ccp
-        self.device = device
+        self.device = torch.device(device)
         self.worker = worker
         self.image_key = image_key
         self.label_key = label_key
+
+        if (self.device.type == "cuda") and (worker > 0):
+            raise ValueError("CUDA does not support multiple subprocess. If device is GPU, please set worker to 0")
 
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
@@ -172,6 +188,7 @@ class DataAnalyzer:
             if self.label_key
             else None,
             SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
+            ToDeviced(keys=keys, device=self.device),
             summarizer,
         ]
 
