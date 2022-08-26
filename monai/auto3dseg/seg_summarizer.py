@@ -41,7 +41,7 @@ class SegSummarizer(Compose):
         label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
-        do_ccp: apply the connected component algorithm to process the labels/images
+        do_ccp: apply the connected component algorithm to process the labels/images.
 
     Examples:
         .. code-block:: python
@@ -97,8 +97,8 @@ class SegSummarizer(Compose):
         utilize the new analyzers for stats computations.
 
         Args:
-            case_analyzer: analyzer that works on each data
-            summary_analyzer: analyzer that works on list of stats dict (output from case_analyzers)
+            case_analyzer: analyzer that works on each data.
+            summary_analyzer: analyzer that works on list of stats dict (output from case_analyzers).
 
         Examples:
 
@@ -148,7 +148,7 @@ class SegSummarizer(Compose):
             data: a list of data dicts.
 
         Returns:
-            a dict that summarizes the stats across data samples
+            a dict that summarizes the stats across data samples.
 
         Examples:
             stats_summary:

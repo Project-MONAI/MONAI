@@ -318,7 +318,7 @@ class TestDataAnalyzer(unittest.TestCase):
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
-            assert d[DataStatsKeys.BY_CASE_IMAGE_PATH] == ""
+            assert d[DataStatsKeys.BY_CASE_IMAGE_PATH] == "None"
 
     def test_image_stats_summary_analyzer(self):
         summary_analyzer = ImageStatsSumm("image_stats")

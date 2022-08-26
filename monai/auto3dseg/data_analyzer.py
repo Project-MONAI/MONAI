@@ -155,9 +155,6 @@ class DataAnalyzer:
                 "image_foreground_stats" (similar to the previous one but one foreground image), and
                 "label_stats" (stats of the individual labels )
 
-        Raises:
-            ValueError: if the user sent image_only to False but there is no label found
-
         Notes:
             Since the backend of the statistics computation are torch/numpy, nan/inf value
             may be generated and carried over in the computation. In such cases, the output

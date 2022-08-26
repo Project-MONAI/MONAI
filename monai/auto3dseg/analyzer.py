@@ -70,7 +70,7 @@ class Analyzer(MapTransform, ABC):
 
     def update_ops(self, key: str, op):
         """
-        Register an statistical operation to the Analyzer and update the report_format
+        Register an statistical operation to the Analyzer and update the report_format.
 
         Args:
             key: value key in the report.
@@ -88,7 +88,7 @@ class Analyzer(MapTransform, ABC):
     def update_ops_nested_label(self, nested_key: str, op):
         """
         Update operations for nested label format. Operation value in report_format will be resolved
-        to a dict with only keys
+        to a dict with only keys.
 
         Args:
             nested_key: str that has format of 'key1#0#key2'.
@@ -152,7 +152,7 @@ class Analyzer(MapTransform, ABC):
 
         """
         for k, v in report.items():
-            if issubclass(v.__class__, Operations):
+            if isinstance(v, Operations):
                 report[k] = self.unwrap_ops(v)
             elif isinstance(v, list) and len(v) > 0:
                 self.resolve_format(v[0])
@@ -171,7 +171,7 @@ class ImageStats(Analyzer):
 
     Args:
         image_key: the key to find image data in the callable function input (data)
-        meta_key_postfix: the postfix to append for meta_dict ("image_meta_dict")
+        meta_key_postfix: the postfix to append for meta_dict ("image_meta_dict").
 
     Examples:
 
@@ -216,11 +216,11 @@ class ImageStats(Analyzer):
         Returns:
             A dictionary. The dict has the key in self.report_format. The value of
             ImageStatsKeys.INTENSITY is in a list format. Each element of the value list
-            has stats pre-defined by SampleOperations (max, min, ....)
+            has stats pre-defined by SampleOperations (max, min, ....).
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Note:
             The stats operation uses numpy and torch to compute max, min, and other
@@ -295,11 +295,11 @@ class FgImageStats(Analyzer):
         Returns:
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
-            by SampleOperations (max, min, ....)
+            by SampleOperations (max, min, ....).
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Note:
             The stats operation uses numpy and torch to compute max, min, and other
@@ -376,12 +376,12 @@ class LabelStats(Analyzer):
 
     def __call__(self, data):
         """
-        Callable to execute the pre-defined functions
+        Callable to execute the pre-defined functions.
 
         Returns:
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
-            by SampleOperations (max, min, ....)
+            by SampleOperations (max, min, ....).
 
         Examples:
             output dict contains {
@@ -411,7 +411,7 @@ class LabelStats(Analyzer):
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Notes:
             The label class_ID of the dictionary in LabelStatsKeys.LABEL IS NOT the
@@ -483,7 +483,7 @@ class ImageStatsSumm(Analyzer):
     (ImageStats).
 
     Args:
-        stats_name: the key of the to-process value in the dict
+        stats_name: the key of the to-process value in the dict.
         average: whether to average the statistical value across different image modalities.
 
     """
@@ -512,11 +512,11 @@ class ImageStatsSumm(Analyzer):
         Returns:
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
-            by SampleOperations (max, min, ....)
+            by SampleOperations (max, min, ....).
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Examples:
             output dict contains a dictionary for all of the following keys{
@@ -565,7 +565,7 @@ class FgImageStatsSumm(Analyzer):
     (FgImageStats).
 
     Args:
-        stats_name: the key of the to-process value in the dict
+        stats_name: the key of the to-process value in the dict.
         average: whether to average the statistical value across different image modalities.
 
     """
@@ -579,17 +579,17 @@ class FgImageStatsSumm(Analyzer):
 
     def __call__(self, data: List[Dict]):
         """
-        Callable to execute the pre-defined functions
+        Callable to execute the pre-defined functions.
 
         Returns:
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....) and SummaryOperation (max of the
-            max, mean of the mean, etc)
+            max, mean of the mean, etc).
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Examples:
             output dict contains a dictionary for all of the following keys{
@@ -607,7 +607,7 @@ class FgImageStatsSumm(Analyzer):
             return ValueError(f"Callable {self.__class__} input list is empty")
 
         if self.stats_name not in data[0]:
-            return KeyError(f"{self.stats_name} is not in input data")
+            return KeyError(f"{self.stats_name} is not in input data.")
 
         report = deepcopy(self.get_report_format())
         intst_str: str = str(ImageStatsKeys.INTENSITY)
@@ -629,7 +629,7 @@ class LabelStatsSumm(Analyzer):
     (LabelStats).
 
     Args:
-        stats_name: the key of the to-process value in the dict
+        stats_name: the key of the to-process value in the dict.
         average: whether to average the statistical value across different image modalities.
 
     """
@@ -672,11 +672,11 @@ class LabelStatsSumm(Analyzer):
             A dictionary. The dict has the key in self.report_format and value
             in a list format. Each element of the value list has stats pre-defined
             by SampleOperations (max, min, ....) and SummaryOperation (max of the
-            max, mean of the mean, etc)
+            max, mean of the mean, etc).
 
         Raises:
             RuntimeError if the stats report generated is not consistent with the pre-
-                defined report_format
+                defined report_format.
 
         Notes:
             The stats operation uses numpy and torch to compute max, min, and other
@@ -753,12 +753,12 @@ class LabelStatsSumm(Analyzer):
 
 class FilenameStats(Analyzer):
     """
-    This class finds the file path for the loaded image/label and write the info
-    in the data pipeline as other transforms
+    This class finds the file path for the loaded image/label and writes the info
+    into the data pipeline as a monai transforms.
 
     Args:
-        key: the key to fetch the filename (for example, "image", "label")
-        stats_name: the key to store the filename in the output stats report
+        key: the key to fetch the filename (for example, "image", "label").
+        stats_name: the key to store the filename in the output stats report.
 
     """
 
@@ -769,5 +769,14 @@ class FilenameStats(Analyzer):
 
     def __call__(self, data):
         d = dict(data)
-        d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ] if self.meta_key else ""
+
+        if self.meta_key:
+            if self.key not in d:  # check whether image/label is in the data
+                raise ValueError(f"Data with key {self.key} is missing ")
+            if self.meta_key not in d:
+                raise ValueError(f"Meta data with key {self.meta_key} is mssing")
+            d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ]
+        else:
+            d[self.stats_name] = "None"
+
         return d

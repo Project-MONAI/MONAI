@@ -79,9 +79,9 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> Tuple[List[An
     depending on the hardware.
 
     Args:
-        mask_index: a binary mask
+        mask_index: a binary mask.
         use_gpu: a switch to use GPU/CUDA or not. If GPU is unavailable, CPU will be used
-            regardless of this setting
+            regardless of this setting.
 
     """
 
@@ -127,10 +127,10 @@ def concat_val_to_np(
        data_list: a list of dictionary {key1: {key2: np.ndarray}}.
        fixed_keys: a list of keys that records to path to the value in the dict elements.
        ragged: if True, numbers can be in list of lists or ragged format so concat mode needs change.
-       allow_missing: if True, it will return a None if the value cannot be found
+       allow_missing: if True, it will return a None if the value cannot be found.
 
     Returns:
-        nd.array of concatanated array
+        nd.array of concatanated array.
 
     """
 
@@ -180,12 +180,12 @@ def concat_multikeys_to_dict(
     Args:
         data_list: a list of dictionary {key1: {key2: np.ndarray}}.
         fixed_keys: a list of keys that records to path to the value in the dict elements.
-        keys: a list of string keys that will be iterated to generate a dict output
+        keys: a list of string keys that will be iterated to generate a dict output.
         zero_insert: insert a zero in the list so that it can find the value in element 0 before getting the keys
         flatten: if True, numbers are flattened before concat.
 
     Returns:
-        a dict with keys - nd.array of concatanated array pair
+        a dict with keys - nd.array of concatanated array pair.
     """
 
     ret_dict = {}
@@ -202,13 +202,13 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
     Read a list of data dictionary `datalist`
 
     Args:
-        datalist: the name of a JSON file listing the data, or a dictionary
-        basedir: directory of image files
-        fold: which fold to use (0..1 if in training set)
-        key: usually 'training' , but can try 'validation' or 'testing' to get the list data without labels (used in challenges)
+        datalist: the name of a JSON file listing the data, or a dictionary.
+        basedir: directory of image files.
+        fold: which fold to use (0..1 if in training set).
+        key: usually 'training' , but can try 'validation' or 'testing' to get the list data without labels (used in challenges).
 
     Returns:
-        A tuple of two arrays (training, validation)
+        A tuple of two arrays (training, validation).
     """
 
     if isinstance(datalist, str):
@@ -238,11 +238,11 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
 
 def verify_report_format(report: dict, report_format: dict):
     """
-    Compares the report and the the report_format that has only keys
+    Compares the report and the the report_format that has only keys.
 
     Args:
-        report: dict that has real values
-        report_format: dict that only has keys and list-nested value
+        report: dict that has real values.
+        report_format: dict that only has keys and list-nested value.
     """
     for k_fmt, v_fmt in report_format.items():
         if k_fmt not in report:
