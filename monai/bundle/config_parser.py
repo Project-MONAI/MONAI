@@ -102,7 +102,7 @@ class ConfigParser:
         self.globals: Dict[str, Any] = {}
         _globals = _default_globals.copy()
         if isinstance(_globals, dict) and globals not in (None, False):
-            _globals.update(globals)
+            _globals.update(globals)  # type: ignore
         if _globals is not None and globals is not False:
             for k, v in _globals.items():
                 self.globals[k] = optional_import(v)[0] if isinstance(v, str) else v
