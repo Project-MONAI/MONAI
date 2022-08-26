@@ -185,25 +185,17 @@ class ConfigParser:
             config: config to set at location ``id``.
             id: id to specify the expected position. See also :py:meth:`__setitem__`.
             recursive: if the nested id doesn't exist, whether to recursively create the nested items in the config.
-                default to `True`. if the id is int number, will treat it as index of list:
-                1. if no list exists, only allow `index = 0` to create a list with one item, like: `id="key1#0#key2"`.
-                2. if the list exists, allow `index <= length` to update existing item or append a new item to the end.
+                default to `True`. for the nested id, only support `dict` for the missing section.
 
         """
         keys = str(id).split(ID_SEP_KEY)
         conf_ = self.get()
         if recursive:
             if conf_ is None:
-                self.config = conf_ = [] if keys[0] == "0" else {}  # type: ignore
-            for i, k in enumerate(keys[:-1]):
-                if isinstance(conf_, dict):
-                    if k not in conf_:
-                        conf_[k] = [] if keys[i + 1] == "0" else {}
-                if isinstance(conf_, list):
-                    if int(k) == len(conf_):
-                        conf_.append([] if keys[i + 1] == "0" else {})
-                    elif int(k) > len(conf_):
-                        raise ValueError("can only set new item with index = the max index + 1.")
+                self.config = conf_ = {}  # type: ignore
+            for k in keys[:-1]:
+                if isinstance(conf_, dict) and k not in conf_:
+                    conf_[k] = {}
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
         self[id] = config
 

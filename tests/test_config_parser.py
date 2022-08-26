@@ -124,12 +124,9 @@ class TestConfigParser(unittest.TestCase):
         self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
         self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
         # test new nested id
-        parser.set("fake_key1", "transform#transforms#2#keys", True)
-        parser.set("fake_key2", "transform#other_transforms#0#keys", True)
-        self.assertEqual(parser.get(id="transform#transforms#2#keys"), "fake_key1")
-        self.assertEqual(parser.get(id="transform#other_transforms#0#keys"), "fake_key2")
+        parser.set("fake_key", "transform#other_transforms#keys", True)
+        self.assertEqual(parser.get(id="transform#other_transforms#keys"), "fake_key")
         # remove temp fake data
-        parser["transform#transforms"].pop(-1)
         parser["transform"].pop("other_transforms")
         # test update nested id
         parser["transform#transforms#0#keys"] = "label2"
