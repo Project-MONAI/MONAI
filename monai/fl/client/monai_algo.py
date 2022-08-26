@@ -307,7 +307,7 @@ class MonaiAlgo(ClientAlgo):
                 weights = torch.load(model_path, map_location="cpu")
                 weigh_type = WeightType.WEIGHTS
                 stats = dict()
-                self.logger.info(f"Returning best checkpoint weights from {model_path}.")
+                self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
                     f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}"
