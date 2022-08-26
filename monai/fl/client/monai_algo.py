@@ -107,7 +107,7 @@ class MonaiAlgo(ClientAlgo):
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
-        save_dict_key: If a model checkpoint contain several state dicts,
+        save_dict_key: If a model checkpoint contains several state dicts,
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
         seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
