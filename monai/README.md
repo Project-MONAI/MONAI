@@ -2,7 +2,7 @@
 
 * **apps**: high level medical domain specific deep learning applications.
 
-* **auto3dseg**: modules to run the Auto3D segmentation pipeline.
+* **auto3dseg**: automated machine learning (AutoML) components for volumetric image analysis.
 
 * **bundle**: components to build the portable self-descriptive model bundle.
 
