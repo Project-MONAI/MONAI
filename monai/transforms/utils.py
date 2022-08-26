@@ -1024,7 +1024,7 @@ def remove_small_objects(
 
     # convert back by multiplying
     if not independent_channels:
-        return img * out
+        out = img * out  # type: ignore
     return out
 
 
