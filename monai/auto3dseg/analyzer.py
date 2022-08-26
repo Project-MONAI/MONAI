@@ -54,7 +54,7 @@ class Analyzer(MapTransform, ABC):
     The Analyzer component is a base class. Other classes inherit this class will provide a callable
     with the same class name and produces one pre-formatted dictionary for the input data. The format
     is pre-defined by the init function of the class that inherit this base class. Function operations
-    can also be registerred before the runtime of the callable.
+    can also be registered before the runtime of the callable.
 
     Args:
         report_format: a dictionary that outlines the key structures of the report format.
@@ -63,14 +63,14 @@ class Analyzer(MapTransform, ABC):
 
     def __init__(self, stats_name: str, report_format: dict) -> None:
         super().__init__(None)
-        parser = ConfigParser(report_format)
+        parser = ConfigParser(report_format, globals=False)  # ConfigParser.globals not picklable
         self.report_format = parser.get("")
         self.stats_name = stats_name
-        self.ops = ConfigParser({})
+        self.ops = ConfigParser({}, globals=False)
 
     def update_ops(self, key: str, op):
         """
-        Register an statistical operation to the Analyzer and update the report_format.
+        Register a statistical operation to the Analyzer and update the report_format.
 
         Args:
             key: value key in the report.
@@ -130,7 +130,7 @@ class Analyzer(MapTransform, ABC):
         Args:
             func: Operation sub-class object that represents statistical operations. The func object
                 should have a `data` dictionary which stores the statistical operation information.
-                For some operations (ImageStats for example), it may also contains the data_addon
+                For some operations (ImageStats for example), it may also contain the data_addon
                 property, which is part of the update process.
 
         Returns:
@@ -773,7 +773,7 @@ class FilenameStats(Analyzer):
             if self.key not in d:  # check whether image/label is in the data
                 raise ValueError(f"Data with key {self.key} is missing ")
             if self.meta_key not in d:
-                raise ValueError(f"Meta data with key {self.meta_key} is mssing")
+                raise ValueError(f"Meta data with key {self.meta_key} is missing")
             d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ]
         else:
             d[self.stats_name] = "None"

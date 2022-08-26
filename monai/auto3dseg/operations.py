@@ -120,7 +120,7 @@ class SummaryOperations(Operations):
                 "sum": np.random.rand(4),
             }
             op = SummaryOperations()
-            print(op.evaluate(data)) # "sum" is not registerred yet, so it won't contain "sum"
+            print(op.evaluate(data)) # "sum" is not registered yet, so it won't contain "sum"
 
             op.update({"sum", np.sum})
             print(op.evaluate(data)) # output has "sum"

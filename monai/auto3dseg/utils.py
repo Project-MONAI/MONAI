@@ -49,7 +49,7 @@ def get_foreground_image(image: MetaTensor):
         ndarray of foreground image by removing all-zero edges.
 
     Notes:
-        the size of the ouput is smaller than the input.
+        the size of the output is smaller than the input.
     """
 
     copper = CropForeground(select_fn=lambda x: x > 0)
@@ -130,7 +130,7 @@ def concat_val_to_np(
        allow_missing: if True, it will return a None if the value cannot be found.
 
     Returns:
-        nd.array of concatanated array.
+        nd.array of concatenated array.
 
     """
 
@@ -185,7 +185,7 @@ def concat_multikeys_to_dict(
         flatten: if True, numbers are flattened before concat.
 
     Returns:
-        a dict with keys - nd.array of concatanated array pair.
+        a dict with keys - nd.array of concatenated array pair.
     """
 
     ret_dict = {}

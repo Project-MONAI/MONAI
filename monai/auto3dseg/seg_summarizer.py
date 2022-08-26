@@ -29,7 +29,7 @@ __all__ = ["SegSummarizer"]
 class SegSummarizer(Compose):
     """
     SegSummarizer serializes the operations for data analysis in Auto3Dseg pipeline. It loads
-    two types of analyzer functions and execuate differently. The first type of analyzer is
+    two types of analyzer functions and execute differently. The first type of analyzer is
     CaseAnalyzer which is similar to traditional monai transforms. It can be composed with other
     transforms to process the data dict which has image/label keys. The second type of analyzer
     is SummaryAnalyzer which works only on a list of dictionary. Each dictionary is the output
@@ -91,7 +91,7 @@ class SegSummarizer(Compose):
             LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
         )
 
-    def add_analyzer(self, case_analyzer, summary_analzyer) -> None:
+    def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
         """
         Add new analyzers to the engine so that the callable and summarize functions will
         utilize the new analyzers for stats computations.
@@ -138,7 +138,7 @@ class SegSummarizer(Compose):
 
         """
         self.transforms += (case_analyzer,)
-        self.summary_analyzers.append(summary_analzyer)
+        self.summary_analyzers.append(summary_analyzer)
 
     def summarize(self, data: List[Dict]):
         """

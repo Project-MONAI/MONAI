@@ -49,6 +49,10 @@ logger = get_logger(module_name=__name__)
 __all__ = ["DataAnalyzer"]
 
 
+def _argmax_if_multichannel(x):
+    return torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x
+
+
 class DataAnalyzer:
     """
     The DataAnalyzer automatically analyzes given medical image dataset and reports the statistics.
@@ -170,10 +174,10 @@ class DataAnalyzer:
                 "stats_summary" (summary statistics of the entire datasets). Within stats_summary
                 there are "image_stats"  (summarizing info of shape, channel, spacing, and etc
                 using operations_summary), "image_foreground_stats" (info of the intensity for the
-                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentange,
-                image_intensity, and each invidiual label in a list)
+                non-zero labeled voxels), and "label_stats" (info of the labels, pixel percentage,
+                image_intensity, and each individual label in a list)
                 "stats_by_cases" (List type value. Each element of the list is statistics of
-                a image-label info. Within each each element, there are: "image" (value is the
+                an image-label info. Within each element, there are: "image" (value is the
                 path to an image), "label" (value is the path to the corresponding label), "image_stats"
                 (summarizing info of shape, channel, spacing, and etc using operations),
                 "image_foreground_stats" (similar to the previous one but one foreground image), and
@@ -192,25 +196,23 @@ class DataAnalyzer:
             EnsureChannelFirstd(keys=keys),  # this creates label to be (1,H,W,D)
             Orientationd(keys=keys, axcodes="RAS"),
             EnsureTyped(keys=keys, data_type="tensor"),
-            Lambdad(keys=self.label_key, func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x)
-            if self.label_key
-            else None,
+            Lambdad(keys=self.label_key, func=_argmax_if_multichannel) if self.label_key else None,
             SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
             ToDeviced(keys=keys, device=self.device),
             summarizer,
         ]
 
-        tranform = Compose(transforms=list(filter(None, transform_list)))
+        transform = Compose(transforms=list(filter(None, transform_list)))
 
         files, _ = datafold_read(datalist=self.datalist, basedir=self.dataroot, fold=-1)
-        dataset = Dataset(data=files, transform=tranform)
+        dataset = Dataset(data=files, transform=transform)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=self.worker, collate_fn=no_collation)
         result = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-            # d = tranform(batch_data[0])
+            # d = transform(batch_data[0])
             d = batch_data[0]
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
