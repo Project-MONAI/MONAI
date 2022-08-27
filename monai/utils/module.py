@@ -192,7 +192,6 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 importer.find_module(name).load_module(name)  # type: ignore
                 submodules.append(mod)
             except OptionalImportError as e:
-                print(e)
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
                 raise ImportError(
