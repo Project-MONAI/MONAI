@@ -107,6 +107,9 @@ class MonaiAlgo(ClientAlgo):
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
+        save_dict_key: If a model checkpoint contains several state dicts,
+            the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
+            If all state dicts should be returned, set `save_dict_key` to None.
         seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
             i.e., non-deterministic training.
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
@@ -125,6 +128,7 @@ class MonaiAlgo(ClientAlgo):
         disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
         final_model_filepath: Optional[str] = "models/model_final.pt",
+        save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
     ):
@@ -138,6 +142,7 @@ class MonaiAlgo(ClientAlgo):
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
+        self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
 
@@ -304,6 +309,9 @@ class MonaiAlgo(ClientAlgo):
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
+                # if weights contain several state dicts, use the one defined by `save_dict_key`
+                if isinstance(weights, dict) and self.save_dict_key in weights:
+                    weights = weights.get(self.save_dict_key)
                 weigh_type = WeightType.WEIGHTS
                 stats = dict()
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
