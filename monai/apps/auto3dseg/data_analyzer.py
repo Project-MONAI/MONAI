@@ -40,6 +40,7 @@ from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
 
+
 if optional_import("yaml")[1]:
     config_parser.yaml.SafeDumper.add_multi_representer(StrEnum, strenum_representer)
 
