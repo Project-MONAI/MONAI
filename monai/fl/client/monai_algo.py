@@ -310,7 +310,7 @@ class MonaiAlgo(ClientAlgo):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
                 # if weights contain several state dicts, use the one defined by `save_dict_key`
-                if self.save_dict_key in weights:
+                if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)
                 weigh_type = WeightType.WEIGHTS
                 stats = dict()
