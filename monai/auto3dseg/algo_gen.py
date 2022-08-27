@@ -40,15 +40,17 @@ class AlgoGen(Randomizable):
 
     It generates ``Algo`` to be trained with the training datasets.
 
-                              scores
-                    +------------------------+
-                    |   +---------+          |
-    +-----------+   +-->|         |    +-----+----+
-    | Dataset,  |       | AlgoGen |--->|   Algo   |
-    | summaries |------>|         |    +----------+
-    +-----+-----+       +---------+          ^
-          |                                  |
-          +----------------------------------+
+    ..code-block::
+
+                                  scores
+                        +------------------------+
+                        |   +---------+          |
+        +-----------+   +-->|         |    +-----+----+
+        | Dataset,  |       | AlgoGen |--->|   Algo   |
+        | summaries |------>|         |    +----------+
+        +-----+-----+       +---------+          ^
+              |                                  |
+              +----------------------------------+
 
     It maintains a history of previously generated Algo, and their corresponding validation scores.
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state.)
