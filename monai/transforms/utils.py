@@ -61,6 +61,7 @@ from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
@@ -86,6 +87,7 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "remove_small_objects",
     "img_bounds",
     "in_bounds",
     "is_empty",
@@ -977,6 +979,53 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
         largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
 
     return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
+
+
+def remove_small_objects(
+    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+) -> NdarrayTensor:
+    """
+    Use `skimage.morphology.remove_small_objects` to remove small objects from images.
+    See: https://scikit-image.org/docs/dev/api/skimage.morphology.html#remove-small-objects.
+
+    Data should be one-hotted.
+
+    Args:
+        img: image to process. Expected shape: C, H,W,[D]. Expected to only have singleton channel dimension,
+            i.e., not be one-hotted. Converted to type int.
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether to consider each channel independently.
+    """
+    # if all equal to one value, no need to call skimage
+    if len(unique(img)) == 1:
+        return img
+
+    if not has_morphology:
+        raise RuntimeError("Skimage required.")
+
+    img_np: np.ndarray
+    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+
+    # morphology.remove_small_objects assumes them to be independent by default
+    # else, convert to foreground vs background, remove small objects, then convert
+    # back by multiplying the output by the input
+    if not independent_channels:
+        img_np = img_np > 0
+    else:
+        # if binary, convert to boolean, else int
+        img_np = img_np.astype(bool if img_np.max() <= 1 else np.int32)
+
+    out_np = morphology.remove_small_objects(img_np, min_size, connectivity)
+    out, *_ = convert_to_dst_type(out_np, img)
+
+    # convert back by multiplying
+    if not independent_channels:
+        out = img * out  # type: ignore
+    return out
 
 
 def get_unique_labels(
