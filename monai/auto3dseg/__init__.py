@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .algo_gen import Algo, AlgoGen
 from .analyzer import (
     FgImageStats,
     FgImageStatsSumm,
@@ -29,4 +30,3 @@ from .utils import (
     get_label_ccp,
     verify_report_format,
 )
-from .algo_gen import AlgoGen, Algo
