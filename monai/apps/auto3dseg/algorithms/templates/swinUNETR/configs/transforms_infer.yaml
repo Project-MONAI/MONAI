@@ -17,13 +17,13 @@ transforms_infer:
     - 1.0
     - 1.0
     - 1.0
-  - _target_: CastToTyped
-    dtype: $torch.float32
+  - _target_: ScaleIntensityRanged
+    a_max: 230
+    a_min: 0.0
+    b_max: 1.0
+    b_min: 0.0
+    clip: true
     keys: '@image_key'
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
   - _target_: CastToTyped
     dtype: $torch.float32
     keys: '@image_key'

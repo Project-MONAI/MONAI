@@ -30,25 +30,13 @@ transforms_validate:
     - 1.0
     - 1.0
     - 1.0
-  - _target_: CastToTyped
-    dtype: $torch.float32
-    keys: '@image_key'
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
   - _target_: ScaleIntensityRanged
-    a_max: 147.5986
-    a_min: -45.8736
+    a_max: 230.0
+    a_min: 0.0
     b_max: 1.0
     b_min: 0.0
     clip: true
     keys: '@image_key'
-  - _target_: CropForegroundd
-    keys:
-    - '@image_key'
-    - '@label_key'
-    source_key: '@image_key'
   - _target_: CastToTyped
     dtype:
     - $torch.float32

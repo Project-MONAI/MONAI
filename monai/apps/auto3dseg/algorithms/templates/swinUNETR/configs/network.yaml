@@ -5,4 +5,4 @@ network:
   in_channels: $@input_channels
   out_channels: '@output_classes'
   spatial_dims: 3
-  use_checkpoint: true
+  use_checkpoint: false

@@ -1,5 +1,5 @@
 amp: true
-bundle_root: monai/apps/auto3dseg/algorithms/templates/dints
+bundle_root: monai/apps/auto3dseg/algorithms/templates/SwinUNETR
 ckpt_path: $@bundle_root + '/model_fold' + str(@fold)
 data_file_base_dir: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/Task09_Spleen
 data_list_file_path: /home/yuchengt/Downloads/MONAI-dev/monai/apps/auto3dseg/algorithms/templates/datasets/datafolds/msd_task09_spleen_folds.json
@@ -14,14 +14,14 @@ infer:
   fast: false
   ouptut_path: $@bundle_root + '/prediction_' + @infer#data_list_key
 input_channels: 1
-learning_rate: 0.0002
+learning_rate: 0.0001
 loss:
   _target_: DiceCELoss
   batch: true
   include_background: true
   sigmoid: $not @softmax
-  smooth_dr: 1.0e-05
-  smooth_nr: 1.0e-05
+  smooth_dr: 1.0e-06
+  smooth_nr: 0
   softmax: $@softmax
   squared_pred: true
   to_onehot_y: $@softmax
@@ -30,16 +30,17 @@ lr_scheduler:
   gamma: 0.5
   optimizer: $@optimizer
   step_size: $@num_iterations // 5
-num_images_per_batch: 1
+num_images_per_batch: 3
 num_iterations: 20000
-num_iterations_per_validation: 500
+num_iterations_per_validation: 400
 num_patches_per_image: 1
-num_sw_batch_size: 2
+num_sw_batch_size: 1
 optimizer:
-  _target_: torch.optim.Adam
+  _target_: torch.optim.AdamW
   lr: '@learning_rate'
+  weight_decay: 1.0e-05
 output_classes: 2
-overlap_ratio: 0.625
+overlap_ratio: 0.25
 patch_size:
 - 96
 - 96

@@ -30,27 +30,17 @@ transforms_train:
     - 1.0
     - 1.0
     - 1.0
-  - _target_: CastToTyped
-    dtype: $torch.float32
+  - _target_: ScaleIntensityRanged
+    a_max: 230
+    a_min: 0
+    b_max: 1.0
+    b_min: 0.0
+    clip: true
     keys: '@image_key'
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
-  - _target_: CastToTyped
-    dtype:
-    - $np.float16
-    - $np.uint8
-    keys:
-    - '@image_key'
-    - '@label_key'
   - _target_: EnsureTyped
     keys:
     - '@image_key'
     - '@label_key'
-  - _target_: CastToTyped
-    dtype: $torch.float32
-    keys: '@image_key'
   - _target_: SpatialPadd
     keys:
     - '@image_key'
@@ -59,6 +49,7 @@ transforms_train:
     - reflect
     - constant
     spatial_size: '@patch_size'
+  # data augmentation transformations
   - _target_: RandCropByLabelClassesd
     keys:
     - '@image_key'
@@ -71,19 +62,19 @@ transforms_train:
     keys:
     - '@image_key'
     - '@label_key'
-    prob: 0.1
+    prob: 0.15
     spatial_axis: 0
   - _target_: RandFlipd
     keys:
     - '@image_key'
     - '@label_key'
-    prob: 0.1
+    prob: 0.15
     spatial_axis: 1
   - _target_: RandFlipd
     keys:
     - '@image_key'
     - '@label_key'
-    prob: 0.1
+    prob: 0.15
     spatial_axis: 2
   - _target_: RandRotated
     keys:
@@ -92,30 +83,14 @@ transforms_train:
     mode:
     - bilinear
     - nearest
-    prob: 0.2
+    prob: 0.15
     range_x: 0.3
     range_y: 0.3
     range_z: 0.0
   - _target_: RandShiftIntensityd
     keys: '@image_key'
     offsets: 0.1
-    prob: 0.5
-  - _target_: NormalizeIntensityd
-    channel_wise: true
-    keys: '@image_key'
-    nonzero: true
-  - _target_: ScaleIntensityRanged
-    a_max: 147.5986
-    a_min: -45.8736
-    b_max: 1.0
-    b_min: 0.0
-    clip: true
-    keys: '@image_key'
-  - _target_: CropForegroundd
-    keys:
-    - '@image_key'
-    - '@label_key'
-    source_key: '@image_key'
+    prob: 0.15
   - _target_: CastToTyped
     dtype:
     - $torch.float32
