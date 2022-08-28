@@ -125,7 +125,6 @@ class UNetDecoder(nn.Module):
                     interp_mode=interp_mode,
                     align_corners=align_corners,
                     halves=halve,
-                    is_pad=is_pad,
                 )
             )
         self.blocks = nn.ModuleList(blocks)
