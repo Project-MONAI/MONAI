@@ -17,9 +17,14 @@ class WeightType(StrEnum):
     WEIGHT_DIFF = "fl_weight_diff"
 
 
+class ModelType(StrEnum):
+    BEST_MODEL = "fl_best_model"
+    FINAL_MODEL = "fl_final_model"
+
+
 class ExtraItems(StrEnum):
     ABORT = "fl_abort"
-    MODEL_NAME = "fl_model_name"
+    MODEL_TYPE = "fl_model_type"
     CLIENT_NAME = "fl_client_name"
     APP_ROOT = "fl_app_root"
 
@@ -43,6 +48,7 @@ class BundleKeys(StrEnum):
     TRAINER = "train#trainer"
     EVALUATOR = "validate#evaluator"
     TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
+    VALIDATE_HANDLERS = "validate#handlers"
 
 
 class FiltersType(StrEnum):

@@ -29,6 +29,7 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
@@ -136,6 +137,7 @@ def run_testsuit():
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",

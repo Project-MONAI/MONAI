@@ -145,8 +145,14 @@ from monai.transforms.intensity.dictionary import (
     StdShiftIntensityd,
     ThresholdIntensityd,
 )
-from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour
-from monai.transforms.post.dictionary import AsDiscreted, KeepLargestConnectedComponentd, LabelFilterd, LabelToContourd
+from monai.transforms.post.array import KeepLargestConnectedComponent, LabelFilter, LabelToContour, RemoveSmallObjects
+from monai.transforms.post.dictionary import (
+    AsDiscreted,
+    KeepLargestConnectedComponentd,
+    LabelFilterd,
+    LabelToContourd,
+    RemoveSmallObjectsd,
+)
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
@@ -178,6 +184,7 @@ from monai.transforms.spatial.dictionary import (
     Spacingd,
 )
 from monai.utils.enums import CommonKeys
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import optional_import
 
 if TYPE_CHECKING:
@@ -195,7 +202,7 @@ def get_data(keys):
     Use MarsAtlas as it only contains 1 image for quick download and
     that image is parcellated.
     """
-    cache_dir = os.environ.get("MONAI_DATA_DIRECTORY") or tempfile.mkdtemp()
+    cache_dir = MONAIEnvVars.data_dir() or tempfile.mkdtemp()
     fname = "MarsAtlas-MNI-Colin27.zip"
     url = "https://www.dropbox.com/s/ndz8qtqblkciole/" + fname + "?dl=1"
     out_path = os.path.join(cache_dir, "MarsAtlas-MNI-Colin27")
@@ -420,7 +427,9 @@ def create_transform_im(
         seed = seed + 1 if isinstance(transform, MapTransform) else seed
         transform.set_random_state(seed)
 
-    out_dir = os.environ.get("MONAI_DOC_IMAGES")
+    from monai.utils.misc import MONAIEnvVars
+
+    out_dir = MONAIEnvVars.doc_images()
     if out_dir is None:
         raise RuntimeError(
             "Please git clone https://github.com/Project-MONAI/DocImages"
@@ -688,6 +697,10 @@ if __name__ == "__main__":
     create_transform_im(KeepLargestConnectedComponent, dict(applied_labels=1), data_binary, is_post=True, ndim=2)
     create_transform_im(
         KeepLargestConnectedComponentd, dict(keys=CommonKeys.LABEL, applied_labels=1), data_binary, is_post=True, ndim=2
+    )
+    create_transform_im(RemoveSmallObjects, dict(min_size=100), data_binary, is_post=True, ndim=2)
+    create_transform_im(
+        RemoveSmallObjectsd, dict(keys=CommonKeys.LABEL, min_size=100), data_binary, is_post=True, ndim=2
     )
     create_transform_im(
         GridDistortion, dict(num_cells=3, distort_steps=[(1.5,) * 4] * 3, mode="nearest", padding_mode="zeros"), data
