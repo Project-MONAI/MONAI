@@ -19,7 +19,7 @@ fake_datalist = {
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
         pass
-    
+
     def test_data_analyzer(self) -> None:
         progress_tracker = ["analysis", "configure"]
 
@@ -50,7 +50,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
         bundle_generator = BundleGen(
-            data_stats_filename=output_yaml, 
+            data_stats_filename=output_yaml,
             data_lists_filename=data_src_cfg)
 
         bundle_generator.generate(work_dir, [0,1,2,3,4])
@@ -61,7 +61,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         for i, record in enumerate(history):
             for name, algo in record.items():
                 algo.train(num_iterations=1500)
-    
+
     def tearDown(self) -> None:
         pass
 

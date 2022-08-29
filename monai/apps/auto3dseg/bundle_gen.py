@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from asyncio.subprocess import PIPE
 import os
 import shutil
 import subprocess
@@ -115,13 +114,13 @@ class BundleAlgo(Algo):
     def train(self, **override):
         train_py = os.path.join(self.output_path, 'scripts', 'train.py')
         config_yaml =  os.path.join(self.output_path, 'configs', 'algo_config.yaml')
-        
+
         cmd = f"python {train_py} run --config_file={config_yaml}"
         for k, v in override.items():
             cmd += f" --{k}={v}"
         p = subprocess.run(cmd.split(), check=True)
         return
-        
+
 
     def get_score(self, *args, **kwargs):
         pass
@@ -199,7 +198,7 @@ class UnetAlgo(BundleAlgo):
 
         if data_stats_filename is None or not os.path.exists(str(data_stats_filename)):
             return
-        
+
         data_cfg = ConfigParser(globals=False)
         data_cfg.read_config(data_stats_filename)
 
@@ -213,7 +212,7 @@ class UnetAlgo(BundleAlgo):
         self.cfg["patch_size_valid"] = [patch_size[0], patch_size[1], patch_size[2]]
 
         data_src_cfg = ConfigParser(globals=False)
-        
+
         if self.data_list_file is not None and os.path.exists(str(self.data_list_file)):
             data_src_cfg.read_config(self.data_list_file)
             self.cfg.update(
@@ -264,7 +263,7 @@ class UnetAlgo(BundleAlgo):
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
                     else:
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
-        
+
 
 auto3dseg_dir = os.path.dirname(__file__)
 
