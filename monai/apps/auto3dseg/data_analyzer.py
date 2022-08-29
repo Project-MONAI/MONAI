@@ -41,7 +41,8 @@ def strenum_representer(dumper, data):
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.value)
 
 
-config_parser.yaml.SafeDumper.add_multi_representer(StrEnum, strenum_representer)
+if optional_import("yaml")[1]:
+    config_parser.yaml.SafeDumper.add_multi_representer(StrEnum, strenum_representer)
 
 tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 logger = get_logger(module_name=__name__)
