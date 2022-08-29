@@ -817,7 +817,7 @@ class SobelGradientsd(MapTransform):
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
         dtype: torch.dtype = torch.float32,
-        device: torch.device = "cpu",
+        device: Union[torch.device, int, str] = "cpu",
         new_key_prefix: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:

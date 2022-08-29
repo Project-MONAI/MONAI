@@ -873,7 +873,7 @@ class SobelGradients(Transform):
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
         dtype: torch.dtype = torch.float32,
-        device: torch.device = "cpu",
+        device: Union[torch.device, int, str] = "cpu",
     ) -> None:
         super().__init__()
         self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
@@ -885,9 +885,9 @@ class SobelGradients(Transform):
         if not dtype.is_floating_point:
             raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
 
-        numerator = torch.arange(-size // 2 + 1, size // 2 + 1, dtype=dtype, device=device, requires_grad=False).expand(
-            size, size
-        )
+        numerator: torch.Tensor = torch.arange(
+            -size // 2 + 1, size // 2 + 1, dtype=dtype, device=device, requires_grad=False
+        ).expand(size, size)
         denominator = numerator * numerator
         denominator = denominator + denominator.T
         denominator[:, size // 2] = 1.0  # to avoid devide by zero
@@ -895,11 +895,11 @@ class SobelGradients(Transform):
         return kernel
 
     def __call__(self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> torch.Tensor:
-        image = convert_to_tensor(image, track_meta=get_track_meta())
-        kernel_v = self.kernel.to(image.device)
+        image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
+        kernel_v = self.kernel.to(image_tensor.device)
         kernel_h = kernel_v.T
-        grad_v = apply_filter(image, kernel_v, padding=self.padding)
-        grad_h = apply_filter(image, kernel_h, padding=self.padding)
+        grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
+        grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
         grad = torch.concat([grad_h, grad_v])
 
         if mask is not None:
