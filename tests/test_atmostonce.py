@@ -39,15 +39,15 @@ def enumerate_results_of_op(results):
     if isinstance(results, dict):
         for k, v in results.items():
             if isinstance(v, (np.ndarray, torch.Tensor)):
-                print(k, v.shape, v[tuple(slice(0, 8) for _ in r.shape)])
+                print(k, v.shape, v[tuple(slice(0, 8) for _ in v.shape)])
             else:
                 print(k, v)
     else:
-        for ir, r in enumerate(results):
-            if isinstance(r, (np.ndarray, torch.Tensor)):
-                print(ir, r.shape, r[tuple(slice(0, 8) for _ in r.shape)])
+        for ir, v in enumerate(results):
+            if isinstance(v, (np.ndarray, torch.Tensor)):
+                print(ir, v.shape, v[tuple(slice(0, 8) for _ in v.shape)])
             else:
-                print(ir, r)
+                print(ir, v)
 
 
 class TestLowLevel(unittest.TestCase):

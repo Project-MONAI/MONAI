@@ -72,12 +72,12 @@ def apply(data: MetaTensor):
     # pre-translate origin to centre of image
     translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
     cumulative_matrix = translate_to_centre @ cumulative_matrix
-    cumulative_extents = [e @ translate_to_centre for e in cumulative_extents]
+    cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
 
     for meta_matrix in pending:
         next_matrix = meta_matrix.matrix
         cumulative_matrix = next_matrix @ cumulative_matrix
-        cumulative_extents = [e @ translate_to_centre for e in cumulative_extents]
+        cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
 
     # TODO: figure out how to propagate extents properly
     # TODO: resampling strategy: augment resample or perform multiple stages if necessary
