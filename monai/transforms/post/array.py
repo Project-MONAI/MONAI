@@ -894,15 +894,12 @@ class SobelGradients(Transform):
         kernel = numerator / denominator
         return kernel
 
-    def __call__(self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None) -> torch.Tensor:
+    def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
         image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
         kernel_v = self.kernel.to(image_tensor.device)
         kernel_h = kernel_v.T
         grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
         grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
         grad = torch.concat([grad_h, grad_v])
-
-        if mask is not None:
-            grad = grad * mask
 
         return grad
