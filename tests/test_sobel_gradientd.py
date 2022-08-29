@@ -15,7 +15,7 @@ from parameterized import parameterized
 
 import torch
 
-from monai.transforms import SobelGradients
+from monai.transforms import SobelGradientsd
 from tests.utils import assert_allclose
 
 IMAGE = torch.zeros(1, 1, 16, 16, dtype=torch.float32)
@@ -31,15 +31,20 @@ OUTPUT_3x3[1, 8, -1] = -1.0
 OUTPUT_3x3[1, 7, -1] = OUTPUT_3x3[1, 9, -1] = -0.5
 OUTPUT_3x3 = OUTPUT_3x3.unsqueeze(1)
 
-TEST_CASE_0 = [IMAGE, {"kernel_size": 3, "dtype": torch.float32}, OUTPUT_3x3]
-TEST_CASE_1 = [IMAGE, {"kernel_size": 3, "dtype": torch.float64}, OUTPUT_3x3]
+TEST_CASE_0 = [{"image": IMAGE}, {"keys": "image", "kernel_size": 3, "dtype": torch.float32}, {"image": OUTPUT_3x3}]
+TEST_CASE_1 = [{"image": IMAGE}, {"keys": "image", "kernel_size": 3, "dtype": torch.float64}, {"image": OUTPUT_3x3}]
+TEST_CASE_2 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "dtype": torch.float32, "new_key_prefix": "sobel_"},
+    {"sobel_image": OUTPUT_3x3},
+]
 
 TEST_CASE_KERNEL_0 = [
-    {"kernel_size": 3, "dtype": torch.float64},
+    {"keys": "image", "kernel_size": 3, "dtype": torch.float64},
     torch.tensor([[-0.5, 0.0, 0.5], [-1.0, 0.0, 1.0], [-0.5, 0.0, 0.5]], dtype=torch.float64),
 ]
 TEST_CASE_KERNEL_1 = [
-    {"kernel_size": 5, "dtype": torch.float64},
+    {"keys": "image", "kernel_size": 5, "dtype": torch.float64},
     torch.tensor(
         [
             [-0.25, -0.2, 0.0, 0.2, 0.25],
@@ -52,7 +57,7 @@ TEST_CASE_KERNEL_1 = [
     ),
 ]
 TEST_CASE_KERNEL_2 = [
-    {"kernel_size": 7, "dtype": torch.float64},
+    {"keys": "image", "kernel_size": 7, "dtype": torch.float64},
     torch.tensor(
         [
             [-3.0 / 18.0, -2.0 / 13.0, -1.0 / 10.0, 0.0, 1.0 / 10.0, 2.0 / 13.0, 3.0 / 18.0],
@@ -66,17 +71,18 @@ TEST_CASE_KERNEL_2 = [
         dtype=torch.float64,
     ),
 ]
-TEST_CASE_ERROR_0 = [{"kernel_size": 2, "dtype": torch.float32}]
+TEST_CASE_ERROR_0 = [{"keys": "image", "kernel_size": 2, "dtype": torch.float32}]
 
 
 class SobelGradientTests(unittest.TestCase):
     backend = None
 
     @parameterized.expand([TEST_CASE_0])
-    def test_sobel_gradients(self, image, arguments, expected_grad):
-        sobel = SobelGradients(**arguments)
-        grad = sobel(image)
-        assert_allclose(grad, expected_grad)
+    def test_sobel_gradients(self, image_dict, arguments, expected_grad):
+        sobel = SobelGradientsd(**arguments)
+        grad = sobel(image_dict)
+        key = "image" if "new_key_prefix" not in arguments else arguments["new_key_prefix"] + arguments["keys"]
+        assert_allclose(grad[key], expected_grad[key])
 
     @parameterized.expand(
         [
@@ -86,14 +92,14 @@ class SobelGradientTests(unittest.TestCase):
         ]
     )
     def test_sobel_kernels(self, arguments, expected_kernel):
-        sobel = SobelGradients(**arguments)
-        self.assertTrue(sobel.kernel.dtype == expected_kernel.dtype)
-        assert_allclose(sobel.kernel, expected_kernel)
+        sobel = SobelGradientsd(**arguments)
+        self.assertTrue(sobel.transform.kernel.dtype == expected_kernel.dtype)
+        assert_allclose(sobel.transform.kernel, expected_kernel)
 
     @parameterized.expand([TEST_CASE_ERROR_0])
     def test_sobel_gradients_error(self, arguments):
         with self.assertRaises(ValueError):
-            SobelGradients(**arguments)
+            SobelGradientsd(**arguments)
 
 
 if __name__ == "__main__":
