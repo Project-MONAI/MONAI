@@ -537,6 +537,14 @@ Post-processing
     :members:
     :special-members: __call__
 
+`RemoveSmallObjects`
+""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjects.png
+    :alt: example of RemoveSmallObjects
+.. autoclass:: RemoveSmallObjects
+    :members:
+    :special-members: __call__
+
 `LabelFilter`
 """""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilter.png
@@ -1447,6 +1455,14 @@ Post-processing (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponentd.png
     :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`RemoveSmallObjectsd`
+"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjectsd.png
+    :alt: example of RemoveSmallObjectsd
+.. autoclass:: RemoveSmallObjectsd
     :members:
     :special-members: __call__
 

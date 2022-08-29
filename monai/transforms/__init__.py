@@ -267,6 +267,7 @@ from .post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -300,6 +301,9 @@ from .post.dictionary import (
     ProbNMSD,
     ProbNMSd,
     ProbNMSDict,
+    RemoveSmallObjectsD,
+    RemoveSmallObjectsd,
+    RemoveSmallObjectsDict,
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
@@ -609,6 +613,7 @@ from .utils import (
     map_spatial_axes,
     print_transform_backends,
     rand_choice,
+    remove_small_objects,
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
