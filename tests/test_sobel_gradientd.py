@@ -11,9 +11,8 @@
 
 import unittest
 
-from parameterized import parameterized
-
 import torch
+from parameterized import parameterized
 
 from monai.transforms import SobelGradientsd
 from tests.utils import assert_allclose
@@ -84,13 +83,7 @@ class SobelGradientTests(unittest.TestCase):
         key = "image" if "new_key_prefix" not in arguments else arguments["new_key_prefix"] + arguments["keys"]
         assert_allclose(grad[key], expected_grad[key])
 
-    @parameterized.expand(
-        [
-            TEST_CASE_KERNEL_0,
-            TEST_CASE_KERNEL_1,
-            TEST_CASE_KERNEL_2,
-        ]
-    )
+    @parameterized.expand([TEST_CASE_KERNEL_0, TEST_CASE_KERNEL_1, TEST_CASE_KERNEL_2])
     def test_sobel_kernels(self, arguments, expected_kernel):
         sobel = SobelGradientsd(**arguments)
         self.assertTrue(sobel.transform.kernel.dtype == expected_kernel.dtype)
