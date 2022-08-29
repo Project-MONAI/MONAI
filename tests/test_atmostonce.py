@@ -8,44 +8,46 @@ import numpy as np
 import torch
 
 from monai.transforms.atmostonce import array as amoa
+from monai.transforms.atmostonce.array import Rotate, CropPad
 from monai.transforms.atmostonce.lazy_transform import compile_transforms
 from monai.utils import TransformBackends
 
 from monai.transforms import Affined, Affine
 from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing
-from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents
+from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory
 
 
-def get_img(size):
-  img = torch.zeros(size, dtype=torch.float32)
-  if len(size) == 2:
-    for j in range(size[0]):
-      for i in range(size[1]):
-        img[j, i] = i + j * size[1]
-  else:
-    for k in range(size[-1]):
-      for j in range(size[-2]):
-        img[..., j, k] = j + k * size[0]
-  return np.expand_dims(img, 0)
+def get_img(size, offset = 0):
+    img = torch.zeros(size, dtype=torch.float32)
+    if len(size) == 2:
+        for j in range(size[0]):
+            for i in range(size[1]):
+                img[j, i] = i + j * size[1] + offset
+    else:
+        for k in range(size[0]):
+            for j in range(size[1]):
+                for i in range(size[2]):
+                    img[..., j, k] = j * size[0] + k * size[0] * size[1] + offset
+    return np.expand_dims(img, 0)
 
 
 def enumerate_results_of_op(results):
     if isinstance(results, dict):
         for k, v in results.items():
             if isinstance(v, (np.ndarray, torch.Tensor)):
-                print(k, v.shape, v[tuple(slice(0, 8) for _ in r.shape)])
+                print(k, v.shape, v[tuple(slice(0, 8) for _ in v.shape)])
             else:
                 print(k, v)
     else:
-        for ir, r in enumerate(results):
-            if isinstance(r, (np.ndarray, torch.Tensor)):
-                print(ir, r.shape, r[tuple(slice(0, 8) for _ in r.shape)])
+        for ir, v in enumerate(results):
+            if isinstance(v, (np.ndarray, torch.Tensor)):
+                print(ir, v.shape, v[tuple(slice(0, 8) for _ in v.shape)])
             else:
-                print(ir, r)
+                print(ir, v)
 
 
 class TestLowLevel(unittest.TestCase):
@@ -181,19 +183,96 @@ class TestFunctional(unittest.TestCase):
                          "border")
         enumerate_results_of_op(results)
 
-    def test_croppad(self):
+    def test_croppad_identity(self):
         img = get_img((16, 16)).astype(int)
         results = croppad(img,
-                          (slice(3, 8), slice(3, 9)))
+                          (slice(0, 16), slice(0, 16)))
         enumerate_results_of_op(results)
         m = results[1].matrix.matrix
         print(m)
         result_size = results[2]['spatial_shape']
         a = Affine(affine=m,
                    padding_mode=GridSamplePadMode.ZEROS,
-                   spatial_size=[1] + result_size)
+                   spatial_size=result_size)
         img_, _ = a(img)
-        print(img_.numpy().astype(int))
+        print(img_)
+
+    def _croppad_impl(self, img_ext, slices, expected):
+        img = get_img(img_ext).astype(int)
+        results = croppad(img, slices)
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=result_size)
+        img_, _ = a(img)
+        if expected is None:
+            print(img_.numpy())
+        else:
+            self.assertTrue(torch.allclose(img_, expected))
+
+    def test_croppad_img_odd_crop_odd(self):
+        expected = torch.as_tensor([[63., 64., 65., 66., 67., 68., 69.],
+                                    [78., 79., 80., 81., 82., 83., 84.],
+                                    [93., 94., 95., 96., 97., 98., 99.],
+                                    [108., 109., 110., 111., 112., 113., 114.],
+                                    [123., 124., 125., 126., 127., 128., 129.]])
+        self._croppad_impl((15, 15), (slice(4, 9), slice(3, 10)), expected)
+
+    def test_croppad_img_odd_crop_even(self):
+        expected = torch.as_tensor([[63., 64., 65., 66., 67., 68.],
+                                    [78., 79., 80., 81., 82., 83.],
+                                    [93., 94., 95., 96., 97., 98.],
+                                    [108., 109., 110., 111., 112., 113.]])
+        self._croppad_impl((15, 15), (slice(4, 8), slice(3, 9)), expected)
+
+    def test_croppad_img_even_crop_odd(self):
+        expected = torch.as_tensor([[67., 68., 69., 70., 71., 72., 73.],
+                                    [83., 84., 85., 86., 87., 88., 89.],
+                                    [99., 100., 101., 102., 103., 104., 105.],
+                                    [115., 116., 117., 118., 119., 120., 121.],
+                                    [131., 132., 133., 134., 135., 136., 137.]])
+        self._croppad_impl((16, 16), (slice(4, 9), slice(3, 10)), expected)
+
+    def test_croppad_img_even_crop_even(self):
+        expected = torch.as_tensor([[67., 68., 69., 70., 71., 72.],
+                                    [83., 84., 85., 86., 87., 88.],
+                                    [99., 100., 101., 102., 103., 104.],
+                                    [115., 116., 117., 118., 119., 120.]])
+        self._croppad_impl((16, 16), (slice(4, 8), slice(3, 9)), expected)
+
+    # TODO: amo: add tests for matrix and result size
+    def test_croppad(self):
+        img = get_img((15, 15)).astype(int)
+        results = croppad(img, (slice(4, 8), slice(3, 9)))
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        # print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=result_size)
+        img_, _ = a(img)
+        # print(img_.numpy())
+
+    def test_apply(self):
+        img = get_img((16, 16))
+        r = Rotate(torch.pi / 4,
+                   keep_size=False,
+                   mode="bilinear",
+                   padding_mode="zeros",
+                   lazy_evaluation=True)
+        c = CropPad((slice(4, 12), slice(6, 14)),
+                    lazy_evaluation=True)
+
+        img_r = r(img)
+        cur_op = img_r.peek_pending_transform()
+        img_rc = c(img_r,
+                   shape_override=cur_op.metadata.get("shape_override", None))
+
+        img_rca = apply(img_rc)
 
 
 class TestArrayTransforms(unittest.TestCase):

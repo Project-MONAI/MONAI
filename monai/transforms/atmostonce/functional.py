@@ -21,7 +21,8 @@ def spacing(
     mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
     align_corners: Optional[bool] = False,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    shape_override: Optional[Sequence] = None
 ):
     """
     Args:
@@ -49,7 +50,8 @@ def spacing(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_ndim = len(img.shape) - 1
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
 
     pixdim_ = ensure_tuple_rep(pixdim, input_ndim)
     src_pixdim_ = ensure_tuple_rep(src_pixdim, input_ndim)
@@ -62,10 +64,11 @@ def spacing(
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
     zoom_factors = [i / j for i, j in zip(src_pixdim_, pixdim_)]
 
-    transform = MatrixFactory.from_tensor(img).scale(zoom_factors)
-    im_extents = extents_from_shape(img.shape)
-    im_extents = [transform.matrix.matrix @ e for e in im_extents]
-    spatial_shape_ = shape_from_extents(im_extents)
+    # TODO: decide whether we are consistently returning MetaMatrix or concrete transforms
+    transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.matrix
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [transform @ e for e in im_extents]
+    shape_override_ = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "pixdim": pixdim_,
@@ -76,7 +79,7 @@ def spacing(
         "align_corners": align_corners,
         "dtype": dtype_,
         "im_extents": im_extents,
-        "spatial_shape": spatial_shape_
+        "shape_override": shape_override_
     }
     return img_, transform, metadata
 
@@ -101,7 +104,8 @@ def resize(
     align_corners: Optional[bool] = False,
     anti_aliasing: Optional[bool] = None,
     anti_aliasing_sigma: Optional[Union[Sequence[float], float]] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    shape_override: Optional[Sequence] = None
 ):
     """
     Args:
@@ -129,21 +133,22 @@ def resize(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_ndim = len(img.shape) - 1
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
 
     if size_mode == "all":
         output_ndim = len(ensure_tuple(spatial_size))
         if output_ndim > input_ndim:
-            input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+            input_shape = ensure_tuple_size(input_shape, output_ndim + 1, 1)
             img = img.reshape(input_shape)
         elif output_ndim < input_ndim:
             raise ValueError(
                 "len(spatial_size) must be greater or equal to img spatial dimensions, "
                 f"got spatial_size={output_ndim} img={input_ndim}."
             )
-        spatial_size_ = fall_back_tuple(spatial_size, img.shape[1:])
+        spatial_size_ = fall_back_tuple(spatial_size, input_shape[1:])
     else:  # for the "longest" mode
-        img_size = img.shape[1:]
+        img_size = input_shape[1:]
         if not isinstance(spatial_size, int):
             raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
         scale = spatial_size / max(img_size)
@@ -151,11 +156,11 @@ def resize(
 
     mode_ = look_up_option(mode, GridSampleMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
-    zoom_factors = [i / j for i, j in zip(spatial_size, img.shape[1:])]
-    transform = MatrixFactory.from_tensor(img).scale(zoom_factors)
-    im_extents = extents_from_shape(img.shape)
-    im_extents = [transform.matrix.matrix @ e for e in im_extents]
-    spatial_shape_ = shape_from_extents(im_extents)
+    zoom_factors = [i / j for i, j in zip(spatial_size, input_shape[1:])]
+    transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.matrix
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [transform @ e for e in im_extents]
+    shape_override_ = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "spatial_size": spatial_size_,
@@ -166,7 +171,7 @@ def resize(
         "anti_aliasing_sigma": anti_aliasing_sigma,
         "dtype": dtype_,
         "im_extents": im_extents,
-        "spatial_shape": spatial_shape_
+        "shape_override": shape_override_
     }
     return img_, transform, metadata
 
@@ -178,7 +183,8 @@ def rotate(
     mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
     align_corners: Optional[bool] = False,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    shape_override: Optional[Sequence] = None
 ):
     """
     Args:
@@ -210,17 +216,19 @@ def rotate(
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
-    input_ndim = len(img_.shape) - 1
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
+
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
     transform = create_rotate(input_ndim, angle_)
-    im_extents = extents_from_shape(img.shape)
+    im_extents = extents_from_shape(input_shape)
     if not keep_size:
         im_extents = [transform @ e for e in im_extents]
-        spatial_shape = shape_from_extents(im_extents)
+        spatial_shape = shape_from_extents(input_shape, im_extents)
     else:
-        spatial_shape = img_.shape
+        spatial_shape = input_shape
 
     metadata = {
         "angle": angle_,
@@ -230,7 +238,7 @@ def rotate(
         "align_corners": align_corners,
         "dtype": dtype_,
         "im_extents": im_extents,
-        "spatial_shape": spatial_shape
+        "shape_override": spatial_shape
     }
     return img_, transform, metadata
 
@@ -242,7 +250,8 @@ def zoom(
         padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = False,
         keep_size: Optional[bool] = True,
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        shape_override: Optional[Sequence] = None
 ):
     """
     Args:
@@ -261,7 +270,8 @@ def zoom(
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_ndim = len(img.shape) - 1
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
 
     zoom_factors = ensure_tuple_rep(zoom, input_ndim)
 
@@ -270,13 +280,13 @@ def zoom(
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
 
-    transform = MatrixFactory.from_tensor(img).scale(zoom_factors)
-    im_extents = extents_from_shape(img.shape)
+    transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.matrix
+    im_extents = extents_from_shape(input_shape)
     if keep_size is False:
-        im_extents = [transform.matrix.matrix @ e for e in im_extents]
-        spatial_shape_ = shape_from_extents(im_extents)
+        im_extents = [transform @ e for e in im_extents]
+        shape_override_ = shape_from_extents(input_shape, im_extents)
     else:
-        spatial_shape_ = img_.shape
+        shape_override_ = input_shape
 
     metadata = {
         "zoom": zoom_factors,
@@ -286,7 +296,7 @@ def zoom(
         "keep_size": keep_size,
         "dtype": dtype_,
         "im_extents": im_extents,
-        "spatial_shape": spatial_shape_
+        "shape_override": shape_override_
     }
     return img_, transform, metadata
 
@@ -300,28 +310,29 @@ def rotate90(
 def croppad(
         img: torch.Tensor,
         slices: Union[Sequence[slice], slice],
-        pad_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE
+        pad_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
+        shape_override: Optional[Sequence] = None
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
-    input_ndim = len(img.shape) - 1
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
     if len(slices) != input_ndim:
         raise ValueError(f"'slices' length {len(slices)} must be equal to 'img' "
                          f"spatial dimensions of {input_ndim}")
 
-    img_centers = [i // 2 for i in img.shape[1:]]
-    slice_centers = [s.stop - s.start for s in slices]
-    # img_centers = [0 for _ in img.shape[1:]]
-    # slice_centers = [s.end - s.start for s in slices]
+    img_centers = [i / 2 for i in input_shape[1:]]
+    slice_centers = [(s.stop + s.start) / 2 for s in slices]
     deltas = [s - i for i, s in zip(img_centers, slice_centers)]
-    transform = MatrixFactory.from_tensor(img).translate(deltas)
-    im_extents = extents_from_shape([img.shape[0]] + [s.stop - s.start for s in slices])
-    im_extents = [transform.matrix.matrix @ e for e in im_extents]
-    spatial_shape_ = shape_from_extents(im_extents)
+    transform = MatrixFactory.from_tensor(img).translate(deltas).matrix.matrix
+    im_extents = extents_from_shape([input_shape[0]] + [s.stop - s.start for s in slices])
+    im_extents = [transform @ e for e in im_extents]
+    shape_override_ = shape_from_extents(input_shape, im_extents)
 
     metadata = {
         "slices": slices,
+        "pad_mode": pad_mode,
         "dtype": img.dtype,
         "im_extents": im_extents,
-        "spatial_shape": spatial_shape_
+        "shape_override": shape_override_
     }
     return img_, transform, metadata

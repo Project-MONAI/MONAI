@@ -4,6 +4,7 @@ import itertools as it
 
 import numpy as np
 
+import torch
 
 from monai.config import DtypeLike
 from monai.data import MetaTensor
@@ -28,11 +29,29 @@ def extents_from_shape(shape):
 
 
 # TODO: move to mapping_stack.py
-def shape_from_extents(extents):
-    aextents = np.asarray(extents)
-    mins = aextents.min(axis=0)
-    maxes = aextents.max(axis=0)
-    return np.ceil(maxes - mins)[:-1].astype(int)
+def shape_from_extents(
+        src_shape: Sequence,
+        extents: Union[Sequence[np.ndarray], Sequence[torch.Tensor], np.ndarray, torch.Tensor]
+):
+    if isinstance(extents, (list, tuple)):
+        if isinstance(extents[0], np.ndarray):
+            aextents = np.asarray(extents)
+            aextents = torch.from_numpy(aextents)
+        else:
+            aextents = torch.stack(extents)
+    else:
+        if isinstance(extents, np.ndarray):
+            aextents = torch.from_numpy(extents)
+        else:
+            aextents = extents
+
+    mins = aextents.min(axis=0)[0]
+    maxes = aextents.max(axis=0)[0]
+    values = torch.ceil(maxes - mins).type(torch.IntTensor)[:-1]
+    return torch.cat((torch.as_tensor([src_shape[0]]), values))
+
+    # return [src_shape[0]] + np.ceil(maxes - mins)[:-1].astype(int).tolist()
+
 
 
 def apply(data: MetaTensor):
@@ -41,29 +60,29 @@ def apply(data: MetaTensor):
     if len(pending) == 0:
         return data
 
-    dim_count = len(data) - 1
+    dim_count = len(data.shape) - 1
     matrix_factory = MatrixFactory(dim_count,
                                    get_backend_from_data(data),
                                    get_device_from_data(data))
 
     # set up the identity matrix and metadata
-    cumulative_matrix = matrix_factory.identity(dim_count)
+    cumulative_matrix = matrix_factory.identity()
     cumulative_extents = extents_from_shape(data.shape)
 
     # pre-translate origin to centre of image
-    translate_to_centre = matrix_factory.translate(dim_count)
+    translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
     cumulative_matrix = translate_to_centre @ cumulative_matrix
-    cumulative_extents = [e @ translate_to_centre for e in cumulative_extents]
+    cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
 
     for meta_matrix in pending:
         next_matrix = meta_matrix.matrix
         cumulative_matrix = next_matrix @ cumulative_matrix
-        cumulative_extents = [e @ translate_to_centre for e in cumulative_extents]
+        cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
 
     # TODO: figure out how to propagate extents properly
     # TODO: resampling strategy: augment resample or perform multiple stages if necessary
     # TODO: resampling strategy - antialiasing: can resample just be augmented?
-
+    r = Resample()
 
     data.clear_pending_transforms()
 
