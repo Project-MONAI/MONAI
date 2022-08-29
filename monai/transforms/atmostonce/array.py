@@ -317,18 +317,17 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 # croppad
 # =======
 
-
 class CropPad(LazyTransform, InvertibleTransform):
 
     def __init__(
             self,
             slices: Sequence[slice],
-            padmode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
             lazy_evaluation: Optional[bool] = True,
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.slices = slices
-        self.padmode = padmode
+        self.padding_mode = padding_mode
 
     def __call__(
             self,
@@ -336,7 +335,7 @@ class CropPad(LazyTransform, InvertibleTransform):
             shape_override: Optional[Sequence] = None
     ):
 
-        img_t, transform, metadata = croppad(img, self.slices, self.padmode, shape_override)
+        img_t, transform, metadata = croppad(img, self.slices, self.padding_mode, shape_override)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))

@@ -82,7 +82,7 @@ def apply(data: MetaTensor):
     # TODO: figure out how to propagate extents properly
     # TODO: resampling strategy: augment resample or perform multiple stages if necessary
     # TODO: resampling strategy - antialiasing: can resample just be augmented?
-
+    r = Resample()
 
     data.clear_pending_transforms()
 

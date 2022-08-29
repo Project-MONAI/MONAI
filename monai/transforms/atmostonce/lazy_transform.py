@@ -1,6 +1,6 @@
 from monai.config import NdarrayOrTensor
-
 from monai.data import MetaTensor
+from monai.transforms import Randomizable
 from monai.transforms.atmostonce.apply import Applyd
 from monai.utils.mapping_stack import MetaMatrix
 
@@ -44,14 +44,22 @@ def transforms_compatible(current, next):
     raise NotImplementedError()
 
 
-def compile_transforms(transforms):
+def compile_lazy_transforms(transforms):
     flat = flatten_sequences(transforms)
     for i in range(len(flat)-1):
         cur_t, next_t = flat[i], flat[i + 1]
         if not transforms_compatible(cur_t, next_t):
             flat.insert(i + 1, Applyd())
+    if not isinstance(flat[-1], Applyd):
+        flat.append(Applyd)
     return flat
 
+def compile_cached_dataloading_transforms(transforms):
+    flat = flatten_sequences(transforms)
+    for i in range(len(flat)):
+        cur_t = flat[i]
+        if isinstance(cur_t, Randomizable):
+            flat.insert
 
 
 
