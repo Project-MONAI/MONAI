@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from asyncio.subprocess import PIPE
 import os
 import shutil
+import subprocess
+
 from copy import deepcopy
 from glob import glob
 from typing import Sequence, Union
@@ -18,6 +21,7 @@ from typing import Sequence, Union
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
+
 
 __all__ = ["BundleAlgo", "BundleGen", "SegresnetAlgo", "DintsAlgo"]
 
@@ -108,8 +112,16 @@ class BundleAlgo(Algo):
         print(write_path)
         self.output_path = write_path
 
-    def train(self):
-        pass
+    def train(self, **override):
+        train_py = os.path.join(self.output_path, 'scripts', 'train.py')
+        config_yaml =  os.path.join(self.output_path, 'configs', 'algo_config.yaml')
+        
+        cmd = f"python {train_py} run --config_file={config_yaml}"
+        for k, v in override.items():
+            cmd += f" --{k}={v}"
+        p = subprocess.run(cmd.split(), check=True)
+        return
+        
 
     def get_score(self, *args, **kwargs):
         pass
@@ -175,8 +187,6 @@ class SegresnetAlgo(BundleAlgo):
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
                     else:
                         self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
-        # self.algorithm_dir = os.path.join(self.output_path, "segresnet2d")
-        # self.inference_script = "scripts/infer.py"
 
 
 class DintsAlgo(BundleAlgo):
@@ -184,17 +194,96 @@ class DintsAlgo(BundleAlgo):
         print("implement dints template filling method")
 
 
+class UnetAlgo(BundleAlgo):
+    def fill_template_config(self, data_stats_filename):
+
+        if data_stats_filename is None or not os.path.exists(str(data_stats_filename)):
+            return
+        
+        data_cfg = ConfigParser(globals=False)
+        data_cfg.read_config(data_stats_filename)
+
+        patch_size = [128, 128, 128]
+        max_shape = data_cfg["stats_summary#image_stats#shape#max"]
+        patch_size = [
+            max(32, shape_k // 32 * 32) if shape_k < p_k else p_k for p_k, shape_k in zip(patch_size, max_shape)
+        ]
+
+        self.cfg["patch_size"] = [patch_size[0], patch_size[1], patch_size[2]]
+        self.cfg["patch_size_valid"] = [patch_size[0], patch_size[1], patch_size[2]]
+
+        data_src_cfg = ConfigParser(globals=False)
+        
+        if self.data_list_file is not None and os.path.exists(str(self.data_list_file)):
+            data_src_cfg.read_config(self.data_list_file)
+            self.cfg.update(
+                {
+                    "data_file_base_dir": data_src_cfg["dataroot"],
+                    "data_list_file_path": data_src_cfg["datalist"],
+                    "input_channels": data_cfg["stats_summary#image_stats#channels#max"],
+                    "output_channels": len(data_cfg["stats_summary#label_stats#labels"]),
+                    "output_classes": data_cfg["stats_summary#label_stats#labels"],
+                }
+            )
+
+        modality = data_src_cfg.get("modality", "ct").lower()
+        spacing = data_cfg["stats_summary#image_stats#spacing#median"]
+        spacing[-1] = -1.0
+
+        intensity_upper_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_99_5"])
+        intensity_lower_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_00_5"])
+
+        ct_intensity_xform = {
+            "_target_": "Compose",
+            "transforms": [
+                {
+                    "_target_": "ScaleIntensityRanged",
+                    "keys": "@image_key",
+                    "a_min": intensity_lower_bound,
+                    "a_max": intensity_upper_bound,
+                    "b_min": 0.0,
+                    "b_max": 1.0,
+                    "clip": True,
+                },
+                {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"},
+            ],
+        }
+        mr_intensity_transform = {
+            "_target_": "NormalizeIntensityd",
+            "keys": "@image_key",
+            "nonzero": True,
+            "channel_wise": True,
+        }
+
+        for key in ["transforms_infer", "transforms_train", "transforms_validate"]:
+            for idx, xform in enumerate(self.cfg[f"{key}#transforms"]):
+                if isinstance(xform, dict) and xform.get("_target_", "").startswith("Spacing"):
+                    xform["pixdim"] = deepcopy(spacing)
+                elif isinstance(xform, str) and xform.startswith("PLACEHOLDER_INTENSITY_NORMALIZATION"):
+                    if modality.startswith("ct"):
+                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
+                    else:
+                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
+        
+
+auto3dseg_dir = os.path.dirname(__file__)
+
 default_algos = {
-    "segresnet2d": dict(
-        _target_="SegresnetAlgo",
-        template_configs="../algorithms/templates/segresnet2d/configs",
-        scripts_path="../algorithms/templates/segresnet2d/scripts",
+    "unet": dict(
+        _target_="UnetAlgo",
+        template_configs=os.path.join(auto3dseg_dir, "algorithms/templates/unet/configs"),
+        scripts_path=os.path.join(auto3dseg_dir, "algorithms/templates/unet/scripts"),
     ),
-    "dints": dict(
-        _target_="DintsAlgo",
-        template_configs="../algorithms/templates/dints/configs",
-        scripts_path="../algorithms/templates/dints/scripts",
-    ),
+    # "segresnet2d": dict(
+    #     _target_="SegresnetAlgo",
+    #     template_configs="../algorithms/templates/segresnet2d/configs",
+    #     scripts_path="../algorithms/templates/segresnet2d/scripts",
+    # ),
+    # "dints": dict(
+    #     _target_="DintsAlgo",
+    #     template_configs="../algorithms/templates/dints/configs",
+    #     scripts_path="../algorithms/templates/dints/scripts",
+    # ),
 }
 
 
@@ -236,7 +325,7 @@ class BundleGen(AlgoGen):
     def get_history(self, *args, **kwargs):
         return self.history
 
-    def generate(self, fold_idx: Union[int, Sequence[int]] = 0):
+    def generate(self, export_dir: str = ".", fold_idx: Union[int, Sequence[int]] = 0):
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats(fold_idx)
@@ -244,5 +333,5 @@ class BundleGen(AlgoGen):
                 algo.set_data_stats(data_stats)
                 algo.set_data_source(data_lists)
                 name = f"{algo.name}_{f_id}"
-                algo.export_to_disk(".", algo_name=name)
+                algo.export_to_disk(export_dir, algo_name=name)
                 self.history.append({name: deepcopy(algo)})  # track the previous, may create a persistent history

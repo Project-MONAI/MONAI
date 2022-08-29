@@ -1,0 +1,25 @@
+---
+network:
+  _target_: UNet
+  spatial_dims: 3
+  in_channels: "@input_channels"
+  out_channels: "@output_channels"
+  channels:
+    - 32
+    - 64
+    - 128
+    - 256
+    - 512
+  strides:
+    - 2
+    - 2
+    - 2
+    - 2
+  kernel_size: 3
+  num_res_units: 2
+  act: PRELU
+  norm: BATCH
+  dropout: 0.2
+  bias: true
+
+  

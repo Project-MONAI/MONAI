@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .bundle_gen import BundleAlgo, BundleGen, DintsAlgo, SegresnetAlgo
+from .bundle_gen import BundleAlgo, BundleGen, DintsAlgo, SegresnetAlgo, UnetAlgo
 from .data_analyzer import DataAnalyzer
