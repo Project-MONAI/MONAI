@@ -13,7 +13,7 @@ import logging
 import os
 
 import importlib
-from monai.auto3dseg.ensemble_methods import EnsembleMethods, EnsembleBestN
+from monai.auto3dseg.ensembler import EnsembleMethods, EnsembleBestN
 import torch
 from monai.bundle import ConfigParser
 from typing import Dict, Optional, Union
@@ -21,7 +21,7 @@ from monai.losses import DiceCELoss
 
 logger = logging.getLogger(__name__)
 
-class Ensemble:
+class EnsembleBuilder:
     """Build ensemble workflow from configs and arguments."""
 
     def __init__(self,
