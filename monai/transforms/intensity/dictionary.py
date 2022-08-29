@@ -24,6 +24,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
@@ -91,6 +92,7 @@ __all__ = [
     "RandCoarseShuffled",
     "HistogramNormalized",
     "ForegroundMaskd",
+    "ComputeHoVerMapsd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -151,6 +153,8 @@ __all__ = [
     "RandKSpaceSpikeNoiseDict",
     "ForegroundMaskD",
     "ForegroundMaskDict",
+    "ComputeHoVerMapsD",
+    "ComputeHoVerMapsDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1741,6 +1745,39 @@ class ForegroundMaskd(MapTransform):
         return d
 
 
+class ComputeHoVerMapsd(MapTransform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        dtype: the type of output Tensor. Defaults to `"float32"`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "hover_mask".
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: DtypeLike = "float32",
+        new_key_prefix: str = "hover_",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ComputeHoVerMaps(dtype=dtype)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1771,3 +1808,4 @@ RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
 ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
+ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd
