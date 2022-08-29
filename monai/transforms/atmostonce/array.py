@@ -317,7 +317,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 # croppad
 # =======
 
-
 class CropPad(LazyTransform, InvertibleTransform):
 
     def __init__(
