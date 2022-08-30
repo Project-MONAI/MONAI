@@ -9,5 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .bundle_gen import BundleAlgo, BundleGen
-from .data_analyzer import DataAnalyzer
+from monai.apps.auto3dseg import BundleAlgo
+
+
+class DintsAlgo(BundleAlgo):
+    def fill_template_config(self, data_stats_filename):
+        print("implement dints template filling.")
+
+
+if __name__ == "__main__":
+    from monai.utils import optional_import
+
+    fire, _ = optional_import("fire")
+    fire.Fire({"DintsAlgo": DintsAlgo})
