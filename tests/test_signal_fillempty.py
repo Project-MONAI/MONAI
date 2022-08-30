@@ -22,6 +22,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 
 
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
@@ -37,7 +38,7 @@ class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))
-        sig[:, 123] = torch.nan
+        sig[:, 123] = convert_to_tensor(np.NAN)
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
         self.assertTrue(not torch.isnan(fillemptysignal.any()))
