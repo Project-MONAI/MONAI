@@ -123,7 +123,15 @@ class BundleAlgo(Algo):
 
 
     def get_score(self, *args, **kwargs):
-        pass
+        config_yaml =  os.path.join(self.output_path, 'configs', 'algo_config.yaml')
+        parser = ConfigParser()
+        parser.read_config(config_yaml)
+        ckpt_path = parser.get_parsed_content("ckpt_path")
+        
+        dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
+        best_metric = dict_file["best_avg_dice_score"]
+
+        return best_metric
 
 
 class SegresnetAlgo(BundleAlgo):

@@ -40,8 +40,10 @@ fake_datalist = {
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
-        self.dataroot = os.path.join(self.test_dir.name, 'dataroot')
-        self.work_dir = os.path.join(self.test_dir.name, "workdir")
+        test_path = self.test_dir.name
+        test_path = "/workspace/monai/monai-cache/run1"
+        self.dataroot = os.path.join(test_path, 'dataroot')
+        self.work_dir = os.path.join(test_path, "workdir")
         self.da_output_yaml = os.path.join(self.work_dir, "datastats.yaml")
         self.data_src_cfg = os.path.join(self.work_dir, "data_src_cfg.yaml")
         
@@ -53,7 +55,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         
         # Generate a fake dataset
         for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
+            im, seg = create_test_image_3d(39, 47, 46, rad_max=10, num_seg_classes = 1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
             image_fpath = os.path.join(self.dataroot, d["image"])
             nib.save(nib_image, image_fpath)
@@ -88,7 +90,7 @@ class TestEnsembleBuilder(unittest.TestCase):
             "datalist": self.fake_json_datalist,
             "dataroot": self.dataroot,
             "multigpu": False,
-            "class_names": ["class1", "class2", "class3", "class4", "class5"]
+            "class_names": ["label_class"]
         }
 
         
@@ -104,16 +106,22 @@ class TestEnsembleBuilder(unittest.TestCase):
         history = bundle_generator.get_history()
 
         num_epoch = 4
-        n_iter = num_epoch * len(fake_datalist["training"]) * 4 / 5
-        n_iter_val = n_iter / 2
+        n_iter = int(num_epoch * len(fake_datalist["training"]) * 4 / 5)
+        n_iter_val = int(n_iter / 2)
+
+        best_metrics = []
         for i, record in enumerate(history):
+            self.assertEqual(len(record.keys()), 1, "each record should have one model")
             for name, algo in record.items():
                 algo.train(
                     num_iterations=n_iter, 
                     num_iterations_per_validation=n_iter_val, 
                     single_gpu=not data_src["multigpu"]
                 )
+                best_metrics.append(algo.get_score())
     
+        print(best_metrics)
+
     def test_data(self) -> None:
         pass
     

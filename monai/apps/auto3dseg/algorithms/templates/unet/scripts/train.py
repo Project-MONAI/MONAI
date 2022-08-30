@@ -364,8 +364,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                         dict_file["best_avg_dice_score"] = float(best_metric)
                         dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                         dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
-                        with open(os.path.join(ckpt_path, "progress.yaml"), "a") as out_file:
-                            yaml.dump(dict_file, stream=out_file)
+                        ConfigParser.export_config_file(dict_file, os.path.join(ckpt_path, "progress.yaml"))
 
                     print(
                         "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
