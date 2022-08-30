@@ -153,6 +153,12 @@ PILReader
   :members:
 
 
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
+
 Image writer
 ------------
 
@@ -278,12 +284,14 @@ N-Dim Fourier Transform
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj
-    :members:
+  :members:
 
 MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
-   :members:
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
 
 
 
@@ -332,3 +340,18 @@ Bounding box
 ------------
 .. automodule:: monai.data.box_utils
     :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.CameraDataset

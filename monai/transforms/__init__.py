@@ -89,6 +89,7 @@ from .croppad.dictionary import (
 )
 from .intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
     GaussianSharpen,
@@ -127,6 +128,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ComputeHoVerMapsd,
+    ComputeHoVerMapsD,
+    ComputeHoVerMapsDict,
     ForegroundMaskd,
     ForegroundMaskD,
     ForegroundMaskDict,
@@ -257,11 +261,13 @@ from .post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
+    Invert,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -295,6 +301,9 @@ from .post.dictionary import (
     ProbNMSD,
     ProbNMSd,
     ProbNMSDict,
+    RemoveSmallObjectsD,
+    RemoveSmallObjectsd,
+    RemoveSmallObjectsDict,
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
@@ -574,6 +583,7 @@ from .utility.dictionary import (
 from .utils import (
     Fourier,
     allow_missing_keys_mode,
+    attach_hook,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
@@ -603,10 +613,13 @@ from .utils import (
     map_spatial_axes,
     print_transform_backends,
     rand_choice,
+    remove_small_objects,
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
+    reset_ops_id,
     resize_center,
+    sync_meta_info,
     weighted_patch_samples,
     zero_margins,
 )

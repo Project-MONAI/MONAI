@@ -43,6 +43,7 @@ class ViT(nn.Module):
         num_classes: int = 2,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        post_activation="Tanh",
     ) -> None:
         """
         Args:
@@ -58,6 +59,8 @@ class ViT(nn.Module):
             num_classes: number of classes if classification is used.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            post_activation: add a final acivation function to the classification head when `classification` is True.
+                Default to "Tanh" for `nn.Tanh()`. Set to other values to remove this function.
 
         Examples::
 
@@ -97,7 +100,10 @@ class ViT(nn.Module):
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
-            self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+            if post_activation == "Tanh":
+                self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+            else:
+                self.classification_head = nn.Linear(hidden_size, num_classes)  # type: ignore
 
     def forward(self, x):
         x = self.patch_embedding(x)
