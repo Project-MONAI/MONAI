@@ -127,7 +127,7 @@ class BundleAlgo(Algo):
         parser = ConfigParser()
         parser.read_config(config_yaml)
         ckpt_path = parser.get_parsed_content("ckpt_path")
-        
+
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
         best_metric = dict_file["best_avg_dice_score"]
 

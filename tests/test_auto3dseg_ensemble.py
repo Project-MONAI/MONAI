@@ -119,7 +119,7 @@ class TestEnsembleBuilder(unittest.TestCase):
                     single_gpu=not data_src["multigpu"]
                 )
                 best_metrics.append(algo.get_score())
-    
+
         print(best_metrics)
 
     def test_data(self) -> None:
