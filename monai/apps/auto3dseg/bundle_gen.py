@@ -19,7 +19,7 @@ from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
-__all__ = ["BundleAlgo", "BundleGen", "SegresnetAlgo", "DintsAlgo"]
+__all__ = ["BundleAlgo", "BundleGen", "Segresnet2DAlgo", "DintsAlgo"]
 
 
 class BundleAlgo(Algo):
@@ -115,7 +115,7 @@ class BundleAlgo(Algo):
         pass
 
 
-class SegresnetAlgo(BundleAlgo):
+class Segresnet2DAlgo(BundleAlgo):
     def fill_template_config(self, data_stats_filename):
         if data_stats_filename is None or not os.path.exists(str(data_stats_filename)):
             return
@@ -186,7 +186,7 @@ class DintsAlgo(BundleAlgo):
 
 default_algos = {
     "segresnet2d": dict(
-        _target_="SegresnetAlgo",
+        _target_="Segresnet2DAlgo",
         template_configs="../algorithms/templates/segresnet2d/configs",
         scripts_path="../algorithms/templates/segresnet2d/scripts",
     ),
