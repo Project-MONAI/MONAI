@@ -63,7 +63,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     patch_size_valid = parser.get_parsed_content("patch_size_valid")
     softmax = parser.get_parsed_content("softmax")
     single_gpu: bool = parser.get_parsed_content("single_gpu")
-    
+
     train_transforms = parser.get_parsed_content("transforms_train")
     val_transforms = parser.get_parsed_content("transforms_validate")
 
@@ -73,7 +73,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     if determ:
         set_determinism(seed=0)
 
-    
+
     if torch.cuda.device_count() > 1 and not single_gpu:
         print("[info] number of GPUs:", torch.cuda.device_count())
         dist.init_process_group(backend="nccl", init_method="env://")

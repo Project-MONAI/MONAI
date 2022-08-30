@@ -44,13 +44,13 @@ class TestEnsembleBuilder(unittest.TestCase):
         self.work_dir = os.path.join(self.test_dir.name, "workdir")
         self.da_output_yaml = os.path.join(self.work_dir, "datastats.yaml")
         self.data_src_cfg = os.path.join(self.work_dir, "data_src_cfg.yaml")
-        
+
         if not os.path.isdir(self.dataroot):
             os.makedirs(self.dataroot)
 
         if not os.path.isdir(self.work_dir):
             os.makedirs(self.work_dir)
-        
+
         # Generate a fake dataset
         for d in fake_datalist["testing"] + fake_datalist["training"]:
             im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
@@ -75,8 +75,8 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         if "analysis" in progress_tracker:
             da = DataAnalyzer(
-                self.fake_json_datalist, 
-                self.dataroot, 
+                self.fake_json_datalist,
+                self.dataroot,
                 output_path=self.da_output_yaml)
 
             datastat = da.get_all_case_stats()
@@ -91,11 +91,11 @@ class TestEnsembleBuilder(unittest.TestCase):
             "class_names": ["class1", "class2", "class3", "class4", "class5"]
         }
 
-        
+
         ConfigParser.export_config_file(data_src, self.data_src_cfg)
 
         bundle_generator = BundleGen(
-            data_stats_filename=self.da_output_yaml, 
+            data_stats_filename=self.da_output_yaml,
             data_lists_filename=self.data_src_cfg)
 
         bundle_generator.generate(self.work_dir, [0,1,2,3,4])
@@ -109,14 +109,14 @@ class TestEnsembleBuilder(unittest.TestCase):
         for i, record in enumerate(history):
             for name, algo in record.items():
                 algo.train(
-                    num_iterations=n_iter, 
-                    num_iterations_per_validation=n_iter_val, 
+                    num_iterations=n_iter,
+                    num_iterations_per_validation=n_iter_val,
                     single_gpu=not data_src["multigpu"]
                 )
-    
+
     def test_data(self) -> None:
         pass
-    
+
     def tearDown(self) -> None:
         pass
 
