@@ -9,7 +9,7 @@ import torch
 
 from monai.transforms.atmostonce import array as amoa
 from monai.transforms.atmostonce.array import Rotate, CropPad
-from monai.transforms.atmostonce.lazy_transform import compile_transforms
+from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.utils import TransformBackends
 
 from monai.transforms import Affined, Affine

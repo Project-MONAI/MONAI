@@ -5,6 +5,7 @@ import itertools as it
 import numpy as np
 
 import torch
+from monai.transforms import Affine
 
 from monai.config import DtypeLike
 from monai.data import MetaTensor
@@ -82,8 +83,10 @@ def apply(data: MetaTensor):
     # TODO: figure out how to propagate extents properly
     # TODO: resampling strategy: augment resample or perform multiple stages if necessary
     # TODO: resampling strategy - antialiasing: can resample just be augmented?
-    r = Resample()
-
+    # r = Resample()
+    a = Affine(affine=cumulative_matrix.matrix.matrix,
+               padding_mode=cur_padding_mode,
+               spatial_size=cur_spatial_size)
     data.clear_pending_transforms()
 
 
