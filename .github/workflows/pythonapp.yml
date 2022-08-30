@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
