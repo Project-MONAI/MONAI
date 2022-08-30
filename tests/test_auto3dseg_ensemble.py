@@ -68,6 +68,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
 
         progress_tracker = ["analysis", "configure"]
+>>>>>>> 79c6809f738b01f58d1cb0636b8aba9d87cbd3e9
 
         if not os.path.isdir(self.work_dir):
             os.makedirs(self.work_dir)
