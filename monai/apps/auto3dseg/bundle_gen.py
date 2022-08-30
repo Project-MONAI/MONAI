@@ -138,7 +138,7 @@ class BundleGen(AlgoGen):
 
     """
 
-    def __init__(self, algos=None, data_stats_filename=None, data_lists_filename=None):
+    def __init__(self, algos=None, data_stats_filename=None, data_src_cfg_name=None):
         self.algos = []
         if algos is None:
             algos = copy(default_algos)
@@ -150,7 +150,7 @@ class BundleGen(AlgoGen):
             self.algos = ensure_tuple(algos)
 
         self.data_stats_filename = data_stats_filename
-        self.data_lists_filename = data_lists_filename
+        self.data_lists_filename = data_src_cfg_name
         self.history = []
 
     def set_data_stats(self, data_stats_filename):
@@ -168,7 +168,7 @@ class BundleGen(AlgoGen):
     def get_history(self, *args, **kwargs):
         return self.history
 
-    def generate(self, fold_idx: Union[int, Sequence[int]] = 0):
+    def generate(self, fold_idx: Union[int, Sequence[int]] = 0, output_folder="."):
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats(fold_idx)
@@ -176,5 +176,5 @@ class BundleGen(AlgoGen):
                 algo.set_data_stats(data_stats)
                 algo.set_data_source(data_lists)
                 name = f"{algo.name}_{f_id}"
-                algo.export_to_disk(".", algo_name=name)
+                algo.export_to_disk(output_folder, algo_name=name)
                 self.history.append({name: deepcopy(algo)})  # track the previous, may create a persistent history
