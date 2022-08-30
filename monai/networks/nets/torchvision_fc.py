@@ -111,6 +111,7 @@ class TorchVisionFCModel(NetAdapter):
         fc_name: str = "fc",
         node_name: str = "",
         weights=None,
+        aux_logits=False,
         **kwargs,
     ):
         # in case the new num_classes is default but you still call deprecated n_classes
