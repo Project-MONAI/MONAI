@@ -212,7 +212,6 @@ class DataAnalyzer:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
         for batch_data in tqdm(dataloader) if has_tqdm else dataloader:
-            # d = transform(batch_data[0])
             d = batch_data[0]
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
