@@ -62,7 +62,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     overlap_ratio = parser.get_parsed_content("overlap_ratio")
     patch_size_valid = parser.get_parsed_content("patch_size_valid")
     softmax = parser.get_parsed_content("softmax")
-
+    single_gpu: bool = parser.get_parsed_content("single_gpu")
+    
     train_transforms = parser.get_parsed_content("transforms_train")
     val_transforms = parser.get_parsed_content("transforms_validate")
 
@@ -72,11 +73,13 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     if determ:
         set_determinism(seed=0)
 
-    print("[info] number of GPUs:", torch.cuda.device_count())
-    if torch.cuda.device_count() > 1:
+    
+    if torch.cuda.device_count() > 1 and not single_gpu:
+        print("[info] number of GPUs:", torch.cuda.device_count())
         dist.init_process_group(backend="nccl", init_method="env://")
         world_size = dist.get_world_size()
     else:
+        print("[info] using single GPU")
         world_size = 1
     print("[info] world_size:", world_size)
 
@@ -106,7 +109,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     train_files = files
     random.shuffle(train_files)
 
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and not single_gpu:
         train_files = partition_dataset(data=train_files, shuffle=True, num_partitions=world_size, even_divisible=True)[
             dist.get_rank()
         ]
@@ -124,7 +127,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     val_files = files
 
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and not single_gpu:
         if len(val_files) < world_size:
             val_files = val_files * math.ceil(float(world_size) / float(len(val_files)))
 
@@ -133,30 +136,30 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         ]
     print("val_files:", len(val_files))
 
-    if torch.cuda.device_count() >= 4:
+    if torch.cuda.device_count() >= 4 and not single_gpu:
         train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
         val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2)
     else:
         train_ds = monai.data.CacheDataset(
             data=train_files,
             transform=train_transforms,
-            cache_rate=float(torch.cuda.device_count()) / 4.0,
+            cache_rate=float(torch.cuda.device_count()) / 4.0 if not single_gpu else float(0.25),
             num_workers=8,
         )
         val_ds = monai.data.CacheDataset(
-            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
+            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0 if not single_gpu else float(0.25), num_workers=2
         )
 
     train_loader = DataLoader(train_ds, num_workers=8, batch_size=num_images_per_batch, shuffle=True)
     val_loader = DataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
 
-    device = torch.device(f"cuda:{dist.get_rank()}") if torch.cuda.device_count() > 1 else torch.device("cuda:0")
+    device = torch.device(f"cuda:{dist.get_rank()}") if torch.cuda.device_count() > 1 and not single_gpu else torch.device("cuda:0")
     torch.cuda.set_device(device)
 
     model = parser.get_parsed_content("network")
     model = model.to(device)
 
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and not single_gpu:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     if softmax:
@@ -178,19 +181,19 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     num_epochs_per_validation = max(num_epochs_per_validation, 1)
     num_epochs = num_epochs_per_validation * (num_iterations // num_iterations_per_validation)
 
-    if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+    if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
         print("num_epochs", num_epochs)
         print("num_epochs_per_validation", num_epochs_per_validation)
 
     lr_scheduler_part = parser.get_parsed_content("lr_scheduler", instantiate=False)
     lr_scheduler = lr_scheduler_part.instantiate(optimizer=optimizer)
 
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and not single_gpu:
         model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=True)
 
     if finetune["activate"] and os.path.isfile(finetune["pretrained_ckpt_name"]):
         print("[info] fine-tuning pre-trained checkpoint {:s}".format(finetune["pretrained_ckpt_name"]))
-        if torch.cuda.device_count() > 1:
+        if torch.cuda.device_count() > 1 and not single_gpu:
             model.module.load_state_dict(torch.load(finetune["pretrained_ckpt_name"], map_location=device))
         else:
             model.load_state_dict(torch.load(finetune["pretrained_ckpt_name"], map_location=device))
@@ -201,7 +204,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         from torch.cuda.amp import GradScaler, autocast
 
         scaler = GradScaler()
-        if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+        if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
             print("[info] amp enabled")
 
     val_interval = num_epochs_per_validation
@@ -210,7 +213,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     idx_iter = 0
     metric_dim = output_channels - 1 if softmax else output_channels
 
-    if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+    if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
         writer = SummaryWriter(log_dir=os.path.join(ckpt_path, "Events"))
 
         with open(os.path.join(ckpt_path, "accuracy_history.csv"), "a") as f:
@@ -219,7 +222,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     start_time = time.time()
     for epoch in range(num_epochs):
         lr = lr_scheduler.get_last_lr()[0]
-        if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+        if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
             print("-" * 10)
             print(f"epoch {epoch + 1}/{num_epochs}")
             print(f"learning rate is set to {lr}")
@@ -260,18 +263,18 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
             epoch_len = len(train_loader)
             idx_iter += 1
 
-            if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+            if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
                 print(f"[{str(datetime.now())[:19]}] " + f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
                 writer.add_scalar("Loss/train", loss.item(), epoch_len * epoch + step)
 
             lr_scheduler.step()
 
-        if torch.cuda.device_count() > 1:
+        if torch.cuda.device_count() > 1 and not single_gpu:
             dist.barrier()
             dist.all_reduce(loss_torch, op=torch.distributed.ReduceOp.SUM)
 
         loss_torch = loss_torch.tolist()
-        if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+        if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
             loss_torch_epoch = loss_torch[0] / loss_torch[1]
             print(
                 f"epoch {epoch + 1} average loss: {loss_torch_epoch:.4f}, "
@@ -332,12 +335,12 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
                     _index += 1
 
-                if torch.cuda.device_count() > 1:
+                if torch.cuda.device_count() > 1 and not single_gpu:
                     dist.barrier()
                     dist.all_reduce(metric, op=torch.distributed.ReduceOp.SUM)
 
                 metric = metric.tolist()
-                if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+                if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
                     for _c in range(metric_dim):
                         print(f"evaluation metric - class {_c + 1:d}:", metric[2 * _c] / metric[2 * _c + 1])
                     avg_metric = 0
@@ -351,7 +354,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                     if avg_metric > best_metric:
                         best_metric = avg_metric
                         best_metric_epoch = epoch + 1
-                        if torch.cuda.device_count() > 1:
+                        if torch.cuda.device_count() > 1 and not single_gpu:
                             torch.save(model.module.state_dict(), os.path.join(ckpt_path, "best_metric_model.pt"))
                         else:
                             torch.save(model.state_dict(), os.path.join(ckpt_path, "best_metric_model.pt"))
@@ -379,18 +382,18 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                             )
                         )
 
-                if torch.cuda.device_count() > 1:
+                if torch.cuda.device_count() > 1 and not single_gpu:
                     dist.barrier()
 
             torch.cuda.empty_cache()
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 
-    if torch.cuda.device_count() == 1 or dist.get_rank() == 0:
+    if torch.cuda.device_count() == 1 or single_gpu or dist.get_rank() == 0:
         writer.flush()
         writer.close()
 
-    if torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1 and not single_gpu:
         dist.destroy_process_group()
 
     return best_metric
