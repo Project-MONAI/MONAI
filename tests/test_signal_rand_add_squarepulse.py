@@ -26,7 +26,7 @@ VALID_CASES = [([0.0, 1.0], [0.001, 0.2])]
 
 
 @skipUnless(has_scipy, "scipy required")
-@SkipIfBeforePyTorchVersion((1, 9)) 
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
@@ -38,7 +38,7 @@ class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
 
 
 @skipUnless(has_scipy, "scipy required")
-@SkipIfBeforePyTorchVersion((1, 9)) 
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalRandAddSquarePulseTorch(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
