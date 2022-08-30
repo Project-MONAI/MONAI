@@ -239,7 +239,7 @@ class TestAddRandomGuidanceCustomd(unittest.TestCase):
         add_fn = AddRandomGuidanceDeepEditd(**arguments)
         result = add_fn(input_data)
         label_key = list(result[arguments["guidance"]].keys())[0]
-        self.assertGreater(len(result[arguments["guidance"]][label_key]), expected_result)
+        self.assertGreaterEqual(len(result[arguments["guidance"]][label_key]), expected_result)
 
 
 class TestDiscardAddGuidanced(unittest.TestCase):
