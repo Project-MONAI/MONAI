@@ -56,7 +56,7 @@ class Algo(Algorithm):
 
         else:
             if module_path == "":
-                module_path = "{:s}.scripts.train".format(self.algorithm_dir.split(os.sep)[-1])
+                module_path = f"{self.algorithm_dir.split(os.sep)[-1]:s}.scripts.train"
 
             module = importlib.import_module(module_path)
             func_ = getattr(module, "run")
