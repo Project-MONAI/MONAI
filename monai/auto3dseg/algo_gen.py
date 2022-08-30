@@ -82,9 +82,16 @@ class AlgoGen(Randomizable):
         pass
 
     def generate(self):
-        """Generate new Algo"""
+        """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
         pass
 
     def run_algo(self, *args, **kwargs):
-        """Run the algorithms."""
+        """
+        Run the algorithms. This is useful for light-weight Algos where there's no need to
+        distribute the Algo running jobs.
+
+        If the generated Algos require significant scheduling of parallel execution,
+        a separate controller is preferred to run them.  In this case the controller should also report back
+        the scores and the algo history, so that the future AlgoGen.generate can leverage the information.
+        """
         pass
