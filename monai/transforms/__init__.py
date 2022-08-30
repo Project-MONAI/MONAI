@@ -311,6 +311,19 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
+from .signal.array import (
+    SignalContinousWavelet,
+    SignalFillEmpty,
+    SignalRandAddGaussianNoise,
+    SignalRandAddSine,
+    SignalRandAddSinePartial,
+    SignalRandAddSquarePulse,
+    SignalRandAddSquarePulsePartial,
+    SignalRandDrop,
+    SignalRandScale,
+    SignalRandShift,
+    SignalRemoveFrequency,
+)
 from .smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
