@@ -177,7 +177,9 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     dints_space = parser.get_parsed_content("dints_space")
     model = parser.get_parsed_content("network")
     model = model.to(device)
-    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     if softmax:
         post_pred = transforms.Compose(
