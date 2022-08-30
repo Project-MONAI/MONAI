@@ -11,7 +11,6 @@
 
 import os
 import unittest
-from tests.utils import SkipIfBeforePyTorchVersion
 from unittest import SkipIfBeforePyTorchVersion, skipUnless
 
 import numpy as np
@@ -20,6 +19,7 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSquarePulsePartial
 from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
+from tests.utils import SkipIfBeforePyTorchVersion
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
