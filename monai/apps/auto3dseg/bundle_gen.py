@@ -11,7 +11,7 @@
 
 import os
 import shutil
-from copy import deepcopy
+from copy import copy, deepcopy
 from glob import glob
 from typing import Sequence, Union
 
@@ -211,7 +211,9 @@ class BundleGen(AlgoGen):
     def __init__(self, algos=None, data_stats_filename=None, data_lists_filename=None):
         self.algos = []
         if algos is None:
-            for algo_name, algo_params in default_algos.items():
+            algos = copy(default_algos)
+        if isinstance(algos, dict):
+            for algo_name, algo_params in algos.items():
                 self.algos.append(ConfigParser(algo_params).get_parsed_content())
                 self.algos[-1].name = algo_name
         else:
