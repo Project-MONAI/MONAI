@@ -39,7 +39,7 @@ fake_datalist = {
 
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
-        
+
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
         test_path = "/workspace/monai/monai-cache/run1"
@@ -122,7 +122,7 @@ class TestEnsembleBuilder(unittest.TestCase):
                 )
                 self.algo_paths.append(algo.output_path)
                 self.best_metrics.append(algo.get_score())
-    
+
     def test_data(self) -> None:
 
         builder = ScriptEnsembleBuilder(self.algo_paths, self.best_metrics, self.data_src_cfg)

@@ -12,21 +12,18 @@
 
 import importlib
 import logging
-from multiprocessing.sharedctypes import Value
 import os
 import sys
 import json
 
 import numpy as np
-import torch
 
 from abc import abstractmethod, ABC
-from typing import Dict, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 from copy import deepcopy
 
-from monai.auto3dseg import datafold_read, concat_val_to_np
+from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
-from monai.losses import DiceCELoss
 from monai.utils.enums import StrEnum
 
 
@@ -82,7 +79,7 @@ class EnsembleBestN(ScriptEnsemble):
     def __init__(self, n_best: int = 5):
         super().__init__()
         self.n_best = n_best
-        
+
     def sort_score(self):
         """sort the best_metrics"""
         scores = concat_val_to_np(self.algos, [ScriptEnsembleKeys.SCORE])
@@ -93,9 +90,9 @@ class EnsembleBestN(ScriptEnsemble):
         ranks = self.sort_score()
         if len(ranks) < self.n_best:
             raise ValueError("Number of available algos is less than user-defined N")
-        
+
         # get the indices that the rank is larger than N
-        indices = [i for (i, r) in enumerate(ranks) if r >= self.n_best]  
+        indices = [i for (i, r) in enumerate(ranks) if r >= self.n_best]
 
         # remove the found indices
         indices = sorted(indices, reverse=True)
@@ -107,7 +104,7 @@ class EnsembleBestN(ScriptEnsemble):
 
 
     def predict(self, **override):
-        
+
         for i in range(len(self.infer_files)):
             preds = []
             infer_filename = self.infer_files[i]
@@ -116,7 +113,7 @@ class EnsembleBestN(ScriptEnsemble):
                 preds.append(infer_instance.infer(infer_filename))
             output = sum(preds)/len(preds)
             print('ensemble_algorithm, preds', len(preds), 'output shape', output.shape)
-        
+
 
 class ScriptEnsembleBuilder:
     """
@@ -142,42 +139,42 @@ class ScriptEnsembleBuilder:
         self.data_src_cfg = ConfigParser(globals=False)
 
         if len(algo_paths) != len(best_metrics):
-            raise ValueError("Numbers of elements in algo_paths and best_metrics are not equal")   
+            raise ValueError("Numbers of elements in algo_paths and best_metrics are not equal")
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
             self.data_src_cfg.read_config(data_src_cfg_filename)
-            
+
         for algo_path, best_metric in zip(algo_paths, best_metrics):
             # load inference_config_paths
             # raise warning/error if not found
             if not os.path.isdir(algo_path):
                 raise ValueError(f"{algo_path} is not a directory. Please check the path.")
-            
+
             identifier = os.path.basename(algo_path)
             infer_path = os.path.join(algo_path, 'scripts', 'infer.py')
-            
+
             if not os.path.isfile(infer_path):
                 raise ValueError(f"{infer_path} is not found. Please check the path.")
-            
+
             config_path = os.path.join(algo_path, 'configs', 'algo_config.yaml')
 
             config_path = config_path if os.path.isfile(config_path) else None
 
             self.add_inferer(identifier, infer_path, config_path, best_metric)
- 
 
-    def add_inferer(self, 
-            identifier: str, 
-            infer_path: str, 
-            config_path: str=None, 
-            best_metric: Optional[float]=None, 
+
+    def add_inferer(self,
+            identifier: str,
+            infer_path: str,
+            config_path: str=None,
+            best_metric: Optional[float]=None,
             **override):
         """Add model inferer to the builder."""
 
         # module = importlib.import_module(infer_path)
         # class_ = getattr(module, 'InferClass')
         # algo = class_(config_path, **override)
-        
+
         spec = importlib.util.spec_from_file_location("InferClass", infer_path)
         infer_class = importlib.util.module_from_spec(spec)
         sys.modules["InferClass"] = infer_class
@@ -188,8 +185,8 @@ class ScriptEnsembleBuilder:
             raise ValueError("Feature to re-valiate is to be implemented")
 
         algo = {
-            ScriptEnsembleKeys.ID: identifier, 
-            ScriptEnsembleKeys.ALGO: infer_instance, 
+            ScriptEnsembleKeys.ID: identifier,
+            ScriptEnsembleKeys.ALGO: infer_instance,
             ScriptEnsembleKeys.SCORE: best_metric
         }
         self.infer_algos.append(algo)
@@ -197,7 +194,7 @@ class ScriptEnsembleBuilder:
 
     def set_ensemble_method(self, ensemble: ScriptEnsemble):
         """Set the ensemble method"""
-        
+
         ensemble.set_algos(self.infer_algos)
         ensemble.rank_algos()
         ensemble.set_infer_files(self.data_src_cfg["dataroot"], self.data_src_cfg["datalist"])
@@ -207,7 +204,6 @@ class ScriptEnsembleBuilder:
 
     def get_ensemble(self):
         """Get the ensemble"""
-        
+
 
         return self.ensemble
-        
