@@ -11,7 +11,8 @@
 
 import os
 import unittest
-from unittest import SkipIfBeforePyTorchVersion, skipUnless
+from tests.utils import SkipIfBeforePyTorchVersion
+from unittest import skipUnless
 
 import numpy as np
 from parameterized import parameterized
