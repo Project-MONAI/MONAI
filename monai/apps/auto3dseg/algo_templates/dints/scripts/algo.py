@@ -13,7 +13,7 @@ from monai.apps.auto3dseg import BundleAlgo
 
 
 class DintsAlgo(BundleAlgo):
-    def fill_template_config(self, data_stats_filename):
+    def fill_template_config(self, data_stats_files):
         print("implement dints template filling.")
 
 

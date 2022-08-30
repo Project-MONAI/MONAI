@@ -54,7 +54,7 @@ class BundleAlgo(Algo):
             self.load_templates(self.template_configs, meta_data_filename, parser_args)
 
         self.scripts_path = scripts_path
-        self.data_stats_filename = None
+        self.data_stats_files = None
         self.data_list_file = None
         self.output_path = None
         self.name = None
@@ -65,8 +65,8 @@ class BundleAlgo(Algo):
         if metadata_file is not None:
             self.cfg.read_meta(metadata_file)
 
-    def set_data_stats(self, data_stats_filename):
-        self.data_stats_filename = data_stats_filename
+    def set_data_stats(self, data_stats_files):
+        self.data_stats_files = data_stats_files
 
     def set_data_source(self, data_list_file):
         self.data_list_file = data_list_file
@@ -77,7 +77,7 @@ class BundleAlgo(Algo):
         pass
 
     def export_to_disk(self, output_path, algo_name, **kwargs):
-        self.fill_template_config(self.data_stats_filename)
+        self.fill_template_config(self.data_stats_files)
         write_path = os.path.join(output_path, algo_name)
         self.cfg["bundle_root"] = write_path
         os.makedirs(write_path, exist_ok=True)
