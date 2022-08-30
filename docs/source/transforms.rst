@@ -461,6 +461,13 @@ Intensity
     :members:
     :special-members: __call__
 
+`ComputeHoVerMaps`
+""""""""""""""""""
+.. autoclass:: ComputeHoVerMaps
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -527,6 +534,14 @@ Post-processing
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponent.png
     :alt: example of KeepLargestConnectedComponent
 .. autoclass:: KeepLargestConnectedComponent
+    :members:
+    :special-members: __call__
+
+`RemoveSmallObjects`
+""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjects.png
+    :alt: example of RemoveSmallObjects
+.. autoclass:: RemoveSmallObjects
     :members:
     :special-members: __call__
 
@@ -1397,6 +1412,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ComputeHoVerMapsd`
+"""""""""""""""""""
+.. autoclass:: ComputeHoVerMapsd
+    :members:
+    :special-members: __call__
+
 IO (Dict)
 ^^^^^^^^^
 
@@ -1434,6 +1455,14 @@ Post-processing (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponentd.png
     :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`RemoveSmallObjectsd`
+"""""""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjectsd.png
+    :alt: example of RemoveSmallObjectsd
+.. autoclass:: RemoveSmallObjectsd
     :members:
     :special-members: __call__
 
