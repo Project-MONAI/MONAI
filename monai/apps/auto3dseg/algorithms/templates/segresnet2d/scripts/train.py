@@ -184,7 +184,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     lr_scheduler = lr_scheduler_part.instantiate(optimizer=optimizer)
 
     if torch.cuda.device_count() > 1:
-        model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=True)
+        model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=False)
 
     if finetune["activate"] and os.path.isfile(finetune["pretrained_ckpt_name"]):
         print("[info] fine-tuning pre-trained checkpoint {:s}".format(finetune["pretrained_ckpt_name"]))
