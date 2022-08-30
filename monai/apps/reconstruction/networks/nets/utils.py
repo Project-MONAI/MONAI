@@ -182,6 +182,7 @@ def divisible_pad_t(
 
     Example:
         .. code-block:: python
+
             import torch
 
             # 2D data
@@ -195,6 +196,7 @@ def divisible_pad_t(
             x_pad,padding_sizes = divisible_pad_t(x, k=16)
             # the following line should print (3, 2, 64, 80, 80)
             print(x_pad.shape)
+
     """
     if len(x.shape) == 4:  # this is 2D
         b, c, h, w = x.shape
