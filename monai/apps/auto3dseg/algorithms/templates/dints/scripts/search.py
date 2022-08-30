@@ -509,7 +509,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                     dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                     dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
                     with open(os.path.join(arch_path, "progress.yaml"), "a") as out_file:
-                        _ = yaml.dump(dict_file, stream=out_file)
+                        _ = yaml.dump([dict_file], stream=out_file)
 
                     print(
                         "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
