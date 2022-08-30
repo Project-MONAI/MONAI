@@ -42,7 +42,7 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-        test_path = "/workspace/monai/monai-cache/run1"
+
         self.dataroot = os.path.join(test_path, 'dataroot')
         self.work_dir = os.path.join(test_path, "workdir")
         self.da_output_yaml = os.path.join(self.work_dir, "datastats.yaml")
@@ -103,7 +103,7 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         bundle_generator.generate(self.work_dir, [0,1,2,3,4])
 
-        # training
+        # todo: training is not encapsulated yet
         history = bundle_generator.get_history()
 
         num_epoch = 2
