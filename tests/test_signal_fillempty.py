@@ -22,7 +22,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 
 
-class TestSignalRandDropNumpy(unittest.TestCase):
+class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = np.load(TEST_SIGNAL)
@@ -33,7 +33,7 @@ class TestSignalRandDropNumpy(unittest.TestCase):
 
 
 @SkipIfBeforePyTorchVersion((1, 9))
-class TestSignalRandDropTorch(unittest.TestCase):
+class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))

@@ -22,7 +22,7 @@ TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.np
 VALID_CASES = [([0.0, 0.02],)]
 
 
-class TestSignalRandDropNumpy(unittest.TestCase):
+class TestSignalRandAddGaussianNoiseNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
@@ -32,7 +32,7 @@ class TestSignalRandDropNumpy(unittest.TestCase):
         self.assertEqual(gaussiansignal.shape[1], sig.shape[1])
 
 
-class TestSignalRandDropTorch(unittest.TestCase):
+class TestSignalRandAddGaussianNoiseTorch(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)

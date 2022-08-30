@@ -11,7 +11,7 @@
 
 import os
 import unittest
-from unittest import skipUnless
+from unittest import SkipIfBeforePyTorchVersion, skipUnless
 
 import numpy as np
 from parameterized import parameterized
@@ -26,7 +26,8 @@ VALID_CASES = [([0.0, 1.0], [0.001, 0.2], [0.0, 0.4])]
 
 
 @skipUnless(has_scipy, "scipy required")
-class TestSignalRandDropNumpy(unittest.TestCase):
+@SkipIfBeforePyTorchVersion((1, 9)) 
+class TestSignalRandAddSquarePulsePartialNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(
@@ -39,7 +40,8 @@ class TestSignalRandDropNumpy(unittest.TestCase):
 
 
 @skipUnless(has_scipy, "scipy required")
-class TestSignalRandDropTorch(unittest.TestCase):
+@SkipIfBeforePyTorchVersion((1, 9)) 
+class TestSignalRandAddSquarePulsePartialTorch(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(

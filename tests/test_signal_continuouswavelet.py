@@ -26,7 +26,7 @@ EXPECTED_RESULTS = [(6, 150, 2000)]
 
 
 @skipUnless(has_pywt, "pywt required")
-class TestSignalRandDrop(unittest.TestCase):
+class TestSignalContinousWavelet(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, type, length, frequency):
         self.assertIsInstance(SignalContinousWavelet(type, length, frequency), SignalContinousWavelet)

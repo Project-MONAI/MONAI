@@ -22,7 +22,7 @@ TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.np
 VALID_CASES = [([0.0, 1.0], [0.0, 0.5]), ([0.0, 1.0], [0.01, 0.1])]
 
 
-class TestSignalRandDropNumpy(unittest.TestCase):
+class TestSignalRandAddSineNumpy(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, freqs):
         self.assertIsInstance(SignalRandAddSine(boundaries, freqs), SignalRandAddSine)
@@ -32,7 +32,7 @@ class TestSignalRandDropNumpy(unittest.TestCase):
         self.assertEqual(sinesignal.shape[1], sig.shape[1])
 
 
-class TestSignalRandDropTorch(unittest.TestCase):
+class TestSignalRandAddSineTorch(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, freqs):
         self.assertIsInstance(SignalRandAddSine(boundaries, freqs), SignalRandAddSine)
