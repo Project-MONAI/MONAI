@@ -11,13 +11,19 @@
 
 import os
 import shutil
+import subprocess
 from copy import copy, deepcopy
 from glob import glob
-from typing import Sequence, Union
+from typing import Mapping, Sequence, Union
 
+import torch
+
+from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
+
+logger = get_logger(module_name=__name__)
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -40,6 +46,19 @@ class BundleAlgo(Algo):
         # algo.set_data_list("../data_list.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
 
+    This class creates MONAI bundles from a directory of 'bundle template'. Different from a regular MONAI bundle
+    format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
+    ``export_to_disk``.  The output of ``export_to_disk`` takes the following folder structure::
+
+        [algo_name]
+        ├── configs
+        │   ├── progress.yaml  # automatically generated during training to track the best validation scores.
+        │   └── algo_config.yaml  # automatically generated yaml from a set of ``template_configs``
+        └── scripts
+            ├── infer.py
+            ├── train.py
+            └── validate.py
+
     """
 
     def __init__(self, template_configs=None, scripts_path=None, meta_data_filename=None, parser_args=None):
@@ -59,6 +78,7 @@ class BundleAlgo(Algo):
         self.data_list_file = None
         self.output_path = None
         self.name = None
+        self.best_metric = None
 
     def load_templates(self, config_files, metadata_file=None, parser_args=None):
         parser_args = parser_args or {}
@@ -72,13 +92,11 @@ class BundleAlgo(Algo):
     def set_data_source(self, data_list_file):
         self.data_list_file = data_list_file
 
-    def fill_template_config(self, data_stats_filename):
-        # self.algorithm_dir = os.path.join(self.output_path, "segresnet2d")
-        # self.inference_script = "scripts/infer.py"
+    def fill_template_config(self, data_stats_filename, **kwargs):
         pass
 
     def export_to_disk(self, output_path, algo_name, **kwargs):
-        self.fill_template_config(self.data_stats_files)
+        self.fill_template_config(self.data_stats_files, **kwargs)
         write_path = os.path.join(output_path, algo_name)
         self.cfg["bundle_root"] = write_path
         os.makedirs(write_path, exist_ok=True)
@@ -104,14 +122,49 @@ class BundleAlgo(Algo):
                 f.write(f"# source file: {item}\n")
             f.write("\n\n")
             f.writelines(lines)
-        print(write_path)
+        logger.info(write_path)
         self.output_path = write_path
 
-    def train(self):
-        pass
+    def train(self, params=None):
+        train_py = os.path.join(self.output_path, "scripts", "train.py")
+        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        base_cmd = f"{train_py} run --config_file {config_yaml} "
+
+        if torch.cuda.device_count() > 1:
+            cmd = f"torchrun --nnodes={1:d} --nproc_per_node={torch.cuda.device_count():d} "
+        else:
+            cmd = "python "  # TODO: which system python?
+        cmd += base_cmd
+        if params and isinstance(params, Mapping):
+            for k, v in params.items():
+                cmd += f" --{k}={v}"
+        try:
+            logger.info(f"Launching: {cmd}")
+            normal_out = subprocess.run(cmd, env=os.environ.copy(), check=True, capture_output=True)
+            logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        except subprocess.CalledProcessError as e:
+            output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+            errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+        return normal_out
 
     def get_score(self, *args, **kwargs):
-        pass
+        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        parser = ConfigParser()
+        parser.read_config(config_yaml)
+        ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
+
+        dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
+        return dict_file["best_avg_dice_score"]  # TODO: define the format of best scores' list and progress.yaml
+
+    def predict(self, params=None):
+        infer_py = os.path.join(self.output_path, "scripts", "infer.py")
+        if not os.path.isfile(infer_py):
+            raise ValueError(f"{infer_py} is not found, please check the path.")
+        config_path = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        config_path = config_path if os.path.isfile(config_path) else None
+        logger.info(f"in memory or persistent predictions using {config_path}.")
+        raise NotImplementedError
 
 
 default_algos = {
@@ -173,8 +226,9 @@ class BundleGen(AlgoGen):
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats(fold_idx)
                 data_lists = self.get_data_lists(fold_idx)
-                algo.set_data_stats(data_stats)
-                algo.set_data_source(data_lists)
-                name = f"{algo.name}_{f_id}"
-                algo.export_to_disk(output_folder, algo_name=name)
-                self.history.append({name: deepcopy(algo)})  # track the previous, may create a persistent history
+                gen_algo = deepcopy(algo)
+                gen_algo.set_data_stats(data_stats)
+                gen_algo.set_data_source(data_lists)
+                name = f"{gen_algo.name}_{f_id}"
+                gen_algo.export_to_disk(output_folder, algo_name=name)
+                self.history.append({name: gen_algo})  # track the previous, may create a persistent history

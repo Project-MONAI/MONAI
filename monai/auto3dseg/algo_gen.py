@@ -23,11 +23,25 @@ class Algo:
         pass
 
     def train(self, params: dict):
-        """Read training/validation data and output a model."""
+        """
+        Read training/validation data and output a model.
+
+        Args:
+            params: key-value pairs of input parameters for the training pipeline.
+        """
         pass
 
     def get_score(self, *args, **kwargs):
         """Returns the model quality measurement based on training and validation datasets."""
+        pass
+
+    def predict(self, params: dict):
+        """
+        Read test data and output model predictions.
+
+        Args:
+            params: key-value pairs of input parameters for the predicting pipeline.
+        """
         pass
 
 
