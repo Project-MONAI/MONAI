@@ -197,7 +197,7 @@ class UNet(nn.Module):
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         """
         Returns the block object defining a layer of the UNet structure including the implementation of the skip
-        between encoding (down) and and decoding (up) sides of the network.
+        between encoding (down) and decoding (up) sides of the network.
 
         Args:
             down_path: encoding half of the layer
