@@ -145,7 +145,6 @@ class SplitLabeld(MapTransform):
         min_area: int = 5,
     ):
 
-        # self.label = label
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value

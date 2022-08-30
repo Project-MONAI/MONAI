@@ -62,7 +62,7 @@ class CheckpointSaver:
             https://pytorch.org/ignite/v0.4.5/generated/ignite.handlers.checkpoint.Checkpoint.html.
             typically, it's used to resume training and compare current metric with previous N values.
         key_metric_greater_or_equal: if `True`, the latest equally scored model is stored. Otherwise,
-            save the the first equally scored model. default to `False`.
+            save the first equally scored model. default to `False`.
         key_metric_negative_sign: whether adding a negative sign to the metric score to compare metrics,
             because for error-like metrics, smaller is better(objects with larger score are retained).
             default to `False`.
