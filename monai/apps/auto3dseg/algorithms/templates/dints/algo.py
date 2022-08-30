@@ -53,7 +53,7 @@ class Algo(Algorithm):
             list_of_files = glob.glob(os.path.join(self.algorithm_dir.split(os.sep)[-1], "*", "progress.yaml"))
             latest_file = max(list_of_files, key=os.path.getctime)
 
-            with open(latest_file, "r") as stream:
+            with open(latest_file) as stream:
                 progress_data = yaml.safe_load(stream)
             self.best_metric = progress_data[-1]["best_avg_dice_score"]
 
