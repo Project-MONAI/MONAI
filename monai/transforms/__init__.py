@@ -89,6 +89,7 @@ from .croppad.dictionary import (
 )
 from .intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
     GaussianSharpen,
@@ -127,6 +128,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ComputeHoVerMapsd,
+    ComputeHoVerMapsD,
+    ComputeHoVerMapsDict,
     ForegroundMaskd,
     ForegroundMaskD,
     ForegroundMaskDict,

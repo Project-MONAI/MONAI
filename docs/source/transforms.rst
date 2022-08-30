@@ -461,6 +461,13 @@ Intensity
     :members:
     :special-members: __call__
 
+`ComputeHoVerMaps`
+""""""""""""""""""
+.. autoclass:: ComputeHoVerMaps
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -1402,6 +1409,12 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
     :alt: example of ForegroundMaskd
 .. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
+
+`ComputeHoVerMapsd`
+"""""""""""""""""""
+.. autoclass:: ComputeHoVerMapsd
     :members:
     :special-members: __call__
 
