@@ -68,7 +68,6 @@ class TestEnsembleBuilder(unittest.TestCase):
         ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
 
         progress_tracker = ["analysis", "configure"]
->>>>>>> 79c6809f738b01f58d1cb0636b8aba9d87cbd3e9
 
         if not os.path.isdir(self.work_dir):
             os.makedirs(self.work_dir)
@@ -104,9 +103,16 @@ class TestEnsembleBuilder(unittest.TestCase):
         # training
         history = bundle_generator.get_history()
 
+        num_epoch = 4
+        n_iter = num_epoch * len(fake_datalist["training"]) * 4 / 5
+        n_iter_val = n_iter / 2
         for i, record in enumerate(history):
             for name, algo in record.items():
-                algo.train(num_iterations=32, num_iterations_per_validation=16, single_gpu=not data_src["multigpu"])
+                algo.train(
+                    num_iterations=n_iter, 
+                    num_iterations_per_validation=n_iter_val, 
+                    single_gpu=not data_src["multigpu"]
+                )
     
     def test_data(self) -> None:
         pass
