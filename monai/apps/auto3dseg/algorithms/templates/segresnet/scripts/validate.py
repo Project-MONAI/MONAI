@@ -149,7 +149,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                 )
 
             d = [post_transforms(i) for i in decollate_batch(d)]
-            print('**'*10, len(d), d[0]['pred'].shape)
             val_outputs = post_pred(d[0]["pred"])
             val_outputs = val_outputs[None, ...]
 

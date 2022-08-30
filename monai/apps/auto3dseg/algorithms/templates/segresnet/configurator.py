@@ -158,14 +158,14 @@ class Configurator(AlgorithmConfigurator):
 
         for _key in ["transforms_train.yaml", "transforms_validate.yaml"]:
             _t_key = [_item for _item in self.config[_key].keys() if "transforms" in _item][0]
-            if 'class_index' not in self.config[_key] or not isinstance(self.config[_key]['class_index'], list):
+            if 'class_index' not in self.config["hyper_parameters.yaml"] or not isinstance(self.config["hyper_parameters.yaml"]['class_index'], list):
                 pass
             else:
                 self.config[_key][_t_key]["transforms"].append(
                     {
                         "_target_": "LabelMapping",
                         "keys": "@label_key",
-                        "class_index": self.config[_key]['class_index'],
+                        "class_index": self.config["hyper_parameters.yaml"]['class_index'],
                     }
                 )
 
@@ -295,9 +295,9 @@ class Configurator(AlgorithmConfigurator):
                 f.writelines(lines)
 
 if __name__ == '__main__':
-    configurator = Configurator(data_stats_filename='/workspace/Code/Bundles/Task09-validate/datastats.yaml', \
-                                input_filename='/workspace/Code/Bundles/Task09-validate/input.yaml', \
-                                output_path='/workspace/Code/Bundles/Task09-validate')
+    configurator = Configurator(data_stats_filename='/workspace/Code/Bundles/Task05/datastats.yaml', \
+                                input_filename='/workspace/Code/Bundles/Task05/input.yaml', \
+                                output_path='/workspace/Code/Bundles/Task05')
     configurator.load()
     configurator.update()
     configurator.write()
