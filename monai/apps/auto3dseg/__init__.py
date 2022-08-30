@@ -11,3 +11,4 @@
 
 from .bundle_gen import BundleAlgo, BundleGen, DintsAlgo, SegresnetAlgo, UnetAlgo
 from .data_analyzer import DataAnalyzer
+from .ensemble_builder import ScriptEnsembleBuilder, ScriptEnsemble, EnsembleBestN

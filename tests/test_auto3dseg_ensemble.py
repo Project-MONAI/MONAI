@@ -4,8 +4,7 @@ import unittest
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import DataAnalyzer
-from monai.apps.auto3dseg import BundleGen
+from monai.apps.auto3dseg import DataAnalyzer, BundleGen, ScriptEnsembleBuilder, EnsembleBestN
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 
@@ -37,8 +36,10 @@ fake_datalist = {
     ],
 }
 
+
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
+        
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
         test_path = "/workspace/monai/monai-cache/run1"
@@ -105,11 +106,12 @@ class TestEnsembleBuilder(unittest.TestCase):
         # training
         history = bundle_generator.get_history()
 
-        num_epoch = 4
+        num_epoch = 2
         n_iter = int(num_epoch * len(fake_datalist["training"]) * 4 / 5)
         n_iter_val = int(n_iter / 2)
 
-        best_metrics = []
+        self.algo_paths = []
+        self.best_metrics = []
         for i, record in enumerate(history):
             self.assertEqual(len(record.keys()), 1, "each record should have one model")
             for name, algo in record.items():
@@ -118,12 +120,16 @@ class TestEnsembleBuilder(unittest.TestCase):
                     num_iterations_per_validation=n_iter_val,
                     single_gpu=not data_src["multigpu"]
                 )
-                best_metrics.append(algo.get_score())
+                self.algo_paths.append(algo.output_path)
+                self.best_metrics.append(algo.get_score())
     
-        print(best_metrics)
-
     def test_data(self) -> None:
-        pass
+
+        builder = ScriptEnsembleBuilder(self.algo_paths, self.best_metrics, self.data_src_cfg)
+        builder.set_ensemble_method(EnsembleBestN(n_best=3))
+        ensemble = builder.get_ensemble()
+
+        result = ensemble.predict()
 
     def tearDown(self) -> None:
         pass

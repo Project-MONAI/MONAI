@@ -24,8 +24,7 @@ from monai.bundle.scripts import _pop_args, _update_args
 from monai.data import ThreadDataLoader, decollate_batch, list_data_collate
 from monai.inferers import sliding_window_inference
 
-
-class InferClass:
+class InferClass():
     def __init__(self, config_file: Optional[Union[str, Sequence[str]]] = None, **override):
         logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
@@ -81,7 +80,7 @@ class InferClass:
 
         self.model = parser.get_parsed_content("network")
         self.model = self.model.to(self.device)
-        self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+        # self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
         pretrained_ckpt = torch.load(ckpt_name, map_location=self.device)
         self.model.load_state_dict(pretrained_ckpt)
