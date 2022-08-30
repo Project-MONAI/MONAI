@@ -33,13 +33,13 @@ class Algo:
 
 class AlgoGen(Randomizable):
     """
-    A data-driven algorithm generator optionally takes the following inputs:
+    A data-driven algorithm generator. It optionally takes the following inputs:
 
         - training dataset properties (such as data statistics from ``monai.auto3dseg.analyzer``),
         - previous algorithm's scores measuring the model's quality,
         - computational budgets.
 
-    It generates ``Algo`` to be trained with the training datasets.
+    It generates ``Algo``, and the generated algos are to be trained with the training datasets.
 
     ..code-block::
 
@@ -53,7 +53,7 @@ class AlgoGen(Randomizable):
               |                                  |
               +----------------------------------+
 
-    It maintains a history of previously generated Algo, and their corresponding validation scores.
+    This class also maintains a history of previously generated Algo, and their corresponding validation scores.
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state).
     """
 
@@ -87,11 +87,10 @@ class AlgoGen(Randomizable):
 
     def run_algo(self, *args, **kwargs):
         """
-        Run the algorithms. This is useful for light-weight Algos where there's no need to
-        distribute the Algo running jobs.
+        Launch the Algos. This is useful for light-weight Algos where there's no need to distribute the training jobs.
 
-        If the generated Algos require significant scheduling of parallel execution,
-        a separate controller is preferred to run them.  In this case the controller should also report back
-        the scores and the algo history, so that the future AlgoGen.generate can leverage the information.
+        If the generated Algos require significant scheduling of parallel executions, a job scheduler/controller
+        implemented separately is preferred to run them. In this case the controller should also report back the
+        scores and the algo history, so that the future ``AlgoGen.generate`` can leverage the information.
         """
         pass
