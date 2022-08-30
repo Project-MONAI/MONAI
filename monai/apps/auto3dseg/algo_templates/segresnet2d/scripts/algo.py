@@ -17,11 +17,14 @@ from monai.bundle import ConfigParser
 
 
 class Segresnet2DAlgo(BundleAlgo):
-    def fill_template_config(self, data_stats_files):
-        if data_stats_files is None or not os.path.exists(str(data_stats_files)):
+    def fill_template_config(self, data_stats):
+        if data_stats is None:
             return
         data_cfg = ConfigParser(globals=False)
-        data_cfg.read_config(data_stats_files)
+        if os.path.exists(str(data_stats)):
+            data_cfg.read_config(str(data_stats))
+        else:
+            data_cfg.update(data_stats)
         patch_size = [320, 320]
         max_shape = data_cfg["stats_summary#image_stats#shape#max"]
         patch_size = [
@@ -37,7 +40,7 @@ class Segresnet2DAlgo(BundleAlgo):
                     "data_file_base_dir": data_src_cfg["dataroot"],
                     "data_list_file_path": data_src_cfg["datalist"],
                     "input_channels": data_cfg["stats_summary#image_stats#channels#max"],
-                    "output_classes": data_cfg["stats_summary#label_stats#labels"],
+                    "output_classes": len(data_cfg["stats_summary#label_stats#labels"]),
                 }
             )
         modality = data_src_cfg.get("modality", "ct").lower()

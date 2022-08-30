@@ -32,10 +32,11 @@ class BundleAlgo(Algo):
 
         from monai.apps.auto3dseg import BundleAlgo
 
+        data_stats_yaml = "/workspace/data_stats.yaml"
         algo = BundleAlgo(
             template_configs=../algorithms/templates/segresnet2d/configs,
             scripts_path="../algorithms/templates/segresnet2d/scripts")
-        algo.set_data_stats("../algorithms/data_stats.yaml")
+        algo.set_data_stats(data_stats_yaml)
         # algo.set_data_list("../data_list.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
 
