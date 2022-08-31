@@ -52,7 +52,7 @@ class LesionFROC:
             Defaults to (0.25, 0.5, 1, 2, 4, 8) which is the same as the CAMELYON 16 Challenge.
         nms_sigma: the standard deviation for gaussian filter of non-maximal suppression. Defaults to 0.0.
         nms_prob_threshold: the probability threshold of non-maximal suppression. Defaults to 0.5.
-        nms_box_size: the box size (in pixel) to be removed around the the pixel for non-maximal suppression.
+        nms_box_size: the box size (in pixel) to be removed around the pixel for non-maximal suppression.
         image_reader_name: the name of library to be used for loading whole slide imaging, either CuCIM or OpenSlide.
             Defaults to CuCIM.
 

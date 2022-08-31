@@ -1200,7 +1200,7 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
 class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
-    Apply random nonlinear transform the the image's intensity histogram.
+    Apply random nonlinear transform the image's intensity histogram.
 
     Args:
         keys: keys of the corresponding items to be transformed.
