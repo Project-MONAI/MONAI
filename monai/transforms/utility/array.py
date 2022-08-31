@@ -626,8 +626,10 @@ class SqueezeDim(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
-        dim = self.dim + len(img) if self.dim < 0 else self.dim
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
         if img.shape[dim] != 1:
             raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")

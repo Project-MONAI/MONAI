@@ -13,9 +13,10 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
+from monai.data import MetaTensor
 
 from monai.transforms import SqueezeDim
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS, TESTS_FAIL = [], []
 for p in TEST_NDARRAYS:
@@ -34,6 +35,8 @@ class TestSqueezeDim(unittest.TestCase):
 
         result = SqueezeDim(**input_param)(test_data)
         self.assertTupleEqual(result.shape, expected_shape)
+        if "dim" in input_param and input_param["dim"] == 2 and isinstance(result, MetaTensor):
+            assert_allclose(result.affine.shape, [3, 3])
 
     @parameterized.expand(TESTS_FAIL)
     def test_invalid_inputs(self, exception, input_param, test_data):
