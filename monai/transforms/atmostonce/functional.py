@@ -1,8 +1,8 @@
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 
 import torch
-from monai.transforms import create_rotate
+from monai.transforms import create_rotate, map_spatial_axes
 
 from monai.data import get_track_meta
 from monai.transforms.atmostonce.apply import extents_from_shape, shape_from_extents
@@ -275,7 +275,6 @@ def zoom(
 
     zoom_factors = ensure_tuple_rep(zoom, input_ndim)
 
-
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
     dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
@@ -301,10 +300,23 @@ def zoom(
     return img_, transform, metadata
 
 
-def rotate90(
-        img: torch.Tensor
-):
-    pass
+# def rotate90(
+#         img: torch.Tensor,
+#         k: Optional[int] = 1,
+#         spatial_axes: Optional[Tuple[int, int]] = (0, 1),
+# ):
+#     if len(spatial_axes) != 2:
+#         raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
+#
+#     img = convert_to_tensor(img, track_meta=get_track_meta())
+#     axes = map_spatial_axes(img.ndim, spatial_axes)
+#     ori_shape = img.shape[1:]
+#
+#     metadata = {
+#         "k": k,
+#         "spatial_axes": spatial_axes,
+#         "shape_override": shape_override
+#     }
 
 
 def croppad(
