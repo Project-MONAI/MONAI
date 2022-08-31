@@ -1,0 +1,3 @@
+modality: MRI  
+datalist: /home/dongy/Project/MONAI/auto3d/datafolds/msd_task05_prostate_folds.json
+dataroot: /workspace/data/msd/Task05_Prostate

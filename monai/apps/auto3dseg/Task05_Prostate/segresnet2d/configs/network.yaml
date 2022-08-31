@@ -1,0 +1,10 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+network:
+  _target_: SegResNet
+  dropout_prob: 0.1
+  in_channels: $@input_channels * (2 * @num_adjacent_slices + 1)
+  init_filters: 32
+  out_channels: '@output_classes'
+  spatial_dims: 2

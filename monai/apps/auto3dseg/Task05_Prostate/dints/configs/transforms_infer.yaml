@@ -1,0 +1,32 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+image_key: image
+transforms_infer:
+  _target_: Compose
+  transforms:
+  - _target_: LoadImaged
+    keys: '@image_key'
+  - _target_: EnsureChannelFirstd
+    keys: '@image_key'
+  - _target_: Orientationd
+    axcodes: RAS
+    keys: '@image_key'
+  - _target_: Spacingd
+    align_corners: true
+    keys: '@image_key'
+    mode: bilinear
+    pixdim:
+    - 0.625
+    - 0.625
+    - 3.6
+  - _target_: CastToTyped
+    dtype: $torch.float32
+    keys: '@image_key'
+  - _target_: NormalizeIntensityd
+    channel_wise: true
+    keys: '@image_key'
+    nonzero: true
+  - _target_: CastToTyped
+    dtype: $torch.float32
+    keys: '@image_key'

@@ -1,0 +1,22 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+arch_ckpt: $torch.load(@arch_ckpt_path, map_location=torch.device('cuda'))
+arch_ckpt_path: $@bundle_root + '/scripts/arch_code.pth'
+dints_space:
+  _target_: TopologyInstance
+  arch_code:
+  - $@arch_ckpt['code_a']
+  - $@arch_ckpt['code_c']
+  channel_mul: 1
+  device: $torch.device('cuda')
+  num_blocks: 12
+  num_depths: 4
+  use_downsample: true
+network:
+  _target_: DiNTS
+  dints_space: $@dints_space
+  in_channels: '@input_channels'
+  node_a: $@arch_ckpt['node_a']
+  num_classes: '@output_classes'
+  use_downsample: true

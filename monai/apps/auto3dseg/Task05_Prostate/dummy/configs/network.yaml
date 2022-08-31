@@ -1,0 +1,20 @@
+---
+arch_ckpt_path: "$@bundle_root + '/scripts/arch_code.pth'"
+arch_ckpt: "$torch.load(@arch_ckpt_path, map_location=torch.device('cuda'))"
+dints_space:
+  _target_: TopologyInstance
+  channel_mul: 1
+  num_blocks: 12
+  num_depths: 4
+  use_downsample: true
+  arch_code:
+  - "$@arch_ckpt['code_a']"
+  - "$@arch_ckpt['code_c']"
+  device: "$torch.device('cuda')"
+network:
+  _target_: DiNTS
+  dints_space: "$@dints_space"
+  in_channels: "@input_channels"
+  num_classes: "@output_classes"
+  use_downsample: true
+  node_a: "$@arch_ckpt['node_a']"

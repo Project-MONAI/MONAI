@@ -1,0 +1,16 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+dints_space:
+  _target_: TopologySearch
+  channel_mul: 0.5
+  device: $torch.device('cuda')
+  num_blocks: 12
+  num_depths: 4
+  use_downsample: true
+network:
+  _target_: DiNTS
+  dints_space: $@dints_space
+  in_channels: '@input_channels'
+  num_classes: '@output_classes'
+  use_downsample: true

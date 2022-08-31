@@ -1,0 +1,64 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+amp: true
+arch_optimizer_a:
+  _target_: torch.optim.Adam
+  betas:
+  - 0.5
+  - 0.999
+  lr: '@learning_rate_arch'
+  weight_decay: 0
+arch_optimizer_c:
+  _target_: torch.optim.Adam
+  betas:
+  - 0.5
+  - 0.999
+  lr: '@learning_rate_arch'
+  weight_decay: 0
+arch_path: $@bundle_root + '/arch_ram' + str(@ram_cost_factor) + '_fold' + str(@fold)
+bundle_root: /home/dongy/Project/MONAI/auto3d/Task05_Prostate/dints
+data_file_base_dir: /workspace/data/msd/Task05_Prostate
+data_list_file_path: /home/dongy/Project/MONAI/auto3d/datafolds/msd_task05_prostate_folds.json
+determ: false
+fold: 0
+input_channels: 2
+learning_rate: 0.025
+learning_rate_arch: 0.001
+loss:
+  _target_: DiceFocalLoss
+  batch: true
+  include_background: true
+  sigmoid: $not @softmax
+  smooth_dr: 1.0e-05
+  smooth_nr: 1.0e-05
+  softmax: $@softmax
+  squared_pred: true
+  to_onehot_y: $@softmax
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  gamma: 0.5
+  step_size: $int(float(@num_iterations - @num_warmup_iterations) * 0.4)
+num_images_per_batch: 2
+num_iterations: 20000
+num_iterations_per_validation: 500
+num_patches_per_image: 1
+num_sw_batch_size: 2
+num_warmup_iterations: 10000
+optimizer:
+  _target_: torch.optim.SGD
+  lr: '@learning_rate'
+  momentum: 0.9
+  weight_decay: 4.0e-05
+output_classes: 3
+overlap_ratio: 0.625
+patch_size:
+- 96
+- 96
+- 96
+patch_size_valid:
+- 96
+- 96
+- 96
+ram_cost_factor: 0.8
+softmax: true

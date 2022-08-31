@@ -1,0 +1,60 @@
+# generated automatically by monai.auto3dseg
+# for more information please visit: https://docs.monai.io/
+
+amp: true
+bundle_root: /home/dongy/Project/MONAI/auto3d/Task05_Prostate/dints
+ckpt_path: $@bundle_root + '/model_fold' + str(@fold)
+data_file_base_dir: /workspace/data/msd/Task05_Prostate
+data_list_file_path: /home/dongy/Project/MONAI/auto3d/datafolds/msd_task05_prostate_folds.json
+determ: false
+finetune:
+  activate: false
+  pretrained_ckpt_name: $@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'
+fold: 0
+infer:
+  ckpt_name: $@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'
+  data_list_key: testing
+  fast: false
+  ouptut_path: $@bundle_root + '/prediction_' + @infer#data_list_key
+input_channels: 2
+learning_rate: 0.025
+loss:
+  _target_: DiceFocalLoss
+  batch: true
+  include_background: true
+  sigmoid: $not @softmax
+  smooth_dr: 1.0e-05
+  smooth_nr: 1.0e-05
+  softmax: $@softmax
+  squared_pred: true
+  to_onehot_y: $@softmax
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  gamma: 0.5
+  optimizer: $@optimizer
+  step_size: $@num_iterations // 5
+num_images_per_batch: 2
+num_iterations: 40000
+num_iterations_per_validation: 500
+num_patches_per_image: 1
+num_sw_batch_size: 2
+optimizer:
+  _target_: torch.optim.SGD
+  lr: '@learning_rate'
+  momentum: 0.9
+  weight_decay: 4.0e-05
+output_classes: 3
+overlap_ratio: 0.625
+patch_size:
+- 128
+- 128
+- 32
+patch_size_valid:
+- 128
+- 128
+- 32
+softmax: true
+validate:
+  ckpt_name: $@bundle_root + '/model_fold' + str(@fold) + '/best_metric_model.pt'
+  ouptut_path: $@bundle_root + '/prediction_fold' + str(@fold)
+  save_mask: true

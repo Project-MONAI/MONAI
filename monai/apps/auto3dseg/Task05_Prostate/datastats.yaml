@@ -1,0 +1,1796 @@
+stats_summary:
+  image_stats:
+    shape:
+      max:
+      - [384, 384, 24]
+      - [384, 384, 24]
+      mean:
+      - [317.8667, 317.8667, 18.8000]
+      - [317.8667, 317.8667, 18.8000]
+      median:
+      - [320.0000, 320.0000, 20.0000]
+      - [320.0000, 320.0000, 20.0000]
+      min:
+      - [256, 256, 11]
+      - [256, 256, 11]
+      percentile_00_5:
+      - [256.0000, 256.0000, 11.5800]
+      - [256.0000, 256.0000, 11.5800]
+      percentile_10_0:
+      - [320.0000, 320.0000, 15.0000]
+      - [320.0000, 320.0000, 15.0000]
+      percentile_90_0:
+      - [320.0000, 320.0000, 20.0000]
+      - [320.0000, 320.0000, 20.0000]
+      percentile_99_5:
+      - [374.7200, 374.7200, 23.7100]
+      - [374.7200, 374.7200, 23.7100]
+      stdev:
+      - [20.1258, 20.1258, 2.6633]
+      - [20.1258, 20.1258, 2.6633]
+    channels: {max: 2, mean: 2.0000, median: 2.0000, min: 2, percentile_00_5: 2.0000,
+      percentile_10_0: 2.0000, percentile_90_0: 2.0000, percentile_99_5: 2.0000, stdev: 0.0000}
+    cropped_shape:
+      max:
+      - [384, 383, 24]
+      - [384, 324, 20]
+      mean:
+      - [317.8667, 317.6000, 18.8000]
+      - [317.8667, 308.7000, 17.5667]
+      median:
+      - [320.0000, 320.0000, 20.0000]
+      - [320.0000, 319.0000, 18.0000]
+      min:
+      - [256, 255, 11]
+      - [256, 256, 11]
+      percentile_00_5:
+      - [256.0000, 255.0000, 11.5800]
+      - [256.0000, 256.0000, 11.4350]
+      percentile_10_0:
+      - [320.0000, 319.0000, 15.0000]
+      - [320.0000, 280.7000, 15.0000]
+      percentile_90_0:
+      - [320.0000, 320.0000, 20.0000]
+      - [320.0000, 320.0000, 20.0000]
+      percentile_99_5:
+      - [374.7200, 373.8650, 23.7100]
+      - [374.7200, 323.4200, 20.0000]
+      stdev:
+      - [20.1258, 20.2082, 2.6633]
+      - [20.1258, 18.3778, 2.0766]
+    spacing:
+      max:
+      - [0.7500, 0.7500, 4.0000]
+      - [0.7500, 0.7500, 4.0000]
+      mean:
+      - [0.6284, 0.6274, 3.6662]
+      - [0.6284, 0.6274, 3.6662]
+      median:
+      - [0.6250, 0.6250, 3.6000]
+      - [0.6250, 0.6250, 3.6000]
+      min:
+      - [0.6000, 0.5744, 3.0000]
+      - [0.6000, 0.5744, 3.0000]
+      percentile_00_5:
+      - [0.6000, 0.5780, 3.0840]
+      - [0.6000, 0.5780, 3.0840]
+      percentile_10_0:
+      - [0.6000, 0.5999, 3.5999]
+      - [0.6000, 0.5999, 3.5999]
+      percentile_90_0:
+      - [0.6250, 0.6250, 3.9937]
+      - [0.6250, 0.6250, 3.9937]
+      percentile_99_5:
+      - [0.7500, 0.7498, 4.0000]
+      - [0.7500, 0.7498, 4.0000]
+      stdev:
+      - [0.0339, 0.0348, 0.2020]
+      - [0.0339, 0.0348, 0.2020]
+    intensity:
+      max: [2965.0000, 3860.0000]
+      mean: [307.1867, 434.7086]
+      median: [239.9000, 211.1000]
+      min: [0.0000, 0.0000]
+      percentile_00_5: [1.5333, 0.0000]
+      percentile_10_0: [54.5333, 15.9333]
+      percentile_90_0: [649.3333, 1241.7333]
+      percentile_99_5: [1044.0333, 2546.5667]
+      stdev: [238.3960, 551.9388]
+  image_foreground_stats:
+    intensity:
+      max: [1326.0000, 3698.0000]
+      mean: [353.6855, 1362.7903]
+      median: [339.0333, 1370.1333]
+      min: [0.0000, 0.0000]
+      percentile_00_5: [94.7037, 317.7780]
+      percentile_10_0: [210.9000, 994.6100]
+      percentile_90_0: [518.3333, 1735.0667]
+      percentile_99_5: [734.7433, 2254.0943]
+      stdev: [122.7288, 332.5279]
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9723, 1: 0.0058, 2: 0.0219}
+    label_0:
+      image_intensity:
+        max: [2965.0000, 3860.0000]
+        mean: [305.9692, 382.8567]
+        median: [234.8667, 187.5000]
+        min: [0.0000, 0.0000]
+        percentile_00_5: [0.0000, 0.0000]
+        percentile_10_0: [52.9667, 15.1000]
+        percentile_90_0: [652.1333, 1096.3333]
+        percentile_99_5: [1046.2000, 2527.5283]
+        stdev: [240.7452, 514.0512]
+    label_1:
+      image_intensity:
+        max: [1291.0000, 2890.0000]
+        mean: [402.8248, 1465.1189]
+        median: [401.3333, 1492.5333]
+        min: [0.0000, 0.0000]
+        percentile_00_5: [103.9923, 496.5600]
+        percentile_10_0: [236.9100, 1103.9000]
+        percentile_90_0: [567.3633, 1801.9333]
+        percentile_99_5: [741.9322, 2080.5507]
+        stdev: [128.6345, 293.8934]
+    label_2:
+      image_intensity:
+        max: [1326.0000, 3698.0000]
+        mean: [326.9920, 1314.3066]
+        median: [316.4667, 1316.1667]
+        min: [0.0000, 0.0000]
+        percentile_00_5: [92.5128, 309.9215]
+        percentile_10_0: [203.0467, 964.4067]
+        percentile_90_0: [463.0667, 1695.0667]
+        percentile_99_5: [695.3650, 2205.4035]
+        stdev: [107.1664, 322.4870]
+stats_by_cases:
+- image: /data/Task05_Prostate/imagesTr/prostate_16.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_16.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1562.0000, mean: 321.3660, median: 285.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 49.0000, percentile_90_0: 649.0000, percentile_99_5: 926.0000,
+      stdev: 228.7149}
+    - {max: 3754.0000, mean: 909.0748, median: 892.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 84.0000, percentile_90_0: 1631.0000, percentile_99_5: 3156.0000,
+      stdev: 664.6998}
+  image_foreground_stats:
+    intensity:
+    - {max: 984.0000, mean: 346.7135, median: 337.0000, min: 0.0000, percentile_00_5: 104.0000,
+      percentile_10_0: 222.0000, percentile_90_0: 486.0000, percentile_99_5: 693.5700,
+      stdev: 106.7926}
+    - {max: 3698.0000, mean: 1459.5054, median: 1441.0000, min: 606.0000, percentile_00_5: 985.0000,
+      percentile_10_0: 1198.0000, percentile_90_0: 1741.0000, percentile_99_5: 2151.0000,
+      stdev: 219.0931}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.8905, 1: 0.0040, 2: 0.1055}
+    label_0:
+      image_intensity:
+      - {max: 1562.0000, mean: 318.2486, median: 261.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 42.0000, percentile_90_0: 662.0000, percentile_99_5: 932.0000,
+        stdev: 239.2750}
+      - {max: 3754.0000, mean: 841.3809, median: 761.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 70.0000, percentile_90_0: 1584.0000, percentile_99_5: 3171.0000,
+        stdev: 669.6390}
+    label_1:
+      image_intensity:
+      - {max: 884.0000, mean: 355.1787, median: 353.0000, min: 44.0000, percentile_00_5: 120.0000,
+        percentile_10_0: 216.0000, percentile_90_0: 495.0000, percentile_99_5: 680.6850,
+        stdev: 109.2939}
+      - {max: 2150.0000, mean: 1585.0670, median: 1570.0000, min: 989.0000, percentile_00_5: 1163.0000,
+        percentile_10_0: 1327.0000, percentile_90_0: 1868.0000, percentile_99_5: 2065.4250,
+        stdev: 203.9330}
+    label_2:
+      image_intensity:
+      - {max: 984.0000, mean: 346.3896, median: 336.0000, min: 0.0000, percentile_00_5: 103.0000,
+        percentile_10_0: 222.0000, percentile_90_0: 485.0000, percentile_99_5: 694.0000,
+        stdev: 106.6824}
+      - {max: 3698.0000, mean: 1454.7019, median: 1436.0000, min: 606.0000, percentile_00_5: 984.0000,
+        percentile_10_0: 1195.0000, percentile_90_0: 1732.0000, percentile_99_5: 2158.0000,
+        stdev: 218.2222}
+- image: /data/Task05_Prostate/imagesTr/prostate_04.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_04.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 15]
+    - [320, 320, 15]
+    channels: 2
+    cropped_shape:
+    - [320, 319, 15]
+    - [320, 304, 15]
+    spacing:
+    - [0.6000, 0.5989, 3.9930]
+    - [0.6000, 0.5989, 3.9930]
+    intensity:
+    - {max: 1688.0000, mean: 371.7499, median: 342.0000, min: 0.0000, percentile_00_5: 10.0000,
+      percentile_10_0: 87.0000, percentile_90_0: 696.0000, percentile_99_5: 1087.0000,
+      stdev: 241.2730}
+    - {max: 3324.0000, mean: 650.6804, median: 510.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1472.0000, percentile_99_5: 2961.0000,
+      stdev: 645.9698}
+  image_foreground_stats:
+    intensity:
+    - {max: 1188.0000, mean: 360.8349, median: 335.0000, min: 54.0000, percentile_00_5: 140.0000,
+      percentile_10_0: 240.0000, percentile_90_0: 526.0000, percentile_99_5: 819.0000,
+      stdev: 122.1192}
+    - {max: 2464.0000, mean: 1446.2637, median: 1433.0000, min: 161.0000, percentile_00_5: 786.2700,
+      percentile_10_0: 1179.0000, percentile_90_0: 1720.0000, percentile_99_5: 2248.0000,
+      stdev: 234.6931}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9507, 1: 0.0071, 2: 0.0422}
+    label_0:
+      image_intensity:
+      - {max: 1688.0000, mean: 371.0935, median: 343.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 84.0000, percentile_90_0: 700.0000, percentile_99_5: 1093.0000,
+        stdev: 246.3984}
+      - {max: 3324.0000, mean: 575.2447, median: 410.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1355.0000, percentile_99_5: 2961.0000,
+        stdev: 630.7778}
+    label_1:
+      image_intensity:
+      - {max: 1005.0000, mean: 493.6707, median: 476.0000, min: 102.0000, percentile_00_5: 169.2300,
+        percentile_10_0: 312.0000, percentile_90_0: 695.0000, percentile_99_5: 891.0000,
+        stdev: 151.4241}
+      - {max: 2464.0000, mean: 1730.4254, median: 1701.0000, min: 367.0000, percentile_00_5: 1076.9200,
+        percentile_10_0: 1442.0000, percentile_90_0: 2090.0000, percentile_99_5: 2354.7700,
+        stdev: 251.6223}
+    label_2:
+      image_intensity:
+      - {max: 1188.0000, mean: 338.6020, median: 324.0000, min: 54.0000, percentile_00_5: 137.0000,
+        percentile_10_0: 236.0000, percentile_90_0: 454.0000, percentile_99_5: 772.0000,
+        stdev: 100.6171}
+      - {max: 2412.0000, mean: 1398.7031, median: 1402.0000, min: 161.0000, percentile_00_5: 772.0700,
+        percentile_10_0: 1162.7000, percentile_90_0: 1628.0000, percentile_99_5: 1932.0000,
+        stdev: 194.7461}
+- image: /data/Task05_Prostate/imagesTr/prostate_20.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_20.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1831.0000, mean: 313.5422, median: 247.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 46.0000, percentile_90_0: 665.0000, percentile_99_5: 1008.0000,
+      stdev: 240.4954}
+    - {max: 3248.0000, mean: 891.8558, median: 883.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 81.0000, percentile_90_0: 1622.0000, percentile_99_5: 2885.0000,
+      stdev: 639.4727}
+  image_foreground_stats:
+    intensity:
+    - {max: 1260.0000, mean: 404.5076, median: 380.0000, min: 0.0000, percentile_00_5: 103.0000,
+      percentile_10_0: 243.0000, percentile_90_0: 610.0000, percentile_99_5: 897.0000,
+      stdev: 148.4578}
+    - {max: 3007.0000, mean: 1447.0537, median: 1433.0000, min: 727.0000, percentile_00_5: 917.4150,
+      percentile_10_0: 1139.0000, percentile_90_0: 1749.0000, percentile_99_5: 2329.5850,
+      stdev: 248.2373}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9684, 1: 0.0048, 2: 0.0268}
+    label_0:
+      image_intensity:
+      - {max: 1831.0000, mean: 310.5754, median: 237.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 45.0000, percentile_90_0: 667.0000, percentile_99_5: 1010.0000,
+        stdev: 242.3363}
+      - {max: 3248.0000, mean: 873.7485, median: 852.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 77.0000, percentile_90_0: 1612.0000, percentile_99_5: 2887.0000,
+        stdev: 640.2120}
+    label_1:
+      image_intensity:
+      - {max: 967.0000, mean: 505.3231, median: 501.0000, min: 0.0000, percentile_00_5: 103.7000,
+        percentile_10_0: 295.5000, percentile_90_0: 725.0000, percentile_99_5: 869.0750,
+        stdev: 164.2024}
+      - {max: 2393.0000, mean: 1593.7916, median: 1580.0000, min: 727.0000, percentile_00_5: 1007.9250,
+        percentile_10_0: 1324.5000, percentile_90_0: 1886.0000, percentile_99_5: 2265.0000,
+        stdev: 222.8238}
+    label_2:
+      image_intensity:
+      - {max: 1260.0000, mean: 386.5364, median: 367.0000, min: 0.0000, percentile_00_5: 103.0000,
+        percentile_10_0: 238.0000, percentile_90_0: 560.0000, percentile_99_5: 908.0000,
+        stdev: 137.9401}
+      - {max: 3007.0000, mean: 1420.8966, median: 1408.0000, min: 733.0000, percentile_00_5: 912.0000,
+        percentile_10_0: 1121.0000, percentile_90_0: 1709.3000, percentile_99_5: 2378.5150,
+        stdev: 243.3789}
+- image: /data/Task05_Prostate/imagesTr/prostate_43.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_43.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1772.0000, mean: 339.3935, median: 239.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 48.0000, percentile_90_0: 786.0000, percentile_99_5: 1172.0000,
+      stdev: 286.5192}
+    - {max: 3492.0000, mean: 425.6468, median: 5.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1402.0000, percentile_99_5: 2775.0000,
+      stdev: 671.5696}
+  image_foreground_stats:
+    intensity:
+    - {max: 1288.0000, mean: 497.3439, median: 467.0000, min: 0.0000, percentile_00_5: 90.0000,
+      percentile_10_0: 242.0000, percentile_90_0: 780.0000, percentile_99_5: 932.0100,
+      stdev: 204.5755}
+    - {max: 2433.0000, mean: 1605.4128, median: 1577.0000, min: 0.0000, percentile_00_5: 508.0000,
+      percentile_10_0: 1181.0000, percentile_90_0: 2074.0000, percentile_99_5: 2272.0000,
+      stdev: 353.1486}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9816, 1: 0.0117, 2: 0.0066}
+    label_0:
+      image_intensity:
+      - {max: 1772.0000, mean: 336.4395, median: 233.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 47.0000, percentile_90_0: 786.0000, percentile_99_5: 1173.0000,
+        stdev: 287.0027}
+      - {max: 3492.0000, mean: 359.0023, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1196.0000, percentile_99_5: 2766.0000,
+        stdev: 631.1697}
+    label_1:
+      image_intensity:
+      - {max: 1288.0000, mean: 571.7791, median: 614.0000, min: 1.0000, percentile_00_5: 102.1000,
+        percentile_10_0: 263.0000, percentile_90_0: 809.0000, percentile_99_5: 957.0000,
+        stdev: 205.1374}
+      - {max: 2433.0000, mean: 1752.4536, median: 1819.0000, min: 62.0000, percentile_00_5: 794.2000,
+        percentile_10_0: 1293.0000, percentile_90_0: 2118.0000, percentile_99_5: 2290.0000,
+        stdev: 325.7741}
+    label_2:
+      image_intensity:
+      - {max: 1115.0000, mean: 365.6595, median: 360.0000, min: 0.0000, percentile_00_5: 73.0000,
+        percentile_10_0: 222.0000, percentile_90_0: 512.0000, percentile_99_5: 757.0000,
+        stdev: 119.5874}
+      - {max: 2176.0000, mean: 1345.2814, median: 1355.0000, min: 0.0000, percentile_00_5: 232.0000,
+        percentile_10_0: 1119.0000, percentile_90_0: 1601.0000, percentile_99_5: 1908.1150,
+        stdev: 227.3211}
+- image: /data/Task05_Prostate/imagesTr/prostate_06.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_06.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2782.0000, mean: 231.6663, median: 163.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 43.0000, percentile_90_0: 518.0000, percentile_99_5: 952.0000,
+      stdev: 195.1785}
+    - {max: 3370.0000, mean: 901.2388, median: 880.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 79.0000, percentile_90_0: 1663.0000, percentile_99_5: 2828.0000,
+      stdev: 663.2936}
+  image_foreground_stats:
+    intensity:
+    - {max: 775.0000, mean: 251.6926, median: 235.0000, min: 0.0000, percentile_00_5: 64.0000,
+      percentile_10_0: 143.0000, percentile_90_0: 387.0000, percentile_99_5: 584.0000,
+      stdev: 98.8689}
+    - {max: 2941.0000, mean: 1366.3944, median: 1316.0000, min: 679.0000, percentile_00_5: 892.0000,
+      percentile_10_0: 1080.0000, percentile_90_0: 1702.0000, percentile_99_5: 2582.5700,
+      stdev: 279.1595}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9789, 1: 0.0052, 2: 0.0159}
+    label_0:
+      image_intensity:
+      - {max: 2782.0000, mean: 231.2339, median: 160.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 42.0000, percentile_90_0: 522.0000, percentile_99_5: 954.0000,
+        stdev: 196.7162}
+      - {max: 3370.0000, mean: 891.1949, median: 858.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 77.0000, percentile_90_0: 1661.0000, percentile_99_5: 2830.0000,
+        stdev: 665.5844}
+    label_1:
+      image_intensity:
+      - {max: 775.0000, mean: 316.0927, median: 308.0000, min: 0.0000, percentile_00_5: 81.0000,
+        percentile_10_0: 180.0000, percentile_90_0: 464.0000, percentile_99_5: 622.3550,
+        stdev: 110.6914}
+      - {max: 2366.0000, mean: 1474.3956, median: 1460.0000, min: 893.0000, percentile_00_5: 1009.0000,
+        percentile_10_0: 1194.0000, percentile_90_0: 1774.0000, percentile_99_5: 2091.3550,
+        stdev: 223.3598}
+    label_2:
+      image_intensity:
+      - {max: 729.0000, mean: 230.4679, median: 220.0000, min: 0.0000, percentile_00_5: 60.0000,
+        percentile_10_0: 136.0000, percentile_90_0: 335.0000, percentile_99_5: 555.0000,
+        stdev: 84.5054}
+      - {max: 2941.0000, mean: 1330.7999, median: 1273.0000, min: 679.0000, percentile_00_5: 879.0000,
+        percentile_10_0: 1059.0000, percentile_90_0: 1637.0000, percentile_99_5: 2636.0000,
+        stdev: 286.4615}
+- image: /data/Task05_Prostate/imagesTr/prostate_14.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_14.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2052.0000, mean: 372.1721, median: 268.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 63.0000, percentile_90_0: 830.0000, percentile_99_5: 1366.0000,
+      stdev: 309.9580}
+    - {max: 2974.0000, mean: 276.8578, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1053.0000, percentile_99_5: 2528.0000,
+      stdev: 489.7161}
+  image_foreground_stats:
+    intensity:
+    - {max: 1084.0000, mean: 399.6674, median: 397.0000, min: 0.0000, percentile_00_5: 116.0000,
+      percentile_10_0: 253.0000, percentile_90_0: 547.0000, percentile_99_5: 755.8550,
+      stdev: 118.1020}
+    - {max: 2466.0000, mean: 1336.9396, median: 1361.0000, min: 0.0000, percentile_00_5: 348.1450,
+      percentile_10_0: 1037.0000, percentile_90_0: 1600.0000, percentile_99_5: 2245.7100,
+      stdev: 258.4903}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9832, 1: 0.0047, 2: 0.0121}
+    label_0:
+      image_intensity:
+      - {max: 2052.0000, mean: 371.7019, median: 264.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 62.0000, percentile_90_0: 834.0000, percentile_99_5: 1367.0000,
+        stdev: 312.1939}
+      - {max: 2974.0000, mean: 229.7804, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 949.0000, percentile_99_5: 2495.0000,
+        stdev: 451.9795}
+    label_1:
+      image_intensity:
+      - {max: 913.0000, mean: 441.6181, median: 438.0000, min: 82.0000, percentile_00_5: 181.0000,
+        percentile_10_0: 312.0000, percentile_90_0: 573.0000, percentile_99_5: 735.0000,
+        stdev: 103.4076}
+      - {max: 1907.0000, mean: 1367.7578, median: 1394.0000, min: 206.0000, percentile_00_5: 779.0000,
+        percentile_10_0: 1103.0000, percentile_90_0: 1595.0000, percentile_99_5: 1766.5000,
+        stdev: 196.3011}
+    label_2:
+      image_intensity:
+      - {max: 1084.0000, mean: 383.2104, median: 378.0000, min: 0.0000, percentile_00_5: 107.0000,
+        percentile_10_0: 238.0000, percentile_90_0: 532.0000, percentile_99_5: 763.3600,
+        stdev: 119.4310}
+      - {max: 2466.0000, mean: 1324.8496, median: 1348.0000, min: 0.0000, percentile_00_5: 293.5600,
+        percentile_10_0: 1013.8000, percentile_90_0: 1604.0000, percentile_99_5: 2288.7200,
+        stdev: 278.1974}
+- image: /data/Task05_Prostate/imagesTr/prostate_41.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_41.nii.gz
+  image_stats:
+    shape:
+    - [256, 256, 18]
+    - [256, 256, 18]
+    channels: 2
+    cropped_shape:
+    - [256, 255, 18]
+    - [256, 256, 18]
+    spacing:
+    - [0.7500, 0.7500, 3.0000]
+    - [0.7500, 0.7500, 3.0000]
+    intensity:
+    - {max: 1350.0000, mean: 254.8755, median: 186.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 49.0000, percentile_90_0: 551.0000, percentile_99_5: 924.0000,
+      stdev: 211.4323}
+    - {max: 3054.0000, mean: 443.9160, median: 73.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1346.0000, percentile_99_5: 2601.0000,
+      stdev: 599.8314}
+  image_foreground_stats:
+    intensity:
+    - {max: 806.0000, mean: 304.5243, median: 298.0000, min: 44.0000, percentile_00_5: 99.0000,
+      percentile_10_0: 207.0000, percentile_90_0: 413.0000, percentile_99_5: 554.3900,
+      stdev: 82.7686}
+    - {max: 2387.0000, mean: 1418.3665, median: 1411.0000, min: 0.0000, percentile_00_5: 893.0000,
+      percentile_10_0: 1176.0000, percentile_90_0: 1681.0000, percentile_99_5: 1957.7800,
+      stdev: 199.2490}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9760, 1: 0.0098, 2: 0.0142}
+    label_0:
+      image_intensity:
+      - {max: 1350.0000, mean: 252.6340, median: 176.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 47.0000, percentile_90_0: 553.0000, percentile_99_5: 925.0000,
+        stdev: 213.6591}
+      - {max: 3054.0000, mean: 419.9442, median: 55.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1293.0000, percentile_99_5: 2603.0000,
+        stdev: 586.2919}
+    label_1:
+      image_intensity:
+      - {max: 806.0000, mean: 335.5798, median: 340.0000, min: 56.0000, percentile_00_5: 106.0350,
+        percentile_10_0: 224.0000, percentile_90_0: 436.0000, percentile_99_5: 566.9650,
+        stdev: 84.3941}
+      - {max: 2023.0000, mean: 1467.0387, median: 1479.0000, min: 0.0000, percentile_00_5: 734.0350,
+        percentile_10_0: 1210.0000, percentile_90_0: 1720.0000, percentile_99_5: 1893.9650,
+        stdev: 209.4667}
+    label_2:
+      image_intensity:
+      - {max: 713.0000, mean: 282.9573, median: 279.0000, min: 44.0000, percentile_00_5: 95.0000,
+        percentile_10_0: 197.4000, percentile_90_0: 372.0000, percentile_99_5: 531.8600,
+        stdev: 74.3440}
+      - {max: 2387.0000, mean: 1384.5651, median: 1373.0000, min: 318.0000, percentile_00_5: 996.7100,
+        percentile_10_0: 1164.0000, percentile_90_0: 1618.0000, percentile_99_5: 2030.8600,
+        stdev: 184.4241}
+- image: /data/Task05_Prostate/imagesTr/prostate_34.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_34.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 15]
+    - [320, 320, 15]
+    channels: 2
+    cropped_shape:
+    - [320, 319, 15]
+    - [320, 319, 15]
+    spacing:
+    - [0.6000, 0.5989, 3.9930]
+    - [0.6000, 0.5989, 3.9930]
+    intensity:
+    - {max: 1281.0000, mean: 220.2282, median: 147.0000, min: 0.0000, percentile_00_5: 5.0000,
+      percentile_10_0: 52.0000, percentile_90_0: 480.0000, percentile_99_5: 935.0000,
+      stdev: 190.0606}
+    - {max: 2880.0000, mean: 327.3502, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1277.0000, percentile_99_5: 2398.0000,
+      stdev: 554.4342}
+  image_foreground_stats:
+    intensity:
+    - {max: 889.0000, mean: 306.5331, median: 294.0000, min: 48.0000, percentile_00_5: 103.0000,
+      percentile_10_0: 192.0000, percentile_90_0: 435.0000, percentile_99_5: 713.0450,
+      stdev: 101.3385}
+    - {max: 2741.0000, mean: 1358.3883, median: 1348.0000, min: 0.0000, percentile_00_5: 381.9100,
+      percentile_10_0: 1072.0000, percentile_90_0: 1669.0000, percentile_99_5: 2421.0900,
+      stdev: 282.0640}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9715, 1: 0.0098, 2: 0.0187}
+    label_0:
+      image_intensity:
+      - {max: 1281.0000, mean: 216.9870, median: 141.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 50.0000, percentile_90_0: 482.0000, percentile_99_5: 938.0000,
+        stdev: 191.5528}
+      - {max: 2880.0000, mean: 296.0392, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1203.0000, percentile_99_5: 2397.0000,
+        stdev: 530.3414}
+    label_1:
+      image_intensity:
+      - {max: 800.0000, mean: 339.7845, median: 329.0000, min: 60.0000, percentile_00_5: 133.0000,
+        percentile_10_0: 226.0000, percentile_90_0: 472.0000, percentile_99_5: 632.0000,
+        stdev: 96.0807}
+      - {max: 2319.0000, mean: 1407.3263, median: 1396.0000, min: 76.0000, percentile_00_5: 677.6350,
+        percentile_10_0: 1125.0000, percentile_90_0: 1729.0000, percentile_99_5: 2005.8250,
+        stdev: 239.3864}
+    label_2:
+      image_intensity:
+      - {max: 889.0000, mean: 288.9839, median: 276.0000, min: 48.0000, percentile_00_5: 95.0000,
+        percentile_10_0: 178.0000, percentile_90_0: 408.0000, percentile_99_5: 743.6850,
+        stdev: 99.6283}
+      - {max: 2741.0000, mean: 1332.5601, median: 1325.0000, min: 0.0000, percentile_00_5: 290.0000,
+        percentile_10_0: 1048.0000, percentile_90_0: 1621.0000, percentile_99_5: 2509.6850,
+        stdev: 298.9551}
+- image: /data/Task05_Prostate/imagesTr/prostate_38.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_38.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1818.0000, mean: 290.8705, median: 245.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 66.0000, percentile_90_0: 573.0000, percentile_99_5: 980.0000,
+      stdev: 207.0744}
+    - {max: 2693.0000, mean: 261.7308, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1189.0000, percentile_99_5: 1942.0000,
+      stdev: 496.9582}
+  image_foreground_stats:
+    intensity:
+    - {max: 1160.0000, mean: 309.1684, median: 297.0000, min: 0.0000, percentile_00_5: 74.0000,
+      percentile_10_0: 184.0000, percentile_90_0: 447.0000, percentile_99_5: 725.0000,
+      stdev: 111.3279}
+    - {max: 2343.0000, mean: 1204.9473, median: 1294.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 622.0000, percentile_90_0: 1613.0000, percentile_99_5: 1974.0000,
+      stdev: 434.8210}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9297, 1: 0.0043, 2: 0.0659}
+    label_0:
+      image_intensity:
+      - {max: 1818.0000, mean: 289.4877, median: 232.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 63.0000, percentile_90_0: 580.0000, percentile_99_5: 985.0000,
+        stdev: 212.5003}
+      - {max: 2693.0000, mean: 161.5100, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 780.0000, percentile_99_5: 1913.0000,
+        stdev: 392.8523}
+    label_1:
+      image_intensity:
+      - {max: 719.0000, mean: 284.8560, median: 279.0000, min: 9.0000, percentile_00_5: 71.0000,
+        percentile_10_0: 177.0000, percentile_90_0: 401.0000, percentile_99_5: 564.7850,
+        stdev: 89.9816}
+      - {max: 2050.0000, mean: 1354.7751, median: 1365.0000, min: 67.0000, percentile_00_5: 433.0000,
+        percentile_10_0: 1072.0000, percentile_90_0: 1650.0000, percentile_99_5: 1954.0000,
+        stdev: 246.8172}
+    label_2:
+      image_intensity:
+      - {max: 1160.0000, mean: 310.7606, median: 298.0000, min: 0.0000, percentile_00_5: 74.0000,
+        percentile_10_0: 184.0000, percentile_90_0: 450.0000, percentile_99_5: 730.7650,
+        stdev: 112.4014}
+      - {max: 2343.0000, mean: 1195.1353, median: 1288.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 535.0000, percentile_90_0: 1610.0000, percentile_99_5: 1977.0000,
+        stdev: 442.6006}
+- image: /data/Task05_Prostate/imagesTr/prostate_10.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_10.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 310, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1580.0000, mean: 267.3564, median: 183.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 50.0000, percentile_90_0: 605.0000, percentile_99_5: 1041.0000,
+      stdev: 227.6055}
+    - {max: 2606.0000, mean: 138.5192, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 531.0000, percentile_99_5: 2016.0000,
+      stdev: 375.7084}
+  image_foreground_stats:
+    intensity:
+    - {max: 955.0000, mean: 395.7376, median: 374.0000, min: 0.0000, percentile_00_5: 96.0000,
+      percentile_10_0: 224.0000, percentile_90_0: 610.0000, percentile_99_5: 804.6550,
+      stdev: 147.7574}
+    - {max: 2053.0000, mean: 818.4019, median: 913.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 31.0000, percentile_90_0: 1498.0000, percentile_99_5: 1910.0000,
+      stdev: 522.7396}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9866, 1: 0.0062, 2: 0.0072}
+    label_0:
+      image_intensity:
+      - {max: 1580.0000, mean: 265.6111, median: 180.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 49.0000, percentile_90_0: 604.0000, percentile_99_5: 1042.0000,
+        stdev: 228.0014}
+      - {max: 2606.0000, mean: 111.2869, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 345.0000, percentile_99_5: 1995.0000,
+        stdev: 341.3138}
+    label_1:
+      image_intensity:
+      - {max: 955.0000, mean: 480.2619, median: 477.0000, min: 15.0000, percentile_00_5: 119.5900,
+        percentile_10_0: 285.0000, percentile_90_0: 681.0000, percentile_99_5: 844.0000,
+        stdev: 150.4790}
+      - {max: 2053.0000, mean: 1075.0542, median: 1154.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 295.8000, percentile_90_0: 1668.0000, percentile_99_5: 1958.8200,
+        stdev: 490.5821}
+    label_2:
+      image_intensity:
+      - {max: 833.0000, mean: 322.8568, median: 321.0000, min: 0.0000, percentile_00_5: 87.0000,
+        percentile_10_0: 199.0000, percentile_90_0: 447.0000, percentile_99_5: 618.0000,
+        stdev: 98.2881}
+      - {max: 1623.0000, mean: 597.1044, median: 605.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1160.0000, percentile_99_5: 1440.2500,
+        stdev: 442.2496}
+- image: /data/Task05_Prostate/imagesTr/prostate_02.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_02.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 24]
+    - [320, 320, 24]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 24]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2272.0000, mean: 438.5188, median: 401.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 74.0000, percentile_90_0: 837.0000, percentile_99_5: 1229.0000,
+      stdev: 300.1072}
+    - {max: 2871.0000, mean: 256.1194, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 983.0000, percentile_99_5: 2319.0000,
+      stdev: 466.5197}
+  image_foreground_stats:
+    intensity:
+    - {max: 1291.0000, mean: 427.6168, median: 404.0000, min: 0.0000, percentile_00_5: 91.0000,
+      percentile_10_0: 245.0000, percentile_90_0: 650.0000, percentile_99_5: 949.8350,
+      stdev: 162.2717}
+    - {max: 2533.0000, mean: 1351.8302, median: 1363.0000, min: 0.0000, percentile_00_5: 129.0000,
+      percentile_10_0: 1014.0000, percentile_90_0: 1731.0000, percentile_99_5: 2047.0000,
+      stdev: 315.1180}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9794, 1: 0.0060, 2: 0.0146}
+    label_0:
+      image_intensity:
+      - {max: 2272.0000, mean: 438.7481, median: 401.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 73.0000, percentile_90_0: 840.0000, percentile_99_5: 1231.0000,
+        stdev: 302.3284}
+      - {max: 2871.0000, mean: 167.0799, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 717.0000, percentile_99_5: 2215.1750,
+        stdev: 384.4109}
+    label_1:
+      image_intensity:
+      - {max: 1291.0000, mean: 526.0775, median: 519.0000, min: 0.0000, percentile_00_5: 89.8450,
+        percentile_10_0: 269.0000, percentile_90_0: 791.0000, percentile_99_5: 1020.0000,
+        stdev: 198.2329}
+      - {max: 2261.0000, mean: 1483.2074, median: 1562.0000, min: 0.0000, percentile_00_5: 68.8450,
+        percentile_10_0: 948.0000, percentile_90_0: 1904.0000, percentile_99_5: 2116.0000,
+        stdev: 407.5680}
+    label_2:
+      image_intensity:
+      - {max: 1071.0000, mean: 387.0674, median: 380.0000, min: 0.0000, percentile_00_5: 91.0000,
+        percentile_10_0: 239.0000, percentile_90_0: 543.0000, percentile_99_5: 786.6850,
+        stdev: 123.9203}
+      - {max: 2533.0000, mean: 1297.7246, median: 1322.0000, min: 0.0000, percentile_00_5: 203.3150,
+        percentile_10_0: 1025.0000, percentile_90_0: 1559.0000, percentile_99_5: 1896.3700,
+        stdev: 248.4918}
+- image: /data/Task05_Prostate/imagesTr/prostate_24.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_24.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1574.0000, mean: 318.3186, median: 251.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 69.0000, percentile_90_0: 654.0000, percentile_99_5: 1082.0000,
+      stdev: 239.0676}
+    - {max: 2995.0000, mean: 253.4012, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1099.0000, percentile_99_5: 2357.0000,
+      stdev: 499.1813}
+  image_foreground_stats:
+    intensity:
+    - {max: 1072.0000, mean: 346.0992, median: 341.0000, min: 0.0000, percentile_00_5: 111.0000,
+      percentile_10_0: 230.0000, percentile_90_0: 463.0000, percentile_99_5: 702.0000,
+      stdev: 98.5157}
+    - {max: 2278.0000, mean: 1304.2158, median: 1374.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 968.0000, percentile_90_0: 1612.0000, percentile_99_5: 1885.0000,
+      stdev: 347.2131}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9629, 1: 0.0026, 2: 0.0345}
+    label_0:
+      image_intensity:
+      - {max: 1574.0000, mean: 317.2486, median: 241.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 67.0000, percentile_90_0: 660.0000, percentile_99_5: 1085.0000,
+        stdev: 242.7966}
+      - {max: 2995.0000, mean: 185.8663, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 831.0000, percentile_99_5: 2338.0000,
+        stdev: 432.7708}
+    label_1:
+      image_intensity:
+      - {max: 931.0000, mean: 376.9406, median: 355.0000, min: 16.0000, percentile_00_5: 111.0000,
+        percentile_10_0: 224.0000, percentile_90_0: 552.0000, percentile_99_5: 833.5200,
+        stdev: 133.3296}
+      - {max: 2278.0000, mean: 1226.2794, median: 1356.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 450.4000, percentile_90_0: 1740.0000, percentile_99_5: 2045.9100,
+        stdev: 491.2534}
+    label_2:
+      image_intensity:
+      - {max: 1072.0000, mean: 343.7508, median: 340.0000, min: 0.0000, percentile_00_5: 111.0000,
+        percentile_10_0: 230.0000, percentile_90_0: 456.0000, percentile_99_5: 680.0550,
+        stdev: 94.9359}
+      - {max: 2269.0000, mean: 1310.1501, median: 1375.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1005.0000, percentile_90_0: 1603.0000, percentile_99_5: 1841.0000,
+        stdev: 332.9611}
+- image: /data/Task05_Prostate/imagesTr/prostate_47.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_47.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 310, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1654.0000, mean: 284.1923, median: 210.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 54.0000, percentile_90_0: 620.0000, percentile_99_5: 998.0000,
+      stdev: 228.9982}
+    - {max: 2840.0000, mean: 255.4071, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1139.0000, percentile_99_5: 2478.0000,
+      stdev: 535.7587}
+  image_foreground_stats:
+    intensity:
+    - {max: 793.0000, mean: 254.3030, median: 253.0000, min: 0.0000, percentile_00_5: 53.0000,
+      percentile_10_0: 154.0000, percentile_90_0: 354.0000, percentile_99_5: 503.9750,
+      stdev: 80.5003}
+    - {max: 2465.0000, mean: 1246.0575, median: 1323.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 786.0000, percentile_90_0: 1599.0000, percentile_99_5: 1929.0000,
+      stdev: 350.8666}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9748, 1: 0.0072, 2: 0.0180}
+    label_0:
+      image_intensity:
+      - {max: 1654.0000, mean: 284.9649, median: 206.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 53.0000, percentile_90_0: 624.0000, percentile_99_5: 999.0000,
+        stdev: 231.5265}
+      - {max: 2840.0000, mean: 196.2292, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 916.0000, percentile_99_5: 2464.0000,
+        stdev: 482.9607}
+    label_1:
+      image_intensity:
+      - {max: 684.0000, mean: 240.3906, median: 242.0000, min: 0.0000, percentile_00_5: 40.0000,
+        percentile_10_0: 130.0000, percentile_90_0: 342.0000, percentile_99_5: 479.6200,
+        stdev: 82.8448}
+      - {max: 2032.0000, mean: 1315.2202, median: 1401.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 917.0000, percentile_90_0: 1584.0000, percentile_99_5: 1796.0000,
+        stdev: 322.3626}
+    label_2:
+      image_intensity:
+      - {max: 793.0000, mean: 259.8322, median: 257.0000, min: 0.0000, percentile_00_5: 63.6400,
+        percentile_10_0: 164.0000, percentile_90_0: 358.0000, percentile_99_5: 513.3600,
+        stdev: 78.8707}
+      - {max: 2465.0000, mean: 1218.5696, median: 1277.0000, min: 0.0000, percentile_00_5: 24.6400,
+        percentile_10_0: 752.0000, percentile_90_0: 1607.0000, percentile_99_5: 1959.0000,
+        stdev: 357.8791}
+- image: /data/Task05_Prostate/imagesTr/prostate_28.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_28.nii.gz
+  image_stats:
+    shape:
+    - [384, 384, 11]
+    - [384, 384, 11]
+    channels: 2
+    cropped_shape:
+    - [384, 383, 11]
+    - [384, 324, 11]
+    spacing:
+    - [0.6042, 0.6042, 4.0000]
+    - [0.6042, 0.6042, 4.0000]
+    intensity:
+    - {max: 1358.0000, mean: 246.9275, median: 196.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 13.0000, percentile_90_0: 525.0000, percentile_99_5: 832.0000,
+      stdev: 202.1367}
+    - {max: 3116.0000, mean: 483.0974, median: 217.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1315.0000, percentile_99_5: 2800.0000,
+      stdev: 597.0526}
+  image_foreground_stats:
+    intensity:
+    - {max: 920.0000, mean: 240.4986, median: 218.0000, min: 0.0000, percentile_00_5: 61.0000,
+      percentile_10_0: 133.0000, percentile_90_0: 386.0000, percentile_99_5: 556.0000,
+      stdev: 99.5114}
+    - {max: 2434.0000, mean: 1435.9192, median: 1401.0000, min: 281.0000, percentile_00_5: 604.8100,
+      percentile_10_0: 1086.0000, percentile_90_0: 1877.8000, percentile_99_5: 2179.0000,
+      stdev: 310.4778}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9800, 1: 0.0089, 2: 0.0111}
+    label_0:
+      image_intensity:
+      - {max: 1358.0000, mean: 246.4023, median: 193.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 12.0000, percentile_90_0: 527.0000, percentile_99_5: 833.0000,
+        stdev: 203.8181}
+      - {max: 3116.0000, mean: 386.6786, median: 23.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1184.0000, percentile_99_5: 2782.0000,
+        stdev: 560.6808}
+    label_1:
+      image_intensity:
+      - {max: 679.0000, mean: 277.9048, median: 266.0000, min: 0.0000, percentile_00_5: 60.0000,
+        percentile_10_0: 138.0000, percentile_90_0: 435.0000, percentile_99_5: 566.0000,
+        stdev: 112.4041}
+      - {max: 2384.0000, mean: 1522.2710, median: 1548.0000, min: 281.0000, percentile_00_5: 557.0000,
+        percentile_10_0: 1062.7000, percentile_90_0: 1943.0000, percentile_99_5: 2188.0000,
+        stdev: 340.2574}
+    label_2:
+      image_intensity:
+      - {max: 920.0000, mean: 210.5195, median: 199.0000, min: 0.0000, percentile_00_5: 63.0000,
+        percentile_10_0: 131.0000, percentile_90_0: 304.0000, percentile_99_5: 499.0000,
+        stdev: 75.4499}
+      - {max: 2434.0000, mean: 1366.7130, median: 1318.0000, min: 540.0000, percentile_00_5: 691.8200,
+        percentile_10_0: 1093.0000, percentile_90_0: 1743.0000, percentile_99_5: 2162.0000,
+        stdev: 264.7638}
+- image: /data/Task05_Prostate/imagesTr/prostate_00.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_00.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 15]
+    - [320, 320, 15]
+    channels: 2
+    cropped_shape:
+    - [320, 319, 15]
+    - [320, 320, 14]
+    spacing:
+    - [0.6000, 0.5744, 3.8293]
+    - [0.6000, 0.5744, 3.8293]
+    intensity:
+    - {max: 1486.0000, mean: 286.7546, median: 224.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 40.0000, percentile_90_0: 609.0000, percentile_99_5: 977.0000,
+      stdev: 226.6122}
+    - {max: 3619.0000, mean: 553.3464, median: 271.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1478.0000, percentile_99_5: 2657.0000,
+      stdev: 641.6247}
+  image_foreground_stats:
+    intensity:
+    - {max: 770.0000, mean: 312.2411, median: 303.0000, min: 22.0000, percentile_00_5: 97.0000,
+      percentile_10_0: 218.0000, percentile_90_0: 422.0000, percentile_99_5: 599.7750,
+      stdev: 85.8757}
+    - {max: 2965.0000, mean: 1427.1527, median: 1404.0000, min: 18.0000, percentile_00_5: 22.0000,
+      percentile_10_0: 1122.0000, percentile_90_0: 1785.0000, percentile_99_5: 2760.0000,
+      stdev: 353.6641}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9786, 1: 0.0038, 2: 0.0176}
+    label_0:
+      image_intensity:
+      - {max: 1486.0000, mean: 285.2820, median: 216.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 38.0000, percentile_90_0: 612.0000, percentile_99_5: 979.0000,
+        stdev: 228.9024}
+      - {max: 3619.0000, mean: 496.5567, median: 118.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1413.0000, percentile_99_5: 2642.0000,
+        stdev: 625.1794}
+    label_1:
+      image_intensity:
+      - {max: 770.0000, mean: 375.8098, median: 383.0000, min: 22.0000, percentile_00_5: 87.0600,
+        percentile_10_0: 210.0000, percentile_90_0: 512.0000, percentile_99_5: 663.8800,
+        stdev: 114.7030}
+      - {max: 2814.0000, mean: 1551.1184, median: 1557.0000, min: 18.0000, percentile_00_5: 23.0000,
+        percentile_10_0: 1229.2000, percentile_90_0: 1967.0000, percentile_99_5: 2592.4600,
+        stdev: 392.8880}
+    label_2:
+      image_intensity:
+      - {max: 725.0000, mean: 298.5717, median: 294.0000, min: 28.0000, percentile_00_5: 102.1600,
+        percentile_10_0: 219.0000, percentile_90_0: 384.0000, percentile_99_5: 555.0000,
+        stdev: 71.2425}
+      - {max: 2965.0000, mean: 1400.4956, median: 1374.0000, min: 18.0000, percentile_00_5: 22.0000,
+        percentile_10_0: 1113.0000, percentile_90_0: 1712.0000, percentile_99_5: 2783.6800,
+        stdev: 338.7719}
+- image: /data/Task05_Prostate/imagesTr/prostate_42.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_42.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 22]
+    - [320, 320, 22]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 22]
+    - [320, 287, 18]
+    spacing:
+    - [0.6250, 0.6215, 3.5796]
+    - [0.6250, 0.6215, 3.5796]
+    intensity:
+    - {max: 1426.0000, mean: 249.5414, median: 186.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 42.0000, percentile_90_0: 557.0000, percentile_99_5: 907.0000,
+      stdev: 202.8320}
+    - {max: 3370.0000, mean: 210.1573, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 978.0000, percentile_99_5: 1809.0000,
+      stdev: 426.8006}
+  image_foreground_stats:
+    intensity:
+    - {max: 931.0000, mean: 272.4439, median: 266.0000, min: 0.0000, percentile_00_5: 66.0000,
+      percentile_10_0: 169.0000, percentile_90_0: 381.0000, percentile_99_5: 584.4200,
+      stdev: 88.8148}
+    - {max: 2330.0000, mean: 1236.9352, median: 1307.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 883.0000, percentile_90_0: 1549.4000, percentile_99_5: 1875.0000,
+      stdev: 361.7027}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9718, 1: 0.0048, 2: 0.0234}
+    label_0:
+      image_intensity:
+      - {max: 1426.0000, mean: 248.8769, median: 180.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 42.0000, percentile_90_0: 561.0000, percentile_99_5: 909.0000,
+        stdev: 205.1583}
+      - {max: 3370.0000, mean: 122.8022, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 523.0000, percentile_99_5: 1721.0000,
+        stdev: 328.0722}
+    label_1:
+      image_intensity:
+      - {max: 837.0000, mean: 267.7946, median: 258.0000, min: 3.0000, percentile_00_5: 51.0000,
+        percentile_10_0: 145.0000, percentile_90_0: 402.0000, percentile_99_5: 598.5900,
+        stdev: 102.5262}
+      - {max: 2330.0000, mean: 1388.8287, median: 1424.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1106.0000, percentile_90_0: 1674.0000, percentile_99_5: 1931.5900,
+        stdev: 290.1439}
+    label_2:
+      image_intensity:
+      - {max: 931.0000, mean: 273.4053, median: 267.0000, min: 0.0000, percentile_00_5: 72.0000,
+        percentile_10_0: 175.0000, percentile_90_0: 377.0000, percentile_99_5: 582.0000,
+        stdev: 85.6751}
+      - {max: 2186.0000, mean: 1205.5286, median: 1288.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 793.0000, percentile_90_0: 1502.0000, percentile_99_5: 1843.0000,
+        stdev: 367.0378}
+- image: /data/Task05_Prostate/imagesTr/prostate_21.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_21.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1385.0000, mean: 206.2480, median: 128.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 25.0000, percentile_90_0: 489.0000, percentile_99_5: 837.0000,
+      stdev: 189.7144}
+    - {max: 3591.0000, mean: 819.9904, median: 765.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 59.0000, percentile_90_0: 1621.0000, percentile_99_5: 2835.0000,
+      stdev: 615.5448}
+  image_foreground_stats:
+    intensity:
+    - {max: 691.0000, mean: 308.6907, median: 302.0000, min: 0.0000, percentile_00_5: 88.0000,
+      percentile_10_0: 183.0000, percentile_90_0: 447.0000, percentile_99_5: 565.0000,
+      stdev: 99.5550}
+    - {max: 3248.0000, mean: 1574.8893, median: 1489.0000, min: 5.0000, percentile_00_5: 462.0000,
+      percentile_10_0: 1156.0000, percentile_90_0: 2093.9000, percentile_99_5: 3093.1450,
+      stdev: 475.3828}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9812, 1: 0.0070, 2: 0.0118}
+    label_0:
+      image_intensity:
+      - {max: 1385.0000, mean: 204.2815, median: 125.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 25.0000, percentile_90_0: 490.0000, percentile_99_5: 838.0000,
+        stdev: 190.4911}
+      - {max: 3591.0000, mean: 805.4996, median: 744.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 57.0000, percentile_90_0: 1610.0000, percentile_99_5: 2803.0000,
+        stdev: 608.8362}
+    label_1:
+      image_intensity:
+      - {max: 671.0000, mean: 335.2517, median: 344.0000, min: 19.0000, percentile_00_5: 79.9300,
+        percentile_10_0: 170.0000, percentile_90_0: 482.0000, percentile_99_5: 570.0700,
+        stdev: 115.1936}
+      - {max: 2562.0000, mean: 1518.4639, median: 1518.0000, min: 448.0000, percentile_00_5: 614.0000,
+        percentile_10_0: 1185.0000, percentile_90_0: 1881.0000, percentile_99_5: 2194.2800,
+        stdev: 287.1453}
+    label_2:
+      image_intensity:
+      - {max: 691.0000, mean: 292.8903, median: 288.0000, min: 0.0000, percentile_00_5: 96.9200,
+        percentile_10_0: 189.0000, percentile_90_0: 402.0000, percentile_99_5: 557.0000,
+        stdev: 85.1122}
+      - {max: 3248.0000, mean: 1608.4554, median: 1474.0000, min: 5.0000, percentile_00_5: 353.0000,
+        percentile_10_0: 1142.0000, percentile_90_0: 2723.6000, percentile_99_5: 3124.0000,
+        stdev: 555.2964}
+- image: /data/Task05_Prostate/imagesTr/prostate_17.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_17.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 307, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1466.0000, mean: 209.1609, median: 133.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 15.0000, percentile_90_0: 497.0000, percentile_99_5: 854.0000,
+      stdev: 193.9823}
+    - {max: 3418.0000, mean: 221.2616, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 886.0000, percentile_99_5: 2193.0000,
+      stdev: 463.9502}
+  image_foreground_stats:
+    intensity:
+    - {max: 979.0000, mean: 431.6488, median: 422.0000, min: 0.0000, percentile_00_5: 81.0000,
+      percentile_10_0: 210.0000, percentile_90_0: 661.0000, percentile_99_5: 783.0000,
+      stdev: 168.3635}
+    - {max: 2349.0000, mean: 1599.8784, median: 1650.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 1184.3000, percentile_90_0: 2013.0000, percentile_99_5: 2200.0000,
+      stdev: 386.8538}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9881, 1: 0.0064, 2: 0.0055}
+    label_0:
+      image_intensity:
+      - {max: 1466.0000, mean: 206.4755, median: 131.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 14.0000, percentile_90_0: 493.0000, percentile_99_5: 855.0000,
+        stdev: 192.7083}
+      - {max: 3418.0000, mean: 174.0414, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 720.0000, percentile_99_5: 2158.0000,
+        stdev: 409.7422}
+    label_1:
+      image_intensity:
+      - {max: 979.0000, mean: 521.9180, median: 549.0000, min: 23.0000, percentile_00_5: 106.8900,
+        percentile_10_0: 302.0000, percentile_90_0: 694.0000, percentile_99_5: 802.1100,
+        stdev: 150.8003}
+      - {max: 2330.0000, mean: 1708.4629, median: 1809.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1283.8000, percentile_90_0: 2072.0000, percentile_99_5: 2219.0000,
+        stdev: 418.7812}
+    label_2:
+      image_intensity:
+      - {max: 799.0000, mean: 325.8543, median: 324.0000, min: 0.0000, percentile_00_5: 70.2200,
+        percentile_10_0: 168.0000, percentile_90_0: 480.0000, percentile_99_5: 658.5600,
+        stdev: 119.0522}
+      - {max: 2349.0000, mean: 1472.6190, median: 1511.0000, min: 0.0000, percentile_00_5: 125.0000,
+        percentile_10_0: 1144.4000, percentile_90_0: 1792.0000, percentile_99_5: 2016.7800,
+        stdev: 299.1603}
+- image: /data/Task05_Prostate/imagesTr/prostate_40.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_40.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 281, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2104.0000, mean: 285.3203, median: 184.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 39.0000, percentile_90_0: 672.0000, percentile_99_5: 1232.0000,
+      stdev: 267.9691}
+    - {max: 3072.0000, mean: 350.6145, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1311.0000, percentile_99_5: 2366.0000,
+      stdev: 577.8010}
+  image_foreground_stats:
+    intensity:
+    - {max: 1207.0000, mean: 407.8371, median: 391.0000, min: 0.0000, percentile_00_5: 96.0000,
+      percentile_10_0: 226.0000, percentile_90_0: 618.0000, percentile_99_5: 843.7700,
+      stdev: 151.6316}
+    - {max: 2452.0000, mean: 1396.1990, median: 1416.0000, min: 0.0000, percentile_00_5: 38.6900,
+      percentile_10_0: 971.0000, percentile_90_0: 1852.0000, percentile_99_5: 2152.7700,
+      stdev: 372.9115}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9883, 1: 0.0040, 2: 0.0077}
+    label_0:
+      image_intensity:
+      - {max: 2104.0000, mean: 283.8647, median: 182.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 39.0000, percentile_90_0: 674.0000, percentile_99_5: 1234.0000,
+        stdev: 268.7136}
+      - {max: 3072.0000, mean: 263.7987, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1180.0000, percentile_99_5: 2307.0000,
+        stdev: 520.4697}
+    label_1:
+      image_intensity:
+      - {max: 1109.0000, mean: 483.1209, median: 483.0000, min: 0.0000, percentile_00_5: 120.0000,
+        percentile_10_0: 281.8000, percentile_90_0: 684.0000, percentile_99_5: 877.0000,
+        stdev: 153.7326}
+      - {max: 2452.0000, mean: 1615.4637, median: 1623.0000, min: 658.0000, percentile_00_5: 745.2800,
+        percentile_10_0: 1318.0000, percentile_90_0: 1934.0000, percentile_99_5: 2186.0200,
+        stdev: 264.8636}
+    label_2:
+      image_intensity:
+      - {max: 1207.0000, mean: 368.6722, median: 354.0000, min: 0.0000, percentile_00_5: 84.0000,
+        percentile_10_0: 211.0000, percentile_90_0: 545.0000, percentile_99_5: 810.0000,
+        stdev: 134.8184}
+      - {max: 2428.0000, mean: 1282.1307, median: 1310.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 858.0000, percentile_90_0: 1701.3000, percentile_99_5: 2138.0000,
+        stdev: 369.9858}
+- image: /data/Task05_Prostate/imagesTr/prostate_31.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_31.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6248, 0.6250, 3.5988]
+    - [0.6248, 0.6250, 3.5988]
+    intensity:
+    - {max: 1498.0000, mean: 277.2455, median: 191.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 50.0000, percentile_90_0: 612.0000, percentile_99_5: 1061.0000,
+      stdev: 232.6438}
+    - {max: 2754.0000, mean: 281.2093, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1069.0000, percentile_99_5: 2260.0000,
+      stdev: 503.3526}
+  image_foreground_stats:
+    intensity:
+    - {max: 1041.0000, mean: 414.4549, median: 383.0000, min: 0.0000, percentile_00_5: 137.0000,
+      percentile_10_0: 260.0000, percentile_90_0: 632.0000, percentile_99_5: 835.0000,
+      stdev: 143.3315}
+    - {max: 2696.0000, mean: 1407.9860, median: 1386.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 1061.0000, percentile_90_0: 1874.0000, percentile_99_5: 2278.0000,
+      stdev: 356.8931}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9765, 1: 0.0051, 2: 0.0184}
+    label_0:
+      image_intensity:
+      - {max: 1498.0000, mean: 273.9397, median: 185.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 49.0000, percentile_90_0: 611.0000, percentile_99_5: 1063.0000,
+        stdev: 233.3831}
+      - {max: 2754.0000, mean: 224.4533, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 930.0000, percentile_99_5: 2231.0000,
+        stdev: 451.9274}
+    label_1:
+      image_intensity:
+      - {max: 1016.0000, mean: 543.7505, median: 559.0000, min: 63.0000, percentile_00_5: 155.0000,
+        percentile_10_0: 313.0000, percentile_90_0: 742.0000, percentile_99_5: 889.0000,
+        stdev: 162.7724}
+      - {max: 2477.0000, mean: 1740.3353, median: 1769.0000, min: 54.0000, percentile_00_5: 541.0000,
+        percentile_10_0: 1316.0000, percentile_90_0: 2127.0000, percentile_99_5: 2346.0000,
+        stdev: 323.0646}
+    label_2:
+      image_intensity:
+      - {max: 1041.0000, mean: 378.8603, median: 361.0000, min: 0.0000, percentile_00_5: 132.0000,
+        percentile_10_0: 254.0000, percentile_90_0: 532.0000, percentile_99_5: 765.1000,
+        stdev: 114.1772}
+      - {max: 2696.0000, mean: 1316.4913, median: 1325.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1034.0000, percentile_90_0: 1652.0000, percentile_99_5: 2151.0000,
+        stdev: 308.0999}
+- image: /data/Task05_Prostate/imagesTr/prostate_07.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_07.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1731.0000, mean: 283.2023, median: 198.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 51.0000, percentile_90_0: 657.0000, percentile_99_5: 988.0000,
+      stdev: 233.1216}
+    - {max: 3860.0000, mean: 788.4148, median: 736.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 69.0000, percentile_90_0: 1538.0000, percentile_99_5: 3127.0000,
+      stdev: 595.0417}
+  image_foreground_stats:
+    intensity:
+    - {max: 968.0000, mean: 299.3789, median: 285.0000, min: 0.0000, percentile_00_5: 47.9900,
+      percentile_10_0: 159.0000, percentile_90_0: 459.0000, percentile_99_5: 708.0200,
+      stdev: 122.2061}
+    - {max: 3258.0000, mean: 1349.2200, median: 1265.0000, min: 674.0000, percentile_00_5: 807.9900,
+      percentile_10_0: 1033.0000, percentile_90_0: 1670.0000, percentile_99_5: 3037.0000,
+      stdev: 386.8813}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9944, 1: 0.0028, 2: 0.0028}
+    label_0:
+      image_intensity:
+      - {max: 1731.0000, mean: 283.1118, median: 197.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 51.0000, percentile_90_0: 658.0000, percentile_99_5: 989.0000,
+        stdev: 233.5910}
+      - {max: 3860.0000, mean: 785.2759, median: 731.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 68.0000, percentile_90_0: 1537.0000, percentile_99_5: 3128.0000,
+        stdev: 594.5153}
+    label_1:
+      image_intensity:
+      - {max: 968.0000, mean: 334.9629, median: 322.0000, min: 0.0000, percentile_00_5: 62.0000,
+        percentile_10_0: 187.0000, percentile_90_0: 501.5000, percentile_99_5: 734.2750,
+        stdev: 127.1195}
+      - {max: 2890.0000, mean: 1322.1084, median: 1304.0000, min: 709.0000, percentile_00_5: 829.0000,
+        percentile_10_0: 1089.0000, percentile_90_0: 1599.0000, percentile_99_5: 1874.3750,
+        stdev: 207.0331}
+    label_2:
+      image_intensity:
+      - {max: 909.0000, mean: 263.2094, median: 253.0000, min: 0.0000, percentile_00_5: 34.0000,
+        percentile_10_0: 141.0000, percentile_90_0: 394.0000, percentile_99_5: 636.4400,
+        stdev: 105.3274}
+      - {max: 3258.0000, mean: 1376.7775, median: 1222.0000, min: 674.0000, percentile_00_5: 780.0400,
+        percentile_10_0: 998.0000, percentile_90_0: 2332.8000, percentile_99_5: 3070.7400,
+        stdev: 506.6974}
+- image: /data/Task05_Prostate/imagesTr/prostate_35.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_35.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 319, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2087.0000, mean: 449.2222, median: 375.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 76.0000, percentile_90_0: 915.0000, percentile_99_5: 1298.0000,
+      stdev: 326.6992}
+    - {max: 3198.0000, mean: 345.0155, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1283.0000, percentile_99_5: 2897.0000,
+      stdev: 627.1358}
+  image_foreground_stats:
+    intensity:
+    - {max: 1326.0000, mean: 380.7575, median: 360.0000, min: 0.0000, percentile_00_5: 106.0000,
+      percentile_10_0: 231.0000, percentile_90_0: 557.0000, percentile_99_5: 916.0000,
+      stdev: 139.0952}
+    - {max: 3194.0000, mean: 1431.5049, median: 1426.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 1037.0000, percentile_90_0: 1816.0000, percentile_99_5: 2925.0000,
+      stdev: 417.6429}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9670, 1: 0.0033, 2: 0.0297}
+    label_0:
+      image_intensity:
+      - {max: 2087.0000, mean: 451.5598, median: 377.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 74.0000, percentile_90_0: 921.0000, percentile_99_5: 1300.0000,
+        stdev: 330.9841}
+      - {max: 3198.0000, mean: 271.2361, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1104.0000, percentile_99_5: 2888.0000,
+        stdev: 570.8446}
+    label_1:
+      image_intensity:
+      - {max: 828.0000, mean: 362.8321, median: 357.0000, min: 38.0000, percentile_00_5: 117.0000,
+        percentile_10_0: 240.0000, percentile_90_0: 494.0000, percentile_99_5: 671.5200,
+        stdev: 101.4052}
+      - {max: 2677.0000, mean: 1470.1071, median: 1469.0000, min: 0.0000, percentile_00_5: 684.0800,
+        percentile_10_0: 1237.0000, percentile_90_0: 1712.0000, percentile_99_5: 2218.2800,
+        stdev: 218.4642}
+    label_2:
+      image_intensity:
+      - {max: 1326.0000, mean: 382.7779, median: 360.0000, min: 0.0000, percentile_00_5: 105.0000,
+        percentile_10_0: 230.0000, percentile_90_0: 565.0000, percentile_99_5: 927.3300,
+        stdev: 142.5791}
+      - {max: 3194.0000, mean: 1427.1541, median: 1419.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1012.0000, percentile_90_0: 1834.0000, percentile_99_5: 2932.0000,
+        stdev: 434.1873}
+- image: /data/Task05_Prostate/imagesTr/prostate_44.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_44.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 278, 18]
+    spacing:
+    - [0.6246, 0.6246, 3.6000]
+    - [0.6246, 0.6246, 3.6000]
+    intensity:
+    - {max: 1752.0000, mean: 237.0121, median: 142.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 44.0000, percentile_90_0: 561.0000, percentile_99_5: 1071.0000,
+      stdev: 225.6552}
+    - {max: 3013.0000, mean: 295.3380, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1207.0000, percentile_99_5: 2457.0000,
+      stdev: 553.2722}
+  image_foreground_stats:
+    intensity:
+    - {max: 1010.0000, mean: 373.7158, median: 357.0000, min: 0.0000, percentile_00_5: 59.0000,
+      percentile_10_0: 197.0000, percentile_90_0: 583.0000, percentile_99_5: 783.0000,
+      stdev: 148.7015}
+    - {max: 2519.0000, mean: 1390.5786, median: 1435.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 903.0000, percentile_90_0: 1863.0000, percentile_99_5: 2167.0000,
+      stdev: 412.9714}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9849, 1: 0.0069, 2: 0.0082}
+    label_0:
+      image_intensity:
+      - {max: 1752.0000, mean: 234.9226, median: 140.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 43.0000, percentile_90_0: 560.0000, percentile_99_5: 1072.0000,
+        stdev: 225.9880}
+      - {max: 3013.0000, mean: 213.1922, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 967.0000, percentile_99_5: 2412.0000,
+        stdev: 484.3812}
+    label_1:
+      image_intensity:
+      - {max: 948.0000, mean: 451.0771, median: 439.0000, min: 0.0000, percentile_00_5: 123.7800,
+        percentile_10_0: 286.0000, percentile_90_0: 642.0000, percentile_99_5: 811.0000,
+        stdev: 136.7312}
+      - {max: 2315.0000, mean: 1582.3608, median: 1624.0000, min: 0.0000, percentile_00_5: 168.5600,
+        percentile_10_0: 1224.0000, percentile_90_0: 1942.0000, percentile_99_5: 2163.6100,
+        stdev: 327.1574}
+    label_2:
+      image_intensity:
+      - {max: 1010.0000, mean: 308.7024, median: 293.0000, min: 0.0000, percentile_00_5: 44.0000,
+        percentile_10_0: 165.0000, percentile_90_0: 473.0000, percentile_99_5: 730.0000,
+        stdev: 125.4082}
+      - {max: 2519.0000, mean: 1229.4076, median: 1268.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 702.2000, percentile_90_0: 1676.0000, percentile_99_5: 2179.7200,
+        stdev: 408.6995}
+- image: /data/Task05_Prostate/imagesTr/prostate_39.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_39.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 15]
+    - [320, 320, 15]
+    channels: 2
+    cropped_shape:
+    - [320, 319, 15]
+    - [320, 320, 15]
+    spacing:
+    - [0.6000, 0.6000, 4.0000]
+    - [0.6000, 0.6000, 4.0000]
+    intensity:
+    - {max: 1709.0000, mean: 351.1487, median: 341.0000, min: 0.0000, percentile_00_5: 18.0000,
+      percentile_10_0: 98.0000, percentile_90_0: 614.0000, percentile_99_5: 875.0000,
+      stdev: 195.4674}
+    - {max: 3396.0000, mean: 400.2343, median: 159.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1135.0000, percentile_99_5: 2176.0000,
+      stdev: 497.6718}
+  image_foreground_stats:
+    intensity:
+    - {max: 876.0000, mean: 371.5207, median: 357.0000, min: 47.0000, percentile_00_5: 112.0000,
+      percentile_10_0: 211.0000, percentile_90_0: 553.0000, percentile_99_5: 729.0000,
+      stdev: 129.0869}
+    - {max: 2382.0000, mean: 1492.0232, median: 1475.0000, min: 0.0000, percentile_00_5: 396.8300,
+      percentile_10_0: 1154.0000, percentile_90_0: 1895.0000, percentile_99_5: 2194.0000,
+      stdev: 304.8609}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9738, 1: 0.0034, 2: 0.0227}
+    label_0:
+      image_intensity:
+      - {max: 1709.0000, mean: 349.4748, median: 339.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 95.0000, percentile_90_0: 615.0000, percentile_99_5: 877.0000,
+        stdev: 197.5984}
+      - {max: 3396.0000, mean: 370.9170, median: 139.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1049.0000, percentile_99_5: 2171.0000,
+        stdev: 467.9364}
+    label_1:
+      image_intensity:
+      - {max: 876.0000, mean: 409.4674, median: 405.0000, min: 47.0000, percentile_00_5: 134.0000,
+        percentile_10_0: 226.0000, percentile_90_0: 590.0000, percentile_99_5: 811.8600,
+        stdev: 143.7943}
+      - {max: 2067.0000, mean: 1530.0979, median: 1555.0000, min: 374.0000, percentile_00_5: 700.5600,
+        percentile_10_0: 1259.0000, percentile_90_0: 1790.0000, percentile_99_5: 2027.0000,
+        stdev: 226.2775}
+    label_2:
+      image_intensity:
+      - {max: 793.0000, mean: 365.8413, median: 353.0000, min: 57.0000, percentile_00_5: 109.0000,
+        percentile_10_0: 208.0000, percentile_90_0: 546.0000, percentile_99_5: 700.0000,
+        stdev: 125.7577}
+      - {max: 2382.0000, mean: 1486.3248, median: 1462.0000, min: 0.0000, percentile_00_5: 354.0550,
+        percentile_10_0: 1143.0000, percentile_90_0: 1915.0000, percentile_99_5: 2205.0000,
+        stdev: 314.5434}
+- image: /data/Task05_Prostate/imagesTr/prostate_01.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_01.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 307, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1693.0000, mean: 376.2539, median: 312.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 68.0000, percentile_90_0: 752.0000, percentile_99_5: 1175.0000,
+      stdev: 277.3102}
+    - {max: 2948.0000, mean: 297.7278, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1149.0000, percentile_99_5: 2633.0000,
+      stdev: 560.3855}
+  image_foreground_stats:
+    intensity:
+    - {max: 1183.0000, mean: 443.2596, median: 426.0000, min: 0.0000, percentile_00_5: 119.0000,
+      percentile_10_0: 261.0000, percentile_90_0: 655.0000, percentile_99_5: 865.7400,
+      stdev: 152.9319}
+    - {max: 2826.0000, mean: 1401.2585, median: 1412.0000, min: 0.0000, percentile_00_5: 77.0000,
+      percentile_10_0: 1027.0000, percentile_90_0: 1795.0000, percentile_99_5: 2313.0000,
+      stdev: 341.3987}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9753, 1: 0.0060, 2: 0.0187}
+    label_0:
+      image_intensity:
+      - {max: 1693.0000, mean: 374.5546, median: 303.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 67.0000, percentile_90_0: 755.0000, percentile_99_5: 1177.0000,
+        stdev: 279.5376}
+      - {max: 2948.0000, mean: 228.0525, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 940.0000, percentile_99_5: 2622.0000,
+        stdev: 501.7388}
+    label_1:
+      image_intensity:
+      - {max: 1183.0000, mean: 473.2998, median: 476.0000, min: 0.0000, percentile_00_5: 103.0000,
+        percentile_10_0: 275.0000, percentile_90_0: 659.0000, percentile_99_5: 896.6400,
+        stdev: 151.7786}
+      - {max: 2314.0000, mean: 1504.2863, median: 1514.0000, min: 0.0000, percentile_00_5: 427.8400,
+        percentile_10_0: 1194.0000, percentile_90_0: 1816.0000, percentile_99_5: 2086.6400,
+        stdev: 259.1443}
+    label_2:
+      image_intensity:
+      - {max: 1082.0000, mean: 433.6535, median: 411.0000, min: 0.0000, percentile_00_5: 126.0000,
+        percentile_10_0: 258.0000, percentile_90_0: 653.0000, percentile_99_5: 861.1050,
+        stdev: 152.0516}
+      - {max: 2826.0000, mean: 1368.3129, median: 1369.0000, min: 0.0000, percentile_00_5: 66.0000,
+        percentile_10_0: 987.0000, percentile_90_0: 1787.0000, percentile_99_5: 2406.3150,
+        stdev: 357.5883}
+- image: /data/Task05_Prostate/imagesTr/prostate_13.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_13.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1662.0000, mean: 307.5967, median: 239.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 43.0000, percentile_90_0: 650.0000, percentile_99_5: 968.0000,
+      stdev: 239.1453}
+    - {max: 3683.0000, mean: 905.7532, median: 942.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 106.0000, percentile_90_0: 1578.0000, percentile_99_5: 2952.0000,
+      stdev: 582.0421}
+  image_foreground_stats:
+    intensity:
+    - {max: 947.0000, mean: 354.7688, median: 341.0000, min: 0.0000, percentile_00_5: 71.4550,
+      percentile_10_0: 193.0000, percentile_90_0: 534.0000, percentile_99_5: 791.0900,
+      stdev: 136.3345}
+    - {max: 2608.0000, mean: 1419.1707, median: 1413.0000, min: 425.0000, percentile_00_5: 625.0000,
+      percentile_10_0: 1055.0000, percentile_90_0: 1775.9000, percentile_99_5: 2343.0000,
+      stdev: 298.1175}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9883, 1: 0.0043, 2: 0.0073}
+    label_0:
+      image_intensity:
+      - {max: 1662.0000, mean: 307.0399, median: 236.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 43.0000, percentile_90_0: 651.0000, percentile_99_5: 969.0000,
+        stdev: 240.0407}
+      - {max: 3683.0000, mean: 899.6929, median: 934.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 104.0000, percentile_90_0: 1574.0000, percentile_99_5: 2954.0000,
+        stdev: 581.8716}
+    label_1:
+      image_intensity:
+      - {max: 936.0000, mean: 402.3990, median: 403.0000, min: 0.0000, percentile_00_5: 51.0000,
+        percentile_10_0: 240.0000, percentile_90_0: 557.0000, percentile_99_5: 822.7600,
+        stdev: 133.2502}
+      - {max: 2444.0000, mean: 1470.3958, median: 1465.0000, min: 486.0000, percentile_00_5: 575.2400,
+        percentile_10_0: 1130.0000, percentile_90_0: 1819.0000, percentile_99_5: 2353.5200,
+        stdev: 303.7021}
+    label_2:
+      image_intensity:
+      - {max: 947.0000, mean: 326.7505, median: 306.0000, min: 10.0000, percentile_00_5: 85.0000,
+        percentile_10_0: 181.0000, percentile_90_0: 505.0000, percentile_99_5: 752.0000,
+        stdev: 130.2177}
+      - {max: 2608.0000, mean: 1389.0375, median: 1380.0000, min: 425.0000, percentile_00_5: 675.0000,
+        percentile_10_0: 1030.2000, percentile_90_0: 1750.0000, percentile_99_5: 2297.0000,
+        stdev: 290.5948}
+- image: /data/Task05_Prostate/imagesTr/prostate_46.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_46.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 20]
+    - [320, 320, 20]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 20]
+    - [320, 297, 18]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 1606.0000, mean: 283.1479, median: 208.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 38.0000, percentile_90_0: 635.0000, percentile_99_5: 979.0000,
+      stdev: 232.3605}
+    - {max: 2973.0000, mean: 233.1904, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1009.0000, percentile_99_5: 2411.0000,
+      stdev: 486.5003}
+  image_foreground_stats:
+    intensity:
+    - {max: 788.0000, mean: 288.7719, median: 280.0000, min: 0.0000, percentile_00_5: 73.6650,
+      percentile_10_0: 175.0000, percentile_90_0: 412.0000, percentile_99_5: 617.0000,
+      stdev: 97.7309}
+    - {max: 1963.0000, mean: 1071.9196, median: 1129.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 640.0000, percentile_90_0: 1423.0000, percentile_99_5: 1743.0000,
+      stdev: 328.4670}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9878, 1: 0.0052, 2: 0.0070}
+    label_0:
+      image_intensity:
+      - {max: 1606.0000, mean: 283.0786, median: 206.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 38.0000, percentile_90_0: 637.0000, percentile_99_5: 980.0000,
+        stdev: 233.5353}
+      - {max: 2973.0000, mean: 183.9763, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 823.0000, percentile_99_5: 2375.6750,
+        stdev: 443.6039}
+    label_1:
+      image_intensity:
+      - {max: 788.0000, mean: 335.8633, median: 324.0000, min: 19.0000, percentile_00_5: 92.0000,
+        percentile_10_0: 225.0000, percentile_90_0: 470.0000, percentile_99_5: 652.7850,
+        stdev: 100.2765}
+      - {max: 1963.0000, mean: 1086.3759, median: 1157.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 632.0000, percentile_90_0: 1469.0000, percentile_99_5: 1804.7850,
+        stdev: 350.7156}
+    label_2:
+      image_intensity:
+      - {max: 749.0000, mean: 253.6955, median: 249.0000, min: 0.0000, percentile_00_5: 60.4450,
+        percentile_10_0: 160.0000, percentile_90_0: 349.0000, percentile_99_5: 536.0000,
+        stdev: 79.3331}
+      - {max: 1956.0000, mean: 1061.1517, median: 1112.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 650.9000, percentile_90_0: 1394.0000, percentile_99_5: 1599.0000,
+        stdev: 310.4248}
+- image: /data/Task05_Prostate/imagesTr/prostate_25.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_25.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 19]
+    - [320, 320, 19]
+    channels: 2
+    cropped_shape:
+    - [320, 320, 19]
+    - [320, 319, 19]
+    spacing:
+    - [0.6250, 0.6250, 3.6000]
+    - [0.6250, 0.6250, 3.6000]
+    intensity:
+    - {max: 2965.0000, mean: 432.4610, median: 360.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 93.0000, percentile_90_0: 861.0000, percentile_99_5: 1474.0000,
+      stdev: 309.4650}
+    - {max: 3205.0000, mean: 223.9692, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 890.0000, percentile_99_5: 2633.0000,
+      stdev: 456.7259}
+  image_foreground_stats:
+    intensity:
+    - {max: 1225.0000, mean: 446.3232, median: 437.0000, min: 0.0000, percentile_00_5: 121.0000,
+      percentile_10_0: 276.0000, percentile_90_0: 630.0000, percentile_99_5: 880.1800,
+      stdev: 141.0485}
+    - {max: 2807.0000, mean: 1371.0740, median: 1376.0000, min: 0.0000, percentile_00_5: 364.2800,
+      percentile_10_0: 1120.0000, percentile_90_0: 1630.0000, percentile_99_5: 2451.1800,
+      stdev: 260.7109}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9754, 1: 0.0029, 2: 0.0217}
+    label_0:
+      image_intensity:
+      - {max: 2965.0000, mean: 432.1121, median: 354.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 91.0000, percentile_90_0: 866.0000, percentile_99_5: 1478.0000,
+        stdev: 312.5272}
+      - {max: 3205.0000, mean: 194.3811, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 749.0000, percentile_99_5: 2639.0000,
+        stdev: 421.4704}
+    label_1:
+      image_intensity:
+      - {max: 928.0000, mean: 457.0889, median: 457.0000, min: 18.0000, percentile_00_5: 116.1700,
+        percentile_10_0: 276.0000, percentile_90_0: 637.0000, percentile_99_5: 816.8300,
+        stdev: 137.8368}
+      - {max: 1893.0000, mean: 1376.5542, median: 1384.0000, min: 0.0000, percentile_00_5: 521.6800,
+        percentile_10_0: 1118.0000, percentile_90_0: 1652.0000, percentile_99_5: 1808.1500,
+        stdev: 221.0683}
+    label_2:
+      image_intensity:
+      - {max: 1225.0000, mean: 444.8833, median: 434.0000, min: 0.0000, percentile_00_5: 121.0000,
+        percentile_10_0: 275.0000, percentile_90_0: 628.0000, percentile_99_5: 887.0000,
+        stdev: 141.4104}
+      - {max: 2807.0000, mean: 1370.3411, median: 1375.0000, min: 0.0000, percentile_00_5: 344.2900,
+        percentile_10_0: 1120.0000, percentile_90_0: 1627.0000, percentile_99_5: 2467.3550,
+        stdev: 265.5563}
+- image: /data/Task05_Prostate/imagesTr/prostate_29.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_29.nii.gz
+  image_stats:
+    shape:
+    - [320, 320, 15]
+    - [320, 320, 15]
+    channels: 2
+    cropped_shape:
+    - [320, 319, 15]
+    - [320, 313, 15]
+    spacing:
+    - [0.6000, 0.6000, 4.0000]
+    - [0.6000, 0.6000, 4.0000]
+    intensity:
+    - {max: 1803.0000, mean: 359.0318, median: 321.0000, min: 0.0000, percentile_00_5: 13.0000,
+      percentile_10_0: 76.0000, percentile_90_0: 702.0000, percentile_99_5: 985.0000,
+      stdev: 241.2975}
+    - {max: 2849.0000, mean: 349.3730, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1354.0000, percentile_99_5: 2443.0000,
+      stdev: 594.9078}
+  image_foreground_stats:
+    intensity:
+    - {max: 900.0000, mean: 359.6382, median: 348.0000, min: 51.0000, percentile_00_5: 141.0000,
+      percentile_10_0: 246.0000, percentile_90_0: 494.0000, percentile_99_5: 662.0000,
+      stdev: 98.0059}
+    - {max: 2309.0000, mean: 1394.1104, median: 1417.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 1070.0000, percentile_90_0: 1747.0000, percentile_99_5: 2058.0000,
+      stdev: 317.8512}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9553, 1: 0.0114, 2: 0.0333}
+    label_0:
+      image_intensity:
+      - {max: 1803.0000, mean: 357.8290, median: 315.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 72.0000, percentile_90_0: 708.0000, percentile_99_5: 988.0000,
+        stdev: 246.4277}
+      - {max: 2849.0000, mean: 292.5437, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 1185.0000, percentile_99_5: 2446.0000,
+        stdev: 553.3375}
+    label_1:
+      image_intensity:
+      - {max: 748.0000, mean: 411.3448, median: 421.0000, min: 51.0000, percentile_00_5: 125.5600,
+        percentile_10_0: 260.0000, percentile_90_0: 547.0000, percentile_99_5: 658.4400,
+        stdev: 110.1446}
+      - {max: 2234.0000, mean: 1538.3544, median: 1635.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 1062.0000, percentile_90_0: 1915.0000, percentile_99_5: 2112.0000,
+        stdev: 375.4951}
+    label_2:
+      image_intensity:
+      - {max: 900.0000, mean: 341.9076, median: 333.0000, min: 71.0000, percentile_00_5: 150.0000,
+        percentile_10_0: 244.0000, percentile_90_0: 448.0000, percentile_99_5: 668.6450,
+        stdev: 86.6463}
+      - {max: 2309.0000, mean: 1344.6481, median: 1383.0000, min: 0.0000, percentile_00_5: 24.0000,
+        percentile_10_0: 1072.0000, percentile_90_0: 1623.0000, percentile_99_5: 1916.0000,
+        stdev: 278.8246}
+- image: /data/Task05_Prostate/imagesTr/prostate_37.nii.gz
+  label: /data/Task05_Prostate/labelsTr/prostate_37.nii.gz
+  image_stats:
+    shape:
+    - [256, 256, 15]
+    - [256, 256, 15]
+    channels: 2
+    cropped_shape:
+    - [256, 255, 15]
+    - [256, 256, 15]
+    spacing:
+    - [0.7500, 0.7487, 3.9930]
+    - [0.7500, 0.7487, 3.9930]
+    intensity:
+    - {max: 1832.0000, mean: 351.0756, median: 292.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 75.0000, percentile_90_0: 708.0000, percentile_99_5: 1108.0000,
+      stdev: 248.9825}
+    - {max: 2901.0000, mean: 290.7669, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+      percentile_10_0: 0.0000, percentile_90_0: 1044.0000, percentile_99_5: 2504.0000,
+      stdev: 475.2423}
+  image_foreground_stats:
+    intensity:
+    - {max: 991.0000, mean: 299.8719, median: 283.0000, min: 5.0000, percentile_00_5: 120.0000,
+      percentile_10_0: 200.0000, percentile_90_0: 418.0000, percentile_99_5: 688.9700,
+      stdev: 96.2421}
+    - {max: 2420.0000, mean: 1120.1127, median: 1116.0000, min: 0.0000, percentile_00_5: 294.0000,
+      percentile_10_0: 853.0000, percentile_90_0: 1403.0000, percentile_99_5: 1901.0000,
+      stdev: 244.1564}
+  label_stats:
+    labels: [0, 1, 2]
+    pixel_percentage: {0: 0.9691, 1: 0.0028, 2: 0.0281}
+    label_0:
+      image_intensity:
+      - {max: 1832.0000, mean: 351.2948, median: 292.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 72.0000, percentile_90_0: 711.0000, percentile_99_5: 1111.0000,
+        stdev: 252.6630}
+      - {max: 2901.0000, mean: 264.2951, median: 0.0000, min: 0.0000, percentile_00_5: 0.0000,
+        percentile_10_0: 0.0000, percentile_90_0: 960.0000, percentile_99_5: 2511.0000,
+        stdev: 456.6252}
+    label_1:
+      image_intensity:
+      - {max: 912.0000, mean: 373.3054, median: 363.0000, min: 5.0000, percentile_00_5: 107.8800,
+        percentile_10_0: 219.0000, percentile_90_0: 536.4000, percentile_99_5: 719.2000,
+        stdev: 125.0659}
+      - {max: 1784.0000, mean: 1195.1897, median: 1184.0000, min: 324.0000, percentile_00_5: 766.0000,
+        percentile_10_0: 969.6000, percentile_90_0: 1420.0000, percentile_99_5: 1707.2400,
+        stdev: 179.3492}
+    label_2:
+      image_intensity:
+      - {max: 991.0000, mean: 292.4914, median: 279.0000, min: 50.0000, percentile_00_5: 121.0000,
+        percentile_10_0: 199.0000, percentile_90_0: 395.0000, percentile_99_5: 682.0000,
+        stdev: 89.5821}
+      - {max: 2420.0000, mean: 1112.5669, median: 1108.0000, min: 0.0000, percentile_00_5: 275.1450,
+        percentile_10_0: 840.0000, percentile_90_0: 1398.0000, percentile_99_5: 1915.0000,
+        stdev: 248.4903}
