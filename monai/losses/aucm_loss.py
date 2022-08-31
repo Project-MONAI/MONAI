@@ -10,10 +10,9 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import torch
-from torch import Tensor
 from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
@@ -32,7 +31,7 @@ class AUCMLoss(_Loss):
     def __init__(
         self,
         margin: float = 1.0,
-        pos_weight: Optional[Tensor] = None,
+        pos_weight: List[float] = None,
         num_classes: int = 2,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -82,7 +81,7 @@ class AUCMLoss(_Loss):
         if self.p:
             assert len(self.p) == self.num_classes, "imratio must be a list of length num_classes"
         else:
-            self.p = [0.0] * self.num_classes
+            self.p = [0] * self.num_classes
 
         self.to_onehot_y = to_onehot_y
         self.sigmoid = sigmoid
@@ -155,15 +154,15 @@ class AUCMLoss(_Loss):
                 self.p[idx] = (y_true == 1).sum() / y_true.shape[0]
 
             loss = (
-                (1 - self.p[idx]) * torch.mean((y_pred - self.a[idx]) ** 2 * (1 == y_true).float())
-                + self.p[idx] * torch.mean((y_pred - self.b[idx]) ** 2 * (0 == y_true).float())
+                (1 - self.p[idx]) * torch.mean((y_pred - self.a[idx]) ** 2 * (1 == y_true).type(torch.FloatTensor))
+                + self.p[idx] * torch.mean((y_pred - self.b[idx]) ** 2 * (0 == y_true).type(torch.FloatTensor))
                 + 2
                 * self.alpha[idx]
                 * (
                     self.p[idx] * (1 - self.p[idx])
                     + torch.mean(
-                        self.p[idx] * y_pred * (0 == y_true).float()
-                        - (1 - self.p[idx]) * y_pred * (1 == y_true).float()
+                        self.p[idx] * y_pred * (0 == y_true).type(torch.FloatTensor)
+                        - (1 - self.p[idx]) * y_pred * (1 == y_true).type(torch.FloatTensor)
                     )
                 )
                 - self.p[idx] * (1 - self.p[idx]) * self.alpha[idx] ** 2
