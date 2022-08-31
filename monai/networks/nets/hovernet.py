@@ -15,7 +15,7 @@
 # https://github.com/vqdang/hover_net/blob/master/LICENSE
 # MIT License
 
-# Origial publication:
+# Original publication:
 #  @article{graham2019hover,
 #    title={Hover-net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images},
 #    author={Graham, Simon and Vu, Quoc Dang and Raza, Shan E Ahmed and Azam, Ayesha and Tsang, Yee Wah and Kwak,

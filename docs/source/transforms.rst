@@ -461,6 +461,13 @@ Intensity
     :members:
     :special-members: __call__
 
+`ComputeHoVerMaps`
+""""""""""""""""""
+.. autoclass:: ComputeHoVerMaps
+    :members:
+    :special-members: __call__
+
+
 IO
 ^^
 
@@ -580,6 +587,75 @@ Post-processing
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
+    :members:
+    :special-members: __call__
+
+Signal
+^^^^^^^
+
+`SignalRandDrop`
+""""""""""""""""
+.. autoclass:: SignalRandDrop
+    :members:
+    :special-members: __call__
+
+`SignalRandScale`
+"""""""""""""""""
+.. autoclass:: SignalRandScale
+    :members:
+    :special-members: __call__
+
+`SignalRandShift`
+"""""""""""""""""
+.. autoclass:: SignalRandShift
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSine`
+"""""""""""""""""""
+.. autoclass:: SignalRandAddSine
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulse`
+""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulse
+    :members:
+    :special-members: __call__
+
+`SignalRandAddGaussianNoise`
+""""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddGaussianNoise
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSinePartial`
+""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSinePartial
+    :members:
+    :special-members: __call__
+
+`SignalRandAddSquarePulsePartial`
+"""""""""""""""""""""""""""""""""
+.. autoclass:: SignalRandAddSquarePulsePartial
+    :members:
+    :special-members: __call__
+
+`SignalFillEmpty`
+"""""""""""""""""
+.. autoclass:: SignalFillEmpty
+    :members:
+    :special-members: __call__
+
+`SignalRemoveFrequency`
+"""""""""""""""""""""""
+.. autoclass:: SignalRemoveFrequency
+    :members:
+    :special-members: __call__
+
+`SignalContinuousWavelet`
+"""""""""""""""""""""""""
+.. autoclass:: SignalContinuousWavelet
     :members:
     :special-members: __call__
 
@@ -1408,6 +1484,12 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
     :alt: example of ForegroundMaskd
 .. autoclass:: ForegroundMaskd
+    :members:
+    :special-members: __call__
+
+`ComputeHoVerMapsd`
+"""""""""""""""""""
+.. autoclass:: ComputeHoVerMapsd
     :members:
     :special-members: __call__
 

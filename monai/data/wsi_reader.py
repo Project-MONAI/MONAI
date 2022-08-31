@@ -137,7 +137,9 @@ class BaseWSIReader(ImageReader):
 
         """
         if self.channel_dim >= len(patch.shape) or self.channel_dim < -len(patch.shape):
-            ValueError(f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}")
+            raise ValueError(
+                f"The desired channel_dim ({self.channel_dim}) is out of bound for image shape: {patch.shape}"
+            )
         channel_dim: int = self.channel_dim + (len(patch.shape) if self.channel_dim < 0 else 0)
         metadata: Dict = {
             "backend": self.backend,

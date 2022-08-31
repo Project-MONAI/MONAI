@@ -89,6 +89,7 @@ from .croppad.dictionary import (
 )
 from .intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
     GaussianSharpen,
@@ -127,6 +128,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ComputeHoVerMapsd,
+    ComputeHoVerMapsD,
+    ComputeHoVerMapsDict,
     ForegroundMaskd,
     ForegroundMaskD,
     ForegroundMaskDict,
@@ -310,6 +314,19 @@ from .post.dictionary import (
     VoteEnsembleD,
     VoteEnsembled,
     VoteEnsembleDict,
+)
+from .signal.array import (
+    SignalContinuousWavelet,
+    SignalFillEmpty,
+    SignalRandAddGaussianNoise,
+    SignalRandAddSine,
+    SignalRandAddSinePartial,
+    SignalRandAddSquarePulse,
+    SignalRandAddSquarePulsePartial,
+    SignalRandDrop,
+    SignalRandScale,
+    SignalRandShift,
+    SignalRemoveFrequency,
 )
 from .smooth_field.array import (
     RandSmoothDeform,
