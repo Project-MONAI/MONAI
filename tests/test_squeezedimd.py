@@ -82,6 +82,8 @@ class TestSqueezeDim(unittest.TestCase):
         result = SqueezeDimd(**input_param)(test_data)
         self.assertTupleEqual(result["img"].shape, expected_shape)
         self.assertTupleEqual(result["seg"].shape, expected_shape)
+        if "dim" in input_param and isinstance(result["img"], MetaTensor) and input_param["dim"] == 2:
+            print(result["img"].affine)
 
     @parameterized.expand(TESTS_FAIL)
     def test_invalid_inputs(self, exception, input_param, test_data):
