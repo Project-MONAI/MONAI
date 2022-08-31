@@ -21,7 +21,7 @@ from ast import literal_eval
 from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -54,6 +54,7 @@ __all__ = [
     "sample_slices",
     "check_parent_dir",
     "save_obj",
+    "label_union",
 ]
 
 _seed = None
@@ -519,3 +520,15 @@ def save_obj(
                 shutil.move(str(temp_path), path)
     except PermissionError:  # project-monai/monai issue #3613
         pass
+
+
+def label_union(x: List) -> List:
+    """
+    Compute the union of class IDs in label and generate a list to include all class IDs
+    Args:
+        x: a list of numbers (for example, class_IDs)
+
+    Returns
+        a list showing the union (the union the class IDs)
+    """
+    return list(set.union(set(np.array(x).tolist())))

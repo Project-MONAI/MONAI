@@ -35,6 +35,7 @@ from monai.transforms.post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
@@ -61,6 +62,9 @@ __all__ = [
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
     "KeepLargestConnectedComponentd",
+    "RemoveSmallObjectsD",
+    "RemoveSmallObjectsDict",
+    "RemoveSmallObjectsd",
     "LabelFilterD",
     "LabelFilterDict",
     "LabelFilterd",
@@ -252,6 +256,39 @@ class KeepLargestConnectedComponentd(MapTransform):
         self.converter = KeepLargestConnectedComponent(
             applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
         )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RemoveSmallObjectsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveSmallObjectsd`.
+
+    Args:
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        min_size: int = 64,
+        connectivity: int = 1,
+        independent_channels: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -477,7 +514,7 @@ class ProbNMSd(MapTransform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
@@ -763,6 +800,7 @@ AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
 InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+RemoveSmallObjectsD = RemoveSmallObjectsDict = RemoveSmallObjectsd
 LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled

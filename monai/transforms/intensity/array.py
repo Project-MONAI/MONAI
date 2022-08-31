@@ -73,6 +73,7 @@ __all__ = [
     "IntensityRemap",
     "RandIntensityRemap",
     "ForegroundMask",
+    "ComputeHoVerMaps",
 ]
 
 
@@ -2301,3 +2302,42 @@ class ForegroundMask(Transform):
 
         mask = np.stack(foregrounds).all(axis=0)
         return convert_to_dst_type(src=mask, dst=image)[0]
+
+
+class ComputeHoVerMaps(Transform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+
+    Args:
+        dtype: the data type of output Tensor. Defaults to `"float32"`.
+
+    Return:
+        A torch.Tensor with the size of [2xHxW[xD]], which is stack horizontal and vertical maps
+
+    """
+
+    def __init__(self, dtype: DtypeLike = "float32") -> None:
+        super().__init__()
+        self.dtype = dtype
+
+    def __call__(self, mask: NdarrayOrTensor):
+        instance_mask = convert_data_type(mask, np.ndarray)[0]
+
+        h_map = instance_mask.astype(self.dtype, copy=True)
+        v_map = instance_mask.astype(self.dtype, copy=True)
+
+        for region in skimage.measure.regionprops(instance_mask):
+            v_dist = region.coords[:, 0] - region.centroid[0]
+            h_dist = region.coords[:, 1] - region.centroid[1]
+
+            h_dist[h_dist < 0] /= -np.amin(h_dist)
+            h_dist[h_dist > 0] /= np.amax(h_dist)
+
+            v_dist[v_dist < 0] /= -np.amin(v_dist)
+            v_dist[v_dist > 0] /= np.amax(v_dist)
+
+            h_map[h_map == region.label] = h_dist
+            v_map[v_map == region.label] = v_dist
+
+        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta())
+        return hv_maps

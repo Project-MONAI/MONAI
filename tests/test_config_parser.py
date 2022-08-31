@@ -123,9 +123,15 @@ class TestConfigParser(unittest.TestCase):
         self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0"))
         self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
         self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
-        # test nested id
+        # test new nested id
+        parser.set("fake_key", "transform#other_transforms#keys", True)
+        self.assertEqual(parser.get(id="transform#other_transforms#keys"), "fake_key")
+        # remove temp fake data
+        parser["transform"].pop("other_transforms")
+        # test update nested id
         parser["transform#transforms#0#keys"] = "label2"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
+
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
         # test root content
