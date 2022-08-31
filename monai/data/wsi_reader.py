@@ -696,7 +696,7 @@ class TiffFileWSIReader(BaseWSIReader):
         # Extract patch
         downsampling_ratio = self.get_downsample_ratio(wsi=wsi, level=level)
         location_ = [round(location[i] / downsampling_ratio) for i in range(len(location))]
-        patch = wsi_image[location_[0] : location_[0] + size[0], location_[1] : location_[1] + size[1], :]
+        patch = wsi_image[location_[0] : location_[0] + size[0], location_[1] : location_[1] + size[1], :].copy()
 
         # Make the channel to desired dimensions
         patch = np.moveaxis(patch, -1, self.channel_dim)
