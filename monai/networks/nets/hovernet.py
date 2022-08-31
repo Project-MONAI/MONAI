@@ -400,9 +400,9 @@ class HoVerNet(nn.Module):
 
         """
 
-        HOVER = "horizontal_vertical"
-        NUCLEUS = "nucleus_prediction"
-        TYPE = "type_prediction"
+        HV = "horizontal_vertical"
+        NP = "nucleus_prediction"
+        NC = "type_prediction"
 
     def _mode_to_int(self, mode) -> int:
 
@@ -531,11 +531,11 @@ class HoVerNet(nn.Module):
         x = self.upsample(x)
 
         output = {
-            HoVerNet.Branch.NUCLEUS.value: self.nucleus_prediction(x, short_cuts),
-            HoVerNet.Branch.HOVER.value: self.horizontal_vertical(x, short_cuts),
+            HoVerNet.Branch.NP.value: self.nucleus_prediction(x, short_cuts),
+            HoVerNet.Branch.HV.value: self.horizontal_vertical(x, short_cuts),
         }
         if self.type_prediction is not None:
-            output[HoVerNet.Branch.TYPE.value] = self.type_prediction(x, short_cuts)
+            output[HoVerNet.Branch.NC.value] = self.type_prediction(x, short_cuts)
 
         return output
 
