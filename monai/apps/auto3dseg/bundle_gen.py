@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os
 import shutil
 import subprocess
+import sys
 from copy import copy, deepcopy
 from glob import glob
 from typing import Mapping, Sequence, Union
@@ -126,12 +128,25 @@ class BundleAlgo(Algo):
         self.output_path = write_path
 
     def train(self, params=None):
+        """
+
+        Args:
+            params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
+
+        Returns:
+
+        """
         train_py = os.path.join(self.output_path, "scripts", "train.py")
         config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
         base_cmd = f"{train_py} run --config_file {config_yaml} "
 
-        if torch.cuda.device_count() > 1:
-            cmd = f"torchrun --nnodes={1:d} --nproc_per_node={torch.cuda.device_count():d} "
+        if "CUDA_VISIBLE_DEVICES" in params:
+            devices = params.pop("CUDA_VISIBLE_DEVICES")
+            n_devices, devices_str = len(devices), ",".join([str(x) for x in devices])
+        else:
+            n_devices, devices_str = torch.cuda.device_count(), ""
+        if n_devices > 1:
+            cmd = f"torchrun --nnodes={1:d} --nproc_per_node={n_devices:d} "
         else:
             cmd = "python "  # TODO: which system python?
         cmd += base_cmd
@@ -140,7 +155,10 @@ class BundleAlgo(Algo):
                 cmd += f" --{k}={v}"
         try:
             logger.info(f"Launching: {cmd}")
-            normal_out = subprocess.run(cmd, env=os.environ.copy(), check=True, capture_output=True)
+            ps_environ = os.environ.copy()
+            if devices_str:
+                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_str
+            normal_out = subprocess.run(cmd, env=ps_environ, check=True, capture_output=True)
             logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
         except subprocess.CalledProcessError as e:
             output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
@@ -157,14 +175,24 @@ class BundleAlgo(Algo):
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
         return dict_file["best_avg_dice_score"]  # TODO: define the format of best scores' list and progress.yaml
 
-    def predict(self, params=None):
+    def get_inferer(self, *args, **kwargs):
         infer_py = os.path.join(self.output_path, "scripts", "infer.py")
         if not os.path.isfile(infer_py):
             raise ValueError(f"{infer_py} is not found, please check the path.")
         config_path = os.path.join(self.output_path, "configs", "algo_config.yaml")
         config_path = config_path if os.path.isfile(config_path) else None
         logger.info(f"in memory or persistent predictions using {config_path}.")
-        raise NotImplementedError
+        spec = importlib.util.spec_from_file_location("InferClass", infer_py)
+        infer_class = importlib.util.module_from_spec(spec)
+        sys.modules["InferClass"] = infer_class
+        spec.loader.exec_module(infer_class)
+        return infer_class.InferClass(config_path, **kwargs)
+
+    def predict(self, files, params=None):
+        if params is None:
+            params = {}
+        inferer = self.get_inferer(**params)
+        return [inferer.infer(f) for f in ensure_tuple(files)]
 
 
 default_algos = {
