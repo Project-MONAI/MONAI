@@ -1108,7 +1108,7 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
         thresh_image: Optional[NdarrayOrTensor] = None,
     ) -> None:
         if fg_indices is None or bg_indices is None:
-            # We don't require crop center to be whthin the boxes.
+            # We don't require crop center to be within the boxes.
             # As along as the cropped patch contains a box, it is considered as a foreground patch.
             # Positions within extended_boxes are crop centers for foreground patches
             extended_boxes_np = self.generate_fg_center_boxes_np(boxes, image_size)

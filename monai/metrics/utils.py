@@ -211,7 +211,7 @@ def is_binary_tensor(input: torch.Tensor, name: str):
         ValueError: if `input` is not a PyTorch Tensor.
 
     Returns:
-        Union[str, None]: warning message, if the tensor is not binary. Othwerwise, None.
+        Union[str, None]: warning message, if the tensor is not binary. Otherwise, None.
     """
     if not isinstance(input, torch.Tensor):
         raise ValueError(f"{name} must be of type PyTorch Tensor.")

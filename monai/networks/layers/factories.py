@@ -250,7 +250,7 @@ def sync_batch_factory(_dim) -> Type[nn.SyncBatchNorm]:
 @Norm.factory_function("instance_nvfuser")
 def instance_nvfuser_factory(dim):
     """
-    `InstanceNorm3dNVFuser` is a faster verison of InstanceNorm layer and implemented in `apex`.
+    `InstanceNorm3dNVFuser` is a faster version of InstanceNorm layer and implemented in `apex`.
     It only supports 3d tensors as the input. It also requires to use with CUDA and non-Windows OS.
     In this function, if the required library `apex.normalization.InstanceNorm3dNVFuser` does not exist,
     `nn.InstanceNorm3d` will be returned instead.
