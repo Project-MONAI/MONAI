@@ -153,6 +153,7 @@ class Configurator(AlgorithmConfigurator):
             self.config[_key]["network"]["blocks_up"] = [1]* (len(num_blocks)-1) # [1,1,1,1..]
             if self.input['multigpu']:
                 self.config[_key]["network"]['norm'] = ['BATCH', {'affine': True}] # use batchnorm with multi gpu
+                self.config[_key]["network"]['act'] = ['RELU', {'inplace': False}] # set act to be not in-place with multi gpu
             else:
                 self.config[_key]["network"]['norm'] = ["INSTANCE", {"affine": True}] # use instancenorm with single gpu
 

@@ -156,7 +156,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     model = parser.get_parsed_content("network")
     model = model.to(device)
-    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    if devices_num > 1:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     if softmax:
         post_pred = transforms.Compose(
@@ -181,7 +182,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     lr_scheduler = lr_scheduler_part.instantiate(optimizer=optimizer)
 
     if torch.cuda.device_count() > 1:
-        model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=True)
+        model = DistributedDataParallel(model, device_ids=[device], find_unused_parameters=False)
 
     if finetune["activate"] and os.path.isfile(finetune["pretrained_ckpt_name"]):
         print("[info] fine-tuning pre-trained checkpoint {:s}".format(finetune["pretrained_ckpt_name"]))

@@ -85,7 +85,6 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     model = parser.get_parsed_content("network")
     model = model.to(device)
-    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     pretrained_ckpt = torch.load(ckpt_name, map_location=device)
     model.load_state_dict(pretrained_ckpt)

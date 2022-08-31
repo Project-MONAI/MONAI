@@ -3,6 +3,9 @@ network:
   init_filters: 32
   blocks_down: [1, 2, 2, 4, 4]
   blocks_up: [1, 1, 1, 1]
+  act:
+  - RELU
+  - {inplace: true}
   norm:
   - BATCH
   - {affine: true}
