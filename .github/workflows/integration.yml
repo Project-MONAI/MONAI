@@ -34,7 +34,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.12.0+cu116 torchvision==0.13.0+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
