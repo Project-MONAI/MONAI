@@ -154,7 +154,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         t_var = torch.max(t_var, torch.zeros_like(t_var))
         p_var = torch.max(p_var, torch.zeros_like(p_var))
         ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
-        # shape = (batch, 1, D, H, W)
 
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(ncc).neg()  # sum over the batch, channel and spatial ndims

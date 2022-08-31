@@ -238,7 +238,7 @@ def datafold_read(datalist: Union[str, Dict], basedir: str, fold: int = 0, key: 
 
 def verify_report_format(report: dict, report_format: dict):
     """
-    Compares the report and the the report_format that has only keys.
+    Compares the report and the report_format that has only keys.
 
     Args:
         report: dict that has real values.
