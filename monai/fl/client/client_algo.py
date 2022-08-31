@@ -20,43 +20,69 @@ class ClientAlgo(abc.ABC):
     To define a new algo script, subclass this class and implement the
     following abstract methods:
 
-        - #Algo.train()
-        - #Algo.get_weights()
-        - #Algo.evaluate()
+        - self.train()
+        - self.get_weights()
+        - self.evaluate()
 
-    initialize() and finalize() can be optionally be implemented to help with lifecycle management of the object.
+    initialize(), abort(), and finalize() can be optionally be implemented to help with lifecycle management
+    of the class object.
     """
 
     def initialize(self, extra=None):
-        """call to initialize the ClientAlgo class"""
+        """
+        Call to initialize the ClientAlgo class
+
+        Args:
+            extra: optional extra information, e.g. dict of `ExtraItems.CLIENT_NAME` and/or `ExtraItems.APP_ROOT`
+        """
         pass
 
     def finalize(self, extra=None):
-        """call to finalize the ClientAlgo class"""
+        """
+        Call to finalize the ClientAlgo class
+
+        Args:
+            extra: optional extra information
+        """
         pass
 
     def abort(self, extra=None):
-        """call to abort the ClientAlgo training or evaluation"""
+        """
+        Call to abort the ClientAlgo training or evaluation
+
+        Args:
+            extra: optional extra information
+        """
+
         pass
 
     @abc.abstractmethod
     def train(self, data: ExchangeObject, extra=None) -> None:
         """
-        objective: train network and produce new network from train data.
-        # Arguments
-        data: ExchangeObject containing current network weights to base training on.
+        Train network and produce new network from train data.
+
+        Args:
+            data: ExchangeObject containing current network weights to base training on.
+            extra: optional extra information
+
+        Returns:
+            None
         """
         raise NotImplementedError
 
     @abc.abstractmethod
     def get_weights(self, extra=None) -> ExchangeObject:
         """
-        objective: get current local weights or weight differences
+        Get current local weights or weight differences
 
-        # Returns
-        ExchangeObject: current local weights or weight differences.
+        Args:
+            extra: optional extra information
 
-        # Example returns ExchangeObject, e.g.::
+        Returns:
+            ExchangeObject: current local weights or weight differences.
+
+        Example:
+            Returns ExchangeObject, e.g.::
 
             ExchangeObject(
                 weights = self.trainer.network.state_dict(),
@@ -69,11 +95,12 @@ class ClientAlgo(abc.ABC):
     @abc.abstractmethod
     def evaluate(self, data: ExchangeObject, extra=None) -> ExchangeObject:
         """
-        objective: get evaluation metrics on test data.
-        # Arguments
-        data: ExchangeObject with network weights to use for evaluation
+        Get evaluation metrics on test data.
 
-        # Returns
-        metrics: ExchangeObject with evaluation metrics.
+        Args:
+            data: ExchangeObject with network weights to use for evaluation
+
+        Returns:
+            metrics: ExchangeObject with evaluation metrics.
         """
         raise NotImplementedError
