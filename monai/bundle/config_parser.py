@@ -416,7 +416,8 @@ class ConfigParser:
         writer = look_up_option(fmt.lower(), {"json", "yaml"})
         with open(_filepath, "w") as f:
             if writer == "json":
-                return json.dump(config, f, **kwargs)
+                json.dump(config, f, **kwargs)
+                return
             if writer == "yaml":
                 return yaml.safe_dump(config, f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got {writer}.")

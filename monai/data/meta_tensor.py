@@ -43,7 +43,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
         * For `c = a + b`, then auxiliary data (e.g., metadata) will be copied from the
           first instance of `MetaTensor` if `a.is_batch` is False
-          (For batched data, the metdata will be shallow copied for efficiency purposes).
+          (For batched data, the metadata will be shallow copied for efficiency purposes).
 
     Example:
         .. code-block:: python
@@ -504,7 +504,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def __repr__(self, *, tensor_contents=None):
         """
-        Prints out a long represention of the MetaTensor object with metadata as well as content data.
+        Prints out a long representation of the MetaTensor object with metadata as well as content data.
 
         Args:
             tensor_contents: currently unused

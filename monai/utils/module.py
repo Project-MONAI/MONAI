@@ -243,7 +243,7 @@ def get_full_type_name(typeobj):
     return module + "." + typeobj.__name__
 
 
-def min_version(the_module, min_version_str: str = "") -> bool:
+def min_version(the_module, min_version_str: str = "", **_kwargs) -> bool:
     """
     Convert version strings into tuples of int and compare them.
 
@@ -258,7 +258,7 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     return mod_version >= required
 
 
-def exact_version(the_module, version_str: str = "") -> bool:
+def exact_version(the_module, version_str: str = "", **_kwargs) -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
