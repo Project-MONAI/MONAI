@@ -23,11 +23,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_0 = [  # fast mode, batch 16
     {"out_classes": 5, "mode": HoVerNet.Mode.FAST},
     (1, 3, 256, 256),
-    {
-        HoVerNet.Branch.NP: (1, 2, 164, 164),
-        HoVerNet.Branch.NC: (1, 5, 164, 164),
-        HoVerNet.Branch.HV: (1, 2, 164, 164),
-    },
+    {HoVerNet.Branch.NP: (1, 2, 164, 164), HoVerNet.Branch.NC: (1, 5, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
 ]
 
 TEST_CASE_1 = [  # single channel 2D, batch 16
@@ -45,11 +41,7 @@ TEST_CASE_2 = [  # single channel 3D, batch 16
 TEST_CASE_3 = [  # 4-channel 3D, batch 16
     {"out_classes": 6, "mode": HoVerNet.Mode.ORIGINAL},
     (1, 3, 270, 270),
-    {
-        HoVerNet.Branch.NP: (1, 2, 80, 80),
-        HoVerNet.Branch.NC: (1, 6, 80, 80),
-        HoVerNet.Branch.HV: (1, 2, 80, 80),
-    },
+    {HoVerNet.Branch.NP: (1, 2, 80, 80), HoVerNet.Branch.NC: (1, 6, 80, 80), HoVerNet.Branch.HV: (1, 2, 80, 80)},
 ]
 
 TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
