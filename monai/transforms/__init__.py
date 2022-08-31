@@ -267,8 +267,8 @@ from .post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
-    SobelGradients,
     RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from .post.dictionary import (
