@@ -16,7 +16,7 @@ from unittest import skipUnless
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import SignalContinousWavelet
+from monai.transforms import SignalContinuousWavelet
 from monai.utils import optional_import
 
 _, has_pywt = optional_import("pywt")
@@ -29,9 +29,9 @@ EXPECTED_RESULTS = [(6, 150, 2000)]
 class TestSignalContinousWavelet(unittest.TestCase):
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, type, length, frequency):
-        self.assertIsInstance(SignalContinousWavelet(type, length, frequency), SignalContinousWavelet)
+        self.assertIsInstance(SignalContinuousWavelet(type, length, frequency), SignalContinuousWavelet)
         sig = np.load(TEST_SIGNAL)
-        cwt = SignalContinousWavelet(type, length, frequency)
+        cwt = SignalContinuousWavelet(type, length, frequency)
         cwtsignal = cwt(sig)
         self.assertEqual(cwtsignal.shape, EXPECTED_RESULTS[0])
 

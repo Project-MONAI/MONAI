@@ -312,7 +312,7 @@ from .post.dictionary import (
     VoteEnsembleDict,
 )
 from .signal.array import (
-    SignalContinousWavelet,
+    SignalContinuousWavelet,
     SignalFillEmpty,
     SignalRandAddGaussianNoise,
     SignalRandAddSine,
