@@ -10,9 +10,10 @@
 # limitations under the License.
 
 import warnings
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 import torch
+from torch import Tensor
 from torch.nn.modules.loss import _Loss
 
 from monai.networks import one_hot
@@ -31,7 +32,7 @@ class AUCMLoss(_Loss):
     def __init__(
         self,
         margin: float = 1.0,
-        imratio: List[float] = None,
+        pos_weight: Optional[Tensor] = None,
         num_classes: int = 2,
         to_onehot_y: bool = False,
         sigmoid: bool = False,
@@ -76,7 +77,7 @@ class AUCMLoss(_Loss):
 
         self.margin = margin
 
-        self.p = imratio
+        self.p = pos_weight
         self.num_classes = num_classes
         if self.p:
             assert len(self.p) == self.num_classes, "imratio must be a list of length num_classes"
