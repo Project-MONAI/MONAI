@@ -395,7 +395,7 @@ class TciaDataset(Randomizable, CacheDataset):
     and generate items for training, validation or test.
 
     The Highdicom library is used to load dicom data with modality "SEG", but only a part of collections are
-    supoorted, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
+    supported, such as: "C4KC-KiTS", "NSCLC-Radiomics", "NSCLC-Radiomics-Interobserver1", " QIN-PROSTATE-Repeatability"
     and "PROSTATEx". Therefore, if "seg" is included in `keys` of the `LoadImaged` transform and loading some
     other collections, errors may be raised. For supported collections, the original "SEG" information may not
     always be consistent for each dicom file. Therefore, to avoid creating different format of labels, please use
@@ -701,7 +701,7 @@ class CrossValidation:
 
     def get_dataset(self, folds: Union[Sequence[int], int], **dataset_params):
         """
-        Generate dataset based on the specified fold indice in the cross validation group.
+        Generate dataset based on the specified fold indices in the cross validation group.
 
         Args:
             folds: index of folds for training or validation, if a list of values, concatenate the data.
