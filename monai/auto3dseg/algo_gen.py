@@ -53,9 +53,7 @@ class AlgoGen(Randomizable):
         - previous algorithm's scores measuring the model quality,
         - computational budgets,
 
-    and generates ``Algo`` instances. The generated algos are to be trained with the training datasets.
-
-    ..code-block::
+    and generates ``Algo`` instances. The generated algos are to be trained with the training datasets::
 
                                   scores
                         +------------------------+
