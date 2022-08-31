@@ -46,7 +46,7 @@ class BundleAlgo(Algo):
         # algo.set_data_list("../data_list.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
 
-    This class creates MONAI bundles from a directory of 'bundle template'. Different from a regular MONAI bundle
+    This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
     ``export_to_disk``.  The output of ``export_to_disk`` takes the following folder structure::
 

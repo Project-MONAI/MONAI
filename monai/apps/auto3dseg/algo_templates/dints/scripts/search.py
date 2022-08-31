@@ -47,6 +47,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     parser.read_config(config_file_)
     parser.update(pairs=_args)
 
+    parser["patch_size"] = [96, 96, 96]
+    parser["patch_size_valid"] = [96, 96, 96]
     amp = parser.get_parsed_content("amp")
     arch_path = parser.get_parsed_content("arch_path")
     data_file_base_dir = parser.get_parsed_content("data_file_base_dir")
