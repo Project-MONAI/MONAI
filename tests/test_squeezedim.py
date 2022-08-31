@@ -13,8 +13,8 @@ import unittest
 
 import numpy as np
 from parameterized import parameterized
-from monai.data import MetaTensor
 
+from monai.data import MetaTensor
 from monai.transforms import SqueezeDim
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
