@@ -900,6 +900,6 @@ class SobelGradients(Transform):
         kernel_h = kernel_v.T
         grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
         grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
-        grad = torch.concat([grad_h, grad_v])
+        grad = torch.cat([grad_h, grad_v])
 
         return grad
