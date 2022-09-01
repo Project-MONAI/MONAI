@@ -43,7 +43,7 @@ __all__ = [
     "SignalRandAddSquarePulsePartial",
     "SignalFillEmpty",
     "SignalRemoveFrequency",
-    "SignalContinousWavelet",
+    "SignalContinuousWavelet",
 ]
 
 
@@ -418,7 +418,7 @@ class SignalRemoveFrequency(Transform):
         return y_notched
 
 
-class SignalContinousWavelet(Transform):
+class SignalContinuousWavelet(Transform):
     """
     Generate continuous wavelet transform of a signal
     """

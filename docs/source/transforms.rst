@@ -647,9 +647,9 @@ Signal
     :members:
     :special-members: __call__
 
-`SignalContinousWavelet`
-""""""""""""""""""""""""
-.. autoclass:: SignalContinousWavelet
+`SignalContinuousWavelet`
+"""""""""""""""""""""""""
+.. autoclass:: SignalContinuousWavelet
     :members:
     :special-members: __call__
 
