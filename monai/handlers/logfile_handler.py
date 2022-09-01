@@ -11,7 +11,7 @@
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -54,13 +54,13 @@ class LogfileHandler:
         formatter: str = "%(asctime)s %(name)s %(levelname)s: %(message)s",
         create_dir: bool = True,
     ):
-        self.output_dir = output_dir
-        self.filename = filename
-        self.loglevel = loglevel
-        self.formatter = formatter
-        self.create_dir = create_dir
-        self.logger = None
-        self.handler = None
+        self.output_dir: str = output_dir
+        self.filename: str = filename
+        self.loglevel: int = loglevel
+        self.formatter: str = formatter
+        self.create_dir: bool = create_dir
+        self.logger: Optional[logging.Logger] = None
+        self.handler: Optional[logging.FileHandler] = None
 
     def attach(self, engine: Engine) -> None:
         self.logger = engine.logger
@@ -74,9 +74,12 @@ class LogfileHandler:
         self.handler = logging.FileHandler(os.path.join(self.output_dir, self.filename))
         self.handler.setLevel(self.loglevel)
         self.handler.setFormatter(logging.Formatter(self.formatter))
+        assert self.logger is not None
         self.logger.addHandler(self.handler)
 
     def _completed(self, engine: Engine) -> None:
+        assert self.logger is not None
+        assert self.handler is not None
         self.logger.removeHandler(self.handler)
         self.handler.close()
         self.handler = None
