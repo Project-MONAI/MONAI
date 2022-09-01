@@ -31,6 +31,7 @@ from monai.transforms.utils import (
     fill_holes,
     get_largest_connected_component_mask,
     get_unique_labels,
+    remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import (
@@ -48,6 +49,7 @@ __all__ = [
     "AsDiscrete",
     "FillHoles",
     "KeepLargestConnectedComponent",
+    "RemoveSmallObjects",
     "LabelFilter",
     "LabelToContour",
     "MeanEnsemble",
@@ -386,7 +388,42 @@ class KeepLargestConnectedComponent(Transform):
         return convert_to_dst_type(img_, dst=img)[0]
 
 
-class LabelFilter:
+class RemoveSmallObjects(Transform):
+    """
+    Use `skimage.morphology.remove_small_objects` to remove small objects from images.
+    See: https://scikit-image.org/docs/dev/api/skimage.morphology.html#remove-small-objects.
+
+    Data should be one-hotted.
+
+    Args:
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
+        self.min_size = min_size
+        self.connectivity = connectivity
+        self.independent_channels = independent_channels
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (C, spatial_dim1[, spatial_dim2, ...]). Data
+                should be one-hotted.
+
+        Returns:
+            An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
+        """
+        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels)
+
+
+class LabelFilter(Transform):
     """
     This transform filters out labels and can be used as a processing step to view only certain labels.
 
@@ -703,7 +740,7 @@ class ProbNMS(Transform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
