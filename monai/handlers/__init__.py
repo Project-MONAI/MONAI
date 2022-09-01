@@ -18,6 +18,7 @@ from .earlystop_handler import EarlyStopHandler
 from .garbage_collector import GarbageCollector
 from .hausdorff_distance import HausdorffDistance
 from .ignite_metric import IgniteMetric
+from .logfile_handler import LogfileHandler
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
 from .mean_iou import MeanIoUHandler
