@@ -102,7 +102,7 @@ Metric logger
 
 
 Logfile handler
--------------
+---------------
 .. autoclass:: LogfileHandler
     :members:
 
