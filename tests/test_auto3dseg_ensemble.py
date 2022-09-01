@@ -10,16 +10,20 @@
 # limitations under the License.
 
 import os
+import sys
 import tempfile
 import unittest
+
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import DataAnalyzer, BundleGen, ScriptEnsembleBuilder, EnsembleBestN
+from monai.apps import download_and_extract
+from monai.apps.auto3dseg import BundleGen, DataAnalyzer, EnsembleBestN, ScriptEnsembleBuilder
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 
-
+algo_zip = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/algo_templates.tar.xz"
+md5 = "596c609035595a5d05ee7bdd70511c84"
 
 fake_datalist = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -54,10 +58,15 @@ class TestEnsembleBuilder(unittest.TestCase):
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
 
-        self.dataroot = os.path.join(test_path, 'dataroot')
+        self.dataroot = os.path.join(test_path, "dataroot")
         self.work_dir = os.path.join(test_path, "workdir")
+        algo_compressed_file = os.path.join(test_path, "algo_templates.tar")
+
         self.da_output_yaml = os.path.join(self.work_dir, "datastats.yaml")
         self.data_src_cfg = os.path.join(self.work_dir, "data_src_cfg.yaml")
+
+        download_and_extract(algo_zip, algo_compressed_file, test_path, md5)
+        self.algo_templates = os.path.join(test_path, "algo_templates")
 
         if not os.path.isdir(self.dataroot):
             os.makedirs(self.dataroot)
@@ -67,7 +76,7 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         # Generate a fake dataset
         for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(39, 47, 46, rad_max=10, num_seg_classes = 1)
+            im, seg = create_test_image_3d(39, 47, 46, rad_max=10, num_seg_classes=1)
             nib_image = nib.Nifti1Image(im, affine=np.eye(4))
             image_fpath = os.path.join(self.dataroot, d["image"])
             nib.save(nib_image, image_fpath)
@@ -86,14 +95,9 @@ class TestEnsembleBuilder(unittest.TestCase):
         if not os.path.isdir(self.work_dir):
             os.makedirs(self.work_dir)
 
-
         if "analysis" in progress_tracker:
-            da = DataAnalyzer(
-                self.fake_json_datalist,
-                self.dataroot,
-                output_path=self.da_output_yaml)
-
-            datastat = da.get_all_case_stats()
+            da = DataAnalyzer(self.fake_json_datalist, self.dataroot, output_path=self.da_output_yaml)
+            da.get_all_case_stats()
 
         data_src = {
             "name": "fake_data",
@@ -102,50 +106,71 @@ class TestEnsembleBuilder(unittest.TestCase):
             "datalist": self.fake_json_datalist,
             "dataroot": self.dataroot,
             "multigpu": False,
-            "class_names": ["label_class"]
+            "class_names": ["label_class"],
         }
-
 
         ConfigParser.export_config_file(data_src, self.data_src_cfg)
 
-        bundle_generator = BundleGen(
-            data_stats_filename=self.da_output_yaml,
-            data_lists_filename=self.data_src_cfg)
+        sys.path.insert(0, self.algo_templates)
+        algos = {
+            "unet": dict(
+                _target_="unet.scripts.algo.UnetAlgo",
+                template_configs=self.algo_templates + "/unet/configs",
+                scripts_path=self.algo_templates + "/unet/scripts",
+            ),
+            "segresnet2d": dict(
+                _target_="segresnet2d.scripts.algo.Segresnet2DAlgo",
+                template_configs=self.algo_templates + "/segresnet2d/configs",
+                scripts_path=self.algo_templates + "/segresnet2d/scripts",
+            ),
+            "dints": dict(
+                _target_="dints.scripts.algo.DintsAlgo",
+                template_configs=self.algo_templates + "/dints/configs",
+                scripts_path=self.algo_templates + "/dints/scripts",
+            ),
+        }
 
-        bundle_generator.generate(self.work_dir, [0,1,2,3,4])
+        bundle_generator = BundleGen(
+            algos=algos, data_stats_filename=self.da_output_yaml, data_src_cfg_name=self.data_src_cfg
+        )
+
+        bundle_generator.generate(self.work_dir, [0, 1, 2, 3, 4])
 
         # todo: training is not encapsulated yet
         history = bundle_generator.get_history()
 
         num_epoch = 2
-        n_iter = int(num_epoch * len(fake_datalist["training"]) * 4 / 5)
+        batch_size = 2
+        n_iter = int(num_epoch * len(fake_datalist["training"]) * 4 / 5 / batch_size)
         n_iter_val = int(n_iter / 2)
 
+        train_param = {
+            "CUDA_VISIBLE_DEVICES": [0, 1],
+            "num_iterations": n_iter,
+            "num_iterations_per_validation": n_iter_val,
+        }
         self.algo_paths = []
         self.best_metrics = []
         for i, record in enumerate(history):
             self.assertEqual(len(record.keys()), 1, "each record should have one model")
             for name, algo in record.items():
-                algo.train(
-                    num_iterations=n_iter,
-                    num_iterations_per_validation=n_iter_val,
-                    single_gpu=not data_src["multigpu"]
-                )
+                algo.train(train_param)
                 self.algo_paths.append(algo.output_path)
                 self.best_metrics.append(algo.get_score())
 
-        self.history = record
+        self.history = history
 
     def test_data(self) -> None:
 
         builder = ScriptEnsembleBuilder(self.history, self.data_src_cfg)
-        builder.set_ensemble_method(EnsembleBestN(n_best=3))
+        builder.set_ensemble_method(EnsembleBestN(n_best=5))
         ensemble = builder.get_ensemble()
 
-        result = ensemble.predict()
+        ensemble.predict()
 
     def tearDown(self) -> None:
-        pass
+        self.test_dir.cleanup()
+
 
 if __name__ == "__main__":
     unittest.main()

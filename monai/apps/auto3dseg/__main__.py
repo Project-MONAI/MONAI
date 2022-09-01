@@ -12,9 +12,17 @@
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo, BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.auto3dseg.ensemble_builder import EnsembleBestN, ScriptEnsemble, ScriptEnsembleBuilder
 
 if __name__ == "__main__":
     from monai.utils import optional_import
 
     fire, _ = optional_import("fire")
-    fire.Fire({"DataAnalyzer": DataAnalyzer, "BundleGen": BundleGen, "BundleAlgo": BundleAlgo})
+    fire.Fire(
+        {
+            "DataAnalyzer": DataAnalyzer,
+            "BundleGen": BundleGen,
+            "BundleAlgo": BundleAlgo,
+            "ScriptEnsembleBuilder": ScriptEnsembleBuilder,
+        }
+    )
