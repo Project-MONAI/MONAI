@@ -5,10 +5,10 @@ import itertools as it
 import numpy as np
 
 import torch
-from monai.transforms import Resample, Affine
 
 from monai.config import DtypeLike
 from monai.data import MetaTensor
+from monai.transforms import Affine
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
 from monai.utils import GridSampleMode, GridSamplePadMode
@@ -165,6 +165,7 @@ def apply(data: Union[torch.Tensor, MetaTensor],
 
     a = Affine(norm_coords=False,
                affine=cumulative_matrix.matrix.matrix,
+               # spatial_size=cur_spatial_size,
                **kwargs)
     data = a(img=data)
 

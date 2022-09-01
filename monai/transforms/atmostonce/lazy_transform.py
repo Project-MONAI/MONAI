@@ -54,6 +54,7 @@ def compile_lazy_transforms(transforms):
         flat.append(Applyd)
     return flat
 
+
 def compile_cached_dataloading_transforms(transforms):
     flat = flatten_sequences(transforms)
     for i in range(len(flat)):

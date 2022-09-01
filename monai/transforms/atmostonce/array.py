@@ -27,16 +27,16 @@ from monai.utils.misc import ensure_tuple
 class Spacing(LazyTransform, InvertibleTransform):
 
     def __init__(
-        self,
-        pixdim: Union[Sequence[float], float, np.ndarray],
-        src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]],
-        diagonal: Optional[bool] = False,
-        mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
-        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
-        align_corners: Optional[bool] = False,
-        dtype: Optional[DtypeLike] = np.float64,
-        lazy_evaluation: Optional[bool] = False,
-        shape_override: Optional[Sequence] = None
+            self,
+            pixdim: Union[Sequence[float], float, np.ndarray],
+            src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]],
+            diagonal: Optional[bool] = False,
+            mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            align_corners: Optional[bool] = False,
+            dtype: Optional[DtypeLike] = np.float64,
+            lazy_evaluation: Optional[bool] = False,
+            shape_override: Optional[Sequence] = None
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.pixdim = pixdim
@@ -80,15 +80,15 @@ class Spacing(LazyTransform, InvertibleTransform):
 class Resize(LazyTransform, InvertibleTransform):
 
     def __init__(
-        self,
-        spatial_size: Union[Sequence[int], int],
-        size_mode: Optional[str] = "all",
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        align_corners: Optional[bool] = False,
-        anti_aliasing: Optional[bool] = False,
-        anti_aliasing_sigma: Optional[Union[Sequence[float], float, None]] = None,
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-        lazy_evaluation: Optional[bool] = False
+            self,
+            spatial_size: Union[Sequence[int], int],
+            size_mode: Optional[str] = "all",
+            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+            align_corners: Optional[bool] = False,
+            anti_aliasing: Optional[bool] = False,
+            anti_aliasing_sigma: Optional[Union[Sequence[float], float, None]] = None,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+            lazy_evaluation: Optional[bool] = False
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = spatial_size
@@ -128,14 +128,14 @@ class Resize(LazyTransform, InvertibleTransform):
 class Rotate(LazyTransform, InvertibleTransform):
 
     def __init__(
-        self,
-        angle: Union[Sequence[float], float],
-        keep_size: bool = True,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
-        lazy_evaluation: Optional[bool] = False
+            self,
+            angle: Union[Sequence[float], float],
+            keep_size: bool = True,
+            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = False
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.angle = angle
@@ -181,14 +181,14 @@ class Zoom(LazyTransform, InvertibleTransform):
     """
 
     def __init__(
-        self,
-        zoom: Union[Sequence[float], float],
-        mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
-        padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
-        align_corners: Optional[bool] = None,
-        keep_size: bool = True,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
-        **kwargs
+            self,
+            zoom: Union[Sequence[float], float],
+            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+            padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
+            align_corners: Optional[bool] = None,
+            keep_size: bool = True,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            **kwargs
     ):
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
@@ -227,19 +227,27 @@ class Zoom(LazyTransform, InvertibleTransform):
         raise NotImplementedError()
 
 
+# class Rotate90(InvertibleTransform, LazyTransform):
+#
+#     def __init__(
+#             self,
+#
+#     ):
+#         pass
+
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def __init__(
-        self,
-        range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
-        range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
-        range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
-        prob: Optional[float] = 0.1,
-        keep_size: bool = True,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32
+            self,
+            range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
+            range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
+            range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
+            prob: Optional[float] = 0.1,
+            keep_size: bool = True,
+            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32
     ):
         RandomizableTransform.__init__(self, prob)
         self.range_x = ensure_tuple(range_x)
@@ -271,16 +279,15 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(
-        self,
-        img: NdarrayOrTensor,
-        mode: Optional[Union[InterpolateMode, str]] = None,
-        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-        align_corners: Optional[bool] = None,
-        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-        randomize: Optional[bool] = True,
-        get_matrix: Optional[bool] = False,
-        shape_override: Optional[Sequence] = None
-
+            self,
+            img: NdarrayOrTensor,
+            mode: Optional[Union[InterpolateMode, str]] = None,
+            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+            align_corners: Optional[bool] = None,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+            randomize: Optional[bool] = True,
+            get_matrix: Optional[bool] = False,
+            shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
 
         if randomize:

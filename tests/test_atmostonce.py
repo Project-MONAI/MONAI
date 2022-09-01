@@ -73,7 +73,7 @@ class TestLowLevel(unittest.TestCase):
 
     def test_compile_transforms(self):
         values = ["a", "b", ["c", ["d"], "e"], "f", ["g", "h"], "i"]
-        result = compile_transforms(values)
+        result = compile_lazy_transforms(values)
         print(result)
 
 
@@ -182,6 +182,59 @@ class TestFunctional(unittest.TestCase):
                          "bilinear",
                          "border")
         enumerate_results_of_op(results)
+
+    def _check_matrix(self, actual, expected):
+        np.allclose(actual, expected)
+    def _test_rotate_90_impl(self, values, keep_dims, expected):
+        results = rotate(np.zeros((1, 64, 64, 32), dtype=np.float32),
+                         values,
+                         keep_dims,
+                         "bilinear",
+                         "border")
+        # enumerate_results_of_op(results)
+        self._check_matrix(results[1], expected)
+
+    def test_rotate_d0_r1(self):
+        expected = np.asarray([[1, 0, 0, 0],
+                               [0, 0, -1, 0],
+                               [0, 1, 0, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((torch.pi / 2, 0, 0), True, expected)
+
+    def test_rotate_d0_r2(self):
+        expected = np.asarray([[1, 0, 0, 0],
+                               [0, -1, 0, 0],
+                               [0, 0, -1, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((torch.pi, 0, 0), True, expected)
+
+    def test_rotate_d0_r3(self):
+        expected = np.asarray([[1, 0, 0, 0],
+                               [0, 0, 1, 0],
+                               [0, -1, 0, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((3 * torch.pi / 2, 0, 0), True, expected)
+
+    def test_rotate_d2_r1(self):
+        expected = np.asarray([[0, -1, 0, 0],
+                               [1, 0, 0, 0],
+                               [0, 0, 1, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((0, 0, torch.pi / 2), True, expected)
+
+    def test_rotate_d2_r2(self):
+        expected = np.asarray([[-1, 0, 0, 0],
+                               [0, -1, 0, 0],
+                               [0, 0, 1, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((0, 0, torch.pi), True, expected)
+
+    def test_rotate_d2_r3(self):
+        expected = np.asarray([[0, 1, 0, 0],
+                               [-1, 0, 0, 0],
+                               [0, 0, 1, 0],
+                               [0, 0, 0, 1]])
+        self._test_rotate_90_impl((0, 0, 3 * torch.pi / 2), True, expected)
 
     def test_croppad_identity(self):
         img = get_img((16, 16)).astype(int)
