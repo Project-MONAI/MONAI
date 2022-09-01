@@ -25,12 +25,11 @@
 #    year={2019},
 #    publisher={Elsevier}
 # }
-
 # =========================================================================
 
 from collections import OrderedDict
 from enum import Enum
-from typing import Callable, Dict, List, Sequence, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -39,8 +38,9 @@ from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import InterpolateMode, UpsampleMode, export
+from monai.utils.enums import StrEnum
 
-__all__ = ["HoverNet", "Hovernet", "HoVernet", "HoVerNet"]
+__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
 
 class _DenseLayerDecoder(nn.Module):
@@ -371,8 +371,8 @@ class _DecoderBranch(nn.ModuleList):
 
 
 @export("monai.networks.nets")
-class HoverNet(nn.Module):
-    """HoVerNet
+class HoVerNet(nn.Module):
+    """HoVerNet model
 
     References:
       Graham, Simon et al. Hover-net: Simultaneous segmentation
@@ -390,6 +390,19 @@ class HoverNet(nn.Module):
     class Mode(Enum):
         FAST: int = 0
         ORIGINAL: int = 1
+
+    class Branch(StrEnum):
+        """
+        Three branches of HoVerNet model, which results in three outputs:
+        `HOVER` is horizontal and vertical regressed gradient map of each nucleus,
+        `NUCLEUS` is the segmentation of all nuclei, and
+        `TYPE` is the type of each nucleus.
+
+        """
+
+        HV = "horizontal_vertical"
+        NP = "nucleus_prediction"
+        NC = "type_prediction"
 
     def _mode_to_int(self, mode) -> int:
 
@@ -484,10 +497,9 @@ class HoverNet(nn.Module):
         # decode branches
         self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize)
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
-        self.type_prediction: _DecoderBranch = None  # type: ignore
-
-        if out_classes > 0:
-            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)
+        self.type_prediction: Optional[_DecoderBranch] = (
+            _DecoderBranch(out_channels=out_classes, kernel_size=_ksize) if out_classes > 0 else None
+        )
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -518,15 +530,14 @@ class HoverNet(nn.Module):
         x = self.bottleneck(x)
         x = self.upsample(x)
 
-        x_np = self.nucleus_prediction(x, short_cuts)
-        x_hv = self.horizontal_vertical(x, short_cuts)
-        tp = self.type_prediction
+        output = {
+            HoVerNet.Branch.NP.value: self.nucleus_prediction(x, short_cuts),
+            HoVerNet.Branch.HV.value: self.horizontal_vertical(x, short_cuts),
+        }
+        if self.type_prediction is not None:
+            output[HoVerNet.Branch.NC.value] = self.type_prediction(x, short_cuts)
 
-        if tp is not None:
-            x_tp = self.type_prediction(x, short_cuts)
-            return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
-
-        return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
+        return output
 
 
-Hovernet = HoVernet = HoVerNet = HoverNet
+Hovernet = HoVernet = HoverNet = HoVerNet

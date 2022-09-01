@@ -133,8 +133,12 @@ class ConfigParser:
         for k in str(id).split(ID_SEP_KEY):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
-            indexing = k if isinstance(config, dict) else int(k)
-            config = config[indexing]
+            try:
+                config = (
+                    look_up_option(k, config, print_all_options=False) if isinstance(config, dict) else config[int(k)]
+                )
+            except ValueError as e:
+                raise KeyError(f"query key: {k}") from e
         return config
 
     def __setitem__(self, id: Union[str, int], config: Any):
@@ -175,7 +179,7 @@ class ConfigParser:
         """
         try:
             return self[id]
-        except (KeyError, IndexError):  # Index error for integer indexing
+        except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return default
 
     def set(self, config: Any, id: str = "", recursive: bool = True):
@@ -222,7 +226,7 @@ class ConfigParser:
         try:
             _ = self[id]
             return True
-        except (KeyError, IndexError):  # Index error for integer indexing
+        except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return False
 
     def parse(self, reset: bool = True):
