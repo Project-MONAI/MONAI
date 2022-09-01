@@ -36,6 +36,7 @@ from monai.transforms.post.array import (
     MeanEnsemble,
     ProbNMS,
     RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
@@ -795,6 +796,44 @@ class SaveClassificationd(MapTransform):
         return self.saver
 
 
+class SobelGradientsd(MapTransform):
+    """Calculate Sobel horizontal and vertical gradients.
+
+    Args:
+        keys: keys of the corresponding items to model output.
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        device: the device to create the kernel on. Defaults to `"cpu"`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel_size: int = 3,
+        padding: Union[int, str] = "same",
+        dtype: torch.dtype = torch.float32,
+        device: Union[torch.device, int, str] = "cpu",
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = SobelGradients(kernel_size=kernel_size, padding=padding, dtype=dtype, device=device)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
@@ -808,3 +847,4 @@ ProbNMSD = ProbNMSDict = ProbNMSd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
+SobelGradientsD = SobelGradientsDict = SobelGradientsd

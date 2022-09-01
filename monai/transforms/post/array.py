@@ -54,6 +54,7 @@ __all__ = [
     "LabelToContour",
     "MeanEnsemble",
     "ProbNMS",
+    "SobelGradients",
     "VoteEnsemble",
     "Invert",
 ]
@@ -852,3 +853,53 @@ class Invert(Transform):
         inverted = self.transform.inverse(data)
         inverted = self.post_func(inverted.to(self.device))
         return inverted
+
+
+class SobelGradients(Transform):
+    """Calculate Sobel horizontal and vertical gradients
+
+    Args:
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        device: the device to create the kernel on. Defaults to `"cpu"`.
+
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        kernel_size: int = 3,
+        padding: Union[int, str] = "same",
+        dtype: torch.dtype = torch.float32,
+        device: Union[torch.device, int, str] = "cpu",
+    ) -> None:
+        super().__init__()
+        self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
+        self.padding = padding
+
+    def _get_kernel(self, size, dtype, device) -> torch.Tensor:
+        if size % 2 == 0:
+            raise ValueError(f"Sobel kernel size should be an odd number. {size} was given.")
+        if not dtype.is_floating_point:
+            raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
+
+        numerator: torch.Tensor = torch.arange(
+            -size // 2 + 1, size // 2 + 1, dtype=dtype, device=device, requires_grad=False
+        ).expand(size, size)
+        denominator = numerator * numerator
+        denominator = denominator + denominator.T
+        denominator[:, size // 2] = 1.0  # to avoid division by zero
+        kernel = numerator / denominator
+        return kernel
+
+    def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
+        image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
+        kernel_v = self.kernel.to(image_tensor.device)
+        kernel_h = kernel_v.T
+        grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
+        grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
+        grad = torch.cat([grad_h, grad_v])
+
+        return grad
