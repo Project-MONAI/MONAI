@@ -47,7 +47,7 @@ class VarianceMetric(Metric):
         self.scalar_reduction = scalar_reduction
         self.threshold = threshold
 
-    def __call__(self, y_pred: torch.Tensor):
+    def __call__(self, y_pred: torch.Tensor) -> torch.Tensor:
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
