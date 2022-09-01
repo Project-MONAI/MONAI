@@ -173,7 +173,7 @@ class BoxCoder:
 
         Args:
             rel_codes: encoded boxes, Nx4 or Nx6 torch tensor.
-            boxes: a list of reference boxes, each element is Mx4 or Mx6 torch tensor.
+            reference_boxes: a list of reference boxes, each element is Mx4 or Mx6 torch tensor.
                 The box mode is assumed to be ``StandardMode``
 
         Return:

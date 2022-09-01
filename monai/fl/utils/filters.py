@@ -19,6 +19,7 @@ class Filter(abc.ABC):
     Used to apply filter to content of ExchangeObject.
     """
 
+    @abc.abstractmethod
     def __call__(self, data: ExchangeObject, extra=None) -> ExchangeObject:
         """
         Run the filtering.

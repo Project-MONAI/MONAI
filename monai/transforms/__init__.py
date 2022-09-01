@@ -89,6 +89,7 @@ from .croppad.dictionary import (
 )
 from .intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
     GaussianSharpen,
@@ -127,6 +128,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ComputeHoVerMapsd,
+    ComputeHoVerMapsD,
+    ComputeHoVerMapsDict,
     ForegroundMaskd,
     ForegroundMaskD,
     ForegroundMaskDict,
@@ -263,6 +267,7 @@ from .post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -296,12 +301,28 @@ from .post.dictionary import (
     ProbNMSD,
     ProbNMSd,
     ProbNMSDict,
+    RemoveSmallObjectsD,
+    RemoveSmallObjectsd,
+    RemoveSmallObjectsDict,
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
     VoteEnsembleD,
     VoteEnsembled,
     VoteEnsembleDict,
+)
+from .signal.array import (
+    SignalContinuousWavelet,
+    SignalFillEmpty,
+    SignalRandAddGaussianNoise,
+    SignalRandAddSine,
+    SignalRandAddSinePartial,
+    SignalRandAddSquarePulse,
+    SignalRandAddSquarePulsePartial,
+    SignalRandDrop,
+    SignalRandScale,
+    SignalRandShift,
+    SignalRemoveFrequency,
 )
 from .smooth_field.array import (
     RandSmoothDeform,
@@ -605,6 +626,7 @@ from .utils import (
     map_spatial_axes,
     print_transform_backends,
     rand_choice,
+    remove_small_objects,
     rescale_array,
     rescale_array_int_max,
     rescale_instance_array,
