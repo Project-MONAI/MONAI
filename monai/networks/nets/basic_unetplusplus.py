@@ -301,7 +301,7 @@ class BasicUNetPlusPlus(nn.Module):
         if self.deep_supervision:
           output = [output_0_1, output_0_2, output_0_3, output_0_4]
         else:
-          output = output_0_4
+          output = [output_0_4]
 
         return output
 
