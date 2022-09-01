@@ -88,7 +88,7 @@ class TestBasicUNETPlusPlus(unittest.TestCase):
         net = BasicUNetPlusPlus(**input_param).to(device)
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
-        self.assertEqual(result.shape, expected_shape)
+        self.assertEqual(result[0].shape, expected_shape)
 
     def test_deep_supervision_shape(self):
       net = BasicUNetPlusPlus(spatial_dims=2, deep_supervision=True, in_channels=3, out_channels=3)
