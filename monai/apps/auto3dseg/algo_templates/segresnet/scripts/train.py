@@ -136,17 +136,18 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     print("val_files:", len(val_files))
 
     if devices_num >= 4:
-        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8)
-        val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2)
+        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8, progress=False)
+        val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2, progress=False)
     else:
         train_ds = monai.data.CacheDataset(
             data=train_files,
             transform=train_transforms,
             cache_rate=float(devices_num) / 4.0,
             num_workers=8,
+            progress=False
         )
         val_ds = monai.data.CacheDataset(
-            data=val_files, transform=val_transforms, cache_rate=float(devices_num) / 4.0, num_workers=2
+            data=val_files, transform=val_transforms, cache_rate=float(devices_num) / 4.0, num_workers=2, progress=False
         )
     train_loader = DataLoader(train_ds, num_workers=8, batch_size=num_images_per_batch, shuffle=True)
     val_loader = DataLoader(val_ds, num_workers=0, batch_size=1, shuffle=False)
@@ -357,8 +358,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                         dict_file["best_avg_dice_score"] = float(best_metric)
                         dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                         dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
-                        with open(os.path.join(ckpt_path, "progress.yaml"), "a") as out_file:
-                            yaml.dump([dict_file], stream=out_file)
+                        ConfigParser.export_config_file(dict_file, os.path.join(ckpt_path, "progress.yaml"))
 
                     print(
                         "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
