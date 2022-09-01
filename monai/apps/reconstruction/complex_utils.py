@@ -106,7 +106,7 @@ def complex_abs_t(x: Tensor) -> Tensor:
         x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Absolute value along the last dimention
+        Absolute value along the last dimension
     """
     if x.shape[-1] != 2:
         raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
@@ -121,7 +121,7 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
         x: Input array/tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Absolute value along the last dimention
+        Absolute value along the last dimension
 
     Example:
         .. code-block:: python

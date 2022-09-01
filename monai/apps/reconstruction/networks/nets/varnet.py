@@ -62,7 +62,7 @@ class VariationalNetworkModel(nn.Module):
             The reconstructed image which is the root sum of squares (rss) of the absolute value
                 of the inverse fourier of the predicted kspace (note that rss combines coil images into one image).
         """
-        sensitivity_maps = self.coil_sensitivity_model(masked_kspace, mask)  # shape is simlar to masked_kspace
+        sensitivity_maps = self.coil_sensitivity_model(masked_kspace, mask)  # shape is similar to masked_kspace
         kspace_pred = masked_kspace.clone()
 
         for cascade in self.cascades:

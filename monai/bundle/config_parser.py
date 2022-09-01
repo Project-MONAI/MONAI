@@ -133,7 +133,12 @@ class ConfigParser:
         for k in str(id).split(ID_SEP_KEY):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
-            config = look_up_option(k, config, print_all_options=False) if isinstance(config, dict) else config[int(k)]
+            try:
+                config = (
+                    look_up_option(k, config, print_all_options=False) if isinstance(config, dict) else config[int(k)]
+                )
+            except ValueError as e:
+                raise KeyError(f"query key: {k}") from e
         return config
 
     def __setitem__(self, id: Union[str, int], config: Any):
@@ -415,7 +420,8 @@ class ConfigParser:
         writer = look_up_option(fmt.lower(), {"json", "yaml"})
         with open(_filepath, "w") as f:
             if writer == "json":
-                return json.dump(config, f, **kwargs)
+                json.dump(config, f, **kwargs)
+                return
             if writer == "yaml":
                 return yaml.safe_dump(config, f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got {writer}.")

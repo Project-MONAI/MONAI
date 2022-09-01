@@ -19,28 +19,41 @@ class Algo:
     """
 
     def set_data_stats(self, *args, **kwargs):
-        """Provide dataset (and summaries) so that the"""
+        """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 
     def train(self, params: dict):
-        """Read training/validation data and output a model."""
+        """
+        Read training/validation data and output a model.
+
+        Args:
+            params: key-value pairs of input parameters for the training pipeline.
+        """
+        pass
+
+    def predict(self, params: dict):
+        """
+        Read test data and output model predictions.
+
+        Args:
+            params: key-value pairs of input parameters for the predicting pipeline.
+        """
         pass
 
     def get_score(self, *args, **kwargs):
+        """Returns the model quality measurement based on training and validation datasets."""
         pass
 
 
 class AlgoGen(Randomizable):
     """
-    A data-driven algorithm generator optionally takes the following inputs:
+    A data-driven algorithm generator. It optionally takes the following inputs:
 
         - training dataset properties (such as data statistics from ``monai.auto3dseg.analyzer``),
-        - previous algorithm's scores measuring the model's quality,
-        - computational budgets.
+        - previous algorithm's scores measuring the model quality,
+        - computational budgets,
 
-    It generates ``Algo`` to be trained with the training datasets.
-
-    ..code-block::
+    and generates ``Algo`` instances. The generated algos are to be trained with the training datasets::
 
                                   scores
                         +------------------------+
@@ -52,8 +65,8 @@ class AlgoGen(Randomizable):
               |                                  |
               +----------------------------------+
 
-    It maintains a history of previously generated Algo, and their corresponding validation scores.
-    The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state.)
+    This class also maintains a history of previously generated Algo and their corresponding validation scores.
+    The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state).
     """
 
     def set_data_stats(self, *args, **kwargs):
@@ -81,9 +94,15 @@ class AlgoGen(Randomizable):
         pass
 
     def generate(self):
-        """Generate new Algo"""
+        """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
         pass
 
     def run_algo(self, *args, **kwargs):
-        """Run the algorithms."""
+        """
+        Launch the Algos. This is useful for light-weight Algos where there's no need to distribute the training jobs.
+
+        If the generated Algos require significant scheduling of parallel executions, a job scheduler/controller
+        implemented separately is preferred to run them. In this case the controller should also report back the
+        scores and the algo history, so that the future ``AlgoGen.generate`` can leverage the information.
+        """
         pass
