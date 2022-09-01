@@ -288,9 +288,9 @@ class BasicUNetPlusPlus(nn.Module):
         x_1_3 = self.upcat_1_3(x_2_2, torch.cat([x_1_0, x_1_1, x_1_2], dim=1))
         x_0_4 = self.upcat_0_4(x_1_3, torch.cat([x_0_0, x_0_1, x_0_2, x_0_3], dim=1))
 
-        output_0_1 = self.final_conv(x_0_4)
-        output_0_2 = self.final_conv(x_0_4)
-        output_0_3 = self.final_conv(x_0_4)
+        output_0_1 = self.final_conv(x_0_1)
+        output_0_2 = self.final_conv(x_0_2)
+        output_0_3 = self.final_conv(x_0_3)
         output_0_4 = self.final_conv(x_0_4)
 
         if self.deep_supervision:
