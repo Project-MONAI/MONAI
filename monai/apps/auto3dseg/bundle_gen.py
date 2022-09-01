@@ -213,6 +213,11 @@ class BundleAlgo(Algo):
 
 
 default_algos = {
+    "unet": dict(
+        _target_="algo_templates.unet.scripts.algo.UnetAlgo",
+        template_configs="../algo_templates/unet/configs",
+        scripts_path="../algo_templates/unet/scripts",
+    ),
     "segresnet2d": dict(
         _target_="algo_templates.segresnet2d.scripts.algo.Segresnet2DAlgo",
         template_configs="../algo_templates/segresnet2d/configs",

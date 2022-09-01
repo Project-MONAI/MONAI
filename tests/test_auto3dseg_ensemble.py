@@ -134,9 +134,11 @@ class TestEnsembleBuilder(unittest.TestCase):
                 self.algo_paths.append(algo.output_path)
                 self.best_metrics.append(algo.get_score())
 
+        self.history = record
+
     def test_data(self) -> None:
 
-        builder = ScriptEnsembleBuilder(self.algo_paths, self.best_metrics, self.data_src_cfg)
+        builder = ScriptEnsembleBuilder(self.history, self.data_src_cfg)
         builder.set_ensemble_method(EnsembleBestN(n_best=3))
         ensemble = builder.get_ensemble()
 

@@ -19,13 +19,14 @@ import json
 import numpy as np
 
 from abc import abstractmethod, ABC
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Dict
 from copy import deepcopy
+from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
 from monai.utils.enums import StrEnum
-
+from monai.apps.auto3dseg import BundleGen
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ class EnsembleBestN(ScriptEnsemble):
             infer_filename = self.infer_files[i]
             for algo in self.ranked_algo:
                 infer_instance = algo[ScriptEnsembleKeys.ALGO]
-                preds.append(infer_instance.infer(infer_filename))
+                preds.append(infer_instance.predict(infer_filename))
             output = sum(preds)/len(preds)
             print('ensemble_algorithm, preds', len(preds), 'output shape', output.shape)
 
@@ -120,7 +121,7 @@ class ScriptEnsembleBuilder:
     Build ensemble workflow from configs and arguments.
     Example usage
 
-    builder = ScriptEnsembleBuilder(algo_paths, best_metrics, test_list)
+    builder = ScriptEnsembleBuilder(history, data_src_cfg)
     builder.set_ensemble_method(EnsembleBestN(3))
     ensemble = builder.get_ensemble()
 
@@ -129,64 +130,50 @@ class ScriptEnsembleBuilder:
     """
 
     def __init__(self,
-        algo_paths: Sequence[str],
-        best_metrics: Sequence[Union[float, None]],
+        history: Sequence[Dict],
         data_src_cfg_filename: Optional[str] = None,
     ):
         self.infer_algos = []
-        self.best_metrics = best_metrics
         self.ensemble: ScriptEnsemble = None
         self.data_src_cfg = ConfigParser(globals=False)
-
-        if len(algo_paths) != len(best_metrics):
-            raise ValueError("Numbers of elements in algo_paths and best_metrics are not equal")
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
             self.data_src_cfg.read_config(data_src_cfg_filename)
 
-        for algo_path, best_metric in zip(algo_paths, best_metrics):
+        for h in history:
             # load inference_config_paths
             # raise warning/error if not found
-            if not os.path.isdir(algo_path):
-                raise ValueError(f"{algo_path} is not a directory. Please check the path.")
+            if h.keys() > 1:
+                raise ValueError(f"{h} should only contain one set of genAlgo key-value")
 
-            identifier = os.path.basename(algo_path)
+            name = list(h.keys())[0]
+            gen_algo = h[name]
+            best_metric = gen_algo.get_score()
+            algo_path = gen_algo.output_path
             infer_path = os.path.join(algo_path, 'scripts', 'infer.py')
+
+            if not os.path.isdir(algo_path):
+                raise ValueError(f"{gen_algo.output_path} is not a directory. Please check the path.")
 
             if not os.path.isfile(infer_path):
                 raise ValueError(f"{infer_path} is not found. Please check the path.")
 
-            config_path = os.path.join(algo_path, 'configs', 'algo_config.yaml')
-
-            config_path = config_path if os.path.isfile(config_path) else None
-
-            self.add_inferer(identifier, infer_path, config_path, best_metric)
+            self.add_inferer(name, gen_algo, best_metric)
 
 
     def add_inferer(self,
             identifier: str,
-            infer_path: str,
-            config_path: str=None,
+            gen_algo: BundleAlgo,
             best_metric: Optional[float]=None,
-            **override):
+        ):
         """Add model inferer to the builder."""
-
-        # module = importlib.import_module(infer_path)
-        # class_ = getattr(module, 'InferClass')
-        # algo = class_(config_path, **override)
-
-        spec = importlib.util.spec_from_file_location("InferClass", infer_path)
-        infer_class = importlib.util.module_from_spec(spec)
-        sys.modules["InferClass"] = infer_class
-        spec.loader.exec_module(infer_class)
-        infer_instance = infer_class.InferClass(config_path, **override)
 
         if best_metric is None:
             raise ValueError("Feature to re-valiate is to be implemented")
 
         algo = {
             ScriptEnsembleKeys.ID: identifier,
-            ScriptEnsembleKeys.ALGO: infer_instance,
+            ScriptEnsembleKeys.ALGO: gen_algo,
             ScriptEnsembleKeys.SCORE: best_metric
         }
         self.infer_algos.append(algo)
