@@ -24,8 +24,9 @@ from monai.data import create_test_image_3d
 
 algo_zip = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/algo_templates.tar.xz"
 md5 = "596c609035595a5d05ee7bdd70511c84"
+from typing import Dict, List
 
-fake_datalist = {
+fake_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
@@ -141,7 +142,8 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         num_epoch = 2
         batch_size = 2
-        n_iter = int(num_epoch * len(fake_datalist["training"]) * 4 / 5 / batch_size)
+        n_data = len(fake_datalist["training"])
+        n_iter = int(num_epoch * n_data * 4 / 5 / batch_size)
         n_iter_val = int(n_iter / 2)
 
         train_param = {

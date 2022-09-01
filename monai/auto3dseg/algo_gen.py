@@ -18,7 +18,7 @@ class Algo:
     such as image preprocessing, followed by deep learning model training and evaluation.
     """
 
-    def set_data_stats(self, *args, **kwargs):
+    def set_data_stats(self, *args, **kwargs):  # type: ignore
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 
@@ -69,7 +69,7 @@ class AlgoGen(Randomizable):
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state).
     """
 
-    def set_data_stats(self, *args, **kwargs):
+    def set_data_stats(self, *args, **kwargs):  # type ignore
         """Provide dataset summaries/properties so that the generator can be conditioned on the input datasets."""
         pass
 

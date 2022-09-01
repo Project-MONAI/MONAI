@@ -13,10 +13,9 @@
 import json
 import logging
 import os
-
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Dict, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 
@@ -125,7 +124,7 @@ class EnsembleBestN(ScriptEnsemble):
             if idx < len(self.ranked_algo):
                 self.ranked_algo.pop(idx)
 
-    def predict(self, param: dict = None):
+    def predict(self, param: Optional[Dict[str, Any]] = None):
         """predict the ensembled pred"""
         if param is None:
             param = {}
@@ -161,8 +160,8 @@ class ScriptEnsembleBuilder:
     """
 
     def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):
-        self.infer_algos = []
-        self.ensemble: ScriptEnsemble = None
+        self.infer_algos: List[Dict[ScriptEnsembleKeys, Any]] = []
+        self.ensemble: ScriptEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
