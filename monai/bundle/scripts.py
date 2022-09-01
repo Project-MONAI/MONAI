@@ -191,7 +191,7 @@ def download(
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
             for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
-        version: version name of the target bundle to download, like: "0.1.0" or "v0.1.0".
+        version: version name of the target bundle to download, like: "0.1.0".
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
@@ -224,7 +224,7 @@ def download(
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if name_ is not None and version_ is not None:
-        name_ = ("_" if version_.startswith("v") else "_v").join([name_, version_])
+        name_ = "_v".join([name_, version_])
 
     if url_ is not None:
         if name_ is not None:
@@ -264,7 +264,7 @@ def load(
     Args:
         name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
-        version: version name of the target bundle to download, like: "0.1.0" or "v0.1.0".
+        version: version name of the target bundle to download, like: "0.1.0".
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
