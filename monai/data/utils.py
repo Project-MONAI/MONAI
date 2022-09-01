@@ -695,7 +695,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
         affine: a d x d affine matrix.
         r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
         dtype: data type of the output.
-        suppress_zeros: whether to surpress the zeros with ones.
+        suppress_zeros: whether to suppress the zeros with ones.
 
     Returns:
         an `r` dimensional vector of spacing.

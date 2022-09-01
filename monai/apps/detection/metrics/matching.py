@@ -162,7 +162,7 @@ def matching_batch(
         result = {}  # dict contains results for each class in one image
         for c in img_classes:
             pred_mask = pclasses == c  # bool mask predictions with current class
-            gt_mask = gclasses == c  # nool mask ground trtuh with current class
+            gt_mask = gclasses == c  # bool mask ground truth with current class
 
             if not np.any(gt_mask):  # no ground truth
                 result[c] = _matching_no_gt(

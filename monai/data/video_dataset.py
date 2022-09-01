@@ -31,7 +31,7 @@ __all__ = ["VideoDataset", "VideoFileDataset", "CameraDataset"]
 
 
 class SuppressStderr:
-    """Suppres stderr. Useful as OpenCV (and dependencies) can produce a lot of output."""
+    """Suppress stderr. Useful as OpenCV (and dependencies) can produce a lot of output."""
 
     def __enter__(self):
         self.errnull_file = open(os.devnull, "w")
@@ -117,7 +117,7 @@ class VideoDataset:
         return cap
 
     def _get_cap(self):
-        """Return the cap. If multiprocesing, create a new one. Else return the one from construction time."""
+        """Return the cap. If multiprocessing, create a new one. Else return the one from construction time."""
         return self.open_video(self.video_source) if self.multiprocessing else self.cap
 
     def get_fps(self) -> int:
