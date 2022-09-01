@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .algo_gen import Algo, AlgoGen
 from .analyzer import (
     FgImageStats,
     FgImageStatsSumm,
