@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 import torch.distributed as dist
-import yaml
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
 
@@ -133,17 +132,18 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     print("val_files:", len(val_files))
 
     if torch.cuda.device_count() >= 4:
-        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=2)
-        val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2)
+        train_ds = monai.data.CacheDataset(data=train_files, transform=train_transforms, cache_rate=1.0, num_workers=8, progress=False)
+        val_ds = monai.data.CacheDataset(data=val_files, transform=val_transforms, cache_rate=1.0, num_workers=2, progress=False)
     else:
         train_ds = monai.data.CacheDataset(
             data=train_files,
             transform=train_transforms,
             cache_rate=float(torch.cuda.device_count()) / 4.0,
-            num_workers=4,
+            num_workers=8,
+            progress=False,
         )
         val_ds = monai.data.CacheDataset(
-            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2
+            data=val_files, transform=val_transforms, cache_rate=float(torch.cuda.device_count()) / 4.0, num_workers=2, progress=False
         )
 
     train_loader = DataLoader(train_ds, num_workers=2, batch_size=num_images_per_batch, shuffle=True)
@@ -154,7 +154,8 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     model = parser.get_parsed_content("network")
     model = model.to(device)
-    model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    if torch.cuda.device_count() > 1:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     if softmax:
         post_pred = transforms.Compose(
@@ -358,9 +359,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
                         dict_file["best_avg_dice_score"] = float(best_metric)
                         dict_file["best_avg_dice_score_epoch"] = int(best_metric_epoch)
                         dict_file["best_avg_dice_score_iteration"] = int(idx_iter)
-                        with open(os.path.join(ckpt_path, "progress.yaml"), "a") as out_file:
-                            yaml.dump(dict_file, stream=out_file)
-
+                        ConfigParser.export_config_file(dict_file, os.path.join(ckpt_path, "progress.yaml"))
                     print(
                         "current epoch: {} current mean dice: {:.4f} best mean dice: {:.4f} at epoch {}".format(
                             epoch + 1, avg_metric, best_metric, best_metric_epoch

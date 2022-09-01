@@ -1,8 +1,0 @@
----
-network:
-  _target_: SegResNet
-  spatial_dims: 2
-  init_filters: 32
-  in_channels: "$@input_channels * (2 * @num_adjacent_slices + 1)"
-  out_channels: "@output_classes"
-  dropout_prob: 0.1

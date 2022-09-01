@@ -81,7 +81,7 @@ class InferClass:
 
         self.model = parser.get_parsed_content("network")
         self.model = self.model.to(self.device)
-        self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
+        # self.model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(self.model)
 
         pretrained_ckpt = torch.load(ckpt_name, map_location=self.device)
         self.model.load_state_dict(pretrained_ckpt)
