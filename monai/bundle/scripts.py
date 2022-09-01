@@ -227,7 +227,7 @@ def download(
         name_ = ("_" if version_.startswith("v") else "_v").join([name_, version_])
 
     if url_ is not None:
-        if name_ is not None:     
+        if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
         else:
             filepath = bundle_dir_ / f"{_basename(url_)}"
