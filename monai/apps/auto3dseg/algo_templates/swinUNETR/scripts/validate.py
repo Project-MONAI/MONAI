@@ -96,7 +96,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
     model = model.to(device)
     if torch.cuda.device_count() > 1
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        
+
     pretrained_ckpt = torch.load(ckpt_name, map_location=device)
     model.load_state_dict(pretrained_ckpt)
     print(f"[info] checkpoint {ckpt_name:s} loaded")
