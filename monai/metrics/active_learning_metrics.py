@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 import torch
 
 from monai.metrics.utils import ignore_background
@@ -45,7 +47,7 @@ class VarianceMetric(Metric):
         self.scalar_reduction = scalar_reduction
         self.threshold = threshold
 
-    def _compute(self, y_pred: torch.Tensor):
+    def __call__(self, y_pred: torch.Tensor):
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
@@ -65,7 +67,11 @@ class VarianceMetric(Metric):
 
 
 def compute_variance(
-    y_pred: torch.Tensor, include_background=True, spatial_map=False, scalar_reduction="mean", threshold=0.0005
+    y_pred: torch.Tensor,
+    include_background: bool = True,
+    spatial_map: bool = False,
+    scalar_reduction: str = "mean",
+    threshold: float = 0.0005,
 ):
     """
     Args:
@@ -93,8 +99,7 @@ def compute_variance(
     n_len = len(y_pred.shape)
 
     if n_len < 4 and spatial_map is True:
-        print("Spatial Map set to True for a 1-D array, the provided input is {}".format(y_pred.shape))
-        print("Spatial map requires a 2D/3D image with N-repeats and C-channels")
+        warnings.warn("Spatial map requires a 2D/3D image with N-repeats and C-channels")
         return None
 
     # Create new shape list

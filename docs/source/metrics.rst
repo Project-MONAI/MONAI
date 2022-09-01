@@ -123,3 +123,10 @@ Utilities
 ---------
 .. automodule:: monai.metrics.utils
   :members:
+
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
