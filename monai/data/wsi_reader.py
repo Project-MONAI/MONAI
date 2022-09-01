@@ -104,6 +104,18 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
+    def get_mpp(self, wsi, level: int) -> Tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+    @abstractmethod
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
@@ -146,7 +158,7 @@ class BaseWSIReader(ImageReader):
             "backend": self.backend,
             "original_channel_dim": channel_dim,
             "spatial_shape": np.array(patch.shape[:channel_dim] + patch.shape[channel_dim + 1 :]),
-            "num_patches": 1,
+            WSIPatchKeys.COUNT.value: 1,
             WSIPatchKeys.PATH.value: self.get_file_path(wsi),
             WSIPatchKeys.LOCATION.value: np.asarray(location),
             WSIPatchKeys.SIZE.value: np.asarray(size),
@@ -322,6 +334,17 @@ class WSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return self.reader.get_file_path(wsi)
 
+    def get_mpp(self, wsi, level: int) -> Tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        return self.reader.get_mpp(wsi, level)
+
     def get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
@@ -412,9 +435,23 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return wsi.resolutions["level_downsamples"][level]  # type: ignore
 
-    def get_file_path(self, wsi) -> str:
+    @staticmethod
+    def get_file_path(wsi) -> str:
         """Return the file path for the WSI object"""
         return str(abspath(wsi.path))
+
+    @staticmethod
+    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        factor = float(wsi.resolutions["level_downsamples"][level])
+        return (wsi.metadata["cucim"]["spacing"][1] * factor, wsi.metadata["cucim"]["spacing"][0] * factor)
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
@@ -534,9 +571,35 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return wsi.level_downsamples[level]  # type: ignore
 
-    def get_file_path(self, wsi) -> str:
+    @staticmethod
+    def get_file_path(wsi) -> str:
         """Return the file path for the WSI object"""
         return str(abspath(wsi._filename))
+
+    @staticmethod
+    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        unit = wsi.properties["tiff.ResolutionUnit"]
+        if unit == "centimeter":
+            factor = 10000.0
+        elif unit == "milimeter":
+            factor = 1000.0
+        elif unit == "micrometer":
+            factor = 1.0
+        elif unit == "inch":
+            factor = 25400.0
+        else:
+            raise ValueError(f"The resolution unit is not a valid tiff resolution: {unit}")
+
+        factor *= wsi.level_downsamples[level]
+        return (factor / float(wsi.properties["tiff.YResolution"]), factor / float(wsi.properties["tiff.XResolution"]))
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
@@ -647,9 +710,37 @@ class TiffFileWSIReader(BaseWSIReader):
         """
         return float(wsi.pages[0].imagelength) / float(wsi.pages[level].imagelength)
 
-    def get_file_path(self, wsi) -> str:
+    @staticmethod
+    def get_file_path(wsi) -> str:
         """Return the file path for the WSI object"""
         return str(abspath(wsi.filehandle.path))
+
+    @staticmethod
+    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+        """
+        Returns the micro-per-pixel resolution of the whole slide image at a given level.
+
+        Args:
+            wsi: a whole slide image object loaded from a file
+            level: the level number where the size is calculated
+
+        """
+        unit = wsi.pages[level].tags["ResolutionUnit"].value
+        if unit == unit.CENTIMETER:
+            factor = 10000.0
+        elif unit == unit.MILLIMETER:
+            factor = 1000.0
+        elif unit == unit.MICROMETER:
+            factor = 1.0
+        elif unit == unit.INCH:
+            factor = 25400.0
+        else:
+            raise ValueError(f"The resolution unit is not a valid tiff resolution or missing: {unit.name}")
+
+        # Here x and y resolutions are rational numbers so each of them is represented by a tuple.
+        yres = wsi.pages[level].tags["YResolution"].value
+        xres = wsi.pages[level].tags["XResolution"].value
+        return (factor * yres[1] / yres[0], factor * xres[1] / xres[0])
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
