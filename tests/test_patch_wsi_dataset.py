@@ -21,6 +21,7 @@ from monai.apps.pathology.data import PatchWSIDataset as PatchWSIDatasetDeprecat
 from monai.data import PatchWSIDataset
 from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader
 from monai.utils import deprecated, optional_import
+from monai.utils.enums import WSIPatchKeys
 from tests.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cim = optional_import("cucim")
@@ -37,7 +38,7 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + ba
 
 TEST_CASE_DEP_0 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -48,7 +49,7 @@ TEST_CASE_DEP_0 = [
 
 TEST_CASE_DEP_0_L1 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -60,7 +61,7 @@ TEST_CASE_DEP_0_L1 = [
 
 TEST_CASE_DEP_0_L2 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -73,7 +74,7 @@ TEST_CASE_DEP_0_L2 = [
 
 TEST_CASE_DEP_1 = [
     {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [10004, 20004], "label": [0, 0, 0, 1]}],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
         "patch_size": 1,
@@ -90,7 +91,7 @@ TEST_CASE_DEP_1 = [
 
 TEST_CASE_DEP_1_L0 = [
     {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [10004, 20004], "label": [0, 0, 0, 1]}],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
         "patch_size": 1,
@@ -108,7 +109,7 @@ TEST_CASE_DEP_1_L0 = [
 
 TEST_CASE_DEP_1_L1 = [
     {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [10004, 20004], "label": [0, 0, 0, 1]}],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
         "patch_size": 1,
@@ -124,7 +125,7 @@ TEST_CASE_DEP_1_L1 = [
 ]
 TEST_CASE_DEP_2 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": 1,
         "grid_shape": 1,
         "patch_size": 1,
@@ -135,7 +136,7 @@ TEST_CASE_DEP_2 = [
 
 TEST_CASE_DEP_3 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [[[0, 1], [1, 0]]]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [[[0, 1], [1, 0]]]}],
         "region_size": 1,
         "grid_shape": 1,
         "patch_size": 1,
@@ -146,7 +147,7 @@ TEST_CASE_DEP_3 = [
 
 TEST_CASE_DEP_OPENSLIDE_0 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -157,7 +158,7 @@ TEST_CASE_DEP_OPENSLIDE_0 = [
 
 TEST_CASE_DEP_OPENSLIDE_0_L0 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -169,7 +170,7 @@ TEST_CASE_DEP_OPENSLIDE_0_L0 = [
 
 TEST_CASE_DEP_OPENSLIDE_0_L1 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -182,7 +183,7 @@ TEST_CASE_DEP_OPENSLIDE_0_L1 = [
 
 TEST_CASE_DEP_OPENSLIDE_0_L2 = [
     {
-        "data": [{"image": FILE_PATH, "location": [0, 0], "label": [1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
         "region_size": (1, 1),
         "grid_shape": (1, 1),
         "patch_size": 1,
@@ -194,7 +195,7 @@ TEST_CASE_DEP_OPENSLIDE_0_L2 = [
 
 TEST_CASE_DEP_OPENSLIDE_1 = [
     {
-        "data": [{"image": FILE_PATH, "location": [10004, 20004], "label": [0, 0, 0, 1]}],
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [10004, 20004], "label": [0, 0, 0, 1]}],
         "region_size": (8, 8),
         "grid_shape": (2, 2),
         "patch_size": 1,
@@ -210,39 +211,57 @@ TEST_CASE_DEP_OPENSLIDE_1 = [
 
 
 TEST_CASE_0 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1], "patch_level": 0}], "patch_size": (1, 1)},
+    {
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1], "patch_level": 0}],
+        "patch_size": (1, 1),
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L1 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": (1, 1), "patch_level": 1},
+    {
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
+        "patch_size": (1, 1),
+        "patch_level": 1,
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_0_L2 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": (1, 1), "patch_level": 1},
+    {
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
+        "patch_size": (1, 1),
+        "patch_level": 1,
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 TEST_CASE_1 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "patch_size": 1, "label": [1]}]},
+    {"data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], WSIPatchKeys.SIZE.value: 1, "label": [1]}]},
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_2 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [1]}], "patch_size": 1, "patch_level": 0},
+    {
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
+        "patch_size": 1,
+        "patch_level": 0,
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([1])},
 ]
 
 TEST_CASE_3 = [
-    {"data": [{"image": FILE_PATH, "patch_location": [0, 0], "label": [[[0, 1], [1, 0]]]}], "patch_size": 1},
+    {
+        "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [[[0, 1], [1, 0]]]}],
+        "patch_size": 1,
+    },
     {"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[0, 1], [1, 0]]])},
 ]
 
 TEST_CASE_4 = [
     {
         "data": [
-            {"image": FILE_PATH, "patch_location": [0, 0], "label": [[[0, 1], [1, 0]]]},
-            {"image": FILE_PATH, "patch_location": [0, 0], "label": [[[1, 0], [0, 0]]]},
+            {"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [[[0, 1], [1, 0]]]},
+            {"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [[[1, 0], [0, 0]]]},
         ],
         "patch_size": 1,
     },
@@ -257,17 +276,17 @@ TEST_CASE_5 = [
         "data": [
             {
                 "image": FILE_PATH,
-                "patch_location": [0, 0],
+                WSIPatchKeys.LOCATION.value: [0, 0],
                 "label": [[[0, 1], [1, 0]]],
-                "patch_size": 1,
-                "patch_level": 1,
+                WSIPatchKeys.SIZE.value: 1,
+                WSIPatchKeys.LEVEL.value: 1,
             },
             {
                 "image": FILE_PATH,
-                "patch_location": [100, 100],
+                WSIPatchKeys.LOCATION.value: [100, 100],
                 "label": [[[1, 0], [0, 0]]],
-                "patch_size": 1,
-                "patch_level": 1,
+                WSIPatchKeys.SIZE.value: 1,
+                WSIPatchKeys.LEVEL.value: 1,
             },
         ]
     },

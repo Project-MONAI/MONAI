@@ -22,7 +22,7 @@ from monai.data.image_reader import WSIReader as WSIReaderDeprecated
 from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, FromMetaTensord, LoadImaged, ToTensord
 from monai.utils import deprecated, first, optional_import
-from monai.utils.enums import PostFix
+from monai.utils.enums import PostFix, WSIPatchKeys
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
@@ -128,6 +128,8 @@ TEST_CASE_ERROR_0C = [np.ones((16, 16), dtype=np.uint8)]  # no color channel
 TEST_CASE_ERROR_1C = [np.ones((16, 16, 1), dtype=np.uint8)]  # one color channel
 TEST_CASE_ERROR_2C = [np.ones((16, 16, 2), dtype=np.uint8)]  # two color channels
 TEST_CASE_ERROR_3D = [np.ones((16, 16, 16, 3), dtype=np.uint8)]  # 3D + color
+
+TEST_CASE_MPP_0 = [FILE_PATH, 0, (1000.0, 1000.0)]
 
 
 def save_rgba_tiff(array: np.ndarray, filename: str, mode: str):
@@ -271,10 +273,10 @@ class WSIReaderTests:
                 img, meta = reader.get_data(img_obj)
             self.assertTupleEqual(img.shape, expected_shape)
             self.assertEqual(meta["backend"], self.backend)
-            self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
-            self.assertEqual(meta["patch_level"], level)
-            assert_array_equal(meta["patch_size"], expected_shape[1:])
-            assert_array_equal(meta["patch_location"], (0, 0))
+            self.assertEqual(meta[WSIPatchKeys.PATH], str(os.path.abspath(file_path)))
+            self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
+            assert_array_equal(meta[WSIPatchKeys.SIZE], expected_shape[1:])
+            assert_array_equal(meta[WSIPatchKeys.LOCATION], (0, 0))
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
         def test_read_region(self, file_path, kwargs, patch_info, expected_img):
@@ -290,10 +292,10 @@ class WSIReaderTests:
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
             self.assertEqual(meta["backend"], self.backend)
-            self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
-            self.assertEqual(meta["patch_level"], patch_info["level"])
-            assert_array_equal(meta["patch_size"], patch_info["size"])
-            assert_array_equal(meta["patch_location"], patch_info["location"])
+            self.assertEqual(meta[WSIPatchKeys.PATH], str(os.path.abspath(file_path)))
+            self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
+            assert_array_equal(meta[WSIPatchKeys.SIZE], patch_info["size"])
+            assert_array_equal(meta[WSIPatchKeys.LOCATION], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_MULTI_WSI])
         def test_read_region_multi_wsi(self, file_path_list, patch_info, expected_img):
@@ -310,10 +312,10 @@ class WSIReaderTests:
             self.assertTupleEqual(img.shape, expected_img.shape)
             self.assertIsNone(assert_array_equal(img, expected_img))
             self.assertEqual(meta["backend"], self.backend)
-            self.assertEqual(meta["path"][0], str(os.path.abspath(file_path_list[0])))
-            self.assertEqual(meta["patch_level"][0], patch_info["level"])
-            assert_array_equal(meta["patch_size"][0], expected_img.shape[1:])
-            assert_array_equal(meta["patch_location"][0], patch_info["location"])
+            self.assertEqual(meta[WSIPatchKeys.PATH][0], str(os.path.abspath(file_path_list[0])))
+            self.assertEqual(meta[WSIPatchKeys.LEVEL][0], patch_info["level"])
+            assert_array_equal(meta[WSIPatchKeys.SIZE][0], expected_img.shape[1:])
+            assert_array_equal(meta[WSIPatchKeys.LOCATION][0], patch_info["location"])
 
         @parameterized.expand([TEST_CASE_RGB_0, TEST_CASE_RGB_1])
         @skipUnless(has_tiff, "Requires tifffile.")
@@ -389,10 +391,10 @@ class WSIReaderTests:
                     img, meta = reader.get_data(img_obj)
                 self.assertTupleEqual(img.shape, expected_shape)
                 self.assertEqual(meta["backend"], self.backend)
-                self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
-                self.assertEqual(meta["patch_level"], level)
-                assert_array_equal(meta["patch_size"], expected_shape[1:])
-                assert_array_equal(meta["patch_location"], (0, 0))
+                self.assertEqual(meta[WSIPatchKeys.PATH], str(os.path.abspath(file_path)))
+                self.assertEqual(meta[WSIPatchKeys.LEVEL], level)
+                assert_array_equal(meta[WSIPatchKeys.SIZE], expected_shape[1:])
+                assert_array_equal(meta[WSIPatchKeys.LOCATION], (0, 0))
 
         @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
         def test_read_region_multi_thread(self, file_path, kwargs, patch_info, expected_img):
@@ -407,10 +409,17 @@ class WSIReaderTests:
                     self.assertTupleEqual(img.shape, expected_img.shape)
                     self.assertIsNone(assert_array_equal(img, expected_img))
                     self.assertEqual(meta["backend"], self.backend)
-                    self.assertEqual(meta["path"], str(os.path.abspath(file_path)))
-                    self.assertEqual(meta["patch_level"], patch_info["level"])
-                    assert_array_equal(meta["patch_size"], patch_info["size"])
-                    assert_array_equal(meta["patch_location"], patch_info["location"])
+                    self.assertEqual(meta[WSIPatchKeys.PATH], str(os.path.abspath(file_path)))
+                    self.assertEqual(meta[WSIPatchKeys.LEVEL], patch_info["level"])
+                    assert_array_equal(meta[WSIPatchKeys.SIZE], patch_info["size"])
+                    assert_array_equal(meta[WSIPatchKeys.LOCATION], patch_info["location"])
+
+        @parameterized.expand([TEST_CASE_MPP_0])
+        def test_resolution_mpp(self, file_path, level, expected_mpp):
+            reader = WSIReader(self.backend, level=level)
+            with reader.read(file_path) as img_obj:
+                mpp = reader.get_mpp(img_obj, level)
+            self.assertTupleEqual(mpp, expected_mpp)
 
 
 @skipUnless(has_cucim, "Requires cucim")
