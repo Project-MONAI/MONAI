@@ -44,6 +44,19 @@ class TestSqueezeDim(unittest.TestCase):
         with self.assertRaises(exception):
             SqueezeDim(**input_param)(test_data)
 
+    def test_affine_ill_inputs(self):
+        img = MetaTensor(
+            np.random.rand(1, 2, 1, 3),
+            affine=[
+                [-0.7422, 0.0, 0.0, 186.3210],
+                [0.0, 0.0, -3.0, 70.6580],
+                [0.0, -0.7422, 0.0, 189.4130],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+        )
+        with self.assertWarns(UserWarning):
+            SqueezeDim(dim=2)(img)
+
 
 if __name__ == "__main__":
     unittest.main()
