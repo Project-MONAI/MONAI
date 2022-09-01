@@ -9,7 +9,7 @@ import torch
 
 from monai.transforms.atmostonce import array as amoa
 from monai.transforms.atmostonce.array import Rotate, CropPad
-from monai.transforms.atmostonce.lazy_transform import compile_transforms
+from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.utils import TransformBackends
 
 from monai.transforms import Affined, Affine
@@ -243,6 +243,9 @@ class TestFunctional(unittest.TestCase):
                                     [115., 116., 117., 118., 119., 120.]])
         self._croppad_impl((16, 16), (slice(4, 8), slice(3, 9)), expected)
 
+
+class TestArrayTransforms(unittest.TestCase):
+
     # TODO: amo: add tests for matrix and result size
     def test_croppad(self):
         img = get_img((15, 15)).astype(int)
@@ -274,9 +277,6 @@ class TestFunctional(unittest.TestCase):
 
         img_rca = apply(img_rc)
 
-
-class TestArrayTransforms(unittest.TestCase):
-
     def test_rand_rotate(self):
         r = amoa.RandRotate((-torch.pi / 4, torch.pi / 4),
                             prob=0.0,
@@ -289,8 +289,19 @@ class TestArrayTransforms(unittest.TestCase):
         enumerate_results_of_op(results)
         enumerate_results_of_op(results.pending_transforms[-1].metadata)
 
+    def test_rotate_apply(self):
+        r = amoa.Rotate(-torch.pi / 4,
+                        mode="bilinear",
+                        padding_mode="border",
+                        keep_size=False)
+        data = get_img((32, 32))
+        data = r(data)
+        data = apply(data)
+        print(data)
 
-class TestRotateEulerd(unittest.TestCase):
+
+
+class TestDictionaryTransforms(unittest.TestCase):
 
     def test_rotate_numpy(self):
         r = Rotated(('image', 'label'), [0.0, 1.0, 0.0])
