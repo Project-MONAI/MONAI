@@ -30,6 +30,7 @@ __all__ = [
     "concat_val_to_np",
     "concat_multikeys_to_dict",
     "datafold_read",
+    "verify_report_format",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
