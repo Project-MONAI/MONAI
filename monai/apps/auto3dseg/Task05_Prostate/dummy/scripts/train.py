@@ -9,31 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-import logging
-import math
-import os
-import random
-import sys
-import time
-from datetime import datetime
 from typing import Optional, Sequence, Union
 
-import numpy as np
-import torch
-import torch.distributed as dist
-import yaml
-from torch.nn.parallel import DistributedDataParallel
-from torch.utils.tensorboard import SummaryWriter
 
-import monai
-from monai import transforms
 from monai.bundle import ConfigParser
 from monai.bundle.scripts import _pop_args, _update_args
-from monai.data import DataLoader, partition_dataset
-from monai.inferers import sliding_window_inference
-from monai.metrics import compute_meandice
-from monai.utils import set_determinism
 
 
 def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
@@ -46,7 +26,7 @@ def run(config_file: Optional[Union[str, Sequence[str]]] = None, **override):
 
     lr = parser.get_parsed_content("lr")
     return lr
-    
+
 if __name__ == "__main__":
     from monai.utils import optional_import
 

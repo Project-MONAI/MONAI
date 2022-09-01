@@ -1,7 +1,5 @@
 import optuna
-import pdb
 import sys
-import yaml
 sys.path.append('..')
 from dummy_trainner import trainner
 from hpo_wrapper import HPO_wrapper
@@ -9,10 +7,10 @@ from hpo_wrapper import HPO_wrapper
 class OPTUNA_wrapper(HPO_wrapper):
     def __init__(self, trainner=None, **kwargs):
         super().__init__(trainner, **kwargs)
-    
+
     def _get_hyperparameters(self, trial):
         return {'lr': trial.suggest_float("lr", -10, 10)}
-        
+
     def _update_model(self, params):
         self.trainner.update(params)
 
@@ -32,4 +30,4 @@ if __name__ == "__main__":
     optuna_wrapper = OPTUNA_wrapper(trainner=model)
     study = optuna.create_study()
     study.optimize(optuna_wrapper, n_trials=100)
-    print("Best value: {} (params: {})\n".format(study.best_value, study.best_params))  
+    print(f"Best value: {study.best_value} (params: {study.best_params})\n")

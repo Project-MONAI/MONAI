@@ -2,7 +2,6 @@
 
 import importlib
 import json
-import monai
 import os
 import shutil
 import sys
@@ -48,7 +47,7 @@ for _i in range(len(selected_algorithms)):
     print(json.dumps(selected_algorithm, indent=4))
 
     module = importlib.import_module(
-        "monai.apps.auto3dseg.algorithms.templates.{0:s}.algo".format(
+        "monai.apps.auto3dseg.algorithms.templates.{:s}.algo".format(
             selected_algorithm["name"]
         )
     )
@@ -63,4 +62,3 @@ for _i in range(len(selected_algorithms)):
     )
     best_metric = algo.train()
     print("best_metric", best_metric)
-

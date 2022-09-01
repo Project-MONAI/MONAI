@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import importlib
 import os
 class HPO_wrapper():
@@ -18,10 +18,10 @@ class HPO_wrapper():
         self.algo_name = algo_name
         self.task_folder = task_folder
         self.task_module = task_module
-    
+
     def _get_trainer(self, algo_name, task_folder):
         module = importlib.import_module(
-            "monai.apps.auto3dseg.algorithms.templates.{0:s}.algo".format(algo_name)
+            f"monai.apps.auto3dseg.algorithms.templates.{algo_name:s}.algo"
         )
         class_ = getattr(module, "Algo")
         algo = class_(algorithm_dir=os.path.join(task_folder, algo_name))
@@ -34,14 +34,10 @@ class HPO_wrapper():
     @abstractmethod
     def _update_algo():
         pass
-    
+
     @abstractmethod
     def _report_results():
         pass
-    
+
     def __call__():
         pass
-
-
-
-

@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC, abstractmethod
-import nni
+from abc import abstractmethod
 class HPO_wrapper():
     def __init__(self, trainner=None):
         self.trainner = trainner
@@ -26,14 +25,10 @@ class HPO_wrapper():
     @abstractmethod
     def _train():
         pass
-    
+
     @abstractmethod
     def _report_results():
         pass
-    
+
     def __call__():
         pass
-
-
-
-
