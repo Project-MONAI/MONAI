@@ -890,7 +890,7 @@ class SobelGradients(Transform):
         ).expand(size, size)
         denominator = numerator * numerator
         denominator = denominator + denominator.T
-        denominator[:, size // 2] = 1.0  # to avoid devide by zero
+        denominator[:, size // 2] = 1.0  # to avoid division by zero
         kernel = numerator / denominator
         return kernel
 
