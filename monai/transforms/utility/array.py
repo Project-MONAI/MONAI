@@ -641,9 +641,7 @@ class SqueezeDim(Transform):
                 affine = affine[torch.arange(0, h, device=device) != dim - 1]
             if w > dim:
                 affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
-            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(
-                convert_to_numpy(img.affine, wrap_sequence=True)
-            ):
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
                 warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
             img.affine = affine
         return img
