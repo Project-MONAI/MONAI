@@ -184,8 +184,8 @@ class BasicUNetPlusPlus(nn.Module):
 
         Based on:
 
-            Zhou et al. "UNet++: A Nested U-Net Architecture for Medical Image 
-            Segmentation". 4th Deep Learning in Medical Image Analysis (DLMIA) 
+            Zhou et al. "UNet++: A Nested U-Net Architecture for Medical Image
+            Segmentation". 4th Deep Learning in Medical Image Analysis (DLMIA)
             Workshop, DOI: https://doi.org/10.48550/arXiv.1807.10165
 
 
@@ -198,8 +198,8 @@ class BasicUNetPlusPlus(nn.Module):
 
                 - the first five values correspond to the five-level encoder feature sizes.
                 - the last value corresponds to the feature size after the last upsampling.
-            
-            deep_supervision: whether to prune the network at inference time. Defaults to False. If true, returns a list, 
+
+            deep_supervision: whether to prune the network at inference time. Defaults to False. If true, returns a list,
             whose elements correspond to outputs at different nodes.
             act: activation type and arguments. Defaults to LeakyReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
@@ -214,7 +214,7 @@ class BasicUNetPlusPlus(nn.Module):
 
             # for spatial 2D
             >>> net = BasicUNetPlusPlus(spatial_dims=2, features=(64, 128, 256, 512, 1024, 128))
-            
+
             # for spatial 2D, with deep supervision enabled
             >>> net = BasicUNetPlusPlus(spatial_dims=2, features=(64, 128, 256, 512, 1024, 128), deep_supervision=True)
 
@@ -254,7 +254,7 @@ class BasicUNetPlusPlus(nn.Module):
 
         self.upcat_0_3 = UpCat(spatial_dims, fea[1], fea[0]*3, fea[0], act, norm, bias, dropout, upsample, halves=False)
         self.upcat_1_3 = UpCat(spatial_dims, fea[2], fea[1]*3, fea[1], act, norm, bias, dropout, upsample)
-        
+
         self.upcat_0_4 = UpCat(spatial_dims, fea[1], fea[0]*4, fea[5], act, norm, bias, dropout, upsample, halves=False)
 
         self.final_conv_0_1 = Conv["conv", spatial_dims](fea[0], out_channels, kernel_size=1)
@@ -291,7 +291,7 @@ class BasicUNetPlusPlus(nn.Module):
         x_3_1 = self.upcat_3_1(x_4_0, x_3_0)
         x_2_2 = self.upcat_2_2(x_3_1, torch.cat([x_2_0, x_2_1], dim=1))
         x_1_3 = self.upcat_1_3(x_2_2, torch.cat([x_1_0, x_1_1, x_1_2], dim=1))
-        x_0_4 = self.upcat_0_4(x_1_3, torch.cat([x_0_0, x_0_1, x_0_2, x_0_3], dim=1)) 
+        x_0_4 = self.upcat_0_4(x_1_3, torch.cat([x_0_0, x_0_1, x_0_2, x_0_3], dim=1))
 
         output_0_1 = self.final_conv_0_1(x_0_1)
         output_0_2 = self.final_conv_0_2(x_0_2)
