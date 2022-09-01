@@ -529,7 +529,7 @@ Nets
 .. autoclass:: Basicunet
 
 `BasicUNetPlusPlus`
-~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 .. autoclass:: BasicUNetPlusPlus
   :members:
 .. autoclass:: BasicUnetPlusPlus
