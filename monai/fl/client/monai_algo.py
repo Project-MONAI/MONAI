@@ -407,17 +407,13 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
-            self.trainer.terminate()
-            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
-            if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                self.trainer._fire_event(Events.EPOCH_COMPLETED)
+            self.trainer.interrupt()
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
-            self.evaluator.terminate()
+            self.evaluator.interrupt()
 
     def finalize(self, extra=None):
         """
@@ -425,10 +421,6 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
-        # TODO: finalize feature could be built into the MONAI Trainer class
-        if extra is None:
-            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
