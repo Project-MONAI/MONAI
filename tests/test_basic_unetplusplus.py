@@ -95,7 +95,7 @@ class TestBasicUNETPlusPlus(unittest.TestCase):
       test_data = torch.randn(16, 1, 32, 32)
       with eval_mode(net):
         result = net(test_data)
-      self.assertEqual(result[0].shape, test_data.shape)    
+      self.assertEqual(result[0].shape, test_data.shape)
 
     def test_script(self):
         net = BasicUNetPlusPlus(spatial_dims=2, deep_supervision=True, in_channels=1, out_channels=3)
