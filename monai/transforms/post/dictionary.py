@@ -138,7 +138,6 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
     @deprecated_arg(
@@ -152,7 +151,6 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
         num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
         logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
         threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
@@ -171,9 +169,6 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
 
         .. deprecated:: 0.7.0
             ``num_classes`` is deprecated, use ``to_onehot`` instead.

@@ -46,7 +46,6 @@ from monai.utils import (
     PostFix,
     PytorchPadMode,
     TraceKeys,
-    deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -1417,10 +1416,7 @@ class Fourier:
     """
 
     @staticmethod
-    @deprecated_arg(
-        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
-    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1429,14 +1425,9 @@ class Fourier:
             x: Image to transform.
             spatial_dims: Number of spatial dimensions.
 
-        .. deprecated:: 0.6.0
-            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
-
         Returns
             k: K-space data.
         """
-        if n_dims is not None:
-            spatial_dims = n_dims
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
@@ -1450,9 +1441,6 @@ class Fourier:
         return k
 
     @staticmethod
-    @deprecated_arg(
-        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
@@ -1462,14 +1450,9 @@ class Fourier:
             k: K-space data.
             spatial_dims: Number of spatial dimensions.
 
-        .. deprecated:: 0.6.0
-            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
-
         Returns:
             x: Tensor in image space.
         """
-        if n_dims is not None:
-            spatial_dims = n_dims
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):

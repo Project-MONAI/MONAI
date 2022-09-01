@@ -161,9 +161,6 @@ class AsDiscrete(Transform):
         >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
         # [[[0.0, 0.0]], [[1.0, 1.0]]]
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
     .. deprecated:: 0.7.0
         ``num_classes`` is deprecated, use ``to_onehot`` instead.
         ``logit_thresh`` is deprecated, use ``threshold`` instead.
@@ -173,7 +170,6 @@ class AsDiscrete(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
     @deprecated_arg(
@@ -185,7 +181,6 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
         num_classes: Optional[int] = None,  # deprecated
         logit_thresh: float = 0.5,  # deprecated
         threshold_values: Optional[bool] = False,  # deprecated
@@ -203,7 +198,6 @@ class AsDiscrete(Transform):
 
         self.rounding = rounding
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
     @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
     @deprecated_arg(
@@ -216,7 +210,6 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
         num_classes: Optional[int] = None,  # deprecated
         logit_thresh: Optional[float] = None,  # deprecated
         threshold_values: Optional[bool] = None,  # deprecated
@@ -233,9 +226,6 @@ class AsDiscrete(Transform):
                 Defaults to ``self.threshold``.
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
-
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
 
         .. deprecated:: 0.7.0
             ``num_classes`` is deprecated, use ``to_onehot`` instead.

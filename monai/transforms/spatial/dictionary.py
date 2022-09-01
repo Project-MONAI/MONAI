@@ -626,7 +626,6 @@ class Affined(MapTransform, InvertibleTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -638,7 +637,6 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
@@ -695,9 +693,6 @@ class Affined(MapTransform, InvertibleTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.affine = Affine(
@@ -733,7 +728,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     backend = RandAffine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -746,7 +740,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -806,9 +799,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -883,7 +873,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand2DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -897,7 +886,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -956,9 +944,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1024,7 +1009,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand3DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1038,7 +1022,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1099,9 +1082,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)

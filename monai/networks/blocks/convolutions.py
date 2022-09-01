@@ -18,7 +18,6 @@ import torch.nn as nn
 from monai.networks.blocks import ADN
 from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
 from monai.networks.layers.factories import Conv
-from monai.utils.deprecate_utils import deprecated_arg
 
 
 class Convolution(nn.Sequential):
@@ -38,7 +37,7 @@ class Convolution(nn.Sequential):
         from monai.networks.blocks import Convolution
 
         conv = Convolution(
-            dimensions=3,
+            spatial_dims=3,
             in_channels=1,
             out_channels=1,
             adn_ordering="ADN",
@@ -87,9 +86,6 @@ class Convolution(nn.Sequential):
         output_padding: controls the additional size added to one side of the output shape.
             Defaults to None.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     See also:
 
         :py:class:`monai.networks.layers.Conv`
@@ -97,9 +93,6 @@ class Convolution(nn.Sequential):
 
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -119,10 +112,9 @@ class Convolution(nn.Sequential):
         is_transposed: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
         output_padding: Optional[Union[Sequence[int], int]] = None,
-        dimensions: Optional[int] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.is_transposed = is_transposed
@@ -245,16 +237,12 @@ class ResidualUnit(nn.Module):
         padding: controls the amount of implicit zero-paddings on both sides for padding number of points
             for each dimension. Defaults to None.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     See also:
 
         :py:class:`monai.networks.blocks.Convolution`
 
     """
 
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int,
@@ -272,10 +260,9 @@ class ResidualUnit(nn.Module):
         bias: bool = True,
         last_conv_only: bool = False,
         padding: Optional[Union[Sequence[int], int]] = None,
-        dimensions: Optional[int] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.conv = nn.Sequential()
