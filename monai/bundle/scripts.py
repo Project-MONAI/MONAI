@@ -153,6 +153,7 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 
 def download(
     name: Optional[str] = None,
+    version: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
@@ -170,11 +171,14 @@ def download(
 
     .. code-block:: bash
 
+        # Execute this module as a CLI entry, and download bundle from the model-zoo repo:
+        python -m monai.bundle download --name <bundle_name> --version "0.1.0" --bundle_dir "./"
+
         # Execute this module as a CLI entry, and download bundle:
-        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name/release_tag"
+        python -m monai.bundle download --name <bundle_name> --source "github" --repo "repo_owner/repo_name/release_tag"
 
         # Execute this module as a CLI entry, and download bundle via URL:
-        python -m monai.bundle download --name "bundle_name" --url <url>
+        python -m monai.bundle download --name <bundle_name> --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
@@ -185,6 +189,9 @@ def download(
 
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+        version: version name of the target bundle to download, like: "0.1.0".
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
@@ -200,19 +207,28 @@ def download(
 
     """
     _args = _update_args(
-        args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
+        args=args_file,
+        name=name,
+        version=version,
+        bundle_dir=bundle_dir,
+        source=source,
+        repo=repo,
+        url=url,
+        progress=progress,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, repo_, progress_, name_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "repo", "progress", name=None, bundle_dir=None, url=None
+    source_, repo_, progress_, name_, version_, bundle_dir_, url_ = _pop_args(
+        _args, "source", "repo", "progress", name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
+    if name_ is not None and version_ is not None:
+        name_ = "_v".join([name_, version_])
 
     if url_ is not None:
-        if name is not None:
-            filepath = bundle_dir_ / f"{name}.zip"
+        if name_ is not None:
+            filepath = bundle_dir_ / f"{name_}.zip"
         else:
             filepath = bundle_dir_ / f"{_basename(url_)}"
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
@@ -229,6 +245,7 @@ def download(
 
 def load(
     name: str,
+    version: Optional[str] = None,
     model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
@@ -245,7 +262,9 @@ def load(
     Load model weights or TorchScript module of a bundle.
 
     Args:
-        name: bundle name.
+        name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+        version: version name of the target bundle to download, like: "0.1.0".
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -280,7 +299,7 @@ def load(
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
     full_path = os.path.join(bundle_dir_, name, model_file)
     if not os.path.exists(full_path):
-        download(name=name, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
+        download(name=name, version=version, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
