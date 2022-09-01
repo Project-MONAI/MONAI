@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import warnings
+from typing import Any
 
 import torch
 
@@ -47,7 +48,7 @@ class VarianceMetric(Metric):
         self.scalar_reduction = scalar_reduction
         self.threshold = threshold
 
-    def __call__(self, y_pred: torch.Tensor) -> torch.Tensor:
+    def __call__(self, y_pred: torch.Tensor) -> Any:
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
