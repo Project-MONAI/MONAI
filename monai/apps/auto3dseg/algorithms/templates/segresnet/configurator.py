@@ -69,7 +69,7 @@ class Configurator(AlgorithmConfigurator):
             self.data_stats["stats_summary"]["image_stats"]["spacing"]["percentile_99_5"][0]
         )
 
-        # adjust to image size 
+        # adjust to image size
         patch_size = [min(r, i) for r,i in zip(patch_size, image_size)]  # min for each of spatial dims
         patch_size = roi_ensure_divisible(patch_size, levels = levels)
         # reduce number of levels to smaller then 5 (default) if image is too small
@@ -118,8 +118,8 @@ class Configurator(AlgorithmConfigurator):
                 spacing = [1.0, 1.0, 1.0]
 
                 #make sure intensity range is a valid CT range
-                is_valid_for_ct = full_range[0] < -300 and full_range[1] > 300 
-                if is_valid_for_ct: 
+                is_valid_for_ct = full_range[0] < -300 and full_range[1] > 300
+                if is_valid_for_ct:
                     lrange = intensity_upper_bound-intensity_lower_bound
                     if lrange < 500: #make sure range is at least 500 points
                         intensity_lower_bound -= (500-lrange)//2
@@ -130,10 +130,10 @@ class Configurator(AlgorithmConfigurator):
             elif "mr" in modality:
                 spacing = self.data_stats["stats_summary"]["image_stats"]["spacing"]['median'][0]
 
-            self.config[_key]["resolution"] = spacing # resample on the fly to this resolution    
+            self.config[_key]["resolution"] = spacing # resample on the fly to this resolution
             self.config[_key]['intensity_bounds'] = [intensity_lower_bound, intensity_upper_bound]
 
-            if np.any(spacing_lower_bound/np.array(spacing) < 0.5) or np.any(spacing_upper_bound/np.array(spacing) > 1.5): 
+            if np.any(spacing_lower_bound/np.array(spacing) < 0.5) or np.any(spacing_upper_bound/np.array(spacing) > 1.5):
                 # Resampling recommended to median resolution
                 resample = True
                 self.config[_key]['resample'] = resample
@@ -147,7 +147,7 @@ class Configurator(AlgorithmConfigurator):
             if 'warmup_epochs' in self.config[_key]['lr_scheduler']:
                 self.config[_key]['lr_scheduler']['warmup_epochs'] = warmup_epochs
 
-            
+
         for _key in ["network.yaml"]:
             self.config[_key]["network"]["blocks_down"] = num_blocks
             self.config[_key]["network"]["blocks_up"] = [1]* (len(num_blocks)-1) # [1,1,1,1..]
@@ -183,7 +183,7 @@ class Configurator(AlgorithmConfigurator):
                         "label_key": "@label_key",
                         "spatial_size": patch_size,
                         "num_classes": output_classes,
-                        "num_samples": 1, 
+                        "num_samples": 1,
                         "ratios": ratios
                     }
                 )
@@ -212,7 +212,7 @@ class Configurator(AlgorithmConfigurator):
                 + _t_crop
                 + self.config[_key]["transforms_train"]["transforms"][(_i_crop + 1) :]
             )
-        
+
 
         for _key in ["transforms_infer.yaml", "transforms_train.yaml", "transforms_validate.yaml"]:
             # get intensity transform
@@ -245,7 +245,7 @@ class Configurator(AlgorithmConfigurator):
                         _t["pixdim"] = spacing
                     else:
                         self.config[_key][_t_key]["transforms"].pop(_i)
-                    break 
+                    break
 
             _i_intensity = -1
             for _i in range(len(self.config[_key][_t_key]["transforms"])):
@@ -261,7 +261,7 @@ class Configurator(AlgorithmConfigurator):
                 + _t_intensity
                 + self.config[_key][_t_key]["transforms"][(_i_intensity + 1) :]
             )
-        
+
 
     def write(self):
         write_path = os.path.join(self.output_path, "segresnet")
