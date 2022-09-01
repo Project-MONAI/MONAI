@@ -41,7 +41,7 @@ from monai.transforms.post.array import (
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import PostFix, convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -138,11 +138,6 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         keys: KeysCollection,
@@ -151,9 +146,6 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
-        logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
-        threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
     ) -> None:
         """
         Args:
@@ -170,33 +162,20 @@ class AsDiscreted(MapTransform):
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
-
         """
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        to_onehot_ = ensure_tuple_rep(to_onehot, len(self.keys))
-        num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.to_onehot = []
-        for flag, val in zip(to_onehot_, num_classes):
+        for flag in ensure_tuple_rep(to_onehot, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-                self.to_onehot.append(val if flag else None)
-            else:
-                self.to_onehot.append(flag)
+                raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+            self.to_onehot.append(flag)
 
-        threshold_ = ensure_tuple_rep(threshold, len(self.keys))
-        logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.threshold = []
-        for flag, val in zip(threshold_, logit_thresh):
+        for flag in ensure_tuple_rep(threshold, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-                self.threshold.append(val if flag else None)
-            else:
-                self.threshold.append(flag)
+                raise ValueError("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+            self.threshold.append(flag)
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
