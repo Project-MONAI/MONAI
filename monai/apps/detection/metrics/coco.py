@@ -405,7 +405,7 @@ class COCOMetric:
 
         Args:
             results_list (List[Dict[int, Dict[str, np.ndarray]]]): list with result s per image (in list)
-                per cateory (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
+                per category (dict). Inner Dict contains multiple results obtained by :func:`box_matching_batch`.
 
                 - `dtMatches`: matched detections [T, D], where T = number of
                   thresholds, D = number of detections

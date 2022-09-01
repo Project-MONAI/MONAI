@@ -112,6 +112,7 @@ class Identity(Transform):
         return img
 
 
+@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
 class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.
@@ -173,6 +174,7 @@ class AsChannelLast(Transform):
         return out
 
 
+@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
 class AddChannel(Transform):
     """
     Adds a 1-length channel dimension to the input image.
@@ -199,45 +201,62 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
-    It extracts the `original_channel_dim` info from provided meta_data dictionary.
-    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
-    Convert the data to `channel_first` based on the `original_channel_dim` information.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
+
+    This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
+    should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
+    state no dimension is the channel and so a 1-size first dimension is to be added.
+
+    Args:
+        strict_check: whether to raise an error when the meta information is insufficient.
+        channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
+            this argument can be used to specify the original channel dimension (integer) of the input array.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True):
-        """
-        Args:
-            strict_check: whether to raise an error when the meta information is insufficient.
-        """
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = "no_channel"):
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
+        self.input_channel_dim = channel_dim
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            msg = "metadata not available, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            else:
+                img = MetaTensor(img)
+
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
 
         if channel_dim is None:
-            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+            if self.input_channel_dim is None:
+                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            channel_dim = self.input_channel_dim
+            if isinstance(meta_dict, dict):
+                meta_dict["original_channel_dim"] = self.input_channel_dim
+
         if channel_dim == "no_channel":
-            return self.add_channel(img)  # type: ignore
-        return AsChannelFirst(channel_dim=channel_dim)(img)  # type: ignore
+            result = img[None]
+        else:
+            result = moveaxis(img, channel_dim, 0)  # type: ignore
+
+        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -332,7 +351,7 @@ class SplitDim(Transform):
                 outputs[idx] = item.squeeze(self.dim)
             if self.update_meta and isinstance(img, MetaTensor):
                 if not isinstance(item, MetaTensor):
-                    item = MetaTensor(item, meta=deepcopy(img.meta))
+                    item = MetaTensor(item, meta=img.meta)
                 if self.dim == 0:  # don't update affine if channel dim
                     continue
                 ndim = len(item.affine)
@@ -400,18 +419,25 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: whether to convert to `MetaTensor` or regular tensor, default to `None`,
+            use the return value of ``get_track_meta``.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = True
+        self,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, img: NdarrayOrTensor):
         """
@@ -419,7 +445,9 @@ class ToTensor(Transform):
         """
         if isinstance(img, MetaTensor):
             img.applied_operations = []  # drops tracking info
-        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
+        return convert_to_tensor(
+            img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence, track_meta=self.track_meta
+        )
 
 
 class EnsureType(Transform):
@@ -435,8 +463,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
-        track_meta: whether to convert to `MetaTensor` when `data_type` is "tensor".
-            If False, the output data type will be `torch.Tensor`. Default to the return value of ``get_track_meta``.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 
@@ -1007,7 +1035,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).

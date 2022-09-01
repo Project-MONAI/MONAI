@@ -17,6 +17,8 @@ import json
 import operator
 import os
 import queue
+import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -123,6 +125,9 @@ def skip_if_downloading_fails():
         yield
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except RuntimeError as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -208,23 +213,30 @@ class SkipIfModule:
 
 def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extension is not available
+    Skip the unit tests if the cpp extension is not available.
     """
     return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
-    Skip the unit tests if torch.cuda.is_available is False
+    Skip the unit tests if torch.cuda.is_available is False.
     """
     return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
     """
-    Skip the unit tests if platform is win32
+    Skip the unit tests if platform is win32.
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+def skip_if_darwin(obj):
+    """
+    Skip the unit tests if platform is macOS (Darwin).
+    """
+    return unittest.skipIf(sys.platform == "darwin", "Skipping tests on macOS/Darwin")(obj)
 
 
 class SkipIfBeforePyTorchVersion:
@@ -722,19 +734,32 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     im_item = im if dict_key is None else im[dict_key]
     if not isinstance(im_item, MetaTensor):
         return
+    im_ref = copy.deepcopy(im)
     im_inv = invertible_xform.inverse(to_invert)
     if dict_key:
         im_inv = im_inv[dict_key]
-        im = im[dict_key]
+        im_ref = im_ref[dict_key]
     np.testing.assert_array_equal(im_inv.applied_operations, [])
-    assert_allclose(im_inv.shape, im.shape)
-    assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
+    assert_allclose(im_inv.shape, im_ref.shape)
+    assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
 
 
-TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)
+def command_line_tests(cmd, copy_env=True):
+    test_env = os.environ.copy() if copy_env else os.environ
+    print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+    try:
+        normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+    except subprocess.CalledProcessError as e:
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)
+    TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]

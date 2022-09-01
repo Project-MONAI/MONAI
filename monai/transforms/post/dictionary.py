@@ -21,6 +21,7 @@ from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optio
 
 import torch
 
+from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
 from monai.data.meta_tensor import MetaTensor
@@ -34,13 +35,13 @@ from monai.transforms.post.array import (
     LabelToContour,
     MeanEnsemble,
     ProbNMS,
+    RemoveSmallObjects,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -61,6 +62,9 @@ __all__ = [
     "KeepLargestConnectedComponentD",
     "KeepLargestConnectedComponentDict",
     "KeepLargestConnectedComponentd",
+    "RemoveSmallObjectsD",
+    "RemoveSmallObjectsDict",
+    "RemoveSmallObjectsd",
     "LabelFilterD",
     "LabelFilterDict",
     "LabelFilterd",
@@ -252,6 +256,39 @@ class KeepLargestConnectedComponentd(MapTransform):
         self.converter = KeepLargestConnectedComponent(
             applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
         )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
+class RemoveSmallObjectsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RemoveSmallObjectsd`.
+
+    Args:
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        min_size: int = 64,
+        connectivity: int = 1,
+        independent_channels: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -477,7 +514,7 @@ class ProbNMSd(MapTransform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
@@ -634,15 +671,16 @@ class Invertd(MapTransform):
                     warnings.warn(f"transform info of `{orig_key}` is not available or no InvertibleTransform applied.")
                     continue
 
+            orig_meta_key = orig_meta_key or f"{orig_key}_{meta_key_postfix}"
             if orig_key in d and isinstance(d[orig_key], MetaTensor):
                 transform_info = d[orig_key].applied_operations
                 meta_info = d[orig_key].meta
             else:
                 transform_info = d[InvertibleTransform.trace_key(orig_key)]
-                meta_info = d.get(orig_meta_key or f"{orig_key}_{meta_key_postfix}", {})
+                meta_info = d.get(orig_meta_key, {})
             if nearest_interp:
                 transform_info = convert_applied_interp_mode(
-                    trans_info=deepcopy(transform_info), mode="nearest", align_corners=None
+                    trans_info=transform_info, mode="nearest", align_corners=None
                 )
 
             inputs = d[key]
@@ -651,12 +689,14 @@ class Invertd(MapTransform):
 
             if not isinstance(inputs, MetaTensor):
                 inputs = convert_to_tensor(inputs, track_meta=True)
-            inputs.applied_operations = transform_info
-            inputs.meta = meta_info
+            inputs.applied_operations = deepcopy(transform_info)
+            inputs.meta = deepcopy(meta_info)
 
             # construct the input dict data
             input_dict = {orig_key: inputs}
-
+            if config.USE_META_DICT:
+                input_dict[InvertibleTransform.trace_key(orig_key)] = transform_info
+                input_dict[PostFix.meta(orig_key)] = meta_info
             with allow_missing_keys_mode(self.transform):  # type: ignore
                 inverted = self.transform.inverse(input_dict)
 
@@ -666,8 +706,10 @@ class Invertd(MapTransform):
             else:
                 inverted_data = inverted[orig_key]
             d[key] = post_func(inverted_data.to(device))
-
-            # save the inverted meta dict
+            # save the invertd applied_operations if it's in the source dict
+            if InvertibleTransform.trace_key(orig_key) in d:
+                d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
+            # save the inverted meta dict if it's in the source dict
             if orig_meta_key in d:
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 d[meta_key] = inverted.get(orig_meta_key)
@@ -758,6 +800,7 @@ AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
 InvertD = InvertDict = Invertd
 KeepLargestConnectedComponentD = KeepLargestConnectedComponentDict = KeepLargestConnectedComponentd
+RemoveSmallObjectsD = RemoveSmallObjectsDict = RemoveSmallObjectsd
 LabelFilterD = LabelFilterDict = LabelFilterd
 LabelToContourD = LabelToContourDict = LabelToContourd
 MeanEnsembleD = MeanEnsembleDict = MeanEnsembled
