@@ -239,6 +239,7 @@ class AutoEncoder(nn.Module):
                 bias=self.bias,
                 last_conv_only=is_last,
             )
+            return mod
         mod = Convolution(
             spatial_dims=self.dimensions,
             in_channels=in_channels,
