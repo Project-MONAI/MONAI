@@ -1892,7 +1892,7 @@ class RandAffineGrid(Randomizable, Transform):
             device=self.device,
         )
         _grid: torch.Tensor
-        _grid, self.affine = affine_grid(spatial_size, grid)
+        _grid, self.affine = affine_grid(spatial_size, grid)  # type: ignore
         return _grid
 
     def get_transformation_matrix(self) -> Optional[torch.Tensor]:
@@ -2844,7 +2844,7 @@ class Rand3DElastic(RandomizableTransform):
             grid = self.rand_affine_grid(grid=grid)
         out: torch.Tensor = self.resampler(
             img,
-            grid,
+            grid,  # type: ignore
             mode=mode if mode is not None else self.mode,
             padding_mode=padding_mode if padding_mode is not None else self.padding_mode,
         )
