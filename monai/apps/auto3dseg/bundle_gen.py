@@ -9,20 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os
 import shutil
 import subprocess
-
-from copy import deepcopy
+import sys
+from copy import copy, deepcopy
 from glob import glob
-from typing import Sequence, Union
+from typing import Mapping, Sequence, Union
 
+import torch
+
+from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
+logger = get_logger(module_name=__name__)
 
-__all__ = ["BundleAlgo", "BundleGen", "SegresnetAlgo", "DintsAlgo"]
+__all__ = ["BundleAlgo", "BundleGen"]
 
 
 class BundleAlgo(Algo):
@@ -33,20 +38,41 @@ class BundleAlgo(Algo):
 
     ..code-block:: python
 
-        import glob
-
         from monai.apps.auto3dseg import BundleAlgo
 
+        data_stats_yaml = "/workspace/data_stats.yaml"
         algo = BundleAlgo(
             template_configs=../algorithms/templates/segresnet2d/configs,
             scripts_path="../algorithms/templates/segresnet2d/scripts")
-        algo.set_data_stats("../algorithms/data_stats.yaml")
+        algo.set_data_stats(data_stats_yaml)
         # algo.set_data_list("../data_list.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
+
+    This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
+    format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
+    ``export_to_disk``.  The output of ``export_to_disk`` takes the following folder structure::
+
+        [algo_name]
+        ├── configs
+        │   ├── progress.yaml  # automatically generated during training to track the best validation scores.
+        │   └── algo_config.yaml  # automatically generated yaml from a set of ``template_configs``
+        └── scripts
+            ├── infer.py
+            ├── train.py
+            └── validate.py
 
     """
 
     def __init__(self, template_configs=None, scripts_path=None, meta_data_filename=None, parser_args=None):
+        """
+        Create an Algo instance based on a set of bundle configuration templates and scripts.
+
+        Args:
+            template_configs: a json/yaml config file, or a folder of json/yaml files.
+            scripts_path: a folder to python script files.
+            meta_data_filename: optional metadata of a MONAI bundle.
+            parser_args: additional input arguments for the build-in ConfigParser ``self.cfg.read_config``.
+        """
         if os.path.isdir(template_configs):
             self.template_configs = []
             for ext in ("json", "yaml"):
@@ -59,30 +85,36 @@ class BundleAlgo(Algo):
             self.load_templates(self.template_configs, meta_data_filename, parser_args)
 
         self.scripts_path = scripts_path
-        self.data_stats_filename = None
+        self.data_stats_files = None
         self.data_list_file = None
         self.output_path = None
         self.name = None
+        self.best_metric = None
 
     def load_templates(self, config_files, metadata_file=None, parser_args=None):
+        """Read a list of template configuration files"""
         parser_args = parser_args or {}
         self.cfg.read_config(config_files, **parser_args)
         if metadata_file is not None:
             self.cfg.read_meta(metadata_file)
 
-    def set_data_stats(self, data_stats_filename):
-        self.data_stats_filename = data_stats_filename
+    def set_data_stats(self, data_stats_files):
+        self.data_stats_files = data_stats_files
 
     def set_data_source(self, data_list_file):
         self.data_list_file = data_list_file
 
-    def fill_template_config(self, data_stats_filename):
-        # self.algorithm_dir = os.path.join(self.output_path, "segresnet2d")
-        # self.inference_script = "scripts/infer.py"
+    def fill_template_config(self, data_stats_filename, **kwargs):
+        """
+        The configuration files defined when constructing this Algo instance might not have a complete training
+        and validation pipelines. Some configuration components and hyperparameters of the pipelines depend on the
+        training data and other factors. This API is provided to allow the creation of fully functioning config files.
+        """
         pass
 
     def export_to_disk(self, output_path, algo_name, **kwargs):
-        self.fill_template_config(self.data_stats_filename)
+        """Fill the configuration templates, write the bundle (configs + scripts) to folder `output_path/algo_name`."""
+        self.fill_template_config(self.data_stats_files, **kwargs)
         write_path = os.path.join(output_path, algo_name)
         self.cfg["bundle_root"] = write_path
         os.makedirs(write_path, exist_ok=True)
@@ -108,189 +140,89 @@ class BundleAlgo(Algo):
                 f.write(f"# source file: {item}\n")
             f.write("\n\n")
             f.writelines(lines)
-        print(write_path)
+        logger.info(write_path)
         self.output_path = write_path
 
-    def train(self, **override):
-        train_py = os.path.join(self.output_path, 'scripts', 'train.py')
-        config_yaml =  os.path.join(self.output_path, 'configs', 'algo_config.yaml')
+    def train(self, params=None):
+        """
 
-        cmd = f"python {train_py} run --config_file={config_yaml}"
-        for k, v in override.items():
-            cmd += f" --{k}={v}"
-        p = subprocess.run(cmd.split(), check=True)
-        return
+        Args:
+            params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
+        """
+        train_py = os.path.join(self.output_path, "scripts", "train.py")
+        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        base_cmd = f"{train_py} run --config_file {config_yaml} "
 
+        if "CUDA_VISIBLE_DEVICES" in params:
+            devices = params.pop("CUDA_VISIBLE_DEVICES")
+            n_devices, devices_str = len(devices), ",".join([str(x) for x in devices])
+        else:
+            n_devices, devices_str = torch.cuda.device_count(), ""
+        if n_devices > 1:
+            cmd = f"torchrun --nnodes={1:d} --nproc_per_node={n_devices:d} "
+        else:
+            cmd = "python "  # TODO: which system python?
+        cmd += base_cmd
+        if params and isinstance(params, Mapping):
+            for k, v in params.items():
+                cmd += f" --{k}={v}"
+        try:
+            logger.info(f"Launching: {cmd}")
+            ps_environ = os.environ.copy()
+            if devices_str:
+                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_str
+            normal_out = subprocess.run(cmd, env=ps_environ, check=True, capture_output=True)
+            logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        except subprocess.CalledProcessError as e:
+            output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+            errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+        return normal_out
 
     def get_score(self, *args, **kwargs):
-        config_yaml =  os.path.join(self.output_path, 'configs', 'algo_config.yaml')
+        """
+        Returns validation scores of the model trained by the current Algo.
+        """
+        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
         parser = ConfigParser()
         parser.read_config(config_yaml)
-        ckpt_path = parser.get_parsed_content("ckpt_path")
+        ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
 
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
-        best_metric = dict_file["best_avg_dice_score"]
+        return dict_file["best_avg_dice_score"]  # TODO: define the format of best scores' list and progress.yaml
 
-        return best_metric
+    def get_inferer(self, *args, **kwargs):
+        infer_py = os.path.join(self.output_path, "scripts", "infer.py")
+        if not os.path.isfile(infer_py):
+            raise ValueError(f"{infer_py} is not found, please check the path.")
+        config_path = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        config_path = config_path if os.path.isfile(config_path) else None
+        logger.info(f"in memory or persistent predictions using {config_path}.")
+        spec = importlib.util.spec_from_file_location("InferClass", infer_py)
+        infer_class = importlib.util.module_from_spec(spec)
+        sys.modules["InferClass"] = infer_class
+        spec.loader.exec_module(infer_class)
+        return infer_class.InferClass(config_path, *args, **kwargs)
 
+    def predict(self, params=None):
+        if params is None:
+            params = {}
+        files = params.pop("files", ".")
+        inferer = self.get_inferer(**params)
+        return [inferer.infer(f) for f in ensure_tuple(files)]
 
-class SegresnetAlgo(BundleAlgo):
-    def fill_template_config(self, data_stats_filename):
-        if data_stats_filename is None or not os.path.exists(str(data_stats_filename)):
-            return
-        data_cfg = ConfigParser(globals=False)
-        data_cfg.read_config(data_stats_filename)
-        patch_size = [320, 320]
-        max_shape = data_cfg["stats_summary#image_stats#shape#max"]
-        patch_size = [
-            max(32, shape_k // 32 * 32) if shape_k < p_k else p_k for p_k, shape_k in zip(patch_size, max_shape)
-        ]
-        self.cfg["patch_size#0"], self.cfg["patch_size#1"] = patch_size
-        self.cfg["patch_size_valid#0"], self.cfg["patch_size_valid#1"] = patch_size
-        data_src_cfg = ConfigParser(globals=False)
-        if self.data_list_file is not None and os.path.exists(str(self.data_list_file)):
-            data_src_cfg.read_config(self.data_list_file)
-            self.cfg.update(
-                {
-                    "data_file_base_dir": data_src_cfg["dataroot"],
-                    "data_list_file_path": data_src_cfg["datalist"],
-                    "input_channels": data_cfg["stats_summary#image_stats#channels#max"],
-                    "output_classes": data_cfg["stats_summary#label_stats#labels"],
-                }
-            )
-        modality = data_src_cfg.get("modality", "ct").lower()
-        spacing = data_cfg["stats_summary#image_stats#spacing#median"]
-        spacing[-1] = -1.0
-
-        intensity_upper_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_99_5"])
-        intensity_lower_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_00_5"])
-        ct_intensity_xform = {
-            "_target_": "Compose",
-            "transforms": [
-                {
-                    "_target_": "ScaleIntensityRanged",
-                    "keys": "@image_key",
-                    "a_min": intensity_lower_bound,
-                    "a_max": intensity_upper_bound,
-                    "b_min": 0.0,
-                    "b_max": 1.0,
-                    "clip": True,
-                },
-                {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"},
-            ],
-        }
-        mr_intensity_transform = {
-            "_target_": "NormalizeIntensityd",
-            "keys": "@image_key",
-            "nonzero": True,
-            "channel_wise": True,
-        }
-        for key in ["transforms_infer", "transforms_train", "transforms_validate"]:
-            for idx, xform in enumerate(self.cfg[f"{key}#transforms"]):
-                if isinstance(xform, dict) and xform.get("_target_", "").startswith("Spacing"):
-                    xform["pixdim"] = deepcopy(spacing)
-                elif isinstance(xform, str) and xform.startswith("PLACEHOLDER_INTENSITY_NORMALIZATION"):
-                    if modality.startswith("ct"):
-                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
-                    else:
-                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
-
-
-class DintsAlgo(BundleAlgo):
-    def fill_template_config(self, data_stats_filename):
-        print("implement dints template filling method")
-
-
-class UnetAlgo(BundleAlgo):
-    def fill_template_config(self, data_stats_filename):
-
-        if data_stats_filename is None or not os.path.exists(str(data_stats_filename)):
-            return
-
-        data_cfg = ConfigParser(globals=False)
-        data_cfg.read_config(data_stats_filename)
-
-        patch_size = [128, 128, 128]
-        max_shape = data_cfg["stats_summary#image_stats#shape#max"]
-        patch_size = [
-            max(32, shape_k // 32 * 32) if shape_k < p_k else p_k for p_k, shape_k in zip(patch_size, max_shape)
-        ]
-
-        self.cfg["patch_size"] = [patch_size[0], patch_size[1], patch_size[2]]
-        self.cfg["patch_size_valid"] = [patch_size[0], patch_size[1], patch_size[2]]
-
-        data_src_cfg = ConfigParser(globals=False)
-
-        if self.data_list_file is not None and os.path.exists(str(self.data_list_file)):
-            data_src_cfg.read_config(self.data_list_file)
-            self.cfg.update(
-                {
-                    "data_file_base_dir": data_src_cfg["dataroot"],
-                    "data_list_file_path": data_src_cfg["datalist"],
-                    "input_channels": data_cfg["stats_summary#image_stats#channels#max"],
-                    "output_channels": len(data_cfg["stats_summary#label_stats#labels"]),
-                    "output_classes": data_cfg["stats_summary#label_stats#labels"],
-                }
-            )
-
-        modality = data_src_cfg.get("modality", "ct").lower()
-        spacing = data_cfg["stats_summary#image_stats#spacing#median"]
-        spacing[-1] = -1.0
-
-        intensity_upper_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_99_5"])
-        intensity_lower_bound = float(data_cfg["stats_summary#image_foreground_stats#intensity#percentile_00_5"])
-
-        ct_intensity_xform = {
-            "_target_": "Compose",
-            "transforms": [
-                {
-                    "_target_": "ScaleIntensityRanged",
-                    "keys": "@image_key",
-                    "a_min": intensity_lower_bound,
-                    "a_max": intensity_upper_bound,
-                    "b_min": 0.0,
-                    "b_max": 1.0,
-                    "clip": True,
-                },
-                {"_target_": "CropForegroundd", "keys": ["@image_key", "@label_key"], "source_key": "@image_key"},
-            ],
-        }
-        mr_intensity_transform = {
-            "_target_": "NormalizeIntensityd",
-            "keys": "@image_key",
-            "nonzero": True,
-            "channel_wise": True,
-        }
-
-        for key in ["transforms_infer", "transforms_train", "transforms_validate"]:
-            for idx, xform in enumerate(self.cfg[f"{key}#transforms"]):
-                if isinstance(xform, dict) and xform.get("_target_", "").startswith("Spacing"):
-                    xform["pixdim"] = deepcopy(spacing)
-                elif isinstance(xform, str) and xform.startswith("PLACEHOLDER_INTENSITY_NORMALIZATION"):
-                    if modality.startswith("ct"):
-                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(ct_intensity_xform)
-                    else:
-                        self.cfg[f"{key}#transforms#{idx}"] = deepcopy(mr_intensity_transform)
-
-
-auto3dseg_dir = os.path.dirname(__file__)
 
 default_algos = {
-    "unet": dict(
-        _target_="UnetAlgo",
-        template_configs=os.path.join(auto3dseg_dir, "algorithms/templates/unet/configs"),
-        scripts_path=os.path.join(auto3dseg_dir, "algorithms/templates/unet/scripts"),
+    "segresnet2d": dict(
+        _target_="algo_templates.segresnet2d.scripts.algo.Segresnet2DAlgo",
+        template_configs="../algo_templates/segresnet2d/configs",
+        scripts_path="../algo_templates/segresnet2d/scripts",
     ),
-    # "segresnet2d": dict(
-    #     _target_="SegresnetAlgo",
-    #     template_configs="../algorithms/templates/segresnet2d/configs",
-    #     scripts_path="../algorithms/templates/segresnet2d/scripts",
-    # ),
-    # "dints": dict(
-    #     _target_="DintsAlgo",
-    #     template_configs="../algorithms/templates/dints/configs",
-    #     scripts_path="../algorithms/templates/dints/scripts",
-    # ),
+    "dints": dict(
+        _target_="algo_templates.dints.scripts.algo.DintsAlgo",
+        template_configs="../algo_templates/dints/configs",
+        scripts_path="../algo_templates/dints/scripts",
+    ),
 }
 
 
@@ -304,17 +236,19 @@ class BundleGen(AlgoGen):
 
     """
 
-    def __init__(self, algos=None, data_stats_filename=None, data_lists_filename=None):
+    def __init__(self, algos=None, data_stats_filename=None, data_src_cfg_name=None):
         self.algos = []
         if algos is None:
-            for algo_name, algo_params in default_algos.items():
+            algos = copy(default_algos)
+        if isinstance(algos, dict):
+            for algo_name, algo_params in algos.items():
                 self.algos.append(ConfigParser(algo_params).get_parsed_content())
                 self.algos[-1].name = algo_name
         else:
             self.algos = ensure_tuple(algos)
 
         self.data_stats_filename = data_stats_filename
-        self.data_lists_filename = data_lists_filename
+        self.data_lists_filename = data_src_cfg_name
         self.history = []
 
     def set_data_stats(self, data_stats_filename):
@@ -332,13 +266,14 @@ class BundleGen(AlgoGen):
     def get_history(self, *args, **kwargs):
         return self.history
 
-    def generate(self, export_dir: str = ".", fold_idx: Union[int, Sequence[int]] = 0):
+    def generate(self, output_folder=".", fold_idx: Union[int, Sequence[int]] = 0):
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats(fold_idx)
                 data_lists = self.get_data_lists(fold_idx)
-                algo.set_data_stats(data_stats)
-                algo.set_data_source(data_lists)
-                name = f"{algo.name}_{f_id}"
-                algo.export_to_disk(export_dir, algo_name=name)
-                self.history.append({name: deepcopy(algo)})  # track the previous, may create a persistent history
+                gen_algo = deepcopy(algo)
+                gen_algo.set_data_stats(data_stats)
+                gen_algo.set_data_source(data_lists)
+                name = f"{gen_algo.name}_{f_id}"
+                gen_algo.export_to_disk(output_folder, algo_name=name)
+                self.history.append({name: gen_algo})  # track the previous, may create a persistent history

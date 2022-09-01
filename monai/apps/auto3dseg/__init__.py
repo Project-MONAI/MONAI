@@ -9,6 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .bundle_gen import BundleAlgo, BundleGen, DintsAlgo, SegresnetAlgo, UnetAlgo
+from .bundle_gen import BundleAlgo, BundleGen
 from .data_analyzer import DataAnalyzer
 from .ensemble_builder import ScriptEnsembleBuilder, ScriptEnsemble, EnsembleBestN
