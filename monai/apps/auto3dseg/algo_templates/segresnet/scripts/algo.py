@@ -91,7 +91,7 @@ class SegresnetAlgo(BundleAlgo):
         else:
             self.cfg["network"]['norm'] = ["INSTANCE", {"affine": True}] # use instancenorm with single gpu
 
-        # update hyper_parameters config 
+        # update hyper_parameters config
         if 'class_names' in data_src_cfg and isinstance(data_src_cfg['class_names'], list):
             if isinstance(data_src_cfg['class_names'][0], str):
                 self.cfg['class_names'] = data_src_cfg['class_names']
