@@ -17,6 +17,13 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -123,10 +130,3 @@ Utilities
 ---------
 .. automodule:: monai.metrics.utils
   :members:
-
-`Variance`
---------------
-.. autofunction:: compute_variance
-
-.. autoclass:: VarianceMetric
-    :members:
