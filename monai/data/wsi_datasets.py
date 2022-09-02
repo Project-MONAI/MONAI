@@ -15,7 +15,7 @@ from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.data import Dataset
+from monai.data import Dataset, MetaTensor
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ForegroundMask, Randomizable, apply_transform
@@ -145,14 +145,17 @@ class PatchWSIDataset(Dataset):
 
         # Extract patch image and associated metadata
         image, metadata = self._get_data(sample)
-        output = {CommonKeys.IMAGE: image, CommonKeys.METADATA: metadata}
+
+        # Add additional metadata from sample
+        for key in self.additional_meta_keys:
+            metadata[key] = sample[key]
+
+        # Create MetaTensor output for image
+        output = {CommonKeys.IMAGE: MetaTensor(image, meta=metadata)}
 
         # Include label in the output
         if self.include_label:
             output[CommonKeys.LABEL] = self._get_label(sample)
-
-        for key in self.additional_meta_keys:
-            metadata[key] = sample[key]
 
         # Apply transforms and return it
         return apply_transform(self.transform, output) if self.transform else output
@@ -333,7 +336,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
             [
                 {"image": "path/to/image1.tiff"},
-                {"image": "path/to/image2.tiff", "patch_size": [20, 20], "patch_level": 2}
+                {"image": "path/to/image2.tiff", "size": [20, 20], "level": 2}
             ]
 
     """
