@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import abc
+from typing import Optional
 
 from monai.fl.utils.exchange_object import ExchangeObject
 
@@ -28,7 +29,7 @@ class ClientAlgo(abc.ABC):
     of the class object.
     """
 
-    def initialize(self, extra=None):
+    def initialize(self, extra: Optional[dict] = None):
         """
         Call to initialize the ClientAlgo class
 
@@ -37,7 +38,7 @@ class ClientAlgo(abc.ABC):
         """
         pass
 
-    def finalize(self, extra=None):
+    def finalize(self, extra: Optional[dict] = None):
         """
         Call to finalize the ClientAlgo class
 
@@ -46,7 +47,7 @@ class ClientAlgo(abc.ABC):
         """
         pass
 
-    def abort(self, extra=None):
+    def abort(self, extra: Optional[dict] = None):
         """
         Call to abort the ClientAlgo training or evaluation
 
@@ -57,7 +58,7 @@ class ClientAlgo(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def train(self, data: ExchangeObject, extra=None) -> None:
+    def train(self, data: ExchangeObject, extra: Optional[dict] = None) -> None:
         """
         Train network and produce new network from train data.
 
@@ -68,10 +69,10 @@ class ClientAlgo(abc.ABC):
         Returns:
             None
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abc.abstractmethod
-    def get_weights(self, extra=None) -> ExchangeObject:
+    def get_weights(self, extra: Optional[dict] = None) -> ExchangeObject:
         """
         Get current local weights or weight differences
 
@@ -90,17 +91,18 @@ class ClientAlgo(abc.ABC):
                 weight_type = WeightType.WEIGHTS
             )
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abc.abstractmethod
-    def evaluate(self, data: ExchangeObject, extra=None) -> ExchangeObject:
+    def evaluate(self, data: ExchangeObject, extra: Optional[dict] = None) -> ExchangeObject:
         """
         Get evaluation metrics on test data.
 
         Args:
             data: ExchangeObject with network weights to use for evaluation
+            extra: optional extra information
 
         Returns:
             metrics: ExchangeObject with evaluation metrics.
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
