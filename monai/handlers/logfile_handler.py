@@ -74,7 +74,7 @@ class LogfileHandler:
         self.handler = logging.FileHandler(os.path.join(self.output_dir, self.filename))
         self.handler.setLevel(self.loglevel)
         self.handler.setFormatter(logging.Formatter(self.formatter))
-        
+
         if self.logger is not None:
             self.logger.addHandler(self.handler)
         else:
@@ -85,10 +85,10 @@ class LogfileHandler:
             self.logger.removeHandler(self.handler)
         else:
             raise AttributeError("`self.logger` should not be None in complete event")
-            
+
         if self.handler is not None:
             self.handler.close()
         else:
             raise AttributeError("`self.handler` should not be None in complete event")
-            
+
         self.handler = None
