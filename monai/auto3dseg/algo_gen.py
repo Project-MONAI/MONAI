@@ -18,7 +18,8 @@ class Algo:
     such as image preprocessing, followed by deep learning model training and evaluation.
     """
 
-    def set_data_stats(self, *args, **kwargs):  # type: ignore
+    def set_data_stats(self, *args, **kwargs):
+
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 

@@ -22,7 +22,8 @@ from monai.apps.reconstruction.complex_utils import complex_conj_t, complex_mul_
 from monai.networks.blocks.fft_utils_t import fftn_centered_t, ifftn_centered_t
 
 
-def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:  # type: ignore
+def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:
+
     """
     Swaps the complex dimension with the channel dimension so that the network treats real/imaginary
     parts as two separate channels.
@@ -48,7 +49,8 @@ def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:  # type: ignore
         raise ValueError(f"only 2D (B,C,H,W,2) and 3D (B,C,H,W,D,2) data are supported but x has shape {x.shape}")
 
 
-def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:  # type: ignore
+def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:
+
     """
     Swaps the complex dimension with the channel dimension so that the network output has 2 as its last dimension
 
@@ -125,7 +127,8 @@ def reshape_batch_channel_to_channel_dim(x: Tensor, batch_size: int) -> Tensor:
         raise ValueError(f"only 2D (B*C,1,H,W,2) and 3D (B*C,1,H,W,D,2) data are supported but x has shape {x.shape}")
 
 
-def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:  # type: ignore
+def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+
     """
     Performs layer mean-std normalization for complex data. Normalization is done for each batch member
     along each part (part refers to real and imaginary parts), separately.
@@ -159,7 +162,7 @@ def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:  # type: igno
             .view(b, c, 1, 1, 1)
         )
         x = x.view(b, c, h, w, d)
-        return (x - mean) / std, mean, std  # type: ignore
+        return (x - mean) / std, mean, std
 
     else:
         raise ValueError(f"only 2D (B,C,H,W) and 3D (B,C,H,W,D) data are supported but x has shape {x.shape}")
@@ -167,7 +170,8 @@ def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:  # type: igno
 
 def divisible_pad_t(
     x: Tensor, k: int = 16
-) -> Tuple[Tensor, Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]]:  # type: ignore
+) -> Tuple[Tensor, Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]]:
+
     """
     Pad input to feed into the network (torch script compatible)
 
@@ -229,7 +233,8 @@ def divisible_pad_t(
 
 def inverse_divisible_pad_t(
     x: Tensor, pad_sizes: Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]
-) -> Tensor:  # type: ignore
+) -> Tensor:
+
     """
     De-pad network output to match its original shape
 
@@ -284,7 +289,7 @@ def sensitivity_map_reduce(kspace: Tensor, sens_maps: Tensor, spatial_dims: int 
         reduction of x to (B,1,H,W,2) for 2D data or (B,1,H,W,D,2) for 3D data.
     """
     img = ifftn_centered_t(kspace, spatial_dims=spatial_dims, is_complex=True)  # inverse fourier transform
-    return complex_mul_t(img, complex_conj_t(sens_maps)).sum(dim=1, keepdim=True)  # type: ignore
+    return complex_mul_t(img, complex_conj_t(sens_maps)).sum(dim=1, keepdim=True)
 
 
 def sensitivity_map_expand(img: Tensor, sens_maps: Tensor, spatial_dims: int = 2) -> Tensor:
@@ -304,4 +309,4 @@ def sensitivity_map_expand(img: Tensor, sens_maps: Tensor, spatial_dims: int = 2
         Expansion of x to (B,C,H,W,2) for 2D data and (B,C,H,W,D,2) for 3D data. The output is transferred
             to the frequency domain to yield coil measurements.
     """
-    return fftn_centered_t(complex_mul_t(img, sens_maps), spatial_dims=spatial_dims, is_complex=True)  # type: ignore
+    return fftn_centered_t(complex_mul_t(img, sens_maps), spatial_dims=spatial_dims, is_complex=True)

@@ -534,7 +534,8 @@ def label_union(x: List) -> List:
     return list(set.union(set(np.array(x).tolist())))
 
 
-def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):  # type:ignore
+def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
+
     """
     Compute the lab from the probability of predicted feature maps
 
