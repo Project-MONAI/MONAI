@@ -13,6 +13,7 @@ from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
+from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetPlusPlus
 from .classifier import Classifier, Critic, Discriminator
 from .densenet import (
     DenseNet,
