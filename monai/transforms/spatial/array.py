@@ -438,6 +438,7 @@ class Spacing(InvertibleTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        recompute_affine: bool = False,
         image_only: bool = False,
     ) -> None:
         """
@@ -477,10 +478,14 @@ class Spacing(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            recompute_affine: whether to recompute affine based on the output shape. The affine computed
+                analytically does not reflect the potential quantization errors in terms of the output shape.
+                Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
+        self.recompute_affine = recompute_affine
 
         self.sp_resample = SpatialResample(
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
@@ -534,7 +539,6 @@ class Spacing(InvertibleTransform):
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
-        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
@@ -551,23 +555,27 @@ class Spacing(InvertibleTransform):
 
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
+        _align_corners = self.sp_resample.align_corners if align_corners is None else align_corners
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, _align_corners)
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        data_array.affine = torch.as_tensor(affine_)  # type: ignore
+        if isinstance(data_array, MetaTensor):
+            data_array.affine = torch.as_tensor(affine_)  # type: ignore
 
         # we don't want to track the nested transform otherwise two will be appended
+        actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=list(output_shape) if output_spatial_shape is None else output_spatial_shape,
+            spatial_size=actual_shape,
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
         )
-
+        if self.recompute_affine and isinstance(data_array, MetaTensor):
+            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:

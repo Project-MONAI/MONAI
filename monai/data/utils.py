@@ -827,7 +827,10 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
+    spatial_shape: Union[np.ndarray, Sequence[int]],
+    in_affine: NdarrayOrTensor,
+    out_affine: NdarrayOrTensor,
+    align_corners: Optional[bool] = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -839,12 +842,15 @@ def compute_shape_offset(
         spatial_shape: input array's shape
         in_affine (matrix): 2D affine matrix
         out_affine (matrix): 2D affine matrix
+        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+            Defaults to ``None``, effectively using the value of `self.align_corners`.
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
-    in_coords = [(0.0, dim - 1.0) for dim in shape]
+    in_coords = [(0.0, dim - 1.0) if align_corners else (-0.5, dim - 0.5) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine_ @ corners
@@ -854,7 +860,7 @@ def compute_shape_offset(
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
+    out_shape = np.round(corners_out.ptp(axis=1) + 1.0) if align_corners else np.round(corners_out.ptp(axis=1))
     mat = inv_mat[:-1, :-1]
     k = 0
     for i in range(corners.shape[1]):
