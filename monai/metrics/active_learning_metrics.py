@@ -123,4 +123,3 @@ def compute_variance(
         elif scalar_reduction == "sum":
             var_sum = torch.sum(variance)
             return var_sum
-
