@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 import numpy as np
 import torch
 import torch.distributed as dist
-import yaml
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
 
