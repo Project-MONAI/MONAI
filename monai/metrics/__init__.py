@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .active_learning_metrics import VarianceMetric, compute_variance
 from .confusion_matrix import ConfusionMatrixMetric, compute_confusion_matrix_metric, get_confusion_matrix
 from .cumulative_average import CumulativeAverage
 from .froc import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
