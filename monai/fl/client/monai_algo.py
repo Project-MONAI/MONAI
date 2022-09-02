@@ -12,14 +12,13 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import torch
 
 import monai
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigComponent, ConfigItem
-from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -33,12 +32,6 @@ from monai.fl.utils.constants import (
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
-from monai.utils import min_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import Events
-else:
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
