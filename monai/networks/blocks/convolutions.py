@@ -76,7 +76,7 @@ class Convolution(nn.Sequential):
             - When dropout_dim = 2, Randomly zeroes out entire channels (a channel is a 2D feature map).
             - When dropout_dim = 3, Randomly zeroes out entire channels (a channel is a 3D feature map).
 
-            The value of dropout_dim should be no no larger than the value of `spatial_dims`.
+            The value of dropout_dim should be no larger than the value of `spatial_dims`.
         dilation: dilation rate. Defaults to 1.
         groups: controls the connections between inputs and outputs. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
@@ -237,7 +237,7 @@ class ResidualUnit(nn.Module):
             - When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
             - When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
 
-            The value of dropout_dim should be no no larger than the value of `dimensions`.
+            The value of dropout_dim should be no larger than the value of `dimensions`.
         dilation: dilation rate. Defaults to 1.
         bias: whether to have a bias term. Defaults to True.
         last_conv_only: for the last subunit, whether to use the convolutional layer only.

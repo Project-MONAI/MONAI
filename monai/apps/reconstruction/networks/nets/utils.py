@@ -182,6 +182,7 @@ def divisible_pad_t(
 
     Example:
         .. code-block:: python
+
             import torch
 
             # 2D data
@@ -195,6 +196,7 @@ def divisible_pad_t(
             x_pad,padding_sizes = divisible_pad_t(x, k=16)
             # the following line should print (3, 2, 64, 80, 80)
             print(x_pad.shape)
+
     """
     if len(x.shape) == 4:  # this is 2D
         b, c, h, w = x.shape
@@ -300,6 +302,6 @@ def sensitivity_map_expand(img: Tensor, sens_maps: Tensor, spatial_dims: int = 2
 
     Returns:
         Expansion of x to (B,C,H,W,2) for 2D data and (B,C,H,W,D,2) for 3D data. The output is transferred
-            to the frquency domain to yield coil measurements.
+            to the frequency domain to yield coil measurements.
     """
     return fftn_centered_t(complex_mul_t(img, sens_maps), spatial_dims=spatial_dims, is_complex=True)  # type: ignore

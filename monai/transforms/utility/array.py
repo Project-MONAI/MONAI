@@ -201,7 +201,7 @@ class AddChannel(Transform):
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
 
     This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
     should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
@@ -209,23 +209,25 @@ class EnsureChannelFirst(Transform):
 
     Args:
         strict_check: whether to raise an error when the meta information is insufficient.
-        add_channel_default: If True and the input image `img` is not a MetaTensor and `meta_dict` is not given,
-            or `img` is a MetaTensor but doesn't specify channel dimension, use the value is `no_channel`
+        channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
+            this argument can be used to specify the original channel dimension (integer) of the input array.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, add_channel_default=True):
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = "no_channel"):
         self.strict_check = strict_check
-        self.add_channel_default = add_channel_default
+        self.input_channel_dim = channel_dim
 
     def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
         if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
-            if not self.add_channel_default:
-                msg = "Metadata not available and default add channel is disabled, EnsureChannelFirst is not in use."
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
                 if self.strict_check:
                     raise ValueError(msg)
                 warnings.warn(msg)
@@ -236,16 +238,18 @@ class EnsureChannelFirst(Transform):
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
 
-        channel_dim = meta_dict.get("original_channel_dim")  # type: ignore
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
 
         if channel_dim is None:
-            if not self.add_channel_default:
-                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict`."
+            if self.input_channel_dim is None:
+                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
                 if self.strict_check:
                     raise ValueError(msg)
                 warnings.warn(msg)
                 return img
-            meta_dict["original_channel_dim"] = channel_dim = "no_channel"  # type: ignore
+            channel_dim = self.input_channel_dim
+            if isinstance(meta_dict, dict):
+                meta_dict["original_channel_dim"] = self.input_channel_dim
 
         if channel_dim == "no_channel":
             result = img[None]
@@ -599,11 +603,12 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0) -> None:
+    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
 
         Raises:
             TypeError: When ``dim`` is not an ``Optional[int]``.
@@ -612,6 +617,7 @@ class SqueezeDim(Transform):
         if dim is not None and not isinstance(dim, int):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -620,11 +626,25 @@ class SqueezeDim(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
-        if img.shape[self.dim] != 1:
-            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape}.")
-        return img.squeeze(self.dim)
+        if img.shape[dim] != 1:
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")
+        img = img.squeeze(dim)
+        if self.update_meta and isinstance(img, MetaTensor) and dim > 0 and len(img.affine.shape) == 2:
+            h, w = img.affine.shape
+            affine, device = img.affine, img.affine.device if isinstance(img.affine, torch.Tensor) else None
+            if h > dim:
+                affine = affine[torch.arange(0, h, device=device) != dim - 1]
+            if w > dim:
+                affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
+                warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
+            img.affine = affine
+        return img
 
 
 class DataStats(Transform):
@@ -1031,7 +1051,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).

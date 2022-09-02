@@ -670,6 +670,11 @@ def set_rnd(obj, seed: int) -> int:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
+    if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
+        _seed = seed
+        for item in obj:
+            _seed = set_rnd(item, seed=seed)
+        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if hasattr(obj, "set_random_state"):
@@ -690,7 +695,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
         affine: a d x d affine matrix.
         r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
         dtype: data type of the output.
-        suppress_zeros: whether to surpress the zeros with ones.
+        suppress_zeros: whether to suppress the zeros with ones.
 
     Returns:
         an `r` dimensional vector of spacing.

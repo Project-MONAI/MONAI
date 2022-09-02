@@ -161,7 +161,7 @@ class Evaluator(Workflow):
         stats = {
             ESKeys.RANK: self.state.rank,
             ESKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
-            ESKeys.BEST_VALIDATION_METRTC: self.state.best_metric,
+            ESKeys.BEST_VALIDATION_METRIC: self.state.best_metric,
         }
         for k in vars:
             stats[k] = getattr(self.state, k, None)

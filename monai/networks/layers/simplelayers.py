@@ -290,6 +290,9 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
         else:
             # even-sized kernels are not supported
             kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+    elif kwargs["padding"] == "same" and not pytorch_after(1, 10):
+        # even-sized kernels are not supported
+        kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
 
     if "stride" not in kwargs:
         kwargs["stride"] = 1

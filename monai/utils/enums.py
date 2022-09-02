@@ -19,10 +19,12 @@ __all__ = [
     "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
+    "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
     "BlendMode",
     "PytorchPadMode",
+    "NdimageMode",
     "GridSamplePadMode",
     "Average",
     "MetricReduction",
@@ -44,6 +46,7 @@ __all__ = [
     "FastMRIKeys",
     "SpaceKeys",
     "MetaKeys",
+    "ColorOrder",
     "EngineStatsKeys",
 ]
 
@@ -91,6 +94,22 @@ class NumpyPadMode(StrEnum):
     EMPTY = "empty"
 
 
+class NdimageMode(StrEnum):
+    """
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    REFLECT = "reflect"
+    GRID_MIRROR = "grid-mirror"
+    CONSTANT = "constant"
+    GRID_CONSTANT = "grid-constant"
+    NEAREST = "nearest"
+    MIRROR = "mirror"
+    GRID_WRAP = "grid-wrap"
+    WRAP = "wrap"
+
+
 class GridSampleMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -107,6 +126,21 @@ class GridSampleMode(StrEnum):
     NEAREST = "nearest"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
+
+
+class SplineMode(StrEnum):
+    """
+    Order of spline interpolation.
+
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
 
 
 class InterpolateMode(StrEnum):
@@ -470,6 +504,15 @@ class MetaKeys(StrEnum):
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
 
 
+class ColorOrder(StrEnum):
+    """
+    Enums for color order. Expand as necessary.
+    """
+
+    RGB = "RGB"
+    BGR = "BGR"
+
+
 class EngineStatsKeys(StrEnum):
     """
     Default keys for the statistics of trainer and evaluator engines.
@@ -482,4 +525,46 @@ class EngineStatsKeys(StrEnum):
     TOTAL_EPOCHS = "total_epochs"
     TOTAL_ITERATIONS = "total_iterations"
     BEST_VALIDATION_EPOCH = "best_validation_epoch"
-    BEST_VALIDATION_METRTC = "best_validation_metric"
+    BEST_VALIDATION_METRIC = "best_validation_metric"
+
+
+class DataStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis modules
+
+    """
+
+    SUMMARY = "stats_summary"
+    BY_CASE = "stats_by_cases"
+    BY_CASE_IMAGE_PATH = "image_filepath"
+    BY_CASE_LABEL_PATH = "label_filepath"
+    IMAGE_STATS = "image_stats"
+    FG_IMAGE_STATS = "image_foreground_stats"
+    LABEL_STATS = "label_stats"
+
+
+class ImageStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis image modules
+
+    """
+
+    SHAPE = "shape"
+    CHANNELS = "channels"
+    CROPPED_SHAPE = "cropped_shape"
+    SPACING = "spacing"
+    INTENSITY = "intensity"
+
+
+class LabelStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis label modules
+
+    """
+
+    LABEL_UID = "labels"
+    PIXEL_PCT = "pixel_percentage"
+    IMAGE_INTST = "image_intensity"
+    LABEL = "label"
+    LABEL_SHAPE = "shape"
+    LABEL_NCOMP = "ncomponents"
