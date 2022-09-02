@@ -24,7 +24,7 @@ resample: false
 
 # training
 loss:
-  _target_: scripts.loss.DiceCELoss2
+  _target_: loss.DiceCELoss2
   include_background: true
   sigmoid: $not @softmax
   smooth_dr: 1.0e-05
@@ -37,7 +37,7 @@ optimizer:
   lr: "@learning_rate"
   weight_decay: 1.0e-05
 lr_scheduler:
-  _target_: scripts.flow_cosinelr.CosineAnnealingLRWithWarmup
+  _target_: flow_cosinelr.CosineAnnealingLRWithWarmup
   optimizer: "$@optimizer"
   warmup_epochs: 20
   warmup_multiplier: 0.1

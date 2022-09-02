@@ -42,22 +42,22 @@ class SegresnetAlgo(BundleAlgo):
         patch_size = [224, 224, 144] # default roi
         levels = 5 # default number of hierarchical levels
         resample = False
-        image_size = [int(i) for i in data_cfg['stats_summary']['image_stats']['shape']['percentile_99_5'][0]]
+        image_size = [int(i) for i in data_cfg['stats_summary']['image_stats']['shape']['percentile_99_5']]     # remove [0] temporarily
         output_classes = len(data_cfg["stats_summary"]["label_stats"]["labels"])
         modality = data_src_cfg["modality"].lower()
-        full_range = [data_cfg['stats_summary']['image_stats']['intensity']['percentile_00_5'][0], \
-                            data_cfg['stats_summary']['image_stats']['intensity']['percentile_99_5'][0]]
+        full_range = [data_cfg['stats_summary']['image_stats']['intensity']['percentile_00_5'], \
+                            data_cfg['stats_summary']['image_stats']['intensity']['percentile_99_5']]     # remove [0] temporarily
         intensity_lower_bound = float(
-            data_cfg["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_00_5"][0]
+            data_cfg["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_00_5"]     # remove [0] temporarily
         )
         intensity_upper_bound = float(
-            data_cfg["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_99_5"][0]
+            data_cfg["stats_summary"]["image_foreground_stats"]["intensity"]["percentile_99_5"]     # remove [0] temporarily
         )
         spacing_lower_bound = np.array(
-            data_cfg["stats_summary"]["image_stats"]["spacing"]["percentile_00_5"][0]
+            data_cfg["stats_summary"]["image_stats"]["spacing"]["percentile_00_5"]     # remove [0] temporarily
         )
         spacing_upper_bound = np.array(
-            data_cfg["stats_summary"]["image_stats"]["spacing"]["percentile_99_5"][0]
+            data_cfg["stats_summary"]["image_stats"]["spacing"]["percentile_99_5"]     # remove [0] temperoly
         )
 
         # adjust to image size
@@ -122,7 +122,7 @@ class SegresnetAlgo(BundleAlgo):
         elif "mr" in modality:
             spacing = data_cfg["stats_summary"]["image_stats"]["spacing"]['median'][0]
 
-        self.cfg["resolution"] = spacing # resample on the fly to this resolution
+        self.cfg["resolution"] = deepcopy(spacing) # resample on the fly to this resolution
         self.cfg['intensity_bounds'] = [intensity_lower_bound, intensity_upper_bound]
 
         if np.any(spacing_lower_bound/np.array(spacing) < 0.5) or np.any(spacing_upper_bound/np.array(spacing) > 1.5):
@@ -162,7 +162,7 @@ class SegresnetAlgo(BundleAlgo):
                     "_target_": "RandCropByLabelClassesd",
                     "keys": ["@image_key", "@label_key"],
                     "label_key": "@label_key",
-                    "spatial_size": patch_size,
+                    "spatial_size": deepcopy(patch_size),
                     "num_classes": output_classes,
                     "num_samples": 1,
                     "ratios": ratios
@@ -226,7 +226,7 @@ class SegresnetAlgo(BundleAlgo):
                 _t = self.cfg[key]["transforms"][_i]
                 if type(_t) is dict and _t["_target_"] == "Spacingd":
                     if resample:
-                        _t["pixdim"] = spacing
+                        _t["pixdim"] = deepcopy(spacing)
                     else:
                         self.cfg[key]["transforms"].pop(_i)
                     break
