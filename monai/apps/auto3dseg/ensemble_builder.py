@@ -227,8 +227,8 @@ class BundleEnsembleBestByFold(BundleEnsemble):
                 identifier = algo[BundleEnsembleKeys.ID].split("_")[-1]
                 try:
                     algo_id = int(identifier)
-                except ValueError:
-                    raise ValueError(f"model identifier {identifier} is not number.")
+                except ValueError as err:
+                    raise ValueError(f"model identifier {identifier} is not number.") from err
                 if algo_id == f_idx and algo[BundleEnsembleKeys.SCORE] > best_score:
                     best_model = algo
             self.algo_ensemble.append(best_model)
