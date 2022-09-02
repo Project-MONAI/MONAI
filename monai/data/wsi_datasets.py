@@ -14,13 +14,15 @@ import os
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import numpy as np
+import torch
 
-from monai.data import Dataset, MetaTensor
+from monai.data import Dataset
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ForegroundMask, Randomizable, apply_transform
-from monai.utils import CommonKeys, ProbMapKeys, convert_to_dst_type, ensure_tuple_rep
-from monai.utils.enums import WSIPatchKeys
+from monai.utils import convert_to_dst_type, ensure_tuple_rep
+from monai.utils.enums import CommonKeys, ProbMapKeys, WSIPatchKeys
 
 __all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset", "MaskedPatchWSIDataset"]
 
@@ -45,6 +47,10 @@ class PatchWSIDataset(Dataset):
             - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
+
+    Returns:
+        dict: a dictionary of loaded image (in MetaTensor format) along with the labels (if requested).
+        {"image": MetaTensor, "label": torch.Tensor}
 
     Note:
         The input data has the following form as an example:
@@ -110,7 +116,7 @@ class PatchWSIDataset(Dataset):
         return self.wsi_object_dict[image_path]
 
     def _get_label(self, sample: Dict):
-        return np.array(sample[CommonKeys.LABEL], dtype=np.float32)
+        return torch.tensor(sample[CommonKeys.LABEL], dtype=torch.float32)
 
     def _get_location(self, sample: Dict):
         if self.center_location:
