@@ -1009,7 +1009,7 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     img_np: np.ndarray
-    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    img_np, *_ = convert_data_type(img, np.ndarray)
 
     # morphology.remove_small_objects assumes them to be independent by default
     # else, convert to foreground vs background, remove small objects, then convert
