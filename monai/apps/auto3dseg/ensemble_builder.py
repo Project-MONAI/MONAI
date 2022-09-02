@@ -107,14 +107,14 @@ class BundleEnsemble(ABC):
         Use the ensembled model to predict result.
 
         Args:
-            pred_param: prediction parameter dictionary. The key has two groups: the first one will be consumed 
-                in this function, and the second group will be passed to the `InferClass` to override the 
+            pred_param: prediction parameter dictionary. The key has two groups: the first one will be consumed
+                in this function, and the second group will be passed to the `InferClass` to override the
                 parameters of the class functions.
                 The first group contains:
-                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only 
+                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only
                     make prediction on the infer_files[file_slices].
                 'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
-                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to 
+                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
                     the label class prediction.
 
         Returns:
