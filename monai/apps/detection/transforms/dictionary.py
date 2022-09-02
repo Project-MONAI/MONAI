@@ -262,7 +262,8 @@ class AffineBoxToImageCoordinated(MapTransform, InvertibleTransform):
                 f"'affine' is not found in {meta_key}. \
                 Please check whether it is the correct the image meta key."
             )
-        affine: NdarrayOrTensor = meta_dict["affine"]  # type: ignore
+        affine: NdarrayOrTensor = meta_dict["affine"]
+
         if self.affine_lps_to_ras:  # RAS affine
             affine = orientation_ras_lps(affine)
 

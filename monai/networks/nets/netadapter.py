@@ -77,7 +77,8 @@ class NetAdapter(torch.nn.Module):
         if in_channels is None:
             if not hasattr(orig_fc, "in_features"):
                 raise ValueError("please specify input channels of the last fully connected layer with `in_channels`.")
-            in_channels_ = orig_fc.in_features  # type: ignore
+            in_channels_ = orig_fc.in_features
+
         else:
             in_channels_ = in_channels
 

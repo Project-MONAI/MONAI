@@ -19,6 +19,7 @@ class Algo:
     """
 
     def set_data_stats(self, *args, **kwargs):
+
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 
@@ -69,7 +70,7 @@ class AlgoGen(Randomizable):
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state).
     """
 
-    def set_data_stats(self, *args, **kwargs):
+    def set_data_stats(self, *args, **kwargs):  # type ignore
         """Provide dataset summaries/properties so that the generator can be conditioned on the input datasets."""
         pass
 
