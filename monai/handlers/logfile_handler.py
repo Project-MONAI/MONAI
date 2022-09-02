@@ -86,5 +86,5 @@ class LogfileHandler:
             self.handler.close()
         else:
             raise AttributeError("`self.logger` and `self.handler` must not be None in complete event")
-            
+
         self.handler = None
