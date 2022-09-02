@@ -17,7 +17,7 @@ import sys
 from copy import copy, deepcopy
 from glob import glob
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping, Sequence, Union
+from typing import Any, Dict, List, Mapping
 from warnings import warn
 
 import torch
@@ -375,7 +375,7 @@ class BundleGen(AlgoGen):
         """get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
 
-    def generate(self, output_folder=".", fold_idx: Union[int, Sequence[int]] = 0):
+    def generate(self, output_folder=".", num_fold: int = 5):
         """
         Generate the bundle scripts/configs for each bundleAlgo
 
@@ -383,6 +383,7 @@ class BundleGen(AlgoGen):
             output_folder: the output folder to save each algorithm.
             fold_idx: an index to append to the name of the algorithm to
         """
+        fold_idx = list(range(num_fold))
         for algo in self.algos:
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats()

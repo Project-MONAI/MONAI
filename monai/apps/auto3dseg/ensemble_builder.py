@@ -68,7 +68,7 @@ class BundleEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_list_file_path: str):
+    def set_infer_files(self, dataroot: str, data_list_file_path: str, data_key: str = "testing"):
         """
         Set the files to perform model inference.
 
@@ -79,7 +79,7 @@ class BundleEnsemble(ABC):
         with open(data_list_file_path) as f:
             datalist = json.load(f)
 
-        for d in datalist["testing"]:
+        for d in datalist[data_key]:
             self.infer_files.append({"image": os.path.join(dataroot, d["image"])})
 
     def ensemble_pred(self, preds, sigmoid=True):
@@ -107,14 +107,14 @@ class BundleEnsemble(ABC):
         Use the ensembled model to predict result.
 
         Args:
-            pred_param: prediction parameter dictionary. The key has two groups: the first one will be consumed 
-                in this function, and the second group will be passed to the `InferClass` to override the 
+            pred_param: prediction parameter dictionary. The key has two groups: the first one will be consumed
+                in this function, and the second group will be passed to the `InferClass` to override the
                 parameters of the class functions.
                 The first group contains:
-                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only 
+                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only
                     make prediction on the infer_files[file_slices].
                 'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
-                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to 
+                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
                     the label class prediction.
 
         Returns:
@@ -199,6 +199,39 @@ class BundleEnsembleBestN(BundleEnsemble):
         for idx in indices:
             if idx < len(self.algo_ensemble):
                 self.algo_ensemble.pop(idx)
+
+
+class BundleEnsembleBestByFold(BundleEnsemble):
+    """
+    Ensemble method that select the best models that are the tops in each fold.
+
+    Args:
+        n_fold: number of cross-valiation folds used in training
+    """
+
+    def __init__(self, n_fold: int = 5):
+
+        super().__init__()
+        self.n_fold = n_fold
+
+    def rank_algos(self):
+        """
+        Rank the algos by finding the best model in each cross-validation fold
+        """
+
+        self.algo_ensemble = []
+        for f_idx in range(self.n_fold):
+            best_score = -1.0
+            best_model: Optional[BundleAlgo] = None
+            for algo in self.algos:
+                identifier = algo[BundleEnsembleKeys.ID].split("_")[-1]
+                try:
+                    algo_id = int(identifier)
+                except ValueError:
+                    raise ValueError(f"model identifier {identifier} is not number.")
+                if algo_id == f_idx and algo[BundleEnsembleKeys.SCORE] > best_score:
+                    best_model = algo
+            self.algo_ensemble.append(best_model)
 
 
 class BundleEnsembleBuilder:

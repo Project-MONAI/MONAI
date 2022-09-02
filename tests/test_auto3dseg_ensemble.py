@@ -17,9 +17,16 @@ from typing import Dict, List
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import BundleEnsembleBestN, BundleEnsembleBuilder, BundleGen, DataAnalyzer
+from monai.apps.auto3dseg import (
+    BundleEnsembleBestByFold,
+    BundleEnsembleBestN,
+    BundleEnsembleBuilder,
+    BundleGen,
+    DataAnalyzer,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
+from monai.utils.enums import BundleEnsembleKeys
 from tests.utils import skip_if_no_cuda
 
 fake_datalist: Dict[str, List[Dict]] = {
@@ -105,7 +112,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         bundle_generator = BundleGen(
             algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
         )
-        bundle_generator.generate(work_dir, [0, 1])
+        bundle_generator.generate(work_dir, num_fold=2)
         history = bundle_generator.get_history()
 
         for h in history:
@@ -114,10 +121,15 @@ class TestEnsembleBuilder(unittest.TestCase):
                 algo.train(train_param)
 
         builder = BundleEnsembleBuilder(history, data_src_cfg)
-        builder.set_ensemble_method(BundleEnsembleBestN(n_best=5))
+        builder.set_ensemble_method(BundleEnsembleBestN(n_best=2))
         ensemble = builder.get_ensemble()
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 64, 64, 64))
+
+        builder.set_ensemble_method(BundleEnsembleBestByFold(2))
+        ensemble = builder.get_ensemble()
+        for algo in ensemble.get_algo_ensemble():
+            print(algo[BundleEnsembleKeys.ID])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
