@@ -124,7 +124,7 @@ class UpCat(nn.Module):
         Args:
             spatial_dims: number of spatial dimensions.
             in_chns: number of input channels to be upsampled.
-            cat_chns: number of channels from the decoder.
+            cat_chns: number of channels from the encoder.
             out_chns: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
