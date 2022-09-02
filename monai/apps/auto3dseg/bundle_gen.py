@@ -18,6 +18,7 @@ from copy import copy, deepcopy
 from glob import glob
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Sequence, Union
+from warnings import warn
 
 import torch
 
@@ -152,6 +153,11 @@ class BundleAlgo(Algo):
         # handling scripts files
         output_scripts_path = os.path.join(write_path, "scripts")
         if os.path.exists(output_scripts_path):
+            shutil.copytree(output_scripts_path, output_scripts_path + ".bak")
+            warn(
+                f"Moved non-empty {output_scripts_path} to backup {output_scripts_path}.bak. "
+                "Backup will be deleted in next run."
+            )
             shutil.rmtree(output_scripts_path)
         if self.scripts_path is not None and os.path.exists(self.scripts_path):
             shutil.copytree(self.scripts_path, output_scripts_path)

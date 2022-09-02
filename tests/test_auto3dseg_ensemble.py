@@ -48,6 +48,8 @@ train_param = {
     "num_epochs": 2,
 }
 
+pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
+
 
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
@@ -114,7 +116,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder = BundleEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(BundleEnsembleBestN(n_best=5))
         ensemble = builder.get_ensemble()
-        preds = ensemble.predict()
+        preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 64, 64, 64))
 
     def tearDown(self) -> None:

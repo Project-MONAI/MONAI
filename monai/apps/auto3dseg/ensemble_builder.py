@@ -16,13 +16,17 @@ import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Sequence
+from warnings import warn
 
 import numpy as np
+import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
 from monai.utils.enums import BundleEnsembleKeys
+from monai.utils.misc import prob2class
+from monai.utils.module import look_up_option
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +38,7 @@ class BundleEnsemble(ABC):
 
     def __init__(self):
         self.algos = []
+        self.mode = "mean"
         self.infer_files = []
         self.algo_ensemble = []
 
@@ -63,7 +68,7 @@ class BundleEnsemble(ABC):
         """
         return self.algo_ensemble
 
-    def set_infer_files(self, dataroot: str, data_src_cfg_file: str):
+    def set_infer_files(self, dataroot: str, data_list_file_path: str):
         """
         Set the files to perform model inference.
 
@@ -71,21 +76,82 @@ class BundleEnsemble(ABC):
             dataroot: the path of the files
             data_src_cfg_file: the data source file path
         """
-        with open(data_src_cfg_file) as f:
+        with open(data_list_file_path) as f:
             datalist = json.load(f)
 
         for d in datalist["testing"]:
             self.infer_files.append({"image": os.path.join(dataroot, d["image"])})
 
-    @abstractmethod
-    def rank_algos(self):
-        raise NotImplementedError
+    def ensemble_pred(self, preds, sigmoid=True):
+        """
+        ensemble the results using either "mean" or "vote" method
+
+        Args:
+            preds: a list of probablity prediction in Tensor-Like format.
+            sigmoid: use the sigmoid function to threshold probability map.
+
+        Returns:
+            a tensor which is the ensembled prediction.
+        """
+
+        if self.mode == "mean":
+            prob = sum(preds) / len(preds)
+            return prob2class(prob, dim=0, keepdim=True, sigmoid=sigmoid)
+        elif self.mode == "vote":
+            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=sigmoid) for p in preds]
+            class_sum = sum(classes)
+            return torch.argmax(class_sum, dim=0, keepdim=True)
+
+    def __call__(self, pred_param: Optional[Dict[str, Any]] = None):
+        """
+        Use the ensembled model to predict result.
+
+        Args:
+            pred_param: prediction parameter dictionary. The key has two groups: the first one will be consumed in this function, and the
+                second group will be passed to the `InferClass` to override the parameters of the class functions.
+                The first group contains:
+                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only make prediction on the
+                    infer_files[file_slices].
+                'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
+                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to the label class prediction.
+
+        Returns:
+            A list of tensors.
+        """
+        if pred_param is None:
+            param = {}
+        else:
+            param = deepcopy(pred_param)
+
+        files = self.infer_files
+        if "files_slices" in param:
+            slices = param.pop("files_slices")
+            files = self.infer_files[slices]
+
+        if "mode" in param:
+            mode = param.pop("mode")
+            self.mode = look_up_option(mode, supported=["mean", "vote"])
+
+        sigmoid = True
+        if "sigmoid" in param:
+            sigmoid = param.pop("sigmoid")
+            sigmoid = look_up_option(sigmoid, supported=[True, False])
+
+        outputs = []
+        for i in range(len(files)):
+            print(i)
+            preds = []
+            infer_filename = self.infer_files[i]
+            for algo in self.algo_ensemble:
+                infer_instance = algo[BundleEnsembleKeys.ALGO]
+                param.update({"files": [infer_filename]})
+                pred = infer_instance.predict(param)
+                preds.append(pred[0])
+            outputs.append(self.ensemble_pred(preds, sigmoid=sigmoid))
+        return outputs
 
     @abstractmethod
-    def predict(self):
-        """
-        predict results after the models are ranked/weighted
-        """
+    def rank_algos(self):
         raise NotImplementedError
 
 
@@ -109,16 +175,20 @@ class BundleEnsembleBestN(BundleEnsemble):
         scores = concat_val_to_np(self.algos, [BundleEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
-    def rank_algos(self):
+    def rank_algos(self, n_best: int = -1):
         """
         Rank the algos by finding the top N (n_best) validation scores.
         """
+
+        if n_best <= 0:
+            n_best = self.n_best
+
         ranks = self.sort_score()
-        if len(ranks) < self.n_best:
+        if len(ranks) < n_best:
             raise ValueError("Number of available algos is less than user-defined N")
 
         # get the indices that the rank is larger than N
-        indices = [i for (i, r) in enumerate(ranks) if r >= self.n_best]
+        indices = [i for (i, r) in enumerate(ranks) if r >= n_best]
 
         # remove the found indices
         indices = sorted(indices, reverse=True)
@@ -127,42 +197,6 @@ class BundleEnsembleBestN(BundleEnsemble):
         for idx in indices:
             if idx < len(self.algo_ensemble):
                 self.algo_ensemble.pop(idx)
-
-    def predict(self, pred_param: Optional[Dict[str, Any]] = None):
-        """
-        Use the ensembled model to predict result
-
-        Args:
-            pred_param: prediction parameter dictionary. The key has two groups. The first group only has 'files_slices' key with
-                a value type of `slice`. The files_slices will slice the infer_files and only make prediction on the
-                infer_files[file_slices]. The second group of params will be passed to the `InferClass` to override the parameters
-                of the class functions.
-
-        Returns:
-            A tensor.
-        """
-        if pred_param is None:
-            param = {}
-        else:
-            param = deepcopy(pred_param)
-
-        files = self.infer_files
-        if "files_slices" in param:
-            slices = param.pop("files_slices")
-            files = self.infer_files[slices]
-
-        outputs = []
-        for i in range(len(files)):
-            print(i)
-            preds = []
-            infer_filename = self.infer_files[i]
-            for algo in self.algo_ensemble:
-                infer_instance = algo[BundleEnsembleKeys.ALGO]
-                param.update({"files": [infer_filename]})
-                pred = infer_instance.predict(param)
-                preds.append(pred[0])
-            outputs.append(sum(preds) / len(preds))
-        return outputs
 
 
 class BundleEnsembleBuilder:
@@ -194,7 +228,7 @@ class BundleEnsembleBuilder:
         for h in history:
             # load inference_config_paths
             # raise warning/error if not found
-            if len(h.keys()) > 1:
+            if len(h) > 1:
                 raise ValueError(f"{h} should only contain one set of genAlgo key-value")
 
             name = list(h.keys())[0]
@@ -204,10 +238,10 @@ class BundleEnsembleBuilder:
             infer_path = os.path.join(algo_path, "scripts", "infer.py")
 
             if not os.path.isdir(algo_path):
-                raise ValueError(f"{gen_algo.output_path} is not a directory. Please check the path.")
+                warn(f"{gen_algo.output_path} is not a directory. Please check the path.")
 
             if not os.path.isfile(infer_path):
-                raise ValueError(f"{infer_path} is not found. Please check the path.")
+                warn(f"{infer_path} is not found. Please check the path.")
 
             self.add_inferer(name, gen_algo, best_metric)
 
