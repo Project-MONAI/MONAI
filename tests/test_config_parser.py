@@ -215,6 +215,11 @@ class TestConfigParser(unittest.TestCase):
 
         with self.subTest("Testing empty parser"):
             self.assertFalse("something" in empty_parser)
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
+        empty_parser["osmething"] = "test"
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
 
         with self.subTest("Testing with keys"):
             self.assertTrue("value" in parser)

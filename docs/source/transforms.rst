@@ -578,6 +578,12 @@ Post-processing
 .. autoclass:: ProbNMS
   :members:
 
+`SobelGradients`
+""""""""""""""""
+.. autoclass:: SobelGradients
+  :members:
+  :special-members: __call__
+
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
@@ -647,9 +653,9 @@ Signal
     :members:
     :special-members: __call__
 
-`SignalContinousWavelet`
-""""""""""""""""""""""""
-.. autoclass:: SignalContinousWavelet
+`SignalContinuousWavelet`
+"""""""""""""""""""""""""
+.. autoclass:: SignalContinuousWavelet
     :members:
     :special-members: __call__
 
@@ -1592,6 +1598,14 @@ Post-processing (Dict)
 .. autoclass:: ProbNMSd
   :members:
   :special-members: __call__
+
+
+`SobelGradientsd`
+"""""""""""""""""
+.. autoclass:: SobelGradientsd
+  :members:
+  :special-members: __call__
+
 
 Spatial (Dict)
 ^^^^^^^^^^^^^^
