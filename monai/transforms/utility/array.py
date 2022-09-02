@@ -603,11 +603,12 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0) -> None:
+    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
 
         Raises:
             TypeError: When ``dim`` is not an ``Optional[int]``.
@@ -616,6 +617,7 @@ class SqueezeDim(Transform):
         if dim is not None and not isinstance(dim, int):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -624,11 +626,25 @@ class SqueezeDim(Transform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
-        if img.shape[self.dim] != 1:
-            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape}.")
-        return img.squeeze(self.dim)
+        if img.shape[dim] != 1:
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")
+        img = img.squeeze(dim)
+        if self.update_meta and isinstance(img, MetaTensor) and dim > 0 and len(img.affine.shape) == 2:
+            h, w = img.affine.shape
+            affine, device = img.affine, img.affine.device if isinstance(img.affine, torch.Tensor) else None
+            if h > dim:
+                affine = affine[torch.arange(0, h, device=device) != dim - 1]
+            if w > dim:
+                affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
+                warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
+            img.affine = affine
+        return img
 
 
 class DataStats(Transform):

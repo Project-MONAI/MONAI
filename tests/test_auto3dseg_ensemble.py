@@ -20,8 +20,11 @@ import numpy as np
 from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
+from monai.utils import optional_import
 from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import skip_if_no_cuda
+
+_, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 fake_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -52,6 +55,7 @@ train_param = {
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
+@unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
