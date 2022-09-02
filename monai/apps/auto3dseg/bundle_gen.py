@@ -57,9 +57,9 @@ class BundleAlgo(Algo):
 
         [algo_name]
         ├── configs
-        │   ├── progress.yaml  # automatically generated during training to track the best validation scores.
         │   └── algo_config.yaml  # automatically generated yaml from a set of ``template_configs``
         └── scripts
+            ├── algo.py
             ├── infer.py
             ├── train.py
             └── validate.py
@@ -272,7 +272,7 @@ class BundleAlgo(Algo):
 # path to download the algo_templates
 algo_zip = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/algo_templates.tar.gz"
 
-md5 = "67f434ce3c44800cfb6341d6278d635b"
+md5 = "c671dcd525a736f083ac1ca3d23a86dc"
 
 # default algorithms
 default_algos = {

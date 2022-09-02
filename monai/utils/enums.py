@@ -51,7 +51,7 @@ __all__ = [
     "DataStatsKeys",
     "ImageStatsKeys",
     "LabelStatsKeys",
-    "BundleEnsembleKeys",
+    "AlgoEnsembleKeys",
 ]
 
 
@@ -574,7 +574,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
-class BundleEnsembleKeys(StrEnum):
+class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble
     """

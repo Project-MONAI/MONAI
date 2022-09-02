@@ -24,14 +24,14 @@ import torch
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
-from monai.utils.enums import BundleEnsembleKeys
+from monai.utils.enums import AlgoEnsembleKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option
 
 logger = logging.getLogger(__name__)
 
 
-class BundleEnsemble(ABC):
+class AlgoEnsemble(ABC):
     """
     The base class of Ensemble methods
     """
@@ -56,7 +56,7 @@ class BundleEnsemble(ABC):
             identifier: the name of the bundleAlgo
         """
         for algo in self.algos:
-            if identifier == algo[BundleEnsembleKeys.ID]:
+            if identifier == algo[AlgoEnsembleKeys.ID]:
                 return algo
 
     def get_algo_ensemble(self):
@@ -145,7 +145,7 @@ class BundleEnsemble(ABC):
             preds = []
             infer_filename = self.infer_files[i]
             for algo in self.algo_ensemble:
-                infer_instance = algo[BundleEnsembleKeys.ALGO]
+                infer_instance = algo[AlgoEnsembleKeys.ALGO]
                 param.update({"files": [infer_filename]})
                 pred = infer_instance.predict(param)
                 preds.append(pred[0])
@@ -157,7 +157,7 @@ class BundleEnsemble(ABC):
         raise NotImplementedError
 
 
-class BundleEnsembleBestN(BundleEnsemble):
+class AlgoEnsembleBestN(AlgoEnsemble):
     """
     Ensemble method that select N model out of all using the models' best_metric scores
 
@@ -174,7 +174,7 @@ class BundleEnsembleBestN(BundleEnsemble):
         """
         Sort the best_metrics
         """
-        scores = concat_val_to_np(self.algos, [BundleEnsembleKeys.SCORE])
+        scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
     def rank_algos(self, n_best: int = -1):
@@ -201,7 +201,7 @@ class BundleEnsembleBestN(BundleEnsemble):
                 self.algo_ensemble.pop(idx)
 
 
-class BundleEnsembleBestByFold(BundleEnsemble):
+class AlgoEnsembleBestByFold(AlgoEnsemble):
     """
     Ensemble method that select the best models that are the tops in each fold.
 
@@ -224,17 +224,17 @@ class BundleEnsembleBestByFold(BundleEnsemble):
             best_score = -1.0
             best_model: Optional[BundleAlgo] = None
             for algo in self.algos:
-                identifier = algo[BundleEnsembleKeys.ID].split("_")[-1]
+                identifier = algo[AlgoEnsembleKeys.ID].split("_")[-1]
                 try:
                     algo_id = int(identifier)
                 except ValueError as err:
                     raise ValueError(f"model identifier {identifier} is not number.") from err
-                if algo_id == f_idx and algo[BundleEnsembleKeys.SCORE] > best_score:
+                if algo_id == f_idx and algo[AlgoEnsembleKeys.SCORE] > best_score:
                     best_model = algo
             self.algo_ensemble.append(best_model)
 
 
-class BundleEnsembleBuilder:
+class AlgoEnsembleBuilder:
     """
     Build ensemble workflow from configs and arguments.
 
@@ -245,16 +245,16 @@ class BundleEnsembleBuilder:
     Examples:
 
         ..code-block:: python
-            builder = BundleEnsembleBuilder(history, data_src_cfg)
-            builder.set_ensemble_method(BundleBundleEnsembleBestN(3))
+            builder = AlgoEnsembleBuilder(history, data_src_cfg)
+            builder.set_ensemble_method(BundleAlgoEnsembleBestN(3))
             ensemble = builder.get_ensemble()
 
             result = ensemble.predict()
     """
 
     def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):
-        self.infer_algos: List[Dict[BundleEnsembleKeys, Any]] = []
-        self.ensemble: BundleEnsemble
+        self.infer_algos: List[Dict[AlgoEnsembleKeys, Any]] = []
+        self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
@@ -293,19 +293,15 @@ class BundleEnsembleBuilder:
         if best_metric is None:
             raise ValueError("Feature to re-valiate is to be implemented")
 
-        algo = {
-            BundleEnsembleKeys.ID: identifier,
-            BundleEnsembleKeys.ALGO: gen_algo,
-            BundleEnsembleKeys.SCORE: best_metric,
-        }
+        algo = {AlgoEnsembleKeys.ID: identifier, AlgoEnsembleKeys.ALGO: gen_algo, AlgoEnsembleKeys.SCORE: best_metric}
         self.infer_algos.append(algo)
 
-    def set_ensemble_method(self, ensemble: BundleEnsemble):
+    def set_ensemble_method(self, ensemble: AlgoEnsemble):
         """
         Set the ensemble method.
 
         Args:
-            ensemble: the BundleEnsemble to build.
+            ensemble: the AlgoEnsemble to build.
         """
 
         ensemble.set_algos(self.infer_algos)

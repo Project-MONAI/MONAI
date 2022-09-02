@@ -11,4 +11,4 @@
 
 from .bundle_gen import BundleAlgo, BundleGen
 from .data_analyzer import DataAnalyzer
-from .ensemble_builder import BundleEnsemble, BundleEnsembleBestByFold, BundleEnsembleBestN, BundleEnsembleBuilder
+from .ensemble_builder import AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder

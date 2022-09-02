@@ -17,16 +17,10 @@ from typing import Dict, List
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import (
-    BundleEnsembleBestByFold,
-    BundleEnsembleBestN,
-    BundleEnsembleBuilder,
-    BundleGen,
-    DataAnalyzer,
-)
+from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
-from monai.utils.enums import BundleEnsembleKeys
+from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import skip_if_no_cuda
 
 fake_datalist: Dict[str, List[Dict]] = {
@@ -120,16 +114,16 @@ class TestEnsembleBuilder(unittest.TestCase):
             for _, algo in h.items():
                 algo.train(train_param)
 
-        builder = BundleEnsembleBuilder(history, data_src_cfg)
-        builder.set_ensemble_method(BundleEnsembleBestN(n_best=2))
+        builder = AlgoEnsembleBuilder(history, data_src_cfg)
+        builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
         ensemble = builder.get_ensemble()
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 64, 64, 64))
 
-        builder.set_ensemble_method(BundleEnsembleBestByFold(2))
+        builder.set_ensemble_method(AlgoEnsembleBestByFold(2))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[BundleEnsembleKeys.ID])
+            print(algo[AlgoEnsembleKeys.ID])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
