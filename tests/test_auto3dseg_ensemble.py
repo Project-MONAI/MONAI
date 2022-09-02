@@ -22,7 +22,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from monai.utils.enums import AlgoEnsembleKeys
-from tests.utils import skip_if_no_cuda
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -55,6 +55,7 @@ train_param = {
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
+@SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
