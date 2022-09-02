@@ -78,17 +78,13 @@ class LogfileHandler:
         if self.logger is not None:
             self.logger.addHandler(self.handler)
         else:
-            raise AttributeError("`self.logger` should not be None in start event")
+            raise AttributeError("`self.logger` must not be None in start event")
 
     def _completed(self, engine: Engine) -> None:
-        if self.logger is not None:
+        if self.logger is not None and self.handler is not None:
             self.logger.removeHandler(self.handler)
-        else:
-            raise AttributeError("`self.logger` should not be None in complete event")
-
-        if self.handler is not None:
             self.handler.close()
         else:
-            raise AttributeError("`self.handler` should not be None in complete event")
-
+            raise AttributeError("`self.logger` and `self.handler` must not be None in complete event")
+            
         self.handler = None
