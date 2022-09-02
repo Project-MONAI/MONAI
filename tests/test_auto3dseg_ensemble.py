@@ -106,9 +106,9 @@ class TestEnsembleBuilder(unittest.TestCase):
         bundle_generator.generate(work_dir, [0, 1])
         history = bundle_generator.get_history()
 
-        for i, record in enumerate(history):
-            self.assertEqual(len(record.keys()), 1, "each record should have one model")
-            for name, algo in record.items():
+        for h in history:
+            self.assertEqual(len(h.keys()), 1, "each record should have one model")
+            for _, algo in h.items():
                 algo.train(train_param)
 
         builder = BundleEnsembleBuilder(history, data_src_cfg)
