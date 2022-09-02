@@ -123,3 +123,50 @@ def compute_variance(
         elif scalar_reduction == "sum":
             var_sum = torch.sum(variance)
             return var_sum
+
+def label_quality_score(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    spatial_map: bool = False,
+    scalar_reduction: str = "mean",
+):
+    """
+    Args:
+        y_pred: [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels and H, W, D stand for
+        Height, Width & Depth
+        include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
+        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
+        dimensions
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+    Returns:
+        A single scalar absolute difference value as score with a reduction based on sum/mean or the spatial map of
+        absolute difference
+    """
+
+    # The background utils is only applicable here because instead of Batch-dimension we have repeats here
+    y_pred = y_pred.float()
+    y = y.float()
+
+    if not include_background:
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
+
+    n_len = len(y_pred.shape)
+    n_shape = y_pred.shape
+    if n_len < 4 and spatial_map is True:
+        warnings.warn("Spatial map requires a 2D/3D image with B-Batchsize and C-channels")
+        return None
+
+    abs_diff_map = torch.abs(y_pred - y)
+
+    if spatial_map is True:
+        return abs_diff_map
+
+    elif spatial_map is False:
+        if scalar_reduction == "mean":
+            lbl_score_mean = torch.mean(abs_diff_map, dim=list(range(1, n_len)))
+            return lbl_score_mean
+        elif scalar_reduction == "sum":
+            lbl_score_sum = torch.sum(abs_diff_map, dim=list(range(1, n_len)))
+            print(lbl_score_sum)
+            return lbl_score_sum
