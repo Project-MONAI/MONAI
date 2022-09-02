@@ -19,11 +19,11 @@ from typing import Any, Dict, List, Optional, Sequence
 from warnings import warn
 
 import numpy as np
-import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
+from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoEnsembleKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option
@@ -88,19 +88,18 @@ class AlgoEnsemble(ABC):
 
         Args:
             preds: a list of probablity prediction in Tensor-Like format.
-            sigmoid: use the sigmoid function to threshold probability map.
+            sigmoid: use the sigmoid function to threshold probability one-hot map.
 
         Returns:
             a tensor which is the ensembled prediction.
         """
 
         if self.mode == "mean":
-            prob = sum(preds) / len(preds)
+            prob = MeanEnsemble()(preds)
             return prob2class(prob, dim=0, keepdim=True, sigmoid=sigmoid)
         elif self.mode == "vote":
-            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=sigmoid) for p in preds]
-            class_sum = sum(classes)
-            return torch.argmax(class_sum, dim=0, keepdim=True)
+            classes = [prob2class(p, dim=0, keepdim=True, sigmoid=False) for p in preds]
+            return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
     def __call__(self, pred_param: Optional[Dict[str, Any]] = None):
         """
@@ -153,7 +152,7 @@ class AlgoEnsemble(ABC):
         return outputs
 
     @abstractmethod
-    def rank_algos(self):
+    def collect_algos(self, *args, **kwargs):
         raise NotImplementedError
 
 
@@ -177,7 +176,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
         scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
-    def rank_algos(self, n_best: int = -1):
+    def collect_algos(self, n_best: int = -1):  # type: ignore
         """
         Rank the algos by finding the top N (n_best) validation scores.
         """
@@ -214,7 +213,7 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
         super().__init__()
         self.n_fold = n_fold
 
-    def rank_algos(self):
+    def collect_algos(self):  # type: ignore
         """
         Rank the algos by finding the best model in each cross-validation fold
         """
@@ -296,7 +295,7 @@ class AlgoEnsembleBuilder:
         algo = {AlgoEnsembleKeys.ID: identifier, AlgoEnsembleKeys.ALGO: gen_algo, AlgoEnsembleKeys.SCORE: best_metric}
         self.infer_algos.append(algo)
 
-    def set_ensemble_method(self, ensemble: AlgoEnsemble):
+    def set_ensemble_method(self, ensemble: AlgoEnsemble, *args, **kwargs):
         """
         Set the ensemble method.
 
@@ -305,7 +304,7 @@ class AlgoEnsembleBuilder:
         """
 
         ensemble.set_algos(self.infer_algos)
-        ensemble.rank_algos()
+        ensemble.collect_algos(*args, **kwargs)
         ensemble.set_infer_files(self.data_src_cfg["dataroot"], self.data_src_cfg["datalist"])
 
         self.ensemble = ensemble
