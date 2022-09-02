@@ -48,6 +48,10 @@ __all__ = [
     "MetaKeys",
     "ColorOrder",
     "EngineStatsKeys",
+    "DataStatsKeys",
+    "ImageStatsKeys",
+    "LabelStatsKeys",
+    "BundleEnsembleKeys",
 ]
 
 
@@ -568,3 +572,13 @@ class LabelStatsKeys(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
+
+
+class BundleEnsembleKeys(StrEnum):
+    """
+    Default keys for Mixed Ensemble
+    """
+
+    ID = "identifier"
+    ALGO = "infer_algo"
+    SCORE = "best_metric"

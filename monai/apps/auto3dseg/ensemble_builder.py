@@ -22,22 +22,12 @@ import numpy as np
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
-from monai.utils.enums import StrEnum
+from monai.utils.enums import BundleEnsembleKeys
 
 logger = logging.getLogger(__name__)
 
 
-class ScriptEnsembleKeys(StrEnum):
-    """
-    Default keys for Mixed Ensemble
-    """
-
-    ID = "identifier"
-    ALGO = "infer_algo"
-    SCORE = "best_metric"
-
-
-class ScriptEnsemble(ABC):
+class BundleEnsemble(ABC):
     """
     The base class of Ensemble methods
     """
@@ -45,6 +35,7 @@ class ScriptEnsemble(ABC):
     def __init__(self):
         self.algos = []
         self.infer_files = []
+        self.algo_ensemble = []
 
     def set_algos(self, infer_algos):
         """
@@ -60,8 +51,17 @@ class ScriptEnsemble(ABC):
             identifier: the name of the bundleAlgo
         """
         for algo in self.algos:
-            if identifier == algo[ScriptEnsembleKeys.ID]:
+            if identifier == algo[BundleEnsembleKeys.ID]:
                 return algo
+
+    def get_algo_ensemble(self):
+        """
+        Get the algo ensemble after ranking or a empty list if ranking was not started.
+
+        Returns:
+            A list of Algo
+        """
+        return self.algo_ensemble
 
     def set_infer_files(self, dataroot: str, data_src_cfg_file: str):
         """
@@ -89,7 +89,7 @@ class ScriptEnsemble(ABC):
         raise NotImplementedError
 
 
-class EnsembleBestN(ScriptEnsemble):
+class BundleEnsembleBestN(BundleEnsemble):
     """
     Ensemble method that select N model out of all using the models' best_metric scores
 
@@ -103,12 +103,16 @@ class EnsembleBestN(ScriptEnsemble):
         self.n_best = n_best
 
     def sort_score(self):
-        """sort the best_metrics"""
-        scores = concat_val_to_np(self.algos, [ScriptEnsembleKeys.SCORE])
+        """
+        Sort the best_metrics
+        """
+        scores = concat_val_to_np(self.algos, [BundleEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
     def rank_algos(self):
-        """rank the model"""
+        """
+        Rank the algos by finding the top N (n_best) validation scores.
+        """
         ranks = self.sort_score()
         if len(ranks) < self.n_best:
             raise ValueError("Number of available algos is less than user-defined N")
@@ -119,29 +123,49 @@ class EnsembleBestN(ScriptEnsemble):
         # remove the found indices
         indices = sorted(indices, reverse=True)
 
-        self.ranked_algo = deepcopy(self.algos)
+        self.algo_ensemble = deepcopy(self.algos)
         for idx in indices:
-            if idx < len(self.ranked_algo):
-                self.ranked_algo.pop(idx)
+            if idx < len(self.algo_ensemble):
+                self.algo_ensemble.pop(idx)
 
-    def predict(self, param: Optional[Dict[str, Any]] = None):
-        """predict the ensembled pred"""
-        if param is None:
+    def predict(self, pred_param: Optional[Dict[str, Any]] = None):
+        """
+        Use the ensembled model to predict result
+
+        Args:
+            pred_param: prediction parameter dictionary. The key has two groups. The first group only has 'files_slices' key with
+                a value type of `slice`. The files_slices will slice the infer_files and only make prediction on the
+                infer_files[file_slices]. The second group of params will be passed to the `InferClass` to override the parameters
+                of the class functions.
+
+        Returns:
+            A tensor.
+        """
+        if pred_param is None:
             param = {}
+        else:
+            param = deepcopy(pred_param)
 
-        for i in range(len(self.infer_files)):
+        files = self.infer_files
+        if "files_slices" in param:
+            slices = param.pop("files_slices")
+            files = self.infer_files[slices]
+
+        outputs = []
+        for i in range(len(files)):
+            print(i)
             preds = []
             infer_filename = self.infer_files[i]
-            for algo in self.ranked_algo:
-                infer_instance = algo[ScriptEnsembleKeys.ALGO]
+            for algo in self.algo_ensemble:
+                infer_instance = algo[BundleEnsembleKeys.ALGO]
                 param.update({"files": [infer_filename]})
                 pred = infer_instance.predict(param)
                 preds.append(pred[0])
-            output = sum(preds) / len(preds)
-            print("ensemble_algorithm, preds", len(preds), "output shape", output.shape)
+            outputs.append(sum(preds) / len(preds))
+        return outputs
 
 
-class ScriptEnsembleBuilder:
+class BundleEnsembleBuilder:
     """
     Build ensemble workflow from configs and arguments.
 
@@ -152,16 +176,16 @@ class ScriptEnsembleBuilder:
     Examples:
 
         ..code-block:: python
-            builder = ScriptEnsembleBuilder(history, data_src_cfg)
-            builder.set_ensemble_method(EnsembleBestN(3))
+            builder = BundleEnsembleBuilder(history, data_src_cfg)
+            builder.set_ensemble_method(BundleBundleEnsembleBestN(3))
             ensemble = builder.get_ensemble()
 
             result = ensemble.predict()
     """
 
     def __init__(self, history: Sequence[Dict], data_src_cfg_filename: Optional[str] = None):
-        self.infer_algos: List[Dict[ScriptEnsembleKeys, Any]] = []
-        self.ensemble: ScriptEnsemble
+        self.infer_algos: List[Dict[BundleEnsembleKeys, Any]] = []
+        self.ensemble: BundleEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
         if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
@@ -201,18 +225,18 @@ class ScriptEnsembleBuilder:
             raise ValueError("Feature to re-valiate is to be implemented")
 
         algo = {
-            ScriptEnsembleKeys.ID: identifier,
-            ScriptEnsembleKeys.ALGO: gen_algo,
-            ScriptEnsembleKeys.SCORE: best_metric,
+            BundleEnsembleKeys.ID: identifier,
+            BundleEnsembleKeys.ALGO: gen_algo,
+            BundleEnsembleKeys.SCORE: best_metric,
         }
         self.infer_algos.append(algo)
 
-    def set_ensemble_method(self, ensemble: ScriptEnsemble):
+    def set_ensemble_method(self, ensemble: BundleEnsemble):
         """
         Set the ensemble method.
 
         Args:
-            ensemble: the ScriptEnsemble to build.
+            ensemble: the BundleEnsemble to build.
         """
 
         ensemble.set_algos(self.infer_algos)
