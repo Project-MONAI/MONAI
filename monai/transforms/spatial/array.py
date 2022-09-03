@@ -257,7 +257,7 @@ class SpatialResample(InvertibleTransform):
         if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
             spatial_size = in_spatial_size
         elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine, align_corners)  # type: ignore
         spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
 
         if (

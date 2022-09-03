@@ -844,13 +844,12 @@ def compute_shape_offset(
         out_affine (matrix): 2D affine matrix
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            Defaults to ``None``, effectively using the value of `self.align_corners`.
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
-    in_coords = [(0.0, dim - 1.0) if align_corners else (-0.5, dim - 0.5) for dim in shape]
+    in_coords = [(0.0, dim - 1.0) if not align_corners else (-0.5, dim - 0.5) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine_ @ corners
@@ -860,15 +859,19 @@ def compute_shape_offset(
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1) + 1.0) if align_corners else np.round(corners_out.ptp(axis=1))
+    out_shape = np.round(corners_out.ptp(axis=1) + 1.0) if not align_corners else np.round(corners_out.ptp(axis=1))
     mat = inv_mat[:-1, :-1]
-    k = 0
+    i = 0
     for i in range(corners.shape[1]):
         min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
-            k = i
             break
-    offset = corners[:-1, k]
+    offset = corners[:-1, i]
+    if align_corners:
+        in_voxel = affine_to_spacing(in_affine, sr, suppress_zeros=True)
+        out_voxel = affine_to_spacing(out_affine, sr, suppress_zeros=True)
+        in_offset = np.append(0.5 * (out_voxel / in_voxel - 1.0), 1.0)
+        offset = np.abs(((in_affine_ @ in_offset) / in_offset[-1])[:-1]) * np.sign(offset)
     return out_shape.astype(int, copy=False), offset
 
 
