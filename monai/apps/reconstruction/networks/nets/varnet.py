@@ -72,4 +72,4 @@ class VariationalNetworkModel(nn.Module):
             complex_abs_t(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
             spatial_dim=1,  # 1 is for C which is the coil dimension
         )  # shape is (B,H,W) for 2D and (B,H,W,D) for 3D data.
-        return output_image  # type: ignore
+        return output_image
