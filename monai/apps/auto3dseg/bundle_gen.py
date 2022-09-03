@@ -381,7 +381,7 @@ class BundleGen(AlgoGen):
 
         Args:
             output_folder: the output folder to save each algorithm.
-            fold_idx: an index to append to the name of the algorithm to
+            num_fold: the number of cross validation fold
         """
         fold_idx = list(range(num_fold))
         for algo in self.algos:
