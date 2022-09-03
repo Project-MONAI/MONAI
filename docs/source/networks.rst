@@ -528,6 +528,13 @@ Nets
 .. autoclass:: BasicUnet
 .. autoclass:: Basicunet
 
+`BasicUNetPlusPlus`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: BasicUNetPlusPlus
+  :members:
+.. autoclass:: BasicUnetPlusPlus
+.. autoclass:: BasicunetPlusPlus
+
 `FlexibleUNet`
 ~~~~~~~~~~~~~~
 .. autoclass:: FlexibleUNet
