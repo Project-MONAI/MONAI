@@ -18,7 +18,7 @@ from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import ensure_tuple_rep
 
-__all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetPlusPlus", "BasicUNetPlusPlus"]
+__all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetplusplus", "BasicUNetPlusPlus"]
 
 
 class TwoConv(nn.Sequential):
@@ -314,4 +314,4 @@ class BasicUNetPlusPlus(nn.Module):
         return output
 
 
-BasicUnetPlusPlus = BasicunetPlusPlus = basicunetPlusPlus = BasicUNetPlusPlus
+BasicUnetPlusPlus = BasicunetPlusPlus = basicunetplusplus = BasicUNetPlusPlus
