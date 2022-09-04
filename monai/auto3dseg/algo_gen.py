@@ -19,7 +19,6 @@ class Algo:
     """
 
     def set_data_stats(self, *args, **kwargs):
-
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""
         pass
 

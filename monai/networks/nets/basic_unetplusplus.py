@@ -46,7 +46,9 @@ class TwoConv(nn.Sequential):
         """
         super().__init__()
 
-        conv_0 = Convolution(spatial_dims, in_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
+        conv_0 = Convolution(
+            spatial_dims, in_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
+        )
         conv_1 = Convolution(
             spatial_dims, out_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
         )
