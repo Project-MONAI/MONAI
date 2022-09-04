@@ -27,8 +27,8 @@ class TwoConv(nn.Sequential):
     def __init__(
         self,
         spatial_dims: int,
-        in_chns: int,
-        out_chns: int,
+        in_channels: int,
+        out_channels: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
         bias: bool,
@@ -37,8 +37,8 @@ class TwoConv(nn.Sequential):
         """
         Args:
             spatial_dims: number of spatial dimensions.
-            in_chns: number of input channels.
-            out_chns: number of output channels.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
             bias: whether to have a bias term in convolution blocks.
@@ -46,9 +46,9 @@ class TwoConv(nn.Sequential):
         """
         super().__init__()
 
-        conv_0 = Convolution(spatial_dims, in_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
+        conv_0 = Convolution(spatial_dims, in_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1)
         conv_1 = Convolution(
-            spatial_dims, out_chns, out_chns, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
+            spatial_dims, out_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
         )
         self.add_module("conv_0", conv_0)
         self.add_module("conv_1", conv_1)
@@ -60,8 +60,8 @@ class Down(nn.Sequential):
     def __init__(
         self,
         spatial_dims: int,
-        in_chns: int,
-        out_chns: int,
+        in_channels: int,
+        out_channels: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
         bias: bool,
@@ -70,8 +70,8 @@ class Down(nn.Sequential):
         """
         Args:
             spatial_dims: number of spatial dimensions.
-            in_chns: number of input channels.
-            out_chns: number of output channels.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
             bias: whether to have a bias term in convolution blocks.
@@ -80,7 +80,7 @@ class Down(nn.Sequential):
         """
         super().__init__()
         max_pooling = Pool["MAX", spatial_dims](kernel_size=2)
-        convs = TwoConv(spatial_dims, in_chns, out_chns, act, norm, bias, dropout)
+        convs = TwoConv(spatial_dims, in_channels, out_channels, act, norm, bias, dropout)
         self.add_module("max_pooling", max_pooling)
         self.add_module("convs", convs)
 
@@ -91,9 +91,9 @@ class UpCat(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        in_chns: int,
-        cat_chns: int,
-        out_chns: int,
+        in_channels: int,
+        cat_channels: int,
+        out_channels: int,
         act: Union[str, tuple],
         norm: Union[str, tuple],
         bias: bool,
@@ -107,9 +107,9 @@ class UpCat(nn.Module):
         """
         Args:
             spatial_dims: number of spatial dimensions.
-            in_chns: number of input channels to be upsampled.
-            cat_chns: number of channels from the encoder.
-            out_chns: number of output channels.
+            in_channels: number of input channels to be upsampled.
+            cat_channels: number of channels from the encoder.
+            out_channels: number of output channels.
             act: activation type and arguments.
             norm: feature normalization type and arguments.
             bias: whether to have a bias term in convolution blocks.
@@ -127,20 +127,20 @@ class UpCat(nn.Module):
         """
         super().__init__()
         if upsample == "nontrainable" and pre_conv is None:
-            up_chns = in_chns
+            up_channels = in_channels
         else:
-            up_chns = in_chns // 2 if halves else in_chns
+            up_channels = in_channels // 2 if halves else in_channels
         self.upsample = UpSample(
             spatial_dims,
-            in_chns,
-            up_chns,
+            in_channels,
+            up_channels,
             2,
             mode=upsample,
             pre_conv=pre_conv,
             interp_mode=interp_mode,
             align_corners=align_corners,
         )
-        self.convs = TwoConv(spatial_dims, cat_chns + up_chns, out_chns, act, norm, bias, dropout)
+        self.convs = TwoConv(spatial_dims, cat_channels + up_channels, out_channels, act, norm, bias, dropout)
 
     def forward(self, x: torch.Tensor, x_e: Optional[torch.Tensor]):
         """
@@ -159,7 +159,7 @@ class UpCat(nn.Module):
                 if x_e.shape[-i - 1] != x_0.shape[-i - 1]:
                     sp[i * 2 + 1] = 1
             x_0 = torch.nn.functional.pad(x_0, sp, "replicate")
-            x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_chns + up_chns)
+            x = self.convs(torch.cat([x_e, x_0], dim=1))  # input channels: (cat_channels + up_channels)
         else:
             x = self.convs(x_0)
 
