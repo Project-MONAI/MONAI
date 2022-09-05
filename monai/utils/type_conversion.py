@@ -129,7 +129,7 @@ def convert_to_tensor(
         if not isinstance(tensor, torch.Tensor):
             # certain numpy types are not supported as being directly convertible to Pytorch tensors
             if isinstance(tensor, np.ndarray) and tensor.dtype in UNSUPPORTED_TYPES:
-                tensor = tensor.astype(UNSUPPORTED_TYPES[tensor.dtype])
+                tensor = tensor.view(dtype=UNSUPPORTED_TYPES[tensor.dtype])
 
             # if input data is not Tensor, convert it to Tensor first
             tensor = torch.as_tensor(tensor, **kwargs)
