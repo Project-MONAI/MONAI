@@ -34,14 +34,7 @@ from monai.transforms.utils import (
     remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import (
-    TransformBackends,
-    convert_data_type,
-    convert_to_tensor,
-    deprecated_arg,
-    ensure_tuple,
-    look_up_option,
-)
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -162,54 +155,24 @@ class AsDiscrete(Transform):
         >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
         # [[[0.0, 0.0]], [[1.0, 1.0]]]
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-    .. deprecated:: 0.7.0
-        ``num_classes`` is deprecated, use ``to_onehot`` instead.
-        ``logit_thresh`` is deprecated, use ``threshold`` instead.
-        ``threshold_values`` is deprecated, use ``threshold`` instead.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         argmax: bool = False,
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: float = 0.5,  # deprecated
-        threshold_values: Optional[bool] = False,  # deprecated
     ) -> None:
         self.argmax = argmax
         if isinstance(to_onehot, bool):  # for backward compatibility
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
-
-        if isinstance(threshold, bool):  # for backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
         self.threshold = threshold
-
         self.rounding = rounding
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __call__(
         self,
         img: NdarrayOrTensor,
@@ -217,10 +180,6 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: Optional[float] = None,  # deprecated
-        threshold_values: Optional[bool] = None,  # deprecated
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -235,21 +194,9 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
-
         """
         if isinstance(to_onehot, bool):
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
-        if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
