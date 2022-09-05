@@ -173,6 +173,9 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -184,6 +187,7 @@ class BasicUNet(nn.Module):
         bias: bool = True,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
+        dimensions: Optional[int] = None,
     ):
         """
         A UNet implementation with 1D/2D/3D supports.
@@ -213,6 +217,9 @@ class BasicUNet(nn.Module):
             upsample: upsampling mode, available options are
                 ``"deconv"``, ``"pixelshuffle"``, ``"nontrainable"``.
 
+        .. deprecated:: 0.6.0
+            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
         Examples::
 
             # for spatial 2D
@@ -231,6 +238,8 @@ class BasicUNet(nn.Module):
 
         """
         super().__init__()
+        if dimensions is not None:
+            spatial_dims = dimensions
         fea = ensure_tuple_rep(features, 6)
         print(f"BasicUNet features: {fea}.")
 
