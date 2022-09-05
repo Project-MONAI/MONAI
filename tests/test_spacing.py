@@ -56,7 +56,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(
         [
-            {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": False},
+            {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
@@ -212,7 +212,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": False},
+            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
             torch.ones((1, 2, 2, 2, 1)),  # data
             torch.eye(4),
             {},
@@ -225,6 +225,13 @@ TESTS_TORCH = []
 for track_meta in (False, True):
     for p in TEST_NDARRAYS_ALL:
         TESTS_TORCH.append([[1.2, 1.3, 0.9], p(torch.zeros((1, 3, 4, 5))), track_meta])
+
+TEST_INVERSE = []
+for d in TEST_DEVICES:
+    for recompute in (False, True):
+        for align in (False, True):
+            for scale_extent in (False, True):
+                TEST_INVERSE.append([*d, recompute, align, scale_extent])
 
 
 class TestSpacingCase(unittest.TestCase):
@@ -259,15 +266,15 @@ class TestSpacingCase(unittest.TestCase):
             self.assertNotEqual(img.shape, res.shape)
         set_track_meta(True)
 
-    @parameterized.expand(TEST_DEVICES)
-    def test_inverse(self, device):
+    @parameterized.expand(TEST_INVERSE)
+    def test_inverse(self, device, recompute, align, scale_extent):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
         affine = torch.tensor(
             [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
         )
         meta = {"fname": "somewhere"}
         img = MetaTensor(img_t, affine=affine, meta=meta)
-        tr = Spacing(pixdim=[1.1, 1.2, 0.9], recompute_affine=True)
+        tr = Spacing(pixdim=[1.1, 1.2, 0.9], recompute_affine=recompute, align_corners=align, scale_extent=scale_extent)
         # check that image and affine have changed
         img = tr(img)
         self.assertNotEqual(img.shape, img_t.shape)

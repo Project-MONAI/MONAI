@@ -830,7 +830,7 @@ def compute_shape_offset(
     spatial_shape: Union[np.ndarray, Sequence[int]],
     in_affine: NdarrayOrTensor,
     out_affine: NdarrayOrTensor,
-    align_corners: Optional[bool] = False,
+    scale_extent: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -842,14 +842,26 @@ def compute_shape_offset(
         spatial_shape: input array's shape
         in_affine (matrix): 2D affine matrix
         out_affine (matrix): 2D affine matrix
-        align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        scale_extent: whether the scale is computed based on the spacing or the full extent of voxels, for example, for
+            a factor of 0.5 scaling:
+
+            option 1, "o" represents a voxel, scaling the distance between voxels::
+
+                o--o--o
+                o-----o
+
+            option 2, each voxel has a physical extent, scaling the full voxel extent::
+
+                | voxel 1 | voxel 2 | voxel 3 | voxel 4 |
+                |      voxel 1      |      voxel 2      |
+
+            Default is False, using option 1 to compute the shape and offset.
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
-    in_coords = [(0.0, dim - 1.0) if not align_corners else (-0.5, dim - 0.5) for dim in shape]
+    in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine_ @ corners
@@ -859,7 +871,7 @@ def compute_shape_offset(
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1) + 1.0) if not align_corners else np.round(corners_out.ptp(axis=1))
+    out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
     mat = inv_mat[:-1, :-1]
     i = 0
     for i in range(corners.shape[1]):
@@ -867,11 +879,9 @@ def compute_shape_offset(
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
             break
     offset = corners[:-1, i]
-    if align_corners:
-        in_voxel = affine_to_spacing(in_affine, sr, suppress_zeros=True)
-        out_voxel = affine_to_spacing(out_affine, sr, suppress_zeros=True)
-        in_offset = np.append(0.5 * (out_voxel / in_voxel - 1.0), 1.0)
-        offset = np.abs(((in_affine_ @ in_offset) / in_offset[-1])[:-1]) * np.sign(offset)
+    if scale_extent:
+        in_offset = np.append(0.5 * (shape / out_shape - 1.0), 1.0)
+        offset = np.abs((in_affine_ @ in_offset / in_offset[-1])[:-1]) * np.sign(offset)
     return out_shape.astype(int, copy=False), offset
 
 

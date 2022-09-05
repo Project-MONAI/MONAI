@@ -220,7 +220,10 @@ def normalize_transform(
         zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
             Setting this flag and `align_corners` will jointly specify the normalization source range.
     """
-    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
+    if isinstance(shape, torch.Tensor):
+        norm = shape.clone().detach().to(dtype=torch.float64, device=device)
+    else:
+        norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
@@ -274,6 +277,7 @@ def to_norm_affine(
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
+    import pdb; pdb.set_trace()
     return src_xform @ affine @ torch.inverse(dst_xform)
 
 

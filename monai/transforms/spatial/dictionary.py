@@ -166,6 +166,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        scale_extent: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         meta_src_keys: Optional[KeysCollection] = "src_affine",
@@ -196,6 +197,9 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`.
             dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -205,12 +209,13 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for (key, mode, padding_mode, align_corners, dtype, dst_key) in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
+        for (key, mode, padding_mode, align_corners, dtype, scale_extent, dst_key) in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent, self.dst_keys
         ):
             d[key] = self.sp_transform(
                 img=d[key],
@@ -219,6 +224,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
                 mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
+                scale_extent=scale_extent,
                 dtype=dtype,
             )
         return d
@@ -331,6 +337,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        scale_extent: bool = False,
         recompute_affine: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
@@ -378,6 +385,9 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`.
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
@@ -390,15 +400,21 @@ class Spacingd(MapTransform, InvertibleTransform):
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
             # resample array of each corresponding key
             d[key] = self.spacing_transform(
-                data_array=d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
+                data_array=d[key],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+                scale_extent=scale_extent,
             )
         return d
 
