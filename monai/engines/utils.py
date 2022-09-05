@@ -185,13 +185,13 @@ class PrepareBatchDefault(PrepareBatch):
 class PrepareBatchExtraInput(PrepareBatch):
     """
     Customized prepare batch callable for trainers or evaluators which support extra input data for the network.
-    Extra items are specified by the `extra_keys` parameter and are extracted from the input dictionary (ie. the batch). 
+    Extra items are specified by the `extra_keys` parameter and are extracted from the input dictionary (ie. the batch).
     This uses `default_prepare_batch` but requires dictionary inputs.
 
     Args:
         extra_keys: If a string or sequence of strings is provided, values from the input dictionary are extracted from
             those keys and passed to the nework as extra positional arguments. If a dictionary is provided, every pair
-            `(k, v)` in that dictionary will become a new keyword argument assigning to `k` the value in the input 
+            `(k, v)` in that dictionary will become a new keyword argument assigning to `k` the value in the input
             dictionary keyed to `v`.
     """
 
