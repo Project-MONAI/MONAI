@@ -57,7 +57,11 @@ class BundleAlgo(Algo):
 
         [algo_name]
         ├── configs
-        │   └── algo_config.yaml  # automatically generated yaml from a set of ``template_configs``
+        │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
+        │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
+        │   ├── transforms_train.yaml  # automatically generated yaml to define tranforms for training
+        │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
+        │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
         └── scripts
             ├── algo.py
             ├── infer.py
@@ -153,14 +157,12 @@ class BundleAlgo(Algo):
         # handling scripts files
         output_scripts_path = os.path.join(write_path, "scripts")
         if os.path.exists(output_scripts_path):
-            # TODO: use future metadata.json to create backups
             shutil.rmtree(output_scripts_path)
         if self.scripts_path is not None and os.path.exists(self.scripts_path):
             shutil.copytree(self.scripts_path, output_scripts_path)
         # handling config files
         output_config_path = os.path.join(write_path, "configs")
         if os.path.exists(output_config_path):
-            # TODO: use future metadata.json to create backups
             shutil.rmtree(output_config_path)
 
         # break the config into multiple files and save
