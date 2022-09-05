@@ -18,7 +18,6 @@ from copy import copy, deepcopy
 from glob import glob
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
-from warnings import warn
 
 import torch
 
@@ -162,17 +161,17 @@ class BundleAlgo(Algo):
         if os.path.exists(output_config_path):
             # TODO: use future metadata.json to create backups
             shutil.rmtree(output_config_path)
-        
+
         # break the config into multiple files and save
         subsections = ['network', 'transforms_infer', 'transforms_train', 'transforms_validate']
         self.save_config_files(output_config_path, subsections)
         logger.info(write_path)
         self.output_path = write_path
-        
+
 
     def save_config_files(self, output_config_path, subsections):
         """
-        Save the auto-generated config files into multiple files. 
+        Save the auto-generated config files into multiple files.
 
         Args:
             output_config_path: path to save the files

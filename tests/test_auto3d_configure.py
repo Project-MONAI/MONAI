@@ -20,7 +20,6 @@ import numpy as np
 from monai.apps.auto3dseg import BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
-from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda
 
 
