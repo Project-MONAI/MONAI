@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -18,7 +18,7 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import alias, export
+from monai.utils import alias, deprecated_arg, export
 
 __all__ = ["UNet", "Unet"]
 
@@ -94,6 +94,9 @@ class UNet(nn.Module):
             strides=(2, 2, 2, 2),
         )
 
+    .. deprecated:: 0.6.0
+        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+
     Note: The acceptable spatial size of input data depends on the parameters of the network,
         to set appropriate spatial size, please check the tutorial for more details:
         https://github.com/Project-MONAI/tutorials/blob/master/modules/UNet_input_size_constrains.ipynb.
@@ -104,6 +107,9 @@ class UNet(nn.Module):
 
     """
 
+    @deprecated_arg(
+        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
+    )
     def __init__(
         self,
         spatial_dims: int,
@@ -119,6 +125,7 @@ class UNet(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         adn_ordering: str = "NDA",
+        dimensions: Optional[int] = None,
     ) -> None:
 
         super().__init__()
@@ -130,12 +137,14 @@ class UNet(nn.Module):
             raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
         if delta > 0:
             warnings.warn(f"`len(strides) > len(channels) - 1`, the last {delta} values of strides will not be used.")
+        if dimensions is not None:
+            spatial_dims = dimensions
         if isinstance(kernel_size, Sequence):
             if len(kernel_size) != spatial_dims:
-                raise ValueError("the length of `kernel_size` should equal to `spatial_dims`.")
+                raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
         if isinstance(up_kernel_size, Sequence):
             if len(up_kernel_size) != spatial_dims:
-                raise ValueError("the length of `up_kernel_size` should equal to `spatial_dims`.")
+                raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
 
         self.dimensions = spatial_dims
         self.in_channels = in_channels
