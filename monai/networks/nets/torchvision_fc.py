@@ -12,7 +12,7 @@
 from typing import Any, Dict, Optional, Tuple
 
 from monai.networks.nets import NetAdapter
-from monai.utils import optional_import
+from monai.utils import deprecated_arg, optional_import
 
 models, _ = optional_import("torchvision.models")
 
@@ -96,6 +96,7 @@ class TorchVisionFCModel(NetAdapter):
 
     """
 
+    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model_name: str = "resnet18",
@@ -106,11 +107,15 @@ class TorchVisionFCModel(NetAdapter):
         pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
         pretrained: bool = False,
+        n_classes: Optional[int] = None,
         fc_name: str = "fc",
         node_name: str = "",
         weights=None,
         **kwargs,
     ):
+        # in case the new num_classes is default but you still call deprecated n_classes
+        if n_classes is not None and num_classes == 1:
+            num_classes = n_classes
         if weights is not None:
             model = getattr(models, model_name)(weights=weights, **kwargs)
         else:
