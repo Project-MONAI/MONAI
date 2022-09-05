@@ -865,7 +865,8 @@ class Resize(InvertibleTransform):
         _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
         _align_corners = self.align_corners if align_corners is None else align_corners
         if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            img = convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
+            img = convert_to_tensor(img, track_meta=get_track_meta())
+
             return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
 
@@ -2044,7 +2045,8 @@ class Resample(Transform):
         _dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
-        grid_t = grid_t.clone(memory_format=torch.contiguous_format)  # type: ignore
+        grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+
         if self.norm_coords:
             grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.shape[1:]), 3)

@@ -135,5 +135,6 @@ class CoilSensitivityModel(nn.Module):
         x = self.conv_net(x)
         x = reshape_batch_channel_to_channel_dim(x, b)  # shape will be (B,C,...)
         # normalize the maps
-        x = x / root_sum_of_squares_t(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)  # type: ignore
+        x = x / root_sum_of_squares_t(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)
+
         return x
