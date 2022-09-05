@@ -56,7 +56,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(
         [
-            {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
+            {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": False},
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
@@ -212,7 +212,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
+            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": False},
             torch.ones((1, 2, 2, 2, 1)),  # data
             torch.eye(4),
             {},
@@ -267,7 +267,7 @@ class TestSpacingCase(unittest.TestCase):
         )
         meta = {"fname": "somewhere"}
         img = MetaTensor(img_t, affine=affine, meta=meta)
-        tr = Spacing(pixdim=[1.1, 1.2, 0.9])
+        tr = Spacing(pixdim=[1.1, 1.2, 0.9], recompute_affine=True)
         # check that image and affine have changed
         img = tr(img)
         self.assertNotEqual(img.shape, img_t.shape)
