@@ -32,6 +32,7 @@ from monai.fl.utils.constants import (
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
+from monai.utils import min_version, require_pkg
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -86,6 +87,7 @@ def disable_ckpt_loaders(parser):
                     h["_disabled_"] = True
 
 
+@require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
