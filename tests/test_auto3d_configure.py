@@ -21,8 +21,8 @@ from monai.apps.auto3dseg import BundleGen, DataAnalyzer
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
+from tests.utils import skip_if_no_cuda
 
-_, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 fake_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -47,6 +47,7 @@ class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
 
+    @skip_if_no_cuda
     def test_ensemble(self) -> None:
         test_path = self.test_dir.name
 
@@ -97,7 +98,7 @@ class TestEnsembleBuilder(unittest.TestCase):
             algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
         )
         bundle_generator.generate(work_dir, num_fold=2)
-        history = bundle_generator.get_history()
+        bundle_generator.get_history()
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

@@ -153,18 +153,32 @@ class BundleAlgo(Algo):
         # handling scripts files
         output_scripts_path = os.path.join(write_path, "scripts")
         if os.path.exists(output_scripts_path):
-            shutil.copytree(output_scripts_path, output_scripts_path + ".bak")
-            warn(
-                f"Moved non-empty {output_scripts_path} to backup {output_scripts_path}.bak. "
-                "Backup will be deleted in next run."
-            )
+            # TODO: use future metadata.json to create backups
             shutil.rmtree(output_scripts_path)
         if self.scripts_path is not None and os.path.exists(self.scripts_path):
             shutil.copytree(self.scripts_path, output_scripts_path)
         # handling config files
         output_config_path = os.path.join(write_path, "configs")
         if os.path.exists(output_config_path):
+            # TODO: use future metadata.json to create backups
             shutil.rmtree(output_config_path)
+        
+        # break the config into multiple files and save
+        subsections = ['network', 'transforms_infer', 'transforms_train', 'transforms_validate']
+        self.save_config_files(output_config_path, subsections)
+        logger.info(write_path)
+        self.output_path = write_path
+        
+
+    def save_config_files(self, output_config_path, subsections):
+        """
+        Save the auto-generated config files into multiple files. 
+
+        Args:
+            output_config_path: path to save the files
+            subsections: the subsections that will be picked up and individually saved.
+
+        """
         os.makedirs(output_config_path, exist_ok=True)
         output_config_file = os.path.join(output_config_path, "algo_config.yaml")
         ConfigParser.export_config_file(self.cfg.config, output_config_file, fmt="yaml", default_flow_style=None)
@@ -177,8 +191,7 @@ class BundleAlgo(Algo):
                 f.write(f"# source file: {item}\n")
             f.write("\n\n")
             f.writelines(lines)
-        logger.info(write_path)
-        self.output_path = write_path
+
 
     def train(self, train_params=None):
         """
@@ -392,5 +405,5 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, algo_name=name)
+                gen_algo.export_to_disk(output_folder, name, fold=f_id)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history
