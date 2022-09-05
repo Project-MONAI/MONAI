@@ -114,13 +114,13 @@ class Convolution(nn.Sequential):
         output_padding: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = spatial_dims
+        self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.is_transposed = is_transposed
         if padding is None:
             padding = same_padding(kernel_size, dilation)
-        conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, self.dimensions]
+        conv_type = Conv[Conv.CONVTRANS if is_transposed else Conv.CONV, self.spatial_dims]
 
         conv: nn.Module
         if is_transposed:
@@ -162,7 +162,7 @@ class Convolution(nn.Sequential):
                 in_channels=out_channels,
                 act=act,
                 norm=norm,
-                norm_dim=self.dimensions,
+                norm_dim=self.spatial_dims,
                 dropout=dropout,
                 dropout_dim=dropout_dim,
             ),
@@ -262,7 +262,7 @@ class ResidualUnit(nn.Module):
         padding: Optional[Union[Sequence[int], int]] = None,
     ) -> None:
         super().__init__()
-        self.dimensions = spatial_dims
+        self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.conv = nn.Sequential()
@@ -276,7 +276,7 @@ class ResidualUnit(nn.Module):
         for su in range(subunits):
             conv_only = last_conv_only and su == (subunits - 1)
             unit = Convolution(
-                self.dimensions,
+                self.spatial_dims,
                 schannels,
                 out_channels,
                 strides=sstrides,
@@ -307,7 +307,7 @@ class ResidualUnit(nn.Module):
                 rkernel_size = 1
                 rpadding = 0
 
-            conv_type = Conv[Conv.CONV, self.dimensions]
+            conv_type = Conv[Conv.CONV, self.spatial_dims]
             self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
