@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import ensure_tuple_rep
+from monai.utils import deprecated_arg, ensure_tuple_rep
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
