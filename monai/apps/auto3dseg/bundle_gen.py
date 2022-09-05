@@ -18,7 +18,6 @@ from copy import copy, deepcopy
 from glob import glob
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
-from warnings import warn
 
 import torch
 
@@ -26,6 +25,7 @@ from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
+from monai.bundle.scripts import _pop_args
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
@@ -162,17 +162,16 @@ class BundleAlgo(Algo):
         if os.path.exists(output_config_path):
             # TODO: use future metadata.json to create backups
             shutil.rmtree(output_config_path)
-        
+
         # break the config into multiple files and save
-        subsections = ['network', 'transforms_infer', 'transforms_train', 'transforms_validate']
-        self.save_config_files(output_config_path, subsections)
+        sections = ["network", "transforms_infer", "transforms_train", "transforms_validate"]
+        self.save_config_files(output_config_path, sections)
         logger.info(write_path)
         self.output_path = write_path
-        
 
-    def save_config_files(self, output_config_path, subsections):
+    def save_config_files(self, output_config_path, sections):
         """
-        Save the auto-generated config files into multiple files. 
+        Save the auto-generated config files into multiple files.
 
         Args:
             output_config_path: path to save the files
@@ -180,8 +179,18 @@ class BundleAlgo(Algo):
 
         """
         os.makedirs(output_config_path, exist_ok=True)
-        output_config_file = os.path.join(output_config_path, "algo_config.yaml")
-        ConfigParser.export_config_file(self.cfg.config, output_config_file, fmt="yaml", default_flow_style=None)
+
+        config_body = self.cfg.get()
+        for s in sections:
+            config_section_file = os.path.join(output_config_path, s + ".yaml")
+            config_section = _pop_args(config_body, s)
+            section_body = {}
+            section_body[s] = config_section[0]
+            ConfigParser.export_config_file(section_body, config_section_file, fmt="yaml", default_flow_style=None)
+
+        output_config_file = os.path.join(output_config_path, "hyper_parameters.yaml")
+        ConfigParser.export_config_file(config_body, output_config_file, fmt="yaml", default_flow_style=None)
+
         with open(output_config_file, "r+") as f:
             lines = f.readlines()
             f.seek(0)
@@ -191,7 +200,6 @@ class BundleAlgo(Algo):
                 f.write(f"# source file: {item}\n")
             f.write("\n\n")
             f.writelines(lines)
-
 
     def train(self, train_params=None):
         """
@@ -205,8 +213,17 @@ class BundleAlgo(Algo):
             params = deepcopy(train_params)
 
         train_py = os.path.join(self.output_path, "scripts", "train.py")
-        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
-        base_cmd = f"{train_py} run --config_file={config_yaml} "
+        config_dir = os.path.join(self.output_path, "configs")
+
+        if os.path.isdir(config_dir):
+            base_cmd = ""
+            for file in os.listdir(config_dir):
+                if len(base_cmd) == 0:
+                    base_cmd += f"{train_py} run --config_file="
+                else:
+                    base_cmd += ","  # Python Fire does not accept space
+                config_yaml = os.path.join(config_dir, file)
+                base_cmd += f"'{config_yaml}'"
 
         if "CUDA_VISIBLE_DEVICES" in params:
             devices = params.pop("CUDA_VISIBLE_DEVICES")
@@ -238,13 +255,13 @@ class BundleAlgo(Algo):
         """
         Returns validation scores of the model trained by the current Algo.
         """
-        config_yaml = os.path.join(self.output_path, "configs", "algo_config.yaml")
+        config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
         parser = ConfigParser()
         parser.read_config(config_yaml)
         ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
 
         dict_file = ConfigParser.load_config_file(os.path.join(ckpt_path, "progress.yaml"))
-        return dict_file["best_avg_dice_score"]  # TODO: define the format of best scores' list and progress.yaml
+        return dict_file[-1]["best_avg_dice_score"]  # TODO: define the format of best scores' list and progress.yaml
 
     def get_inferer(self, *args, **kwargs):
         """
@@ -253,14 +270,15 @@ class BundleAlgo(Algo):
         infer_py = os.path.join(self.output_path, "scripts", "infer.py")
         if not os.path.isfile(infer_py):
             raise ValueError(f"{infer_py} is not found, please check the path.")
-        config_path = os.path.join(self.output_path, "configs", "algo_config.yaml")
-        config_path = config_path if os.path.isfile(config_path) else None
-        logger.info(f"in memory or persistent predictions using {config_path}.")
+
+        config_dir = os.path.join(self.output_path, "configs")
+        configs_path = [os.path.join(config_dir, f) for f in os.listdir(config_dir)]
+
         spec = importlib.util.spec_from_file_location("InferClass", infer_py)
         infer_class = importlib.util.module_from_spec(spec)
         sys.modules["InferClass"] = infer_class
         spec.loader.exec_module(infer_class)
-        return infer_class.InferClass(config_path, *args, **kwargs)
+        return infer_class.InferClass(configs_path, *args, **kwargs)
 
     def predict(self, predict_params=None):
         """
@@ -283,36 +301,30 @@ class BundleAlgo(Algo):
 
 
 # path to download the algo_templates
-algo_zip = "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/algo_templates.tar.gz"
+algo_zip = "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/57ca9b1342b46fae24f4d7cc91b4c954ec0749aa.tar.gz"
 
-md5 = "c671dcd525a736f083ac1ca3d23a86dc"
+md5 = "91a83b0b5ba8c11af3aefa7e5ee469c2"
 
 # default algorithms
 default_algos = {
-    "unet": dict(
-        _target_="unet.scripts.algo.UnetAlgo",
-        template_configs="algo_templates/unet/configs",
-        scripts_path="algo_templates/unet/scripts",
-    ),
+    "unet": dict(_target_="unet.scripts.algo.UnetAlgo", template_configs="unet/configs", scripts_path="unet/scripts"),
     "segresnet2d": dict(
-        _target_="segresnet2d.scripts.algo.Segresnet2DAlgo",
-        template_configs="algo_templates/segresnet2d/configs",
-        scripts_path="algo_templates/segresnet2d/scripts",
+        _target_="segresnet2d.scripts.algo.Segresnet2dAlgo",
+        template_configs="segresnet2d/configs",
+        scripts_path="segresnet2d/scripts",
     ),
     "dints": dict(
-        _target_="dints.scripts.algo.DintsAlgo",
-        template_configs="algo_templates/dints/configs",
-        scripts_path="algo_templates/dints/scripts",
+        _target_="dints.scripts.algo.DintsAlgo", template_configs="dints/configs", scripts_path="dints/scripts"
     ),
-    "SwinUNETR": dict(
-        _target_="SwinUNETR.scripts.algo.SwinUNETRAlgo",
-        template_configs="algo_templates/SwinUNETR/configs",
-        scripts_path="algo_templates/SwinUNETR/scripts",
+    "swinunetr": dict(
+        _target_="swinunetr.scripts.algo.SwinunetrAlgo",
+        template_configs="swinunetr/configs",
+        scripts_path="swinunetr/scripts",
     ),
     "segresnet": dict(
         _target_="segresnet.scripts.algo.SegresnetAlgo",
-        template_configs="algo_templates/segresnet/configs",
-        scripts_path="algo_templates/segresnet/scripts",
+        template_configs="segresnet/configs",
+        scripts_path="segresnet/scripts",
     ),
 }
 
@@ -341,11 +353,15 @@ class BundleGen(AlgoGen):
             algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
             download_and_extract(algo_zip, algo_compressed_file, algo_path, md5)
             zip_download_dir.cleanup()
-            sys.path.insert(0, os.path.join(algo_path, "algo_templates"))
+            sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
             algos = copy(default_algos)
             for name in algos:
-                algos[name]["template_configs"] = os.path.join(algo_path, default_algos[name]["template_configs"])
-                algos[name]["scripts_path"] = os.path.join(algo_path, default_algos[name]["scripts_path"])
+                algos[name]["template_configs"] = os.path.join(
+                    algo_path, "algorithm_templates", default_algos[name]["template_configs"]
+                )
+                algos[name]["scripts_path"] = os.path.join(
+                    algo_path, "algorithm_templates", default_algos[name]["scripts_path"]
+                )
 
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
