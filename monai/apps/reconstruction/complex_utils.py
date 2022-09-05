@@ -151,7 +151,7 @@ def complex_mul_t(x: Tensor, y: Tensor) -> Tensor:
     real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
     imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
 
-    return torch.stack((real_part, imag_part), dim=-1)  # type: ignore
+    return torch.stack((real_part, imag_part), dim=-1)
 
 
 def complex_mul(x: NdarrayOrTensor, y: NdarrayOrTensor) -> NdarrayOrTensor:
