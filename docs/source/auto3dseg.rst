@@ -2,7 +2,7 @@
 
 .. _auto3dseg:
 
-auto3dseg
+Auto3dseg
 =========
 
 .. automodule:: monai.auto3dseg
