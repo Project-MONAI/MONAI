@@ -30,7 +30,6 @@ from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGola
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.module import min_version, optional_import
@@ -1468,8 +1467,7 @@ class GibbsNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, alpha: float = 0.1, as_tensor_output: bool = True) -> None:
+    def __init__(self, alpha: float = 0.1) -> None:
 
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0, 1].")
@@ -1547,8 +1545,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
@@ -1620,13 +1617,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self,
-        loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
-    ):
+    def __init__(self, loc: Union[Tuple, Sequence[Tuple]], k_intensity: Optional[Union[Sequence[float], float]] = None):
 
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
@@ -1755,13 +1746,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range

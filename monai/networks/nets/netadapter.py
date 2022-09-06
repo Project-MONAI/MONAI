@@ -15,7 +15,7 @@ import torch
 
 from monai.networks.layers import Conv, get_pool_layer
 from monai.networks.utils import look_up_named_module, set_named_module
-from monai.utils import deprecated_arg, look_up_option, optional_import
+from monai.utils import look_up_option, optional_import
 
 get_graph_node_names, _has_utils = optional_import("torchvision.models.feature_extraction", name="get_graph_node_names")
 create_feature_extractor, _ = optional_import("torchvision.models.feature_extraction", name="create_feature_extractor")
@@ -45,12 +45,8 @@ class NetAdapter(torch.nn.Module):
         node_name: the corresponding feature extractor node name of `model`.
             Defaults to "", the extractor is not in use.
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``num_classes`` instead.
-
     """
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
         model: torch.nn.Module,
@@ -60,14 +56,10 @@ class NetAdapter(torch.nn.Module):
         use_conv: bool = False,
         pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
-        n_classes: Optional[int] = None,
         fc_name: str = "fc",
         node_name: str = "",
     ):
         super().__init__()
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes == 1:
-            num_classes = n_classes
         layers = list(model.children())
         orig_fc = look_up_named_module(fc_name, model)
         if orig_fc is None:
@@ -77,7 +69,8 @@ class NetAdapter(torch.nn.Module):
         if in_channels is None:
             if not hasattr(orig_fc, "in_features"):
                 raise ValueError("please specify input channels of the last fully connected layer with `in_channels`.")
-            in_channels_ = orig_fc.in_features  # type: ignore
+            in_channels_ = orig_fc.in_features
+
         else:
             in_channels_ = in_channels
 
