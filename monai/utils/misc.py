@@ -532,3 +532,14 @@ def label_union(x: List) -> List:
         a list showing the union (the union the class IDs)
     """
     return list(set.union(set(np.array(x).tolist())))
+
+
+def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
+    """
+    Compute the lab from the probability of predicted feature maps
+
+    Args:
+        sigmoid: If the sigmoid function should be used.
+        threshold: threshold value to activate the sigmoid function.
+    """
+    return torch.argmax(x, **kwargs) if not sigmoid else (x > threshold).int()

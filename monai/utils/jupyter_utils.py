@@ -14,6 +14,7 @@ This set of utility function is meant to make using Jupyter notebooks easier wit
 Matplotlib produce common plots for metrics and images.
 """
 
+import copy
 from enum import Enum
 from threading import RLock, Thread
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
@@ -340,7 +341,7 @@ class ThreadContainer(Thread):
 
     def status(self) -> str:
         """Returns a status string for the current state of the engine."""
-        stats = self.status_dict
+        stats = copy.deepcopy(self.status_dict)
 
         msgs = [stats.pop(StatusMembers.STATUS.value), "Iters: " + str(stats.pop(StatusMembers.ITERS.value, 0))]
 

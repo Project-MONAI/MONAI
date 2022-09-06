@@ -54,22 +54,6 @@ for p in TEST_NDARRAYS:
         ]
     )
 
-    # test compatible with previous versions
-    TEST_CASES.append(
-        [
-            {
-                "keys": ["pred", "label"],
-                "argmax": False,
-                "to_onehot": None,
-                "threshold": [True, None],
-                "logit_thresh": 0.6,
-            },
-            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
-            {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
-            (1, 2, 2),
-        ]
-    )
-
     # test threshold = 0.0
     TEST_CASES.append(
         [
