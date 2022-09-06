@@ -626,7 +626,6 @@ class Affined(MapTransform, InvertibleTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -638,7 +637,6 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
@@ -695,9 +693,6 @@ class Affined(MapTransform, InvertibleTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.affine = Affine(
@@ -733,7 +728,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     backend = RandAffine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -746,7 +740,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -807,9 +800,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -858,7 +848,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
+                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
             if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if do_resampling else {}
                 self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
@@ -871,7 +861,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
                 d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
-                d[key] = self.rand_affine.inverse(d[key])
+                d[key] = self.rand_affine.inverse(d[key])  # type: ignore
 
         return d
 
@@ -883,7 +873,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand2DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -897,7 +886,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -957,9 +945,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1013,7 +998,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
         return d
 
 
@@ -1024,7 +1009,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand3DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1038,7 +1022,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1100,9 +1083,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1150,7 +1130,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
         return d
 
 
