@@ -23,7 +23,6 @@ from monai.networks.blocks.fft_utils_t import fftn_centered_t, ifftn_centered_t
 
 
 def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:
-
     """
     Swaps the complex dimension with the channel dimension so that the network treats real/imaginary
     parts as two separate channels.
@@ -50,7 +49,6 @@ def reshape_complex_to_channel_dim(x: Tensor) -> Tensor:
 
 
 def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:
-
     """
     Swaps the complex dimension with the channel dimension so that the network output has 2 as its last dimension
 
@@ -128,7 +126,6 @@ def reshape_batch_channel_to_channel_dim(x: Tensor, batch_size: int) -> Tensor:
 
 
 def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-
     """
     Performs layer mean-std normalization for complex data. Normalization is done for each batch member
     along each part (part refers to real and imaginary parts), separately.
@@ -171,7 +168,6 @@ def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 def divisible_pad_t(
     x: Tensor, k: int = 16
 ) -> Tuple[Tensor, Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]]:
-
     """
     Pad input to feed into the network (torch script compatible)
 
@@ -234,7 +230,6 @@ def divisible_pad_t(
 def inverse_divisible_pad_t(
     x: Tensor, pad_sizes: Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]
 ) -> Tensor:
-
     """
     De-pad network output to match its original shape
 
