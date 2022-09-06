@@ -214,7 +214,6 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
         self.n_fold = n_fold
 
     def collect_algos(self):
-
         """
         Rank the algos by finding the best model in each cross-validation fold
         """
