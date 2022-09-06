@@ -168,7 +168,7 @@ def concat_val_to_np(
     elif ragged:
         return np.concatenate(np_list, **kwargs)  # type: ignore
     else:
-        return np.concatenate([np_list], **kwargs)
+        return np.concatenate([np_list], **kwargs)  # type: ignore
 
 
 def concat_multikeys_to_dict(
