@@ -3225,21 +3225,22 @@ class GridPatch(Transform):
         elif self.threshold:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        # Convert to original data type
-        output = list(
-            zip(
-                convert_to_dst_type(src=patched_image, dst=array)[0],
-                convert_to_dst_type(src=locations, dst=array, dtype=int)[0],
-            )
-        )
-
         # Pad the patch list to have the requested number of patches
-        if self.num_patches and len(output) < self.num_patches:
-            patch = convert_to_dst_type(
-                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
-            )[0]
-            start_location = convert_to_dst_type(src=np.zeros(len(self.patch_size)), dst=array)[0]
-            output += [(patch, start_location)] * (self.num_patches - len(output))
+        if self.num_patches:
+            padding = self.num_patches - len(patched_image)
+            if padding > 0:
+                patched_image = np.pad(
+                    patched_image,
+                    [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
+                    constant_values=self.pad_kwargs.get("constant_values", 0),
+                )
+                locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
+
+        # Convert to MetaTensor
+        metadata = array.meta if isinstance(array, MetaTensor) else {}
+        metadata["location"] = locations.T
+        output = MetaTensor(x=patched_image, meta=metadata)
+        output.is_batch = True
 
         return output
 
