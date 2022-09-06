@@ -56,7 +56,7 @@ class TestRandTorchVisiond(unittest.TestCase):
         transform = RandTorchVisiond(**input_param)
         result = transform(input_data)
         self.assertTrue(isinstance(transform, Randomizable))
-        assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
