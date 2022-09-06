@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv
-from monai.networks.nets.basic_unet import Down, UpCat, TwoConv
+from monai.networks.nets.basic_unet import Down, TwoConv, UpCat
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetplusplus", "BasicUNetPlusPlus"]
