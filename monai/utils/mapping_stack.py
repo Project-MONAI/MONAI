@@ -49,13 +49,17 @@ class MatrixFactory:
                 raise ValueError("'device' must be set with TransformBackends.TORCH")
             self._device = device
             self._sin = lambda th: torch.sin(torch.as_tensor(th,
-                                                             dtype=torch.float32,
+                                                             dtype=torch.float64,
                                                              device=self._device))
             self._cos = lambda th: torch.cos(torch.as_tensor(th,
-                                                             dtype=torch.float32,
+                                                             dtype=torch.float64,
                                                              device=self._device))
-            self._eye = lambda rank: torch.eye(rank, device=self._device);
-            self._diag = lambda size: torch.diag(torch.as_tensor(size, device=self._device))
+            self._eye = lambda rank: torch.eye(rank,
+                                               device=self._device,
+                                               dtype=torch.float64);
+            self._diag = lambda size: torch.diag(torch.as_tensor(size,
+                                                                 device=self._device,
+                                                                 dtype=torch.float64))
 
         self._backend = backend
         self._dims = dims

@@ -1,8 +1,10 @@
 from typing import Optional, Sequence, Tuple, Union
 
+import numpy as np
 
 import torch
-from monai.transforms import create_rotate, map_spatial_axes
+
+from monai.transforms import create_rotate, create_translate, map_spatial_axes
 
 from monai.data import get_track_meta
 from monai.transforms.atmostonce.apply import extents_from_shape, shape_from_extents
@@ -222,14 +224,17 @@ def rotate(
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    transform = create_rotate(input_ndim, angle_)
+    to_center_tx = create_translate(input_ndim, [d / 2 for d in input_shape[1:]])
+    rotate_tx = create_rotate(input_ndim, angle_)
     im_extents = extents_from_shape(input_shape)
     if not keep_size:
-        im_extents = [transform @ e for e in im_extents]
+        im_extents = [rotate_tx @ e for e in im_extents]
         spatial_shape = shape_from_extents(input_shape, im_extents)
     else:
         spatial_shape = input_shape
-
+    from_center_tx = create_translate(input_ndim, [-d / 2 for d in input_shape[1:]])
+    # transform = from_center_tx @ rotate_tx @ to_center_tx
+    transform = rotate_tx
     metadata = {
         "angle": angle_,
         "keep_size": keep_size,
@@ -319,10 +324,40 @@ def zoom(
 #     }
 
 
+def translate(
+        img: torch.Tensor,
+        translation: Sequence[float],
+        mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
+        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        shape_override: Optional[Sequence] = None
+):
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
+    if len(translation) != input_ndim:
+        raise ValueError(f"'translate' length {len(translation)} must be equal to 'img' "
+                         f"spatial dimensions of {input_ndim}")
+
+    transform = MatrixFactory.from_tensor(img).translate(translation).matrix.matrix
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [transform @ e for e in im_extents]
+    # shape_override_ = shape_from_extents(input_shape, im_extents)
+
+    metadata = {
+        "translation": translation,
+        "padding_mode": padding_mode,
+        "dtype": img.dtype,
+        "im_extents": im_extents,
+        # "shape_override": shape_override_
+    }
+    return img_, transform, metadata
+
+
 def croppad(
         img: torch.Tensor,
         slices: Union[Sequence[slice], slice],
-        pad_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         shape_override: Optional[Sequence] = None
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
@@ -342,7 +377,7 @@ def croppad(
 
     metadata = {
         "slices": slices,
-        "pad_mode": pad_mode,
+        "padding_mode": padding_mode,
         "dtype": img.dtype,
         "im_extents": im_extents,
         "shape_override": shape_override_

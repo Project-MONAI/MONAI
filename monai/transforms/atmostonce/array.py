@@ -5,11 +5,12 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike, NdarrayOrTensor
+from monai.data import MetaTensor
 
 from monai.transforms import InvertibleTransform, RandomizableTransform
 
 from monai.transforms.atmostonce.apply import apply
-from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad
+from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
@@ -160,8 +161,12 @@ class Rotate(LazyTransform, InvertibleTransform):
         keep_size = self.keep_size
         dtype = self.dtype
 
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
         img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
-                                            align_corners, dtype, shape_override)
+                                            align_corners, dtype, shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))
@@ -186,10 +191,12 @@ class Zoom(LazyTransform, InvertibleTransform):
             mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
             padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
             align_corners: Optional[bool] = None,
-            keep_size: bool = True,
+            keep_size: Optional[bool] = True,
             dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = True,
             **kwargs
     ):
+        LazyTransform.__init__(self, lazy_evaluation)
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
@@ -321,6 +328,52 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     ):
         raise NotImplementedError()
 
+
+class Translate(LazyTransform, InvertibleTransform):
+    def __init__(
+            self,
+            translation: Union[Sequence[float], float],
+            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+            padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = True,
+            **kwargs
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.translation = translation
+        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.padding_mode = padding_mode
+        self.dtype = dtype
+        self.kwargs = kwargs
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            mode: Optional[Union[InterpolateMode, str]] = None,
+            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+    ) -> NdarrayOrTensor:
+        mode = self.mode or mode
+        padding_mode = self.padding_mode or padding_mode
+        dtype = self.dtype
+
+        shape_override_ = None
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
+        img_t, transform, metadata = translate(img, self.translation,
+                                               mode, padding_mode, dtype, shape_override_)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(self, data):
+        raise NotImplementedError()
+
+
 # croppad
 # =======
 
@@ -328,7 +381,7 @@ class CropPad(LazyTransform, InvertibleTransform):
 
     def __init__(
             self,
-            slices: Sequence[slice],
+            slices: Optional[Sequence[slice]] = None,
             padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
             lazy_evaluation: Optional[bool] = True,
     ):
@@ -339,10 +392,11 @@ class CropPad(LazyTransform, InvertibleTransform):
     def __call__(
             self,
             img: NdarrayOrTensor,
+            slices: Optional[Sequence[slice]] = None,
             shape_override: Optional[Sequence] = None
     ):
-
-        img_t, transform, metadata = croppad(img, self.slices, self.padding_mode, shape_override)
+        slices_ = slices if self.slices is None else self.slices
+        img_t, transform, metadata = croppad(img, slices_, self.padding_mode, shape_override)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))

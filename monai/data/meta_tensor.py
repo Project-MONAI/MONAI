@@ -158,6 +158,9 @@ class MetaTensor(MetaObj, torch.Tensor):
     def push_pending_transform(self, meta_matrix):
         self._pending_transforms.append(meta_matrix)
 
+    def has_pending_transforms(self):
+        return len(self._pending_transforms)
+
     def peek_pending_transform(self):
         return copy.deepcopy(self._pending_transforms[-1])
 

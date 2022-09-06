@@ -11,22 +11,25 @@ from monai.data import MetaTensor
 from monai.transforms import Affine
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
+from monai.transforms.atmostonce.utils import matmul
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.utils.misc import get_backend_from_data, get_device_from_data
-from monai.utils.mapping_stack import MatrixFactory
+from monai.utils.mapping_stack import MatrixFactory, MetaMatrix, Matrix
 
 # TODO: This should move to a common place to be shared with dictionary
+from monai.utils.type_conversion import dtypes_to_str_or_identity
+
 GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
 GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
 DtypeSequence = Union[Sequence[DtypeLike], DtypeLike]
 
 
 # TODO: move to mapping_stack.py
-def extents_from_shape(shape):
+def extents_from_shape(shape, dtype=np.float64):
     extents = [[0, shape[i]] for i in range(1, len(shape))]
 
     extents = it.product(*extents)
-    return list(np.asarray(e + (1,)) for e in extents)
+    return list(np.asarray(e + (1,), dtype=dtype) for e in extents)
 
 
 # TODO: move to mapping_stack.py
@@ -48,7 +51,8 @@ def shape_from_extents(
 
     mins = aextents.min(axis=0)[0]
     maxes = aextents.max(axis=0)[0]
-    values = torch.ceil(maxes - mins).type(torch.IntTensor)[:-1]
+    values = torch.round(maxes - mins).type(torch.IntTensor)[:-1]
+    #values = torch.ceil(maxes - mins).type(torch.IntTensor)[:-1]
     return torch.cat((torch.as_tensor([src_shape[0]]), values))
 
     # return [src_shape[0]] + np.ceil(maxes - mins)[:-1].astype(int).tolist()
@@ -62,6 +66,19 @@ def metadata_is_compatible(value_1, value_2):
             return True
         return value_1 == value_2
 
+def metadata_dtype_is_compatible(value_1, value_2):
+    if value_1 is None:
+        return True
+    else:
+        if value_2 is None:
+            return True
+
+    # if we are here, value_1 and value_2 are both set
+    # TODO: this is not a good enough solution
+    value_1_ = dtypes_to_str_or_identity(value_1)
+    value_2_ = dtypes_to_str_or_identity(value_2)
+    return value_1_ == value_2_
+
 
 def starting_matrix_and_extents(matrix_factory, data):
     # set up the identity matrix and metadata
@@ -69,9 +86,9 @@ def starting_matrix_and_extents(matrix_factory, data):
     cumulative_extents = extents_from_shape(data.shape)
 
     # pre-translate origin to centre of image
-    translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
-    cumulative_matrix = translate_to_centre @ cumulative_matrix
-    cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
+    # translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
+    # cumulative_matrix = translate_to_centre @ cumulative_matrix
+    # cumulative_extents = [matmul(e, translate_to_centre.matrix.matrix) for e in cumulative_extents]
     return cumulative_matrix, cumulative_extents
 
 
@@ -89,12 +106,21 @@ def prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtyp
     return kwargs
 
 
+def matrix_from_matrix_container(matrix):
+    if isinstance(matrix, MetaMatrix):
+        return matrix.matrix.matrix
+    elif isinstance(matrix, Matrix):
+        return matrix.matrix
+    else:
+        return matrix
+
+
 def apply(data: Union[torch.Tensor, MetaTensor],
           pending: Optional[dict] = None):
     pending_ = pending
     pending_ = data.pending_transforms
 
-    if len(pending) == 0:
+    if len(pending_) == 0:
         return data
 
     dim_count = len(data.shape) - 1
@@ -117,59 +143,66 @@ def apply(data: Union[torch.Tensor, MetaTensor],
     cur_padding_mode = None
     cur_device = None
     cur_dtype = None
+    cur_shape = data.shape
 
     for meta_matrix in pending_:
         next_matrix = meta_matrix.matrix
-        cumulative_matrix = next_matrix @ cumulative_matrix
+        print("intermediate matrix\n", matrix_from_matrix_container(cumulative_matrix))
+        # cumulative_matrix = matmul(next_matrix, cumulative_matrix)
+        cumulative_matrix = matmul(cumulative_matrix, next_matrix)
         # cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
-        cumulative_extents = [e @ cumulative_matrix.matrix.matrix for e in cumulative_extents]
+        cumulative_extents = [matmul(e, cumulative_matrix) for e in cumulative_extents]
 
         new_mode = meta_matrix.metadata.get('mode', None)
         new_padding_mode = meta_matrix.metadata.get('padding_mode', None)
         new_device = meta_matrix.metadata.get('device', None)
         new_dtype = meta_matrix.metadata.get('dtype', None)
+        new_shape = meta_matrix.metadata.get('shape_override', None)
 
         mode_compat = metadata_is_compatible(cur_mode, new_mode)
         padding_mode_compat = metadata_is_compatible(cur_padding_mode, new_padding_mode)
         device_compat = metadata_is_compatible(cur_device, new_device)
-        dtype_compat = metadata_is_compatible(cur_dtype, new_dtype)
+        dtype_compat = metadata_dtype_is_compatible(cur_dtype, new_dtype)
 
         if (mode_compat is False or padding_mode_compat is False or
             device_compat is False or dtype_compat is False):
             print("intermediate apply required")
             # carry out an intermediate resample here due to incompatibility between arguments
-            # kwargs = {}
-            # if cur_mode is not None:
-            #     kwargs['mode'] = cur_mode
-            # if cur_padding_mode is not None:
-            #     kwargs['padding_mode'] = cur_padding_mode
-            # if cur_device is not None:
-            #     kwargs['device'] = cur_device
-            # if cur_dtype is not None:
-            #     kwargs['dtype'] = cur_dtype
             kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
 
+            cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
+            print(f"intermediate applying with cumulative matrix\n {cumulative_matrix_}")
             a = Affine(norm_coords=False,
-                       affine=cumulative_matrix.matrix.matrix,
+                       affine=cumulative_matrix_,
                        **kwargs)
-            data = a(img=data)
+            data, _ = a(img=data)
 
-            cur_mode = new_mode
-            cur_padding_mode = new_padding_mode
-            cur_device = new_device
-            cur_dtype = new_dtype
+            cumulative_matrix, cumulative_extents =\
+                starting_matrix_and_extents(matrix_factory, data)
 
+        cur_mode = cur_mode if new_mode is None else new_mode
+        cur_padding_mode = cur_padding_mode if new_padding_mode is None else new_padding_mode
+        cur_device = cur_device if new_device is None else new_device
+        cur_dtype = cur_dtype if new_dtype is None else new_dtype
+        cur_shape = cur_shape if new_shape is None else new_shape
     # TODO: figure out how to propagate extents properly
     # TODO: resampling strategy: augment resample or perform multiple stages if necessary
     # TODO: resampling strategy - antialiasing: can resample just be augmented?
 
-    a = Affine(norm_coords=False,
-               affine=cumulative_matrix.matrix.matrix,
-               # spatial_size=cur_spatial_size,
-               **kwargs)
-    data = a(img=data)
+    kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
 
+    cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
+
+    print(f"applying with cumulative matrix\n {cumulative_matrix_}")
+    a = Affine(norm_coords=False,
+               affine=cumulative_matrix_,
+               spatial_size=cur_shape[1:],
+               normalized=False,
+               **kwargs)
+    data, tx = a(img=data)
     data.clear_pending_transforms()
+
+    return data
 
 
 class Apply(InvertibleTransform):

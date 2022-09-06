@@ -21,8 +21,8 @@ from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory
 
 
-def get_img(size, offset = 0):
-    img = torch.zeros(size, dtype=torch.float32)
+def get_img(size, dtype=torch.float32, offset=0):
+    img = torch.zeros(size, dtype=dtype)
     if len(size) == 2:
         for j in range(size[0]):
             for i in range(size[1]):
@@ -342,17 +342,45 @@ class TestArrayTransforms(unittest.TestCase):
         enumerate_results_of_op(results)
         enumerate_results_of_op(results.pending_transforms[-1].metadata)
 
-    def test_rotate_apply(self):
+    def test_rotate_apply_not_lazy(self):
         r = amoa.Rotate(-torch.pi / 4,
                         mode="bilinear",
                         padding_mode="border",
                         keep_size=False)
         data = get_img((32, 32))
         data = r(data)
-        data = apply(data)
+        # data = apply(data)
+        print(data.shape)
         print(data)
 
+    def test_rotate_apply_lazy(self):
+        r = amoa.Rotate(-torch.pi / 4,
+                        mode="bilinear",
+                        padding_mode="border",
+                        keep_size=False)
+        r.lazy_evaluation = True
+        data = get_img((32, 32))
+        data = r(data)
+        data = apply(data)
+        print(data.shape)
+        print(data)
 
+    def test_crop_then_rotate_apply_lazy(self):
+        data = get_img((32, 32))
+        print(data.shape)
+
+        lc1 = amoa.CropPad(lazy_evaluation=True,
+                           padding_mode="zeros")
+        lr1 = amoa.Rotate(torch.pi / 4,
+                          keep_size=False,
+                          padding_mode="zeros",
+                          lazy_evaluation=False)
+        datas = []
+        datas.append(data)
+        data1 = lc1(data, slices=(slice(0, 16), slice(0, 16)))
+        datas.append(data1)
+        data2 = lr1(data1)
+        datas.append(data2)
 
 class TestDictionaryTransforms(unittest.TestCase):
 

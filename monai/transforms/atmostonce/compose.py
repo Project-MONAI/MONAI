@@ -4,7 +4,7 @@ from typing import Any, Callable, Optional, Sequence, Union
 import numpy as np
 
 
-from monai.transforms.atmostonce.lazy_transform import LazyTransform, compile_transforms, flatten_sequences
+from monai.transforms.atmostonce.lazy_transform import LazyTransform, compile_lazy_transforms, flatten_sequences
 from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, get_seed, MAX_SEED
 
 from monai.transforms import Randomizable, InvertibleTransform, OneOf, apply_transform
@@ -185,7 +185,7 @@ class Compose(Randomizable, InvertibleTransform):
         self.transforms = ensure_tuple(transforms)
 
         if lazy_evaluation is True:
-            self.dst_transforms = compile_transforms(self.transforms)
+            self.dst_transforms = compile_lazy_transforms(self.transforms)
         else:
             self.dst_transforms = flatten_sequences(self.transforms)
 
