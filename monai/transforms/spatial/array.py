@@ -1720,21 +1720,16 @@ class AffineGrid(Transform):
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
 
-    .. deprecated:: 0.6.0
-        ``as_tensor_output`` is deprecated.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         affine: Optional[NdarrayOrTensor] = None,
@@ -1802,14 +1797,12 @@ class RandAffineGrid(Randomizable, Transform):
 
     backend = AffineGrid.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1843,9 +1836,6 @@ class RandAffineGrid(Randomizable, Transform):
             - :py:meth:`monai.transforms.utils.create_shear`
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         self.rotate_range = ensure_tuple(rotate_range)
@@ -1903,7 +1893,7 @@ class RandAffineGrid(Randomizable, Transform):
             device=self.device,
         )
         _grid: torch.Tensor
-        _grid, self.affine = affine_grid(spatial_size, grid)
+        _grid, self.affine = affine_grid(spatial_size, grid)  # type: ignore
         return _grid
 
     def get_transformation_matrix(self) -> Optional[torch.Tensor]:
@@ -1964,12 +1954,10 @@ class Resample(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        as_tensor_output: bool = True,
         norm_coords: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float64,
@@ -2004,9 +1992,6 @@ class Resample(Transform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         self.mode = mode
@@ -2132,7 +2117,6 @@ class Affine(InvertibleTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
@@ -2146,7 +2130,6 @@ class Affine(InvertibleTransform):
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
         norm_coords: bool = True,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
@@ -2203,8 +2186,6 @@ class Affine(InvertibleTransform):
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
         .. deprecated:: 0.8.1
             ``norm_coords`` is deprecated, please use ``normalized`` instead
             (the new flag is a negation, i.e., ``norm_coords == not normalized``).
@@ -2314,7 +2295,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
@@ -2326,7 +2306,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2381,9 +2360,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2560,7 +2536,6 @@ class Rand2DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         spacing: Union[Tuple[float, float], float],
@@ -2573,7 +2548,6 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2626,9 +2600,6 @@ class Rand2DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2726,7 +2697,6 @@ class Rand3DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         sigma_range: Tuple[float, float],
@@ -2739,7 +2709,6 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2795,9 +2764,6 @@ class Rand3DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2880,7 +2846,7 @@ class Rand3DElastic(RandomizableTransform):
             grid = self.rand_affine_grid(grid=grid)
         out: torch.Tensor = self.resampler(
             img,
-            grid,
+            grid,  # type: ignore
             mode=mode if mode is not None else self.mode,
             padding_mode=padding_mode if padding_mode is not None else self.padding_mode,
         )
