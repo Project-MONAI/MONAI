@@ -57,7 +57,6 @@ class ClientAlgo(abc.ABC):
 
         pass
 
-    @abc.abstractmethod
     def train(self, data: ExchangeObject, extra: Optional[dict] = None) -> None:
         """
         Train network and produce new network from train data.
@@ -71,7 +70,6 @@ class ClientAlgo(abc.ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abc.abstractmethod
     def get_weights(self, extra: Optional[dict] = None) -> ExchangeObject:
         """
         Get current local weights or weight differences
@@ -93,7 +91,6 @@ class ClientAlgo(abc.ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    @abc.abstractmethod
     def evaluate(self, data: ExchangeObject, extra: Optional[dict] = None) -> ExchangeObject:
         """
         Get evaluation metrics on test data.
