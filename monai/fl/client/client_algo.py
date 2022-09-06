@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
 from typing import Optional
 
 from monai.fl.utils.exchange_object import ExchangeObject
 
 
-class ClientAlgo(abc.ABC):
+class ClientAlgo:
     """
     objective: provide an abstract base class for defining algo to run on any platform.
     To define a new algo script, subclass this class and implement the
