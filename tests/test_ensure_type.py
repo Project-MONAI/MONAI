@@ -63,12 +63,12 @@ class TestEnsureType(unittest.TestCase):
             result = EnsureType(data_type=dtype, wrap_sequence=False, track_meta=True)([[1, 2], [3, 4]])
             self.assertTrue(isinstance(result, list))
             self.assertTrue(isinstance(result[0][1], MetaTensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
+            assert_allclose(result[1][0], torch.as_tensor(3))
             # tuple of numpy arrays
             result = EnsureType(data_type=dtype, wrap_sequence=False)((np.array([1, 2]), np.array([3, 4])))
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))
+            assert_allclose(result[1], torch.as_tensor([3, 4]))
 
     def test_dict(self):
         # simulate complicated input data
@@ -81,9 +81,9 @@ class TestEnsureType(unittest.TestCase):
             result = EnsureType(data_type=dtype, track_meta=False)(test_data)
             self.assertTrue(isinstance(result, dict))
             self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))
+            assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))
             self.assertTrue(isinstance(result["meta"]["size"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]))
+            assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]))
             self.assertEqual(result["meta"]["path"], "temp/test")
             self.assertEqual(result["extra"], None)
 

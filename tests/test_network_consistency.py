@@ -21,6 +21,7 @@ from parameterized.parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.utils import set_determinism
+from tests.utils import assert_allclose
 
 extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA")
 
@@ -76,7 +77,7 @@ class TestNetworkConsistency(unittest.TestCase):
             for a, e in zip(actual, expected):
                 self.check_output_consistency(a, e)
         else:
-            torch.testing.assert_allclose(actual, expected)
+            assert_allclose(actual, expected)
 
 
 if __name__ == "__main__":
