@@ -74,7 +74,7 @@ class TestZoom(NumpyImageTestCase2D):
             test_data = p([[[1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0], [1.0, 1.0, 1.0, 1.0]]])
             zoomed = zoom_fn(test_data)
             expected = p([[[0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])
-            assert_allclose(zoomed, expected)
+            assert_allclose(zoomed, expected, type_test=False)
 
 
 if __name__ == "__main__":
