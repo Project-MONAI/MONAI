@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.nets.basic_unet import TwoConv
-from monai.networks.blocks import Convolution, UpSample
+from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import ensure_tuple_rep
 
