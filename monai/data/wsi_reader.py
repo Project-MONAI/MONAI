@@ -64,7 +64,7 @@ class BaseWSIReader(ImageReader):
         self.metadata: Dict[Any, Any] = {}
 
     @abstractmethod
-    def get_size(self, wsi, level: int) -> Tuple[int, int]:
+    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
@@ -87,13 +87,14 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_downsample_ratio(self, wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
@@ -104,7 +105,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_mpp(self, wsi, level: int) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
@@ -308,41 +309,53 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_level_count(wsi)
 
-    def get_size(self, wsi, level: int) -> Tuple[int, int]:
+    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return self.reader.get_size(wsi, level)
 
-    def get_downsample_ratio(self, wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return self.reader.get_downsample_ratio(wsi, level)
 
     def get_file_path(self, wsi) -> str:
         """Return the file path for the WSI object"""
         return self.reader.get_file_path(wsi)
 
-    def get_mpp(self, wsi, level: int) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return self.reader.get_mpp(wsi, level)
 
     def get_patch(
@@ -411,28 +424,34 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         return wsi.resolutions["level_count"]  # type: ignore
 
-    @staticmethod
-    def get_size(wsi, level: int) -> Tuple[int, int]:
+    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return (wsi.resolutions["level_dimensions"][level][1], wsi.resolutions["level_dimensions"][level][0])
 
-    @staticmethod
-    def get_downsample_ratio(wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return wsi.resolutions["level_downsamples"][level]  # type: ignore
 
     @staticmethod
@@ -440,16 +459,19 @@ class CuCIMWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi.path))
 
-    @staticmethod
-    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         factor = float(wsi.resolutions["level_downsamples"][level])
         return (wsi.metadata["cucim"]["spacing"][1] * factor, wsi.metadata["cucim"]["spacing"][0] * factor)
 
@@ -547,28 +569,34 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         return wsi.level_count  # type: ignore
 
-    @staticmethod
-    def get_size(wsi, level: int) -> Tuple[int, int]:
+    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return (wsi.level_dimensions[level][1], wsi.level_dimensions[level][0])
 
-    @staticmethod
-    def get_downsample_ratio(wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return wsi.level_downsamples[level]  # type: ignore
 
     @staticmethod
@@ -576,16 +604,18 @@ class OpenSlideWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi._filename))
 
-    @staticmethod
-    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
         unit = wsi.properties["tiff.ResolutionUnit"]
         if unit == "centimeter":
             factor = 10000.0
@@ -686,28 +716,34 @@ class TiffFileWSIReader(BaseWSIReader):
         """
         return len(wsi.pages)
 
-    @staticmethod
-    def get_size(wsi, level: int) -> Tuple[int, int]:
+    def get_size(self, wsi, level: Optional[int] = None) -> Tuple[int, int]:
         """
         Returns the size (height, width) of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return (wsi.pages[level].imagelength, wsi.pages[level].imagewidth)
 
-    @staticmethod
-    def get_downsample_ratio(wsi, level: int) -> float:
+    def get_downsample_ratio(self, wsi, level: Optional[int] = None) -> float:
         """
         Returns the down-sampling ratio of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         return float(wsi.pages[0].imagelength) / float(wsi.pages[level].imagelength)
 
     @staticmethod
@@ -715,16 +751,19 @@ class TiffFileWSIReader(BaseWSIReader):
         """Return the file path for the WSI object"""
         return str(abspath(wsi.filehandle.path))
 
-    @staticmethod
-    def get_mpp(wsi, level: int) -> Tuple[float, float]:
+    def get_mpp(self, wsi, level: Optional[int] = None) -> Tuple[float, float]:
         """
         Returns the micro-per-pixel resolution of the whole slide image at a given level.
 
         Args:
             wsi: a whole slide image object loaded from a file
-            level: the level number where the size is calculated
+            level: the level number where the size is calculated. If not provided the default level (from `self.level`)
+                will be used.
 
         """
+        if level is None:
+            level = self.level
+
         unit = wsi.pages[level].tags["ResolutionUnit"].value
         if unit == unit.CENTIMETER:
             factor = 10000.0
