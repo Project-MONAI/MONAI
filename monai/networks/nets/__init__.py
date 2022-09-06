@@ -40,6 +40,7 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
+from .encoder import BasicEncoder
 from .flexible_unet import FlexibleUNet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
@@ -47,6 +48,7 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .registry import Register
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
