@@ -79,7 +79,5 @@ class TestContrastiveLoss(unittest.TestCase):
             ContrastiveLoss(temperature=0.5, batch_size=1)
 
 
-
-
 if __name__ == "__main__":
     unittest.main()
