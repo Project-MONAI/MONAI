@@ -8,14 +8,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import torch
 from torch.nn import functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.networks.layers import gaussian_1d, separable_filtering
-from monai.utils import LossReduction, deprecated_arg
+from monai.utils import LossReduction
 from monai.utils.module import look_up_option
 
 
@@ -60,7 +60,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    @deprecated_arg(name="ndim", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -69,7 +68,6 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
-        ndim: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -85,13 +83,9 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
             smooth_nr: a small constant added to the numerator to avoid nan.
             smooth_dr: a small constant added to the denominator to avoid nan.
 
-        .. deprecated:: 0.6.0
-            ``ndim`` is deprecated, use ``spatial_dims``.
         """
         super().__init__(reduction=LossReduction(reduction).value)
 
-        if ndim is not None:
-            spatial_dims = ndim
         self.ndim = spatial_dims
         if self.ndim not in {1, 2, 3}:
             raise ValueError(f"Unsupported ndim: {self.ndim}-d, only 1-d, 2-d, and 3-d inputs are supported")

@@ -16,7 +16,6 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
-from monai.utils import deprecated_arg
 
 __all__ = ["AutoEncoder"]
 
@@ -57,9 +56,6 @@ class AutoEncoder(nn.Module):
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Examples::
 
         from monai.networks.nets import AutoEncoder
@@ -88,9 +84,6 @@ class AutoEncoder(nn.Module):
 
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -108,11 +101,10 @@ class AutoEncoder(nn.Module):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
         bias: bool = True,
-        dimensions: Optional[int] = None,
     ) -> None:
 
         super().__init__()
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.channels = list(channels)

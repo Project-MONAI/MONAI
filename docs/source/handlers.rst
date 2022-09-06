@@ -101,6 +101,12 @@ Metric logger
     :members:
 
 
+Logfile handler
+---------------
+.. autoclass:: LogfileHandler
+    :members:
+
+
 Training stats handler
 ----------------------
 .. autoclass:: StatsHandler
