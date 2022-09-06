@@ -37,6 +37,10 @@ __all__ = [
 ]
 
 
+# conversion map for types unsupported by torch.as_tensor
+UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64, np.dtype("uint64"): np.int64}
+
+
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
     return np.empty([], dtype=dtype).dtype
@@ -123,6 +127,10 @@ def convert_to_tensor(
 
     def _convert_tensor(tensor, **kwargs):
         if not isinstance(tensor, torch.Tensor):
+            # certain numpy types are not supported as being directly convertible to Pytorch tensors
+            if isinstance(tensor, np.ndarray) and tensor.dtype in UNSUPPORTED_TYPES:
+                tensor = tensor.view(dtype=UNSUPPORTED_TYPES[tensor.dtype])
+
             # if input data is not Tensor, convert it to Tensor first
             tensor = torch.as_tensor(tensor, **kwargs)
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
