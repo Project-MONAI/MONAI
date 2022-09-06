@@ -171,7 +171,6 @@ class BundleAlgo(Algo):
         logger.info(write_path)
         self.output_path = write_path
 
-
     def save_config_files(self, output_config_path, sections):
         """
         Save the auto-generated config files into multiple files.
