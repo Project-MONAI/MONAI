@@ -3142,6 +3142,9 @@ class GridPatch(Transform):
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
+    Returns:
+        MetaTensor: A MetaTensor consisting of a batch of all the patches with associated metadata
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -3265,6 +3268,9 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    Returns:
+        MetaTensor: A MetaTensor consisting of a batch of all the patches with associated metadata
 
     """
 
