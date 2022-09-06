@@ -66,7 +66,7 @@ class TestConvertDataType(unittest.TestCase):
 
     @parameterized.expand(list(UNSUPPORTED_TYPES.items()))
     def test_unsupported_np_types(self, np_type, pt_type):
-        in_image = np.ones(2, dtype=np_type)
+        in_image = np.ones(13, dtype=np_type)  # choose a prime size so as to be indivisible by the size of any dtype 
         converted_im, orig_type, orig_device = convert_data_type(in_image, torch.Tensor)
 
         self.assertEqual(converted_im.dtype, pt_type)
