@@ -14,46 +14,12 @@ from typing import Optional, Sequence, Union
 import torch
 import torch.nn as nn
 
+from monai.networks.nets.basic_unet import TwoConv
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetplusplus", "BasicUNetPlusPlus"]
-
-
-class TwoConv(nn.Sequential):
-    """two convolutions."""
-
-    def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
-        bias: bool,
-        dropout: Union[float, tuple] = 0.0,
-    ):
-        """
-        Args:
-            spatial_dims: number of spatial dimensions.
-            in_channels: number of input channels.
-            out_channels: number of output channels.
-            act: activation type and arguments.
-            norm: feature normalization type and arguments.
-            bias: whether to have a bias term in convolution blocks.
-            dropout: dropout ratio. Defaults to no dropout.
-        """
-        super().__init__()
-
-        conv_0 = Convolution(
-            spatial_dims, in_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
-        )
-        conv_1 = Convolution(
-            spatial_dims, out_channels, out_channels, act=act, norm=norm, dropout=dropout, bias=bias, padding=1
-        )
-        self.add_module("conv_0", conv_0)
-        self.add_module("conv_1", conv_1)
 
 
 class Down(nn.Sequential):
