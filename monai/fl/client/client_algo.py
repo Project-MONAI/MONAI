@@ -82,14 +82,14 @@ class ClientAlgo(abc.ABC):
         Returns:
             ExchangeObject: current local weights or weight differences.
 
-        Example:
-            Returns ExchangeObject, e.g.::
+        ExchangeObject example::
 
             ExchangeObject(
                 weights = self.trainer.network.state_dict(),
                 optim = None,  # could be self.optimizer.state_dict()
                 weight_type = WeightType.WEIGHTS
             )
+
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
