@@ -63,7 +63,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -3241,7 +3241,9 @@ class GridPatch(Transform):
 
         # Convert to MetaTensor
         metadata = array.meta if isinstance(array, MetaTensor) else {}
-        metadata["location"] = locations.T
+        metadata[WSIPatchKeys.LOCATION] = locations.T
+        metadata[WSIPatchKeys.COUNT] = len(locations)
+        metadata[WSIPatchKeys.SIZE] = self.patch_size
         output = MetaTensor(x=patched_image, meta=metadata)
         output.is_batch = True
 

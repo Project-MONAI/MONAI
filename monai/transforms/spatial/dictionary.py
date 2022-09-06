@@ -1853,23 +1853,9 @@ class GridPatchd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        output = []
-        results = [self.patcher(d[key]) for key in self.keys]
-        num_patches = min(len(r) for r in results)
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key])
+        return d
 
 
 class RandGridPatchd(RandomizableTransform, MapTransform):
@@ -1944,29 +1930,13 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        # all the keys share the same random noise
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
-            return [d]
-        self.patcher.randomize(d[first_key])  # type: ignore
-        results = [self.patcher(d[key], randomize=False) for key in self.keys]
-
-        num_patches = min(len(r) for r in results)
-        output = []
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        # All the keys share the same random noise
+        for key in self.key_iterator(d):
+            self.patcher.randomize(d[key])
+            break
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key], randomize=False)
+        return d
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
