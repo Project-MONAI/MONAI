@@ -92,7 +92,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
                     scale_range=((0.8, 1), (0.8, 1)),
                     padding_mode="zeros",
                     mode=("bilinear", "nearest"),
-                    as_tensor_output=False,
                 ),
                 CropForegroundd(keys, source_key="image"),
                 DivisiblePadd(keys, 4),

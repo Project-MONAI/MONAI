@@ -24,6 +24,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
     ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
@@ -57,7 +58,6 @@ from monai.transforms.intensity.array import (
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PostFix
 
 __all__ = [
@@ -91,6 +91,7 @@ __all__ = [
     "RandCoarseShuffled",
     "HistogramNormalized",
     "ForegroundMaskd",
+    "ComputeHoVerMapsd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -151,6 +152,8 @@ __all__ = [
     "RandKSpaceSpikeNoiseDict",
     "ForegroundMaskD",
     "ForegroundMaskDict",
+    "ComputeHoVerMapsD",
+    "ComputeHoVerMapsDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -241,7 +244,6 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
 
     backend = RandRicianNoise.backend
 
-    @deprecated_arg("global_prob", since="0.7")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1196,7 +1198,7 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
 class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
-    Apply random nonlinear transform the the image's intensity histogram.
+    Apply random nonlinear transform the image's intensity histogram.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1270,14 +1272,12 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
 
     backend = RandGibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1327,10 +1327,7 @@ class GibbsNoised(MapTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False, as_tensor_output: bool = True
-    ) -> None:
+    def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha)
@@ -1386,14 +1383,12 @@ class KSpaceSpikeNoised(MapTransform):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ) -> None:
 
         super().__init__(keys, allow_missing_keys)
@@ -1450,21 +1445,13 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
 
     backend = RandKSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    @deprecated_arg(name="common_sampling", since="0.6")
-    @deprecated_arg(name="common_seed", since="0.6")
-    @deprecated_arg(name="global_prob", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
-        global_prob: float = 1.0,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        common_sampling: bool = False,
-        common_seed: int = 42,
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
@@ -1741,6 +1728,39 @@ class ForegroundMaskd(MapTransform):
         return d
 
 
+class ComputeHoVerMapsd(MapTransform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        dtype: the type of output Tensor. Defaults to `"float32"`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "hover_mask".
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: DtypeLike = "float32",
+        new_key_prefix: str = "hover_",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ComputeHoVerMaps(dtype=dtype)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1771,3 +1791,4 @@ RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
 ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
+ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd

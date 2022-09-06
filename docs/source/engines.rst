@@ -16,11 +16,6 @@ Workflows
 
 .. currentmodule:: monai.engines
 
-`BaseWorkflow`
-~~~~~~~~~~~~~~
-.. autoclass:: BaseWorkflow
-    :members:
-
 `Workflow`
 ~~~~~~~~~~
 .. autoclass:: Workflow

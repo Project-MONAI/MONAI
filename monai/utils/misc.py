@@ -21,7 +21,7 @@ from ast import literal_eval
 from collections.abc import Iterable
 from distutils.util import strtobool
 from pathlib import Path
-from typing import Any, Callable, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 import torch
@@ -46,12 +46,15 @@ __all__ = [
     "list_to_dict",
     "MAX_SEED",
     "copy_to_device",
+    "str2bool",
+    "MONAIEnvVars",
     "ImageMetaKey",
     "is_module_ver_at_least",
     "has_option",
     "sample_slices",
     "check_parent_dir",
     "save_obj",
+    "label_union",
 ]
 
 _seed = None
@@ -360,6 +363,52 @@ def copy_to_device(
     return obj
 
 
+def str2bool(value: str, default: bool = False, raise_exc: bool = True) -> bool:
+    """
+    Convert a string to a boolean. Case insensitive.
+    True: yes, true, t, y, 1. False: no, false, f, n, 0.
+
+    Args:
+        value: string to be converted to a boolean.
+        raise_exc: if value not in tuples of expected true or false inputs,
+            should we raise an exception? If not, return `None`.
+    Raises
+        ValueError: value not in tuples of expected true or false inputs and
+            `raise_exc` is `True`.
+    """
+    true_set = ("yes", "true", "t", "y", "1")
+    false_set = ("no", "false", "f", "n", "0")
+    if isinstance(value, str):
+        value = value.lower()
+        if value in true_set:
+            return True
+        if value in false_set:
+            return False
+
+    if raise_exc:
+        raise ValueError(f"Got \"{value}\", expected a value from: {', '.join(true_set + false_set)}")
+    return default
+
+
+class MONAIEnvVars:
+    """
+    Environment variables used by MONAI.
+    """
+
+    @staticmethod
+    def data_dir() -> Optional[str]:
+        return os.environ.get("MONAI_DATA_DIRECTORY", None)
+
+    @staticmethod
+    def debug() -> bool:
+        val = os.environ.get("MONAI_DEBUG", False)
+        return val if isinstance(val, bool) else str2bool(val)
+
+    @staticmethod
+    def doc_images() -> Optional[str]:
+        return os.environ.get("MONAI_DOC_IMAGES", None)
+
+
 class ImageMetaKey:
     """
     Common key names in the metadata header of images
@@ -471,3 +520,26 @@ def save_obj(
                 shutil.move(str(temp_path), path)
     except PermissionError:  # project-monai/monai issue #3613
         pass
+
+
+def label_union(x: List) -> List:
+    """
+    Compute the union of class IDs in label and generate a list to include all class IDs
+    Args:
+        x: a list of numbers (for example, class_IDs)
+
+    Returns
+        a list showing the union (the union the class IDs)
+    """
+    return list(set.union(set(np.array(x).tolist())))
+
+
+def prob2class(x, sigmoid: bool = False, threshold: float = 0.5, **kwargs):
+    """
+    Compute the lab from the probability of predicted feature maps
+
+    Args:
+        sigmoid: If the sigmoid function should be used.
+        threshold: threshold value to activate the sigmoid function.
+    """
+    return torch.argmax(x, **kwargs) if not sigmoid else (x > threshold).int()

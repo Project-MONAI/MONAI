@@ -11,7 +11,6 @@
 
 import json
 import os
-import subprocess
 import tempfile
 import unittest
 
@@ -21,23 +20,28 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, load
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_quick, skip_if_windows
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    command_line_tests,
+    skip_if_downloading_fails,
+    skip_if_quick,
+    skip_if_windows,
+)
 
-TEST_CASE_1 = [
-    ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
-    "test_bundle",
-    "Project-MONAI/MONAI-extra-test-data/0.8.1",
-    "a131d39a0af717af32d19e565b434928",
-]
+TEST_CASE_1 = ["test_bundle", None]
 
-TEST_CASE_2 = [
+TEST_CASE_2 = ["test_bundle_v0.1.1", None]
+
+TEST_CASE_3 = ["test_bundle", "0.1.1"]
+
+TEST_CASE_4 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle.zip",
     "a131d39a0af717af32d19e565b434928",
 ]
 
-TEST_CASE_3 = [
+TEST_CASE_5 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
@@ -45,9 +49,10 @@ TEST_CASE_3 = [
     "model.pt",
 ]
 
-TEST_CASE_4 = [
+TEST_CASE_6 = [
     ["test_output.pt", "test_input.pt"],
     "test_bundle",
+    "0.1.1",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
     "model.ts",
@@ -56,22 +61,27 @@ TEST_CASE_4 = [
 
 @skip_if_windows
 class TestDownload(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     @skip_if_quick
-    def test_download_bundle(self, bundle_files, bundle_name, repo, hash_val):
+    def test_download_bundle(self, bundle_name, version):
+        bundle_files = ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"]
+        repo = "Project-MONAI/MONAI-extra-test-data/0.8.1"
+        hash_val = "a131d39a0af717af32d19e565b434928"
         with skip_if_downloading_fails():
             # download a whole bundle from github releases
             with tempfile.TemporaryDirectory() as tempdir:
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "github"]
                 cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
-                subprocess.check_call(cmd)
+                if version is not None:
+                    cmd += ["--version", version]
+                command_line_tests(cmd)
                 for file in bundle_files:
-                    file_path = os.path.join(tempdir, bundle_name, file)
+                    file_path = os.path.join(tempdir, "test_bundle", file)
                     self.assertTrue(os.path.exists(file_path))
                     if file == "network.json":
                         self.assertTrue(check_hash(filepath=file_path, val=hash_val))
 
-    @parameterized.expand([TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
     def test_url_download_bundle(self, bundle_files, bundle_name, url, hash_val):
         with skip_if_downloading_fails():
@@ -83,7 +93,7 @@ class TestDownload(unittest.TestCase):
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
                 cmd += ["--url", url]
-                subprocess.check_call(cmd)
+                command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
@@ -92,7 +102,7 @@ class TestDownload(unittest.TestCase):
 
 
 class TestLoad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_3])
+    @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
@@ -139,16 +149,17 @@ class TestLoad(unittest.TestCase):
                 output_2 = model_2.forward(input_tensor)
                 torch.testing.assert_allclose(output_2, expected_output)
 
-    @parameterized.expand([TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
     @SkipIfBeforePyTorchVersion((1, 7, 1))
-    def test_load_ts_module(self, bundle_files, bundle_name, repo, device, model_file):
+    def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):
         with skip_if_downloading_fails():
             # load ts module
             with tempfile.TemporaryDirectory() as tempdir:
                 # load ts module
                 model_ts, metadata, extra_file_dict = load(
                     name=bundle_name,
+                    version=version,
                     model_file=model_file,
                     load_ts_module=True,
                     bundle_dir=tempdir,

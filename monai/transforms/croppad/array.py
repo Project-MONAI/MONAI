@@ -198,7 +198,7 @@ class Pad(InvertibleTransform):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [-s[0] for s in to_pad[1:]]  # skipping the channel pad
         mat = create_translate(spatial_rank, to_shift)
-        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -398,8 +398,8 @@ class Crop(InvertibleTransform):
             return list(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
-                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True)
-                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True)
+                roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
+                roi_size_t = convert_to_tensor(data=roi_size, dtype=torch.int16, wrap_sequence=True, device="cpu")
                 _zeros = torch.zeros_like(roi_center_t)
                 half = (
                     torch.divide(roi_size_t, 2, rounding_mode="floor")
@@ -450,7 +450,7 @@ class Crop(InvertibleTransform):
         spatial_rank = max(len(tensor.affine) - 1, 1)
         to_shift = [s.start if s.start is not None else 0 for s in ensure_tuple(slices)[1:]]
         mat = create_translate(spatial_rank, to_shift)
-        tensor.meta["affine"] = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
+        tensor.affine = tensor.affine @ convert_to_dst_type(mat, tensor.affine)[0]
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)

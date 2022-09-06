@@ -15,11 +15,10 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
-from numpy.lib.stride_tricks import as_strided
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
@@ -43,13 +42,17 @@ from monai.transforms.utils import (
     map_spatial_axes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis, where
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    NdimageMode,
     NumpyPadMode,
+    SplineMode,
+    convert_to_cupy,
     convert_to_dst_type,
+    convert_to_numpy,
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
@@ -66,6 +69,9 @@ from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
 
 nib, has_nib = optional_import("nibabel")
+cupy, _ = optional_import("cupy")
+cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
+np_ndi, _ = optional_import("scipy.ndimage")
 
 __all__ = [
     "SpatialResample",
@@ -113,24 +119,25 @@ class SpatialResample(InvertibleTransform):
 
     def __init__(
         self,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
     ):
         """
         Args:
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -186,9 +193,9 @@ class SpatialResample(InvertibleTransform):
         src_affine: Optional[NdarrayOrTensor] = None,
         dst_affine: Optional[torch.Tensor] = None,
         spatial_size: Optional[Union[Sequence[int], torch.Tensor, int]] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = False,
+        align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -203,17 +210,21 @@ class SpatialResample(InvertibleTransform):
                 if `spatial_size` and `self.spatial_size` are not defined,
                 the transform will compute a spatial size automatically containing the previous field of view.
                 if `spatial_size` is ``-1`` are the transform will use the corresponding input img size.
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+                Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
@@ -227,8 +238,8 @@ class SpatialResample(InvertibleTransform):
         # get dtype as torch (e.g., torch.float64)
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         align_corners = self.align_corners if align_corners is None else align_corners
-        mode = mode or self.mode
-        padding_mode = padding_mode or self.padding_mode
+        mode = mode if mode is not None else self.mode
+        padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         original_spatial_shape = img.shape[1:]
 
         src_affine_: torch.Tensor = img.affine if isinstance(img, MetaTensor) else torch.eye(4)
@@ -285,7 +296,7 @@ class SpatialResample(InvertibleTransform):
             for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
                 _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
             xform = xform @ _t_r
-            if not USE_COMPILED:
+            if not USE_COMPILED and not isinstance(mode, int):
                 _t_l = normalize_transform(
                     in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
                 )[0]
@@ -298,7 +309,7 @@ class SpatialResample(InvertibleTransform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,
+                mode=mode,  # type: ignore
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
@@ -353,9 +364,9 @@ class ResampleToMatch(SpatialResample):
         img_dst: torch.Tensor,
         src_meta: Optional[Dict] = None,
         dst_meta: Optional[Dict] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = False,
+        align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
         """
@@ -370,17 +381,20 @@ class ResampleToMatch(SpatialResample):
                 specified, ``src_affine`` is assumed. If ``spatial_shape`` is not specified, spatial size is
                 automatically computed, containing the previous field of view.  Defaults to ``None``.
                 See also: https://docs.monai.io/en/stable/transforms.html#spatialresample
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
-                Defaults to ``False``.
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
@@ -390,7 +404,7 @@ class ResampleToMatch(SpatialResample):
             RuntimeError: When ``dst_meta`` is missing.
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
-            Resampled input image, Metadata
+            Resampled input tensor or MetaTensor.
         """
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
@@ -420,7 +434,7 @@ class Spacing(InvertibleTransform):
         self,
         pixdim: Union[Sequence[float], float, np.ndarray],
         diagonal: bool = False,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
@@ -446,15 +460,18 @@ class Spacing(InvertibleTransform):
                 If False, this transform preserves the axes orientation, orthogonal rotation and
                 translation components from the original affine. This option will not flip/swap axes
                 of the original data.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
@@ -466,10 +483,7 @@ class Spacing(InvertibleTransform):
         self.diagonal = diagonal
 
         self.sp_resample = SpatialResample(
-            mode=look_up_option(mode, GridSampleMode),
-            padding_mode=look_up_option(padding_mode, GridSamplePadMode),
-            align_corners=align_corners,
-            dtype=dtype,
+            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
         )
 
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
@@ -477,7 +491,7 @@ class Spacing(InvertibleTransform):
         self,
         data_array: torch.Tensor,
         affine: Optional[NdarrayOrTensor] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
@@ -486,17 +500,21 @@ class Spacing(InvertibleTransform):
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``self.mode``.
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+                Interpolation mode to calculate output values. Defaults to ``"self.mode"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
+                Padding mode for outside grid values. Defaults to ``"self.padding_mode"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
@@ -509,22 +527,23 @@ class Spacing(InvertibleTransform):
             ValueError: When ``pixdim`` is nonpositive.
 
         Returns:
-            data_array (resampled into `self.pixdim`), original affine, current affine.
+            data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
         original_spatial_shape = data_array.shape[1:]
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
+        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
-        affine_np: np.ndarray
-        if isinstance(data_array, MetaTensor):
-            affine_np, *_ = convert_data_type(data_array.affine, np.ndarray)
-            affine_ = to_affine_nd(sr, affine_np)
-        else:
+        if affine is not None:
+            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
+        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
+        if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
-            affine_ = np.eye(sr + 1, dtype=np.float64)
+            input_affine = np.eye(sr + 1, dtype=np.float64)
+        affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
@@ -842,10 +861,13 @@ class Resize(InvertibleTransform):
             scale = self.spatial_size / max(img_size)
             spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
 
-        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            return convert_to_tensor(img, track_meta=get_track_meta())  # type: ignore
-
         original_sp_size = img.shape[1:]
+        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
+        _align_corners = self.align_corners if align_corners is None else align_corners
+        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
+            img = convert_to_tensor(img, track_meta=get_track_meta())
+
+            return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
         img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
 
         if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
@@ -862,25 +884,25 @@ class Resize(InvertibleTransform):
             img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
 
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
-        _align_corners = self.align_corners if align_corners is None else align_corners
-
         resized = torch.nn.functional.interpolate(
             input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
         )
         out, *_ = convert_to_dst_type(resized.squeeze(0), img)
+        return self._post_process(out, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
+
+    def _post_process(self, img: torch.Tensor, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
         if get_track_meta():
-            self.update_meta(out, original_sp_size, spatial_size_)
+            self.update_meta(img, orig_size, sp_size)
             self.push_transform(
-                out,
-                orig_size=original_sp_size,
+                img,
+                orig_size=orig_size,
                 extra_info={
-                    "mode": _mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(original_sp_size) - input_ndim,  # additional dims appended
+                    "mode": mode,
+                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+                    "new_dim": len(orig_size) - ndim,  # additional dims appended
                 },
             )
-        return out
+        return img
 
     def update_meta(self, img, spatial_size, new_spatial_size):
         affine = convert_to_tensor(img.affine, track_meta=False)
@@ -1698,21 +1720,16 @@ class AffineGrid(Transform):
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
 
-    .. deprecated:: 0.6.0
-        ``as_tensor_output`` is deprecated.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         affine: Optional[NdarrayOrTensor] = None,
@@ -1780,14 +1797,12 @@ class RandAffineGrid(Randomizable, Transform):
 
     backend = AffineGrid.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -1821,9 +1836,6 @@ class RandAffineGrid(Randomizable, Transform):
             - :py:meth:`monai.transforms.utils.create_shear`
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         self.rotate_range = ensure_tuple(rotate_range)
@@ -1881,7 +1893,7 @@ class RandAffineGrid(Randomizable, Transform):
             device=self.device,
         )
         _grid: torch.Tensor
-        _grid, self.affine = affine_grid(spatial_size, grid)
+        _grid, self.affine = affine_grid(spatial_size, grid)  # type: ignore
         return _grid
 
     def get_transformation_matrix(self) -> Optional[torch.Tensor]:
@@ -1940,14 +1952,12 @@ class RandDeformGrid(Randomizable, Transform):
 
 class Resample(Transform):
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        as_tensor_output: bool = True,
         norm_coords: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float64,
@@ -1957,15 +1967,23 @@ class Resample(Transform):
         supports spatially 2D or 3D (num_channels, H, W[, D]).
 
         Args:
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+            padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+                Padding mode for outside grid values. Defaults to ``"border"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             norm_coords: whether to normalize the coordinates from `[-(size-1)/2, (size-1)/2]` to
                 `[0, size - 1]` (for ``monai/csrc`` implementation) or
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
@@ -1975,21 +1993,18 @@ class Resample(Transform):
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
-
         """
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode = padding_mode
         self.norm_coords = norm_coords
         self.device = device
         self.dtype = dtype
 
-    def __call__(  # type: ignore
+    def __call__(
         self,
         img: torch.Tensor,
-        grid: torch.Tensor,
-        mode: Optional[str] = None,
+        grid: Optional[torch.Tensor] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
         dtype: DtypeLike = None,
     ) -> torch.Tensor:
@@ -2000,47 +2015,82 @@ class Resample(Transform):
                 if ``norm_coords`` is True, the grid values must be in `[-(size-1)/2, (size-1)/2]`.
                 if ``USE_COMPILED=True`` and ``norm_coords=False``, grid values must be in `[0, size-1]`.
                 if ``USE_COMPILED=False`` and ``norm_coords=False``, grid values must be in `[-1, 1]`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 When `USE_COMPILED` is `True`, this argument uses
                 ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `USE_COMPILED` is `True`, this argument uses an integer to represent the padding mode.
+                See also: https://docs.monai.io/en/stable/networks.html#grid-pull (experimental).
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 To be compatible with other modules, the output data type is always `float32`.
 
         See also:
             :py:const:`monai.config.USE_COMPILED`
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if grid is None:
+            return img
         _device = img.device if isinstance(img, torch.Tensor) else self.device
         _dtype = dtype or self.dtype or img.dtype
-        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
-        grid_t, *_ = convert_to_dst_type(grid, img_t)
-        if grid_t is grid:  # copy if needed (convert_data_type converts to contiguous)
-            grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+        grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
+        grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+
+        if self.norm_coords:
+            grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.shape[1:]), 3)
 
-        if USE_COMPILED:
+        _interp_mode = self.mode if mode is None else mode
+        _padding_mode = self.padding_mode if padding_mode is None else padding_mode
+        if look_up_option(str(_interp_mode), SplineMode, default=None) is not None:
+            self._backend = TransformBackends.NUMPY
+        else:
+            self._backend = TransformBackends.TORCH
+
+        if USE_COMPILED or self._backend == TransformBackends.NUMPY:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
-            grid_t = moveaxis(grid_t[:sr], 0, -1)  # type: ignore
-            _padding_mode = self.padding_mode if padding_mode is None else padding_mode
-            bound = 1 if _padding_mode == "reflection" else _padding_mode
-            _interp_mode = self.mode if mode is None else mode
-            if _interp_mode == "bicubic":
-                interp = 3
-            elif _interp_mode == "bilinear":
-                interp = 1
-            else:
-                interp = _interp_mode  # type: ignore
-            out = grid_pull(
-                img_t.unsqueeze(0), grid_t.unsqueeze(0), bound=bound, extrapolate=True, interpolation=interp
-            )[0]
+            grid_t = grid_t[:sr]
+            if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
+                grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
+                bound = 1 if _padding_mode == "reflection" else _padding_mode
+                if _interp_mode == "bicubic":
+                    interp = 3
+                elif _interp_mode == "bilinear":
+                    interp = 1
+                else:
+                    interp = GridSampleMode(_interp_mode)  # type: ignore
+                out = grid_pull(
+                    img_t.unsqueeze(0),
+                    grid_t.unsqueeze(0).to(img_t),
+                    bound=bound,
+                    extrapolate=True,
+                    interpolation=interp,
+                )[0]
+            elif self._backend == TransformBackends.NUMPY:
+                is_cuda = img_t.is_cuda
+                img_np = (convert_to_cupy if is_cuda else convert_to_numpy)(img_t, wrap_sequence=True)
+                grid_np, *_ = convert_to_dst_type(grid_t, img_np, wrap_sequence=True)
+                _map_coord = (cupy_ndi if is_cuda else np_ndi).map_coordinates
+                out = (cupy if is_cuda else np).stack(
+                    [
+                        _map_coord(c, grid_np, order=int(_interp_mode), mode=look_up_option(_padding_mode, NdimageMode))
+                        for c in img_np
+                    ]
+                )
+                out = convert_to_dst_type(out, img_t)[0]
         else:
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
@@ -2049,9 +2099,9 @@ class Resample(Transform):
             grid_t = moveaxis(grid_t[index_ordering], 0, -1)  # type: ignore
             out = torch.nn.functional.grid_sample(
                 img_t.unsqueeze(0),
-                grid_t.unsqueeze(0),
-                mode=self.mode if mode is None else GridSampleMode(mode),
-                padding_mode=self.padding_mode if padding_mode is None else GridSamplePadMode(padding_mode),
+                grid_t.unsqueeze(0).to(img_t),
+                mode=GridSampleMode(_interp_mode),
+                padding_mode=GridSamplePadMode(_padding_mode),
                 align_corners=True,
             )[0]
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
@@ -2067,7 +2117,6 @@ class Affine(InvertibleTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
@@ -2077,11 +2126,10 @@ class Affine(InvertibleTransform):
         scale_params: Optional[Union[Sequence[float], float]] = None,
         affine: Optional[NdarrayOrTensor] = None,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
         norm_coords: bool = True,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
@@ -2115,15 +2163,18 @@ class Affine(InvertibleTransform):
                 if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             normalized: indicating whether the provided `affine` is defined to include a normalization
                 transform converting the coordinates from `[-(size-1)/2, (size-1)/2]` (defined in ``create_grid``) to
                 `[0, size - 1]` or `[-1, 1]` in order to be compatible with the underlying resampling API.
@@ -2135,8 +2186,6 @@ class Affine(InvertibleTransform):
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
         .. deprecated:: 0.8.1
             ``norm_coords`` is deprecated, please use ``normalized`` instead
             (the new flag is a negation, i.e., ``norm_coords == not normalized``).
@@ -2155,14 +2204,14 @@ class Affine(InvertibleTransform):
         self.norm_coord = not normalized
         self.resampler = Resample(norm_coords=self.norm_coord, device=device, dtype=dtype)
         self.spatial_size = spatial_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode: str = padding_mode
 
     def __call__(
         self,
         img: torch.Tensor,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, NdarrayOrTensor]]:
         """
@@ -2173,21 +2222,24 @@ class Affine(InvertibleTransform):
                 the transform will use the spatial size of `img`.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                When `USE_COMPILED` is `True`, this argument uses
-                ``"nearest"``, ``"bilinear"``, ``"bicubic"`` to indicate 0, 1, 3 order interpolations.
-                See also: https://docs.monai.io/en/stable/networks.html#grid-pull
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_size = img.shape[1:]
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
-        _mode = mode or self.mode
-        _padding_mode = padding_mode or self.padding_mode
+        _mode = mode if mode is not None else self.mode
+        _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         grid, affine = self.affine_grid(spatial_size=sp_size)
         out = self.resampler(img, grid=grid, mode=_mode, padding_mode=_padding_mode)
         if not isinstance(out, MetaTensor):
@@ -2243,7 +2295,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
@@ -2252,10 +2303,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         translate_range: RandRange = None,
         scale_range: RandRange = None,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2290,12 +2340,18 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                 if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+                Interpolation mode to calculate output values. Defaults to ``bilinear``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                Padding mode for outside grid values. Defaults to ``reflection``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
@@ -2304,9 +2360,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2323,8 +2376,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         self.spatial_size = spatial_size
         self.cache_grid = cache_grid
         self._cached_grid = self._init_identity_cache()
-        self.mode: str = GridSampleMode(mode)
-        self.padding_mode: str = GridSamplePadMode(padding_mode)
+        self.mode = mode
+        self.padding_mode: str = padding_mode
 
     def _init_identity_cache(self):
         """
@@ -2383,7 +2436,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         self,
         img: torch.Tensor,
         spatial_size: Optional[Union[Sequence[int], int]] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
         randomize: bool = True,
         grid=None,
@@ -2396,12 +2449,18 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
                 the transform will use the spatial size of `img`.
                 if `img` has two spatial dimensions, `spatial_size` should have 2 elements [h, w].
                 if `img` has three spatial dimensions, `spatial_size` should have 3 elements [h, w, d].
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
             grid: precomputed grid to be used (mainly to accelerate `RandAffined`).
 
@@ -2412,8 +2471,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         # except convert to float and device
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
         do_resampling = self._do_transform or (sp_size != ensure_tuple(img.shape[1:]))
-        _mode = mode or self.mode
-        _padding_mode = padding_mode or self.padding_mode
+        _mode = mode if mode is not None else self.mode
+        _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if not do_resampling:
             out: torch.Tensor = convert_data_type(img, dtype=torch.float32, device=self.resampler.device)[0]
@@ -2477,7 +2536,6 @@ class Rand2DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         spacing: Union[Tuple[float, float], float],
@@ -2488,9 +2546,8 @@ class Rand2DElastic(RandomizableTransform):
         translate_range: RandRange = None,
         scale_range: RandRange = None,
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2526,20 +2583,23 @@ class Rand2DElastic(RandomizableTransform):
                 if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             device: device on which the tensor will be allocated.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2555,8 +2615,8 @@ class Rand2DElastic(RandomizableTransform):
 
         self.device = device
         self.spatial_size = spatial_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode: str = padding_mode
 
     def set_random_state(
         self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
@@ -2577,7 +2637,7 @@ class Rand2DElastic(RandomizableTransform):
         self,
         img: torch.Tensor,
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
         randomize: bool = True,
     ) -> torch.Tensor:
@@ -2587,12 +2647,18 @@ class Rand2DElastic(RandomizableTransform):
             spatial_size: specifying output image spatial size [h, w].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
@@ -2614,7 +2680,10 @@ class Rand2DElastic(RandomizableTransform):
             _device = img.device if isinstance(img, torch.Tensor) else self.device
             grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
         out: torch.Tensor = self.resampler(
-            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
+            img,
+            grid,
+            mode=mode if mode is not None else self.mode,
+            padding_mode=padding_mode if padding_mode is not None else self.padding_mode,
         )
         return out
 
@@ -2628,7 +2697,6 @@ class Rand3DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         sigma_range: Tuple[float, float],
@@ -2639,9 +2707,8 @@ class Rand3DElastic(RandomizableTransform):
         translate_range: RandRange = None,
         scale_range: RandRange = None,
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2680,20 +2747,23 @@ class Rand3DElastic(RandomizableTransform):
                 if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, 32, -1)` will be adapted
                 to `(32, 32, 64)` if the third spatial dimension size of img is `64`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             device: device on which the tensor will be allocated.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2709,8 +2779,8 @@ class Rand3DElastic(RandomizableTransform):
         self.sigma_range = sigma_range
         self.magnitude_range = magnitude_range
         self.spatial_size = spatial_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode: str = padding_mode
         self.device = device
 
         self.rand_offset: np.ndarray
@@ -2737,7 +2807,7 @@ class Rand3DElastic(RandomizableTransform):
         self,
         img: torch.Tensor,
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
-        mode: Optional[str] = None,
+        mode: Union[str, int, None] = None,
         padding_mode: Optional[str] = None,
         randomize: bool = True,
     ) -> torch.Tensor:
@@ -2747,12 +2817,18 @@ class Rand3DElastic(RandomizableTransform):
             spatial_size: specifying spatial 3D output image spatial size [h, w, d].
                 if `spatial_size` and `self.spatial_size` are not defined, or smaller than 1,
                 the transform will use the spatial size of `img`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
         """
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img.shape[1:])
@@ -2769,7 +2845,10 @@ class Rand3DElastic(RandomizableTransform):
             grid[:3] += gaussian(offset)[0] * self.magnitude
             grid = self.rand_affine_grid(grid=grid)
         out: torch.Tensor = self.resampler(
-            img, grid, mode=mode or self.mode, padding_mode=padding_mode or self.padding_mode
+            img,
+            grid,  # type: ignore
+            mode=mode if mode is not None else self.mode,
+            padding_mode=padding_mode if padding_mode is not None else self.padding_mode,
         )
         return out
 
@@ -2782,7 +2861,7 @@ class GridDistortion(Transform):
         self,
         num_cells: Union[Tuple[int], int],
         distort_steps: Sequence[Sequence[float]],
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -2795,12 +2874,18 @@ class GridDistortion(Transform):
             distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
                 corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
                 Each value in the tuple represents the distort step of the related cell.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             device: device on which the tensor will be allocated.
 
         """
@@ -2822,12 +2907,18 @@ class GridDistortion(Transform):
             distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
                 corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
                 Each value in the tuple represents the distort step of the related cell.
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+                Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
 
         """
         distort_steps = self.distort_steps if distort_steps is None else distort_steps
@@ -2869,7 +2960,7 @@ class RandGridDistortion(RandomizableTransform):
         num_cells: Union[Tuple[int], int] = 5,
         prob: float = 0.1,
         distort_limit: Union[Tuple[float, float], float] = (-0.03, 0.03),
-        mode: str = GridSampleMode.BILINEAR,
+        mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -2883,12 +2974,18 @@ class RandGridDistortion(RandomizableTransform):
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             device: device on which the tensor will be allocated.
 
         """
@@ -2918,12 +3015,18 @@ class RandGridDistortion(RandomizableTransform):
         """
         Args:
             img: shape must be (num_channels, H, W[, D]).
-            mode: {``"bilinear"``, ``"nearest"``}
-                Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
+                Interpolation mode to calculate output values. Defaults to ``self.mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"border"``.
+                Padding mode for outside grid values. Defaults to ``self.padding_mode``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to shuffle the random factors using `randomize()`, default to True.
         """
         if randomize:
@@ -2970,30 +3073,30 @@ class GridSplit(Transform):
 
         split_size, steps = self._get_params(image.shape[1:], input_size)
         patches: List[NdarrayOrTensor]
+        as_strided_func: Callable
         if isinstance(image, torch.Tensor):
-            unfolded_image = (
-                image.unfold(1, split_size[0], steps[0])
-                .unfold(2, split_size[1], steps[1])
-                .flatten(1, 2)
-                .transpose(0, 1)
-            )
-            # Make a list of contiguous patches
-            patches = [p.contiguous() for p in unfolded_image]
+            as_strided_func = torch.as_strided
+            c_stride, x_stride, y_stride = image.stride()  # type: ignore
         elif isinstance(image, np.ndarray):
-            x_step, y_step = steps
+            as_strided_func = np.lib.stride_tricks.as_strided
             c_stride, x_stride, y_stride = image.strides
-            n_channels = image.shape[0]
-            strided_image = as_strided(
-                image,
-                shape=(*self.grid, n_channels, split_size[0], split_size[1]),
-                strides=(x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
-            )
-            # Flatten the first two dimensions
-            strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
-            # Make a list of contiguous patches
-            patches = [np.ascontiguousarray(p) for p in strided_image]
         else:
             raise ValueError(f"Input type [{type(image)}] is not supported.")
+
+        x_step, y_step = steps
+        n_channels = image.shape[0]
+        strided_image = as_strided_func(
+            image,
+            (*self.grid, n_channels, split_size[0], split_size[1]),
+            (x_stride * x_step, y_stride * y_step, c_stride, x_stride, y_stride),
+        )
+        # Flatten the first two dimensions
+        strided_image = strided_image.reshape(-1, *strided_image.shape[2:])
+        # Make a list of contiguous patches
+        if isinstance(image, torch.Tensor):
+            patches = [p.contiguous() for p in strided_image]
+        elif isinstance(image, np.ndarray):
+            patches = [np.ascontiguousarray(p) for p in strided_image]
 
         return patches
 
