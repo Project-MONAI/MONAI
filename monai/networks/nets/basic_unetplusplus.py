@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Sequence, Union
 
 import torch
 import torch.nn as nn
@@ -34,7 +34,6 @@ class BasicUNetPlusPlus(nn.Module):
         bias: bool = True,
         dropout: Union[float, tuple] = 0.0,
         upsample: str = "deconv",
-        dimensions: Optional[int] = None,
     ):
         """
         A UNet++ implementation with 1D/2D/3D supports.
@@ -57,7 +56,7 @@ class BasicUNetPlusPlus(nn.Module):
                 - the last value corresponds to the feature size after the last upsampling.
 
             deep_supervision: whether to prune the network at inference time. Defaults to False. If true, returns a list,
-            whose elements correspond to outputs at different nodes.
+                whose elements correspond to outputs at different nodes.
             act: activation type and arguments. Defaults to LeakyReLU.
             norm: feature normalization type and arguments. Defaults to instance norm.
             bias: whether to have a bias term in convolution blocks. Defaults to True.
@@ -129,13 +128,13 @@ class BasicUNetPlusPlus(nn.Module):
         """
         Args:
             x: input should have spatially N dimensions
-                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``, N is defined by `dimensions`.
+                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N-1])``, N is defined by `dimensions`.
                 It is recommended to have ``dim_n % 16 == 0`` to ensure all maxpooling inputs have
                 even edge lengths.
 
         Returns:
             A torch Tensor of "raw" predictions in shape
-            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
+            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N-1])``.
         """
         x_0_0 = self.conv_0_0(x)
         x_1_0 = self.conv_1_0(x_0_0)
