@@ -56,7 +56,7 @@ class BaseWSIReader(ImageReader):
     supported_suffixes: List[str] = []
     backend = ""
 
-    def __init__(self, level: int, channel_dim: int = 0, **kwargs):
+    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
         super().__init__()
         self.level = level
         self.channel_dim = channel_dim
@@ -117,7 +117,7 @@ class BaseWSIReader(ImageReader):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
     @abstractmethod
-    def get_patch(
+    def _get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
@@ -135,7 +135,7 @@ class BaseWSIReader(ImageReader):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def get_metadata(
+    def _get_metadata(
         self, wsi, patch: np.ndarray, location: Tuple[int, int], size: Tuple[int, int], level: int
     ) -> Dict:
         """
@@ -358,7 +358,7 @@ class WSIReader(BaseWSIReader):
 
         return self.reader.get_mpp(wsi, level)
 
-    def get_patch(
+    def _get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
@@ -499,7 +499,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
-    def get_patch(
+    def _get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
@@ -654,7 +654,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
-    def get_patch(
+    def _get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
@@ -804,7 +804,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         return wsi_list if len(filenames) > 1 else wsi_list[0]
 
-    def get_patch(
+    def _get_patch(
         self, wsi, location: Tuple[int, int], size: Tuple[int, int], level: int, dtype: DtypeLike, mode: str
     ) -> np.ndarray:
         """
