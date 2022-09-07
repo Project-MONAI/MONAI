@@ -77,7 +77,7 @@ class TestNetworkConsistency(unittest.TestCase):
             for a, e in zip(actual, expected):
                 self.check_output_consistency(a, e)
         else:
-            assert_allclose(actual, expected)
+            assert_allclose(actual, expected, rtol=5e-2, atol=1e-3)
 
 
 if __name__ == "__main__":
