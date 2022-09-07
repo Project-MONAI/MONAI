@@ -220,6 +220,9 @@ def instantiate(path: str, **kwargs):
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
     try:
+        if kwargs.pop("_debug_", False):
+            print(f"\n\ndebug: instantiating: {component}\n\n")
+            import pdb; pdb.set_trace()
         if isclass(component):
             return component(**kwargs)
         # support regular function, static method and class method
