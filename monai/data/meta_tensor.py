@@ -312,7 +312,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         except AttributeError:
             return NotImplemented
 
-    def get_default_affine(self, dtype=torch.float64) -> torch.Tensor:
+    @staticmethod
+    def get_default_affine(dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
     def as_tensor(self) -> torch.Tensor:
