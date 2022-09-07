@@ -91,7 +91,7 @@ class TestVarAutoEncoder(unittest.TestCase):
             spatial_dims=2, in_shape=(1, 32, 32), out_channels=1, latent_size=2, channels=(4, 8), strides=(2, 2)
         )
         test_data = torch.randn(2, 1, 32, 32)
-        test_script_save(net, test_data)
+        test_script_save(net, test_data, rtol=1e-3, atol=1e-3)
 
 
 if __name__ == "__main__":

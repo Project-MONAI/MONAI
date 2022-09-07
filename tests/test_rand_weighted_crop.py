@@ -12,11 +12,11 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized.parameterized import parameterized
 
 from monai.transforms.croppad.array import RandWeightedCrop
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from tests.croppers import CropTest
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
 def get_data(ndim):
@@ -30,8 +30,8 @@ IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
 
 
 TESTS = []
-for p in TEST_NDARRAYS:
-    for q in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
+    for q in TEST_NDARRAYS_ALL:
         im = SEG1_2D
         weight = np.zeros_like(im)
         weight[0, 30, 17] = 1.1
@@ -148,7 +148,9 @@ for p in TEST_NDARRAYS:
         )
 
 
-class TestRandWeightedCrop(unittest.TestCase):
+class TestRandWeightedCrop(CropTest):
+    Cropper = RandWeightedCrop
+
     @parameterized.expand(TESTS)
     def test_rand_weighted_crop(self, _, input_params, img, weight, expected_shape, expected_vals):
         crop = RandWeightedCrop(**input_params)
@@ -161,10 +163,8 @@ class TestRandWeightedCrop(unittest.TestCase):
         # if desired ROI is larger than image, check image is unchanged
         if all(s >= i for i, s in zip(img.shape[1:], input_params["spatial_size"])):
             for res in result:
-                self.assertEqual(type(img), type(res))
-                if isinstance(img, torch.Tensor):
-                    self.assertEqual(res.device, img.device)
-                assert_allclose(res, img)
+                assert_allclose(res, img, type_test="tensor")
+                self.assertEqual(len(res.applied_operations), 1)
 
 
 if __name__ == "__main__":

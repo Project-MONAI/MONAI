@@ -17,6 +17,13 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -37,6 +44,13 @@ Metrics
 .. autofunction:: compute_meandice
 
 .. autoclass:: DiceMetric
+    :members:
+
+`Mean IoU`
+----------
+.. autofunction:: compute_meaniou
+
+.. autoclass:: MeanIoU
     :members:
 
 `Generalized Dice Score`
@@ -102,6 +116,10 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`
 --------------------

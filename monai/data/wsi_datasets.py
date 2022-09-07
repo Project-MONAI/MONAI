@@ -19,7 +19,7 @@ from monai.data import Dataset
 from monai.data.utils import iter_patch_position
 from monai.data.wsi_reader import BaseWSIReader, WSIReader
 from monai.transforms import ForegroundMask, Randomizable, apply_transform
-from monai.utils import CommonKeys, ProbMapKeys, ensure_tuple_rep
+from monai.utils import CommonKeys, ProbMapKeys, convert_to_dst_type, ensure_tuple_rep
 from monai.utils.enums import WSIPatchKeys
 
 __all__ = ["PatchWSIDataset", "SlidingPatchWSIDataset", "MaskedPatchWSIDataset"]
@@ -42,7 +42,7 @@ class PatchWSIDataset(Dataset):
 
             - a string, it defines the backend of `monai.data.WSIReader`. Defaults to cuCIM.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader.
-            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
@@ -177,7 +177,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
 
             - a string, it defines the backend of `monai.data.WSIReader`.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
-            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
         map_level: the resolution level at which the output map is created.
         seed: random seed to randomly generate offsets. Defaults to 0.
@@ -214,7 +214,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
         **kwargs,
     ):
         super().__init__(
-            data=data,
+            data=[],
             patch_size=patch_size,
             patch_level=patch_level,
             transform=transform,
@@ -255,8 +255,8 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
-        self.image_data = data
+        self.data: list
+        self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
@@ -322,7 +322,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
             - a string, it defines the backend of `monai.data.WSIReader`.
             - a class (inherited from `BaseWSIReader`), it is initialized and set as wsi_reader,
-            - an instance of a a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
+            - an instance of a class inherited from `BaseWSIReader`, it is set as the wsi_reader.
 
         kwargs: additional arguments to pass to `WSIReader` or provided whole slide reader class
 
@@ -352,7 +352,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         **kwargs,
     ):
         super().__init__(
-            data=data,
+            data=[],
             patch_size=patch_size,
             patch_level=patch_level,
             transform=transform,
@@ -365,8 +365,8 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
 
         self.mask_level = mask_level
         # Create single sample for each patch (in a sliding window manner)
-        self.data = []
-        self.image_data = data
+        self.data: list
+        self.image_data = list(data)
         for sample in self.image_data:
             patch_samples = self._evaluate_patch_locations(sample)
             self.data.extend(patch_samples)
@@ -381,7 +381,7 @@ class MaskedPatchWSIDataset(PatchWSIDataset):
         wsi, _ = self.wsi_reader.get_data(wsi_obj, level=self.mask_level)
 
         # create the foreground tissue mask and get all indices for non-zero pixels
-        mask = np.squeeze(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi))
+        mask = np.squeeze(convert_to_dst_type(ForegroundMask(hsv_threshold={"S": "otsu"})(wsi), dst=wsi)[0])
         mask_locations = np.vstack(mask.nonzero()).T
 
         # convert mask locations to image locations at level=0

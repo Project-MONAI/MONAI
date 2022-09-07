@@ -287,7 +287,7 @@ def load_from_mmar(
         model_inst = model_cls()
     if pretrained:
         _, changed, unchanged = copy_model_state(model_inst, model_dict.get(model_key, model_dict), inplace=True)
-        if not (changed and not unchanged):  # not all model_inst varaibles are changed
+        if not (changed and not unchanged):  # not all model_inst variables are changed
             logger.warning(f"*** Loading model state -- unchanged: {len(unchanged)}, changed: {len(changed)}.")
     logger.info("\n---")
     doc_url = item.get(Keys.DOC) or _get_ngc_doc_url(item[Keys.NAME], model_prefix="nvidia:med:")
