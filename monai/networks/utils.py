@@ -25,7 +25,7 @@ from monai.apps.utils import get_logger
 from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, pytorch_after
 
 __all__ = [
     "one_hot",
@@ -610,7 +610,8 @@ def convert_to_torchscript(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
 

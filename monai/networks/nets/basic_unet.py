@@ -260,13 +260,13 @@ class BasicUNet(nn.Module):
         """
         Args:
             x: input should have spatially N dimensions
-                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N])``, N is defined by `dimensions`.
+                ``(Batch, in_channels, dim_0[, dim_1, ..., dim_N-1])``, N is defined by `spatial_dims`.
                 It is recommended to have ``dim_n % 16 == 0`` to ensure all maxpooling inputs have
                 even edge lengths.
 
         Returns:
             A torch Tensor of "raw" predictions in shape
-            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N])``.
+            ``(Batch, out_channels, dim_0[, dim_1, ..., dim_N-1])``.
         """
         x0 = self.conv_0(x)
 
