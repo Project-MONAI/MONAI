@@ -66,6 +66,7 @@ class VarianceMetric(Metric):
             threshold=self.threshold,
         )
 
+
 class LabelQualityScore(Metric):
     """
     The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
@@ -82,10 +83,7 @@ class LabelQualityScore(Metric):
     """
 
     def __init__(
-        self,
-        include_background: bool = True,
-        spatial_map: bool = False,
-        scalar_reduction: str = "sum",
+        self, include_background: bool = True, spatial_map: bool = False, scalar_reduction: str = "sum"
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -107,8 +105,9 @@ class LabelQualityScore(Metric):
             y=y,
             include_background=self.include_background,
             spatial_map=self.spatial_map,
-            scalar_reduction=self.scalar_reduction
+            scalar_reduction=self.scalar_reduction,
         )
+
 
 def compute_variance(
     y_pred: torch.Tensor,
@@ -166,6 +165,7 @@ def compute_variance(
         elif scalar_reduction == "sum":
             var_sum = torch.sum(variance)
             return var_sum
+
 
 def label_quality_score(
     y_pred: torch.Tensor,
