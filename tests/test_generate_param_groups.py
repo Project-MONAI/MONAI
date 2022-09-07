@@ -17,6 +17,7 @@ from parameterized import parameterized
 from monai.networks.nets import Unet
 from monai.optimizers import generate_param_groups
 from monai.utils import ensure_tuple
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [{"layer_matches": [lambda x: x.model[-1]], "match_types": "select", "lr_values": [1]}, (1, 100), [5, 21]]
 
@@ -76,7 +77,7 @@ class TestGenerateParamGroups(unittest.TestCase):
         optimizer = torch.optim.Adam(params, 100)
 
         for param_group, value in zip(optimizer.param_groups, ensure_tuple(expected_values)):
-            torch.testing.assert_allclose(param_group["lr"], value)
+            assert_allclose(param_group["lr"], value)
 
         n = [len(p["params"]) for p in params]
         self.assertListEqual(n, expected_groups)
