@@ -1851,7 +1851,7 @@ class GridPatchd(MapTransform):
             **pad_kwargs,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.patcher(d[key])
@@ -1928,7 +1928,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         self.patcher.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         # All the keys share the same random noise
         for key in self.key_iterator(d):
