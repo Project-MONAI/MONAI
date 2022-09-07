@@ -78,6 +78,10 @@ class MatrixFactory:
         matrix = _create_rotate(self._dims, radians, self._sin, self._cos, self._eye)
         return MetaMatrix(matrix, extra_args)
 
+    def rotate_90(self, rotations, axis, **extra_args):
+        matrix = _create_rotate_90(self._dims, rotations, axis)
+        return MetaMatrix(matrix, extra_args)
+
     def shear(self, coefs: Union[Sequence[float], float], **extra_args):
         matrix = _create_shear(self._dims, coefs, self._eye)
         return MetaMatrix(matrix, extra_args)

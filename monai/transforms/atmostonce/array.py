@@ -12,6 +12,7 @@ from monai.transforms import InvertibleTransform, RandomizableTransform
 from monai.transforms.atmostonce.apply import apply
 from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
+from monai.transforms.atmostonce.utils import value_to_tuple_range
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
                          InterpolateMode, NumpyPadMode, PytorchPadMode)
@@ -63,9 +64,13 @@ class Spacing(LazyTransform, InvertibleTransform):
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
 
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
         img_t, transform, metadata = spacing(img, self.pixdim, self.src_pixdim, self.diagonal,
                                              mode_, padding_mode_, align_corners_, dtype_,
-                                             shape_override)
+                                             shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))
@@ -114,9 +119,13 @@ class Resize(LazyTransform, InvertibleTransform):
         anti_aliasing_ = anti_aliasing or self.anti_aliasing
         anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
 
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
         img_t, transform, metadata = resize(img, self.spatial_size, self.size_mode, mode_,
                                             align_corners_, anti_aliasing_, anti_aliasing_sigma_,
-                                            self.dtype, shape_override)
+                                            self.dtype, shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))
@@ -149,6 +158,7 @@ class Rotate(LazyTransform, InvertibleTransform):
     def __call__(
         self,
         img: NdarrayOrTensor,
+        angle: Optional[Union[Sequence[float], float]] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
@@ -208,6 +218,7 @@ class Zoom(LazyTransform, InvertibleTransform):
     def __call__(
         self,
         img: NdarrayOrTensor,
+        zoom: Optional[Union[Sequence[float], float]] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
@@ -220,8 +231,12 @@ class Zoom(LazyTransform, InvertibleTransform):
         keep_size = self.keep_size
         dtype = self.dtype
 
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
         img_t, transform, metadata = zoom(img, self.zoom, mode, padding_mode, align_corners,
-                                          keep_size, dtype, shape_override)
+                                          keep_size, dtype, shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))
@@ -234,13 +249,22 @@ class Zoom(LazyTransform, InvertibleTransform):
         raise NotImplementedError()
 
 
-# class Rotate90(InvertibleTransform, LazyTransform):
-#
-#     def __init__(
-#             self,
-#
-#     ):
-#         pass
+class Rotate90(InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            k: Optional[int] = 1,
+            spatial_axes: Optional[Tuple[int, int]] = (0, 1)
+    ) -> None:
+        self.k = k
+        self.spatial_axes = spatial_axes
+
+    def __call__(
+            self,
+            img: torch.Tensor
+    ) -> torch.Tensor:
+
+
 
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 
@@ -250,40 +274,31 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
             range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
             prob: Optional[float] = 0.1,
-            keep_size: bool = True,
-            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-            align_corners: bool = False,
-            dtype: Union[DtypeLike, torch.dtype] = np.float32
+            keep_size: Optional[bool] = True,
+            mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            align_corners: Optional[bool] = False,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+            lazy_evaluation: Optional[bool] = True
     ):
         RandomizableTransform.__init__(self, prob)
-        self.range_x = ensure_tuple(range_x)
-        if len(self.range_x) == 1:
-            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
-        if len(self.range_y) == 1:
-            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
-        if len(self.range_z) == 1:
-            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
+        self.range_x = value_to_tuple_range(range_x)
+        self.range_y = value_to_tuple_range(range_y)
+        self.range_z = value_to_tuple_range(range_z)
 
-        self.keep_size = keep_size
-        self.mode = mode
-        self.padding_mode = padding_mode
-        self.align_corners = align_corners
-        self.dtype = dtype
+        self.x, self.y, self.z = 0.0, 0.0, 0.0
 
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
+        self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
-        if not self._do_transform:
-            return None
-        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+
+        self.x, self.y, self.z = 0.0, 0.0, 0.0
+
+        if self._do_transform:
+            self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+            self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+            self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(
             self,
@@ -293,7 +308,6 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             align_corners: Optional[bool] = None,
             dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
             randomize: Optional[bool] = True,
-            get_matrix: Optional[bool] = False,
             shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
 
@@ -306,27 +320,104 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         else:
             angle = 0 if img_dims == 2 else (0, 0, 0)
 
-        mode = self.mode or mode
-        padding_mode = self.padding_mode or padding_mode
-        align_corners = self.align_corners or align_corners
-        keep_size = self.keep_size
-        dtype = self.dtype
-
-        img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
-                                            align_corners, dtype, shape_override)
-
-        # TODO: candidate for refactoring into a LazyTransform method
-        img_t.push_pending_transform(MetaMatrix(transform, metadata))
-        if not self.lazy_evaluation:
-            img_t = apply(img_t)
-
-        return img_t
+        return self.op(img, angle, mode, padding_mode, align_corners, shape_override)
 
     def inverse(
             self,
             data: NdarrayOrTensor,
     ):
         raise NotImplementedError()
+
+
+# class RandRotateOld(RandomizableTransform, InvertibleTransform, LazyTransform):
+#
+#     def __init__(
+#             self,
+#             range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
+#             prob: Optional[float] = 0.1,
+#             keep_size: bool = True,
+#             mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+#             padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+#             align_corners: bool = False,
+#             dtype: Union[DtypeLike, torch.dtype] = np.float32
+#     ):
+#         RandomizableTransform.__init__(self, prob)
+#         self.range_x = ensure_tuple(range_x)
+#         if len(self.range_x) == 1:
+#             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
+#         self.range_y = ensure_tuple(range_y)
+#         if len(self.range_y) == 1:
+#             self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
+#         self.range_z = ensure_tuple(range_z)
+#         if len(self.range_z) == 1:
+#             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
+#
+#         self.keep_size = keep_size
+#         self.mode = mode
+#         self.padding_mode = padding_mode
+#         self.align_corners = align_corners
+#         self.dtype = dtype
+#
+#         self.x = 0.0
+#         self.y = 0.0
+#         self.z = 0.0
+#
+#     def randomize(self, data: Optional[Any] = None) -> None:
+#         super().randomize(None)
+#         if not self._do_transform:
+#             return None
+#         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+#         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+#         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+#
+#     def __call__(
+#             self,
+#             img: NdarrayOrTensor,
+#             mode: Optional[Union[InterpolateMode, str]] = None,
+#             padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+#             align_corners: Optional[bool] = None,
+#             dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+#             randomize: Optional[bool] = True,
+#             get_matrix: Optional[bool] = False,
+#             shape_override: Optional[Sequence] = None
+#     ) -> NdarrayOrTensor:
+#
+#         if randomize:
+#             self.randomize()
+#
+#         img_dims = len(img.shape) - 1
+#         if self._do_transform:
+#             angle = self.x if img_dims == 2 else (self.x, self.y, self.z)
+#         else:
+#             angle = 0 if img_dims == 2 else (0, 0, 0)
+#
+#         mode = self.mode or mode
+#         padding_mode = self.padding_mode or padding_mode
+#         align_corners = self.align_corners or align_corners
+#         keep_size = self.keep_size
+#         dtype = self.dtype
+#
+#         shape_override_ = shape_override
+#         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+#             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+#
+#         img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
+#                                             align_corners, dtype, shape_override_)
+#
+#         # TODO: candidate for refactoring into a LazyTransform method
+#         img_t.push_pending_transform(MetaMatrix(transform, metadata))
+#         if not self.lazy_evaluation:
+#             img_t = apply(img_t)
+#
+#         return img_t
+#
+#     def inverse(
+#             self,
+#             data: NdarrayOrTensor,
+#     ):
+#         raise NotImplementedError()
 
 
 class Translate(LazyTransform, InvertibleTransform):
@@ -351,12 +442,13 @@ class Translate(LazyTransform, InvertibleTransform):
             img: NdarrayOrTensor,
             mode: Optional[Union[InterpolateMode, str]] = None,
             padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+            shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
         mode = self.mode or mode
         padding_mode = self.padding_mode or padding_mode
         dtype = self.dtype
 
-        shape_override_ = None
+        shape_override_ = shape_override
         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
@@ -396,7 +488,12 @@ class CropPad(LazyTransform, InvertibleTransform):
             shape_override: Optional[Sequence] = None
     ):
         slices_ = slices if self.slices is None else self.slices
-        img_t, transform, metadata = croppad(img, slices_, self.padding_mode, shape_override)
+
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
+        img_t, transform, metadata = croppad(img, slices_, self.padding_mode, shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method
         img_t.push_pending_transform(MetaMatrix(transform, metadata))

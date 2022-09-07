@@ -31,7 +31,6 @@ def matmul(
     elif isinstance(second_, Matrix):
         second_ = second_.matrix
 
-
     if isinstance(first_, np.ndarray):
         if isinstance(second_, np.ndarray):
             return first_ @ second_
@@ -42,3 +41,15 @@ def matmul(
             return first_ @ torch.from_numpy(second_)
         else:
             return first_ @ second_
+
+
+def value_to_tuple_range(value):
+    if isinstance(value, (tuple, list)):
+        if len(value) == 2:
+            return (value[0], value[1]) if value[0] <= value[1] else (value[1], value[0])
+        elif len(value) == 1:
+            return -value[0], value[0]
+        else:
+            raise ValueError(f"parameter 'value' must be of length 1 or 2 but is {len(value)}")
+    else:
+        return -value, value

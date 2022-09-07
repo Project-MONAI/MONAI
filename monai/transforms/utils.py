@@ -758,6 +758,80 @@ def _create_rotate(
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
+def create_rotate_90(
+    spatial_dims: int,
+    axis: int,
+    steps: Optional[int] = 1,
+    device: Optional[torch.device] = None,
+    backend: str = TransformBackends.NUMPY,
+) -> NdarrayOrTensor:
+    """
+    create a 2D or 3D rotation matrix
+
+    Args:
+        spatial_dims: {``2``, ``3``} spatial rank
+        radians: rotation radians
+            when spatial_dims == 3, the `radians` sequence corresponds to
+            rotation in the 1st, 2nd, and 3rd dim respectively.
+        device: device to compute and store the output (when the backend is "torch").
+        backend: APIs to use, ``numpy`` or ``torch``.
+
+    Raises:
+        ValueError: When ``radians`` is empty.
+        ValueError: When ``spatial_dims`` is not one of [2, 3].
+
+    """
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
+        return _create_rotate_90(
+            spatial_dims=spatial_dims,
+            axis=axis,
+            steps=steps,
+            eye_func=np.eye)
+    if _backend == TransformBackends.TORCH:
+        return _create_rotate_90(
+            spatial_dims=spatial_dims,
+            axis=axis,
+            steps=steps,
+            eye_func=lambda rank: torch.eye(rank, device=device),
+        )
+    raise ValueError(f"backend {backend} is not supported")
+
+def _create_rotate_90(
+        spatial_dims: int,
+        axis: int,
+        steps: Optional[int] = 1,
+        eye_func: Callable = np.eye
+) -> NdarrayOrTensor:
+
+    values = [(1, 0, 0, 1),
+              (0, -1, 1, 0),
+              (-1, 0, 0, -1),
+              (0, 1, -1, 0)]
+
+    if spatial_dims == 2:
+        if axis != 0:
+            raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be 0 but is {axis}")
+    elif spatial_dims == 3:
+        if axis < 0 or axis > 2:
+            raise ValueError("if 'spatial_dims' is 3, 'axis' must be between 0 and 2 inclusive ",
+                             f"but is {axis}")
+    else:
+        raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
+
+    steps_ = steps % 4
+
+    affine = eye_func(spatial_dims + 1)
+
+    if spatial_dims == 2:
+        a, b = 0, 1
+    else:
+        a, b = 0 if axis > 0 else 1, 2 if axis < 2 else 1
+
+    affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps]
+    return affine
+
+
 def create_shear(
     spatial_dims: int,
     coefs: Union[Sequence[float], float],

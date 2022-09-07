@@ -22,6 +22,7 @@ from monai.transforms import (
     create_shear,
     create_translate,
 )
+from monai.transforms.utils import create_rotate_90
 from tests.utils import assert_allclose, is_tf32_env
 
 
@@ -219,6 +220,21 @@ class TestCreateAffine(unittest.TestCase):
             (3, (0, 0, np.pi / 2)),
             np.array([[0.0, -1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
+    def test_create_rotate_90(self):
+        expected = np.eye(3)
+        test_assert(create_rotate_90, (2, 0, 0), expected)
+
+        expected = np.eye(3)
+        expected[0:2, 0:2] = [[0, -1], [1, 0]]
+        test_assert(create_rotate_90, (2, 0, 1), expected)
+
+        expected = np.eye(3)
+        expected[0:2, 0:2] = [[-1, 0], [0, -1]]
+        test_assert(create_rotate_90, (2, 0, 2), expected)
+        
+        expected = np.eye(3)
+        expected[0:2, 0:2] = [[0, 1], [-1, 0]]
+        test_assert(create_rotate_90, (2, 0, 3), expected)
 
     def test_create_shear(self):
         test_assert(create_shear, (2, 1.0), np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))

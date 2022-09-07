@@ -10,6 +10,7 @@ import torch
 from monai.transforms.atmostonce import array as amoa
 from monai.transforms.atmostonce.array import Rotate, CropPad
 from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
+from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import TransformBackends
 
 from monai.transforms import Affined, Affine
@@ -448,3 +449,16 @@ class TestDictionaryTransforms(unittest.TestCase):
         }
         d = c(d)
         print(d['image'].shape)
+
+
+class TestUtils(unittest.TestCase):
+
+    def test_value_to_tuple_range(self):
+        self.assertTupleEqual(value_to_tuple_range(5), (-5, 5))
+        self.assertTupleEqual(value_to_tuple_range([5]), (-5, 5))
+        self.assertTupleEqual(value_to_tuple_range((5,)), (-5, 5))
+        self.assertTupleEqual(value_to_tuple_range([-2.1, 4.3]), (-2.1, 4.3))
+        self.assertTupleEqual(value_to_tuple_range((-2.1, 4.3)), (-2.1, 4.3))
+        self.assertTupleEqual(value_to_tuple_range([4.3, -2.1]), (-2.1, 4.3))
+        self.assertTupleEqual(value_to_tuple_range((4.3, -2.1)), (-2.1, 4.3))
+
