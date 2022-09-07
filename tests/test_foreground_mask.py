@@ -83,7 +83,7 @@ class TestForegroundMask(unittest.TestCase):
     def test_foreground_mask(self, in_type, arguments, image, mask):
         input_image = in_type(image)
         result = ForegroundMask(**arguments)(input_image)
-        assert_allclose(result, mask, type_test=False)
+        assert_allclose(result, mask, type_test="tensor")
 
     @parameterized.expand(TESTS_ERROR)
     def test_foreground_mask_error(self, in_type, arguments, image):

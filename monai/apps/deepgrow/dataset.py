@@ -15,8 +15,9 @@ from typing import Dict, List
 
 import numpy as np
 
-from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
+from monai.transforms import Compose, EnsureChannelFirstd, FromMetaTensord, LoadImaged, Orientationd, Spacingd, ToNumpyd
 from monai.utils import GridSampleMode
+from monai.utils.enums import PostFix
 
 
 def create_dataset(
@@ -84,12 +85,12 @@ def create_dataset(
 
     transforms = _default_transforms(image_key, label_key, pixdim) if transforms is None else transforms
     new_datalist = []
-    for idx in range(len(datalist)):
+    for idx, item in enumerate(datalist):
         if limit and idx >= limit:
             break
 
-        image = datalist[idx][image_key]
-        label = datalist[idx].get(label_key, None)
+        image = item[image_key]
+        label = item.get(label_key, None)
         if base_dir:
             image = os.path.join(base_dir, image)
             label = os.path.join(base_dir, label) if label else None
@@ -125,16 +126,17 @@ def _default_transforms(image_key, label_key, pixdim):
     return Compose(
         [
             LoadImaged(keys=keys),
-            AsChannelFirstd(keys=keys),
+            EnsureChannelFirstd(keys=keys),
             Orientationd(keys=keys, axcodes="RAS"),
             Spacingd(keys=keys, pixdim=pixdim, mode=mode),
+            FromMetaTensord(keys=keys),
+            ToNumpyd(keys=keys + [PostFix.meta(k) for k in keys]),
         ]
     )
 
 
 def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
     data_list = []
-
     if len(vol_image.shape) == 4:
         logging.info(
             "4D-Image, pick only first series; Image: {}; Label: {}".format(
@@ -143,6 +145,9 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
         )
         vol_image = vol_image[0]
         vol_image = np.moveaxis(vol_image, -1, 0)
+        if vol_label is not None:
+            vol_label = vol_label[0]
+            vol_label = np.moveaxis(vol_label, -1, 0)
 
     image_count = 0
     label_count = 0

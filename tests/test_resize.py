@@ -16,8 +16,9 @@ import skimage.transform
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -60,6 +61,7 @@ class TestResize(NumpyImageTestCase2D):
             _order = 1
         if spatial_size == (32, -1):
             spatial_size = (32, 64)
+
         expected = [
             skimage.transform.resize(
                 channel, spatial_size, order=_order, clip=False, preserve_range=False, anti_aliasing=anti_aliasing
@@ -68,20 +70,26 @@ class TestResize(NumpyImageTestCase2D):
         ]
 
         expected = np.stack(expected).astype(np.float32)
-        for p in TEST_NDARRAYS:
-            out = resize(p(self.imt[0]))
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            out = resize(im)
+            if isinstance(im, MetaTensor):
+                im_inv = resize.inverse(out)
+                self.assertTrue(not im_inv.applied_operations)
+                assert_allclose(im_inv.shape, im.shape)
+                assert_allclose(im_inv.affine, im.affine, atol=1e-3, rtol=1e-3)
             if not anti_aliasing:
                 assert_allclose(out, expected, type_test=False, atol=0.9)
-            else:
-                # skimage uses reflect padding for anti-aliasing filter.
-                # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead.
-                # Thus their results near the image boundary will be different.
-                if isinstance(out, torch.Tensor):
-                    out = out.cpu().detach().numpy()
-                good = np.sum(np.isclose(expected, out, atol=0.9))
-                self.assertLessEqual(
-                    np.abs(good - expected.size) / float(expected.size), diff_t, f"at most {diff_t} percent mismatch "
-                )
+                return
+            # skimage uses reflect padding for anti-aliasing filter.
+            # Our implementation reuses GaussianSmooth() as anti-aliasing filter, which uses zero padding instead.
+            # Thus their results near the image boundary will be different.
+            if isinstance(out, torch.Tensor):
+                out = out.cpu().detach().numpy()
+            good = np.sum(np.isclose(expected, out, atol=0.9))
+            self.assertLessEqual(
+                np.abs(good - expected.size) / float(expected.size), diff_t, f"at most {diff_t} percent mismatch "
+            )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_longest_shape(self, input_param, expected_shape):
@@ -89,6 +97,12 @@ class TestResize(NumpyImageTestCase2D):
         input_param["size_mode"] = "longest"
         result = Resize(**input_param)(input_data)
         np.testing.assert_allclose(result.shape[1:], expected_shape)
+
+        set_track_meta(False)
+        result = Resize(**input_param)(input_data)
+        self.assertNotIsInstance(result, MetaTensor)
+        np.testing.assert_allclose(result.shape[1:], expected_shape)
+        set_track_meta(True)
 
     def test_longest_infinite_decimals(self):
         resize = Resize(spatial_size=1008, size_mode="longest", mode="bilinear", align_corners=False)

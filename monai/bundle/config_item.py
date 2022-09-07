@@ -176,6 +176,7 @@ class ConfigComponent(ConfigItem, Instantiable):
           component doesn't explicitly depend on the other `ConfigItems` via its arguments,
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
+        - ``"_desc_"`` (optional): free text descriptions of the component for code readability.
 
     Other fields in the config content are input arguments to the python module.
 
@@ -203,7 +204,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_"}
 
     def __init__(
         self,
@@ -315,7 +316,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = EXPR_KEY
-    run_eval = not os.environ.get("MONAI_EVAL_EXPR", "1") == "0"
+    run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)

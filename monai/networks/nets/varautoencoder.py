@@ -19,7 +19,6 @@ from torch.nn import functional as F
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
-from monai.utils import deprecated_arg
 
 __all__ = ["VarAutoEncoder"]
 
@@ -50,9 +49,6 @@ class VarAutoEncoder(AutoEncoder):
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Examples::
 
         from monai.networks.nets import VarAutoEncoder
@@ -72,9 +68,6 @@ class VarAutoEncoder(AutoEncoder):
           https://github.com/Project-MONAI/tutorials/blob/master/modules/varautoencoder_mednist.ipynb
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -93,15 +86,12 @@ class VarAutoEncoder(AutoEncoder):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
         bias: bool = True,
-        dimensions: Optional[int] = None,
     ) -> None:
 
         self.in_channels, *self.in_shape = in_shape
 
         self.latent_size = latent_size
         self.final_size = np.asarray(self.in_shape, dtype=int)
-        if dimensions is not None:
-            spatial_dims = dimensions
 
         super().__init__(
             spatial_dims,

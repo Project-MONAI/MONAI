@@ -17,6 +17,8 @@ import json
 import operator
 import os
 import queue
+import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -26,7 +28,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Union
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -38,7 +40,7 @@ from monai.config import NdarrayTensor
 from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
-from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after, version_leq
@@ -77,7 +79,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: bool = True,
+    type_test: Union[bool, str] = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -89,13 +91,22 @@ def assert_allclose(
         actual: Pytorch Tensor or numpy array for comparison.
         desired: Pytorch Tensor or numpy array to compare against.
         type_test: whether to test that `actual` and `desired` are both numpy arrays or torch tensors.
+            if type_test == "tensor", it checks whether the `actual` is a torch.tensor or metatensor according to
+            `get_track_meta`.
         device_test: whether to test the device property.
         args: extra arguments to pass on to `np.testing.assert_allclose`.
         kwargs: extra arguments to pass on to `np.testing.assert_allclose`.
 
 
     """
-    if type_test:
+    if isinstance(type_test, str) and type_test == "tensor":
+        if get_track_meta():
+            np.testing.assert_equal(isinstance(actual, MetaTensor), True, "must be a MetaTensor")
+        else:
+            np.testing.assert_equal(
+                isinstance(actual, torch.Tensor) and not isinstance(actual, MetaTensor), True, "must be a torch.Tensor"
+            )
+    elif type_test:
         # check both actual and desired are of the same type
         np.testing.assert_equal(isinstance(actual, np.ndarray), isinstance(desired, np.ndarray), "numpy type")
         np.testing.assert_equal(isinstance(actual, torch.Tensor), isinstance(desired, torch.Tensor), "torch type")
@@ -114,6 +125,9 @@ def skip_if_downloading_fails():
         yield
     except (ContentTooShortError, HTTPError, ConnectionError) as e:
         raise unittest.SkipTest(f"error while downloading: {e}") from e
+    except ssl.SSLError as ssl_e:
+        if "decryption failed" in str(ssl_e):
+            raise unittest.SkipTest(f"SSL error while downloading: {ssl_e}") from ssl_e
     except RuntimeError as rt_e:
         if "unexpected EOF" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -199,23 +213,30 @@ class SkipIfModule:
 
 def skip_if_no_cpp_extension(obj):
     """
-    Skip the unit tests if the cpp extension is not available
+    Skip the unit tests if the cpp extension is not available.
     """
     return unittest.skipUnless(USE_COMPILED, "Skipping cpp extension tests")(obj)
 
 
 def skip_if_no_cuda(obj):
     """
-    Skip the unit tests if torch.cuda.is_available is False
+    Skip the unit tests if torch.cuda.is_available is False.
     """
     return unittest.skipUnless(torch.cuda.is_available(), "Skipping CUDA-based tests")(obj)
 
 
 def skip_if_windows(obj):
     """
-    Skip the unit tests if platform is win32
+    Skip the unit tests if platform is win32.
     """
     return unittest.skipIf(sys.platform == "win32", "Skipping tests on Windows")(obj)
+
+
+def skip_if_darwin(obj):
+    """
+    Skip the unit tests if platform is macOS (Darwin).
+    """
+    return unittest.skipIf(sys.platform == "darwin", "Skipping tests on macOS/Darwin")(obj)
 
 
 class SkipIfBeforePyTorchVersion:
@@ -708,23 +729,47 @@ def query_memory(n=2):
     return ",".join(f"{int(x)}" for x in ids)
 
 
-TEST_NDARRAYS: Tuple[Callable] = (np.array, torch.as_tensor)  # type: ignore
+def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
+    """test that invertible_xform can bring to_invert back to im"""
+    im_item = im if dict_key is None else im[dict_key]
+    if not isinstance(im_item, MetaTensor):
+        return
+    im_ref = copy.deepcopy(im)
+    im_inv = invertible_xform.inverse(to_invert)
+    if dict_key:
+        im_inv = im_inv[dict_key]
+        im_ref = im_ref[dict_key]
+    np.testing.assert_array_equal(im_inv.applied_operations, [])
+    assert_allclose(im_inv.shape, im_ref.shape)
+    assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
+
+
+def command_line_tests(cmd, copy_env=True):
+    test_env = os.environ.copy() if copy_env else os.environ
+    print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+    try:
+        normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+    except subprocess.CalledProcessError as e:
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
-    TEST_NDARRAYS = TEST_NDARRAYS + (gpu_tensor,)  # type: ignore
-
-TEST_TORCH_TENSORS: Tuple[Callable] = (torch.as_tensor,)  # type: ignore
-if torch.cuda.is_available():
-    gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")  # type: ignore
-    TEST_NDARRAYS = TEST_TORCH_TENSORS + (gpu_tensor,)  # type: ignore
+    TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
 
 DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
 TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
 TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
-TEST_NDARRAYS_ALL: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+# alias for branch tests
+TEST_NDARRAYS_ALL = TEST_NDARRAYS
 
 
 TEST_DEVICES = [[torch.device("cpu")]]

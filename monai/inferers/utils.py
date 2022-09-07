@@ -137,7 +137,7 @@ def sliding_window_inference(
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode).value, value=cval)
+    inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 

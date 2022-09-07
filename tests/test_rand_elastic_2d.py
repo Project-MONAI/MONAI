@@ -15,13 +15,14 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rand2DElastic
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cpu"]:
         TESTS.append(
             [
@@ -110,9 +111,14 @@ class TestRand2DElastic(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_2d_elastic(self, input_param, input_data, expected_val):
         g = Rand2DElastic(**input_param)
+        set_track_meta(False)
+        result = g(**input_data)
+        self.assertNotIsInstance(result, MetaTensor)
+        self.assertIsInstance(result, torch.Tensor)
+        set_track_meta(True)
         g.set_random_state(123)
         result = g(**input_data)
-        assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4)
+        assert_allclose(result, expected_val, type_test=False, rtol=_rtol, atol=1e-4)
 
 
 if __name__ == "__main__":

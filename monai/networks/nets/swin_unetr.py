@@ -9,7 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Tuple, Type, Union
+import itertools
+from typing import Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -21,9 +22,22 @@ from torch.nn import LayerNorm
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
 from monai.networks.layers import DropPath, trunc_normal_
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 
 rearrange, _ = optional_import("einops", name="rearrange")
+
+__all__ = [
+    "SwinUNETR",
+    "window_partition",
+    "window_reverse",
+    "WindowAttention",
+    "SwinTransformerBlock",
+    "PatchMerging",
+    "PatchMergingV2",
+    "MERGING_MODE",
+    "BasicLayer",
+    "SwinTransformer",
+]
 
 
 class SwinUNETR(nn.Module):
@@ -48,6 +62,7 @@ class SwinUNETR(nn.Module):
         normalize: bool = True,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
+        downsample="merging",
     ) -> None:
         """
         Args:
@@ -64,6 +79,9 @@ class SwinUNETR(nn.Module):
             normalize: normalize output intermediate features in each stage.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
             spatial_dims: number of spatial dims.
+            downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
+                user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
+                The default is currently `"merging"` (the original version defined in v0.9.0).
 
         Examples::
 
@@ -121,6 +139,7 @@ class SwinUNETR(nn.Module):
             norm_layer=nn.LayerNorm,
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
+            downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
         )
 
         self.encoder1 = UnetrBasicBlock(
@@ -222,9 +241,7 @@ class SwinUNETR(nn.Module):
             res_block=True,
         )
 
-        self.out = UnetOutBlock(
-            spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels
-        )  # type: ignore
+        self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
 
@@ -352,7 +369,7 @@ def window_reverse(windows, window_size, dims):
 
     elif len(dims) == 3:
         b, h, w = dims
-        x = windows.view(b, h // window_size[0], w // window_size[0], window_size[0], window_size[1], -1)
+        x = windows.view(b, h // window_size[0], w // window_size[1], window_size[0], window_size[1], -1)
         x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(b, h, w, -1)
     return x
 
@@ -486,7 +503,7 @@ class WindowAttention(nn.Module):
         else:
             attn = self.softmax(attn)
 
-        attn = self.attn_drop(attn)
+        attn = self.attn_drop(attn).to(v.dtype)
         x = (attn @ v).transpose(1, 2).reshape(b, n, c)
         x = self.proj(x)
         x = self.proj_drop(x)
@@ -513,7 +530,7 @@ class SwinTransformerBlock(nn.Module):
         attn_drop: float = 0.0,
         drop_path: float = 0.0,
         act_layer: str = "GELU",
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         use_checkpoint: bool = False,
     ) -> None:
         """
@@ -572,8 +589,8 @@ class SwinTransformerBlock(nn.Module):
             b, h, w, c = x.shape
             window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
             pad_l = pad_t = 0
-            pad_r = (window_size[0] - h % window_size[0]) % window_size[0]
-            pad_b = (window_size[1] - w % window_size[1]) % window_size[1]
+            pad_b = (window_size[0] - h % window_size[0]) % window_size[0]
+            pad_r = (window_size[1] - w % window_size[1]) % window_size[1]
             x = F.pad(x, (0, 0, pad_l, pad_r, pad_t, pad_b))
             _, hp, wp, _ = x.shape
             dims = [b, hp, wp]
@@ -659,7 +676,7 @@ class SwinTransformerBlock(nn.Module):
         return x
 
 
-class PatchMerging(nn.Module):
+class PatchMergingV2(nn.Module):
     """
     Patch merging layer based on: "Liu et al.,
     Swin Transformer: Hierarchical Vision Transformer using Shifted Windows
@@ -667,9 +684,7 @@ class PatchMerging(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(
-        self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3
-    ) -> None:  # type: ignore
+    def __init__(self, dim: int, norm_layer: Type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3) -> None:
         """
         Args:
             dim: number of feature channels.
@@ -693,31 +708,51 @@ class PatchMerging(nn.Module):
             b, d, h, w, c = x_shape
             pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
             if pad_input:
-                x = F.pad(x, (0, 0, 0, d % 2, 0, w % 2, 0, h % 2))
-            x0 = x[:, 0::2, 0::2, 0::2, :]
-            x1 = x[:, 1::2, 0::2, 0::2, :]
-            x2 = x[:, 0::2, 1::2, 0::2, :]
-            x3 = x[:, 0::2, 0::2, 1::2, :]
-            x4 = x[:, 1::2, 0::2, 1::2, :]
-            x5 = x[:, 0::2, 1::2, 0::2, :]
-            x6 = x[:, 0::2, 0::2, 1::2, :]
-            x7 = x[:, 1::2, 1::2, 1::2, :]
-            x = torch.cat([x0, x1, x2, x3, x4, x5, x6, x7], -1)
+                x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
+            x = torch.cat(
+                [x[:, i::2, j::2, k::2, :] for i, j, k in itertools.product(range(2), range(2), range(2))], -1
+            )
 
         elif len(x_shape) == 4:
             b, h, w, c = x_shape
             pad_input = (h % 2 == 1) or (w % 2 == 1)
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2))
-            x0 = x[:, 0::2, 0::2, :]
-            x1 = x[:, 1::2, 0::2, :]
-            x2 = x[:, 0::2, 1::2, :]
-            x3 = x[:, 1::2, 1::2, :]
-            x = torch.cat([x0, x1, x2, x3], -1)
+            x = torch.cat([x[:, j::2, i::2, :] for i, j in itertools.product(range(2), range(2))], -1)
 
         x = self.norm(x)
         x = self.reduction(x)
         return x
+
+
+class PatchMerging(PatchMergingV2):
+    """The `PatchMerging` module previously defined in v0.9.0."""
+
+    def forward(self, x):
+        x_shape = x.size()
+        if len(x_shape) == 4:
+            return super().forward(x)
+        if len(x_shape) != 5:
+            raise ValueError(f"expecting 5D x, got {x.shape}.")
+        b, d, h, w, c = x_shape
+        pad_input = (h % 2 == 1) or (w % 2 == 1) or (d % 2 == 1)
+        if pad_input:
+            x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
+        x0 = x[:, 0::2, 0::2, 0::2, :]
+        x1 = x[:, 1::2, 0::2, 0::2, :]
+        x2 = x[:, 0::2, 1::2, 0::2, :]
+        x3 = x[:, 0::2, 0::2, 1::2, :]
+        x4 = x[:, 1::2, 0::2, 1::2, :]
+        x5 = x[:, 0::2, 1::2, 0::2, :]
+        x6 = x[:, 0::2, 0::2, 1::2, :]
+        x7 = x[:, 1::2, 1::2, 1::2, :]
+        x = torch.cat([x0, x1, x2, x3, x4, x5, x6, x7], -1)
+        x = self.norm(x)
+        x = self.reduction(x)
+        return x
+
+
+MERGING_MODE = {"merging": PatchMerging, "mergingv2": PatchMergingV2}
 
 
 def compute_mask(dims, window_size, shift_size, device):
@@ -779,14 +814,14 @@ class BasicLayer(nn.Module):
         qkv_bias: bool = False,
         drop: float = 0.0,
         attn_drop: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
-        downsample: isinstance = None,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
+        downsample: Optional[nn.Module] = None,
         use_checkpoint: bool = False,
     ) -> None:
         """
         Args:
             dim: number of feature channels.
-            depths: number of layers in each stage.
+            depth: number of layers in each stage.
             num_heads: number of attention heads.
             window_size: local window size.
             drop_path: stochastic depth rate.
@@ -795,7 +830,7 @@ class BasicLayer(nn.Module):
             drop: dropout rate.
             attn_drop: attention dropout rate.
             norm_layer: normalization layer.
-            downsample: downsample layer at the end of the layer.
+            downsample: an optional downsampling layer at the end of the layer.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
         """
 
@@ -824,7 +859,7 @@ class BasicLayer(nn.Module):
             ]
         )
         self.downsample = downsample
-        if self.downsample is not None:
+        if callable(self.downsample):
             self.downsample = downsample(dim=dim, norm_layer=norm_layer, spatial_dims=len(self.window_size))
 
     def forward(self, x):
@@ -881,10 +916,11 @@ class SwinTransformer(nn.Module):
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         drop_path_rate: float = 0.0,
-        norm_layer: Type[LayerNorm] = nn.LayerNorm,  # type: ignore
+        norm_layer: Type[LayerNorm] = nn.LayerNorm,
         patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
+        downsample="merging",
     ) -> None:
         """
         Args:
@@ -903,6 +939,9 @@ class SwinTransformer(nn.Module):
             patch_norm: add normalization after patch embedding.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
             spatial_dims: spatial dimension.
+            downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
+                user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
+                The default is currently `"merging"` (the original version defined in v0.9.0).
         """
 
         super().__init__()
@@ -924,6 +963,7 @@ class SwinTransformer(nn.Module):
         self.layers2 = nn.ModuleList()
         self.layers3 = nn.ModuleList()
         self.layers4 = nn.ModuleList()
+        down_sample_mod = look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
                 dim=int(embed_dim * 2**i_layer),
@@ -936,7 +976,7 @@ class SwinTransformer(nn.Module):
                 drop=drop_rate,
                 attn_drop=attn_drop_rate,
                 norm_layer=norm_layer,
-                downsample=PatchMerging,
+                downsample=down_sample_mod,
                 use_checkpoint=use_checkpoint,
             )
             if i_layer == 0:

@@ -53,7 +53,7 @@ class ReferenceResolver:
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
-    allow_missing_reference = not os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") == "0"
+    allow_missing_reference = os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") != "0"
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key

@@ -10,7 +10,6 @@
 # limitations under the License.
 
 import re
-from copy import deepcopy
 from typing import Any, Optional, Sequence, Tuple, Type, Union
 
 import numpy as np
@@ -38,9 +37,13 @@ __all__ = [
 ]
 
 
+# conversion map for types unsupported by torch.as_tensor
+UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64, np.dtype("uint64"): np.int64}
+
+
 def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
     """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
-    return np.empty([], dtype=dtype).dtype  # type: ignore
+    return np.empty([], dtype=dtype).dtype
 
 
 def get_torch_dtype_from_string(dtype: str) -> torch.dtype:
@@ -100,7 +103,7 @@ def get_dtype(data: Any):
 def convert_to_tensor(
     data,
     dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
 ):
@@ -124,6 +127,10 @@ def convert_to_tensor(
 
     def _convert_tensor(tensor, **kwargs):
         if not isinstance(tensor, torch.Tensor):
+            # certain numpy types are not supported as being directly convertible to Pytorch tensors
+            if isinstance(tensor, np.ndarray) and tensor.dtype in UNSUPPORTED_TYPES:
+                tensor = tensor.astype(UNSUPPORTED_TYPES[tensor.dtype])
+
             # if input data is not Tensor, convert it to Tensor first
             tensor = torch.as_tensor(tensor, **kwargs)
         if track_meta and not isinstance(tensor, monai.data.MetaTensor):
@@ -132,6 +139,7 @@ def convert_to_tensor(
             return tensor.as_tensor()
         return tensor
 
+    dtype = get_equivalent_dtype(dtype, torch.Tensor)
     if isinstance(data, torch.Tensor):
         return _convert_tensor(data).to(dtype=dtype, device=device, memory_format=torch.contiguous_format)
     if isinstance(data, np.ndarray):
@@ -171,10 +179,17 @@ def convert_to_numpy(data, dtype: DtypeLike = None, wrap_sequence: bool = False)
             E.g., `[1, 2]` -> `[array(1), array(2)]`. If `True`, then `[1, 2]` -> `array([1, 2])`.
     """
     if isinstance(data, torch.Tensor):
-        data = data.detach().to(dtype=get_equivalent_dtype(dtype, torch.Tensor), device="cpu").numpy()
+        data = np.asarray(data.detach().to(device="cpu").numpy(), dtype=get_equivalent_dtype(dtype, np.ndarray))
     elif has_cp and isinstance(data, cp_ndarray):
         data = cp.asnumpy(data).astype(dtype, copy=False)
     elif isinstance(data, (np.ndarray, float, int, bool)):
+        # Convert into a contiguous array first if the current dtype's size is smaller than the target dtype's size.
+        # This help improve the performance because (convert to contiguous array) -> (convert dtype) is faster
+        # than (convert dtype) -> (convert to contiguous array) when src dtype (e.g., uint8) is smaller than
+        # target dtype(e.g., float32) and we are going to convert it to contiguous array anyway later in this
+        # method.
+        if isinstance(data, np.ndarray) and data.ndim > 0 and data.dtype.itemsize < np.dtype(dtype).itemsize:
+            data = np.ascontiguousarray(data)
         data = np.asarray(data, dtype=dtype)
     elif isinstance(data, list):
         list_ret = [convert_to_numpy(i, dtype=dtype) for i in data]
@@ -234,12 +249,13 @@ def convert_data_type(
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
-    Convert to `torch.Tensor`/`np.ndarray` from `torch.Tensor`/`np.ndarray`/`float`/`int` etc.
+    Convert to `MetaTensor`, `torch.Tensor` or `np.ndarray` from `MetaTensor`, `torch.Tensor`,
+    `np.ndarray`, `float`, `int`, etc.
 
     Args:
         data: data to be converted
-        output_type: `torch.Tensor` or `np.ndarray` (if `None`, unchanged)
-        device: if output is `torch.Tensor`, select device (if `None`, unchanged)
+        output_type: `monai.data.MetaTensor`, `torch.Tensor`, or `np.ndarray` (if `None`, unchanged)
+        device: if output is `MetaTensor` or `torch.Tensor`, select device (if `None`, unchanged)
         dtype: dtype of output data. Converted to correct library type (e.g.,
             `np.float32` is converted to `torch.float32` if output type is `torch.Tensor`).
             If left blank, it remains unchanged.
@@ -331,8 +347,8 @@ def convert_to_dst_type(
     output, _type, _device = convert_data_type(
         data=src, output_type=output_type, device=device, dtype=dtype, wrap_sequence=wrap_sequence
     )
-    if copy_meta and isinstance(output, monai.data.MetaTensor):  # type: ignore
-        output.meta, output.applied_operations = deepcopy(dst.meta), deepcopy(dst.applied_operations)  # type: ignore
+    if copy_meta and isinstance(output, monai.data.MetaTensor):
+        output.copy_meta_from(dst)
     return output, _type, _device
 
 

@@ -21,9 +21,11 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated, deprecated_arg
+from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
+from monai.utils.module import look_up_option, pytorch_after
 
 __all__ = [
     "one_hot",
@@ -41,9 +43,68 @@ __all__ = [
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
+    "meshgrid_xy",
     "replace_modules",
     "replace_modules_temp",
+    "look_up_named_module",
+    "set_named_module",
 ]
+
+logger = get_logger(module_name=__name__)
+
+
+def look_up_named_module(name: str, mod, print_all_options=False):
+    """
+    get the named module in `mod` by the attribute name,
+    for example ``look_up_named_module(net, "features.3.1.attn")``
+
+    Args:
+        name: a string representing the module attribute.
+        mod: a pytorch module to be searched (in ``mod.named_modules()``).
+        print_all_options: whether to print all named modules when `name` is not found in `mod`. Defaults to False.
+
+    Returns:
+        the corresponding pytorch module's subcomponent such as ``net.features[3][1].attn``
+    """
+    name_str = look_up_option(
+        name, {n[0] for n in mod.named_modules()}, default=None, print_all_options=print_all_options
+    )
+    if name_str is None:
+        return None
+    if name_str == "":
+        return mod
+    for n in name_str.split("."):
+        if n.isdigit():
+            mod = mod[int(n)]
+        else:
+            n = look_up_option(n, {item[0] for item in mod.named_modules()}, default=None, print_all_options=False)
+            if n is None:
+                return None
+            mod = getattr(mod, n)
+    return mod
+
+
+def set_named_module(mod, name: str, new_layer):
+    """
+    look up `name` in `mod` and replace the layer with `new_layer`, return the updated `mod`.
+
+    Args:
+        mod: a pytorch module to be updated.
+        name: a string representing the target module attribute.
+        new_layer: a new module replacing the corresponding layer at ``mod.name``.
+
+    Returns:
+        an updated ``mod``
+
+    See also: :py:func:`monai.networks.utils.look_up_named_module`.
+    """
+    mods_attr = name.rsplit(".", 1)
+    submods, attr = mods_attr if len(mods_attr) == 2 else ("", name)
+    if not attr:
+        return new_layer
+    _mod = look_up_named_module(submods, mod)
+    setattr(_mod, attr, new_layer)
+    return mod
 
 
 def one_hot(labels: torch.Tensor, num_classes: int, dtype: torch.dtype = torch.float, dim: int = 1) -> torch.Tensor:
@@ -257,12 +318,7 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     conv.weight.data.copy_(kernel)
 
 
-@deprecated_arg(
-    name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-)
-def pixelshuffle(
-    x: torch.Tensor, spatial_dims: int, scale_factor: int, dimensions: Optional[int] = None
-) -> torch.Tensor:
+def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
     """
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
@@ -276,17 +332,12 @@ def pixelshuffle(
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Returns:
         Reshuffled version of `x`.
 
     Raises:
         ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
     """
-    if dimensions is not None:
-        spatial_dims = dimensions
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
@@ -461,7 +512,7 @@ def copy_model_state(
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
-    print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
@@ -559,7 +610,8 @@ def convert_to_torchscript(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
 
@@ -567,7 +619,15 @@ def convert_to_torchscript(
 def meshgrid_ij(*tensors):
     if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
         return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10
+
     return torch.meshgrid(*tensors)
+
+
+def meshgrid_xy(*tensors):
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="xy")  # new api pytorch after 1.10
+
+    return torch.meshgrid(tensors[1], tensors[0], *tensors[2:])
 
 
 def _replace_modules(

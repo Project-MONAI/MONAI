@@ -15,8 +15,9 @@ import numpy as np
 import skimage.transform
 from parameterized import parameterized
 
-from monai.transforms import Resized
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from monai.data import MetaTensor, set_track_meta
+from monai.transforms import Invertd, Resized
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
 
@@ -56,9 +57,11 @@ class TestResized(NumpyImageTestCase2D):
         ]
 
         expected = np.stack(expected).astype(np.float32)
-        for p in TEST_NDARRAYS:
-            out = resize({"img": p(self.imt[0])})["img"]
-            assert_allclose(out, expected, type_test=False, atol=0.9)
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            out = resize({"img": im})
+            test_local_inversion(resize, out, {"img": im}, "img")
+            assert_allclose(out["img"], expected, type_test=False, atol=0.9)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_longest_shape(self, input_param, expected_shape):
@@ -71,6 +74,19 @@ class TestResized(NumpyImageTestCase2D):
         result = rescaler(input_data)
         for k in rescaler.keys:
             np.testing.assert_allclose(result[k].shape[1:], expected_shape)
+        set_track_meta(False)
+        result = Resized(**input_param)(input_data)
+        self.assertNotIsInstance(result["img"], MetaTensor)
+        np.testing.assert_allclose(result["img"].shape[1:], expected_shape)
+        set_track_meta(True)
+
+    def test_identical_spatial(self):
+        test_input = {"X": np.ones((1, 10, 16, 17))}
+        xform = Resized("X", (-1, 16, 17))
+        out = xform(test_input)
+        out["Y"] = 2 * out["X"]
+        transform_inverse = Invertd(keys="Y", transform=xform, orig_keys="X")
+        assert_allclose(transform_inverse(out)["Y"].array, np.ones((1, 10, 16, 17)) * 2)
 
 
 if __name__ == "__main__":

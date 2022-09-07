@@ -17,6 +17,7 @@ import torch.optim as optim
 from ignite.engine import Engine, Events
 
 from monai.handlers import CheckpointLoader, CheckpointSaver
+from tests.utils import assert_allclose
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):
@@ -42,7 +43,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
                 self.assertEqual(engine.state.epoch, 5)
 
             engine2.run([0] * 8, max_epochs=8)
-            torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
+            assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
 
             # test bad case with max_epochs smaller than current epoch
             engine3 = Engine(lambda e, b: None)
@@ -73,7 +74,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=True).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
+            assert_allclose(net2.state_dict()["weight"], torch.tensor([0.1]))
 
     def test_save_single_device_load_multi_devices(self):
         net1 = torch.nn.PReLU()
@@ -93,7 +94,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=True).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["module.weight"].cpu(), torch.tensor([0.1]))
+            assert_allclose(net2.state_dict()["module.weight"].cpu(), torch.tensor([0.1]))
 
     def test_partial_under_load(self):
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
@@ -115,7 +116,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
+            assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
     def test_partial_over_load(self):
         net1 = torch.nn.Sequential(*[torch.nn.PReLU()])
@@ -137,7 +138,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
             engine = Engine(lambda e, b: None)
             CheckpointLoader(load_path=path, load_dict={"net": net2}, strict=False).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
+            assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.1]))
 
     def test_strict_shape(self):
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(num_parameters=5)])
@@ -168,7 +169,7 @@ class TestHandlerCheckpointLoader(unittest.TestCase):
                 strict_shape=False,
             ).attach(engine)
             engine.run([0] * 8, max_epochs=1)
-            torch.testing.assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
+            assert_allclose(net2.state_dict()["0.weight"].cpu(), torch.tensor([0.2]))
             # test whether `opt2` had been skipped when loading with `strict_shape=False`,
             # it should have 2 items in `params`(0.weight and 1.weight) while the checkpoint has 1 item(0.weight)
             self.assertEqual(len(opt1.state_dict()["param_groups"][0]["params"]), 1)

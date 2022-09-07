@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.8
+pytorch-ignite==0.4.10
 gdown>=4.4.0
 scipy
 itk>=5.2
@@ -14,7 +14,6 @@ flake8>=3.8.1
 flake8-bugbear
 flake8-comprehensions
 flake8-executable
-flake8-pyi
 pylint!=2.13  # https://github.com/PyCQA/pylint/issues/5969
 mccabe
 pep8-naming
@@ -50,3 +49,4 @@ jsonschema
 pynrrd
 pre-commit
 pydicom
+h5py
