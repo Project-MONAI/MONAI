@@ -19,9 +19,6 @@ import nibabel as nib
 import numpy as np
 
 from monai.apps.auto3dseg import (
-    AlgoEnsembleBestByFold,
-    AlgoEnsembleBestN,
-    AlgoEnsembleBuilder,
     BundleGen,
     DataAnalyzer,
     NniWrapper,
@@ -29,7 +26,6 @@ from monai.apps.auto3dseg import (
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from monai.utils.enums import AlgoEnsembleKeys
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")

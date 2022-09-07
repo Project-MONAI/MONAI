@@ -17,7 +17,7 @@ from copy import deepcopy
 
 import nni
 
-from monai.auto3dseg.algo_gen import Algo, AlgoGen
+from monai.auto3dseg.algo_gen import AlgoGen
 from monai.bundle.config_parser import ConfigParser
 
 __all__ = ["HpoWrap", "NniWrapper"]
