@@ -52,10 +52,7 @@ def shape_from_extents(
     mins = aextents.min(axis=0)[0]
     maxes = aextents.max(axis=0)[0]
     values = torch.round(maxes - mins).type(torch.IntTensor)[:-1]
-    #values = torch.ceil(maxes - mins).type(torch.IntTensor)[:-1]
     return torch.cat((torch.as_tensor([src_shape[0]]), values))
-
-    # return [src_shape[0]] + np.ceil(maxes - mins)[:-1].astype(int).tolist()
 
 
 def metadata_is_compatible(value_1, value_2):
@@ -65,6 +62,7 @@ def metadata_is_compatible(value_1, value_2):
         if value_2 is None:
             return True
         return value_1 == value_2
+
 
 def metadata_dtype_is_compatible(value_1, value_2):
     if value_1 is None:
@@ -84,11 +82,6 @@ def starting_matrix_and_extents(matrix_factory, data):
     # set up the identity matrix and metadata
     cumulative_matrix = matrix_factory.identity()
     cumulative_extents = extents_from_shape(data.shape)
-
-    # pre-translate origin to centre of image
-    # translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
-    # cumulative_matrix = translate_to_centre @ cumulative_matrix
-    # cumulative_extents = [matmul(e, translate_to_centre.matrix.matrix) for e in cumulative_extents]
     return cumulative_matrix, cumulative_extents
 
 
@@ -128,14 +121,7 @@ def apply(data: Union[torch.Tensor, MetaTensor],
                                    get_backend_from_data(data),
                                    get_device_from_data(data))
 
-    # # set up the identity matrix and metadata
-    # cumulative_matrix = matrix_factory.identity()
-    # cumulative_extents = extents_from_shape(data.shape)
-    #
-    # # pre-translate origin to centre of image
-    # translate_to_centre = matrix_factory.translate([d / 2 for d in data.shape[1:]])
-    # cumulative_matrix = translate_to_centre @ cumulative_matrix
-    # cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
+    # set up the identity matrix and metadata
     cumulative_matrix, cumulative_extents = starting_matrix_and_extents(matrix_factory, data)
 
     # set the various resampling parameters to an initial state
