@@ -47,8 +47,8 @@ class BaseWSIReader(ImageReader):
     - `read` reads a whole slide image object from a given file
     - `get_size` returns the size of the whole slide image of a given wsi object at a given level.
     - `get_level_count` returns the number of levels in the whole slide image
-    - `get_patch` extracts and returns a patch image form the whole slide image
-    - `get_metadata` extracts and returns metadata for a whole slide image and a specific patch.
+    - `_get_patch` extracts and returns a patch image form the whole slide image
+    - `_get_metadata` extracts and returns metadata for a whole slide image and a specific patch.
 
 
     """
@@ -222,7 +222,7 @@ class BaseWSIReader(ImageReader):
                     raise ValueError(f"Patch size should be greater than zero, provided: patch size = {size}")
 
             # Extract a patch or the entire image
-            patch = self.get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+            patch = self._get_patch(each_wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
             # check if the image has three dimensions (2D + color)
             if patch.ndim != 3:
@@ -244,7 +244,7 @@ class BaseWSIReader(ImageReader):
                     f"{patch.shape[self.channel_dim]}. "
                 )
             # Get patch-related metadata
-            metadata: dict = self.get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
+            metadata: dict = self._get_metadata(wsi=each_wsi, patch=patch, location=location, size=size, level=level)
             # Create a list of patches and metadata
             patch_list.append(patch)
             metadata_list.append(metadata)
@@ -374,7 +374,7 @@ class WSIReader(BaseWSIReader):
             mode: the output image mode, 'RGB' or 'RGBA'
 
         """
-        return self.reader.get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
+        return self.reader._get_patch(wsi=wsi, location=location, size=size, level=level, dtype=dtype, mode=mode)
 
     def read(self, data: Union[Sequence[PathLike], PathLike, np.ndarray], **kwargs):
         """
