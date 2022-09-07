@@ -66,6 +66,49 @@ class VarianceMetric(Metric):
             threshold=self.threshold,
         )
 
+class LabelQualityScore(Metric):
+    """
+    The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
+    can be treated as a label quality score
+
+    It can be combined with variance/uncertainty for active learning frameworks to factor in the quality of label along
+    with uncertainty
+    Args:
+        include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
+        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
+        dimensions
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+
+    """
+
+    def __init__(
+        self,
+        include_background: bool = True,
+        spatial_map: bool = False,
+        scalar_reduction: str = "sum",
+    ) -> None:
+        super().__init__()
+        self.include_background = include_background
+        self.spatial_map = spatial_map
+        self.scalar_reduction = scalar_reduction
+
+    def __call__(self, y_pred: Any, y: Any):  # type: ignore
+        """
+        Args:
+            y_pred: Predicted segmentation, typically segmentation model output.
+                It must be N-repeats, repeat-first tensor [N,C,H,W,D].
+
+        Returns:
+            Pytorch tensor of scalar value of variance as uncertainty or a spatial map of uncertainty
+
+        """
+        return label_quality_score(
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            spatial_map=self.spatial_map,
+            scalar_reduction=self.scalar_reduction
+        )
 
 def compute_variance(
     y_pred: torch.Tensor,
@@ -132,6 +175,9 @@ def label_quality_score(
     scalar_reduction: str = "mean",
 ):
     """
+    The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
+    can be treated as a label quality score
+
     Args:
         y_pred: [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels and H, W, D stand for
         Height, Width & Depth
@@ -139,6 +185,7 @@ def label_quality_score(
         spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
         dimensions
         scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+
     Returns:
         A single scalar absolute difference value as score with a reduction based on sum/mean or the spatial map of
         absolute difference
@@ -152,7 +199,6 @@ def label_quality_score(
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     n_len = len(y_pred.shape)
-    n_shape = y_pred.shape
     if n_len < 4 and spatial_map is True:
         warnings.warn("Spatial map requires a 2D/3D image with B-Batchsize and C-channels")
         return None
@@ -168,5 +214,4 @@ def label_quality_score(
             return lbl_score_mean
         elif scalar_reduction == "sum":
             lbl_score_sum = torch.sum(abs_diff_map, dim=list(range(1, n_len)))
-            print(lbl_score_sum)
             return lbl_score_sum
