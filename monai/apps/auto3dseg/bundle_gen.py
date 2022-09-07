@@ -330,6 +330,12 @@ class BundleAlgo(Algo):
         inferer = self.get_inferer(**params)
         return [inferer.infer(f) for f in ensure_tuple(files)]
 
+    def get_script_path(self):
+        """
+        Get the script path (where train.py/infer.py files are located)
+        """
+        return self.scripts_path
+
 
 # path to download the algo_templates
 default_algo_zip = (
