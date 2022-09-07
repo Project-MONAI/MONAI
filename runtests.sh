@@ -593,13 +593,7 @@ then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m mypy --version
-
-    if [ $doDryRun = true ]
-    then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
-    else
-        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
-    fi
+    ${cmdPrefix}${PY_EXE} -m mypy "$(pwd)"
 
     mypy_status=$?
     if [ ${mypy_status} -ne 0 ]
@@ -687,5 +681,5 @@ if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report
+    ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
 fi

@@ -19,10 +19,12 @@ from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Map
 import numpy as np
 import torch
 
-from monai import transforms
+from monai import config, transforms
 from monai.config import KeysCollection
+from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import MONAIEnvVars
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -88,7 +90,10 @@ def apply_transform(
             return [_apply_transform(transform, item, unpack_items) for item in data]
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
-
+        # if in debug mode, don't swallow exception so that the breakpoint
+        # appears where the exception was raised.
+        if MONAIEnvVars.debug():
+            raise
         if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
@@ -126,7 +131,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -311,6 +316,16 @@ class MapTransform(Transform):
 
     """
 
+    def __new__(cls, *args, **kwargs):
+        if config.USE_META_DICT:
+            # call_update after MapTransform.__call__
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")
+
+            if hasattr(cls, "inverse"):
+                # inverse_update before InvertibleTransform.inverse
+                cls.inverse = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
+        return Transform.__new__(cls)
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
@@ -319,6 +334,27 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
+
+    def call_update(self, data):
+        """
+        This function is to be called after every `self.__call__(data)`,
+        update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
+        for MetaTensor backward compatibility 0.9.0.
+        """
+        if not isinstance(data, (list, tuple, Mapping)):
+            return data
+        is_dict = False
+        if isinstance(data, Mapping):
+            data, is_dict = [data], True
+        if not data or not isinstance(data[0], Mapping):
+            return data[0] if is_dict else data
+        list_d = [dict(x) for x in data]  # list of dict for crop samples
+        for idx, dict_i in enumerate(list_d):
+            for k in dict_i:
+                if not isinstance(dict_i[k], MetaTensor):
+                    continue
+                list_d[idx] = transforms.sync_meta_info(k, dict_i, t=not isinstance(self, transforms.InvertD))
+        return list_d[0] if is_dict else list_d
 
     @abstractmethod
     def __call__(self, data):

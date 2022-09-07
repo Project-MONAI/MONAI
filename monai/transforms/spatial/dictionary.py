@@ -178,14 +178,20 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         """
         Args:
             keys: keys of the corresponding items to be transformed.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
@@ -221,7 +227,7 @@ class SpatialResampled(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.sp_transform.inverse(d[key])
         return d
@@ -248,14 +254,20 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
             key_dst: key of image to resample to match.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
-                See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
@@ -274,7 +286,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         self.resampler = ResampleToMatch()
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for (key, mode, padding_mode, align_corners, dtype) in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
@@ -289,7 +301,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resampler.inverse(d[key])
         return d
@@ -347,14 +359,20 @@ class Spacingd(MapTransform, InvertibleTransform):
                 translations components from the original affine will be
                 preserved in the target affine. This option will not flip/swap
                 axes against the original ones.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
@@ -384,7 +402,7 @@ class Spacingd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.spacing_transform.inverse(d[key])
         return d
@@ -440,7 +458,7 @@ class Orientationd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.ornt_transform.inverse(d[key])
         return d
@@ -473,7 +491,7 @@ class Rotate90d(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
         return d
@@ -595,7 +613,7 @@ class Resized(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.resizer.inverse(d[key])
         return d
@@ -608,7 +626,6 @@ class Affined(MapTransform, InvertibleTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -620,7 +637,6 @@ class Affined(MapTransform, InvertibleTransform):
         spatial_size: Optional[Union[Sequence[int], int]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
         allow_missing_keys: bool = False,
@@ -653,14 +669,20 @@ class Affined(MapTransform, InvertibleTransform):
                 if some components of the `spatial_size` are non-positive values, the transform will use the
                 corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
                 to `(32, 64)` if the second spatial dimension size of img is `64`.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             dtype: data type for resampling computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
@@ -670,9 +692,6 @@ class Affined(MapTransform, InvertibleTransform):
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -696,7 +715,7 @@ class Affined(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.affine.inverse(d[key])
         return d
@@ -709,7 +728,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     backend = RandAffine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -722,7 +740,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -759,14 +776,20 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             cache_grid: whether to cache the identity sampling grid.
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
@@ -776,9 +799,6 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         See also:
             - :py:class:`monai.transforms.compose.MapTransform`
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -828,7 +848,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)
+                d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
             if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if do_resampling else {}
                 self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
@@ -841,7 +861,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             do_resampling = tr[TraceKeys.EXTRA_INFO]["do_resampling"]
             if do_resampling:
                 d[key].applied_operations.append(tr[TraceKeys.EXTRA_INFO]["rand_affine_info"])  # type: ignore
-                d[key] = self.rand_affine.inverse(d[key])
+                d[key] = self.rand_affine.inverse(d[key])  # type: ignore
 
         return d
 
@@ -853,7 +873,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand2DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -867,7 +886,6 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -906,23 +924,26 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -977,7 +998,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
         return d
 
 
@@ -988,7 +1009,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     backend = Rand3DElastic.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
@@ -1002,7 +1022,6 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         scale_range: Optional[Union[Sequence[Union[Tuple[float, float], float]], float]] = None,
         mode: SequenceStr = GridSampleMode.BILINEAR,
         padding_mode: SequenceStr = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1043,23 +1062,26 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             scale_range: scaling range with format matching `rotate_range`. it defines the range to randomly select
                 the scale factor to translate for every spatial dims. A value of 1.0 is added to the result.
                 This allows 0 to correspond to no change (i.e., a scaling of 1.0).
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
                 Padding mode for outside grid values. Defaults to ``"reflection"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1108,7 +1130,7 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
             grid = self.rand_3d_elastic.rand_affine_grid(grid=grid)
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)
+            d[key] = self.rand_3d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
         return d
 
 
@@ -1143,7 +1165,7 @@ class Flipd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.flipper.inverse(d[key])
         return d
@@ -1197,7 +1219,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if not xform[TraceKeys.DO_TRANSFORM]:
@@ -1325,7 +1347,7 @@ class Rotated(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.rotator.inverse(d[key])
         return d
@@ -1423,7 +1445,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if xform[TraceKeys.DO_TRANSFORM]:
@@ -1448,7 +1470,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
             The mode to pad data after zooming.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -1491,7 +1513,7 @@ class Zoomd(MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.zoomer.inverse(d[key])
         return d
@@ -1521,7 +1543,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
             The mode to pad data after zooming.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
@@ -1591,7 +1613,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
-        d = deepcopy(dict(data))
+        d = dict(data)
         for key in self.key_iterator(d):
             xform = self.pop_transform(d[key])
             if xform[TraceKeys.DO_TRANSFORM]:
@@ -1624,14 +1646,20 @@ class GridDistortiond(MapTransform):
             distort_steps: This argument is a list of tuples, where each tuple contains the distort steps of the
                 corresponding dimensions (in the order of H, W[, D]). The length of each tuple equals to `num_cells + 1`.
                 Each value in the tuple represents the distort step of the related cell.
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -1674,14 +1702,20 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
             distort_limit: range to randomly distort.
                 If single number, distort_limit is picked from (-distort_limit, distort_limit).
                 Defaults to (-0.03, 0.03).
-            mode: {``"bilinear"``, ``"nearest"``}
+            mode: {``"bilinear"``, ``"nearest"``} or spline interpolation order 0-5 (integers).
                 Interpolation mode to calculate output values. Defaults to ``"bilinear"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When it's an integer, the numpy (cpu tensor)/cupy (cuda tensor) backends will be used
+                and the value represents the order of the spline interpolation.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
-                Padding mode for outside grid values. Defaults to ``"reflection"``.
+                Padding mode for outside grid values. Defaults to ``"border"``.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-                It also can be a sequence of string, each element corresponds to a key in ``keys``.
+                When `mode` is an integer, using numpy/cupy backends, this argument accepts
+                {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
+                See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+                It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
 

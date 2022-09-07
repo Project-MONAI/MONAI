@@ -1,6 +1,6 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.6.0%2Bcpu-cp37-cp37m-linux_x86_64.whl
 torch>=1.6
-pytorch-ignite==0.4.9
+pytorch-ignite==0.4.10
 numpy>=1.17
 itk>=5.2
 nibabel
@@ -30,3 +30,4 @@ fire
 jsonschema
 pynrrd
 pydicom
+h5py
