@@ -25,6 +25,14 @@ from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping,
 
 import torch
 
+# bundle config system flags
+# set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
+run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
+# set MONAI_DEBUG_CONFIG=1 to run in debug mode, default value: run_debug=False
+run_debug = os.environ.get("MONAI_DEBUG_CONFIG", "0") != "0"
+# set MONAI_ALLOW_MISSING_REFERENCE=1 to allow missing references, default value: allow_missing_reference=False
+allow_missing_reference = os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") != "0"
+
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
 __all__ = [
@@ -220,9 +228,14 @@ def instantiate(path: str, **kwargs):
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
     try:
-        if kwargs.pop("_debug_", False):
-            print(f"\n\ndebug: instantiating: {component}\n\n")
-            import pdb; pdb.set_trace()
+        if kwargs.pop("_debug_", False) or run_debug:
+            warnings.warn(
+                f"\n\npdb: instantiating component={component}\n"
+                f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+            )
+            import pdb
+
+            pdb.set_trace()
         if isclass(component):
             return component(**kwargs)
         # support regular function, static method and class method
