@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import MetaTensor
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import RandGridPatch
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose
@@ -105,6 +105,7 @@ class TestRandGridPatch(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_MEAT_0, TEST_CASE_MEAT_1])
     def test_rand_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
+        set_track_meta(True)
         splitter = RandGridPatch(**input_parameters)
         splitter.set_random_state(1234)
         output = splitter(image)
