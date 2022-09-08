@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+
 import torch.nn as nn
 from torch import Tensor
 
@@ -47,7 +49,7 @@ class VariationalNetworkModel(nn.Module):
     ):
         super().__init__()
         self.coil_sensitivity_model = coil_sensitivity_model
-        self.cascades = nn.ModuleList([VarNetBlock(refinement_model) for i in range(num_cascades)])
+        self.cascades = nn.ModuleList([VarNetBlock(copy.deepcopy(refinement_model)) for i in range(num_cascades)])
         self.spatial_dims = spatial_dims
 
     def forward(self, masked_kspace: Tensor, mask: Tensor) -> Tensor:
