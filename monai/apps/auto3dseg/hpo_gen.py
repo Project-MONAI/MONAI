@@ -15,15 +15,13 @@ import sys
 from abc import abstractmethod
 from copy import deepcopy
 
-import nni
-
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import AlgoGen
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
 
 nni, has_nni = optional_import("nni")
-has_nni = False
+
 logger = get_logger(module_name=__name__)
 
 __all__ = ["HPOGen", "NNIGen"]
@@ -57,24 +55,48 @@ class HPOGen(AlgoGen):
 
 class NNIGen(HPOGen):
     """
-    Wrapper for NNI
+    Generate algorithms for the NNI to automate algorithm hyper parameter tuning. The module has two major functions:
+    ``__init__`` which sets up the algorithm, and a trialCommand function ``run_algo`` for the NNI library. More about
+    trialCommand function can be found in ``trail code`` section in NNI webpage
+    https://nni.readthedocs.io/en/latest/tutorials/hpo_quickstart_pytorch/main.html .
+
+    Args:
+        algo_dict: an dict that has {name: Algo object} format. The Algo object must define two methods: get_output_path
+            and train.
+        params: a set of parameter to override the algo if override is supported by Algo subclass.
+
+    Raises:
+        ValueError if the user tries to override a algo that doesn't have ``export_to_disk`` function.
+
+    Examples:
+        The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
+            ├── unet_0
+            │   └── unet
+            │       ├── configs
+            │       └── scripts
+            └── unet_0_learning_rate_0.0001
+                ├── model_fold0
+                │   ├── accuracy_history.csv
+                │   ├── best_metric_model.pt
+                │   ├── Events
+                │   └── progress.yaml
+                └── unet
+                    ├── configs
+                    └── scripts
+
+    Notes:
+        The NNIGen will prepare the algorithms in a folder and suggest a command to replace trialCommand in the experiment
+        config. However, NNIGen will not trigger NNI. User needs to write their NNI experiment configs, and then run the
+        NNI command manually.
     """
 
     def __init__(self, algo_dict=None, params=None):
-        """
-        Args:
-            output_folder: file paths to copy the algo scripts
-            algo: an dict that has {name: Algo object} format.
-                The Algo object must have get_scripts_path method
-            override:
-                a set of parameter to override the HPO config, e.g. search space
-        """
         self.algo = None
         self.task_prefix = None
 
         if algo_dict is not None:
             if len(algo_dict.keys()) > 1:
-                raise ValueError(f"object {algo_dict} only allows 1 key, but there are {len(algo.keys())}")
+                raise ValueError(f"object {algo_dict} only allows 1 key")
             name = list(algo_dict.keys())[0]  # the only key is the name of the model
 
             algo = algo_dict[name]
@@ -82,13 +104,15 @@ class NNIGen(HPOGen):
             base_task_dir = algo.get_output_path()
             if params is None:
                 obj_bytes = pickle.dumps(algo)
-            else:
+            elif hasattr(algo, "export_to_disk") and callable(getattr(algo, "export_to_disk")):
                 base_task_dir += "_override"
                 task_name = os.path.basename(base_task_dir)
                 output_folder = os.path.dirname(base_task_dir)
                 algo_override = deepcopy(algo)  # avoid overriding the existing algo
                 algo_override.export_to_disk(output_folder, task_name, **params)
                 obj_bytes = pickle.dumps(algo_override)
+            else:
+                raise ValueError(f"{algo.__class__} does not support param override")
 
             obj_file = os.path.join(base_task_dir, "algo_object.pkl")
             with open(obj_file, "wb") as f_pi:
@@ -108,11 +132,18 @@ class NNIGen(HPOGen):
 
     def update_params(self, params):  # generate
         """
-        Translate the parameter from monai bundle to nni format
+        Translate the parameter from monai bundle to nni format.
+
+        Args:
+            params: a dict of parameters.
         """
         self.params = params
 
     def get_task_id(self):
+        """
+        Get the identifier of the current experiment. In the format of listing the searching parameter name and values
+        connected by underscore in the file name.
+        """
         task_id = ""
         for k, v in self.params.items():
             task_id += f"_{k}_{v}"
@@ -121,6 +152,12 @@ class NNIGen(HPOGen):
         return task_id
 
     def generate(self, output_folder="."):
+        """
+        Generate the record for each Algo. If it is a BundleAlgo, it will generate the config files.
+
+        Args:
+            output_folder
+        """
         task_id = self.get_task_id()
         if hasattr(self.algo, "export_to_disk") and callable(getattr(self.algo, "export_to_disk")):
             self.algo.export_to_disk(output_folder, self.task_prefix + task_id)
@@ -147,8 +184,6 @@ class NNIGen(HPOGen):
 
         ..code-block:: python
             python -m monai.apps.auto3dseg NNIGen run_algo "algo.pkl" "template_dir"  #in nni
-
-            on NGC: nnictl create --config hpo_config1.yaml
         """
         if not os.path.isdir(base_task_dir):
             raise ValueError(f"{base_task_dir} is not a directory")
