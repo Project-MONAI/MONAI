@@ -3243,7 +3243,6 @@ class GridPatch(Transform):
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
         metadata[WSIPatchKeys.LOCATION] = locations.T
         metadata[WSIPatchKeys.COUNT] = len(locations)
-        metadata["affine"] = torch.stack([MetaTensor.get_default_affine()] * len(locations))
         output = MetaTensor(x=patched_image, meta=metadata)
         output.is_batch = True
 
