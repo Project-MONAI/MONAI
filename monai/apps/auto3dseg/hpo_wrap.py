@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from multiprocessing.sharedctypes import Value
 import os
 import pickle
 import sys
@@ -88,7 +87,7 @@ class NniWrapper(HpoWrap):
                 algo_override = deepcopy(algo)  # avoid overriding the existing algo
                 algo_override.export_to_disk(output_folder, task_name, **params)
                 obj_bytes = pickle.dumps(algo_override)
-            
+
             obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
             with open(obj_file, "wb") as f_pi:
                 f_pi.write(obj_bytes)
@@ -115,7 +114,7 @@ class NniWrapper(HpoWrap):
         if len(task_id) == 0:
             task_id = "_None"  # avoid rewriting the original
         return task_id
-    
+
     def generate(self, output_folder='.'):
         task_id = self._get_task_id()
         if hasattr(self.algo, 'export_to_disk') and callable(getattr(self.algo, 'export_to_disk')):
@@ -136,7 +135,7 @@ class NniWrapper(HpoWrap):
         The python interface for NNI to run
 
         Args:
-            base_task_dir: 
+            base_task_dir:
             output_folder: the root path of the algorithms templates.
 
         ..code-block:: python
@@ -152,7 +151,7 @@ class NniWrapper(HpoWrap):
 
         if not os.path.isdir(base_task_dir):
             raise ValueError(f"{base_task_dir} is not a directory")
-        
+
         self.task_prefix = os.path.basename(base_task_dir)
         obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
         if not os.path.isfile(obj_file):

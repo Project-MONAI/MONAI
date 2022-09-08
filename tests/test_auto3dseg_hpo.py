@@ -10,9 +10,6 @@
 # limitations under the License.
 
 import os
-import sys
-import subprocess
-import pickle
 import tempfile
 import unittest
 from typing import Dict, List
@@ -112,7 +109,7 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_hpo(self) -> None:
-        
+
         algo_dict = self.history[0]
 
         train_param = {
