@@ -155,6 +155,7 @@ def run_testsuit():
         "test_spacing",
         "test_spacingd",
         "test_splitdimd",
+        "test_splitdimtolistd",
         "test_surface_distance",
         "test_surface_dice",
         "test_testtimeaugmentation",

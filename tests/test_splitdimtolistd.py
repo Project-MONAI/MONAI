@@ -1,0 +1,82 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import unittest
+from copy import deepcopy
+
+import numpy as np
+import torch
+from parameterized import parameterized
+
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import LoadImaged
+from monai.transforms.utility.dictionary import SplitDimToListd
+from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    for keepdim in (True, False):
+        for update_meta in (True, False):
+            TESTS.append((keepdim, p, update_meta))
+
+
+class TestSplitDimToListd(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        arr = np.random.rand(2, 10, 8, 7)
+        affine = make_rand_affine()
+        data = {"image": make_nifti_image(arr, affine)}
+
+        loader = LoadImaged("image")
+        cls.data: MetaTensor = loader(data)
+
+    @parameterized.expand(TESTS)
+    def test_correct(self, keepdim, im_type, update_meta):
+        data = deepcopy(self.data)
+        data["image"] = im_type(data["image"])
+        arr = data["image"]
+        for dim in range(arr.ndim):
+            out = SplitDimToListd("image", dim=dim, keepdim=keepdim, update_meta=update_meta)(data)
+            self.assertIsInstance(out, list)
+            self.assertEqual(len(out), arr.shape[dim])
+            # if updating metadata, pick some random points and
+            # check same world coordinates between input and output
+            if update_meta:
+                for _ in range(10):
+                    idx = [np.random.choice(i) for i in arr.shape]
+                    split_im_idx = idx[dim]
+                    split_idx = deepcopy(idx)
+                    split_idx[dim] = 0
+                    split_im = out[split_im_idx]["image"]
+                    if isinstance(data, MetaTensor) and isinstance(split_im, MetaTensor):
+                        # idx[1:] to remove channel and then add 1 for 4th element
+                        real_world = data.affine @ torch.tensor(idx[1:] + [1]).double()
+                        real_world2 = split_im.affine @ torch.tensor(split_idx[1:] + [1]).double()
+                        assert_allclose(real_world, real_world2)
+
+            img_0 = out[0]["image"]
+            expected_ndim = arr.ndim if keepdim else arr.ndim - 1
+            self.assertEqual(img_0.ndim, expected_ndim)
+            # assert is a shallow copy
+            arr[0, 0, 0, 0] *= 2
+            self.assertEqual(arr.flatten()[0], img_0.flatten()[0])
+
+    def test_error(self):
+        """Should fail because splitting along singleton dimension"""
+        shape = (2, 1, 8, 7)
+        for p in TEST_NDARRAYS:
+            arr = p(np.random.rand(*shape))
+            with self.assertRaises(RuntimeError):
+                _ = SplitDimToListd("image", dim=1)({"image": arr})
+
+
+if __name__ == "__main__":
+    unittest.main()
