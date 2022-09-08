@@ -113,10 +113,11 @@ class TestRandGridPatch(unittest.TestCase):
         if "path" in expected_meta[0]:
             self.assertTrue(output.meta["path"] == expected_meta[0]["path"])
         for output_patch, expected_patch, expected_patch_meta in zip(output, expected, expected_meta):
+            self.assertTrue(isinstance(output_patch, MetaTensor))
             assert_allclose(output_patch, expected_patch, type_test=False)
+            self.assertTrue(output_patch.meta["location"] == expected_patch_meta["location"])
             if "path" in expected_meta[0]:
                 self.assertTrue(output_patch.meta["path"] == expected_patch_meta["path"])
-            self.assertTrue(output_patch.meta["location"] == expected_patch_meta["location"])
 
 
 if __name__ == "__main__":
