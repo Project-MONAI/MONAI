@@ -82,12 +82,9 @@ class LabelQualityScore(Metric):
 
     """
 
-    def __init__(
-        self, include_background: bool = True, spatial_map: bool = False, scalar_reduction: str = "sum"
-    ) -> None:
+    def __init__(self, include_background: bool = True, scalar_reduction: str = "sum") -> None:
         super().__init__()
         self.include_background = include_background
-        self.spatial_map = spatial_map
         self.scalar_reduction = scalar_reduction
 
     def __call__(self, y_pred: Any, y: Any):  # type: ignore
@@ -101,11 +98,7 @@ class LabelQualityScore(Metric):
 
         """
         return label_quality_score(
-            y_pred=y_pred,
-            y=y,
-            include_background=self.include_background,
-            spatial_map=self.spatial_map,
-            scalar_reduction=self.scalar_reduction,
+            y_pred=y_pred, y=y, include_background=self.include_background, scalar_reduction=self.scalar_reduction
         )
 
 
@@ -168,11 +161,7 @@ def compute_variance(
 
 
 def label_quality_score(
-    y_pred: torch.Tensor,
-    y: torch.Tensor,
-    include_background: bool = True,
-    spatial_map: bool = False,
-    scalar_reduction: str = "mean",
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, scalar_reduction: str = "mean"
 ):
     """
     The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
@@ -182,9 +171,8 @@ def label_quality_score(
         y_pred: [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels and H, W, D stand for
         Height, Width & Depth
         include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
-        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
-        dimensions
-        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used to retrive a single scalar
+        value, if set to 'none' a spatial map will be returned
 
     Returns:
         A single scalar absolute difference value as score with a reduction based on sum/mean or the spatial map of
@@ -199,16 +187,16 @@ def label_quality_score(
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
     n_len = len(y_pred.shape)
-    if n_len < 4 and spatial_map is True:
-        warnings.warn("Spatial map requires a 2D/3D image with B-Batchsize and C-channels")
+    if n_len < 4 and scalar_reduction == "none":
+        warnings.warn("Reduction set to None, Spatial map return requires a 2D/3D image of B-Batchsize and C-channels")
         return None
 
     abs_diff_map = torch.abs(y_pred - y)
 
-    if spatial_map is True:
+    if scalar_reduction == "none":
         return abs_diff_map
 
-    elif spatial_map is False:
+    elif scalar_reduction != "none":
         if scalar_reduction == "mean":
             lbl_score_mean = torch.mean(abs_diff_map, dim=list(range(1, n_len)))
             return lbl_score_mean
