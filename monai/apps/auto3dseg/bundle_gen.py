@@ -112,11 +112,19 @@ class BundleAlgo(Algo):
         Args:
             output_path: Path to export the 'scripts' and 'configs' directories.
             algo_name: the identifier of the algorithm (usually contains the name and extra info like fold ID).
+            kwargs: other parameters, including: "copy_dirs=True/False" means whether to copy the template as output
+                instead of inplace operation, "fill_template=True/False" means whether to fill the placeholders
+                in the template. other parameters are for `fill_template_config` function.
+
         """
-        self.output_path = os.path.join(output_path, algo_name)
-        os.makedirs(self.output_path, exist_ok=True)
-        shutil.copytree(self.template_path, self.output_path)
-        self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
+        if kwargs.pop("copy_dirs", True):
+            self.output_path = os.path.join(output_path, algo_name)
+            os.makedirs(self.output_path, exist_ok=True)
+            shutil.copytree(self.template_path, self.output_path)
+        else:
+            self.output_path = self.template_path
+        if kwargs.pop("fill_template", True):
+            self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(self.output_path)
 
     def train(self, train_params=None):
