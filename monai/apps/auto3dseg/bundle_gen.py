@@ -44,77 +44,32 @@ class BundleAlgo(Algo):
         from monai.apps.auto3dseg import BundleAlgo
 
         data_stats_yaml = "/workspace/data_stats.yaml"
-        algo = BundleAlgo(
-            template_configs=../algorithms/templates/segresnet2d/configs,
-            scripts_path="../algorithms/templates/segresnet2d/scripts")
+        algo = BundleAlgo(template_path=../algorithms/templates/segresnet2d/configs)
         algo.set_data_stats(data_stats_yaml)
         # algo.set_data_src("../data_src.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
 
     This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
-    ``export_to_disk``.  The output of ``export_to_disk`` takes the following folder structure::
-
-        [algo_name]
-        ├── configs
-        │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
-        │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
-        │   ├── transforms_train.yaml  # automatically generated yaml to define tranforms for training
-        │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
-        │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
-        └── scripts
-            ├── algo.py
-            ├── infer.py
-            ├── train.py
-            └── validate.py
+    ``export_to_disk``. Then created bundle keeps the same file structure as the template.
 
     """
 
-    # the config sections that will be picked up and individually saved
-    sections = ["network", "transforms_infer", "transforms_train", "transforms_validate"]
-
-    def __init__(self, template_configs=None, scripts_path=None, meta_data_filename=None, parser_args=None):
+    def __init__(self, template_path: str):
         """
-        Create an Algo instance based on a set of bundle configuration templates and scripts.
+        Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_configs: a json/yaml config file, or a folder of json/yaml files.
-            scripts_path: a folder to python script files.
-            meta_data_filename: optional metadata of a MONAI bundle.
-            parser_args: additional input arguments for the build-in ConfigParser ``self.cfg.read_config``.
-        """
-        if os.path.isdir(template_configs):
-            self.template_configs = []
-            for ext in ("json", "yaml"):
-                self.template_configs += glob(os.path.join(template_configs, f"*.{ext}"))
-        else:
-            self.template_configs = template_configs
-        self.meta_data_filename = meta_data_filename
-        self.cfg = ConfigParser(globals=False)  # TODO: define root folder (variable)?
-        if self.template_configs is not None:
-            self.load_templates(self.template_configs, meta_data_filename, parser_args)
+            template_path: path to the root of the algo template.
 
-        self.scripts_path = scripts_path
+        """
+
+        self.template_path = template_path
         self.data_stats_files = None
         self.data_list_file = None
         self.output_path = None
         self.name = None
         self.best_metric = None
-
-    def load_templates(self, config_files, metadata_file=None, parser_args=None):
-        """
-        Read a list of template configuration files
-
-        Args:
-            config_file: bundle config files.
-            metadata_file: metadata overriding file
-            parser_args: argument to parse
-
-        """
-        parser_args = parser_args or {}
-        self.cfg.read_config(config_files, **parser_args)
-        if metadata_file is not None:
-            self.cfg.read_meta(metadata_file)
 
     def set_data_stats(self, data_stats_files: str):  # type: ignore
         """
@@ -136,7 +91,7 @@ class BundleAlgo(Algo):
         """
         self.data_list_file = data_src_cfg
 
-    def fill_template_config(self, data_stats_filename, **kwargs):
+    def fill_template_config(self, data_stats_filename: str, algo_path: str, **kwargs):
         """
         The configuration files defined when constructing this Algo instance might not have a complete training
         and validation pipelines. Some configuration components and hyperparameters of the pipelines depend on the
@@ -160,56 +115,11 @@ class BundleAlgo(Algo):
             output_path: Path to export the 'scripts' and 'configs' directories.
             algo_name: the identifier of the algorithm (usually contains the name and extra info like fold ID).
         """
-        self.fill_template_config(self.data_stats_files, **kwargs)
-        write_path = os.path.join(output_path, algo_name)
-        self.cfg["bundle_root"] = write_path
-        os.makedirs(write_path, exist_ok=True)
-        # handling scripts files
-        output_scripts_path = os.path.join(write_path, "scripts")
-        if os.path.exists(output_scripts_path):
-            shutil.rmtree(output_scripts_path)
-        if self.scripts_path is not None and os.path.exists(self.scripts_path):
-            shutil.copytree(self.scripts_path, output_scripts_path)
-        # handling config files
-        output_config_path = os.path.join(write_path, "configs")
-        if os.path.exists(output_config_path):
-            shutil.rmtree(output_config_path)
-
-        # break the config into multiple files and save
-        self.save_config_files(output_config_path)
-        logger.info(write_path)
-        self.output_path = write_path
-
-    def save_config_files(self, output_config_path):
-        """
-        Save the auto-generated config files into multiple files.
-
-        Args:
-            output_config_path: path to save the files
-
-        """
-        os.makedirs(output_config_path, exist_ok=True)
-
-        config_body = self.cfg.get()
-        for s in self.sections:
-            config_section_file = os.path.join(output_config_path, s + ".yaml")
-            config_section = _pop_args(config_body, s)
-            section_body = {}
-            section_body[s] = config_section[0]  # _pop_args returns a Tuple even if there is only one element.
-            ConfigParser.export_config_file(section_body, config_section_file, fmt="yaml", default_flow_style=None)
-
-        output_config_file = os.path.join(output_config_path, "hyper_parameters.yaml")
-        ConfigParser.export_config_file(config_body, output_config_file, fmt="yaml", default_flow_style=None)
-
-        with open(output_config_file, "r+") as f:
-            lines = f.readlines()
-            f.seek(0)
-            f.write(f"# Generated automatically by `{__name__}`\n")
-            f.write("# For more information please visit: https://docs.monai.io/\n\n")
-            for item in ensure_tuple(self.template_configs):
-                f.write(f"# source file: {item}\n")
-            f.write("\n\n")
-            f.writelines(lines)
+        self.output_path = os.path.join(output_path, algo_name)
+        os.makedirs(self.output_path, exist_ok=True)
+        shutil.copytree(self.template_path, self.output_path)
+        self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
+        logger.info(self.output_path)
 
     def train(self, train_params=None):
         """
@@ -339,25 +249,10 @@ default_algo_zip = (
 
 # default algorithms
 default_algos = {
-    "unet": dict(_target_="unet.scripts.algo.UnetAlgo", template_configs="unet/configs", scripts_path="unet/scripts"),
-    "segresnet2d": dict(
-        _target_="segresnet2d.scripts.algo.Segresnet2dAlgo",
-        template_configs="segresnet2d/configs",
-        scripts_path="segresnet2d/scripts",
-    ),
-    "dints": dict(
-        _target_="dints.scripts.algo.DintsAlgo", template_configs="dints/configs", scripts_path="dints/scripts"
-    ),
-    "swinunetr": dict(
-        _target_="swinunetr.scripts.algo.SwinunetrAlgo",
-        template_configs="swinunetr/configs",
-        scripts_path="swinunetr/scripts",
-    ),
-    "segresnet": dict(
-        _target_="segresnet.scripts.algo.SegresnetAlgo",
-        template_configs="segresnet/configs",
-        scripts_path="segresnet/scripts",
-    ),
+    "segresnet2d": dict(_target_="segresnet2d.scripts.algo.Segresnet2dAlgo", template_path="segresnet2d"),
+    "dints": dict(_target_="dints.scripts.algo.DintsAlgo", template_path="dints"),
+    "swinunetr": dict(_target_="swinunetr.scripts.algo.SwinunetrAlgo", template_path="swinunetr"),
+    "segresnet": dict(_target_="segresnet.scripts.algo.SegresnetAlgo", template_path="segresnet"),
 }
 
 
@@ -390,11 +285,8 @@ class BundleGen(AlgoGen):
             sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
             algos = copy(default_algos)
             for name in algos:
-                algos[name]["template_configs"] = os.path.join(
-                    algo_path, "algorithm_templates", default_algos[name]["template_configs"]
-                )
-                algos[name]["scripts_path"] = os.path.join(
-                    algo_path, "algorithm_templates", default_algos[name]["scripts_path"]
+                algos[name]["template_path"] = os.path.join(
+                    algo_path, "algorithm_templates", default_algos[name]["template_path"]
                 )
 
         if isinstance(algos, dict):
