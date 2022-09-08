@@ -12,14 +12,13 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import torch
 
 import monai
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigComponent, ConfigItem
-from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -33,12 +32,7 @@ from monai.fl.utils.constants import (
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
-from monai.utils import min_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import Events
-else:
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+from monai.utils import min_version, require_pkg
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -47,6 +41,7 @@ def convert_global_weights(global_weights, local_var_dict):
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
+    n_converted = 0
     for var_name in local_var_dict:
         if var_name in model_keys:
             weights = global_weights[var_name]
@@ -55,9 +50,10 @@ def convert_global_weights(global_weights, local_var_dict):
                 weights = torch.reshape(torch.as_tensor(weights), local_var_dict[var_name].shape)
                 # update the local dict
                 local_var_dict[var_name] = weights
+                n_converted += 1
             except Exception as e:
                 raise ValueError(f"Convert weight from {var_name} failed.") from e
-    return local_var_dict
+    return local_var_dict, n_converted
 
 
 def compute_weight_diff(global_weights, local_var_dict):
@@ -70,7 +66,8 @@ def compute_weight_diff(global_weights, local_var_dict):
     for name in global_weights:
         if name not in local_var_dict:
             continue
-        weight_diff[name] = local_var_dict[name].cpu() - global_weights[name]
+        # returned weight diff will be on the cpu
+        weight_diff[name] = local_var_dict[name].cpu() - global_weights[name].cpu()
         if torch.any(torch.isnan(weight_diff[name])):
             raise ValueError(f"Weights for {name} became NaN...")
     return weight_diff
@@ -82,7 +79,7 @@ def check_bundle_config(parser):
             raise KeyError(f"Bundle config misses required key `{k}`")
 
 
-def remove_ckpt_loader(parser):
+def disable_ckpt_loaders(parser):
     if BundleKeys.VALIDATE_HANDLERS in parser:
         for h in parser[BundleKeys.VALIDATE_HANDLERS]:
             if ConfigComponent.is_instantiable(h):
@@ -90,6 +87,7 @@ def remove_ckpt_loader(parser):
                     h["_disabled_"] = True
 
 
+@require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
@@ -101,9 +99,12 @@ class MonaiAlgo(ClientAlgo):
         config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
         config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
         config_filters_filename: filter configuration file.
-        disable_ckpt_loader: do not use CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
+        disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
+        save_dict_key: If a model checkpoint contains several state dicts,
+            the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
+            If all state dicts should be returned, set `save_dict_key` to None.
         seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
             i.e., non-deterministic training.
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
@@ -119,9 +120,10 @@ class MonaiAlgo(ClientAlgo):
         config_train_filename: Optional[str] = "configs/train.json",
         config_evaluate_filename: Optional[str] = "configs/evaluate.json",
         config_filters_filename: Optional[str] = None,
-        disable_ckpt_loader: bool = True,
+        disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
         final_model_filepath: Optional[str] = "models/model_final.pt",
+        save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
     ):
@@ -133,8 +135,9 @@ class MonaiAlgo(ClientAlgo):
         self.config_train_filename = config_train_filename
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
-        self.disable_ckpt_loader = disable_ckpt_loader
+        self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
+        self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
 
@@ -209,9 +212,9 @@ class MonaiAlgo(ClientAlgo):
             self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
 
         # remove checkpoint loaders
-        if self.disable_ckpt_loader:
-            remove_ckpt_loader(self.train_parser)
-            remove_ckpt_loader(self.eval_parser)
+        if self.disable_ckpt_loading:
+            disable_ckpt_loaders(self.train_parser)
+            disable_ckpt_loaders(self.eval_parser)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(
@@ -255,9 +258,11 @@ class MonaiAlgo(ClientAlgo):
                 data = _filter(data, extra)
         self.phase = FlPhase.TRAIN
         self.logger.info(f"Load {self.client_name} weights...")
-        self.global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.trainer.network)
+        local_var_dict = get_state_dict(self.trainer.network)
+        self.global_weights, n_converted = convert_global_weights(
+            global_weights=data.weights, local_var_dict=local_var_dict
         )
+        self._check_converted(data.weights, local_var_dict, n_converted)
 
         # set engine state max epochs.
         self.trainer.state.max_epochs = self.trainer.state.epoch + self.local_epochs
@@ -299,16 +304,22 @@ class MonaiAlgo(ClientAlgo):
                 if not os.path.isfile(model_path):
                     raise ValueError(f"No best model checkpoint exists at {model_path}")
                 weights = torch.load(model_path, map_location="cpu")
+                # if weights contain several state dicts, use the one defined by `save_dict_key`
+                if isinstance(weights, dict) and self.save_dict_key in weights:
+                    weights = weights.get(self.save_dict_key)
                 weigh_type = WeightType.WEIGHTS
                 stats = dict()
-                self.logger.info(f"Returning best checkpoint weights from {model_path}.")
+                self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
-                    f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}"
+                    f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
             if self.trainer:
                 weights = get_state_dict(self.trainer.network)
+                # returned weights will be on the cpu
+                for k in weights.keys():
+                    weights[k] = weights[k].cpu()
                 weigh_type = WeightType.WEIGHTS
                 stats = self.trainer.get_stats()
                 # calculate current iteration and epoch data after training.
@@ -366,9 +377,9 @@ class MonaiAlgo(ClientAlgo):
 
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
-        global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.evaluator.network)
-        )
+        local_var_dict = get_state_dict(self.evaluator.network)
+        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        self._check_converted(data.weights, local_var_dict, n_converted)
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
         if len(updated_keys) == 0:
@@ -391,17 +402,13 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
-            self.trainer.terminate()
-            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
-            if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                self.trainer._fire_event(Events.EPOCH_COMPLETED)
+            self.trainer.interrupt()
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
-            self.evaluator.terminate()
+            self.evaluator.interrupt()
 
     def finalize(self, extra=None):
         """
@@ -409,10 +416,6 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
-        # TODO: finalize feature could be built into the MONAI Trainer class
-        if extra is None:
-            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
@@ -420,3 +423,13 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
+
+    def _check_converted(self, global_weights, local_var_dict, n_converted):
+        if n_converted == 0:
+            self.logger.warning(
+                f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}"
+            )
+        else:
+            self.logger.info(
+                f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
+            )

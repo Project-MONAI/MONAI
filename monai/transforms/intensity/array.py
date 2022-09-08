@@ -30,7 +30,6 @@ from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGola
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.module import min_version, optional_import
@@ -73,6 +72,7 @@ __all__ = [
     "IntensityRemap",
     "RandIntensityRemap",
     "ForegroundMask",
+    "ComputeHoVerMaps",
 ]
 
 
@@ -1467,8 +1467,7 @@ class GibbsNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, alpha: float = 0.1, as_tensor_output: bool = True) -> None:
+    def __init__(self, alpha: float = 0.1) -> None:
 
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0, 1].")
@@ -1546,8 +1545,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
@@ -1619,13 +1617,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self,
-        loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
-    ):
+    def __init__(self, loc: Union[Tuple, Sequence[Tuple]], k_intensity: Optional[Union[Sequence[float], float]] = None):
 
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
@@ -1754,13 +1746,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range
@@ -2301,3 +2291,42 @@ class ForegroundMask(Transform):
 
         mask = np.stack(foregrounds).all(axis=0)
         return convert_to_dst_type(src=mask, dst=image)[0]
+
+
+class ComputeHoVerMaps(Transform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+
+    Args:
+        dtype: the data type of output Tensor. Defaults to `"float32"`.
+
+    Return:
+        A torch.Tensor with the size of [2xHxW[xD]], which is stack horizontal and vertical maps
+
+    """
+
+    def __init__(self, dtype: DtypeLike = "float32") -> None:
+        super().__init__()
+        self.dtype = dtype
+
+    def __call__(self, mask: NdarrayOrTensor):
+        instance_mask = convert_data_type(mask, np.ndarray)[0]
+
+        h_map = instance_mask.astype(self.dtype, copy=True)
+        v_map = instance_mask.astype(self.dtype, copy=True)
+
+        for region in skimage.measure.regionprops(instance_mask):
+            v_dist = region.coords[:, 0] - region.centroid[0]
+            h_dist = region.coords[:, 1] - region.centroid[1]
+
+            h_dist[h_dist < 0] /= -np.amin(h_dist)
+            h_dist[h_dist > 0] /= np.amax(h_dist)
+
+            v_dist[v_dist < 0] /= -np.amin(v_dist)
+            v_dist[v_dist > 0] /= np.amax(v_dist)
+
+            h_map[h_map == region.label] = h_dist
+            v_map[v_map == region.label] = v_dist
+
+        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta())
+        return hv_maps

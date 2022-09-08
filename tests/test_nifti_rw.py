@@ -30,14 +30,6 @@ for p in TEST_NDARRAYS:
                 [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
             )
         )
-        # TESTS.append(
-        #     [
-        #         TEST_IMAGE,
-        #         TEST_AFFINE,
-        #         dict(reader="NibabelReader", image_only=False, as_closest_canonical=True),
-        #         np.arange(24).reshape((2, 4, 3)),
-        #     ]
-        # )
         TESTS.append(
             [
                 TEST_IMAGE,

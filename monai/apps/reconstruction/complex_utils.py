@@ -106,7 +106,7 @@ def complex_abs_t(x: Tensor) -> Tensor:
         x: Input tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Absolute value along the last dimention
+        Absolute value along the last dimension
     """
     if x.shape[-1] != 2:
         raise ValueError(f"x.shape[-1] is not 2 ({x.shape[-1]}).")
@@ -121,7 +121,7 @@ def complex_abs(x: NdarrayOrTensor) -> NdarrayOrTensor:
         x: Input array/tensor with 2 channels in the last dimension representing real and imaginary parts.
 
     Returns:
-        Absolute value along the last dimention
+        Absolute value along the last dimension
 
     Example:
         .. code-block:: python
@@ -151,7 +151,7 @@ def complex_mul_t(x: Tensor, y: Tensor) -> Tensor:
     real_part = x[..., 0] * y[..., 0] - x[..., 1] * y[..., 1]
     imag_part = x[..., 0] * y[..., 1] + x[..., 1] * y[..., 0]
 
-    return torch.stack((real_part, imag_part), dim=-1)  # type: ignore
+    return torch.stack((real_part, imag_part), dim=-1)
 
 
 def complex_mul(x: NdarrayOrTensor, y: NdarrayOrTensor) -> NdarrayOrTensor:

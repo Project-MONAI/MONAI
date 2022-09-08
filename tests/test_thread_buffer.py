@@ -13,9 +13,12 @@ import sys
 import time
 import unittest
 
+import torch
+
 from monai.data import DataLoader, Dataset, ThreadBuffer, ThreadDataLoader
 from monai.transforms import Compose, SimulateDelayd
-from monai.utils import PerfContext
+from monai.utils import PerfContext, set_determinism
+from tests.utils import assert_allclose
 
 
 class TestDataLoader(unittest.TestCase):
@@ -52,6 +55,19 @@ class TestDataLoader(unittest.TestCase):
         for d in dataloader:
             self.assertEqual(d["label"][0], "spleen_label_19.nii.gz")
             self.assertEqual(d["label"][1], "spleen_label_31.nii.gz")
+
+    def test_deterministic(self):
+        set_determinism(0)
+        res_1 = list(ThreadDataLoader(torch.arange(5), batch_size=2, buffer_size=2, shuffle=True, num_workers=0))
+
+        set_determinism(0)
+        num_workers = 2 if sys.platform == "linux" else 1
+        res_2 = list(
+            ThreadDataLoader(torch.arange(5), batch_size=2, buffer_size=3, shuffle=True, num_workers=num_workers)
+        )
+
+        set_determinism(None)
+        assert_allclose(torch.cat(res_1), torch.cat(res_2), type_test=False)
 
     def test_time(self):
         dataset = Dataset(data=self.datalist * 2, transform=self.transform)  # contains data for 2 batches

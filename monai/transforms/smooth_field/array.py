@@ -405,7 +405,6 @@ class RandSmoothDeform(RandomizableTransform):
         )
 
         grid_space = tuple(spatial_size) if spatial_size is not None else self.sfield.field.shape[2:]
-        # grid_space = grid_space[1::-1]+grid_space[2:]
         grid_ranges = [torch.linspace(-1, 1, d) for d in grid_space]
 
         grid = meshgrid_ij(*grid_ranges)

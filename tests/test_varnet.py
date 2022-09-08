@@ -23,10 +23,10 @@ from tests.utils import test_script_save
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 coil_sens_model = CoilSensitivityModel(spatial_dims=2, features=[8, 16, 32, 64, 128, 8])
 refinement_model = ComplexUnet(spatial_dims=2, features=[8, 16, 32, 64, 128, 8])
-num_cascades = 12
+num_cascades = 2
 TESTS = []
-TESTS.append([coil_sens_model, refinement_model, num_cascades, (1, 10, 300, 200, 2), (1, 300, 200)])  # batch=1
-TESTS.append([coil_sens_model, refinement_model, num_cascades, (2, 10, 300, 200, 2), (2, 300, 200)])  # batch=2
+TESTS.append([coil_sens_model, refinement_model, num_cascades, (1, 3, 50, 50, 2), (1, 50, 50)])  # batch=1
+TESTS.append([coil_sens_model, refinement_model, num_cascades, (2, 3, 50, 50, 2), (2, 50, 50)])  # batch=2
 
 
 class TestVarNet(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestVarNet(unittest.TestCase):
         mask[..., mask_shape[-2] // 2 - 5 : mask_shape[-2] // 2 + 5, :] = 1
 
         with eval_mode(net):
-            result = net(torch.randn(input_shape).to(device), mask.byte().to(device))
+            result = net(torch.randn(input_shape).to(device), mask.bool().to(device))
         self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(TESTS)
@@ -53,7 +53,7 @@ class TestVarNet(unittest.TestCase):
 
         test_data = torch.randn(input_shape)
 
-        test_script_save(net, test_data, mask.byte())
+        test_script_save(net, test_data, mask.bool())
 
 
 if __name__ == "__main__":
