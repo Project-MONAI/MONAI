@@ -12,4 +12,4 @@
 from .bundle_gen import BundleAlgo, BundleGen
 from .data_analyzer import DataAnalyzer
 from .ensemble_builder import AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder
-from .hpo_wrap import NniWrapper
+from .hpo_gen import NNIGen

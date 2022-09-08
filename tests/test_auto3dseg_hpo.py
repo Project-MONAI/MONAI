@@ -10,9 +10,9 @@
 # limitations under the License.
 
 import os
-import sys
-import subprocess
 import pickle
+import subprocess
+import sys
 import tempfile
 import unittest
 from typing import Dict, List
@@ -20,11 +20,7 @@ from typing import Dict, List
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import (
-    BundleGen,
-    DataAnalyzer,
-    NniWrapper,
-)
+from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
@@ -57,7 +53,6 @@ class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-        test_path = "."
 
         work_dir = os.path.abspath(os.path.join(test_path, "workdir"))
         dataroot = os.path.join(work_dir, "dataroot")
@@ -112,16 +107,21 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_hpo(self) -> None:
-        
-        algo_dict = self.history[0]
 
-        train_param = {
+        override_param = {
             "num_iterations": 8,
             "num_iterations_per_validation": 4,
             "num_images_per_batch": 2,
             "num_epochs": 2,
         }
-        nni_wrapper = NniWrapper(algo_dict=algo_dict, params=train_param)
+
+        algo_dict = self.history[0]
+        NNIGen(algo_dict=algo_dict, params=override_param)
+        name = list(algo_dict.keys())[0]  # the only key is the name of the model
+        algo = algo_dict[name]
+        base_task_dir = algo.get_output_path() + "_override"
+        # this function will be used in HPO via Python Fire
+        NNIGen().run_algo(base_task_dir, self.work_dir)
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

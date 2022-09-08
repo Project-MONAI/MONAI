@@ -96,7 +96,7 @@ class AlgoGen(Randomizable):
     def get_history(self, *args, **kwargs):
         """Get the previously generated algo."""
         pass
-    
+
     def generate(self):
         """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
         pass

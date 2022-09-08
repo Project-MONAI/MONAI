@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from multiprocessing.sharedctypes import Value
 import os
 import pickle
 import sys
@@ -21,29 +20,32 @@ import nni
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import AlgoGen
 from monai.bundle.config_parser import ConfigParser
+from monai.utils import optional_import
 
+nni, has_nni = optional_import("nni")
+has_nni = False
 logger = get_logger(module_name=__name__)
 
-__all__ = ["HpoWrap", "NniWrapper"]
+__all__ = ["HPOGen", "NNIGen"]
 
 
-class HpoWrap(AlgoGen):
+class HPOGen(AlgoGen):
     """
     This class generates a set of al, each of them can run independently.
     """
 
     @abstractmethod
-    def _get_hyperparameters():
+    def get_hyperparameters():
         """Get the hyperparameter from HPO"""
         raise NotImplementedError("")
 
     @abstractmethod
-    def _update_model():
+    def update_params():
         """Update model params"""
         raise NotImplementedError("")
 
     @abstractmethod
-    def _report_results():  # set_scores
+    def set_score():
         """Report result to HPO"""
         raise NotImplementedError("")
 
@@ -53,7 +55,7 @@ class HpoWrap(AlgoGen):
         raise NotImplementedError("")
 
 
-class NniWrapper(HpoWrap):
+class NNIGen(HPOGen):
     """
     Wrapper for NNI
     """
@@ -70,7 +72,6 @@ class NniWrapper(HpoWrap):
         self.algo = None
         self.task_prefix = None
 
-
         if algo_dict is not None:
             if len(algo_dict.keys()) > 1:
                 raise ValueError(f"object {algo_dict} only allows 1 key, but there are {len(algo.keys())}")
@@ -82,79 +83,78 @@ class NniWrapper(HpoWrap):
             if params is None:
                 obj_bytes = pickle.dumps(algo)
             else:
-                base_task_dir += "_hpo_override"
+                base_task_dir += "_override"
                 task_name = os.path.basename(base_task_dir)
                 output_folder = os.path.dirname(base_task_dir)
                 algo_override = deepcopy(algo)  # avoid overriding the existing algo
                 algo_override.export_to_disk(output_folder, task_name, **params)
                 obj_bytes = pickle.dumps(algo_override)
-            
-            obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
+
+            obj_file = os.path.join(base_task_dir, "algo_object.pkl")
             with open(obj_file, "wb") as f_pi:
                 f_pi.write(obj_bytes)
 
             logger.info("Add the following line in the trialCommand in your NNI config: ")
-            logger.info(f"python -m monai.apps.auto3dseg NniWrapper run_algo {base_task_dir} folder/to/hpo/results/")
+            logger.info(f"python -m monai.apps.auto3dseg NNIGen run_algo {base_task_dir} folder/to/hpo/results/")
 
-    def _get_hyperparameters(self):
+    def get_hyperparameters(self) -> dict:
         """
         Get parameter for next round of training from nni server
         """
-        return nni.get_next_parameter()
+        if has_nni:
+            return nni.get_next_parameter()
+        else:
+            return {}
 
-    def _update_params(self, params):  #generate
+    def update_params(self, params):  # generate
         """
         Translate the parameter from monai bundle to nni format
         """
         self.params = params
 
-    def _get_task_id(self):
+    def get_task_id(self):
         task_id = ""
         for k, v in self.params.items():
             task_id += f"_{k}_{v}"
         if len(task_id) == 0:
             task_id = "_None"  # avoid rewriting the original
         return task_id
-    
-    def generate(self, output_folder='.'):
-        task_id = self._get_task_id()
-        if hasattr(self.algo, 'export_to_disk') and callable(getattr(self.algo, 'export_to_disk')):
+
+    def generate(self, output_folder="."):
+        task_id = self.get_task_id()
+        if hasattr(self.algo, "export_to_disk") and callable(getattr(self.algo, "export_to_disk")):
             self.algo.export_to_disk(output_folder, self.task_prefix + task_id)
         else:
-            ConfigParser.export_config_file(self.params, os.path.join(output_folder, self.task_prefix + task_id))
+            write_path = os.path.join(output_folder, self.task_prefix + task_id)
+            ConfigParser.export_config_file(self.params, write_path)
+            logger.info(write_path)
 
-    def _report_results(self, acc):  # set_score
+    def set_score(self, acc):
         """
         Report the acc to nni server
         """
-        nni.report_final_result(acc)
+        if has_nni:
+            nni.report_final_result(acc)
         return
-
 
     def run_algo(self, base_task_dir, output_folder="."):
         """
         The python interface for NNI to run
 
         Args:
-            base_task_dir: 
+            base_task_dir:
             output_folder: the root path of the algorithms templates.
 
         ..code-block:: python
-            python -m monai.apps.auto3dseg NniWrapper run_algo "algo.pkl" "template_dir"  #in nni
+            python -m monai.apps.auto3dseg NNIGen run_algo "algo.pkl" "template_dir"  #in nni
 
             on NGC: nnictl create --config hpo_config1.yaml
         """
-        # step1 sample hyperparams
-        params = self._get_hyperparameters()
-        # step 2 update model
-        self._update_params(params)
-        # step 3 load the algo and train
-
         if not os.path.isdir(base_task_dir):
             raise ValueError(f"{base_task_dir} is not a directory")
-        
+
         self.task_prefix = os.path.basename(base_task_dir)
-        obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
+        obj_file = os.path.join(base_task_dir, "algo_object.pkl")
         if not os.path.isfile(obj_file):
             raise ValueError(f"{obj_file} is not found in {base_task_dir}")
 
@@ -164,9 +164,13 @@ class NniWrapper(HpoWrap):
             algo_bytes = f_pi.read()
         self.algo = pickle.loads(algo_bytes)
 
+        # step1 sample hyperparams
+        params = self.get_hyperparameters()
+        # step 2 update model
+        self.update_params(params)
+        # step 3 generate the folder to save checkpoints and train
         self.generate(output_folder)
-
         self.algo.train(self.params)
-        acc = self.algo.get_score()
         # step 4 report validation acc to controller
-        self._report_results(acc)
+        acc = self.algo.get_score()
+        self.set_score(acc)
