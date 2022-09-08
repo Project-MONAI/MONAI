@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import deepcopy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -58,12 +57,10 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
-    WSIPatchKeys,
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
-    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
