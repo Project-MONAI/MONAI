@@ -265,30 +265,91 @@ def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hos
                     "id": asset["id"],
                     "name": asset["name"],
                     "size": asset["size"],
-                    "download_count": asset["size"],
+                    "download_count": asset["download_count"],
                     "browser_download_url": asset["browser_download_url"],
                 }
             return bundles_info
     return bundles_info
 
 
-def get_bundles_list(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
+def get_all_bundles_list(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
     """
-    Get all bundles that are stored in a repository's release that has the provided tag.
-    The default values of arguments correspond to the release of MONAI model zoo.
+    Get all bundles names (and the latest versions) that are stored in the release of specified repository
+    with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
 
     Args:
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
 
     Returns:
-        a list of bundle names.
+        a list of tuple in the form of (bundle name, latest version).
 
     """
 
-    bundle_info = _get_all_bundles_info(repo=repo, tag=tag)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    bundles_list = []
+    for bundle_name in bundles_info.keys():
+        latest_version = sorted(bundles_info[bundle_name].keys())[-1]
+        bundles_list.append((bundle_name, latest_version))
 
-    return list(bundle_info.keys())
+    return bundles_list
+
+
+def get_bundle_versions(bundle_name: str, repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
+    """
+    Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
+    repository with the provided tag.
+
+    Args:
+        bundle_name: bundle name.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+
+    Returns:
+        a dictionary that contains the latest version and all versions of a bundle.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing.")
+    bundle_info = bundles_info[bundle_name]
+    all_versions = sorted(bundle_info.keys())
+
+    return {"latest_version": all_versions[-1], "all_versions": all_versions}
+
+
+def get_bundle_info(
+    bundle_name: str,
+    version: Optional[str] = None,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+):
+    """
+    Get all information (include "id", "name", "size", "download_count", "browser_download_url") of a bundle
+    with the specified bundle name and version.
+
+    Args:
+        bundle_name: bundle name.
+        version: version name of the target bundle, if None, the latest version will be used.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+
+    Returns:
+        a dictionary that contains the bundle's information.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing.")
+    bundle_info = bundles_info[bundle_name]
+    if version is None:
+        version = sorted(bundle_info.keys())[-1]
+    if version not in bundle_info:
+        raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
+
+    return bundle_info[version]
 
 
 def load(
