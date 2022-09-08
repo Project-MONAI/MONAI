@@ -420,6 +420,45 @@ class SplitDimd(MapTransform):
         return d
 
 
+class SplitDimToListd(MapTransform):
+    """
+    Split a dictionary of tensors with given keys along a dimension to the list of dictionaries with those keys.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        dim: which dimension of input image is the channel, default to 0.
+        keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
+            dimension will be squeezed.
+        update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
+            reflect the cropped image
+        allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dim: int = 0,
+        keepdim: bool = False,
+        update_meta: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.splitter = SplitDim(dim, keepdim, update_meta)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> List[Dict[Hashable, torch.Tensor]]:
+        d = dict(data)
+        output = []
+        results = [self.splitter(d[key]) for key in self.keys]
+        for row in zip(*results):
+            new_dict = {k: v for k, v in zip(self.keys, row)}
+            # fill in the extra keys with unmodified data
+            for k in set(d.keys()).difference(set(self.keys)):
+                new_dict[k] = deepcopy(d[k])
+            output.append(new_dict)
+        return output
+
+
 @deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
 class SplitChanneld(SplitDimd):
     """
@@ -1674,6 +1713,7 @@ RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
 SplitChannelD = SplitChannelDict = SplitChanneld
 SplitDimD = SplitDimDict = SplitDimd
+SplitDimToListD = SplitDimToListDict = SplitDimToListd
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord
 EnsureTypeD = EnsureTypeDict = EnsureTyped
