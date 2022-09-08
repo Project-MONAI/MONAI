@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from multiprocessing.sharedctypes import Value
 import os
 import pickle
 import sys
@@ -17,8 +18,11 @@ from copy import deepcopy
 
 import nni
 
+from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import AlgoGen
 from monai.bundle.config_parser import ConfigParser
+
+logger = get_logger(module_name=__name__)
 
 __all__ = ["HpoWrap", "NniWrapper"]
 
@@ -39,7 +43,7 @@ class HpoWrap(AlgoGen):
         raise NotImplementedError("")
 
     @abstractmethod
-    def _report_results():
+    def _report_results():  # set_scores
         """Report result to HPO"""
         raise NotImplementedError("")
 
@@ -49,54 +53,48 @@ class HpoWrap(AlgoGen):
         raise NotImplementedError("")
 
 
-default_nni_config = {
-    "experimentName": "dummy",
-    "searchSpace": {"lr": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}},
-    "trialCommand": "",  # will be replaced in the wrapper
-    "trialCommand": "python -m monai.apps.auto3dseg NniWrapper run_algo ",
-    "trialCodeDirectory": "",  # will be replaced in the wrapper
-    "trialGpuNumber": 1,
-    "trialConcurrency": 1,
-    "maxTrialNumber": 10,
-    "maxExperimentDuration": "1h",
-    "tuner": {"name": "GridSearch"},
-    "trainingService": {"platform": "local", "useActiveGpu": True},
-}
-
-
 class NniWrapper(HpoWrap):
     """
     Wrapper for NNI
     """
 
-    def __init__(self, algo=None, **override):
+    def __init__(self, algo_dict=None, params=None):
         """
         Args:
+            output_folder: file paths to copy the algo scripts
             algo: an dict that has {name: Algo object} format.
-                The Algo object must have get_script_path method
+                The Algo object must have get_scripts_path method
             override:
                 a set of parameter to override the HPO config, e.g. search space
         """
-        self.algo = algo
-        self.cfg = deepcopy(default_nni_config)
-        for k, v in override.items():
-            self.cfg.update({k: v})
+        self.algo = None
+        self.task_prefix = None
 
-        if self.algo is not None:
-            if len(algo.keys()) > 1:
-                raise ValueError(f"object {algo} only allows 1 key, but there are {len(algo.keys())}")
-            name = list(algo.keys())[0]  # the only key
-            self.cfg.update({"experimentName": name})
 
-            # template path, fixed dir structure
-            template_path = os.path.abspath(os.path.join(algo[name].get_script_path(), "..", ".."))
-            obj_file = os.path.join(algo[name].get_script_path(), name + ".pkl")
+        if algo_dict is not None:
+            if len(algo_dict.keys()) > 1:
+                raise ValueError(f"object {algo_dict} only allows 1 key, but there are {len(algo.keys())}")
+            name = list(algo_dict.keys())[0]  # the only key is the name of the model
 
-            obj_bytes = pickle.dumps(algo[name])
+            algo = algo_dict[name]
+
+            base_task_dir = algo.get_output_path()
+            if params is None:
+                obj_bytes = pickle.dumps(algo)
+            else:
+                base_task_dir += "_hpo_override"
+                task_name = os.path.basename(base_task_dir)
+                output_folder = os.path.dirname(base_task_dir)
+                algo_override = deepcopy(algo)  # avoid overriding the existing algo
+                algo_override.export_to_disk(output_folder, task_name, **params)
+                obj_bytes = pickle.dumps(algo_override)
+            
+            obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
             with open(obj_file, "wb") as f_pi:
                 f_pi.write(obj_bytes)
 
-            self.cfg["trialCommand"] += obj_file + " " + template_path
+            logger.info("Add the following line in the trialCommand in your NNI config: ")
+            logger.info(f"python -m monai.apps.auto3dseg NniWrapper run_algo {base_task_dir} folder/to/hpo/results/")
 
     def _get_hyperparameters(self):
         """
@@ -104,49 +102,71 @@ class NniWrapper(HpoWrap):
         """
         return nni.get_next_parameter()
 
-    def _update_model(self, params):
+    def _update_params(self, params):  #generate
         """
         Translate the parameter from monai bundle to nni format
         """
-        self.params = self.translate_nni_to_bundle(params)
+        self.params = params
 
-    def _report_results(self, acc):
+    def _get_task_id(self):
+        task_id = ""
+        for k, v in self.params.items():
+            task_id += f"_{k}_{v}"
+        if len(task_id) == 0:
+            task_id = "_None"  # avoid rewriting the original
+        return task_id
+    
+    def generate(self, output_folder='.'):
+        task_id = self._get_task_id()
+        if hasattr(self.algo, 'export_to_disk') and callable(getattr(self.algo, 'export_to_disk')):
+            self.algo.export_to_disk(output_folder, self.task_prefix + task_id)
+        else:
+            ConfigParser.export_config_file(self.params, os.path.join(output_folder, self.task_prefix + task_id))
+
+    def _report_results(self, acc):  # set_score
         """
         Report the acc to nni server
         """
         nni.report_final_result(acc)
         return
 
-    def translate_nni_to_bundle(self, params):
-        """Translate the config items from NNI to bundle"""
-        return params  # tbd
 
-    def run_algo(self, obj_file, template_path):
+    def run_algo(self, base_task_dir, output_folder="."):
         """
         The python interface for NNI to run
 
         Args:
-            obj_file: the pickle dump of the algo object.
-            template_path: the root path of the algorithms templates.
+            base_task_dir: 
+            output_folder: the root path of the algorithms templates.
 
         ..code-block:: python
-            python -m monai.apps.auto3dseg NniWrapper run_algo "algo.pkl" "template_dir"
+            python -m monai.apps.auto3dseg NniWrapper run_algo "algo.pkl" "template_dir"  #in nni
 
+            on NGC: nnictl create --config hpo_config1.yaml
         """
-        sys.path.insert(0, template_path)
         # step1 sample hyperparams
         params = self._get_hyperparameters()
         # step 2 update model
-        self._update_model(params)
-        # step 3 train
+        self._update_params(params)
+        # step 3 load the algo and train
+
+        if not os.path.isdir(base_task_dir):
+            raise ValueError(f"{base_task_dir} is not a directory")
+        
+        self.task_prefix = os.path.basename(base_task_dir)
+        obj_file = os.path.join(base_task_dir, 'algo_object.pkl')
+        if not os.path.isfile(obj_file):
+            raise ValueError(f"{obj_file} is not found in {base_task_dir}")
+
+        sys.path.insert(0, base_task_dir)
+
         with open(obj_file, "rb") as f_pi:
             algo_bytes = f_pi.read()
-        algo = pickle.loads(algo_bytes)
-        acc = algo.train(self.params)
-        print(acc)
+        self.algo = pickle.loads(algo_bytes)
+
+        self.generate(output_folder)
+
+        self.algo.train(self.params)
+        acc = self.algo.get_score()
         # step 4 report validation acc to controller
         self._report_results(acc)
-
-    def generate(self, output_yaml="dummy_config.yaml"):
-        """Write configs for NNI to run"""
-        ConfigParser.export_config_file(self.cfg, output_yaml, fmt="yaml")

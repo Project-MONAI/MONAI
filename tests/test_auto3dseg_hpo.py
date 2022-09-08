@@ -10,7 +10,9 @@
 # limitations under the License.
 
 import os
+import sys
 import subprocess
+import pickle
 import tempfile
 import unittest
 from typing import Dict, List
@@ -51,13 +53,14 @@ fake_datalist: Dict[str, List[Dict]] = {
 
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
-class TestEnsembleBuilder(unittest.TestCase):
+class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
+        test_path = "."
 
-        dataroot = os.path.join(test_path, "dataroot")
-        work_dir = os.path.join(test_path, "workdir")
+        work_dir = os.path.abspath(os.path.join(test_path, "workdir"))
+        dataroot = os.path.join(work_dir, "dataroot")
 
         da_output_yaml = os.path.join(work_dir, "datastats.yaml")
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
@@ -108,16 +111,17 @@ class TestEnsembleBuilder(unittest.TestCase):
         self.work_dir = work_dir
 
     @skip_if_no_cuda
-    def test_ensemble(self) -> None:
-        nni_wrapper = NniWrapper(algo=self.history[0])
-        hpo_config = os.path.join(self.work_dir, "hpo_config.yaml")
-        nni_wrapper.generate(output_yaml=hpo_config)
-        print(f"nnictl create --config {hpo_config}")
+    def test_hpo(self) -> None:
+        
+        algo_dict = self.history[0]
 
-        # below only tests if the commands for nni returns error
-        cfg = ConfigParser.load_config_file(hpo_config)
-        cmd = cfg["trialCommand"]
-        subprocess.run(cmd.split(), check=True)
+        train_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+        }
+        nni_wrapper = NniWrapper(algo_dict=algo_dict, params=train_param)
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

@@ -120,7 +120,7 @@ class BundleAlgo(Algo):
         Args:
             data_stats_files: path to the datastats yaml file
         """
-        self.data_stats_files = data_stats_files
+        self.data_stats_files = os.path.abspath(data_stats_files)
 
     def set_data_source(self, data_src_cfg: str):
         """
@@ -162,13 +162,13 @@ class BundleAlgo(Algo):
         self.cfg["bundle_root"] = write_path
         os.makedirs(write_path, exist_ok=True)
         # handling scripts files
-        output_scripts_path = os.path.join(write_path, "scripts")
+        output_scripts_path = os.path.join(write_path, self.name, "scripts")
         if os.path.exists(output_scripts_path):
             shutil.rmtree(output_scripts_path)
         if self.scripts_path is not None and os.path.exists(self.scripts_path):
             shutil.copytree(self.scripts_path, output_scripts_path)
         # handling config files
-        output_config_path = os.path.join(write_path, "configs")
+        output_config_path = os.path.join(write_path, self.name, "configs")
         if os.path.exists(output_config_path):
             shutil.rmtree(output_config_path)
 
@@ -189,7 +189,8 @@ class BundleAlgo(Algo):
         """
         os.makedirs(output_config_path, exist_ok=True)
 
-        config_body = self.cfg.get()
+        config_body = deepcopy(self.cfg.get())
+
         for s in sections:
             config_section_file = os.path.join(output_config_path, s + ".yaml")
             config_section = _pop_args(config_body, s)
@@ -221,8 +222,8 @@ class BundleAlgo(Algo):
         if train_params is not None:
             params = deepcopy(train_params)
 
-        train_py = os.path.join(self.output_path, "scripts", "train.py")
-        config_dir = os.path.join(self.output_path, "configs")
+        train_py = os.path.join(self.output_path, self.name, "scripts", "train.py")
+        config_dir = os.path.join(self.output_path, self.name, "configs")
 
         if os.path.isdir(config_dir):
             base_cmd = ""
@@ -264,7 +265,7 @@ class BundleAlgo(Algo):
         """
         Returns validation scores of the model trained by the current Algo.
         """
-        config_yaml = os.path.join(self.output_path, "configs", "hyper_parameters.yaml")
+        config_yaml = os.path.join(self.output_path, self.name, "configs", "hyper_parameters.yaml")
         parser = ConfigParser()
         parser.read_config(config_yaml)
         ckpt_path = parser.get_parsed_content("ckpt_path", default=self.output_path)
@@ -298,7 +299,7 @@ class BundleAlgo(Algo):
                         return output
 
         """
-        infer_py = os.path.join(self.output_path, "scripts", "infer.py")
+        infer_py = os.path.join(self.output_path, self.name, "scripts", "infer.py")
         if not os.path.isfile(infer_py):
             raise ValueError(f"{infer_py} is not found, please check the path.")
 
@@ -330,12 +331,11 @@ class BundleAlgo(Algo):
         inferer = self.get_inferer(**params)
         return [inferer.infer(f) for f in ensure_tuple(files)]
 
-    def get_script_path(self):
+    def get_output_path(self):
         """
-        Get the script path (where train.py/infer.py files are located)
+        Get the script path (where scripts and configs folders are located)
         """
-        return self.scripts_path
-
+        return self.output_path
 
 # path to download the algo_templates
 default_algo_zip = (
@@ -460,6 +460,6 @@ class BundleGen(AlgoGen):
                 gen_algo = deepcopy(algo)
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
-                name = f"{gen_algo.name}_{f_id}"
-                gen_algo.export_to_disk(output_folder, name, fold=f_id)
-                self.history.append({name: gen_algo})  # track the previous, may create a persistent history
+                task_name = f"{gen_algo.name}_{f_id}"
+                gen_algo.export_to_disk(output_folder, task_name, fold=f_id)
+                self.history.append({task_name: gen_algo})  # track the previous, may create a persistent history

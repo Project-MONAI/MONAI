@@ -44,6 +44,10 @@ class Algo:
         """Returns the model quality measurement based on training and validation datasets."""
         pass
 
+    def get_output_path(self, *args, **kwargs):
+        """Returns the model output paths"""
+        pass
+
 
 class AlgoGen(Randomizable):
     """
@@ -92,7 +96,7 @@ class AlgoGen(Randomizable):
     def get_history(self, *args, **kwargs):
         """Get the previously generated algo."""
         pass
-
+    
     def generate(self):
         """Generate new Algo -- based on data_stats, budget, and history of previous algo generations."""
         pass
