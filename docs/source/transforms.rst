@@ -1885,6 +1885,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`SplitDimToListd`
+"""""""""""""""""
+.. autoclass:: SplitDimToListd
+    :members:
+    :special-members: __call__
+
 `SplitChanneld`
 """""""""""""""
 .. autoclass:: SplitChanneld
