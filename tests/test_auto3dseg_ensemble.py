@@ -18,7 +18,6 @@ import nibabel as nib
 import numpy as np
 
 from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
-from monai.apps.auto3dseg.bundle_gen import default_algo_zip
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
@@ -111,10 +110,7 @@ class TestEnsembleBuilder(unittest.TestCase):
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
         bundle_generator = BundleGen(
-            algos=default_algo_zip,
-            algo_path=work_dir,
-            data_stats_filename=da_output_yaml,
-            data_src_cfg_name=data_src_cfg,
+            algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
         )
         bundle_generator.generate(work_dir, num_fold=2)
         history = bundle_generator.get_history()

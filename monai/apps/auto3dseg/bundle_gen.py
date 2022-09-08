@@ -63,10 +63,10 @@ class BundleAlgo(Algo):
         """
 
         self.template_path = template_path
-        self.data_stats_files = None
-        self.data_list_file = None
-        self.output_path = None
-        self.name = None
+        self.data_stats_files = ""
+        self.data_list_file = ""
+        self.output_path = ""
+        self.name = ""
         self.best_metric = None
 
     def set_data_stats(self, data_stats_files: str):  # type: ignore
@@ -127,13 +127,10 @@ class BundleAlgo(Algo):
             self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
         logger.info(self.output_path)
 
-    def train(self, train_params=None):
+    def _create_cmd(self, train_params=None):
         """
-        Load the run function in the training script of each model. Training parameter is predefined by the
-        algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
+        Create the command to execute training.
 
-        Args:
-            train_params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
         """
         if train_params is not None:
             params = deepcopy(train_params)
@@ -153,9 +150,9 @@ class BundleAlgo(Algo):
 
         if "CUDA_VISIBLE_DEVICES" in params:
             devices = params.pop("CUDA_VISIBLE_DEVICES")
-            n_devices, devices_str = len(devices), ",".join([str(x) for x in devices])
+            n_devices, devices_info = len(devices), ",".join([str(x) for x in devices])
         else:
-            n_devices, devices_str = torch.cuda.device_count(), ""
+            n_devices, devices_info = torch.cuda.device_count(), ""
         if n_devices > 1:
             cmd = f"torchrun --nnodes={1:d} --nproc_per_node={n_devices:d} "
         else:
@@ -164,11 +161,18 @@ class BundleAlgo(Algo):
         if params and isinstance(params, Mapping):
             for k, v in params.items():
                 cmd += f" --{k}={v}"
+        return cmd, devices_info
+
+    def _run_cmd(self, cmd: str, devices_info: str):
+        """
+        Execute the training command with target devices information.
+
+        """
         try:
             logger.info(f"Launching: {cmd}")
             ps_environ = os.environ.copy()
-            if devices_str:
-                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_str
+            if devices_info:
+                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
             normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
             logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
         except subprocess.CalledProcessError as e:
@@ -176,6 +180,17 @@ class BundleAlgo(Algo):
             errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
             raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
         return normal_out
+
+    def train(self, train_params=None):
+        """
+        Load the run function in the training script of each model. Training parameter is predefined by the
+        algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
+
+        Args:
+            train_params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
+        """
+        cmd, devices_info = self._create_cmd(train_params)
+        return self._run_cmd(cmd, devices_info)
 
     def get_score(self, *args, **kwargs):
         """
