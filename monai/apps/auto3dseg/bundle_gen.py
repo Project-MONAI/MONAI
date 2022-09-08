@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import sys
 from copy import copy, deepcopy
-from glob import glob
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
 
@@ -25,7 +24,6 @@ from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.scripts import _pop_args
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
