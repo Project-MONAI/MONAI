@@ -120,6 +120,8 @@ class BundleAlgo(Algo):
         if kwargs.pop("copy_dirs", True):
             self.output_path = os.path.join(output_path, algo_name)
             os.makedirs(self.output_path, exist_ok=True)
+            if os.path.isdir(self.output_path):
+                shutil.rmtree(self.output_path)
             shutil.copytree(self.template_path, self.output_path)
         else:
             self.output_path = self.template_path
