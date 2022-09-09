@@ -12,7 +12,7 @@
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 
@@ -96,9 +96,11 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: path of bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
-        config_filters_filename: filter configuration file.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/evaluate.json".
+        config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
@@ -117,9 +119,9 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[str] = "configs/train.json",
-        config_evaluate_filename: Optional[str] = "configs/evaluate.json",
-        config_filters_filename: Optional[str] = None,
+        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
+        config_evaluate_filename: Optional[Union[str, list]] = "configs/evaluate.json",
+        config_filters_filename: Optional[Union[str, list]] = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
         final_model_filepath: Optional[str] = "models/model_final.pt",
@@ -184,12 +186,12 @@ class MonaiAlgo(ClientAlgo):
         config_eval_files = []
         config_filter_files = []
         if self.config_train_filename:
-            config_train_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_train_filename))
+            config_train_files.extend(self._add_config_files(self.config_train_filename))
+            config_eval_files.extend(self._add_config_files(self.config_train_filename))
         if self.config_evaluate_filename:
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_evaluate_filename))
+            config_eval_files.extend(self._add_config_files(self.config_evaluate_filename))
         if self.config_filters_filename:  # filters are read by train_parser
-            config_filter_files.append(os.path.join(self.bundle_root, self.config_filters_filename))
+            config_filter_files.extend(self._add_config_files(self.config_filters_filename))
 
         # Parse
         self.train_parser = ConfigParser()
@@ -433,3 +435,19 @@ class MonaiAlgo(ClientAlgo):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
+
+    def _add_config_files(self, config_files):
+        files = []
+        if isinstance(config_files, str):
+            files.append(os.path.join(self.bundle_root, config_files))
+        elif isinstance(config_files, list):
+            for file in config_files:
+                if isinstance(file, str):
+                    files.append(os.path.join(self.bundle_root, file))
+                else:
+                    raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+        else:
+            raise ValueError(
+                f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+            )
+        return files
