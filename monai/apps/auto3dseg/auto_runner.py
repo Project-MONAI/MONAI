@@ -140,7 +140,7 @@ class AutoRunner:
         self.no_cache = no_cache
 
         # intermediate
-        self.set_datastats_filename()
+        self.set_datastats_filename(os.path.join(self.work_dir, 'datastats.yaml'))
         self.set_training_params()
         self.set_num_fold()
 
