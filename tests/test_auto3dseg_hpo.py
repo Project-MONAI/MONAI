@@ -102,8 +102,12 @@ class TestHPO(unittest.TestCase):
         self.history = bundle_generator.get_history()
         self.work_dir = work_dir
 
-    @skip_if_no_cuda
     def test_hpo(self) -> None:
+        algo_dict = self.history[0]
+        NNIGen(algo_dict=algo_dict)
+
+    @skip_if_no_cuda
+    def test_run_algo(self) -> None:
 
         override_param = {
             "num_iterations": 8,

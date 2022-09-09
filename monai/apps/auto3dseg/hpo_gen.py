@@ -15,6 +15,7 @@ import sys
 from abc import abstractmethod
 from copy import deepcopy
 
+from monai.apps.auto3dseg import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import AlgoGen
 from monai.bundle.config_parser import ConfigParser
@@ -33,22 +34,22 @@ class HPOGen(AlgoGen):
     """
 
     @abstractmethod
-    def get_hyperparameters():
+    def get_hyperparameters(self):
         """Get the hyperparameter from HPO"""
         raise NotImplementedError("")
 
     @abstractmethod
-    def update_params():
+    def update_params(self, *args, **kwargs):  # type: ignore 
         """Update model params"""
         raise NotImplementedError("")
 
     @abstractmethod
-    def set_score():
+    def set_score(self):
         """Report result to HPO"""
         raise NotImplementedError("")
 
     @abstractmethod
-    def run_algo(self, obj_file, template_path):
+    def run_algo(self, *args, **kwargs):  # type: ignore 
         """Interface for the HPO to run the training"""
         raise NotImplementedError("")
 
@@ -104,7 +105,7 @@ class NNIGen(HPOGen):
             base_task_dir = algo.get_output_path()
             if params is None:
                 obj_bytes = pickle.dumps(algo)
-            elif hasattr(algo, "export_to_disk") and callable(getattr(algo, "export_to_disk")):
+            elif isinstance(self.algo, BundleAlgo):
                 base_task_dir += "_override"
                 task_name = os.path.basename(base_task_dir)
                 output_folder = os.path.dirname(base_task_dir)
@@ -121,7 +122,7 @@ class NNIGen(HPOGen):
             logger.info("Add the following line in the trialCommand in your NNI config: ")
             logger.info(f"python -m monai.apps.auto3dseg NNIGen run_algo {base_task_dir} folder/to/hpo/results/")
 
-    def get_hyperparameters(self) -> dict:
+    def get_hyperparameters(self):
         """
         Get parameter for next round of training from nni server
         """
@@ -130,7 +131,7 @@ class NNIGen(HPOGen):
         else:
             return {}
 
-    def update_params(self, params):  # generate
+    def update_params(self, params: dict):  # type: ignore
         """
         Translate the parameter from monai bundle to nni format.
 
@@ -151,7 +152,7 @@ class NNIGen(HPOGen):
             task_id = "_None"  # avoid rewriting the original
         return task_id
 
-    def generate(self, output_folder="."):
+    def generate(self, output_folder: str = "."):
         """
         Generate the record for each Algo. If it is a BundleAlgo, it will generate the config files.
 
@@ -159,7 +160,7 @@ class NNIGen(HPOGen):
             output_folder
         """
         task_id = self.get_task_id()
-        if hasattr(self.algo, "export_to_disk") and callable(getattr(self.algo, "export_to_disk")):
+        if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(output_folder, self.task_prefix + task_id)
         else:
             write_path = os.path.join(output_folder, self.task_prefix + task_id)
@@ -174,7 +175,7 @@ class NNIGen(HPOGen):
             nni.report_final_result(acc)
         return
 
-    def run_algo(self, base_task_dir, output_folder="."):
+    def run_algo(self, base_task_dir: str, output_folder: str = "."):    # type: ignore
         """
         The python interface for NNI to run
 

@@ -30,6 +30,7 @@ def run_testsuit():
         "test_ahnet",
         "test_arraydataset",
         "test_auto3dseg_ensemble",
+        "test_auto3dseg_hpo",
         "test_auto3dseg",
         "test_cachedataset",
         "test_cachedataset_parallel",
