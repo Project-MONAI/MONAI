@@ -243,6 +243,85 @@ def download(
         )
 
 
+def load(
+    name: str,
+    version: Optional[str] = None,
+    model_file: Optional[str] = None,
+    load_ts_module: bool = False,
+    bundle_dir: Optional[PathLike] = None,
+    source: str = "github",
+    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
+    progress: bool = True,
+    device: Optional[str] = None,
+    key_in_ckpt: Optional[str] = None,
+    config_files: Sequence[str] = (),
+    net_name: Optional[str] = None,
+    **net_kwargs,
+):
+    """
+    Load model weights or TorchScript module of a bundle.
+
+    Args:
+        name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+        version: version name of the target bundle to download, like: "0.1.0".
+        model_file: the relative path of the model weights or TorchScript module within bundle.
+            If `None`, "models/model.pt" or "models/model.ts" will be used.
+        load_ts_module: a flag to specify if loading the TorchScript module.
+        bundle_dir: directory the weights/TorchScript module will be loaded from.
+            Default is `bundle` subfolder under `torch.hub.get_dir()`.
+        source: storage location name. This argument is used when `model_file` is not existing locally and need to be
+            downloaded first. "github" is currently the only supported value.
+        repo: repo name. This argument is used when `model_file` is not existing locally and need to be
+            downloaded first. If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+        progress: whether to display a progress bar when downloading.
+        device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
+        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
+            see `_extra_files` in `torch.jit.load` for more details.
+        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
+            This argument only works when loading weights.
+        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
+
+    Returns:
+        1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
+        2. If `load_ts_module` is `False` and `net_name` is not `None`,
+            return an instantiated network that loaded the weights.
+        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
+            the corresponding metadata dict, and extra files dict.
+            please check `monai.data.load_net_with_metadata` for more details.
+
+    """
+    bundle_dir_ = _process_bundle_dir(bundle_dir)
+
+    if model_file is None:
+        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    full_path = os.path.join(bundle_dir_, name, model_file)
+    if not os.path.exists(full_path):
+        download(name=name, version=version, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
+
+    if device is None:
+        device = "cuda:0" if is_available() else "cpu"
+    # loading with `torch.jit.load`
+    if load_ts_module is True:
+        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
+    # loading with `torch.load`
+    model_dict = torch.load(full_path, map_location=torch.device(device))
+    if not isinstance(model_dict, Mapping):
+        warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
+        model_dict = get_state_dict(model_dict)
+
+    if net_name is None:
+        return model_dict
+    net_kwargs["_target_"] = net_name
+    configer = ConfigComponent(config=net_kwargs)
+    model = configer.instantiate()
+    model.to(device)  # type: ignore
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
+    return model
+
+
 def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
     if has_requests:
         request_url = f"https://api.github.com/repos/{repo}/releases"
@@ -350,85 +429,6 @@ def get_bundle_info(
         raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
 
     return bundle_info[version]
-
-
-def load(
-    name: str,
-    version: Optional[str] = None,
-    model_file: Optional[str] = None,
-    load_ts_module: bool = False,
-    bundle_dir: Optional[PathLike] = None,
-    source: str = "github",
-    repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
-    progress: bool = True,
-    device: Optional[str] = None,
-    key_in_ckpt: Optional[str] = None,
-    config_files: Sequence[str] = (),
-    net_name: Optional[str] = None,
-    **net_kwargs,
-):
-    """
-    Load model weights or TorchScript module of a bundle.
-
-    Args:
-        name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
-            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
-        version: version name of the target bundle to download, like: "0.1.0".
-        model_file: the relative path of the model weights or TorchScript module within bundle.
-            If `None`, "models/model.pt" or "models/model.ts" will be used.
-        load_ts_module: a flag to specify if loading the TorchScript module.
-        bundle_dir: directory the weights/TorchScript module will be loaded from.
-            Default is `bundle` subfolder under `torch.hub.get_dir()`.
-        source: storage location name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded first. "github" is currently the only supported value.
-        repo: repo name. This argument is used when `model_file` is not existing locally and need to be
-            downloaded first. If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
-        progress: whether to display a progress bar when downloading.
-        device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
-        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
-            weights. if not nested checkpoint, no need to set.
-        config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
-            see `_extra_files` in `torch.jit.load` for more details.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
-
-    Returns:
-        1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
-        2. If `load_ts_module` is `False` and `net_name` is not `None`,
-            return an instantiated network that loaded the weights.
-        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
-            the corresponding metadata dict, and extra files dict.
-            please check `monai.data.load_net_with_metadata` for more details.
-
-    """
-    bundle_dir_ = _process_bundle_dir(bundle_dir)
-
-    if model_file is None:
-        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
-    full_path = os.path.join(bundle_dir_, name, model_file)
-    if not os.path.exists(full_path):
-        download(name=name, version=version, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
-
-    if device is None:
-        device = "cuda:0" if is_available() else "cpu"
-    # loading with `torch.jit.load`
-    if load_ts_module is True:
-        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
-    # loading with `torch.load`
-    model_dict = torch.load(full_path, map_location=torch.device(device))
-    if not isinstance(model_dict, Mapping):
-        warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
-        model_dict = get_state_dict(model_dict)
-
-    if net_name is None:
-        return model_dict
-    net_kwargs["_target_"] = net_name
-    configer = ConfigComponent(config=net_kwargs)
-    model = configer.instantiate()
-    model.to(device)  # type: ignore
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
-    return model
 
 
 def run(
