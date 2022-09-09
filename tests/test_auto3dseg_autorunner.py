@@ -66,7 +66,7 @@ class TestAutoRunner(unittest.TestCase):
         sim_dataroot = os.path.join(test_path, "dataroot")
         if not os.path.isdir(sim_dataroot):
             os.makedirs(sim_dataroot)
-        
+
         # Generate a fake dataset
         for d in sim_datalist["testing"] + sim_datalist["training"]:
             im, seg = create_test_image_3d(64, 64, 64, rad_max=10, num_seg_classes=1)

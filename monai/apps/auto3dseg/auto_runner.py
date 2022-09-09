@@ -1,16 +1,12 @@
-
 import os
 
 import torch
-import numpy as np
 
 from monai.apps.auto3dseg import DataAnalyzer, BundleGen, AlgoEnsembleBuilder, AlgoEnsembleBestN
 from monai.apps.utils import get_logger
 
 from monai.bundle import ConfigParser
 from monai.utils.enums import AlgoEnsembleKeys
-from monai.utils.misc import prob2class
-from monai.utils.module import look_up_option
 
 logger = get_logger(module_name=__name__)
 
@@ -28,7 +24,7 @@ class AutoRunner:
         algo_gen: on/off switch for algoGen
         train: on/off switch for sequential schedule of model training
         no_cache: if no_cache is True, it will reset the status and not use any previous results
-    
+
     Examples:
 
         ..code-block:: python
@@ -36,7 +32,7 @@ class AutoRunner:
             filename = "path_to_data_cfg"
             runner = AutoRunner(data_src_cfg_filename, work_dir)
             runner.run()
-        
+
         ..code-block:: python
             work_dir = "./work_dir"
             filename = "path_to_data_cfg"
@@ -50,7 +46,7 @@ class AutoRunner:
             }
             runner.set_training_params(train_param)  # 2 epochs
             runner.run()
-    
+
     Notes:
         Expected results in the work_dir as below.
             .
@@ -111,17 +107,17 @@ class AutoRunner:
                 └── scripts
     """
     def __init__(
-        self, 
+        self,
         data_src_cfg_name,
-        work_dir: str = '.', 
-        analyze: bool = True, 
+        work_dir: str = '.',
+        analyze: bool = True,
         algo_gen: bool = True,
         train: bool = True,
         ensemble: bool = True,
         no_cache: bool = False,
     ):
         self.data_src_cfg_filename = data_src_cfg_name
-        
+
         cfg = ConfigParser.load_config_file(data_src_cfg_name)
         self.dataroot = cfg["dataroot"]
         self.datalist_filename = cfg["datalist"]
@@ -130,7 +126,7 @@ class AutoRunner:
             logger.info(f"{work_dir} does not exists. Creating...")
             os.makedirs(work_dir)
             logger.info(f"{work_dir} created")
-        
+
         self.work_dir = os.path.abspath(work_dir)
 
         self.analyze = analyze
@@ -149,14 +145,14 @@ class AutoRunner:
 
     def set_datastats_filename(self, datastats_filename: str = 'datastats.yaml'):
         self.datastats_filename = datastats_filename
-    
+
     def get_datastats_filename(self):
         return self.datastats_filename
 
     def set_num_fold(self, num_fold=5):
         """set number of cross validation folds"""
         self.num_fold = num_fold
-    
+
     def set_training_params(self, params = None):
         if params is None:
             gpus = [_i for _i in range(torch.cuda.device_count())]
@@ -199,9 +195,6 @@ class AutoRunner:
             builder.set_ensemble_method(AlgoEnsembleBestN(n_best=self.n_best))
             ensemble = builder.get_ensemble()
             pred = ensemble()
-            print("ensemble picked the following best {0:d}:".format(self.n_best))
+            print(f"ensemble picked the following best {self.n_best:d}:")
             for algo in ensemble.get_algo_ensemble():
                 print(algo[AlgoEnsembleKeys.ID])
-
-
-
