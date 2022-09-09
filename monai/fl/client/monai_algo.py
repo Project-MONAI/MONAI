@@ -98,8 +98,8 @@ class MonaiAlgo(ClientAlgo):
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
         config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
             defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/evaluate.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
+            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
@@ -120,7 +120,7 @@ class MonaiAlgo(ClientAlgo):
         local_epochs: int = 1,
         send_weight_diff: bool = True,
         config_train_filename: Optional[Union[str, list]] = "configs/train.json",
-        config_evaluate_filename: Optional[Union[str, list]] = "configs/evaluate.json",
+        config_evaluate_filename: Optional[Union[str, list]] = "default",
         config_filters_filename: Optional[Union[str, list]] = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
@@ -130,7 +130,9 @@ class MonaiAlgo(ClientAlgo):
         benchmark: bool = True,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated.
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.bundle_root = bundle_root
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
@@ -182,16 +184,9 @@ class MonaiAlgo(ClientAlgo):
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = []
-        config_eval_files = []
-        config_filter_files = []
-        if self.config_train_filename:
-            config_train_files.extend(self._add_config_files(self.config_train_filename))
-            config_eval_files.extend(self._add_config_files(self.config_train_filename))
-        if self.config_evaluate_filename:
-            config_eval_files.extend(self._add_config_files(self.config_evaluate_filename))
-        if self.config_filters_filename:  # filters are read by train_parser
-            config_filter_files.extend(self._add_config_files(self.config_filters_filename))
+        config_train_files = self._add_config_files(self.config_train_filename)
+        config_eval_files = self._add_config_files(self.config_evaluate_filename)
+        config_filter_files = self._add_config_files(self.config_filters_filename)
 
         # Parse
         self.train_parser = ConfigParser()
@@ -438,16 +433,17 @@ class MonaiAlgo(ClientAlgo):
 
     def _add_config_files(self, config_files):
         files = []
-        if isinstance(config_files, str):
-            files.append(os.path.join(self.bundle_root, config_files))
-        elif isinstance(config_files, list):
-            for file in config_files:
-                if isinstance(file, str):
-                    files.append(os.path.join(self.bundle_root, file))
-                else:
-                    raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
-        else:
-            raise ValueError(
-                f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
-            )
+        if config_files:
+            if isinstance(config_files, str):
+                files.append(os.path.join(self.bundle_root, config_files))
+            elif isinstance(config_files, list):
+                for file in config_files:
+                    if isinstance(file, str):
+                        files.append(os.path.join(self.bundle_root, file))
+                    else:
+                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+            else:
+                raise ValueError(
+                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+                )
         return files
