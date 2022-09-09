@@ -22,6 +22,8 @@ from .analyzer import (
 from .operations import Operations, SampleOperations, SummaryOperations
 from .seg_summarizer import SegSummarizer
 from .utils import (
+    algo_export_to_pickle,
+    algo_import_from_pickle,
     concat_multikeys_to_dict,
     concat_val_to_np,
     datafold_read,

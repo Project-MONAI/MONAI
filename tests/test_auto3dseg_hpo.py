@@ -102,13 +102,8 @@ class TestHPO(unittest.TestCase):
         self.history = bundle_generator.get_history()
         self.work_dir = work_dir
 
-    def test_hpo(self) -> None:
-        algo_dict = self.history[0]
-        NNIGen(algo_dict=algo_dict)
-
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
-
         override_param = {
             "num_iterations": 8,
             "num_iterations_per_validation": 4,
@@ -117,12 +112,12 @@ class TestHPO(unittest.TestCase):
         }
 
         algo_dict = self.history[0]
-        NNIGen(algo_dict=algo_dict, params=override_param)
-        name = list(algo_dict.keys())[0]  # the only key is the name of the model
-        algo = algo_dict[name]
-        base_task_dir = algo.get_output_path() + "_override"
+        algo_name = list(algo_dict.keys())[0]
+        algo = algo_dict[algo_name]
+        nni_gen = NNIGen(algo_path=self.work_dir, algo=algo, params=override_param)
+        obj_filename = nni_gen.get_obj_filename()
         # this function will be used in HPO via Python Fire
-        NNIGen().run_algo(base_task_dir, self.work_dir)
+        NNIGen().run_algo(obj_filename, self.work_dir)
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

@@ -10,6 +10,8 @@
 # limitations under the License.
 
 import os
+import pickle
+import sys
 from copy import deepcopy
 from numbers import Number
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
@@ -31,6 +33,8 @@ __all__ = [
     "concat_multikeys_to_dict",
     "datafold_read",
     "verify_report_format",
+    "algo_export_to_pickle",
+    "algo_import_from_pickle",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -260,3 +264,58 @@ def verify_report_format(report: dict, report_format: dict):
                 return False
 
         return True
+
+
+def algo_export_to_pickle(algo, pkl_filename: str, algo_templates_dir: str) -> None:
+    """
+    Export the Algo object to pickle file
+
+    Args:
+        algo: Algo-like object
+        pkl_filename: name of the pickle file
+        algo_templates_dir: the algorithm script folder which is needed to instantiate the object
+    """
+    data = {"obj_bytes": pickle.dumps(algo), "algo_templates_dir": algo_templates_dir}
+    data_bytes = pickle.dumps(data)
+    with open(pkl_filename, "wb") as f_pi:
+        f_pi.write(data_bytes)
+
+
+def algo_import_from_pickle(pkl_filename, algo_templates_dir: Optional[str] = None) -> Any:
+    """
+    Import the Algo object from a pickle file
+
+    Args:
+        pkl_filename: name of the pickle file
+        algo_templates_dir: the algorithm script folder which is needed to instantiate the object.
+            If it is None, the function will use the internal ``'algo_templates_dir`` in the object
+            dict.
+
+    Returns:
+        algo: Algo-like object
+
+    Raises:
+        ValueError if the pkl_filename does not contain a dict, or the dict does not contain
+            ``algo_templates_dir`` or ``obj_bytes``
+    """
+    with open(pkl_filename, "rb") as f_pi:
+        data_bytes = f_pi.read()
+    data = pickle.loads(data_bytes)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"the data object is {data.__class__}. Dict is expected.")
+
+    if algo_templates_dir is None:
+        if "algo_templates_dir" not in data:
+            raise ValueError(f"key [algo_templates_dir] not found in {data}")
+        algo_templates_dir = data["algo_templates_dir"]
+
+    if "obj_bytes" not in data:
+        raise ValueError(f"key [obj_bytes] not found in {data}. Unable to instantiate.")
+
+    if not os.path.isdir(algo_templates_dir):
+        raise ValueError(f"Algorithm templates {algo_templates_dir} is not a directory")
+    sys.path.insert(0, algo_templates_dir)
+    algo = pickle.loads(data["obj_bytes"])
+
+    return algo, algo_templates_dir
