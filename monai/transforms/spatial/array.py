@@ -142,14 +142,10 @@ class SpatialResample(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
-            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
-                default False. The option is ignored if output spatial size is specified when calling this transform.
-                See also: :py:func:`monai.data.utils.compute_shape_offset`.
         """
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
-        self.scale_extent = scale_extent
         self.dtype = dtype
 
     def _post_process(
@@ -202,7 +198,6 @@ class SpatialResample(InvertibleTransform):
         padding_mode: Optional[str] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
-        scale_extent: Optional[bool] = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -234,9 +229,6 @@ class SpatialResample(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
-            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
-                The option is ignored if output spatial size is specified when calling this transform.
-                See also: :py:func:`monai.data.utils.compute_shape_offset`.
 
         The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src_affine) - 1``, and ``3``.
 
@@ -266,7 +258,7 @@ class SpatialResample(InvertibleTransform):
         if isinstance(spatial_size, int) and (spatial_size == -1):  # using the input spatial size
             spatial_size = in_spatial_size
         elif spatial_size is None and spatial_rank > 1:  # auto spatial size
-            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine, self.scale_extent)  # type: ignore
+            spatial_size, _ = compute_shape_offset(in_spatial_size, src_affine_, dst_affine)  # type: ignore
         spatial_size = torch.tensor(fall_back_tuple(ensure_tuple(spatial_size)[:spatial_rank], in_spatial_size))
 
         if (
@@ -301,7 +293,10 @@ class SpatialResample(InvertibleTransform):
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
         if isinstance(mode, int) or USE_COMPILED:
-            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, True)[0]
+            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
+            if not align_corners:
+                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
+                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # scaling (num_step - 1) / num_step
             dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
             xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
             affine_xform = Affine(
@@ -492,10 +487,11 @@ class Spacing(InvertibleTransform):
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
+        self.scale_extent = scale_extent
         self.recompute_affine = recompute_affine
 
         self.sp_resample = SpatialResample(
-            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, scale_extent=scale_extent
+            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
         )
 
     @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
@@ -566,7 +562,7 @@ class Spacing(InvertibleTransform):
 
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        scale_extent = self.sp_resample.scale_extent if scale_extent is None else scale_extent
+        scale_extent = self.scale_extent if scale_extent is None else scale_extent
         output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
@@ -2082,9 +2078,6 @@ class Resample(Transform):
                 for i, dim in enumerate(img_t.shape[1 : 1 + sr]):
                     grid_t[i] = (max(dim, 2) / 2.0 - 0.5 + grid_t[i]) / grid_t[-1:]
             grid_t = grid_t[:sr]
-            import pdb
-
-            pdb.set_trace()
             if USE_COMPILED and self._backend == TransformBackends.TORCH:  # compiled is using torch backend param name
                 grid_t = moveaxis(grid_t, 0, -1)  # type: ignore
                 bound = 1 if _padding_mode == "reflection" else _padding_mode

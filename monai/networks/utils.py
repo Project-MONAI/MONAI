@@ -277,7 +277,6 @@ def to_norm_affine(
 
     src_xform = normalize_transform(src_size, affine.device, affine.dtype, align_corners, zero_centered)
     dst_xform = normalize_transform(dst_size, affine.device, affine.dtype, align_corners, zero_centered)
-    import pdb; pdb.set_trace()
     return src_xform @ affine @ torch.inverse(dst_xform)
 
 
