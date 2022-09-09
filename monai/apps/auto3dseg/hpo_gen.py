@@ -39,7 +39,7 @@ class HPOGen(AlgoGen):
         raise NotImplementedError("")
 
     @abstractmethod
-    def update_params(self, *args, **kwargs):  # type: ignore 
+    def update_params(self, *args, **kwargs):  # type: ignore
         """Update model params"""
         raise NotImplementedError("")
 
@@ -49,7 +49,7 @@ class HPOGen(AlgoGen):
         raise NotImplementedError("")
 
     @abstractmethod
-    def run_algo(self, *args, **kwargs):  # type: ignore 
+    def run_algo(self, *args, **kwargs):  # type: ignore
         """Interface for the HPO to run the training"""
         raise NotImplementedError("")
 
