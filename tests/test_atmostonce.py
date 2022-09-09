@@ -13,8 +13,8 @@ from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import TransformBackends
 
-from monai.transforms import Affined, Affine
-from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing
+from monai.transforms import Affined, Affine, Flip
+from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing, flip
 from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
@@ -27,12 +27,12 @@ def get_img(size, dtype=torch.float32, offset=0):
     if len(size) == 2:
         for j in range(size[0]):
             for i in range(size[1]):
-                img[j, i] = i + j * size[1] + offset
+                img[j, i] = i + j * size[0] + offset
     else:
         for k in range(size[0]):
             for j in range(size[1]):
                 for i in range(size[2]):
-                    img[..., j, k] = j * size[0] + k * size[0] * size[1] + offset
+                    img[k, j, i] = i + j * size[0] + k * size[0] * size[1]
     return np.expand_dims(img, 0)
 
 
@@ -49,6 +49,12 @@ def enumerate_results_of_op(results):
                 print(ir, v.shape, v[tuple(slice(0, 8) for _ in v.shape)])
             else:
                 print(ir, v)
+
+
+def matrices_nearly_equal(actual, expected):
+    if actual.shape != expected.shape:
+        raise ValueError("actual matrix does not match expected matrix size; "
+                         f"{actual} vs {expected} respectively")
 
 
 class TestLowLevel(unittest.TestCase):
@@ -296,6 +302,47 @@ class TestFunctional(unittest.TestCase):
                                     [99., 100., 101., 102., 103., 104.],
                                     [115., 116., 117., 118., 119., 120.]])
         self._croppad_impl((16, 16), (slice(4, 8), slice(3, 9)), expected)
+
+    def _test_flip_impl(self, dims, spatial_axis, expected, verbose=False):
+        if dims == 2:
+            img = get_img((32, 32))
+        else:
+            img = get_img((32, 32, 8))
+
+        actual = flip(img, spatial_axis=spatial_axis)
+        if verbose:
+            print("expected\n", expected)
+            print("actual\n", actual[1])
+        self.assertTrue(np.allclose(expected, actual[1]))
+
+    def test_flip(self):
+
+        tests = [
+            (2, None, {(0, 0): -1, (1, 1): -1}),
+            (2, 0, {(0, 0): -1}),
+            (2, 1, {(1, 1): -1}),
+            (2, (0,), {(0, 0): -1}),
+            (2, (1,), {(1, 1): -1}),
+            (2, (0, 1), {(0, 0): -1, (1, 1): -1}),
+            (3, None, {(0, 0): -1, (1, 1): -1, (2, 2): -1}),
+            (3, 0, {(0, 0): -1}),
+            (3, 1, {(1, 1): -1}),
+            (3, 2, {(2, 2): -1}),
+            (3, (0,), {(0, 0): -1}),
+            (3, (1,), {(1, 1): -1}),
+            (3, (2,), {(2, 2): -1}),
+            (3, (0, 1), {(0, 0): -1, (1, 1): -1}),
+            (3, (0, 2), {(0, 0): -1, (2, 2): -1}),
+            (3, (1, 2), {(1, 1): -1, (2, 2): -1}),
+            (3, (0, 1, 2), {(0, 0): -1, (1, 1): -1, (2, 2): -1}),
+        ]
+
+        for t in tests:
+            with self.subTest(f"{t}"):
+                expected = np.eye(t[0] + 1)
+                for ke, kv in t[2].items():
+                    expected[ke] = kv
+                self._test_flip_impl(t[0], t[1], expected)
 
 
 class TestArrayTransforms(unittest.TestCase):

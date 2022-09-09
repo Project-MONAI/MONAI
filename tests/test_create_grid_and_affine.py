@@ -220,21 +220,22 @@ class TestCreateAffine(unittest.TestCase):
             (3, (0, 0, np.pi / 2)),
             np.array([[0.0, -1.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
         )
+
     def test_create_rotate_90(self):
         expected = np.eye(3)
-        test_assert(create_rotate_90, (2, 0, 0), expected)
+        test_assert(create_rotate_90, (2, (0, 1), 0), expected)
 
         expected = np.eye(3)
         expected[0:2, 0:2] = [[0, -1], [1, 0]]
-        test_assert(create_rotate_90, (2, 0, 1), expected)
+        test_assert(create_rotate_90, (2, (0, 1), 1), expected)
 
         expected = np.eye(3)
         expected[0:2, 0:2] = [[-1, 0], [0, -1]]
-        test_assert(create_rotate_90, (2, 0, 2), expected)
+        test_assert(create_rotate_90, (2, (0, 1), 2), expected)
         
         expected = np.eye(3)
         expected[0:2, 0:2] = [[0, 1], [-1, 0]]
-        test_assert(create_rotate_90, (2, 0, 3), expected)
+        test_assert(create_rotate_90, (2, (0, 1), 3), expected)
 
     def test_create_shear(self):
         test_assert(create_shear, (2, 1.0), np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]))

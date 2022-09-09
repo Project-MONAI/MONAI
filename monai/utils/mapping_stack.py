@@ -18,7 +18,7 @@ from monai.config import NdarrayOrTensor
 
 from monai.utils.enums import TransformBackends
 from monai.transforms.utils import (_create_rotate, _create_scale, _create_shear,
-                                    _create_translate)
+                                    _create_translate, _create_rotate_90, _create_flip)
 from monai.utils.misc import get_backend_from_data, get_device_from_data
 
 
@@ -80,6 +80,10 @@ class MatrixFactory:
 
     def rotate_90(self, rotations, axis, **extra_args):
         matrix = _create_rotate_90(self._dims, rotations, axis)
+        return MetaMatrix(matrix, extra_args)
+
+    def flip(self, axis, **extra_args):
+        matrix = _create_flip(self._dims, axis, self._eye)
         return MetaMatrix(matrix, extra_args)
 
     def shear(self, coefs: Union[Sequence[float], float], **extra_args):

@@ -10,7 +10,7 @@ from monai.data import MetaTensor
 from monai.transforms import InvertibleTransform, RandomizableTransform
 
 from monai.transforms.atmostonce.apply import apply
-from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate
+from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate, rotate90, flip
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 
@@ -81,6 +81,38 @@ class Spacing(LazyTransform, InvertibleTransform):
 
     def inverse(self, data):
         raise NotImplementedError()
+
+
+class Flip(LazyTransform, InvertibleTransform):
+
+    def __init__(
+            self,
+            spatial_axis: Optional[Union[Sequence[int], int]] = None,
+            lazy_evaluation: Optional[bool] = True
+    ) -> None:
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.spatial_axis = spatial_axis
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            spatial_axis: Optional[Union[Sequence[int], int]] = None,
+            shape_override: Optional[Sequence] = None
+    ):
+        spatial_axis_ = self.spatial_axis = spatial_axis
+        shape_override_ = shape_override
+        if (shape_override_ is None and
+           isinstance(img, MetaTensor) and img.has_pending_transforms()):
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
+        img_t, transform, metadata = flip(img, spatial_axis_, shape_override_)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
 
 
 class Resize(LazyTransform, InvertibleTransform):
@@ -254,16 +286,80 @@ class Rotate90(InvertibleTransform, LazyTransform):
     def __init__(
             self,
             k: Optional[int] = 1,
-            spatial_axes: Optional[Tuple[int, int]] = (0, 1)
+            spatial_axes: Optional[Tuple[int, int]] = (0, 1),
+            lazy_evaluation: Optional[bool] = True,
     ) -> None:
+        LazyTransform.__init__(self, lazy_evaluation)
         self.k = k
         self.spatial_axes = spatial_axes
 
     def __call__(
             self,
-            img: torch.Tensor
+            img: torch.Tensor,
+            k: Optional[int] = None,
+            spatial_axes: Optional[Tuple[int, int]] = None,
+            shape_override: Optional[Sequence[int]] = None
+    ) -> torch.Tensor:
+        k_ = k or self.k
+        spatial_axes_ = spatial_axes or self.spatial_axes
+
+        shape_override_ = shape_override
+        if (shape_override_ is None and
+            isinstance(img, MetaTensor) and img.has_pending_transforms()):
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+
+        img_t, transform, metadata = rotate90(img, k_, spatial_axes_, shape_override_)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+
+class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            prob: float = 0.1,
+            max_k: int = 3,
+            spatial_axes: Tuple[int, int] = (0, 1),
+            lazy_evaluation: Optional[bool] = True
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.max_k = max_k
+        self.spatial_axes = spatial_axes
+
+        self.k = 0
+
+        self.op = Rotate90(0, spatial_axes, lazy_evaluation)
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self.k = self.R.randint(self.max_k) + 1
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True,
+            shape_override: Optional[Sequence] = None
     ) -> torch.Tensor:
 
+        if randomize:
+            self.randomize()
+
+        k = self.k if self._do_transform else 0
+
+        return self.op(img, k, shape_override=shape_override)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor,
+    ):
+        raise NotImplementedError()
 
 
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -327,6 +423,19 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             data: NdarrayOrTensor,
     ):
         raise NotImplementedError()
+
+
+class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            prob: float = 0.1,
+            spatial_axis: Optional[Union[Sequence[int], int]] = None
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.spatial_axis = spatial_axis
+
+        self.op = Flip(0, spatial_axis)
 
 
 # class RandRotateOld(RandomizableTransform, InvertibleTransform, LazyTransform):

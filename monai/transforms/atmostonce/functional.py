@@ -93,9 +93,28 @@ def orientation(
 
 
 def flip(
-        img: torch.Tensor
+        img: torch.Tensor,
+        spatial_axis: Union[Sequence[int], int],
+        shape_override: Optional[Sequence] = None
 ):
-    pass
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    input_shape = img_.shape if shape_override is None else shape_override
+
+    spatial_axis_ = spatial_axis
+    if spatial_axis_ is None:
+        spatial_axis_ = tuple(i for i in range(len(input_shape[1:])))
+    transform = MatrixFactory.from_tensor(img).flip(spatial_axis_).matrix.matrix
+    im_extents = extents_from_shape(input_shape)
+    im_extents = [transform @ e for e in im_extents]
+
+    shape_override_ = shape_from_extents(input_shape, im_extents)
+
+    metadata = {
+        "spatial_axes": spatial_axis,
+        "im_extents": im_extents,
+        "shape_override": shape_override_
+    }
+    return img_, transform, metadata
 
 
 def resize(
@@ -282,9 +301,9 @@ def zoom(
 
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
-    dtype_ = get_equivalent_dtype(dtype or img.dtype, torch.Tensor)
+    dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
 
-    transform = MatrixFactory.from_tensor(img).scale(zoom_factors).matrix.matrix
+    transform = MatrixFactory.from_tensor(img_).scale(zoom_factors).matrix.matrix
     im_extents = extents_from_shape(input_shape)
     if keep_size is False:
         im_extents = [transform @ e for e in im_extents]
@@ -305,23 +324,28 @@ def zoom(
     return img_, transform, metadata
 
 
-# def rotate90(
-#         img: torch.Tensor,
-#         k: Optional[int] = 1,
-#         spatial_axes: Optional[Tuple[int, int]] = (0, 1),
-# ):
-#     if len(spatial_axes) != 2:
-#         raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
-#
-#     img = convert_to_tensor(img, track_meta=get_track_meta())
-#     axes = map_spatial_axes(img.ndim, spatial_axes)
-#     ori_shape = img.shape[1:]
-#
-#     metadata = {
-#         "k": k,
-#         "spatial_axes": spatial_axes,
-#         "shape_override": shape_override
-#     }
+def rotate90(
+        img: torch.Tensor,
+        k: Optional[int] = 1,
+        spatial_axes: Optional[Tuple[int, int]] = (0, 1),
+        shape_override: Optional[bool] = None
+):
+    if len(spatial_axes) != 2:
+        raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
+
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+    # axes = map_spatial_axes(img.ndim, spatial_axes)
+    # ori_shape = img.shape[1:]
+    input_shape = img_.shape if shape_override is None else shape_override
+    input_ndim = len(input_shape) - 1
+
+    transform = MatrixFactory.from_tensor(img_).rotate_90(k, )
+
+    metadata = {
+        "k": k,
+        "spatial_axes": spatial_axes,
+        "shape_override": shape_override
+    }
 
 
 def translate(
