@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import RandGridPatch
 from monai.utils import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose, SkipIfBeforePyTorchVersion
+from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
 
 set_determinism(1234)
 
