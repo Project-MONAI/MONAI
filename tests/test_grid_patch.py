@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import GridPatch
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, SkipIfBeforePyTorchVersion
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -95,6 +95,7 @@ class TestGridPatch(unittest.TestCase):
             assert_allclose(output_patch, expected_patch, type_test=False)
 
     @parameterized.expand([TEST_CASE_MEAT_0, TEST_CASE_MEAT_1])
+    @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
         set_track_meta(True)
         splitter = GridPatch(**input_parameters)
