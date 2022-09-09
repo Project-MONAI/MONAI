@@ -111,9 +111,11 @@ def compute_variance(
 ):
     """
     Args:
-        y_pred: [N, C, H, W, D] or [N, C, H, W] or [N, C, H] where N is repeats, C is channels and H, W, D stand for Height, Width & Depth
+        y_pred: [N, C, H, W, D] or [N, C, H, W] or [N, C, H] where N is repeats, C is channels and H, W, D stand for
+            Height, Width & Depth
         include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
-        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image dimensions
+        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
+            dimensions
         scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
         threshold: To avoid NaN's a threshold is used to replace zero's
     Returns:
@@ -167,10 +169,13 @@ def label_quality_score(
     can be treated as a label quality score
 
     Args:
-        y_pred: Input data of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels and H, W, D stand for Height, Width & Depth
-        y: Ground Truth of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels and H, W, D stand for Height, Width & Depth
+        y_pred: Input data of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is
+            channels and H, W, D stand for Height, Width & Depth
+        y: Ground Truth of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels
+            and H, W, D stand for Height, Width & Depth
         include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
-        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used to retrieve a single scalar value, if set to 'none' a spatial map will be returned
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used to retrieve a single scalar
+            value, if set to 'none' a spatial map will be returned
 
     Returns:
         A single scalar absolute difference value as score with a reduction based on sum/mean or the spatial map of
