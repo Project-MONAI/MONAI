@@ -175,7 +175,7 @@ class NNIGen(HPOGen):
             nni.report_final_result(acc)
         return
 
-    def run_algo(self, base_task_dir: str, output_folder: str = "."):    # type: ignore
+    def run_algo(self, base_task_dir: str, output_folder: str = "."):  # type: ignore
         """
         The python interface for NNI to run
 
