@@ -24,6 +24,13 @@ Metrics
 .. autoclass:: VarianceMetric
     :members:
 
+`LabelQualityScore`
+--------------------
+.. autofunction:: label_quality_score
+
+.. autoclass:: LabelQualityScore
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
