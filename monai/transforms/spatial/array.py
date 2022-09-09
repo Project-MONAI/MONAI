@@ -3243,6 +3243,7 @@ class GridPatch(Transform):
         metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
         metadata[WSIPatchKeys.LOCATION] = locations.T
         metadata[WSIPatchKeys.COUNT] = len(locations)
+        metadata["spatial_shape"] = np.tile(np.array(self.patch_size), (len(locations), 1)).T
         output = MetaTensor(x=patched_image, meta=metadata)
         output.is_batch = True
 
