@@ -35,7 +35,8 @@ class TestVerifyNetwork(unittest.TestCase):
 
             cmd = ["coverage", "run", "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file"]
             cmd += [meta_file, "--config_file", config_file, "-n", "4", "--any", "16", "--args_file", def_args_file]
-            cmd += ["--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
+            cmd += ["--device", "cpu", "--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
+            cmd += ["--network_def#_requires_", "$monai.config.print_debug_info()"]
             command_line_tests(cmd)
 
 

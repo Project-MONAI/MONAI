@@ -23,9 +23,9 @@ import torch.nn as nn
 
 from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated, deprecated_arg
+from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, pytorch_after
 
 __all__ = [
     "one_hot",
@@ -318,12 +318,7 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     conv.weight.data.copy_(kernel)
 
 
-@deprecated_arg(
-    name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-)
-def pixelshuffle(
-    x: torch.Tensor, spatial_dims: int, scale_factor: int, dimensions: Optional[int] = None
-) -> torch.Tensor:
+def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
     """
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
@@ -337,17 +332,12 @@ def pixelshuffle(
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Returns:
         Reshuffled version of `x`.
 
     Raises:
         ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
     """
-    if dimensions is not None:
-        spatial_dims = dimensions
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
@@ -620,7 +610,8 @@ def convert_to_torchscript(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
 

@@ -48,6 +48,10 @@ __all__ = [
     "MetaKeys",
     "ColorOrder",
     "EngineStatsKeys",
+    "DataStatsKeys",
+    "ImageStatsKeys",
+    "LabelStatsKeys",
+    "AlgoEnsembleKeys",
 ]
 
 
@@ -460,10 +464,10 @@ class WSIPatchKeys(StrEnum):
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "patch_location"
-    LEVEL = "patch_level"
-    SIZE = "patch_size"
-    COUNT = "num_patches"
+    LOCATION = "location"
+    LEVEL = "level"
+    SIZE = "size"
+    COUNT = "count"
     PATH = "path"
 
 
@@ -568,3 +572,13 @@ class LabelStatsKeys(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
+
+
+class AlgoEnsembleKeys(StrEnum):
+    """
+    Default keys for Mixed Ensemble
+    """
+
+    ID = "identifier"
+    ALGO = "infer_algo"
+    SCORE = "best_metric"

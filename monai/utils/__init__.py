@@ -81,6 +81,7 @@ from .misc import (
 from .module import (
     InvalidPyTorchVersionError,
     OptionalImportError,
+    allow_missing_reference,
     damerau_levenshtein_distance,
     exact_version,
     export,
@@ -94,6 +95,8 @@ from .module import (
     optional_import,
     pytorch_after,
     require_pkg,
+    run_debug,
+    run_eval,
     version_leq,
 )
 from .nvtx import Range

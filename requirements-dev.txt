@@ -1,6 +1,6 @@
 # Full requirements for developments
 -r requirements-min.txt
-pytorch-ignite==0.4.9
+pytorch-ignite==0.4.10
 gdown>=4.4.0
 scipy
 itk>=5.2
@@ -31,7 +31,7 @@ Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.2
-cucim==22.2.1; platform_system == "Linux"
+cucim==22.8.1; platform_system == "Linux"
 openslide-python==1.1.2
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"

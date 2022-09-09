@@ -69,7 +69,7 @@ class AlgoGen(Randomizable):
     The Algo generation process may be stochastic (using ``Randomizable.R`` as the source random state).
     """
 
-    def set_data_stats(self, *args, **kwargs):
+    def set_data_stats(self, *args, **kwargs):  # type ignore
         """Provide dataset summaries/properties so that the generator can be conditioned on the input datasets."""
         pass
 

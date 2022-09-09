@@ -12,14 +12,13 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import torch
 
 import monai
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigComponent, ConfigItem
-from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -33,12 +32,7 @@ from monai.fl.utils.constants import (
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
-from monai.utils import min_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import Events
-else:
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+from monai.utils import min_version, require_pkg
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -93,6 +87,7 @@ def disable_ckpt_loaders(parser):
                     h["_disabled_"] = True
 
 
+@require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
@@ -407,17 +402,13 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
-            self.trainer.terminate()
-            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
-            if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                self.trainer._fire_event(Events.EPOCH_COMPLETED)
+            self.trainer.interrupt()
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
-            self.evaluator.terminate()
+            self.evaluator.interrupt()
 
     def finalize(self, extra=None):
         """
@@ -425,10 +416,6 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
-        # TODO: finalize feature could be built into the MONAI Trainer class
-        if extra is None:
-            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
