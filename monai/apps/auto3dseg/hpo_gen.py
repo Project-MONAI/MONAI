@@ -12,11 +12,11 @@
 import os
 from abc import abstractmethod
 from copy import deepcopy
-from typing import List
+from warnings import warn
 
 from monai.apps.auto3dseg import BundleAlgo
 from monai.apps.utils import get_logger
-from monai.auto3dseg import Algo, AlgoGen, algo_export_to_pickle, algo_import_from_pickle
+from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
 
@@ -34,28 +34,23 @@ class HPOGen(AlgoGen):
 
     @abstractmethod
     def get_hyperparameters(self):
-        """Get the hyperparameter from HPO"""
-        raise NotImplementedError("")
+        """Get the hyperparameter from HPO."""
+        raise NotImplementedError
 
     @abstractmethod
     def update_params(self, *args, **kwargs):  # type: ignore
-        """Update model params"""
-        raise NotImplementedError("")
+        """Update model params."""
+        raise NotImplementedError
 
     @abstractmethod
     def set_score(self):
-        """Report result to HPO"""
-        raise NotImplementedError("")
+        """Report result to HPO."""
+        raise NotImplementedError
 
     @abstractmethod
     def run_algo(self, *args, **kwargs):  # type: ignore
-        """Interface for the HPO to run the training"""
-        raise NotImplementedError("")
-
-    @abstractmethod
-    def get_history(self, *args, **kwargs):  # type: ignore
-        """Interface for the HPO to run the history"""
-        raise NotImplementedError("")
+        """Interface for the HPO to run the training."""
+        raise NotImplementedError
 
 
 class NNIGen(HPOGen):
@@ -66,8 +61,8 @@ class NNIGen(HPOGen):
     https://nni.readthedocs.io/en/latest/tutorials/hpo_quickstart_pytorch/main.html .
 
     Args:
-        algo_dict: an dict that has {name: Algo object} format. The Algo object must define two methods: get_output_path
-            and train.
+        algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
+            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Raises:
@@ -98,43 +93,39 @@ class NNIGen(HPOGen):
         NNI command manually.
     """
 
-    def __init__(self, algo_path: str = ".", algo=None, params=None):
+    def __init__(self, algo=None, params=None):
         self.algo: Algo
         self.hint = ""
         self.obj_filename = ""
-        self.algo_templates_dir = os.path.join(algo_path, "algorithm_templates")
-        self.base_task_dir = ""
-
-        if not os.path.isdir(self.algo_templates_dir):
-            raise ValueError(f"{self.algo_templates_dir} is not a directory.")
 
         if algo is not None:
-            self.base_task_dir = algo.get_output_path()
+            if isinstance(algo, BundleAlgo):
+                if params is None:
+                    self.algo = algo
+                else:
+                    self.algo = deepcopy(algo)
+                    name = os.path.basename(algo.get_output_path()) + "_override"
+                    output_folder = os.path.dirname(algo.get_output_path())
 
-            if params is None:
-                self.obj_filename = os.path.join(self.base_task_dir, "algo_object.pkl")
-                algo_export_to_pickle(algo, self.obj_filename, self.algo_templates_dir)
-            elif isinstance(algo, BundleAlgo):
-                self.base_task_dir += "_override"
-                task_name = os.path.basename(self.base_task_dir)
-                output_folder = os.path.dirname(self.base_task_dir)
-                algo_override = deepcopy(algo)  # avoid overriding the existing algo
-                algo_override.export_to_disk(output_folder, task_name, **params)
-
-                self.obj_filename = os.path.join(self.base_task_dir, "algo_object.pkl")
-                algo_export_to_pickle(algo_override, self.obj_filename, self.algo_templates_dir)
+                    params.update({"fill_with_datastats": False})  # just copy, not using datastats to fill
+                    self.algo.export_to_disk(output_folder, name, **params)
             else:
-                raise ValueError(f"{algo.__class__} does not support param override")
+                self.algo = algo
 
-            self.print_nni_instruction()
+            if isinstance(algo, BundleAlgo):
+                self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+                self.print_bundle_algo_nni_instruction()
+            else:
+                self.obj_filename = algo_to_pickle(self.algo)
+                # nni instruction unknown
 
     def get_obj_filename(self):
-        """Return the dumped pickle object of algo"""
+        """Return the dumped pickle object of algo."""
         return self.obj_filename
 
-    def print_nni_instruction(self):
+    def print_bundle_algo_nni_instruction(self):
         """
-        Print how to write the trial commands in NNI
+        Print how to write the trial commands in NNI.
         """
         hint = "python -m monai.apps.auto3dseg NNIGen run_algo "
         logger.info("=" * 140)
@@ -144,20 +135,21 @@ class NNIGen(HPOGen):
         logger.info("-" * 140)
         logger.info("If NNI will run in a remote env: ")
         logger.info(
-            f"1. Copy the algorithm_templates folder {self.algo_templates_dir} to remote {{remote_algorithm_templates_dir}}"
+            f"1. Copy the algorithm_templates folder {self.algo.template_path} to remote {{remote_algorithm_templates_dir}}"
         )
-        logger.info(f"2. Copy the base_task folder {self.base_task_dir} to the remote machine {{remote_base_task_dir}}")
+        logger.info(f"2. Copy the older {self.algo.get_output_path()} to the remote machine {{remote_algo_dir}}")
         logger.info("Then add the following line to the trialCommand in your NNI config: ")
-        logger.info(f"{hint} {{remote_base_task_dir}} {{result_dir}} {{remote_algorithm_templates_dir}}")
+        logger.info(f"{hint} {{remote_algo_dir}} {{result_dir}} {{remote_algorithm_templates_dir}}")
         logger.info("=" * 140)
 
     def get_hyperparameters(self):
         """
-        Get parameter for next round of training from nni server
+        Get parameter for next round of training from nni server.
         """
         if has_nni:
             return nni.get_next_parameter()
         else:
+            warn("NNI is not detected. The code will continue to run without NNI.")
             return {}
 
     def update_params(self, params: dict):  # type: ignore
@@ -186,7 +178,7 @@ class NNIGen(HPOGen):
         Generate the record for each Algo. If it is a BundleAlgo, it will generate the config files.
 
         Args:
-            output_folder
+            output_folder: the directory nni will save the results to.
         """
         task_id = self.get_task_id()
         task_prefix = os.path.basename(self.algo.get_output_path())
@@ -194,8 +186,7 @@ class NNIGen(HPOGen):
         self.obj_filename = os.path.join(write_path, "algo_object.pkl")
 
         if isinstance(self.algo, BundleAlgo):
-            self.algo.export_to_disk(output_folder, task_prefix + task_id)
-            algo_export_to_pickle(self.algo, self.obj_filename, self.algo_templates_dir)
+            self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
         else:
 
             ConfigParser.export_config_file(self.params, write_path)
@@ -203,61 +194,42 @@ class NNIGen(HPOGen):
 
     def set_score(self, acc):
         """
-        Report the acc to nni server
+        Report the acc to nni server.
         """
         if has_nni:
             nni.report_final_result(acc)
-        return
+        else:
+            warn("NNI is not detected. The code will continue to run without NNI.")
 
-    def run_algo(self, obj_filename: str, output_folder: str = ".", algo_templates_dir=None) -> None:  # type: ignore
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:  # type: ignore
         """
-        The python interface for NNI to run
+        The python interface for NNI to run.
 
         Args:
             obj_filename: the pickle-exported Algo object.
             output_folder: the root path of the algorithms templates.
-            algo_templates_dir: the algorithm_template. It must contain algo.py in the follow path:
+            template_path: the algorithm_template. It must contain algo.py in the follow path:
                 ``{algorithm_templates_dir}/{network}/scripts/algo.py``
         """
         if not os.path.isfile(obj_filename):
             raise ValueError(f"{obj_filename} is not found")
 
-        self.algo, self.algo_templates_dir = algo_import_from_pickle(obj_filename, algo_templates_dir)
+        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+
+        if isinstance(self.algo, BundleAlgo):  # algo's template path needs override
+            self.algo.template_path = algo_meta_data["template_path"]
 
         # step1 sample hyperparams
         params = self.get_hyperparameters()
-        # step 2 update model
+        # step 2 set the update params for the algo to run in the next trial
         self.update_params(params)
         # step 3 generate the folder to save checkpoints and train
         self.generate(output_folder)
         self.algo.train(self.params)
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
+        if isinstance(self.algo, BundleAlgo):
+            algo_to_pickle(self.algo, template_path=self.algo.template_path, best_metrics=acc)
+        else:
+            algo_to_pickle(self.algo, best_metrics=acc)
         self.set_score(acc)
-
-    def get_history(self, output_folder: str = ".", algo_templates_dir=None) -> List:  # type: ignore
-        """
-        Get the history of the bundleAlgo object with their names/identifiers
-
-        Args:
-            output_folder: the root path of the algorithms templates.
-            algo_templates_dir: the algorithm_template. It must contain algo.py in the follow path:
-                ``{algorithm_templates_dir}/{network}/scripts/algo.py``
-        """
-
-        history = []
-
-        for task_name in os.listdir(output_folder):
-            write_path = os.path.join(output_folder, task_name)
-
-            if not os.path.isdir(write_path):
-                continue
-
-            obj_filename = os.path.join(write_path, "algo_object.pkl")
-            if not os.path.isfile(obj_filename):  # saved mode pkl
-                continue
-
-            algo, _ = algo_import_from_pickle(obj_filename, algo_templates_dir)
-            history.append({task_name: algo})
-
-        return history

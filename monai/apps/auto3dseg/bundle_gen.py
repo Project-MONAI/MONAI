@@ -267,10 +267,14 @@ class BundleAlgo(Algo):
         inferer = self.get_inferer(**params)
         return [inferer.infer(f) for f in ensure_tuple(files)]
 
+    def get_output_path(self):
+        """Returns the algo output paths to find the algo scripts and configs."""
+        return self.output_path
+
 
 # path to download the algo_templates
 default_algo_zip = (
-    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/b58e612.tar.gz"
+    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/e4c4610.tar.gz"
 )
 
 # default algorithms
@@ -317,7 +321,24 @@ class BundleGen(AlgoGen):
 
         if isinstance(algos, dict):
             for algo_name, algo_params in algos.items():
-                self.algos.append(ConfigParser(algo_params).get_parsed_content())
+                try:
+                    self.algos.append(ConfigParser(algo_params).get_parsed_content())
+                except RuntimeError as e:
+                    if "ModuleNotFoundError" in str(e):
+                        msg = """Please make sure the folder structure of an Algo Template follows
+                            [algo_name]
+                            ├── configs
+                            │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
+                            │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
+                            │   ├── transforms_train.yaml  # automatically generated yaml to define tranforms for training
+                            │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
+                            │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
+                            └── scripts
+                                ├── test.py
+                                ├── __init__.py
+                                └── validate.py
+                        """
+                        raise RuntimeError(msg)
                 self.algos[-1].name = algo_name
         else:
             self.algos = ensure_tuple(algos)

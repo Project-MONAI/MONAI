@@ -45,7 +45,7 @@ class Algo:
         pass
 
     def get_output_path(self, *args, **kwargs):
-        """Returns the model output paths"""
+        """Returns the algo output paths for scripts location"""
         pass
 
 
