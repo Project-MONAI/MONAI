@@ -50,7 +50,7 @@ train_param = {
     "num_iterations_per_validation": 4,
     "num_images_per_batch": 2,
     "num_epochs": 2,
-    "num_warmup_iterations": 4
+    "num_warmup_iterations": 4,
 }
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
