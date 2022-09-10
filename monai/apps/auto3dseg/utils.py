@@ -16,7 +16,9 @@ from monai.apps.auto3dseg import BundleAlgo
 from monai.auto3dseg import algo_from_pickle
 
 
-def import_bundle_algo_history(output_folder: str = ".", template_path: Optional[str] = None, only_trained: bool = True) -> List:  # type: ignore
+def import_bundle_algo_history(
+    output_folder: str = ".", template_path: Optional[str] = None, only_trained: bool = True
+) -> List:
     """
     import the history of the bundleAlgo object with their names/identifiers
 

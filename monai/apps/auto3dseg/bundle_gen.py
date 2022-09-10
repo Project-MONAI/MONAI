@@ -338,7 +338,7 @@ class BundleGen(AlgoGen):
                                 ├── __init__.py
                                 └── validate.py
                         """
-                        raise RuntimeError(msg)
+                        raise RuntimeError(msg) from e
                 self.algos[-1].name = algo_name
         else:
             self.algos = ensure_tuple(algos)

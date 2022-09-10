@@ -51,7 +51,7 @@ class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-        test_path = os.path.abspath(".")
+
         work_dir = os.path.abspath(os.path.join(test_path, "workdir"))
         dataroot = os.path.join(work_dir, "dataroot")
 
