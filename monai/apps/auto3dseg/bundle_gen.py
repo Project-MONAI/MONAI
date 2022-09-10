@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import sys
 from copy import copy, deepcopy
-from glob import glob
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
 
@@ -25,7 +24,6 @@ from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.scripts import _pop_args
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
@@ -44,74 +42,34 @@ class BundleAlgo(Algo):
         from monai.apps.auto3dseg import BundleAlgo
 
         data_stats_yaml = "/workspace/data_stats.yaml"
-        algo = BundleAlgo(
-            template_configs=../algorithms/templates/segresnet2d/configs,
-            scripts_path="../algorithms/templates/segresnet2d/scripts")
+        algo = BundleAlgo(template_path=../algorithms/templates/segresnet2d/configs)
         algo.set_data_stats(data_stats_yaml)
         # algo.set_data_src("../data_src.json")
         algo.export_to_disk(".", algo_name="segresnet2d_1")
 
     This class creates MONAI bundles from a directory of 'bundle template'. Different from the regular MONAI bundle
     format, the bundle template may contain placeholders that must be filled using ``fill_template_config`` during
-    ``export_to_disk``.  The output of ``export_to_disk`` takes the following folder structure::
-
-        [algo_name]
-        ├── configs
-        │   ├── hyperparameters.yaml  # automatically generated yaml from a set of ``template_configs``
-        │   ├── network.yaml  # automatically generated network yaml from a set of ``template_configs``
-        │   ├── transforms_train.yaml  # automatically generated yaml to define tranforms for training
-        │   ├── transforms_validate.yaml  # automatically generated yaml to define transforms for validation
-        │   └── transforms_infer.yaml  # automatically generated yaml to define transforms for inference
-        └── scripts
-            ├── algo.py
-            ├── infer.py
-            ├── train.py
-            └── validate.py
+    ``export_to_disk``. Then created bundle keeps the same file structure as the template.
 
     """
 
-    def __init__(self, template_configs=None, scripts_path=None, meta_data_filename=None, parser_args=None):
+    def __init__(self, template_path: str):
         """
-        Create an Algo instance based on a set of bundle configuration templates and scripts.
+        Create an Algo instance based on the predefined Algo template.
 
         Args:
-            template_configs: a json/yaml config file, or a folder of json/yaml files.
-            scripts_path: a folder to python script files.
-            meta_data_filename: optional metadata of a MONAI bundle.
-            parser_args: additional input arguments for the build-in ConfigParser ``self.cfg.read_config``.
-        """
-        if os.path.isdir(template_configs):
-            self.template_configs = []
-            for ext in ("json", "yaml"):
-                self.template_configs += glob(os.path.join(template_configs, f"*.{ext}"))
-        else:
-            self.template_configs = template_configs
-        self.meta_data_filename = meta_data_filename
-        self.cfg = ConfigParser(globals=False)  # TODO: define root folder (variable)?
-        if self.template_configs is not None:
-            self.load_templates(self.template_configs, meta_data_filename, parser_args)
+            template_path: path to the root of the algo template.
 
-        self.scripts_path = scripts_path
-        self.data_stats_files = None
-        self.data_list_file = None
-        self.output_path = None
-        self.name = None
+        """
+
+        self.template_path = template_path
+        self.data_stats_files = ""
+        self.data_list_file = ""
+        self.output_path = ""
+        self.name = ""
         self.best_metric = None
-
-    def load_templates(self, config_files, metadata_file=None, parser_args=None):
-        """
-        Read a list of template configuration files
-
-        Args:
-            config_file: bundle config files.
-            metadata_file: metadata overriding file
-            parser_args: argument to parse
-
-        """
-        parser_args = parser_args or {}
-        self.cfg.read_config(config_files, **parser_args)
-        if metadata_file is not None:
-            self.cfg.read_meta(metadata_file)
+        # track records when filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}
+        self.fill_records: dict = {}
 
     def set_data_stats(self, data_stats_files: str):  # type: ignore
         """
@@ -133,11 +91,12 @@ class BundleAlgo(Algo):
         """
         self.data_list_file = data_src_cfg
 
-    def fill_template_config(self, data_stats_filename, **kwargs):
+    def fill_template_config(self, data_stats_filename: str, algo_path: str, **kwargs) -> dict:
         """
         The configuration files defined when constructing this Algo instance might not have a complete training
         and validation pipelines. Some configuration components and hyperparameters of the pipelines depend on the
         training data and other factors. This API is provided to allow the creation of fully functioning config files.
+        Return the records of filling template config: {"<config name>": {"<placeholder key>": value, ...}, ...}.
 
         Args:
             data_stats_filename: filename of the data stats report (generated by DataAnalyzer)
@@ -147,7 +106,7 @@ class BundleAlgo(Algo):
             by using the data analysis results. It is also intended to be re-implemented in subclasses of BundleAlgo
             if the user wants their own way of auto-configured template filling.
         """
-        pass
+        return {}
 
     def export_to_disk(self, output_path: str, algo_name: str, **kwargs):
         """
@@ -156,67 +115,27 @@ class BundleAlgo(Algo):
         Args:
             output_path: Path to export the 'scripts' and 'configs' directories.
             algo_name: the identifier of the algorithm (usually contains the name and extra info like fold ID).
-        """
-        self.fill_template_config(self.data_stats_files, **kwargs)
-        write_path = os.path.join(output_path, algo_name)
-        self.cfg["bundle_root"] = write_path
-        os.makedirs(write_path, exist_ok=True)
-        # handling scripts files
-        output_scripts_path = os.path.join(write_path, "scripts")
-        if os.path.exists(output_scripts_path):
-            shutil.rmtree(output_scripts_path)
-        if self.scripts_path is not None and os.path.exists(self.scripts_path):
-            shutil.copytree(self.scripts_path, output_scripts_path)
-        # handling config files
-        output_config_path = os.path.join(write_path, "configs")
-        if os.path.exists(output_config_path):
-            shutil.rmtree(output_config_path)
-
-        # break the config into multiple files and save
-        sections = ["network", "transforms_infer", "transforms_train", "transforms_validate"]
-        self.save_config_files(output_config_path, sections)
-        logger.info(write_path)
-        self.output_path = write_path
-
-    def save_config_files(self, output_config_path, sections):
-        """
-        Save the auto-generated config files into multiple files.
-
-        Args:
-            output_config_path: path to save the files
-            sections: the sections that will be picked up and individually saved.
+            kwargs: other parameters, including: "copy_dirs=True/False" means whether to copy the template as output
+                instead of inplace operation, "fill_template=True/False" means whether to fill the placeholders
+                in the template. other parameters are for `fill_template_config` function.
 
         """
-        os.makedirs(output_config_path, exist_ok=True)
+        if kwargs.pop("copy_dirs", True):
+            self.output_path = os.path.join(output_path, algo_name)
+            os.makedirs(self.output_path, exist_ok=True)
+            if os.path.isdir(self.output_path):
+                shutil.rmtree(self.output_path)
+            shutil.copytree(self.template_path, self.output_path)
+        else:
+            self.output_path = self.template_path
+        if kwargs.pop("fill_template", True):
+            self.fill_records = self.fill_template_config(self.data_stats_files, self.output_path, **kwargs)
+        logger.info(self.output_path)
 
-        config_body = self.cfg.get()
-        for s in sections:
-            config_section_file = os.path.join(output_config_path, s + ".yaml")
-            config_section = _pop_args(config_body, s)
-            section_body = {}
-            section_body[s] = config_section[0]  # _pop_args returns a Tuple even if there is only one element.
-            ConfigParser.export_config_file(section_body, config_section_file, fmt="yaml", default_flow_style=None)
-
-        output_config_file = os.path.join(output_config_path, "hyper_parameters.yaml")
-        ConfigParser.export_config_file(config_body, output_config_file, fmt="yaml", default_flow_style=None)
-
-        with open(output_config_file, "r+") as f:
-            lines = f.readlines()
-            f.seek(0)
-            f.write(f"# Generated automatically by `{__name__}`\n")
-            f.write("# For more information please visit: https://docs.monai.io/\n\n")
-            for item in ensure_tuple(self.template_configs):
-                f.write(f"# source file: {item}\n")
-            f.write("\n\n")
-            f.writelines(lines)
-
-    def train(self, train_params=None):
+    def _create_cmd(self, train_params=None):
         """
-        Load the run function in the training script of each model. Training parameter is predefined by the
-        algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
+        Create the command to execute training.
 
-        Args:
-            train_params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
         """
         if train_params is not None:
             params = deepcopy(train_params)
@@ -236,9 +155,9 @@ class BundleAlgo(Algo):
 
         if "CUDA_VISIBLE_DEVICES" in params:
             devices = params.pop("CUDA_VISIBLE_DEVICES")
-            n_devices, devices_str = len(devices), ",".join([str(x) for x in devices])
+            n_devices, devices_info = len(devices), ",".join([str(x) for x in devices])
         else:
-            n_devices, devices_str = torch.cuda.device_count(), ""
+            n_devices, devices_info = torch.cuda.device_count(), ""
         if n_devices > 1:
             cmd = f"torchrun --nnodes={1:d} --nproc_per_node={n_devices:d} "
         else:
@@ -247,11 +166,18 @@ class BundleAlgo(Algo):
         if params and isinstance(params, Mapping):
             for k, v in params.items():
                 cmd += f" --{k}={v}"
+        return cmd, devices_info
+
+    def _run_cmd(self, cmd: str, devices_info: str):
+        """
+        Execute the training command with target devices information.
+
+        """
         try:
             logger.info(f"Launching: {cmd}")
             ps_environ = os.environ.copy()
-            if devices_str:
-                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_str
+            if devices_info:
+                ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
             normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
             logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
         except subprocess.CalledProcessError as e:
@@ -259,6 +185,17 @@ class BundleAlgo(Algo):
             errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
             raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
         return normal_out
+
+    def train(self, train_params=None):
+        """
+        Load the run function in the training script of each model. Training parameter is predefined by the
+        algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
+
+        Args:
+            train_params:  to specify the devices using a list of integers: ``{"CUDA_VISIBLE_DEVICES": [1,2,3]}``.
+        """
+        cmd, devices_info = self._create_cmd(train_params)
+        return self._run_cmd(cmd, devices_info)
 
     def get_score(self, *args, **kwargs):
         """
@@ -333,32 +270,15 @@ class BundleAlgo(Algo):
 
 # path to download the algo_templates
 default_algo_zip = (
-    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/4e1a20e.tar.gz"
+    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/b58e612.tar.gz"
 )
-
-md5 = "2f8221a074e354fa68f8fb0790c816c3"
 
 # default algorithms
 default_algos = {
-    "unet": dict(_target_="unet.scripts.algo.UnetAlgo", template_configs="unet/configs", scripts_path="unet/scripts"),
-    "segresnet2d": dict(
-        _target_="segresnet2d.scripts.algo.Segresnet2dAlgo",
-        template_configs="segresnet2d/configs",
-        scripts_path="segresnet2d/scripts",
-    ),
-    "dints": dict(
-        _target_="dints.scripts.algo.DintsAlgo", template_configs="dints/configs", scripts_path="dints/scripts"
-    ),
-    "swinunetr": dict(
-        _target_="swinunetr.scripts.algo.SwinunetrAlgo",
-        template_configs="swinunetr/configs",
-        scripts_path="swinunetr/scripts",
-    ),
-    "segresnet": dict(
-        _target_="segresnet.scripts.algo.SegresnetAlgo",
-        template_configs="segresnet/configs",
-        scripts_path="segresnet/scripts",
-    ),
+    "segresnet2d": dict(_target_="segresnet2d.scripts.algo.Segresnet2dAlgo", template_path="segresnet2d"),
+    "dints": dict(_target_="dints.scripts.algo.DintsAlgo", template_path="dints"),
+    "swinunetr": dict(_target_="swinunetr.scripts.algo.SwinunetrAlgo", template_path="swinunetr"),
+    "segresnet": dict(_target_="segresnet.scripts.algo.SegresnetAlgo", template_path="segresnet"),
 }
 
 
@@ -367,8 +287,9 @@ class BundleGen(AlgoGen):
     This class generates a set of bundles according to the cross-validation folds, each of them can run independently.
 
     Args:
-        algos: a dictionary that outlines the algorithm to use.
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
+        algos: if dictionary, it outlines the algorithm to use. if None, automatically download the zip file
+            from the defatult link. if string, it represents the download link.
         data_stats_filename: the path to the data stats file (generated by DataAnalyzer)
         data_src_cfg_name: the path to the data source config YAML file. The config will be in a form of
             {"modality": "ct", "datalist": "path_to_json_datalist", "dataroot": "path_dir_data"}
@@ -381,20 +302,17 @@ class BundleGen(AlgoGen):
     def __init__(self, algo_path: str = ".", algos=None, data_stats_filename=None, data_src_cfg_name=None):
         self.algos: Any = []
 
-        if algos is None:
+        if algos is None or isinstance(algos, str):
             # trigger the download process
             zip_download_dir = TemporaryDirectory()
             algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
-            download_and_extract(default_algo_zip, algo_compressed_file, algo_path, md5)
+            download_and_extract(default_algo_zip if algos is None else algos, algo_compressed_file, algo_path)
             zip_download_dir.cleanup()
             sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
             algos = copy(default_algos)
             for name in algos:
-                algos[name]["template_configs"] = os.path.join(
-                    algo_path, "algorithm_templates", default_algos[name]["template_configs"]
-                )
-                algos[name]["scripts_path"] = os.path.join(
-                    algo_path, "algorithm_templates", default_algos[name]["scripts_path"]
+                algos[name]["template_path"] = os.path.join(
+                    algo_path, "algorithm_templates", default_algos[name]["template_path"]
                 )
 
         if isinstance(algos, dict):
