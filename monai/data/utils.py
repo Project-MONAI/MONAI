@@ -855,7 +855,7 @@ def compute_shape_offset(
                 | voxel 1 | voxel 2 | voxel 3 | voxel 4 |
                 |      voxel 1      |      voxel 2      |
 
-            Option 1 may reduce the number of locations the requiring interpolation. Option 2 is more resolution
+            Option 1 may reduce the number of locations that requiring interpolation. Option 2 is more resolution
             agnostic, that is, resampling coordinates depend on the scaling factor, not on the number of voxels.
             Default is False, using option 1 to compute the shape and offset.
 

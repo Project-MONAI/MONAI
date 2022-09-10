@@ -381,7 +381,8 @@ class Spacingd(MapTransform, InvertibleTransform):
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
                 default False. The option is ignored if output spatial size is specified when calling this transform.
-                See also: :py:func:`monai.data.utils.compute_shape_offset`.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.

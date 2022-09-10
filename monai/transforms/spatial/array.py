@@ -479,7 +479,8 @@ class Spacing(InvertibleTransform):
                 the output data type is always ``np.float32``.
             scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
                 default False. The option is ignored if output spatial size is specified when calling this transform.
-                See also: :py:func:`monai.data.utils.compute_shape_offset`.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
@@ -529,7 +530,8 @@ class Spacing(InvertibleTransform):
                 the output data type is always ``np.float32``.
             scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
                 The option is ignored if output spatial size is specified when calling this transform.
-                See also: :py:func:`monai.data.utils.compute_shape_offset`.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
             output_spatial_shape: specify the shape of the output data_array. This is typically useful for
                 the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
                 error with the affine.
@@ -560,6 +562,8 @@ class Spacing(InvertibleTransform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (sr - out_d.size))
 
+        if not align_corners and scale_extent:
+            warnings.warn("align_corners=False is not compatible with scale_extent=True.")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         scale_extent = self.scale_extent if scale_extent is None else scale_extent
