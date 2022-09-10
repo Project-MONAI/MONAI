@@ -171,7 +171,6 @@ def concat_val_to_np(
         return np.concatenate([np_list], **kwargs)
 
 
-
 def concat_multikeys_to_dict(
     data_list: List[Dict], fixed_keys: List[Union[str, int]], keys: List[str], zero_insert: bool = True, **kwargs
 ):

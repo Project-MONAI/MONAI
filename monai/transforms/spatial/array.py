@@ -308,7 +308,6 @@ class SpatialResample(InvertibleTransform):
             affine_xform = AffineTransform(
                 normalized=False,
                 mode=mode,
-
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
@@ -574,7 +573,6 @@ class Spacing(InvertibleTransform):
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
         if isinstance(data_array, MetaTensor):
             data_array.affine = torch.as_tensor(affine_)
-
 
         # we don't want to track the nested transform otherwise two will be appended
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
@@ -2307,7 +2305,6 @@ class Affine(InvertibleTransform):
         return out
 
 
-
 class RandAffine(RandomizableTransform, InvertibleTransform):
     """
     Random affine transform.
@@ -2547,7 +2544,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
         return out
-
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -2972,7 +2968,6 @@ class GridDistortion(Transform):
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
         return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
-
 
 
 class RandGridDistortion(RandomizableTransform):
