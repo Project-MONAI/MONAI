@@ -148,9 +148,10 @@ class TestHPO(unittest.TestCase):
         obj_filename_2 = os.path.join(algo_dir_2, "algo_object.pkl")
         shutil.copytree(algorithm_template, algorithm_templates_2)
         shutil.copytree(algo_dir, algo_dir_2)
-        # this function will be used in HPO via Python Fire
+        # this function will be used in HPO via Python Fire in remote
         NNIGen().run_algo(obj_filename_2, work_dir_2, template_path=algorithm_templates_2)
 
+    @skip_if_no_cuda
     def test_get_history(self) -> None:
         override_param = {
             "num_iterations": 8,
@@ -165,7 +166,7 @@ class TestHPO(unittest.TestCase):
         algo = algo_dict[algo_name]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
-        # this function will be used in HPO via Python Fire
+
         NNIGen().run_algo(obj_filename, self.work_dir)
 
         history = import_bundle_algo_history(self.work_dir, only_trained=True)
