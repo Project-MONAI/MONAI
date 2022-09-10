@@ -296,7 +296,7 @@ class SpatialResample(InvertibleTransform):
             dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
             if not align_corners:
                 norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
-                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # scaling (num_step - 1) / num_step
+                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
             dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
             xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
             affine_xform = Affine(
@@ -307,7 +307,8 @@ class SpatialResample(InvertibleTransform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,  # type: ignore
+                mode=mode,
+
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
@@ -572,7 +573,8 @@ class Spacing(InvertibleTransform):
         # convert to MetaTensor if necessary
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
         if isinstance(data_array, MetaTensor):
-            data_array.affine = torch.as_tensor(affine_)  # type: ignore
+            data_array.affine = torch.as_tensor(affine_)
+
 
         # we don't want to track the nested transform otherwise two will be appended
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
@@ -2302,7 +2304,8 @@ class Affine(InvertibleTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
+
 
 
 class RandAffine(RandomizableTransform, InvertibleTransform):
@@ -2543,7 +2546,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
+
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -2967,7 +2971,8 @@ class GridDistortion(Transform):
         coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
-        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
+
 
 
 class RandGridDistortion(RandomizableTransform):
