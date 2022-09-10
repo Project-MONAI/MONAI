@@ -123,6 +123,7 @@ class SpatialResample(InvertibleTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        scale_extent: bool = False,
     ):
         """
         Args:
@@ -291,16 +292,13 @@ class SpatialResample(InvertibleTransform):
         if additional_dims:
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
-        if align_corners:
-            _t_r = torch.eye(len(xform), dtype=xform.dtype, device=xform.device)
-            for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
-                _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
-            xform = xform @ _t_r
-            if not USE_COMPILED and not isinstance(mode, int):
-                _t_l = normalize_transform(
-                    in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
-                )[0]
-                xform = _t_l @ xform
+        if isinstance(mode, int) or USE_COMPILED:
+            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
+            if not align_corners:
+                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
+                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
+            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
             )
@@ -309,7 +307,7 @@ class SpatialResample(InvertibleTransform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,  # type: ignore
+                mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
@@ -438,6 +436,8 @@ class Spacing(InvertibleTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        scale_extent: bool = False,
+        recompute_affine: bool = False,
         image_only: bool = False,
     ) -> None:
         """
@@ -477,10 +477,19 @@ class Spacing(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
+            recompute_affine: whether to recompute affine based on the output shape. The affine computed
+                analytically does not reflect the potential quantization errors in terms of the output shape.
+                Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
+        self.scale_extent = scale_extent
+        self.recompute_affine = recompute_affine
 
         self.sp_resample = SpatialResample(
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
@@ -495,6 +504,7 @@ class Spacing(InvertibleTransform):
         padding_mode: Optional[str] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
+        scale_extent: Optional[bool] = None,
         output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None,
     ) -> torch.Tensor:
         """
@@ -518,6 +528,10 @@ class Spacing(InvertibleTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
             output_spatial_shape: specify the shape of the output data_array. This is typically useful for
                 the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
                 error with the affine.
@@ -534,7 +548,6 @@ class Spacing(InvertibleTransform):
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
-        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
@@ -549,25 +562,31 @@ class Spacing(InvertibleTransform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (sr - out_d.size))
 
+        if not align_corners and scale_extent:
+            warnings.warn("align_corners=False is not compatible with scale_extent=True.")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
+        scale_extent = self.scale_extent if scale_extent is None else scale_extent
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        data_array.affine = torch.as_tensor(affine_)  # type: ignore
+        if isinstance(data_array, MetaTensor):
+            data_array.affine = torch.as_tensor(affine_)
 
         # we don't want to track the nested transform otherwise two will be appended
+        actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=list(output_shape) if output_spatial_shape is None else output_spatial_shape,
+            spatial_size=actual_shape,
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
         )
-
+        if self.recompute_affine and isinstance(data_array, MetaTensor):
+            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -2283,7 +2302,7 @@ class Affine(InvertibleTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
 
 
 class RandAffine(RandomizableTransform, InvertibleTransform):
@@ -2524,7 +2543,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -2948,7 +2967,7 @@ class GridDistortion(Transform):
         coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
-        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
 
 
 class RandGridDistortion(RandomizableTransform):
