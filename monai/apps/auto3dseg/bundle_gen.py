@@ -14,7 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
-from copy import copy, deepcopy
+from copy import deepcopy
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
 
@@ -313,10 +313,10 @@ class BundleGen(AlgoGen):
             download_and_extract(default_algo_zip if algos is None else algos, algo_compressed_file, algo_path)
             zip_download_dir.cleanup()
             sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
-            algos = copy(default_algos)
+            algos = deepcopy(default_algos)
             for name in algos:
                 algos[name]["template_path"] = os.path.join(
-                    algo_path, "algorithm_templates", default_algos[name]["template_path"]
+                    algo_path, "algorithm_templates", algos[name]["template_path"]
                 )
 
         if isinstance(algos, dict):
