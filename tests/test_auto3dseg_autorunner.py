@@ -63,7 +63,7 @@ class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-        test_path = "./sim_data"
+
         sim_dataroot = os.path.join(test_path, "dataroot")
         if not os.path.isdir(sim_dataroot):
             os.makedirs(sim_dataroot)
@@ -96,10 +96,11 @@ class TestAutoRunner(unittest.TestCase):
 
         ConfigParser.export_config_file(data_src, data_src_cfg)
         self.data_src_cfg = data_src_cfg
+        self.test_path = test_path
 
     @skip_if_no_cuda
     def test_autorunner(self) -> None:
-        work_dir = "./work_dir"
+        work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_num_fold(1)
@@ -108,7 +109,7 @@ class TestAutoRunner(unittest.TestCase):
     @skip_if_no_cuda
     def test_autorunner_hpo(self) -> None:
         if has_nni:
-            work_dir = "./work_dir"
+            work_dir = os.path.join(self.test_path, "work_dir")
             runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True)
             hpo_param = {
                 "num_iterations": 8,
