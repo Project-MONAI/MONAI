@@ -67,7 +67,7 @@ class AutoRunner:
             ├── cache.yaml          # Autorunner will automatically cache results to save time
             ├── datastats.yaml      # datastats of the dataset
             ├── dints_0             # network scripts/configs/checkpoints and pickle object of the algo
-            ├── ensemble_output     # the prediction of testing datasets from the ensemble of the algos 
+            ├── ensemble_output     # the prediction of testing datasets from the ensemble of the algos
             ├── input.yaml          # copy of the input data source configs
             ├── segresnet_0         # network scripts/configs/checkpoints and pickle object of the algo
             ├── segresnet2d_0       # network scripts/configs/checkpoints and pickle object of the algo
@@ -86,7 +86,7 @@ class AutoRunner:
         ensemble: bool = True,
         not_use_cache: bool = False,
         **kwargs
-    ):  
+    ):
         if not os.path.isdir(work_dir):
             logger.info(f"{work_dir} does not exists. Creating...")
             os.makedirs(work_dir)
@@ -111,7 +111,7 @@ class AutoRunner:
         self.cache_filename = os.path.join(self.work_dir, 'cache.yaml')
         self.cache = self.check_cache()
         self.export_cache()
-        
+
         # Whether we need all the steps or not
         self.analyze = self.check_analyze(analyze)
         self.algo_gen = self.check_algo_gen(algo_gen)
@@ -127,8 +127,8 @@ class AutoRunner:
         self.set_prediction_params()
         self.save_image = self.set_image_save_transform(kwargs)
         self.set_ensemble_method()
-        
-        # hpo 
+
+        # hpo
         if hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
         self.hpo = hpo and has_nni
@@ -243,13 +243,13 @@ class AutoRunner:
             self.hpo_params = params
 
     def set_hpo_search_space(self, search_space):
-        
+
         value_combinations = 1
         for k, v in search_space.items():
             if '_value' not in v:
                 raise ValueError(f"{search_space} key {k} value {v} has not _value")
             value_combinations *= len(v['_value'])
-        
+
         self.search_space = search_space
         self.hpo_tasks = value_combinations
 
@@ -270,22 +270,22 @@ class AutoRunner:
             output_postfix = kwargs.pop("output_postfix")
         else:
             output_postfix = "ensemble"
-        
+
         self.output_dir = output_dir
         return SaveImage(output_dir=output_dir, output_postfix=output_postfix, **kwargs)
-    
+
     def set_ensemble_method(self, mode: str = 'AlgoEnsembleBestN', **kwargs):
         """"""
         self.ensemble_mode = look_up_option(mode, supported=['AlgoEnsembleBestN', 'AlgoEnsembleBestByFold'])
         if self.ensemble_mode == 'AlgoEnsembleBestN':
             n_best = kwargs.pop('n_best', False)
-            n_best = 2 if not n_best else n_best 
+            n_best = 2 if not n_best else n_best
             self.ensemble_method = AlgoEnsembleBestN(n_best=n_best)
         elif self.ensemble_mode == 'AlgoEnsembleBestByFold':
             self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)
         else:
             raise NotImplementedError(f"Ensemble method {self.ensemble_mode} is not implemented or registerred.")
-    
+
     def train_algo_in_sequence(self, history):
         for task in history:
             for _, algo in task.items():
@@ -383,10 +383,9 @@ class AutoRunner:
             print(f"Auto3Dseg picked the following networks to ensemble:")
             for algo in ensembler.get_algo_ensemble():
                 print(algo[AlgoEnsembleKeys.ID])
-                
+
             for pred in preds:
                 self.save_image(pred)
             logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
-        
+
         logger.info(f"Auto3Dseg pipeline is complete successfully.")
-            

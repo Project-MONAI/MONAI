@@ -118,7 +118,7 @@ class TestAutoRunner(unittest.TestCase):
                 "num_images_per_batch": 2,
                 "num_epochs": 2,
                 "num_warmup_iterations": 4,
-                # below are to shorten the time for dints 
+                # below are to shorten the time for dints
                 "training#num_iterations": 8,
                 "training#num_iterations_per_validation": 4,
                 "training#num_images_per_batch": 2,
