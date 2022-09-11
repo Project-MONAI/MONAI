@@ -14,7 +14,7 @@ from abc import abstractmethod
 from copy import deepcopy
 from warnings import warn
 
-from monai.apps.auto3dseg import BundleAlgo
+from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
 from monai.bundle.config_parser import ConfigParser

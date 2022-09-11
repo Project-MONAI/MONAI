@@ -11,7 +11,6 @@
 
 
 import json
-
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -21,8 +20,8 @@ from warnings import warn
 import numpy as np
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.auto3dseg import concat_val_to_np
 from monai.apps.utils import get_logger
+from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
 from monai.utils.enums import AlgoEnsembleKeys

@@ -59,12 +59,11 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 @skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
-
 class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-        test_path = './sim_data'
+        test_path = "./sim_data"
         sim_dataroot = os.path.join(test_path, "dataroot")
         if not os.path.isdir(sim_dataroot):
             os.makedirs(sim_dataroot)
@@ -98,7 +97,6 @@ class TestAutoRunner(unittest.TestCase):
         ConfigParser.export_config_file(data_src, data_src_cfg)
         self.data_src_cfg = data_src_cfg
 
-
     @skip_if_no_cuda
     def test_autorunner(self) -> None:
         work_dir = "./work_dir"
@@ -130,14 +128,9 @@ class TestAutoRunner(unittest.TestCase):
                 "searching#num_epochs": 2,
                 "searching#num_warmup_iterations": 4,
             }
-            search_space = {
-                "learning_rate":{
-                    "_type": "choice",
-                    "_value": [0.0001, 0.001, 0.01, 0.1]
-                }
-            }
+            search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
             runner.set_num_fold(1)
-            runner.set_hpo_search_space(search_space)
+            runner.set_nni_search_space(search_space)
             runner.set_hpo_params(params=hpo_param)
             runner.run()
 
