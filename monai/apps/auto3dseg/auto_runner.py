@@ -101,7 +101,7 @@ class AutoRunner:
         else:
             if not os.path.isfile(input):
                 raise ValueError(f"{input} is not a valid file")
-        
+
         self.data_src_cfg_name = os.path.join(self.work_dir, 'input.yaml')
         shutil.copy(input, self.data_src_cfg_name)
         logger.info(f"Loading {input} for AutoRunner and making a copy in {self.data_src_cfg_name}")
@@ -151,28 +151,28 @@ class AutoRunner:
         }
         if self.not_use_cache or not os.path.isfile(self.cache_filename):
             return empty_cache
-        
+
         cache = ConfigParser.load_config_file(self.cache_filename)
 
         if cache["analyze"]["has_cache"]:
             # check if the file in the right format and exists.
-            if not isinstance(cache["analyze"]["datastats"], str): 
+            if not isinstance(cache["analyze"]["datastats"], str):
                 cache["analyze"] = False
                 cache["analyze"]["datastats"] = None
-            
+
             if not os.path.isfile(cache["analyze"]["datastats"]):
                 cache["analyze"]["has_cache"] = False
-            
+
         if cache["algo_gen"]["has_cache"]:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
             if len(history) == 0:  # no saved algo_objects
                 cache["algo_gen"]["has_cache"] = False
-        
+
         if cache["train"]["has_cache"]:
             trained_history = import_bundle_algo_history(self.work_dir, only_trained=True)
             if len(trained_history) == 0:
                 cache["train"]["has_cache"] = False
-    
+
         return cache
 
     def export_cache(self):
