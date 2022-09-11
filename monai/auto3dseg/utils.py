@@ -333,7 +333,6 @@ def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
         # Example of template path: "algorithm_templates/dints".
         sys.path.insert(0, os.path.abspath(os.path.join(template_path, "..")))
         algo_meta_data.update({"template_path": template_path})
-        print(template_path)
 
     algo = pickle.loads(algo_bytes)
     pkl_dir = os.path.dirname(pkl_filename)

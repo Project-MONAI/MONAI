@@ -24,6 +24,7 @@ from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+_, has_nni = optional_import("nni")
 
 sim_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -49,6 +50,7 @@ train_param = {
     "num_iterations_per_validation": 4,
     "num_images_per_batch": 2,
     "num_epochs": 2,
+    "num_warmup_iterations": 4,
 }
 
 pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
@@ -62,7 +64,7 @@ class TestAutoRunner(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
-
+        test_path = './sim_data'
         sim_dataroot = os.path.join(test_path, "dataroot")
         if not os.path.isdir(sim_dataroot):
             os.makedirs(sim_dataroot)
@@ -102,8 +104,42 @@ class TestAutoRunner(unittest.TestCase):
         work_dir = "./work_dir"
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
         runner.set_training_params(train_param)  # 2 epochs
-        runner.set_num_fold(2)
+        runner.set_num_fold(1)
         runner.run()
+
+    @skip_if_no_cuda
+    def test_autorunner_hpo(self) -> None:
+        if has_nni:
+            work_dir = "./work_dir"
+            runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True)
+            hpo_param = {
+                "num_iterations": 8,
+                "num_iterations_per_validation": 4,
+                "num_images_per_batch": 2,
+                "num_epochs": 2,
+                "num_warmup_iterations": 4,
+                # below are to shorten the time for dints 
+                "training#num_iterations": 8,
+                "training#num_iterations_per_validation": 4,
+                "training#num_images_per_batch": 2,
+                "training#num_epochs": 2,
+                "training#num_warmup_iterations": 4,
+                "searching#num_iterations": 8,
+                "searching#num_iterations_per_validation": 4,
+                "searching#num_images_per_batch": 2,
+                "searching#num_epochs": 2,
+                "searching#num_warmup_iterations": 4,
+            }
+            search_space = {
+                "learning_rate":{
+                    "_type": "choice",
+                    "_value": [0.0001, 0.001, 0.01, 0.1]
+                }
+            }
+            runner.set_num_fold(1)
+            runner.set_hpo_search_space(search_space)
+            runner.set_hpo_params(params=hpo_param)
+            runner.run()
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
