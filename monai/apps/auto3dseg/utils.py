@@ -10,10 +10,10 @@
 # limitations under the License.
 
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from monai.apps.auto3dseg import BundleAlgo
-from monai.auto3dseg import algo_from_pickle
+from monai.auto3dseg import algo_from_pickle, algo_to_pickle
 
 
 def import_bundle_algo_history(
@@ -53,3 +53,15 @@ def import_bundle_algo_history(
             history.append({name: algo})
 
     return history
+
+
+def export_bundle_algo_history(history: List[Dict[str, BundleAlgo]]):
+    """
+    Save all the BundleAlgo in the history to algo_object.pkl in each individual folder
+
+    Args:
+        history: a List of Bundle. Typicall the history can be obtained from BundleGen get_history method
+    """
+    for task in history:
+        for _, algo in task.items():
+            algo_to_pickle(algo, template_path=algo.template_path)

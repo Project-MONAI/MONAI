@@ -14,4 +14,4 @@ from .data_analyzer import DataAnalyzer
 from .ensemble_builder import AlgoEnsemble, AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder
 from .auto_runner import AutoRunner
 from .hpo_gen import NNIGen
-from .utils import import_bundle_algo_history
+from .utils import import_bundle_algo_history, export_bundle_algo_history

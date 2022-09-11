@@ -100,9 +100,9 @@ class TestAutoRunner(unittest.TestCase):
     @skip_if_no_cuda
     def test_autorunner(self) -> None:
         work_dir = "./work_dir"
-        runner = AutoRunner(self.data_src_cfg, work_dir)
+        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
         runner.set_training_params(train_param)  # 2 epochs
-        runner.set_num_fold(3)
+        runner.set_num_fold(2)
         runner.run()
 
     def tearDown(self) -> None:
