@@ -84,7 +84,6 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         output_dir = os.path.join(os.path.dirname(__file__), "testing_data")
         prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
-        print(f"{size=}")
         evaluator = TestEvaluator(
             torch.device("cpu:0"), data_loader, np.ceil(size / batch_size), val_handlers=[prob_map_gen]
         )
