@@ -20,7 +20,12 @@ import torch
 
 from monai.apps.auto3dseg.bundle_gen import BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
-from monai.apps.auto3dseg.ensemble_builder import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder
+from monai.apps.auto3dseg.ensemble_builder import (
+    AlgoEnsemble,
+    AlgoEnsembleBestByFold,
+    AlgoEnsembleBestN,
+    AlgoEnsembleBuilder,
+)
 from monai.apps.auto3dseg.hpo_gen import NNIGen
 from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle_algo_history
 from monai.apps.utils import get_logger
@@ -153,6 +158,7 @@ class AutoRunner:
         self.set_num_fold()
         self.set_prediction_params()
         self.save_image = self.set_image_save_transform(kwargs)
+        self.ensemble_method: AlgoEnsemble
         self.set_ensemble_method()
 
         # hpo
@@ -160,7 +166,7 @@ class AutoRunner:
             raise NotImplementedError("HPOGen backend only supports NNI")
         self.hpo = hpo and has_nni
         self.set_hpo_params()
-        self.search_space = {}
+        self.search_space: Dict[str, Dict[str, Any]] = {}
         self.hpo_tasks = 0
 
     def check_cache(self):
@@ -276,8 +282,7 @@ class AutoRunner:
 
         """
         if params is None:
-            gpus = [_i for _i in range(torch.cuda.device_count())]
-            self.train_params = {"CUDA_VISIBLE_DEVICES": gpus}
+            self.train_params = {}
         else:
             self.train_params = deepcopy(params)
 
@@ -295,7 +300,7 @@ class AutoRunner:
 
         """
         if params is None:
-            self.pred_params = {"sigmoid": True}
+            self.pred_params = {"sigmoid": True}  # output will be 0-1
         else:
             self.pred_params = deepcopy(params)
 
@@ -434,8 +439,8 @@ class AutoRunner:
                 nni_config = deepcopy(default_nni_config)
                 nni_config.update({"experimentName": name})
                 nni_config.update({"search_space": self.search_space})
-                trialCommand = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
-                nni_config.update({"trialCommand": trialCommand})
+                trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
+                nni_config.update({"trialCommand": trial_cmd})
                 nni_config_filename = os.path.abspath(os.path.join(self.work_dir, "nni_config.yaml"))
                 ConfigParser.export_config_file(nni_config, nni_config_filename, fmt="yaml", default_flow_style=None)
 
@@ -457,7 +462,7 @@ class AutoRunner:
         """
         Run the AutoRunner pipeline
         """
-        ## Step 1: data analysis
+        # step 1: data analysis
         if self.analyze:
             da = DataAnalyzer(self.datalist_filename, self.dataroot, output_path=self.datastats_filename)
             da.get_all_case_stats()
@@ -467,7 +472,7 @@ class AutoRunner:
         else:
             logger.info("Found cached results and skipping data analysis...")
 
-        ## Step 2: algorithm generation
+        # step 2: algorithm generation
         if self.algo_gen:
             bundle_generator = BundleGen(
                 algo_path=self.work_dir,
@@ -483,7 +488,7 @@ class AutoRunner:
         else:
             logger.info("Found cached results and skipping algorithm generation...")
 
-        ## Step 3: algo training
+        # step 3: algo training
         if self.train:
             history = import_bundle_algo_history(self.work_dir, only_trained=False)
             if not self.hpo:
@@ -495,14 +500,14 @@ class AutoRunner:
         else:
             logger.info("Found cached results and skipping algorithm training...")
 
-        ## Step 4: model ensemble and write the prediction to disks.
+        # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
             history = import_bundle_algo_history(self.work_dir, only_trained=True)
             builder = AlgoEnsembleBuilder(history, self.data_src_cfg_name)
             builder.set_ensemble_method(self.ensemble_method)
             ensembler = builder.get_ensemble()
             preds = ensembler(pred_param=self.pred_params)  # apply sigmoid to binarize the prediction
-            print(f"Auto3Dseg picked the following networks to ensemble:")
+            print("Auto3Dseg picked the following networks to ensemble:")
             for algo in ensembler.get_algo_ensemble():
                 print(algo[AlgoEnsembleKeys.ID])
 
@@ -510,4 +515,4 @@ class AutoRunner:
                 self.save_image(pred)
             logger.info(f"Auto3Dseg ensemble prediction outputs are saved in {self.output_dir}.")
 
-        logger.info(f"Auto3Dseg pipeline is complete successfully.")
+        logger.info("Auto3Dseg pipeline is complete successfully.")
