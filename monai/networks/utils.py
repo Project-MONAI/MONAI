@@ -26,6 +26,7 @@ from monai.config import PathLike
 from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
 from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = [
     "one_hot",
@@ -194,7 +195,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 
 def normalize_transform(
-    shape: Sequence[int],
+    shape,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
@@ -211,7 +212,7 @@ def normalize_transform(
         - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
 
     Args:
-        shape: input spatial shape
+        shape: input spatial shape, a sequence of integers.
         device: device on which the returned affine will be allocated.
         dtype: data type of the returned affine
         align_corners: if True, consider -1 and 1 to refer to the centers of the
@@ -220,7 +221,8 @@ def normalize_transform(
         zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
             Setting this flag and `align_corners` will jointly specify the normalization source range.
     """
-    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
+    shape = convert_to_tensor(shape, torch.float64, device=device, wrap_sequence=True, track_meta=False)
+    norm = shape.clone().detach().to(dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
@@ -231,10 +233,10 @@ def normalize_transform(
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - (0.0 if zero_centered else 1.0)
+        norm[:-1, -1] = 1.0 / shape - (0.0 if zero_centered else 1.0)
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
-    return norm
+    return norm  # type: ignore
 
 
 def to_norm_affine(
