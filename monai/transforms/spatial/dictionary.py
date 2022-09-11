@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import deepcopy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -58,12 +57,10 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
-    WSIPatchKeys,
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
-    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
@@ -334,6 +331,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        scale_extent: bool = False,
+        recompute_affine: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
@@ -380,24 +379,37 @@ class Spacingd(MapTransform, InvertibleTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``np.float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
+            recompute_affine: whether to recompute affine based on the output shape. The affine computed
+                analytically does not reflect the potential quantization errors in terms of the output shape.
+                Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, recompute_affine=recompute_affine)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
             # resample array of each corresponding key
             d[key] = self.spacing_transform(
-                data_array=d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
+                data_array=d[key],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+                scale_extent=scale_extent,
             )
         return d
 
@@ -1851,25 +1863,11 @@ class GridPatchd(MapTransform):
             **pad_kwargs,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        output = []
-        results = [self.patcher(d[key]) for key in self.keys]
-        num_patches = min(len(r) for r in results)
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key])
+        return d
 
 
 class RandGridPatchd(RandomizableTransform, MapTransform):
@@ -1942,31 +1940,15 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         self.patcher.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        # all the keys share the same random noise
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
-            return [d]
-        self.patcher.randomize(d[first_key])  # type: ignore
-        results = [self.patcher(d[key], randomize=False) for key in self.keys]
-
-        num_patches = min(len(r) for r in results)
-        output = []
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        # All the keys share the same random noise
+        for key in self.key_iterator(d):
+            self.patcher.randomize(d[key])
+            break
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key], randomize=False)
+        return d
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled

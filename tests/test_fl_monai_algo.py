@@ -38,6 +38,20 @@ TEST_TRAIN_2 = [
         "config_filters_filename": None,
     }
 ]
+TEST_TRAIN_3 = [
+    {
+        "bundle_root": os.path.join(os.path.dirname(__file__)),
+        "config_train_filename": [
+            os.path.join("testing_data", "config_fl_train.json"),
+            os.path.join("testing_data", "config_fl_train.json"),
+        ],
+        "config_evaluate_filename": None,
+        "config_filters_filename": [
+            os.path.join("testing_data", "config_fl_filters.json"),
+            os.path.join("testing_data", "config_fl_filters.json"),
+        ],
+    }
+]
 
 TEST_EVALUATE_1 = [
     {
@@ -53,6 +67,20 @@ TEST_EVALUATE_2 = [
         "config_train_filename": None,
         "config_evaluate_filename": os.path.join("testing_data", "config_fl_evaluate.json"),
         "config_filters_filename": None,
+    }
+]
+TEST_EVALUATE_3 = [
+    {
+        "bundle_root": os.path.join(os.path.dirname(__file__)),
+        "config_train_filename": None,
+        "config_evaluate_filename": [
+            os.path.join("testing_data", "config_fl_evaluate.json"),
+            os.path.join("testing_data", "config_fl_evaluate.json"),
+        ],
+        "config_filters_filename": [
+            os.path.join("testing_data", "config_fl_filters.json"),
+            os.path.join("testing_data", "config_fl_filters.json"),
+        ],
     }
 ]
 
@@ -83,19 +111,38 @@ TEST_GET_WEIGHTS_3 = [
         "config_filters_filename": os.path.join("testing_data", "config_fl_filters.json"),
     }
 ]
+TEST_GET_WEIGHTS_4 = [
+    {
+        "bundle_root": os.path.join(os.path.dirname(__file__)),
+        "config_train_filename": [
+            os.path.join("testing_data", "config_fl_train.json"),
+            os.path.join("testing_data", "config_fl_train.json"),
+        ],
+        "config_evaluate_filename": None,
+        "send_weight_diff": True,
+        "config_filters_filename": [
+            os.path.join("testing_data", "config_fl_filters.json"),
+            os.path.join("testing_data", "config_fl_filters.json"),
+        ],
+    }
+]
 
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
-    @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2])
+    @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3])
     def test_train(self, input_params):
-        # get testing data dir and update train config
-        with open(os.path.join(input_params["bundle_root"], input_params["config_train_filename"])) as f:
+        # get testing data dir and update train config; using the first to define data dir
+        if isinstance(input_params["config_train_filename"], list):
+            config_train_filename = input_params["config_train_filename"][0]
+        else:
+            config_train_filename = input_params["config_train_filename"]
+        with open(os.path.join(input_params["bundle_root"], config_train_filename)) as f:
             config_train = json.load(f)
 
         config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
 
-        with open(os.path.join(input_params["bundle_root"], input_params["config_train_filename"]), "w") as f:
+        with open(os.path.join(input_params["bundle_root"], config_train_filename), "w") as f:
             json.dump(config_train, f, indent=4)
 
         # initialize algo
@@ -104,7 +151,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(os.path.join(input_params["bundle_root"], input_params["config_train_filename"]))
+        parser.read_config(os.path.join(input_params["bundle_root"], config_train_filename))
         parser.parse()
         network = parser.get_parsed_content("network")
 
@@ -113,15 +160,19 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test train
         algo.train(data=data, extra={})
 
-    @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2])
+    @parameterized.expand([TEST_EVALUATE_1, TEST_EVALUATE_2, TEST_EVALUATE_3])
     def test_evaluate(self, input_params):
-        # get testing data dir and update train config
-        with open(os.path.join(input_params["bundle_root"], input_params["config_evaluate_filename"])) as f:
+        # get testing data dir and update train config; using the first to define data dir
+        if isinstance(input_params["config_evaluate_filename"], list):
+            config_eval_filename = input_params["config_evaluate_filename"][0]
+        else:
+            config_eval_filename = input_params["config_evaluate_filename"]
+        with open(os.path.join(input_params["bundle_root"], config_eval_filename)) as f:
             config_evaluate = json.load(f)
 
         config_evaluate["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
 
-        with open(os.path.join(input_params["bundle_root"], input_params["config_evaluate_filename"]), "w") as f:
+        with open(os.path.join(input_params["bundle_root"], config_eval_filename), "w") as f:
             json.dump(config_evaluate, f, indent=4)
 
         # initialize algo
@@ -130,7 +181,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(os.path.join(input_params["bundle_root"], input_params["config_evaluate_filename"]))
+        parser.read_config(os.path.join(input_params["bundle_root"], config_eval_filename))
         parser.parse()
         network = parser.get_parsed_content("network")
 
@@ -139,16 +190,20 @@ class TestFLMonaiAlgo(unittest.TestCase):
         # test evaluate
         algo.evaluate(data=data, extra={})
 
-    @parameterized.expand([TEST_GET_WEIGHTS_1, TEST_GET_WEIGHTS_2, TEST_GET_WEIGHTS_3])
+    @parameterized.expand([TEST_GET_WEIGHTS_1, TEST_GET_WEIGHTS_2, TEST_GET_WEIGHTS_3, TEST_GET_WEIGHTS_4])
     def test_get_weights(self, input_params):
-        # get testing data dir and update train config
+        # get testing data dir and update train config; using the first to define data dir
         if input_params["config_train_filename"]:
-            with open(os.path.join(input_params["bundle_root"], input_params["config_train_filename"])) as f:
+            if isinstance(input_params["config_train_filename"], list):
+                config_train_filename = input_params["config_train_filename"][0]
+            else:
+                config_train_filename = input_params["config_train_filename"]
+            with open(os.path.join(input_params["bundle_root"], config_train_filename)) as f:
                 config_train = json.load(f)
 
             config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
 
-            with open(os.path.join(input_params["bundle_root"], input_params["config_train_filename"]), "w") as f:
+            with open(os.path.join(input_params["bundle_root"], config_train_filename), "w") as f:
                 json.dump(config_train, f, indent=4)
 
         # initialize algo

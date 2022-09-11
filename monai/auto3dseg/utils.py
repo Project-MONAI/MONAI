@@ -10,6 +10,9 @@
 # limitations under the License.
 
 import os
+import pickle
+import sys
+import warnings
 from copy import deepcopy
 from numbers import Number
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
@@ -17,6 +20,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 import numpy as np
 import torch
 
+from monai.auto3dseg import Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
@@ -31,6 +35,8 @@ __all__ = [
     "concat_multikeys_to_dict",
     "datafold_read",
     "verify_report_format",
+    "algo_to_pickle",
+    "algo_from_pickle",
 ]
 
 measure_np, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
@@ -168,7 +174,7 @@ def concat_val_to_np(
     elif ragged:
         return np.concatenate(np_list, **kwargs)  # type: ignore
     else:
-        return np.concatenate([np_list], **kwargs)  # type: ignore
+        return np.concatenate([np_list], **kwargs)
 
 
 def concat_multikeys_to_dict(
@@ -260,3 +266,85 @@ def verify_report_format(report: dict, report_format: dict):
                 return False
 
         return True
+
+
+def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
+    """
+    Export the Algo object to pickle file
+
+    Args:
+        algo: Algo-like object
+        algo_meta_data: additional keyword to save into the dictionary. It may include template_path
+            which is used to instantiate the class. It may also include model training info
+            such as acc/best_metrics
+
+    Returns:
+        filename of the pickled Algo object
+    """
+    data = {"algo_bytes": pickle.dumps(algo)}
+    pkl_filename = os.path.join(algo.get_output_path(), "algo_object.pkl")
+    for k, v in algo_meta_data.items():
+        data.update({k: v})
+    data_bytes = pickle.dumps(data)
+    with open(pkl_filename, "wb") as f_pi:
+        f_pi.write(data_bytes)
+    return pkl_filename
+
+
+def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
+    """
+    Import the Algo object from a pickle file
+
+    Args:
+        pkl_filename: name of the pickle file
+        algo_templates_dir: the algorithm script folder which is needed to instantiate the object.
+            If it is None, the function will use the internal ``'algo_templates_dir`` in the object
+            dict.
+
+    Returns:
+        algo: Algo-like object
+
+    Raises:
+        ValueError if the pkl_filename does not contain a dict, or the dict does not contain
+            ``template_path`` or ``algo_bytes``
+    """
+    with open(pkl_filename, "rb") as f_pi:
+        data_bytes = f_pi.read()
+    data = pickle.loads(data_bytes)
+
+    if not isinstance(data, dict):
+        raise ValueError(f"the data object is {data.__class__}. Dict is expected.")
+
+    if "algo_bytes" not in data:
+        raise ValueError(f"key [algo_bytes] not found in {data}. Unable to instantiate.")
+
+    algo_bytes = data.pop("algo_bytes")
+    algo_meta_data = {}
+
+    if "template_path" in kwargs:  # add template_path to sys.path
+        template_path = kwargs["template_path"]
+        if template_path is None:  # then load template_path from pickled data
+            if "template_path" not in data:
+                raise ValueError(f"key [template_path] not found in {data}")
+            template_path = data.pop("template_path")
+
+        if not os.path.isdir(template_path):
+            raise ValueError(f"Algorithm templates {template_path} is not a directory")
+        # Example of template path: "algorithm_templates/dints".
+        sys.path.insert(0, os.path.abspath(os.path.join(template_path, "..")))
+        algo_meta_data.update({"template_path": template_path})
+        print(template_path)
+
+    algo = pickle.loads(algo_bytes)
+    pkl_dir = os.path.dirname(pkl_filename)
+    if pkl_dir != algo.get_output_path():
+        warnings.warn(
+            f"{algo.get_output_path()} does not contain {pkl_filename}."
+            f"Now override the Algo output_path with: {pkl_dir}"
+        )
+        algo.output_path = pkl_dir
+
+    for k, v in data.items():
+        algo_meta_data.update({k: v})
+
+    return algo, algo_meta_data
