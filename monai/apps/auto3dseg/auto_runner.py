@@ -64,17 +64,20 @@ class AutoRunner:
 
 
     Examples:
+        User can specify work_dir and data source config input and run AutoRunner:
 
         ..code-block:: python
             work_dir = "./work_dir"
-            filename = "path_to_data_cfg"
-            runner = AutoRunner(data_src_cfg_filename, work_dir)
+            input = "path_to_yaml_data_cfg"
+            runner = AutoRunner(work_dir=work_dir, input=input)
             runner.run()
 
+        User can specify training parameters by:
+
         ..code-block:: python
             work_dir = "./work_dir"
-            filename = "path_to_data_cfg"
-            runner = AutoRunner(data_src_cfg_filename, work_dir)
+            input = "path_to_yaml_data_cfg"
+            runner = AutoRunner(work_dir=work_dir, input=input)
             train_param = {
                 "CUDA_VISIBLE_DEVICES": [0],
                 "num_iterations": 8,
@@ -82,13 +85,45 @@ class AutoRunner:
                 "num_images_per_batch": 2,
                 "num_epochs": 2,
             }
-            runner.set_training_params(train_param)  # 2 epochs
+            runner.set_training_params(params=train_param)  # 2 epochs
             runner.run()
+
+        User can specify the fold number of cross validation
 
         ..code-block:: python
             work_dir = "./work_dir"
-            filename = "path_to_data_cfg"
-            runner = AutoRunner(data_src_cfg_filename, work_dir, hpo=True)
+            input = "path_to_yaml_data_cfg"
+            runner = AutoRunner(work_dir=work_dir, input=input)
+            runner.set_num_fold(n_fold = 2)
+            runner.run()
+        
+        User can specify the prediction parameters during algo ensemble inference:
+
+        ..code-block:: python
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            pred_params = {
+                'files_slices': slice(0,2),
+                'mode': "vote",
+                'sigmoid': True,
+            }
+            runner = AutoRunner(work_dir=work_dir, input=input)
+            runner.set_prediction_params(params=pred_params)
+            runner.run()
+        
+        User can define a grid search space and use the HPO during training.
+
+        ..code-block:: python
+            work_dir = "./work_dir"
+            input = "path_to_yaml_data_cfg"
+            pred_param = {
+                "CUDA_VISIBLE_DEVICES": [0],
+                "num_iterations": 8,
+                "num_iterations_per_validation": 4,
+                "num_images_per_batch": 2,
+                "num_epochs": 2,
+            }
+            runner = AutoRunner(work_dir=work_dir, input=input, hpo=True)
             runner.set_nni_search_space({"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}})
             runner.run()
 
