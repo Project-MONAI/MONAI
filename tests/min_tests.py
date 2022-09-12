@@ -209,14 +209,14 @@ if __name__ == "__main__":
     try:
         import monai.engines
 
-        print(monai.engines.test_attribute)
+        print(monai.engines.test_attribute)  # type: ignore
     except OptionalImportError as e:
         print(f"expected {e}")
 
     try:
         import monai.handlers
 
-        print(monai.handlers.test_attribute)
+        print(monai.handlers.test_attribute)  # type: ignore
     except OptionalImportError as e:
         print(f"expected {e}")
 
