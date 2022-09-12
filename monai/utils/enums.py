@@ -381,11 +381,16 @@ class PostFix(StrEnum):
 
 class TransformBackends(StrEnum):
     """
-    Transform backends.
+    Transform backends. Most of `monai.transforms` components first converts the input data into ``torch.Tensor`` or
+    ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
+    ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
+    converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
+    convert the input data types to accomodate the underlying API.
     """
 
     TORCH = "torch"
     NUMPY = "numpy"
+    CUPY = "cupy"
 
 
 class JITMetadataKeys(StrEnum):
