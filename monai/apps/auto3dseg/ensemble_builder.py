@@ -11,7 +11,6 @@
 
 
 import json
-import logging
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -21,6 +20,7 @@ from warnings import warn
 import numpy as np
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
+from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
@@ -28,7 +28,7 @@ from monai.utils.enums import AlgoEnsembleKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option
 
-logger = logging.getLogger(__name__)
+logger = get_logger(module_name=__name__)
 
 
 class AlgoEnsemble(ABC):

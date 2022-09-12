@@ -14,7 +14,7 @@ from abc import abstractmethod
 from copy import deepcopy
 from warnings import warn
 
-from monai.apps.auto3dseg import BundleAlgo
+from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.utils import get_logger
 from monai.auto3dseg import Algo, AlgoGen, algo_from_pickle, algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
@@ -29,7 +29,7 @@ __all__ = ["HPOGen", "NNIGen"]
 
 class HPOGen(AlgoGen):
     """
-    This class generates a set of al, each of them can run independently.
+    This class generates a set of Algos, each of them can run independently for hyperparameter optimization (HPO).
     """
 
     @abstractmethod
@@ -39,23 +39,23 @@ class HPOGen(AlgoGen):
 
     @abstractmethod
     def update_params(self, *args, **kwargs):  # type: ignore
-        """Update model params."""
+        """Update Algo parameters according to the hyperparameters to be evaluated."""
         raise NotImplementedError
 
     @abstractmethod
     def set_score(self):
-        """Report result to HPO."""
+        """Report the evaluated results to HPO."""
         raise NotImplementedError
 
     @abstractmethod
     def run_algo(self, *args, **kwargs):  # type: ignore
-        """Interface for the HPO to run the training."""
+        """Interface for launch the training given the fetched hyperparameters."""
         raise NotImplementedError
 
 
 class NNIGen(HPOGen):
     """
-    Generate algorithms for the NNI to automate algorithm hyper-parameter tuning. The module has two major interfaces:
+    Generate algorithms for the NNI to automate hyperparameter tuning. The module has two major interfaces:
     ``__init__`` which sets up the algorithm, and a trialCommand function ``run_algo`` for the NNI library. More about
     trialCommand function can be found in ``trail code`` section in NNI webpage
     https://nni.readthedocs.io/en/latest/tutorials/hpo_quickstart_pytorch/main.html .
@@ -66,7 +66,7 @@ class NNIGen(HPOGen):
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
     Raises:
-        ValueError if the user tries to override a algo that doesn't have ``export_to_disk`` function.
+        ValueError if the user tries to override an Algo that doesn't have ``export_to_disk`` function.
 
     Examples:
         The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
@@ -148,9 +148,8 @@ class NNIGen(HPOGen):
         """
         if has_nni:
             return nni.get_next_parameter()
-        else:
-            warn("NNI is not detected. The code will continue to run without NNI.")
-            return {}
+        warn("NNI is not detected. The code will continue to run without NNI.")
+        return {}
 
     def update_params(self, params: dict):  # type: ignore
         """
@@ -166,12 +165,7 @@ class NNIGen(HPOGen):
         Get the identifier of the current experiment. In the format of listing the searching parameter name and values
         connected by underscore in the file name.
         """
-        task_id = ""
-        for k, v in self.params.items():
-            task_id += f"_{k}_{v}"
-        if len(task_id) == 0:
-            task_id = "_None"  # avoid rewriting the original
-        return task_id
+        return "".join(f"_{k}_{v}" for k, v in self.params.items()) or "_None"
 
     def generate(self, output_folder: str = ".") -> None:
         """
@@ -219,7 +213,7 @@ class NNIGen(HPOGen):
         if isinstance(self.algo, BundleAlgo):  # algo's template path needs override
             self.algo.template_path = algo_meta_data["template_path"]
 
-        # step1 sample hyperparams
+        # step 1 sample hyperparams
         params = self.get_hyperparameters()
         # step 2 set the update params for the algo to run in the next trial
         self.update_params(params)
