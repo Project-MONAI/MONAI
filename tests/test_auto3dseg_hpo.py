@@ -18,13 +18,23 @@ from typing import Dict, List
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, import_bundle_algo_history
+from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
+from functools import partial
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
+optuna, has_optuna = optional_import("optuna")
+
+def skip_if_no_optuna(obj):
+    """
+    Skip the unit tests if torch.cuda.is_available is False.
+    """
+    return unittest.skipUnless(has_optuna, "Skipping optuna tests")(obj)
+
+
 
 fake_datalist: Dict[str, List[Dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
@@ -121,6 +131,30 @@ class TestHPO(unittest.TestCase):
         obj_filename = nni_gen.get_obj_filename()
         # this function will be used in HPO via Python Fire
         NNIGen().run_algo(obj_filename, self.work_dir)
+
+    @skip_if_no_cuda
+    @skip_if_no_optuna
+    def test_run_algo(self) -> None:
+        override_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+            "num_warmup_iterations": 4,
+        }
+
+        algo_dict = self.history[0]
+        algo_name = list(algo_dict.keys())[0]
+        algo = algo_dict[algo_name]
+        class OptunaGen_learningrate(OptunaGen):
+            def get_hyperparameters(self):
+                return {'learning_rate': self.trial.suggest_float("learning_rate", 0.00001, 0.1)}
+        optuna_gen = OptunaGen_learningrate(algo=algo, params=override_param)
+        search_space = {'learning_rate':[0.0001, 0.001, 0.01, 0.1]}
+        study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space), direction='maximize')
+        study.optimize(partial(optuna_gen, obj_filename=optuna_gen.get_obj_filename(), 
+                               output_folder=os.path.join(self.test_path, "optuna_test")), n_trials=2)
+        print("Best value: {} (params: {})\n".format(study.best_value, study.best_params))    
 
     @skip_if_no_cuda
     def test_run_algo_after_move_files(self) -> None:

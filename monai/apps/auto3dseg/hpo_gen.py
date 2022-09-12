@@ -21,10 +21,10 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
 
 nni, has_nni = optional_import("nni")
-
+optuna, has_optuna = optional_import("optuna")
 logger = get_logger(module_name=__name__)
 
-__all__ = ["HPOGen", "NNIGen"]
+__all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 
 class HPOGen(AlgoGen):
@@ -114,7 +114,7 @@ class NNIGen(HPOGen):
 
             if isinstance(algo, BundleAlgo):
                 self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
-                self.print_bundle_algo_nni_instruction()
+                self.print_bundle_algo_instruction()
             else:
                 self.obj_filename = algo_to_pickle(self.algo)
                 # nni instruction unknown
@@ -123,7 +123,7 @@ class NNIGen(HPOGen):
         """Return the dumped pickle object of algo."""
         return self.obj_filename
 
-    def print_bundle_algo_nni_instruction(self):
+    def print_bundle_algo_instruction(self):
         """
         Print how to write the trial commands in NNI.
         """
@@ -227,3 +227,34 @@ class NNIGen(HPOGen):
         else:
             algo_to_pickle(self.algo, best_metrics=acc)
         self.set_score(acc)
+
+
+class OptunaGen(NNIGen):
+    def __init__(self, algo=None, params=None):
+        super().__init__(algo, params)
+
+    def get_hyperparameters(self):
+        """
+        Get parameter for next round of training from optuna trial object.
+        This function requires user rewrite during usage for different search space.
+        """
+        if has_optuna:
+            logger.info('Please rewrite this code by creating a child class')
+            return {'learning_rate': self.trial.suggest_float("learning_rate", 0.0001, 0.1)}
+        else:
+            warn("Optuna is not detected. The code will continue to run without Optuna.")
+            return {}
+
+    def set_score(self, acc):
+        self.acc = acc
+
+    def set_trial(self, trial):
+        self.trial = trial
+
+    def print_bundle_algo_instruction(self):
+        pass
+
+    def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
+        self.set_trial(trial)
+        self.run_algo(obj_filename, output_folder, template_path)
+        return self.acc
