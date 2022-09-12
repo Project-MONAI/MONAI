@@ -15,6 +15,7 @@ import sys
 from typing import Optional, Union
 
 import torch
+import torch.distributed as dist
 
 import monai
 from monai.bundle import ConfigParser
@@ -112,6 +113,8 @@ class MonaiAlgo(ClientAlgo):
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
             Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
             e.g., the aggregator, which is not controlled by this class.
+        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
+        backend: backend to use for torch.distributed; defaults to "nccl".
     """
 
     def __init__(
@@ -128,6 +131,8 @@ class MonaiAlgo(ClientAlgo):
         save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
+        multi_gpu: bool = False,
+        backend: str = "nccl",
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         if config_evaluate_filename == "default":
@@ -144,6 +149,8 @@ class MonaiAlgo(ClientAlgo):
         self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
+        self.multi_gpu = multi_gpu
+        self.backend = backend
 
         self.app_root = None
         self.train_parser = None
@@ -173,6 +180,10 @@ class MonaiAlgo(ClientAlgo):
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
+
+        if self.multi_gpu:
+            dist.init_process_group(backend=self.backend)
+            torch.cuda.set_device(torch.device(f"cuda:{dist.get_rank()}"))
 
         if self.seed:
             monai.utils.set_determinism(seed=self.seed)
@@ -420,6 +431,9 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
+
+        if self.multi_gpu:
+            dist.destroy_process_group()
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
