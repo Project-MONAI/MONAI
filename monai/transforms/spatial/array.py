@@ -123,7 +123,6 @@ class SpatialResample(InvertibleTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
-        scale_extent: bool = False,
     ):
         """
         Args:
@@ -292,7 +291,7 @@ class SpatialResample(InvertibleTransform):
         if additional_dims:
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
-        if isinstance(mode, int) or USE_COMPILED:
+        if isinstance(mode, int):
             dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
             if not align_corners:
                 norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
