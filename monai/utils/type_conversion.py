@@ -102,7 +102,7 @@ def get_dtype(data: Any):
 
 def convert_to_tensor(
     data,
-    dtype: Optional[torch.dtype] = None,
+    dtype: Union[DtypeLike, torch.dtype] = None,
     device: Union[None, str, torch.device] = None,
     wrap_sequence: bool = False,
     track_meta: bool = False,
