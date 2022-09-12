@@ -44,6 +44,10 @@ class Algo:
         """Returns the model quality measurement based on training and validation datasets."""
         pass
 
+    def get_output_path(self, *args, **kwargs):
+        """Returns the algo output paths for scripts location"""
+        pass
+
 
 class AlgoGen(Randomizable):
     """

@@ -15,7 +15,6 @@ defined in :py:class:`monai.transforms.spatial.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from copy import deepcopy
 from typing import Any, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -58,12 +57,10 @@ from monai.utils import (
     GridSamplePadMode,
     InterpolateMode,
     NumpyPadMode,
-    WSIPatchKeys,
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,
-    first,
 )
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import PytorchPadMode, TraceKeys
@@ -195,9 +192,9 @@ class SpatialResampled(MapTransform, InvertibleTransform):
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
@@ -271,9 +268,9 @@ class ResampleToMatchd(MapTransform, InvertibleTransform):
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -334,6 +331,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         padding_mode: SequenceStr = GridSamplePadMode.BORDER,
         align_corners: Union[Sequence[bool], bool] = False,
         dtype: Union[Sequence[DtypeLike], DtypeLike] = np.float64,
+        scale_extent: bool = False,
+        recompute_affine: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
         allow_missing_keys: bool = False,
@@ -376,28 +375,41 @@ class Spacingd(MapTransform, InvertibleTransform):
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
                 It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
+            recompute_affine: whether to recompute affine based on the output shape. The affine computed
+                analytically does not reflect the potential quantization errors in terms of the output shape.
+                Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal)
+        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, recompute_affine=recompute_affine)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d: Dict = dict(data)
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
+            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
             # resample array of each corresponding key
             d[key] = self.spacing_transform(
-                data_array=d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
+                data_array=d[key],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+                scale_extent=scale_extent,
             )
         return d
 
@@ -684,7 +696,7 @@ class Affined(MapTransform, InvertibleTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
                 It also can be a sequence, each element corresponds to a key in ``keys``.
             device: device on which the tensor will be allocated.
-            dtype: data type for resampling computation. Defaults to ``np.float32``.
+            dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
             allow_missing_keys: don't raise exception if key is missing.
@@ -849,6 +861,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
             # do the transform
             if do_resampling:
                 d[key] = self.rand_affine(d[key], mode=mode, padding_mode=padding_mode, grid=grid)  # type: ignore
+            else:
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if do_resampling else {}
                 self.push_transform(d[key], extra_info={"do_resampling": do_resampling, "rand_affine_info": xform})
@@ -1308,9 +1322,9 @@ class Rotated(MapTransform, InvertibleTransform):
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-        dtype: data type for resampling computation. Defaults to ``np.float32``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
             It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -1381,9 +1395,9 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool, each element corresponds to a key in ``keys``.
-        dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+        dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
             It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -1438,7 +1452,7 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform):
                     randomize=False,
                 )
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
                 rot_info = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=rot_info)
@@ -1606,7 +1620,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
                     d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, randomize=False
                 )
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             if get_track_meta():
                 xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                 self.push_transform(d[key], extra_info=xform)
@@ -1851,25 +1865,11 @@ class GridPatchd(MapTransform):
             **pad_kwargs,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        output = []
-        results = [self.patcher(d[key]) for key in self.keys]
-        num_patches = min(len(r) for r in results)
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key])
+        return d
 
 
 class RandGridPatchd(RandomizableTransform, MapTransform):
@@ -1942,31 +1942,15 @@ class RandGridPatchd(RandomizableTransform, MapTransform):
         self.patcher.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> List[Dict]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        original_spatial_shape = d[first(self.keys)].shape[1:]
-        # all the keys share the same random noise
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
-            return [d]
-        self.patcher.randomize(d[first_key])  # type: ignore
-        results = [self.patcher(d[key], randomize=False) for key in self.keys]
-
-        num_patches = min(len(r) for r in results)
-        output = []
-        for patch in zip(*results):
-            new_dict = {k: v[0] for k, v in zip(self.keys, patch)}
-            # fill in the extra keys with unmodified data
-            for k in set(d.keys()).difference(set(self.keys)):
-                new_dict[k] = deepcopy(d[k])
-            # fill additional metadata
-            new_dict["original_spatial_shape"] = original_spatial_shape
-            new_dict[WSIPatchKeys.LOCATION] = patch[0][1]  # use the starting coordinate of the first item
-            new_dict[WSIPatchKeys.SIZE] = self.patcher.patch_size
-            new_dict[WSIPatchKeys.COUNT] = num_patches
-            new_dict["offset"] = self.patcher.offset
-            output.append(new_dict)
-        return output
+        # All the keys share the same random noise
+        for key in self.key_iterator(d):
+            self.patcher.randomize(d[key])
+            break
+        for key in self.key_iterator(d):
+            d[key] = self.patcher(d[key], randomize=False)
+        return d
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled

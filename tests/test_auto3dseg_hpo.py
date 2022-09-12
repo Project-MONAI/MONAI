@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import shutil
 import tempfile
 import unittest
 from typing import Dict, List
@@ -17,12 +18,11 @@ from typing import Dict, List
 import nibabel as nib
 import numpy as np
 
-from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
+from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, import_bundle_algo_history
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from monai.utils.enums import AlgoEnsembleKeys
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -44,31 +44,16 @@ fake_datalist: Dict[str, List[Dict]] = {
     ],
 }
 
-train_param = {
-    "CUDA_VISIBLE_DEVICES": [0],
-    "num_iterations": 8,
-    "num_iterations_per_validation": 4,
-    "num_images_per_batch": 2,
-    "num_epochs": 2,
-    "num_warmup_iterations": 4,
-}
 
-pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
-
-
-@skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
-class TestEnsembleBuilder(unittest.TestCase):
+class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
-
-    @skip_if_no_cuda
-    def test_ensemble(self) -> None:
         test_path = self.test_dir.name
 
-        dataroot = os.path.join(test_path, "dataroot")
-        work_dir = os.path.join(test_path, "workdir")
+        work_dir = os.path.abspath(os.path.join(test_path, "workdir"))
+        dataroot = os.path.join(work_dir, "dataroot")
 
         da_output_yaml = os.path.join(work_dir, "datastats.yaml")
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
@@ -114,23 +99,78 @@ class TestEnsembleBuilder(unittest.TestCase):
             algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
         )
         bundle_generator.generate(work_dir, num_fold=2)
-        history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for _, algo in h.items():
-                algo.train(train_param)
+        self.history = bundle_generator.get_history()
+        self.work_dir = work_dir
+        self.test_path = test_path
 
-        builder = AlgoEnsembleBuilder(history, data_src_cfg)
-        builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
-        ensemble = builder.get_ensemble()
-        preds = ensemble(pred_param)
-        self.assertTupleEqual(preds[0].shape, (2, 64, 64, 64))
+    @skip_if_no_cuda
+    def test_run_algo(self) -> None:
+        override_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+            "num_warmup_iterations": 4,
+        }
 
-        builder.set_ensemble_method(AlgoEnsembleBestByFold(2))
-        ensemble = builder.get_ensemble()
-        for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+        algo_dict = self.history[0]
+        algo_name = list(algo_dict.keys())[0]
+        algo = algo_dict[algo_name]
+        nni_gen = NNIGen(algo=algo, params=override_param)
+        obj_filename = nni_gen.get_obj_filename()
+        # this function will be used in HPO via Python Fire
+        NNIGen().run_algo(obj_filename, self.work_dir)
+
+    @skip_if_no_cuda
+    def test_run_algo_after_move_files(self) -> None:
+        override_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+            "num_warmup_iterations": 4,
+        }
+
+        algo_dict = self.history[0]
+        algo_name = list(algo_dict.keys())[0]
+        algo = algo_dict[algo_name]
+        nni_gen = NNIGen(algo=algo, params=override_param)
+        obj_filename = nni_gen.get_obj_filename()
+
+        work_dir_2 = os.path.join(self.test_path, "workdir2")
+        os.makedirs(work_dir_2)
+        algorithm_template = os.path.join(self.work_dir, "algorithm_templates")
+        algorithm_templates_2 = os.path.join(work_dir_2, "algorithm_templates")
+        algo_dir = os.path.dirname(obj_filename)
+        algo_dir_2 = os.path.join(work_dir_2, os.path.basename(algo_dir))
+
+        obj_filename_2 = os.path.join(algo_dir_2, "algo_object.pkl")
+        shutil.copytree(algorithm_template, algorithm_templates_2)
+        shutil.copytree(algo_dir, algo_dir_2)
+        # this function will be used in HPO via Python Fire in remote
+        NNIGen().run_algo(obj_filename_2, work_dir_2, template_path=algorithm_templates_2)
+
+    @skip_if_no_cuda
+    def test_get_history(self) -> None:
+        override_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+            "num_warmup_iterations": 4,
+        }
+
+        algo_dict = self.history[0]
+        algo_name = list(algo_dict.keys())[0]
+        algo = algo_dict[algo_name]
+        nni_gen = NNIGen(algo=algo, params=override_param)
+        obj_filename = nni_gen.get_obj_filename()
+
+        NNIGen().run_algo(obj_filename, self.work_dir)
+
+        history = import_bundle_algo_history(self.work_dir, only_trained=True)
+        assert len(history) == 1
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
