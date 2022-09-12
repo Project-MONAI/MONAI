@@ -189,14 +189,13 @@ class RandRicianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             super().randomize(None)
 
         if not self._do_transform:
             return img
 
-        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -335,9 +334,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        if self.dtype is not None:
-            img, *_ = convert_data_type(img, dtype=self.dtype)
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)  # type: ignore
@@ -394,7 +391,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             self.randomize()
 
@@ -506,7 +503,7 @@ class RandScaleIntensity(RandomizableTransform):
             self.randomize()
 
         if not self._do_transform:
-            return img
+            return convert_data_type(img, dtype=self.dtype)[0]
 
         return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
 
