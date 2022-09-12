@@ -225,11 +225,11 @@ class AutoRunner:
 
         if cache["analyze"]["has_cache"]:
             # check if the file in the right format and exists.
-            if not isinstance(cache["analyze"]["datastats"], str):
+            if not isinstance(cache["analyze"]["datastats_file"], str):
                 cache["analyze"] = False
-                cache["analyze"]["datastats"] = None
+                cache["analyze"]["datastats_file"] = None
 
-            if not os.path.isfile(cache["analyze"]["datastats"]):
+            if not os.path.isfile(cache["analyze"]["datastats_file"]):
                 cache["analyze"]["has_cache"] = False
 
         if cache["algo_gen"]["has_cache"]:
@@ -502,7 +502,7 @@ class AutoRunner:
             da = DataAnalyzer(self.datalist_filename, self.dataroot, output_path=self.datastats_filename)
             da.get_all_case_stats()
             self.cache["analyze"]["has_cache"] = True
-            self.cache["analyze"]["datastats"] = self.datastats_filename
+            self.cache["analyze"]["datastats_file"] = self.datastats_filename
             self.export_cache()
         else:
             logger.info("Found cached results and skipping data analysis...")
