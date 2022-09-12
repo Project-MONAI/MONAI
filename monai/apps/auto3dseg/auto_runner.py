@@ -96,7 +96,7 @@ class AutoRunner:
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.set_num_fold(n_fold = 2)
             runner.run()
-        
+
         User can specify the prediction parameters during algo ensemble inference:
 
         ..code-block:: python
@@ -110,7 +110,7 @@ class AutoRunner:
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.set_prediction_params(params=pred_params)
             runner.run()
-        
+
         User can define a grid search space and use the HPO during training.
 
         ..code-block:: python
