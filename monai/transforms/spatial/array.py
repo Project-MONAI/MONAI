@@ -138,9 +138,9 @@ class SpatialResample(InvertibleTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
         """
         self.mode = mode
         self.padding_mode = padding_mode
@@ -160,7 +160,7 @@ class SpatialResample(InvertibleTransform):
         """
         Small fn to simplify returning data. If `MetaTensor`, update affine. Elif
         tracking metadata is desired, create `MetaTensor` with affine. Else, return
-        image as `torch.Tensor`. Output type is always `torch.float32`.
+        image as `torch.Tensor`. Output type is always `float32`.
 
         Also append the transform to the stack.
         """
@@ -473,9 +473,9 @@ class Spacing(InvertibleTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
             scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
                 default False. The option is ignored if output spatial size is specified when calling this transform.
                 See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
@@ -526,7 +526,7 @@ class Spacing(InvertibleTransform):
                 Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
             scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
                 The option is ignored if output spatial size is specified when calling this transform.
                 See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
@@ -961,9 +961,9 @@ class Rotate(InvertibleTransform):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float32``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
     """
 
     backend = [TransformBackends.TORCH]
@@ -975,7 +975,7 @@ class Rotate(InvertibleTransform):
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        dtype: Union[DtypeLike, torch.dtype] = torch.float32,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -1007,7 +1007,7 @@ class Rotate(InvertibleTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
@@ -1388,9 +1388,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float32``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
     """
 
     backend = Rotate.backend
@@ -1460,7 +1460,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
             randomize: whether to execute `randomize()` function first, default to True.
         """
         if randomize:
@@ -1477,7 +1477,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform):
             )
             out = rotator(img)
         else:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
+            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if get_track_meta():
             rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=rot_info)
@@ -1688,7 +1688,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform):
             self.randomize(img=img)
 
         if not self._do_transform:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
+            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         else:
             out = Zoom(
                 self._zoom,
@@ -1731,7 +1731,7 @@ class AffineGrid(Transform):
             pixel/voxel relative to the center of the input image. Defaults to no translation.
         scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
             a tuple of 3 floats for 3D. Defaults to `1.0`.
-        dtype: data type for the grid computation. Defaults to ``np.float32``.
+        dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
@@ -2007,7 +2007,7 @@ class Resample(Transform):
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
                 resampling API.
             device: device on which the tensor will be allocated.
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
 
@@ -2199,7 +2199,7 @@ class Affine(InvertibleTransform):
                 If `normalized=False`, additional coordinate normalization will be applied before resampling.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
-            dtype: data type for resampling computation. Defaults to ``np.float32``.
+            dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
