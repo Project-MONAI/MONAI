@@ -1,18 +1,18 @@
 # Modules Overview
 
-MONAI aims at supporting deep learning in medical image analysis at multiple granularities.
-This figure shows a typical example of the end-to-end workflow:
-![an end to end workflow](../images/end_to_end.png)
+MONAI aims at facilitating deep learning in medical image analysis at multiple granularity.
+This document provides an overview of the modules and highlights the key capabilities.
 
 ## MONAI architecture
-The design principle of MONAI is to provide flexible and light APIs for users with varying expertise.
-1. All the core components are independent modules, which can be easily integrated into any existing PyTorch program.
+The design principle of MONAI is to provide flexible and lightweight APIs for users with varying expertise.
+1. Most core components are independent modules, which can be easily integrated into any existing PyTorch program.
 2. Users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program for research experiments.
-3. Rich examples and demos are provided to demonstrate the key features.
-4. Researchers contribute implementations based on the state-of-the-art for the latest research challenges, including COVID-19 image analysis, Model Parallel, etc.
+3. Rich examples and demos are provided to demonstrate the key capabilities.
 
 The overall architecture and modules are shown in the following figure:
-![architecture overview](../images/arch_modules_v0.4.png)
+
+![architecture overview](../images/arch_modules.png)
+
 The rest of this page provides more details for each module.
 
 * [Data I/O, processing and augmentation](#medical-image-data-i-o-processing-and-augmentation)
@@ -24,6 +24,7 @@ The rest of this page provides more details for each module.
 * [Visualization](#visualization)
 * [Result writing](#result-writing)
 * [Workflows](#workflows)
+* [Federated Learning](#federated-laerning)
 * [Bundle](#bundle)
 * [Research](#research)
 * [Performance optimization and GPU acceleration](#performance-optimization-and-gpu-acceleration)
@@ -468,6 +469,20 @@ For [Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in 
 ![swin-unetr](../images/swin_unetr.png)
 
 The [tutorial](https://github.com/Project-MONAI/tutorials/blob/main/3d_segmentation/swin_unetr_btcv_segmentation_3d.ipynb) shows a typical pipeline of multi-organ segmentation based on Swin UNETR model, DiceCE loss function, Mean Dice, etc. And we used weights from self-supervised pre-training of Swin UNETR encoder (3D Swin Transformer) on a cohort of 5050 CT scans from publicly available datasets.
+
+## Federated Learning
+![federated-learning](../images/federated.png)
+Using the MONAI bundle configurations, we can use MONAI's [`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) class (an implementation of the abstract [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) class for federated learning)
+to execute bundles from the [MONAI model zoo](https://github.com/Project-MONAI/model-zoo).
+
+Note that [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) is provided as an abstract base class for defining an algorithm to be run on any federated learning platform.
+[`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) implements the main functionalities needed to run federated learning experiments, namely `train()`, `get_weights()`, and `evaluate()`.
+On top, it provides implementations for life-cycle management of the component such as `initialize()`, `abort()`, and `finalize()`.
+
+[NVIDIA FLARE](https://github.com/NVIDIA/NVFlare), the federated learning platform developed by NVIDIA, has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/2.2/integration/monai)
+with [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) to allow easy experimentation with MONAI bundles within their federated environment.
+
+For more details, [see this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/federated_learning/nvflare).
 
 ## Performance optimization and GPU acceleration
 Typically, model training is a time-consuming step during deep learning development, especially in medical imaging applications. Volumetric medical images are usually large (as multi-dimensional arrays) and the model training process can be complex. Even with powerful hardware (e.g. CPU/GPU with large RAM), it is not easy to fully leverage them to achieve high performance. MONAI provides a fast training guide to achieve the best performance: https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_model_training_guide.md.
