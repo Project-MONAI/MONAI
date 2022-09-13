@@ -29,7 +29,10 @@ else:
 
 class ProbMapProducer:
     """
-    Event handler triggered on completing every iteration to calculate and save the probability map
+    Event handler triggered on completing every iteration to calculate and save the probability map.
+    This handler use metadata from MetaTensor to create the probability map. This can be simply achieved by using
+    `monai.data.SlidingPatchWSIDataset` or `monai.data.MaskedPatchWSIDataset` as the dataset.
+
     """
 
     def __init__(
