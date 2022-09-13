@@ -265,7 +265,7 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,
@@ -273,6 +273,7 @@ class KeepLargestConnectedComponent(Transform):
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
+        num_components: int = 1,
     ) -> None:
         """
         Args:
@@ -290,6 +291,7 @@ class KeepLargestConnectedComponent(Transform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
 
         """
         super().__init__()
@@ -297,6 +299,7 @@ class KeepLargestConnectedComponent(Transform):
         self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
+        self.num_components = num_components
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -316,7 +319,7 @@ class KeepLargestConnectedComponent(Transform):
         if self.independent:
             for i in applied_labels:
                 foreground = img_[i] > 0 if is_onehot else img_[0] == i
-                mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
                 if is_onehot:
                     img_[i][foreground != mask] = 0
                 else:
@@ -325,12 +328,12 @@ class KeepLargestConnectedComponent(Transform):
         if not is_onehot:  # not one-hot, union of labels
             labels, *_ = convert_to_dst_type(applied_labels, dst=img_, wrap_sequence=True)
             foreground = (img_[..., None] == labels).any(-1)[0]
-            mask = get_largest_connected_component_mask(foreground, self.connectivity)
+            mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
             img_[0][foreground != mask] = 0
             return convert_to_dst_type(img_, dst=img)[0]
         # one-hot, union of labels
         foreground = (img_[applied_labels, ...] == 1).any(0)
-        mask = get_largest_connected_component_mask(foreground, self.connectivity)
+        mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
         for i in applied_labels:
             img_[i][foreground != mask] = 0
         return convert_to_dst_type(img_, dst=img)[0]
@@ -353,6 +356,8 @@ class RemoveSmallObjects(Transform):
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
         self.min_size = min_size
@@ -703,7 +708,7 @@ class ProbNMS(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -764,6 +769,8 @@ class Invert(Transform):
     """
     Utility transform to automatically invert the previously applied transforms.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

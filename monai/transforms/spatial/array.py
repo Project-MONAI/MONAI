@@ -115,7 +115,7 @@ class SpatialResample(InvertibleTransform):
     by ``xform = linalg.solve(src_affine, dst_affine)``, and call ``monai.transforms.Affine`` with ``xform``.
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,

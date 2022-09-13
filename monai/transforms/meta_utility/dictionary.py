@@ -45,7 +45,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
     have the form `{"a": torch.Tensor, "a_meta_dict": dict, "a_transforms": list, "b": ...}`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self, keys: KeysCollection, data_type: Union[Sequence[str], str] = "tensor", allow_missing_keys: bool = False
@@ -92,7 +92,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
     have the form `{"a": MetaTensor, "b": MetaTensor}`.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
