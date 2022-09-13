@@ -21,10 +21,10 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import optional_import
 
 nni, has_nni = optional_import("nni")
-
+optuna, has_optuna = optional_import("optuna")
 logger = get_logger(module_name=__name__)
 
-__all__ = ["HPOGen", "NNIGen"]
+__all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 
 class HPOGen(AlgoGen):
@@ -114,7 +114,7 @@ class NNIGen(HPOGen):
 
             if isinstance(algo, BundleAlgo):
                 self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
-                self.print_bundle_algo_nni_instruction()
+                self.print_bundle_algo_instruction()
             else:
                 self.obj_filename = algo_to_pickle(self.algo)
                 # nni instruction unknown
@@ -123,7 +123,7 @@ class NNIGen(HPOGen):
         """Return the dumped pickle object of algo."""
         return self.obj_filename
 
-    def print_bundle_algo_nni_instruction(self):
+    def print_bundle_algo_instruction(self):
         """
         Print how to write the trial commands in NNI.
         """
@@ -227,3 +227,87 @@ class NNIGen(HPOGen):
         else:
             algo_to_pickle(self.algo, best_metrics=acc)
         self.set_score(acc)
+
+
+class OptunaGen(NNIGen):
+    """
+    Generate algorithms for the Optuna to automate hyperparameter tuning. Please refer to NNIGen and Optuna (https://optuna.readthedocs.io/en/stable/)
+    for more information. Optuna has different running scheme compared to NNI. The hyperparameter samples come from
+    a trial object (trial.suggest...) created by Optuna, so OptunaGen needs to accept this trial object as input. Meanwhile,
+    Optuna calls OptunaGen, thus OptunaGen.__call__() should return the accuracy. Use functools.partial to wrap OptunaGen
+    for addition input arguments.
+
+    Args:
+        algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
+            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+        params: a set of parameter to override the algo if override is supported by Algo subclass.
+
+    Raises:
+        ValueError if the user tries to override an Algo that doesn't have ``export_to_disk`` function.
+
+    Examples:
+        The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
+        ├── algorithm_templates
+        │   └── unet
+        ├── unet_0
+        │   ├── algo_object.pkl
+        │   ├── configs
+        │   └── scripts
+        ├── unet_0_learning_rate_0.01
+        │   ├── algo_object.pkl
+        │   ├── configs
+        │   ├── model_fold0
+        │   └── scripts
+        └── unet_0_learning_rate_0.1
+            ├── algo_object.pkl
+            ├── configs
+            ├── model_fold0
+            └── scripts
+
+    Notes: Different from NNI and NNIGen, OptunaGen and Optuna can be ran without using a external terminal commands like "nnictl create ..."
+        
+    """
+
+    def __init__(self, algo=None, params=None):
+        self.algo: Algo
+        self.obj_filename = ""
+
+        if algo is not None:
+            if isinstance(algo, BundleAlgo):
+                if params is None:
+                    self.algo = algo
+                else:
+                    self.algo = deepcopy(algo)
+                    name = os.path.basename(algo.get_output_path()) + "_override"
+                    output_folder = os.path.dirname(algo.get_output_path())
+
+                    params.update({"fill_with_datastats": False})  # just copy, not using datastats to fill
+                    self.algo.export_to_disk(output_folder, name, **params)
+            else:
+                self.algo = algo
+
+    def get_hyperparameters(self):
+        """
+        Get parameter for next round of training from optuna trial object.
+        This function requires user rewrite during usage for different search space.
+        """
+        if has_optuna:
+            logger.info('Please rewrite this code by creating a child class')
+            return {'learning_rate': self.trial.suggest_float("learning_rate", 0.0001, 0.1)}
+        else:
+            warn("Optuna is not detected. The code will continue to run without Optuna.")
+            return {}
+
+    def set_score(self, acc):
+        self.acc = acc
+
+    def set_trial(self, trial):
+        self.trial = trial
+
+    def print_bundle_algo_instruction(self):
+        pass
+
+    def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
+        self.set_trial(trial)
+        self.run_algo(obj_filename, output_folder, template_path)
+        return self.acc
