@@ -59,7 +59,7 @@ from monai.utils import (
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
 
-measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
@@ -951,7 +951,9 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optional[int] = None) -> NdarrayTensor:
+def get_largest_connected_component_mask(
+    img: NdarrayTensor, connectivity: Optional[int] = None, num_components: int = 1
+) -> NdarrayTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -961,8 +963,9 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+        num_components: The number of largest components to preserve.
     """
-    if isinstance(img, torch.Tensor) and has_cp and has_cucim:
+    if isinstance(img, torch.Tensor) and has_cp and has_cucim and num_components == 1:
         x_cupy = monai.transforms.ToCupy()(img.short())
         x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
         vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
@@ -972,13 +975,27 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
 
         return out_tensor  # type: ignore
 
-    img_arr = convert_data_type(img, np.ndarray)[0]
-    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    img_arr = measure.label(img_arr, connectivity=connectivity)
-    if img_arr.max() != 0:
-        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
+    if not has_measure:
+        raise RuntimeError("Skimage.measure required.")
 
-    return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
+    img_np, *_ = convert_data_type(img, np.ndarray)
+    # features will be an image, 0 for background and then each different
+    # feature will have its own index.
+    features, num_features = measure.label(img_np, connectivity=connectivity, return_num=True)
+    # # if num features less than max desired, nothing to do.
+    if num_features <= num_components:
+        out = img_np.astype(bool)
+    else:
+        # get number voxels per feature (bincount). np.argsort[::-1] to get indices
+        # of largest components. Convert to list for ease
+        features_to_keep = list(np.argsort(np.bincount(features.flat))[::-1])
+        # remove 0 (background)
+        features_to_keep.remove(0)
+        # only keep the first n non-background indices
+        features_to_keep = features_to_keep[:num_components]
+        # generate labelfield. True if in list of features to keep
+        out = np.isin(features, features_to_keep)
+    return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
 def remove_small_objects(
