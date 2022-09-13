@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from copy import deepcopy
 from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 
@@ -42,42 +42,73 @@ nni, has_nni = optional_import("nni")
 
 class AutoRunner:
     """
-    Auto3Dseg interface for minimal user input
+    An interface for handling Auto3Dseg with minimal inputs and understanding of the internal states in Auto3Dseg.
+    The users can run the Auto3Dseg with default settings in one line of code. They can also customize the advanced
+    features Auto3Dseg in a few additional lines. Examples of customization include
+        - change cross-validation folds
+        - change training/prediction parameters
+        - change ensemble methods
+        - automatic hyperparameter optimization.
+
+    The output of the interface is a directory that contains
+        - data statistics analysis report
+        - algorithm definition files (scripts, configs, pickle objects) and training results (checkpoints, accuracies)
+        - the predictions on the testing datasets from the final algorithm ensemble
+        - a copy of the input arguments in form of YAML
+        - cached intermediate results
 
     Args:
-        work_dir: working directory to save the intermediate results.
-        input: path to a configuration file (yaml) that contains datalist, dataroot, and other params.
-                The config will be in a form of {"modality": "ct", "datalist": "path_to_json_datalist",
-                "dataroot": "path_dir_data"}.
-        analyze: on/off switch to run DataAnalyzer and generate a datastats report.
-        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos.
-        train: on/off switch to run training in either sequential mode or HPO-managed mode.
-        hpo: use hyper parameter optimization (HPO) in the training phase. User can provide a list of
-            hyper-parameter and a search will be performed to investigate the algo performances.
-        hpo_backend: a string that indicates the backend of the HPO.
+        work_dir: working directory to save the intermediate and final results.
+        input: the configuration dictionary or the file path to the configuration in form of YAML.
+            The configuration should contain datalist, dataroot, modality, multigpu, and class_names info.
+        analyze: on/off switch to run DataAnalyzer and generate a datastats report. If it is set to False,
+            The AutoRunner will attempt to skip datastats analysis and use cached results. If there is no such cache,
+            AutoRunner will report an error and stop.
+        algo_gen: on/off switch to run AlgoGen and generate templated BundleAlgos. If it is set to False,
+            The AutoRunner will attempt to skip the algorithm generation and stop if there is no cache to load.
+        train: on/off switch to run training and generate algorithm checkpoints. If it is set to False,
+            The AutoRunner will attempt to skip the training for all algorithms. If there is zero trained algorithm
+            but ``train`` is set to False, AutoRunner will stop.
+        hpo: use hyperparameter optimization (HPO) in the training phase. Users can provide a list of
+            hyper-parameter and a search will be performed to investigate the algorithm performances.
+        hpo_backend: a string that indicates the backend of the HPO. Currently, only NNI Grid-search mode
+            is supported
         ensemble: on/off switch to run model ensemble and use the ensemble to predict outputs in testing
             datasets.
         not_use_cache: if the value is True, it will ignore all cached results in data analysis,
-            algorithm generation, or training, and start the pipeline from scrach.
-        kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
+            algorithm generation, or training, and start the pipeline from scratch.
+        kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
 
     Examples:
-        User can specify work_dir and data source config input and run AutoRunner:
+        - User can use the one-liner to start the Auto3Dseg workflow
 
-        ..code-block:: python
+        .. code-block:: bash
+
+            python -m monai.apps.auto3dseg AutoRunner run --input \
+            '{"modality": "ct", "datalist": "dl.json", "dataroot": "/dr", "multigpu": true, "class_names": ["A", "B"]}'
+
+        - User can also save the input dictionary as a input YAML file and use the following one-liner
+
+        .. code-block:: bash
+            python -m monai.apps.auto3dseg AutoRunner run --input=./input.yaml
+
+        - User can specify work_dir and data source config input and run AutoRunner:
+
+        .. code-block:: python
+
             work_dir = "./work_dir"
             input = "path_to_yaml_data_cfg"
             runner = AutoRunner(work_dir=work_dir, input=input)
             runner.run()
 
-        User can specify training parameters by:
+        - User can specify training parameters by:
 
-        ..code-block:: python
-            work_dir = "./work_dir"
+        .. code-block:: python
+
             input = "path_to_yaml_data_cfg"
-            runner = AutoRunner(work_dir=work_dir, input=input)
+            runner = AutoRunner(input=input)
             train_param = {
                 "CUDA_VISIBLE_DEVICES": [0],
                 "num_iterations": 8,
@@ -88,33 +119,33 @@ class AutoRunner:
             runner.set_training_params(params=train_param)  # 2 epochs
             runner.run()
 
-        User can specify the fold number of cross validation
+        - User can specify the fold number of cross validation
 
-        ..code-block:: python
-            work_dir = "./work_dir"
+        .. code-block:: python
+
             input = "path_to_yaml_data_cfg"
-            runner = AutoRunner(work_dir=work_dir, input=input)
+            runner = AutoRunner(input=input)
             runner.set_num_fold(n_fold = 2)
             runner.run()
 
-        User can specify the prediction parameters during algo ensemble inference:
+        - User can specify the prediction parameters during algo ensemble inference:
 
-        ..code-block:: python
-            work_dir = "./work_dir"
+        .. code-block:: python
+
             input = "path_to_yaml_data_cfg"
             pred_params = {
                 'files_slices': slice(0,2),
                 'mode': "vote",
                 'sigmoid': True,
             }
-            runner = AutoRunner(work_dir=work_dir, input=input)
+            runner = AutoRunner(input=input)
             runner.set_prediction_params(params=pred_params)
             runner.run()
 
-        User can define a grid search space and use the HPO during training.
+        - User can define a grid search space and use the HPO during training.
 
-        ..code-block:: python
-            work_dir = "./work_dir"
+        .. code-block:: python
+
             input = "path_to_yaml_data_cfg"
             pred_param = {
                 "CUDA_VISIBLE_DEVICES": [0],
@@ -123,7 +154,7 @@ class AutoRunner:
                 "num_images_per_batch": 2,
                 "num_epochs": 2,
             }
-            runner = AutoRunner(work_dir=work_dir, input=input, hpo=True)
+            runner = AutoRunner(input=input, hpo=True)
             runner.set_nni_search_space({"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}})
             runner.run()
 
@@ -144,7 +175,7 @@ class AutoRunner:
     def __init__(
         self,
         work_dir: str = "./work_dir",
-        input: Optional[str] = None,
+        input: Union[Dict[str, Any], str, None] = None,
         analyze: bool = True,
         algo_gen: bool = True,
         train: bool = True,
@@ -162,17 +193,19 @@ class AutoRunner:
             logger.info(f"Work directory {work_dir} is used to save all results")
 
         self.work_dir = os.path.abspath(work_dir)
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
 
         if input is None:
             input = os.path.join(self.work_dir, "input.yaml")
+        elif isinstance(input, Dict):
+            ConfigParser.export_config_file(input, self.data_src_cfg_name)
+            self.data_src_cfg = input
+        elif isinstance(input, str) and os.path.isfile(input):
+            shutil.copy(input, self.data_src_cfg_name)
+            logger.info(f"Loading {input} for AutoRunner and making a copy in {self.data_src_cfg_name}")
+            self.data_src_cfg = ConfigParser.load_config_file(self.data_src_cfg_name)
         else:
-            if not os.path.isfile(input):
-                raise ValueError(f"{input} is not a valid file")
-
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
-        shutil.copy(input, self.data_src_cfg_name)
-        logger.info(f"Loading {input} for AutoRunner and making a copy in {self.data_src_cfg_name}")
-        self.data_src_cfg = ConfigParser.load_config_file(self.data_src_cfg_name)
+            raise ValueError(f"{input} is not a valid file")
 
         self.not_use_cache = not_use_cache
         self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
@@ -206,7 +239,7 @@ class AutoRunner:
 
     def check_cache(self):
         """
-        Check if there is cached results for each step in the current working directory
+        Check if the intermediate result is cached after each step in the current working directory
 
         Returns:
             a dict of cache results. If not_use_cache is set to True, or there is no cache file in the
@@ -214,7 +247,7 @@ class AutoRunner:
             set to False.
         """
         empty_cache = {
-            "analyze": {"has_cache": False, "datastats_file": None},
+            "analyze": {"has_cache": False, "datastats": None},
             "algo_gen": {"has_cache": False},
             "train": {"has_cache": False},
         }
@@ -246,12 +279,12 @@ class AutoRunner:
 
     def export_cache(self):
         """
-        Save the cache.yaml file in the working directory
+        Save the cache state as ``cache.yaml`` in the working directory
         """
         ConfigParser.export_config_file(self.cache, self.cache_filename, fmt="yaml", default_flow_style=None)
 
     def check_analyze(self, analyze: bool):
-        """Check if the AutoRunner needs to run DataAnalyzer."""
+        """Check if the AutoRunner can skip data analysis."""
 
         if self.cache["analyze"]["has_cache"]:
             return False  # we can use cached result
@@ -265,7 +298,7 @@ class AutoRunner:
             )
 
     def check_algo_gen(self, algo_gen: bool):
-        """Check if the AutoRunner needs to run AlgoGen/BundleGen."""
+        """Check if the AutoRunner can skip AlgoGen/BundleGen."""
 
         if self.cache["algo_gen"]["has_cache"]:
             return False  # we can use cached result
@@ -279,7 +312,7 @@ class AutoRunner:
             )
 
     def check_train(self, train: bool):
-        """Check if the AutoRunner needs to run train the algos."""
+        """Check if the AutoRunner can skip training."""
 
         if self.cache["train"]["has_cache"]:
             return False  # we can use cached result
@@ -294,7 +327,7 @@ class AutoRunner:
 
     def set_num_fold(self, num_fold: int = 5):
         """
-        Set number of cross validation folds for all algos.
+        Set the number of cross validation folds for all algos.
 
         Args:
             num_fold: a positive integer to define the number of folds.
@@ -305,11 +338,11 @@ class AutoRunner:
 
     def set_training_params(self, params: Optional[Dict[str, Any]] = None):
         """
-        Set training params for all algos.
+        Set the training params for all algos.
 
         Args:
             params: a dict that defines the overriding key-value pairs during training. The overriding method
-            is defined by the algo class.
+                is defined by the algo class.
 
         Examples:
             For BundleAlgo objects, the training parameter to shorten the training time to a few epochs can be
@@ -323,7 +356,7 @@ class AutoRunner:
 
     def set_prediction_params(self, params: Optional[Dict[str, Any]] = None):
         """
-        Set prediction params for all algos.
+        Set the prediction params for all algos.
 
         Args:
             params: a dict that defines the overriding key-value pairs during prediction. The overriding method
@@ -403,10 +436,11 @@ class AutoRunner:
         Set the bundle ensemble method
 
         Args:
-            ensemble_method_name: the name of the ensemble method. Only two are supported "AlgoEnsembleBestN",
-                "AlgoEnsembleBestByFold"
+            ensemble_method_name: the name of the ensemble method. Only two methods are supported "AlgoEnsembleBestN"
+                and "AlgoEnsembleBestByFold".
             kwargs: the keyword arguments used to define the ensemble method. Currently only ``n_best`` for
                 ``AlgoEnsembleBestN`` is supported.
+
         """
         self.ensemble_method_name = look_up_option(
             ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
@@ -422,11 +456,12 @@ class AutoRunner:
 
     def _train_algo_in_sequence(self, history: List[Dict[str, Any]]):
         """
-        Train the Algos in a seqential manner.
+        Train the Algos in a seqential scheme. The order of training is randomized.
 
         Args:
-            history: the history of generated Algos. It is a list of dicts. Each element refer to a algo
-                and the task name (e.g. "dints_0" for dints network in fold 0).
+            history: the history of generated Algos. It is a list of dicts. Each element has the task name
+                (e.g. "dints_0" for dints network in fold 0) as the key and the algo object as the value.
+                After the training, the algo object with the ``best_metric`` will be saved as a pickle file.
 
         Note:
             The final results of the model training will be written to all the generated algorithm's output
@@ -439,18 +474,19 @@ class AutoRunner:
                 acc = algo.get_score()
                 algo_to_pickle(algo, template_path=algo.template_path, best_metrics=acc)
 
-    def train_algo_in_hpo(self, history):
+    def _train_algo_in_nni(self, history):
         """
         Train the Algos using HPO.
 
         Args:
-            history: the history of generated Algos. It is a list of dicts. Each element refer to a algo
-                and the task name (e.g. "dints_0" for dints network in fold 0).
+            history: the history of generated Algos. It is a list of dicts. Each element has the task name
+                (e.g. "dints_0" for dints network in fold 0) as the key and the algo object as the value.
+                After the training, the algo object with the ``best_metric`` will be saved as a pickle file.
 
         Note:
             The final results of the model training will not be written to all the previously generated
-                algorithm's output folders. Instead, HPO will generate new Algos during the searching, and
-                the new Algos will be saved under the working directory with a different format of the name.
+                algorithm's output folders. Instead, HPO will generate a new algo during the searching, and
+                the new algo will be saved under the working directory with a different format of the name.
                 For example, if the searching space has "learning_rate", the result of HPO will be written to
                 a folder name with original task name and the param (e.g. "dints_0_learning_rate_0.001").
                 The results include the model checkpoints, a progress.yaml, accuracies in CSV and a pickle
@@ -529,7 +565,7 @@ class AutoRunner:
             if not self.hpo:
                 self._train_algo_in_sequence(history)
             else:
-                self.train_algo_in_hpo(history)
+                self._train_algo_in_nni(history)
             self.cache["train"]["has_cache"] = True
             self.export_cache()
         else:

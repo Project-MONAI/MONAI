@@ -29,7 +29,12 @@ __all__ = ["HPOGen", "NNIGen", "OptunaGen"]
 
 class HPOGen(AlgoGen):
     """
-    This class generates a set of Algos, each of them can run independently for hyperparameter optimization (HPO).
+    The base class for hyperparameter optimization (HPO) interfaces to generate algos in the Auto3Dseg pipeline.
+    The auto-generated algos are saved at their ``output_path`` on the disk. The files in the ``output_path``
+    may contain scripts that define the algo, configuration files, and pickle files that save the internal states
+    of the algo before/after the training. Compared to the BundleGen class, HPOGen generates Algo on-the-fly, so
+    training and algo generation may be executed alternatively and take a long time to finish the generation process.
+
     """
 
     @abstractmethod
@@ -56,17 +61,14 @@ class HPOGen(AlgoGen):
 class NNIGen(HPOGen):
     """
     Generate algorithms for the NNI to automate hyperparameter tuning. The module has two major interfaces:
-    ``__init__`` which sets up the algorithm, and a trialCommand function ``run_algo`` for the NNI library. More about
-    trialCommand function can be found in ``trail code`` section in NNI webpage
+    ``__init__`` which prints out how to set up the NNI, and a trialCommand function ``run_algo`` for the NNI library to
+    start the trial of the algo. More about trialCommand function can be found in ``trail code`` section in NNI webpage
     https://nni.readthedocs.io/en/latest/tutorials/hpo_quickstart_pytorch/main.html .
 
     Args:
-        algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
+        algo: an Algo object (e.g. BundleAlgo) with defined methods: ``get_output_path`` and train
             and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
-
-    Raises:
-        ValueError if the user tries to override an Algo that doesn't have ``export_to_disk`` function.
 
     Examples:
         The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
@@ -120,12 +122,12 @@ class NNIGen(HPOGen):
                 # nni instruction unknown
 
     def get_obj_filename(self):
-        """Return the dumped pickle object of algo."""
+        """Return the filename of the dumped pickle algo object."""
         return self.obj_filename
 
     def print_bundle_algo_instruction(self):
         """
-        Print how to write the trial commands in NNI.
+        Print how to write the trial commands for Bundle Algo.
         """
         hint = "python -m monai.apps.auto3dseg NNIGen run_algo "
         logger.info("=" * 140)
@@ -144,7 +146,7 @@ class NNIGen(HPOGen):
 
     def get_hyperparameters(self):
         """
-        Get parameter for next round of training from nni server.
+        Get parameter for next round of training from NNI server.
         """
         if has_nni:
             return nni.get_next_parameter()
@@ -153,7 +155,7 @@ class NNIGen(HPOGen):
 
     def update_params(self, params: dict):  # type: ignore
         """
-        Translate the parameter from monai bundle to nni format.
+        Translate the parameter from monai bundle to meet NNI requirements.
 
         Args:
             params: a dict of parameters.
@@ -188,7 +190,7 @@ class NNIGen(HPOGen):
 
     def set_score(self, acc):
         """
-        Report the acc to nni server.
+        Report the acc to NNI server.
         """
         if has_nni:
             nni.report_final_result(acc)
@@ -229,21 +231,19 @@ class NNIGen(HPOGen):
         self.set_score(acc)
 
 
-class OptunaGen(NNIGen):
+class OptunaGen(HPOGen):
     """
-    Generate algorithms for the Optuna to automate hyperparameter tuning. Please refer to NNIGen and Optuna (https://optuna.readthedocs.io/en/stable/)
-    for more information. Optuna has different running scheme compared to NNI. The hyperparameter samples come from
-    a trial object (trial.suggest...) created by Optuna, so OptunaGen needs to accept this trial object as input. Meanwhile,
-    Optuna calls OptunaGen, thus OptunaGen.__call__() should return the accuracy. Use functools.partial to wrap OptunaGen
+    Generate algorithms for the Optuna to automate hyperparameter tuning. Please refer to NNI and Optuna
+    (https://optuna.readthedocs.io/en/stable/) for more information. Optuna has different running scheme
+    compared to NNI. The hyperparameter samples come from a trial object (trial.suggest...) created by Optuna,
+    so OptunaGen needs to accept this trial object as input. Meanwhile, Optuna calls OptunaGen,
+    thus OptunaGen.__call__() should return the accuracy. Use functools.partial to wrap OptunaGen
     for addition input arguments.
 
     Args:
         algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
             and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
-
-    Raises:
-        ValueError if the user tries to override an Algo that doesn't have ``export_to_disk`` function.
 
     Examples:
         The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
@@ -264,8 +264,9 @@ class OptunaGen(NNIGen):
             ├── model_fold0
             └── scripts
 
-    Notes: Different from NNI and NNIGen, OptunaGen and Optuna can be ran without using a external terminal commands like "nnictl create ..."
-        
+    Notes:
+        Different from NNI and NNIGen, OptunaGen and Optuna can be ran within the Python process.
+
     """
 
     def __init__(self, algo=None, params=None):
@@ -286,14 +287,24 @@ class OptunaGen(NNIGen):
             else:
                 self.algo = algo
 
+            if isinstance(algo, BundleAlgo):
+                self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
+            else:
+                self.obj_filename = algo_to_pickle(self.algo)
+                # nni instruction unknown
+
+    def get_obj_filename(self):
+        """Return the dumped pickle object of algo."""
+        return self.obj_filename
+
     def get_hyperparameters(self):
         """
         Get parameter for next round of training from optuna trial object.
         This function requires user rewrite during usage for different search space.
         """
         if has_optuna:
-            logger.info('Please rewrite this code by creating a child class')
-            return {'learning_rate': self.trial.suggest_float("learning_rate", 0.0001, 0.1)}
+            logger.info("Please rewrite this code by creating a child class")
+            return {"learning_rate": self.trial.suggest_float("learning_rate", 0.0001, 0.1)}
         else:
             warn("Optuna is not detected. The code will continue to run without Optuna.")
             return {}
@@ -307,7 +318,75 @@ class OptunaGen(NNIGen):
     def print_bundle_algo_instruction(self):
         pass
 
-    def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
+    def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None):
         self.set_trial(trial)
         self.run_algo(obj_filename, output_folder, template_path)
         return self.acc
+
+    def update_params(self, params: dict):  # type: ignore
+        """
+        Translate the parameter from monai bundle.
+
+        Args:
+            params: a dict of parameters.
+        """
+        self.params = params
+
+    def get_task_id(self):
+        """
+        Get the identifier of the current experiment. In the format of listing the searching parameter name and values
+        connected by underscore in the file name.
+        """
+        return "".join(f"_{k}_{v}" for k, v in self.params.items()) or "_None"
+
+    def generate(self, output_folder: str = ".") -> None:
+        """
+        Generate the record for each Algo. If it is a BundleAlgo, it will generate the config files.
+
+        Args:
+            output_folder: the directory nni will save the results to.
+        """
+        task_id = self.get_task_id()
+        task_prefix = os.path.basename(self.algo.get_output_path())
+        write_path = os.path.join(output_folder, task_prefix + task_id)
+        self.obj_filename = os.path.join(write_path, "algo_object.pkl")
+
+        if isinstance(self.algo, BundleAlgo):
+            self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
+        else:
+
+            ConfigParser.export_config_file(self.params, write_path)
+            logger.info(write_path)
+
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:  # type: ignore
+        """
+        The python interface for NNI to run.
+
+        Args:
+            obj_filename: the pickle-exported Algo object.
+            output_folder: the root path of the algorithms templates.
+            template_path: the algorithm_template. It must contain algo.py in the follow path:
+                ``{algorithm_templates_dir}/{network}/scripts/algo.py``
+        """
+        if not os.path.isfile(obj_filename):
+            raise ValueError(f"{obj_filename} is not found")
+
+        self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
+
+        if isinstance(self.algo, BundleAlgo):  # algo's template path needs override
+            self.algo.template_path = algo_meta_data["template_path"]
+
+        # step 1 sample hyperparams
+        params = self.get_hyperparameters()
+        # step 2 set the update params for the algo to run in the next trial
+        self.update_params(params)
+        # step 3 generate the folder to save checkpoints and train
+        self.generate(output_folder)
+        self.algo.train(self.params)
+        # step 4 report validation acc to controller
+        acc = self.algo.get_score()
+        if isinstance(self.algo, BundleAlgo):
+            algo_to_pickle(self.algo, template_path=self.algo.template_path, best_metrics=acc)
+        else:
+            algo_to_pickle(self.algo, best_metrics=acc)
+        self.set_score(acc)
