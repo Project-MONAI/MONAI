@@ -162,7 +162,7 @@ class TestHPO(unittest.TestCase):
             ),
             n_trials=2,
         )
-        print("Best value: {} (params: {})\n".format(study.best_value, study.best_params))
+        print(f"Best value: {study.best_value} (params: {study.best_params})\n")
 
     @skip_if_no_cuda
     def test_run_algo_after_move_files(self) -> None:
