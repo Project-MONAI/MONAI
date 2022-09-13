@@ -310,15 +310,23 @@ class OptunaGen(HPOGen):
             return {}
 
     def set_score(self, acc):
+        """Set the accuracy score"""
         self.acc = acc
 
     def set_trial(self, trial):
+        """Set the Optuna trial"""
         self.trial = trial
 
-    def print_bundle_algo_instruction(self):
-        pass
-
     def __call__(self, trial, obj_filename: str, output_folder: str = ".", template_path=None):
+        """
+        Callabe that Optuna will use to optimize the hyper-parameters
+
+        Args:
+            obj_filename: the pickle-exported Algo object.
+            output_folder: the root path of the algorithms templates.
+            template_path: the algorithm_template. It must contain algo.py in the follow path:
+                ``{algorithm_templates_dir}/{network}/scripts/algo.py``
+        """
         self.set_trial(trial)
         self.run_algo(obj_filename, output_folder, template_path)
         return self.acc
