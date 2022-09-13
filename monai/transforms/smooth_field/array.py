@@ -52,6 +52,8 @@ class SmoothField(Randomizable):
         device: Pytorch device to define field on
     """
 
+    backend = [TransformBackends.TORCH]
+
     def __init__(
         self,
         rand_size: Sequence[int],
@@ -160,7 +162,7 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -261,7 +263,7 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

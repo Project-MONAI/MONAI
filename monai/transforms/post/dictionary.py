@@ -254,6 +254,8 @@ class RemoveSmallObjectsd(MapTransform):
             If false, the overall size islands made from all non-background voxels will be used.
     """
 
+    backend = RemoveSmallObjects.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -784,6 +786,8 @@ class SobelGradientsd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
+    backend = SobelGradients.backend
 
     def __init__(
         self,

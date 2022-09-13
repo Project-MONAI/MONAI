@@ -215,9 +215,13 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
-    # Transforms should add data types to this list if they are capable of performing a transform without
-    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
-    # are required if the input is either `torch.Tensor` or `np.ndarray`.
+    # Transforms should add `monai.transforms.utils.TransformBackends` to this list if they are performing
+    # the data processing using the corresponding backend APIs.
+    # Most of MONAI transform's inputs and outputs will be converted into torch.Tensor or monai.data.MetaTensor.
+    # This variable provides information about whether the input will be converted
+    # to other data types during the transformation. Note that not all `dtype` (such as float32, uint8) are supported
+    # by all the data types, the `dtype` during the conversion is determined automatically by each transform,
+    # please refer to the transform's docstring.
     backend: List[TransformBackends] = []
 
     @abstractmethod

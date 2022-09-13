@@ -265,7 +265,7 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,
@@ -353,6 +353,8 @@ class RemoveSmallObjects(Transform):
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
     """
+
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
         self.min_size = min_size
@@ -703,7 +705,7 @@ class ProbNMS(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -764,6 +766,8 @@ class Invert(Transform):
     """
     Utility transform to automatically invert the previously applied transforms.
     """
+
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
