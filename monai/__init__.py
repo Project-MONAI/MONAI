@@ -11,7 +11,6 @@
 
 import os
 import sys
-import types
 
 from ._version import get_versions
 
@@ -46,18 +45,7 @@ excludes = "(^(monai.handlers))|(^(monai.bundle))|(^(monai.fl))|((\\.so)$)|(^(mo
 load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
 
 # load all modules, this will trigger all export decorations
-_, err_mod = load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
-
-if isinstance(sys.modules.get("monai", ""), types.ModuleType) and err_mod:  # project-monai/monai#4456
-    for x in err_mod:
-        if x.startswith("monai.") and "utils" not in x:
-            from monai.utils.module import optional_import
-
-            name = x.split(".", 1)
-            if len(name) != 2:
-                continue  # don't understand more than one dot in the erroneous module name
-            setattr(sys.modules["monai"], name[1], optional_import(x)[0])
-
+load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
 
 __all__ = [
     "apps",

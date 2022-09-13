@@ -204,27 +204,10 @@ def run_testsuit():
 if __name__ == "__main__":
 
     # testing import submodules
-    from monai.utils.module import OptionalImportError, load_submodules
-
-    try:
-        import monai.engines
-
-        print(monai.engines.test_attribute)  # type: ignore
-    except OptionalImportError as e:
-        print(f"expected {e}")
-
-    try:
-        import monai.handlers
-
-        print(monai.handlers.test_attribute)  # type: ignore
-    except OptionalImportError as e:
-        print(f"expected {e}")
+    from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    if err_mod:
-        print(err_mod)
-        # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+    assert not err_mod
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)

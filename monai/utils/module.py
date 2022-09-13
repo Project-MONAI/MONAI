@@ -309,6 +309,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
     allow_namespace_pkg: bool = False,
+    as_type: bool = False,
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -323,6 +324,8 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
+        as_type: whether the imported object will be used as a type, so that it can be used as a lazy base class.
+            default to False.
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -409,6 +412,8 @@ def optional_import(
             """
             raise self._exception
 
+    if as_type:
+        return _LazyRaise, False
     return _LazyRaise(), False
 
 
