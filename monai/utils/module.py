@@ -309,7 +309,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
     allow_namespace_pkg: bool = False,
-    as_type: bool = False,
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -324,8 +324,10 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
-        as_type: whether to return a lazy class type instead of instance, so that it can be used as a lazy base class.
-            default to False.
+        as_type: there are cases where the optionally imported object is used as
+            a base class, or a decorator, the exceptions should raise accordingly. The current supported values
+            are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
+            and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -412,20 +414,13 @@ def optional_import(
             """
             raise self._exception
 
-    if not as_type:
+    if as_type == "default":
         return _LazyRaise(), False
 
     class _LazyCls(_LazyRaise):
         def __init__(self, *_args, **kwargs):
             super().__init__()
-            import inspect
-
-            try:
-                lines = inspect.stack(context=2)[1].code_context
-                used_as_decorator = any(line.strip().startswith("@") for line in lines)
-            except Exception:
-                return
-            if not used_as_decorator:
+            if not as_type.startswith("decorator"):
                 raise self._exception
 
     return _LazyCls, False
