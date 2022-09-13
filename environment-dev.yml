@@ -47,6 +47,8 @@ dependencies:
   - pynrrd
   - pydicom
   - h5py
+  - nni
+  - optuna
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1
