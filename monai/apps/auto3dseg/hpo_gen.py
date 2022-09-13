@@ -39,7 +39,6 @@ class HPOGen(AlgoGen):
 
     @abstractmethod
     def update_params(self, *args, **kwargs):
-
         """Update Algo parameters according to the hyperparameters to be evaluated."""
         raise NotImplementedError
 
@@ -50,7 +49,6 @@ class HPOGen(AlgoGen):
 
     @abstractmethod
     def run_algo(self, *args, **kwargs):
-
         """Interface for launch the training given the fetched hyperparameters."""
         raise NotImplementedError
 
