@@ -374,8 +374,16 @@ class AutoRunner:
 
     def set_hpo_params(self, params: Optional[Dict[str, Any]] = None):
         """
-        Set HPO parameters for all algos in the optimization. For BundleAlgo, the param will be used to override
-        the template filling.
+        Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
+        templates with the key-value pairs in ``params`` (2) chagne the config of the HPO module (e.g. NNI) if the
+        key is found to be one of:
+            - "trialCodeDirectory"
+            - "trialGpuNumber"
+            - "trialConcurrency"
+            - "maxTrialNumber"
+            - "maxExperimentDuration"
+            - "tuner"
+            - "trainingService"
 
         Args:
             params: a dict that defines the overriding key-value pairs during instantiation of the algo. For
@@ -508,6 +516,10 @@ class AutoRunner:
                 nni_gen = NNIGen(algo=algo, params=self.hpo_params)
                 obj_filename = nni_gen.get_obj_filename()
                 nni_config = deepcopy(default_nni_config)
+                # override the default nni config with the same key in hpo_params
+                for key in self.hpo_params:
+                    if key in nni_config:
+                        nni_config[key] = self.hpo_params[key]
                 nni_config.update({"experimentName": name})
                 nni_config.update({"search_space": self.search_space})
                 trial_cmd = "python -m monai.apps.auto3dseg NNIGen run_algo " + obj_filename + " " + self.work_dir
