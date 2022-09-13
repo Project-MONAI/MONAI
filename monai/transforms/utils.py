@@ -57,7 +57,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
@@ -965,36 +965,37 @@ def get_largest_connected_component_mask(
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
         num_components: The number of largest components to preserve.
     """
-    if isinstance(img, torch.Tensor) and has_cp and has_cucim and num_components == 1:
-        x_cupy = monai.transforms.ToCupy()(img.short())
-        x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
-        vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
-        comp = x_label == vals[cp.ndarray.argmax(counts)]
-        out_tensor = monai.transforms.ToTensor(device=img.device)(comp)
-        out_tensor = out_tensor.bool()
-
-        return out_tensor  # type: ignore
-
-    if not has_measure:
-        raise RuntimeError("Skimage.measure required.")
-
-    img_np, *_ = convert_data_type(img, np.ndarray)
-    # features will be an image, 0 for background and then each different
-    # feature will have its own index.
-    features, num_features = measure.label(img_np, connectivity=connectivity, return_num=True)
-    # # if num features less than max desired, nothing to do.
-    if num_features <= num_components:
-        out = img_np.astype(bool)
+    # use skimage/cucim.skimage and np/cp depending on whether packages are
+    # available and input is non-cpu torch.tensor
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
+    if use_cp:
+        img_ = convert_to_cupy(img.short())  # type: ignore
+        label = cucim.skimage.measure.label
+        lib = cp
     else:
-        # get number voxels per feature (bincount). np.argsort[::-1] to get indices
-        # of largest components. Convert to list for ease
-        features_to_keep = list(np.argsort(np.bincount(features.flat))[::-1])
-        # remove 0 (background)
-        features_to_keep.remove(0)
+        if not has_measure:
+            raise RuntimeError("Skimage.measure required.")
+        img_, *_ = convert_data_type(img, np.ndarray)
+        label = measure.label
+        lib = np
+
+    # features will be an image -- 0 for background and then each different
+    # feature will have its own index.
+    features, num_features = label(img_, connectivity=connectivity, return_num=True)
+    # if num features less than max desired, nothing to do.
+    if num_features <= num_components:
+        out = img_.astype(bool)
+    else:
+        # ignore background
+        nonzeros = features[lib.nonzero(features)]
+        # get number voxels per feature (bincount). argsort[::-1] to get indices
+        # of largest components.
+        features_to_keep = lib.argsort(lib.bincount(nonzeros))[::-1]
         # only keep the first n non-background indices
         features_to_keep = features_to_keep[:num_components]
         # generate labelfield. True if in list of features to keep
-        out = np.isin(features, features_to_keep)
+        out = lib.isin(features, features_to_keep)
+
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
