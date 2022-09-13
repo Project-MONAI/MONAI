@@ -324,7 +324,7 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
-        as_type: whether the imported object will be used as a type, so that it can be used as a lazy base class.
+        as_type: whether to return a lazy class type instead of instance, so that it can be used as a lazy base class.
             default to False.
 
     Returns:
