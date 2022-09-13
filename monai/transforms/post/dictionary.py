@@ -204,6 +204,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
+        num_components: int = 1,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -224,12 +225,17 @@ class KeepLargestConnectedComponentd(MapTransform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(
-            applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
+            applied_labels=applied_labels,
+            is_onehot=is_onehot,
+            independent=independent,
+            connectivity=connectivity,
+            num_components=num_components,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
