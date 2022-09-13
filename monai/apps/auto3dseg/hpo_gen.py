@@ -230,6 +230,44 @@ class NNIGen(HPOGen):
 
 
 class OptunaGen(NNIGen):
+    """
+    Generate algorithms for the Optuna to automate hyperparameter tuning. Please refer to NNIGen and Optuna (https://optuna.readthedocs.io/en/stable/)
+    for more information. Optuna has different running scheme compared to NNI. The hyperparameter samples come from
+    a trial object (trial.suggest...) created by Optuna, so OptunaGen needs to accept this trial object as input. Meanwhile,
+    Optuna calls OptunaGen, thus OptunaGen.__call__() should return the accuracy. Use functools.partial to wrap OptunaGen
+    for addition input arguments.
+
+    Args:
+        algo: an Algo object (e.g. BundleAlgo). The object must at least define two methods: get_output_path and train
+            and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
+        params: a set of parameter to override the algo if override is supported by Algo subclass.
+
+    Raises:
+        ValueError if the user tries to override an Algo that doesn't have ``export_to_disk`` function.
+
+    Examples:
+        The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
+        ├── algorithm_templates
+        │   └── unet
+        ├── unet_0
+        │   ├── algo_object.pkl
+        │   ├── configs
+        │   └── scripts
+        ├── unet_0_learning_rate_0.01
+        │   ├── algo_object.pkl
+        │   ├── configs
+        │   ├── model_fold0
+        │   └── scripts
+        └── unet_0_learning_rate_0.1
+            ├── algo_object.pkl
+            ├── configs
+            ├── model_fold0
+            └── scripts
+
+    Notes: Different from NNI and NNIGen, OptunaGen and Optuna can be ran without using a external terminal commands like "nnictl create ..."
+        
+    """
+
     def __init__(self, algo=None, params=None):
         super().__init__(algo, params)
 

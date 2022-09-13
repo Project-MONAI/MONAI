@@ -134,7 +134,7 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     @skip_if_no_optuna
-    def test_run_algo(self) -> None:
+    def test_run_optuna(self) -> None:
         override_param = {
             "num_iterations": 8,
             "num_iterations_per_validation": 4,
