@@ -412,9 +412,23 @@ def optional_import(
             """
             raise self._exception
 
-    if as_type:
-        return _LazyRaise, False
-    return _LazyRaise(), False
+    if not as_type:
+        return _LazyRaise(), False
+
+    class _LazyCls(_LazyRaise):
+        def __init__(self, *_args, **kwargs):
+            super().__init__()
+            import inspect
+
+            try:
+                lines = inspect.stack(context=2)[1].code_context
+                used_as_decorator = any(line.strip().startswith("@") for line in lines)
+            except Exception:
+                return
+            if not used_as_decorator:
+                raise self._exception
+
+    return _LazyCls, False
 
 
 def require_pkg(
