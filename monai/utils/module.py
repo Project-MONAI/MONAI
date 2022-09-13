@@ -414,6 +414,12 @@ def optional_import(
             """
             raise self._exception
 
+        def __getitem__(self, item):
+            raise self._exception
+
+        def __iter__(self):
+            raise self._exception
+
     if as_type == "default":
         return _LazyRaise(), False
 
