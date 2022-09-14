@@ -50,3 +50,5 @@ pynrrd
 pre-commit
 pydicom
 h5py
+nni
+optuna
