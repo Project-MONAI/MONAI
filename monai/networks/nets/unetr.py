@@ -40,7 +40,7 @@ class UNETR(nn.Module):
         res_block: bool = True,
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
-        qkv_bias: bool = False
+        qkv_bias: bool = False,
     ) -> None:
         """
         Args:
@@ -98,7 +98,7 @@ class UNETR(nn.Module):
             classification=self.classification,
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
-            qkv_bias = qkv_bias
+            qkv_bias=qkv_bias,
         )
         self.encoder1 = UnetrBasicBlock(
             spatial_dims=spatial_dims,

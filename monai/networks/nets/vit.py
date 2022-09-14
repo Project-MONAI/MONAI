@@ -44,7 +44,7 @@ class ViT(nn.Module):
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
         post_activation="Tanh",
-        qkv_bias: bool = False
+        qkv_bias: bool = False,
     ) -> None:
         """
         Args:

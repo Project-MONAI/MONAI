@@ -21,7 +21,9 @@ class TransformerBlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
-    def __init__(self, hidden_size: int, mlp_dim: int, num_heads: int, dropout_rate: float = 0.0, qkv_bias: bool = False) -> None:
+    def __init__(
+        self, hidden_size: int, mlp_dim: int, num_heads: int, dropout_rate: float = 0.0, qkv_bias: bool = False
+    ) -> None:
         """
         Args:
             hidden_size: dimension of hidden layer.
