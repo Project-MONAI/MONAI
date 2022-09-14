@@ -23,10 +23,12 @@ import torch
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
+from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "f76fb58")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -274,7 +276,7 @@ class BundleAlgo(Algo):
 
 # path to download the algo_templates
 default_algo_zip = (
-    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/e4c4610.tar.gz"
+    f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
 )
 
 # default algorithms
@@ -395,4 +397,5 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
                 gen_algo.export_to_disk(output_folder, name, fold=f_id)
+                algo_to_pickle(gen_algo, template_path=algo.template_path)
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history

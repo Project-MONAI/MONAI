@@ -309,6 +309,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
     allow_namespace_pkg: bool = False,
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -323,6 +324,10 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
+        as_type: there are cases where the optionally imported object is used as
+            a base class, or a decorator, the exceptions should raise accordingly. The current supported values
+            are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
+            and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -409,7 +414,22 @@ def optional_import(
             """
             raise self._exception
 
-    return _LazyRaise(), False
+        def __getitem__(self, item):
+            raise self._exception
+
+        def __iter__(self):
+            raise self._exception
+
+    if as_type == "default":
+        return _LazyRaise(), False
+
+    class _LazyCls(_LazyRaise):
+        def __init__(self, *_args, **kwargs):
+            super().__init__()
+            if not as_type.startswith("decorator"):
+                raise self._exception
+
+    return _LazyCls, False
 
 
 def require_pkg(
