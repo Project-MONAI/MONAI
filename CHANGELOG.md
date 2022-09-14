@@ -13,12 +13,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Initial release of accelerated MRI reconstruction components, including `CoilSensitivityModel`
 * Support of `MetaTensor` and new metadata attributes for various digital pathology components
 * Various `monai.bundle` enhancements for MONAI model-zoo usability, including config debug mode and `get_all_bundles_list`
-* Various transform components including `SignalContinuousWavelet` for 1D signal and `ComputeHoVerMaps` for digital pathology
+* new `monai.transforms` components including `SignalContinuousWavelet` for 1D signal, `ComputeHoVerMaps` for digital pathology, and `SobelGradients` for spatial gradients
 * `VarianceMetric` and `LabelQualityScore` metrics for active learning
 * Dataset API for real-time stream and videos
-* Several networks and building blocks including `FlexibleUNet`
+* Several networks and building blocks including `FlexibleUNet` and `HoVerNet`
 * `MeanIoUHandler` and `LogfileHandler` workflow event handlers
 * `WSIReader` with the TiffFile backend
+* Multi-threading in `WSIReader` with cuCIM backend
 * `get_stats` API in `monai.engines.Workflow`
 * `prune_meta_pattern` in `monai.transforms.LoadImage`
 * `max_interactions` for deepedit interaction workflow
