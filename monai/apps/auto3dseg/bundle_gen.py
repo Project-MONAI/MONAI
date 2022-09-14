@@ -274,7 +274,7 @@ class BundleAlgo(Algo):
 
 # path to download the algo_templates
 default_algo_zip = (
-    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/e4c4610.tar.gz"
+    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/f76fb58.tar.gz"
 )
 
 # default algorithms
