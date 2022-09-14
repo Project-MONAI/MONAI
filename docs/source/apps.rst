@@ -214,6 +214,6 @@ Applications
 `auto3dseg`
 -----------
 
-.. automodule:: monai.apps.auto3dseg.data_analyzer
+.. automodule:: monai.apps.auto3dseg
   :members:
   :imported-members:

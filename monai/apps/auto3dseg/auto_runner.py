@@ -45,12 +45,14 @@ class AutoRunner:
     An interface for handling Auto3Dseg with minimal inputs and understanding of the internal states in Auto3Dseg.
     The users can run the Auto3Dseg with default settings in one line of code. They can also customize the advanced
     features Auto3Dseg in a few additional lines. Examples of customization include
+
         - change cross-validation folds
         - change training/prediction parameters
         - change ensemble methods
         - automatic hyperparameter optimization.
 
     The output of the interface is a directory that contains
+
         - data statistics analysis report
         - algorithm definition files (scripts, configs, pickle objects) and training results (checkpoints, accuracies)
         - the predictions on the testing datasets from the final algorithm ensemble
@@ -92,6 +94,7 @@ class AutoRunner:
         - User can also save the input dictionary as a input YAML file and use the following one-liner
 
         .. code-block:: bash
+
             python -m monai.apps.auto3dseg AutoRunner run --input=./input.yaml
 
         - User can specify work_dir and data source config input and run AutoRunner:
@@ -377,6 +380,7 @@ class AutoRunner:
         Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
         templates with the key-value pairs in ``params`` (2) chagne the config of the HPO module (e.g. NNI) if the
         key is found to be one of:
+
             - "trialCodeDirectory"
             - "trialGpuNumber"
             - "trialConcurrency"

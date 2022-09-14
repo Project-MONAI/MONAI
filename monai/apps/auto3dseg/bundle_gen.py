@@ -39,7 +39,7 @@ class BundleAlgo(Algo):
 
     ``BundleAlgo.cfg`` is a ``monai.bundle.ConfigParser`` instance.
 
-    ..code-block:: python
+    .. code-block:: python
 
         from monai.apps.auto3dseg import BundleAlgo
 
@@ -215,26 +215,26 @@ class BundleAlgo(Algo):
     def get_inferer(self, *args, **kwargs):
         """
         Load the InferClass from the infer.py. The InferClass should be defined in the template under the path of
-        "scripts/infer.py". It is required to define the "InferClass" (name is fixed) with two functions at least
-        ("__init__" and "infer"). The init class has an override kwargs that can be used to override parameters in
+        `"scripts/infer.py"`. It is required to define the "InferClass" (name is fixed) with two functions at least
+        (``__init__`` and ``infer``). The init class has an override kwargs that can be used to override parameters in
         the run-time optionally.
 
         Examples:
 
-            ..code-block:: python
+        .. code-block:: python
 
-                class InferClass
-                    def __init__(self, config_file: Optional[Union[str, Sequence[str]]] = None, **override):
-                        # read configs from config_file (sequence)
-                        # set up transforms
-                        # set up model
-                        # set up other hyper parameters
-                        return
+            class InferClass
+                def __init__(self, config_file: Optional[Union[str, Sequence[str]]] = None, **override):
+                    # read configs from config_file (sequence)
+                    # set up transforms
+                    # set up model
+                    # set up other hyper parameters
+                    return
 
-                    @torch.no_grad()
-                    def infer(self, image_file):
-                        # infer the model and save the results to output
-                        return output
+                @torch.no_grad()
+                def infer(self, image_file):
+                    # infer the model and save the results to output
+                    return output
 
         """
         infer_py = os.path.join(self.output_path, "scripts", "infer.py")
