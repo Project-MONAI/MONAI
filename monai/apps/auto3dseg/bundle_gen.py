@@ -28,6 +28,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "f76fb58")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -275,7 +276,7 @@ class BundleAlgo(Algo):
 
 # path to download the algo_templates
 default_algo_zip = (
-    "https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/49d6212.tar.gz"
+    f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
 )
 
 # default algorithms
