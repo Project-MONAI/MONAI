@@ -346,6 +346,8 @@ def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hos
                     "size": asset["size"],
                     "download_count": asset["download_count"],
                     "browser_download_url": asset["browser_download_url"],
+                    "created_at": asset["created_at"],
+                    "updated_at": asset["updated_at"],
                 }
             return bundles_info
     return bundles_info
@@ -405,7 +407,8 @@ def get_bundle_info(
     tag: str = "hosting_storage_v1",
 ):
     """
-    Get all information (include "id", "name", "size", "download_count", "browser_download_url") of a bundle
+    Get all information
+    (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
     with the specified bundle name and version.
 
     Args:
