@@ -193,7 +193,8 @@ Integration tests with minimal requirements are deployed to ensure this strategy
 To add new optional dependencies, please communicate with the core team during pull request reviews,
 and add the necessary information (at least) to the following files:
 - [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
-- [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (pip requirements.txt file)
+- [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
+- [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
 - [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
 - [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
 
