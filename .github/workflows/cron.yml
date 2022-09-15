@@ -42,7 +42,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -85,7 +85,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -160,7 +160,7 @@ jobs:
           echo "Sleep $LAUNCH_DELAY"
           sleep $LAUNCH_DELAY
           nvidia-smi
-          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
           echo $CUDA_VISIBLE_DEVICES
           trap 'if pgrep python; then pkill python; fi;' ERR
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -183,7 +183,7 @@ jobs:
       run: |
         cd /opt/monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -217,7 +217,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
     - name: Checkout tutorials and install their requirements

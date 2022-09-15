@@ -38,7 +38,7 @@ tifffile; platform_system == "Linux"
 pandas
 requests
 einops
-transformers!=4.22.0
+transformers
 mlflow
 matplotlib!=3.5.0
 tensorboardX
