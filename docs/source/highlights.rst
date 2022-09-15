@@ -1,7 +1,7 @@
 :github_url: https://github.com/Project-MONAI/MONAI
 
-Module Overview
-===============
+Highlights
+==========
 
 .. toctree::
    :maxdepth: 1

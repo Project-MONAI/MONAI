@@ -778,5 +778,5 @@ if torch.cuda.is_available():
 
 
 if __name__ == "__main__":
-    print("\n", query_memory())  # print to stdout
+    print("\n", query_memory(), sep="\n")  # print to stdout
     sys.exit(0)

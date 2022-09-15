@@ -1,4 +1,4 @@
-# Module Introduction
+# Modules
 
 MONAI aims at facilitating deep learning in medical image analysis at multiple granularities. This document provides an
 overview of the modules and highlights the key capabilities.
@@ -13,14 +13,14 @@ The overall architecture and modules are shown in the following figure:
 ![architecture overview](../images/arch_modules.png)
 
 * [I/O, processing and augmentation](#i-o-processing-and-augmentation)
-* [Datasets and DataLoader](#datasets-and-data-loading)
+* [Datasets and Data Loading](#datasets-and-data-loading)
 * [Differentiable components, networks, losses and optimizers](#differentiable-components-networks-losses-and-optimizers)
 * [Evaluation](#evaluation)
 * [Visualization](#visualization)
 * [Workflows](#workflows)
 * [Bundle](#bundle)
 * [Federated Learning](#federated-learning)
-* [Auto3dseg](#)
+* [Auto3dseg](#auto3dseg)
 * [GPU acceleration, performance profiling and optimization](#gpu-acceleration-performance-profiling-and-optimization)
 
 ## I/O, processing and augmentation
@@ -68,6 +68,7 @@ using `set_determinism`.
 ![invert transform](../images/invert_transforms.png)
 The mini-batch data output from a model can be decollated, post-processed independently, including inverting
 the outputs to an earlier step of the preprocessing according to the tracked metadata and applied operations.
+[[inverse transform demo]](https://github.com/Project-MONAI/tutorials/blob/main/modules/inverse_transforms_and_test_time_augmentations.ipynb)
 
 ### Enhanced usability
 
