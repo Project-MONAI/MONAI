@@ -70,7 +70,8 @@ class NNIGen(HPOGen):
             and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
-    Examples:
+    Examples::
+
         The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
         ├── algorithm_templates
         │   └── unet
@@ -245,7 +246,8 @@ class OptunaGen(HPOGen):
             and supports saving to and loading from pickle files via ``algo_from_pickle`` and ``algo_to_pickle``.
         params: a set of parameter to override the algo if override is supported by Algo subclass.
 
-    Examples:
+    Examples::
+
         The experiment will keep generating new folders to save the model checkpoints, scripts, and configs if available.
         ├── algorithm_templates
         │   └── unet

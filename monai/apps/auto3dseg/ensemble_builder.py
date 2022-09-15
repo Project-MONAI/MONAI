@@ -243,7 +243,8 @@ class AlgoEnsembleBuilder:
 
     Examples:
 
-        ..code-block:: python
+        .. code-block:: python
+
             builder = AlgoEnsembleBuilder(history, data_src_cfg)
             builder.set_ensemble_method(BundleAlgoEnsembleBestN(3))
             ensemble = builder.get_ensemble()
