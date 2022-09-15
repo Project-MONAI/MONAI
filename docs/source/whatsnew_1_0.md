@@ -3,8 +3,8 @@
 - Model Zoo
 - Auto3DSeg
 - Federated Learning Client
-- Accelerated MRI Reconstruction
 - MetaTensor Support for Digital Pathology Workflows
+- Accelerated MRI Reconstruction
 
 
 ## Model Zoo
@@ -39,16 +39,6 @@ With [the new federated learning APIs](https://docs.monai.io/en/latest/fl.html),
 We welcome other federated learning toolkits to integrate with MONAI FL APIs, building a common foundation for
 collaborative learning in medical imaging.
 
-# Accelerated MRI Reconstruction
-![MRI-reconstruction](../images/mri_recon.png)
-
-This release includes initial components for various popular accelerated MRI reconstruction workflows.
-Many of them are general-purpose tools, for example the [`SSIMLoss`](https://docs.monai.io/en/latest/losses.html?highlight=ssimloss#ssimloss) function.
-Some new functionalities are task-specific, for example [`FastMRIReader`](https://docs.monai.io/en/latest/data.html?highlight=fastmri#monai.apps.reconstruction.fastmri_reader.FastMRIReader).
-
-For more details, please see [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/unet_demo) for using a baseline model for this task,
-and [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/varnet_demo) for using a state-of-the-art model.
-
 ## MetaTensor Support for Digital Pathology Workflows
 ![pathology](../images/pathology-meta.png)
 
@@ -61,3 +51,14 @@ their definition, and their relation to MetaTensors. Using `LoadImage` transform
 MetaTensor with populated metadata inferred from the data file. Currently, WSIReader loads the patches into the CPU memory
 but they can be transferred to GPU via appropriate transforms. We are working with the cuCIM team to make sure that we can
 bring direct loading of images into the GPU in the future releases.
+
+## Accelerated MRI Reconstruction
+![MRI-reconstruction](../images/mri_recon.png)
+
+This release includes initial components for various popular accelerated MRI reconstruction workflows.
+Many of them are general-purpose tools, for example the [`SSIMLoss`](https://docs.monai.io/en/latest/losses.html?highlight=ssimloss#ssimloss) function.
+Some new functionalities are task-specific, for example [`FastMRIReader`](https://docs.monai.io/en/latest/data.html?highlight=fastmri#monai.apps.reconstruction.fastmri_reader.FastMRIReader).
+
+For more details, please see [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/unet_demo) for using a baseline model for this task,
+and [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconstruction/MRI_reconstruction/varnet_demo) for using a state-of-the-art model.
+
