@@ -1,22 +1,19 @@
 # Modules Overview
 
-MONAI aims at facilitating deep learning in medical image analysis at multiple granularity.
-This document provides an overview of the modules and highlights the key capabilities.
+MONAI aims at facilitating deep learning in medical image analysis at multiple granularity. This document provides an
+overview of the modules and highlights the key capabilities.
 
-## MONAI architecture
-The design principle of MONAI is to provide flexible and lightweight APIs for users with varying expertise.
-1. Most core components are independent modules, which can be easily integrated into any existing PyTorch program.
-2. Users can leverage the workflows in MONAI to quickly set up a robust training or evaluation program for research experiments.
-3. Rich examples and demos are provided to demonstrate the key capabilities.
+The core codebase is designed as a library of lightweight, flexible, and comprehensive APIs for users with varying expertise.
+The building blocks are made easy to understand and use, they are carefully decoupled, and can be readily integrated
+into existing PyTorch programs and larger systems. By leveraging the workflow and bundle APIs, users can also quickly
+set up efficient and robust model training or evaluation pipelines for various domain-specific applications.
 
 The overall architecture and modules are shown in the following figure:
 
 ![architecture overview](../images/arch_modules.png)
 
-The rest of this page provides more details for each module.
-
-* [Data I/O, processing and augmentation](#medical-image-data-i-o-processing-and-augmentation)
-* [Datasets and DataLoader](#datasets-and-dataloader)
+* [Data I/O, processing and augmentation]
+* [Datasets and DataLoader]
 * [Loss functions](#losses)
 * [Optimizers](#optimizers)
 * [Network architectures](#network-architectures)
@@ -31,155 +28,61 @@ The rest of this page provides more details for each module.
 * [Applications](#applications)
 
 ## Medical image data I/O, processing and augmentation
-Medical images require highly specialized methods for I/O, preprocessing, and augmentation. Medical images are often in specialized formats with rich meta-information, and the data volumes are often high-dimensional. These require carefully designed manipulation procedures. The medical imaging focus of MONAI is enabled by powerful and flexible image transformations that facilitate user-friendly, reproducible, optimized medical data pre-processing pipelines.
+Medical images require specialized methods for I/O, preprocessing and augmentation. They often follow specific formats,
+are handled with specific protocols, and the data arrays are often high-dimensional.
+[`monai.transforms`](https://github.com/Project-MONAI/MONAI/tree/dev/monai/transforms) and
+[`monai.data`](https://github.com/Project-MONAI/MONAI/tree/dev/monai/data) modules include a set of domain-specific APIs
+for various deep learning applications:
 
-### 1. Transforms support both Dictionary and Array format data
-- The widely used computer vision packages (such as ``torchvision``) focus on spatially 2D array image processing. MONAI provides more domain-specific transformations for both spatially 2D and 3D and retains the flexible transformation "compose" feature.
-- As medical image preprocessing often requires additional fine-grained system parameters, MONAI provides transforms for input data encapsulated in python dictionaries. Users can specify the keys corresponding to the expected data fields and system parameters to compose complex transformations.
+- *Transforms with input data structures in 'array' and 'dictionary' styles*
 
-There is a rich set of transforms in six categories: Crop & Pad, Intensity, IO, Post-processing, Spatial, and Utilities. For more details, please visit [all the transforms in MONAI](https://docs.monai.io/en/latest/transforms.html).
-
-Almost all the transforms expect the input data to have a channel-first shape format: `[Channel dim, spatial dim 1, spatial dim 2, ...]`.
-Flexible [base APIs](https://github.com/Project-MONAI/MONAI/tree/dev/monai/transforms) are also provided. The `monai.transforms` module is
-easily extensible.
-
-### 2. Medical specific transforms
-MONAI aims at providing a comprehensive medical image specific
-transformations. These currently include, for example:
-- `LoadImage`:  Load medical specific formats file from provided path
-- `Spacing`:  Resample input image into the specified `pixdim`
-- `Orientation`: Change the image's orientation into the specified `axcodes`
-- `RandGaussianNoise`: Perturb image intensities by adding statistical noises
-- `NormalizeIntensity`: Intensity Normalization based on mean and standard deviation
-- `Affine`: Transform image based on the affine parameters
-- `Rand2DElastic`: Random elastic deformation and affine in 2D
-- `Rand3DElastic`: Random elastic deformation and affine in 3D
-
-[2D transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/transforms_demo_2d.ipynb) shows the detailed usage of several MONAI medical image specific transforms.
-![2d transform examples](../images/medical_transforms.png)
-
-
-### 3. Transforms support both NumPy array and PyTorch Tensor (CPU or GPU accelerated)
-From MONAI v0.7 we introduced PyTorch `Tensor` based computation in transforms, many transforms already support both `NumPy array` and `Tensor` as input types and computational backends. To get the supported backends of every transform, please execute: `python monai/transforms/utils.py`.
-
-To accelerate the transforms, a common approach is to leverage GPU parallel-computation. Users can first convert input data into GPU Tensor by `ToTensor` or `EnsureType` transform, then the following transforms can execute on GPU based on PyTorch `Tensor` APIs.
-GPU transform tutorial is available at [Spleen fast training tutorial](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/fast_training_tutorial.ipynb).
-
-### 4. Fused spatial transforms
-As medical image volumes are usually large (in multi-dimensional arrays), pre-processing performance affects the overall pipeline speed. MONAI provides affine transforms to execute fused spatial operations.
-
-For example:
-```py
-# create an Affine transform
-affine = Affine(
-    rotate_params=np.pi/4,
-    scale_params=(1.2, 1.2),
-    translate_params=(200, 40),
-    padding_mode='zeros',
-)
-# convert the image using bilinear interpolation
-new_img = affine(image, spatial_size=(300, 400), mode='bilinear')
-```
-Experiments and test results are available at [Fused transforms test](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/transform_speed.ipynb).
-
-Currently, all the geometric image transforms (Spacing, Zoom, Rotate, Resize, etc.) are designed based on the PyTorch native interfaces. So all of them support GPU acceleration via `GPU Tensor` operations for high performance.
-
-[Geometric transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/3d_image_transforms.ipynb) indicates the usage of affine transforms with 3D medical images.
 ![3d transform examples](../images/affine.png)
 
-### 5. Randomly crop out batch images based on positive/negative ratio
-Medical image data volume may be too large to fit into GPU memory. A widely-used approach is to randomly draw small size data samples during training and run a “sliding window” routine for inference.  MONAI currently provides general random sampling strategies including class-balanced fixed ratio sampling which may help stabilize the patch-based training process. A typical example is in [Spleen 3D segmentation tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d.ipynb), which achieves the class-balanced sampling with `RandCropByPosNegLabel` transform.
+This enables basic image transformations, as well as more complex preprocessing pipelines such as synchronized operations
+across different modalities and model supervision inputs. [[array and dict examples]](https://github.com/Project-MONAI/tutorials/tree/main/3d_segmentation/torch)
 
-### 6. Deterministic training for reproducibility
-Deterministic training support is necessary and important for deep learning research, especially in the medical field. Users can easily set the random seed to all the random transforms in MONAI locally and will not affect other non-deterministic modules in the user's program.
+- *Various image patch-based sampling mechanism*
 
-For example:
-```py
-# define a transform chain for pre-processing
-train_transforms = monai.transforms.Compose([
-    LoadImaged(keys=['image', 'label']),
-    RandRotate90d(keys=['image', 'label'], prob=0.2, spatial_axes=[0, 2]),
-    ... ...
-])
-# set determinism for reproducibility
-train_transforms.set_random_state(seed=0)
-```
-Users can also enable/disable deterministic at the beginning of training program:
-```py
-monai.utils.set_determinism(seed=0, additional_settings=None)
-```
+![2d transform examples](../images/medical_transforms.png)
 
-### 7. Multiple transform chains
-To apply different transforms on the same data and concatenate the results, MONAI provides `CopyItems` transform to make copies of specified items in the data dictionary and `ConcatItems` transform to combine specified items on the expected dimension, and also provides `DeleteItems` transform to delete unnecessary items to save memory.
+Advanced patch sampling methods are implemented for selective preprocessing, such as weighted, class-balanced sampling
+from user-specified sampling weight maps.
+The output can be in a sequence or iterator pattern which allows for different types of shuffling strategies.
 
-Typical usage is to scale the intensity of the same image into different ranges and concatenate the results together.
-![multiple transform chains](../images/multi_transform_chains.png)
+- *Image IO with third-party library integrations*
 
-### 8. Debug transforms with DataStats
-When transforms are combined with the "compose" function, it's not easy to track the output of a specific transform. To help debug errors in the composed transforms, MONAI provides utility transforms such as `DataStats` to print out intermediate data properties such as `data shape`, `value range`, `data value`, `Additional information`, etc. It's a self-contained transform and can be integrated into any transform chain.
+Several backends are built-in and can support various formats. It is easily extensible for customized format readers.
 
-### 9. Post-processing transforms for model output
-MONAI also provides post-processing transforms for handling the model outputs. Currently, the transforms include:
-- Adding an activation layer (Sigmoid, Softmax, etc.).
-- Converting to discrete values (Argmax, One-Hot, Threshold value, etc), as below figure (b).
-- Splitting multi-channel data into multiple single channels.
-- Removing segmentation noise based on Connected Component Analysis, as below figure (c).
-- Extracting contour of segmentation result, which can be used to map to original image and evaluate the model, as below figure (d) and (e).
+- *`monai.data.MetaTensor`*
 
-After decollating the batch data of model output and applying the post-processing transforms, it's easier to compute metrics, save model output into files or visualize data in the TensorBoard. [Postprocessing transforms tutorial](https://github.com/Project-MONAI/tutorials/blob/master/modules/postprocessing_transforms.ipynb) shows an example with several main transforms for post-processing.
-![post-processing transforms](../images/postprocessing_transforms.png)
+Core data structure combines PyTorch native Tensor APIs with metadata handling,
+so that the deep learning models and pipelines can readily incorporate the meta information. [[MetaTensor]](https://colab.research.google.com/drive/1T4iAys-cC2qL80oJkIbAXAPlWNPwp4H7)
 
-### 10. Integrate third-party transforms
-The design of MONAI transforms emphasis code readability and usability. It works for array data or dictionary-based data. MONAI also provides `Adaptor` tools to accommodate different data format for 3rd party transforms. To convert the data shapes or types, utility transforms such as `ToTensor`, `ToNumpy`, `SqueezeDim` are also provided. So it's easy to enhance the transform chain by seamlessly integrating transforms from external packages, including: `ITK`, `BatchGenerator`, `TorchIO` and `Rising`.
+- *GPU-based accelerations*
 
-For more details, please check out the tutorial: [integrate 3rd party transforms into MONAI program](https://github.com/Project-MONAI/tutorials/blob/master/modules/integrate_3rd_party_transforms.ipynb).
+Implementations are provided to ensure optimal usage of the underlying hardware resources. [[fast training guide]](https://github.com/Project-MONAI/tutorials/blob/main/acceleration/fast_model_training_guide.md)
 
-In digital pathology training, due to the immense burden of loading images, the CPU is preoccupied by loading images and cannot catch up with preparing the data. This causes the pipeline to become IO bound and results in under-utilization of GPU. To overcome this bottleneck, [cuCIM](https://github.com/rapidsai/cucim) has implemented an optimized version of several common transforms that we are using in digital pathology pipeline. These transforms are natively being run on GPU and act on CuPy arrays. MONAI provides `CuCIM` and `RandCuCIM` adapters to integrate the `cuCIM` library. For instance:
-```py
-RandCuCIM(name="color_jitter", brightness=64.0 / 255.0, contrast=0.75, saturation=0.25, hue=0.04)
-CuCIM(name="scale_intensity_range", a_min=0.0, a_max=255.0, b_min=-1.0, b_max=1.0)
-```
-It has shown a significant speed up in pathology training metastasis detection model.
+- *Determinism and reproducibility*
 
-### 11. IO factory for medical image formats
-Many popular image formats exist in the medical domain, and they are quite different with rich metadata information. To easily handle different medical image formats in the same pipeline, [MONAI provides `LoadImage` transform](https://github.com/Project-MONAI/tutorials/blob/master/modules/load_medical_images.ipynb), which can automatically choose image readers based on the supported suffixes and in the following priority order:
-- User-specified reader at runtime when calling this loader.
-- Registered readers from the latest to the first in the list.
-- Default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader), (npz, npy -> NumpyReader), (others -> ITKReader).
+They can be achieved with fine-level of local controls via the `Randomizable` API as well as globally
+using `set_determinism`.
 
-The `ImageReader` API is quite straightforward, users can easily extend it for their customized image readers.
-
-With these pre-defined image readers, MONAI can load images in formats: `NIfTI`, `DICOM`, `PNG`, `JPG`, `BMP`, `NPY/NPZ`, etc.
-
-### 12. Save transform data into NIfTI or PNG files
-To convert images into files or debug the transform chain, MONAI provides `SaveImage` transform. Users can inject this transform into the transform chain to save the results.
-
-### 13. Automatically ensure `channel-first` data shape
-Medical images have different shape formats. They can be `channel-last`, `channel-first` or even `no-channel`. We may, for example, want to load several `no-channel` images and stack them as `channel-first` data. To improve the user experience, MONAI provided an `EnsureChannelFirst` transform to automatically detect data shape according to the meta information and convert it to the `channel-first` format consistently.
-
-### 14. Invert spatial transforms and test-time augmentations
-It is often desirable to invert the previously applied spatial transforms (resize, flip, rotate, zoom, crop, pad, etc.) within the deep learning workflows, for example, to resume to the original imaging space after processing the image data in a normalized data space.  Many spatial transforms are enhanced with an `inverse` operation since in v0.5. The [model inference tutorial](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/torch/unet_inference_dict.py) shows a basic example.
-
-If the pipeline includes random transformations, users may want to observe the effect that these transformations have on the output. The typical approach is that we pass the same input through the transforms multiple times with different random realizations. Then use the inverse transforms to move all the results to a common space, and calculate the metrics. MONAI provided `TestTimeAugmentation` for this feature, which by default will calculate the `mode`, `mean`, `standard deviation` and `volume variation coefficient`.
-
-[Invert transforms and TTA tutorials](https://github.com/Project-MONAI/tutorials/blob/master/modules/inverse_transforms_and_test_time_augmentations.ipynb) introduce details about the API with usage examples.
-
-(1) The last column is the inverted data of model output:
+- *Decollating and invertible transforms*
 
 ![invert transform](../images/invert_transforms.png)
+The mini-batch data output from a model can be decollated, post-processed independently, including inverting
+the outputs to an earlier step of the preprocessing according to the tracked metadata and applied operations.
 
-(2) The TTA results of `mode`, `mean` and `standard deviation`:
+- *Enhanced usability*
 
-![test time augmentation](../images/tta.png)
+Additionally, utilities such as `DataStats` transform, `dev_collate`, and [visualization
+methods](https://github.com/Project-MONAI/tutorials/blob/main/modules/transform_visualization.ipynb) are provided as
+extensions to PyTorch for improved overall debugability.
 
-### 15. Visualization of transform examples
-To help clearly introduce the transform functionalities, MONAI provides visualization examples in the [API document](https://docs.monai.io/en/latest/transforms.html) for almost every transform, including spatial transforms, intensity transforms, crop / pad transforms, etc.
+## Datasets and Data Loading
 
-For example:
 
-![rand gaussian noise](../images/rand_gaussian_noise.png)
 
-## Datasets and DataLoader
 ### 1. Cache IO and transforms data to accelerate training
 Users often need to train the model with many (potentially thousands of) epochs over the data to achieve the desired model quality. A native PyTorch implementation may repeatedly load data and run the same preprocessing steps for every epoch during training, which can be time-consuming and unnecessary, especially when the medical image volumes are large.
 
