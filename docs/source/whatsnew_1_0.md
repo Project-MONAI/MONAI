@@ -52,13 +52,12 @@ and [this tutorial](https://github.com/Project-MONAI/tutorials/tree/main/reconst
 ## MetaTensor Support for Digital Pathology Workflows
 ![pathology](../images/pathology-meta.png)
 
-MetaTensor is officially released in MONAI v0.9, which is a simple yet elegant way to handle metadata along with the image 
+MetaTensor is officially released in MONAI v0.9, which is a simple yet elegant way to handle metadata along with the image
 in the same object. In this release (v1.0), we support MetaTensor in all digital pathology components, and make sure that
-the future development can benefit from them. With the help of MONAI Pathology Working Group, we have standardized a 
-set of metadata attributes for patches of images extracted from WSI to ensure reproducibility and enhance functionality 
-via relying on a standard set of attributes. The figure below shows all the pathology metadata attributes, 
+the future development can benefit from them. With the help of MONAI Pathology Working Group, we have standardized a
+set of metadata attributes for patches of images extracted from WSI to ensure reproducibility and enhance functionality
+via relying on a standard set of attributes. The figure below shows all the pathology metadata attributes,
 their definition, and their relation to MetaTensors. Using `LoadImage` transform with WSIReader will output a
-MetaTensor with populated metadata inferred from the data file. Currently, WSIReader loads the patches into the CPU memory 
-but they can be transferred to GPU via appropriate transforms. We are working with the cuCIM team to make sure that we can 
+MetaTensor with populated metadata inferred from the data file. Currently, WSIReader loads the patches into the CPU memory
+but they can be transferred to GPU via appropriate transforms. We are working with the cuCIM team to make sure that we can
 bring direct loading of images into the GPU in the future releases.
-
