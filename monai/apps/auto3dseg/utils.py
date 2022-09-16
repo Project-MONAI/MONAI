@@ -60,7 +60,7 @@ def export_bundle_algo_history(history: List[Dict[str, BundleAlgo]]):
     Save all the BundleAlgo in the history to algo_object.pkl in each individual folder
 
     Args:
-        history: a List of Bundle. Typicall the history can be obtained from BundleGen get_history method
+        history: a List of Bundle. Typically, the history can be obtained from BundleGen get_history method
     """
     for task in history:
         for _, algo in task.items():
