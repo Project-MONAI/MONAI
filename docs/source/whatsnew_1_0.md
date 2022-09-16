@@ -42,13 +42,14 @@ collaborative learning in medical imaging.
 ## MetaTensor Support for Digital Pathology Workflows
 ![pathology](../images/pathology-meta.png)
 
-MetaTensor is officially released in MONAI v0.9, which is a simple yet elegant way to handle metadata along with the image
-in the same object. In this release, we support MetaTensor in all digital pathology components, and make sure that
-the future development can benefit from them. With the help of MONAI Pathology Working Group, we have standardized a
-set of metadata attributes for patches of images extracted from WSI to ensure reproducibility and enhance functionality
-via relying on a standard set of attributes. The figure above shows all the pathology metadata attributes,
-their definition, and their relation to MetaTensors. Using `LoadImage` transform with WSIReader will output a
-MetaTensor with populated metadata inferred from the data file. Please see [the tutorials and examples](https://github.com/Project-MONAI/tutorials/tree/main/pathology).
+In this release, we support MetaTensor in all digital pathology components, and
+make sure that the future development can benefit from them. With the help of
+MONAI Pathology Working Group, we have standardized a set of metadata
+attributes for patches of images extracted from WSI to ensure reproducibility
+and enhance functionality via relying on a standard set of attributes. The
+figure above shows all the pathology metadata attributes and their relation to
+MetaTensors. Please see [the tutorials and
+examples](https://github.com/Project-MONAI/tutorials/tree/main/pathology).
 
 ## Accelerated MRI Reconstruction
 ![MRI-reconstruction](../images/mri_recon.png)
