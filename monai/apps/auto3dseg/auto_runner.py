@@ -381,7 +381,7 @@ class AutoRunner:
     def set_hpo_params(self, params: Optional[Dict[str, Any]] = None):
         """
         Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
-        templates with the key-value pairs in ``params`` (2) chagne the config of the HPO module (e.g. NNI) if the
+        templates with the key-value pairs in ``params`` (2) change the config of the HPO module (e.g. NNI) if the
         key is found to be one of:
 
             - "trialCodeDirectory"
@@ -394,7 +394,7 @@ class AutoRunner:
 
         Args:
             params: a dict that defines the overriding key-value pairs during instantiation of the algo. For
-                BundleAlgo, it will overide the template config filling.
+                BundleAlgo, it will override the template config filling.
         """
         if params is None:
             self.hpo_params = self.train_params
@@ -406,7 +406,7 @@ class AutoRunner:
         Set the search space for NNI parameter search.
 
         Args:
-            search_space: hyper paramter search space in the form of dict. For more information, please check
+            search_space: hyper parameter search space in the form of dict. For more information, please check
                 NNI documentation: https://nni.readthedocs.io/en/v2.2/Tutorial/SearchSpaceSpec.html .
         """
         value_combinations = 1
@@ -471,7 +471,7 @@ class AutoRunner:
 
     def _train_algo_in_sequence(self, history: List[Dict[str, Any]]):
         """
-        Train the Algos in a seqential scheme. The order of training is randomized.
+        Train the Algos in a sequential scheme. The order of training is randomized.
 
         Args:
             history: the history of generated Algos. It is a list of dicts. Each element has the task name
