@@ -30,7 +30,7 @@ are handled with specific protocols, and the data arrays are often high-dimensio
 [`monai.data`](https://github.com/Project-MONAI/MONAI/tree/dev/monai/data) modules include a set of domain-specific APIs
 for various deep learning applications:
 
-### Transforms with data in 'array' and 'dictionary' styles
+### Transforms with data in array and dictionary styles
 
 ![3d transform examples](../images/affine.png)
 
@@ -83,7 +83,7 @@ domain-specific usability and pipeline performance.
 ### Cache IO and transforms data to accelerate training
 
 Data-driven methods require many (potentially thousands of) epochs of training data reading and preprocessing. MONAI
-provides multi-threaded cache-based datasets to accelerate the process. [[Datasets experiment]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/dataset_type_performance.ipynb). The
+provides multi-threaded cache-based datasets to accelerate the process [[Datasets experiment]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/dataset_type_performance.ipynb). The
 cache can be persistent and dynamic (`SmartCacheDataset`) and reused across different experiments [[SmartCache example]](https://github.com/Project-MONAI/tutorials/blob/master/acceleration/distributed_training/unet_training_smartcache.py).
 The following figure illustrates the training speedup compared with a regular PyTorch program.
 
@@ -102,7 +102,7 @@ a `ThreadDataLoader` example is within the [Spleen fast training tutorial](https
 ### Public datasets
 
 To quickly get started with popular training data, MONAI provides several ready-to-integrate Dataset classes
-(such as `MedNISTDataset`, `DecathlonDataset`), which include data downloading, and support training/evaluation splits generation with transforms.
+(such as `MedNISTDataset`, `DecathlonDataset`, [`TciaDataset`](https://github.com/Project-MONAI/tutorials/blob/main/modules/tcia_dataset.ipynb)), which include data downloading, and support training/evaluation splits generation with transforms.
 [[Public datasets tutorial]](https://github.com/Project-MONAI/tutorials/blob/master/modules/public_datasets.ipynb)
 The common workflow of predefined datasets:
 
@@ -231,8 +231,8 @@ A typical process of `decollate batch` is illustrated as follows (with a `batch_
 
 Except for the pytorch-ignite based `monai.engines`, most of the MONAI modules could be used independently or combined
 with other software packages. For example, MONAI can be easily integrated into popular frameworks such as
-PyTorch-Lightning and Catalyst: [Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb),
-[Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb).
+PyTorch-Lightning and Catalyst. [[Lightning segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/spleen_segmentation_3d_lightning.ipynb),
+[Catalyst segmentation](https://github.com/Project-MONAI/tutorials/blob/master/3d_segmentation/unet_segmentation_3d_catalyst.ipynb)]
 
 ## Bundle
 
@@ -264,7 +264,7 @@ A typical bundle example can include:
      ┗━ *license.txt
 ```
 Details about the bundle config definition and syntax & examples are at [config syntax](https://docs.monai.io/en/latest/config_syntax.html).
-A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/master/modules/bundles/get_started.ipynb) tutorial notebook can help users quickly set up a bundle. [[bundle examples]](https://github.com/Project-MONAI/tutorials/tree/main/modules/bundle)
+A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/master/modules/bundles/get_started.ipynb) tutorial notebook can help users quickly set up a bundle. [[bundle examples](https://github.com/Project-MONAI/tutorials/tree/main/bundle), [model-zoo](https://github.com/Project-MONAI/model-zoo)]
 
 ## Federated Learning
 
@@ -288,7 +288,7 @@ with [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) to allow
 It leverages the latest advances in MONAI
 and GPUs to efficiently develop and deploy algorithms with state-of-the-art performance.
 It first analyzes the global information such as intensity, dimensionality, and resolution of the dataset,
-then generates algorithms in MONAI bundle format based on data statistics and algorithm templates.
+then generates algorithms in MONAI bundle format based on data statistics and [algorithm templates](https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg).
 Next, all algorithms initiate model training to obtain checkpoints with the best validation performance.
 Finally, the ensemble module selects the algorithms via ranking trained checkpoints and creates ensemble predictions.
 

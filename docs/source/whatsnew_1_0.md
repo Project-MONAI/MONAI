@@ -21,7 +21,7 @@ For more details about how to use the models, please see [the tutorials](https:/
 It leverages the latest advances in MONAI
 and GPUs to efficiently develop and deploy algorithms with state-of-the-art performance.
 It first analyzes the global information such as intensity, dimensionality, and resolution of the dataset,
-then generates algorithms in MONAI bundle format based on data statistics and algorithm templates.
+then generates algorithms in MONAI bundle format based on data statistics and [algorithm templates](https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg).
 Next, all algorithms initiate model training to obtain checkpoints with the best validation performance.
 Finally, the ensemble module selects the algorithms via ranking trained checkpoints and creates ensemble predictions.
 
@@ -43,14 +43,12 @@ collaborative learning in medical imaging.
 ![pathology](../images/pathology-meta.png)
 
 MetaTensor is officially released in MONAI v0.9, which is a simple yet elegant way to handle metadata along with the image
-in the same object. In this release (v1.0), we support MetaTensor in all digital pathology components, and make sure that
+in the same object. In this release, we support MetaTensor in all digital pathology components, and make sure that
 the future development can benefit from them. With the help of MONAI Pathology Working Group, we have standardized a
 set of metadata attributes for patches of images extracted from WSI to ensure reproducibility and enhance functionality
-via relying on a standard set of attributes. The figure below shows all the pathology metadata attributes,
+via relying on a standard set of attributes. The figure above shows all the pathology metadata attributes,
 their definition, and their relation to MetaTensors. Using `LoadImage` transform with WSIReader will output a
-MetaTensor with populated metadata inferred from the data file. Currently, WSIReader loads the patches into the CPU memory
-but they can be transferred to GPU via appropriate transforms. We are working with the cuCIM team to make sure that we can
-bring direct loading of images into the GPU in the future releases.
+MetaTensor with populated metadata inferred from the data file. Please see [the tutorials and examples](https://github.com/Project-MONAI/tutorials/tree/main/pathology).
 
 ## Accelerated MRI Reconstruction
 ![MRI-reconstruction](../images/mri_recon.png)
