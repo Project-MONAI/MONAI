@@ -17,8 +17,6 @@ import warnings
 from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
-from monai.utils.misc import has_option
-from monai.utils.module import require_pkg
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
@@ -904,12 +902,12 @@ class GetInstancelabelledSegMap(Transform):
     def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            pred: the probability map output of the NP branch, shape must be [C, H, W, [D]]. 
+            pred: the probability map output of the NP branch, shape must be [C, H, W, [D]].
             hover: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch,
-                shape must be [2, H, W, [D]]. 
+                shape must be [2, H, W, [D]].
 
         Returns:
-            instance labelled segmentation map with shape [C, H, W, [D]]. 
+            instance labelled segmentation map with shape [C, H, W, [D]].
         """
         pred_t = convert_to_tensor(pred, track_meta=get_track_meta())
         hover_t = convert_to_tensor(hover, track_meta=get_track_meta())
