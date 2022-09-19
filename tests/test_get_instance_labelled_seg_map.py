@@ -24,7 +24,7 @@ for p in TEST_NDARRAYS:
     TEST_CASE_1[..., 1:12,1:12] = 0.7
     TEST_CASE_1[..., 13:15,13:15] = 0.6
 
-    TEST_CASE_hover_map_1 = np.array([
+    TEST_CASE_hover_map_v = np.array([
                             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
                             [0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0],
                             [0,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,-0.8,0,0,0,0],
@@ -42,7 +42,7 @@ for p in TEST_NDARRAYS:
                             [0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0],
                             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
                             ])
-    TEST_CASE_hover_map_2 = np.array([
+    TEST_CASE_hover_map_h = np.array([
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
         [0,-1,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,0.8,1,0,0,0,0],
         [0,-1,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,0.8,1,0,0,0,0],
@@ -60,7 +60,7 @@ for p in TEST_NDARRAYS:
         [0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0],
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ])
-    TEST_CASE_hover_map = np.stack([TEST_CASE_hover_map_1, TEST_CASE_hover_map_2], axis=0)
+    TEST_CASE_hover_map = np.stack([TEST_CASE_hover_map_h, TEST_CASE_hover_map_v], axis=0)
     print(TEST_CASE_hover_map.shape)
 
     probs_map_1 = p(TEST_CASE_1)

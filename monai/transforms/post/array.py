@@ -931,8 +931,6 @@ class GetInstancelabelledSegMap(Transform):
 
         # combine the h & v values using max
         overall = torch.maximum(sobelh_norm, sobelv_norm)
-        print('******', overall.shape)
-        print('**********', blb.shape)
         overall = overall - (1 - blb)
         overall[overall < 0] = 0
 
@@ -950,7 +948,6 @@ class GetInstancelabelledSegMap(Transform):
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
         blb_np, *_ = convert_data_type(blb, np.ndarray)
-        print("marker_np shape:", marker_np.shape)
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
         marker_np = self.remove_small_objects(marker_np)
