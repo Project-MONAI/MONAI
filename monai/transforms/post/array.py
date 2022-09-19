@@ -17,6 +17,7 @@ import warnings
 from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
+from monai.utils.misc import has_option
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
@@ -34,8 +35,13 @@ from monai.transforms.utils import (
     remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
+
+label, _ = optional_import("scipy.ndimage.measurements", name="label")
+disk, _ = optional_import("skimage.morphology", name="disk")
+opening, _ = optional_import("skimage.morphology", name="opening")
+watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
 __all__ = [
     "Activations",
@@ -50,6 +56,7 @@ __all__ = [
     "SobelGradients",
     "VoteEnsemble",
     "Invert",
+    "GetInstancelabelledSegMap",
 ]
 
 
@@ -859,65 +866,88 @@ class SobelGradients(Transform):
         return grad
 
 
-class ProcessNPHV(Transform):
-    def __init__():
-        pass
+class GetInstancelabelledSegMap(Transform):
+    """
+    Process Nuclei Prediction with XY Coordinate Map.
 
-    def __call__(self, img: NdarrayOrTensor, hover: NdarrayOrTensor) -> torch.Tensor:
-        from scipy.ndimage import measurements
-        from skimage.morphology import disk, opening
-        from skimage.segmentation import watershed
-        from monai.transforms import ScaleIntensityRange
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        hover = convert_to_tensor(hover, track_meta=get_track_meta())
-        img_t, *_ = convert_data_type(img, torch.Tensor)
+    Args:
+        threshold_pred: threshold the float values of prediction to int number 0 or 1 with specified theashold. Defaults to 0.5.
+        threshold_overall: threshold the float values of overall gradient map to int number 0 or 1 with specified theashold. Defaults to 0.4.
+        min_size: objects smaller than this size are removed. Defaults to 10.
+        sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
+        kernel_size: the size of the Sobel kernel. Defaults to 17.
+        radius: the radius of the disk-shaped footprint. Defaults to 2.
 
-        horizontal_map = hover[0]
-        vertical_map = hover[1]
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        threshold_pred: float = 0.5,
+        threshold_overall: float = 0.4,
+        min_size: int = 10,
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
+        kernel_size: int = 17,
+        radius: int = 2,
+    ):
+        self.threshold_pred = threshold_pred
+        self.threshold_overall = threshold_overall
+        self.min_size = min_size
+        self.sigma = sigma
+        self.kernel_size = kernel_size
+        self.radius = radius
+
+    def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            pred: the probability map output of the NP branch, shape must be [B, C, H, W, [D]]. 
+            hover: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch,
+                shape must be [B, 2, H, W, [D]]. 
+
+        Returns:
+            instance labelled segmentation map with shape [B, C, H, W, [D]]. 
+        """
+        pred_t = convert_to_tensor(pred, track_meta=get_track_meta())
+        hover_t = convert_to_tensor(hover, track_meta=get_track_meta())
 
         # processing
-        blb = AsDiscrete(threshold=0.5)(img_t)
-        blb = remove_small_objects(blb, min_size=10)
+        blb = AsDiscrete(threshold=self.threshold_pred)(pred_t)
+        blb = RemoveSmallObjects(min_size=self.min_size)(blb)
 
-        scale_intensity_h = ScaleIntensityRange(a_min=torch.min(horizontal_map) , a_max=torch.max(horizontal_map), b_min=0, b_max=1)
-        scale_intensity_v = ScaleIntensityRange(a_min=torch.min(vertical_map) , a_max=torch.max(vertical_map), b_min=0, b_max=1)
+        maph_norm = (hover_t[0]-torch.min(hover_t[0]))/(torch.max(hover_t[0])-torch.min(hover_t[0]))
+        mapv_norm = (hover_t[1]-torch.min(hover_t[1]))/(torch.max(hover_t[1])-torch.min(hover_t[1]))
 
-        h_dir = scale_intensity_h(horizontal_map)
-        v_dir = scale_intensity_v(vertical_map)
-
-        sobelgradients = SobelGradients(kernel_size=17)
-        sobelh = sobelgradients(h_dir)
-        sobelv = sobelgradients(v_dir)
-        scale_intensity_sobelh = ScaleIntensityRange(a_min=torch.min(sobelh) , a_max=torch.max(horizontal_map), b_min=0, b_max=1)
-        scale_intensity_sobelv = ScaleIntensityRange(a_min=torch.min(sobelv) , a_max=torch.max(vertical_map), b_min=0, b_max=1)
-        sobelh = 1 - scale_intensity_sobelh(sobelh)
-        sobelv = 1 - scale_intensity_sobelv(sobelv)
+        sobelh = SobelGradients(kernel_size=self.kernel_size)(maph_norm)
+        sobelv = SobelGradients(kernel_size=self.kernel_size)(mapv_norm)
+        sobelh_norm = 1 - (sobelh-torch.min(sobelh))/(torch.max(sobelh)-torch.min(sobelh))
+        sobelv_norm = 1 - (sobelv-torch.min(sobelv))/(torch.max(sobelv)-torch.min(sobelv))
 
         # combine the h & v values using max
-        overall = torch.maximum(sobelh, sobelv)
+        overall = torch.maximum(sobelh_norm, sobelv_norm)
         overall = overall - (1 - blb)
         overall[overall < 0] = 0
 
         dist = (1.0 - overall) * blb
 
         ## nuclei values form mountains so inverse to get basins
-        filter = GaussianFilter(spatial_dims=3, sigma=0.4)
-        dist = torch.neg(filter(dist))
-        overall = torch.tensor(overall >= 0.4, dtype=torch.int32)
+        spatial_dims = pred.ndim - 1
+        dist = torch.neg(GaussianFilter(spatial_dims=spatial_dims, sigma=self.sigma)(dist))
+        overall = AsDiscrete(threshold=self.threshold_overall)(overall)
 
         marker = blb - overall
         marker[marker < 0] = 0
+        marker = FillHoles(marker)
 
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
         blb_np, *_ = convert_data_type(blb, np.ndarray)
-        marker_np = fill_holes(marker_np).astype("uint8")
-        marker_np = opening(marker_np, disk(2))
-        marker_np = measurements.label(marker_np)[0]
-        marker_np = remove_small_objects(marker_np, min_size=10)
+        marker_np = opening(marker_np, disk(self.radius))
+        marker_np = label(marker_np)[0]
+        marker_np = RemoveSmallObjects(min_size=self.min_size)(marker_np)
 
-        proced_img = watershed(dist_np, markers=marker_np, mask=blb_np)
+        proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
 
-        img, *_ = convert_to_dst_type(proced_img, img, dtype=torch.float)
-        
-        return img
+        pred, *_ = convert_to_dst_type(proced_pred, pred)
+
+        return pred
