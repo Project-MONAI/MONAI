@@ -857,3 +857,67 @@ class SobelGradients(Transform):
         grad = torch.cat([grad_h, grad_v])
 
         return grad
+
+
+class ProcessNPHV(Transform):
+    def __init__():
+        pass
+
+    def __call__(self, img: NdarrayOrTensor, hover: NdarrayOrTensor) -> torch.Tensor:
+        from scipy.ndimage import measurements
+        from skimage.morphology import disk, opening
+        from skimage.segmentation import watershed
+        from monai.transforms import ScaleIntensityRange
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        hover = convert_to_tensor(hover, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor)
+
+        horizontal_map = hover[0]
+        vertical_map = hover[1]
+
+        # processing
+        blb = AsDiscrete(threshold=0.5)(img_t)
+        blb = remove_small_objects(blb, min_size=10)
+
+        scale_intensity_h = ScaleIntensityRange(a_min=torch.min(horizontal_map) , a_max=torch.max(horizontal_map), b_min=0, b_max=1)
+        scale_intensity_v = ScaleIntensityRange(a_min=torch.min(vertical_map) , a_max=torch.max(vertical_map), b_min=0, b_max=1)
+
+        h_dir = scale_intensity_h(horizontal_map)
+        v_dir = scale_intensity_v(vertical_map)
+
+        sobelgradients = SobelGradients(kernel_size=17)
+        sobelh = sobelgradients(h_dir)
+        sobelv = sobelgradients(v_dir)
+        scale_intensity_sobelh = ScaleIntensityRange(a_min=torch.min(sobelh) , a_max=torch.max(horizontal_map), b_min=0, b_max=1)
+        scale_intensity_sobelv = ScaleIntensityRange(a_min=torch.min(sobelv) , a_max=torch.max(vertical_map), b_min=0, b_max=1)
+        sobelh = 1 - scale_intensity_sobelh(sobelh)
+        sobelv = 1 - scale_intensity_sobelv(sobelv)
+
+        # combine the h & v values using max
+        overall = torch.maximum(sobelh, sobelv)
+        overall = overall - (1 - blb)
+        overall[overall < 0] = 0
+
+        dist = (1.0 - overall) * blb
+
+        ## nuclei values form mountains so inverse to get basins
+        filter = GaussianFilter(spatial_dims=3, sigma=0.4)
+        dist = torch.neg(filter(dist))
+        overall = torch.tensor(overall >= 0.4, dtype=torch.int32)
+
+        marker = blb - overall
+        marker[marker < 0] = 0
+
+        marker_np, *_ = convert_data_type(marker, np.ndarray)
+        dist_np, *_ = convert_data_type(dist, np.ndarray)
+        blb_np, *_ = convert_data_type(blb, np.ndarray)
+        marker_np = fill_holes(marker_np).astype("uint8")
+        marker_np = opening(marker_np, disk(2))
+        marker_np = measurements.label(marker_np)[0]
+        marker_np = remove_small_objects(marker_np, min_size=10)
+
+        proced_img = watershed(dist_np, markers=marker_np, mask=blb_np)
+
+        img, *_ = convert_to_dst_type(proced_img, img, dtype=torch.float)
+        
+        return img
