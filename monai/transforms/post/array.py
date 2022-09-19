@@ -18,6 +18,7 @@ from typing import Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 from monai.utils.misc import has_option
+from monai.utils.module import require_pkg
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
@@ -38,10 +39,10 @@ from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
 
-label, _ = optional_import("scipy.ndimage.measurements", name="label")
-disk, _ = optional_import("skimage.morphology", name="disk")
-opening, _ = optional_import("skimage.morphology", name="opening")
-watershed, _ = optional_import("skimage.segmentation", name="watershed")
+label, has_label = optional_import("scipy.ndimage.measurements", name="label")
+disk, has_disk = optional_import("skimage.morphology", name="disk")
+opening, has_opening = optional_import("skimage.morphology", name="opening")
+watershed, has_watershed = optional_import("skimage.segmentation", name="watershed")
 
 __all__ = [
     "Activations",
@@ -891,40 +892,47 @@ class GetInstancelabelledSegMap(Transform):
         kernel_size: int = 17,
         radius: int = 2,
     ):
-        self.threshold_pred = threshold_pred
-        self.threshold_overall = threshold_overall
-        self.min_size = min_size
         self.sigma = sigma
-        self.kernel_size = kernel_size
         self.radius = radius
+
+        self.sobel_gradient = SobelGradients(kernel_size=kernel_size)
+        self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+        self.pred_discreter = AsDiscrete(threshold=threshold_pred)
+        self.overall_discreter = AsDiscrete(threshold=threshold_overall)
+        self.fill_holes = FillHoles()
 
     def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            pred: the probability map output of the NP branch, shape must be [B, C, H, W, [D]]. 
+            pred: the probability map output of the NP branch, shape must be [C, H, W, [D]]. 
             hover: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch,
-                shape must be [B, 2, H, W, [D]]. 
+                shape must be [2, H, W, [D]]. 
 
         Returns:
-            instance labelled segmentation map with shape [B, C, H, W, [D]]. 
+            instance labelled segmentation map with shape [C, H, W, [D]]. 
         """
         pred_t = convert_to_tensor(pred, track_meta=get_track_meta())
         hover_t = convert_to_tensor(hover, track_meta=get_track_meta())
 
+        hover_h = hover_t[0:1, ...]
+        hover_v = hover_t[1:2, ...]
+
         # processing
-        blb = AsDiscrete(threshold=self.threshold_pred)(pred_t)
-        blb = RemoveSmallObjects(min_size=self.min_size)(blb)
+        blb = self.pred_discreter(pred_t)
+        blb = self.remove_small_objects(blb)
 
-        maph_norm = (hover_t[0]-torch.min(hover_t[0]))/(torch.max(hover_t[0])-torch.min(hover_t[0]))
-        mapv_norm = (hover_t[1]-torch.min(hover_t[1]))/(torch.max(hover_t[1])-torch.min(hover_t[1]))
+        maph_norm = (hover_h-torch.min(hover_h))/(torch.max(hover_h)-torch.min(hover_h))
+        mapv_norm = (hover_v-torch.min(hover_v))/(torch.max(hover_v)-torch.min(hover_v))
 
-        sobelh = SobelGradients(kernel_size=self.kernel_size)(maph_norm)
-        sobelv = SobelGradients(kernel_size=self.kernel_size)(mapv_norm)
+        sobelh = self.sobel_gradient(maph_norm.unsqueeze(0))[0, ...]  # adds a batch dim
+        sobelv = self.sobel_gradient(mapv_norm.unsqueeze(0))[1, ...]  # adds a batch dim
         sobelh_norm = 1 - (sobelh-torch.min(sobelh))/(torch.max(sobelh)-torch.min(sobelh))
         sobelv_norm = 1 - (sobelv-torch.min(sobelv))/(torch.max(sobelv)-torch.min(sobelv))
 
         # combine the h & v values using max
         overall = torch.maximum(sobelh_norm, sobelv_norm)
+        print('******', overall.shape)
+        print('**********', blb.shape)
         overall = overall - (1 - blb)
         overall[overall < 0] = 0
 
@@ -933,18 +941,19 @@ class GetInstancelabelledSegMap(Transform):
         ## nuclei values form mountains so inverse to get basins
         spatial_dims = pred.ndim - 1
         dist = torch.neg(GaussianFilter(spatial_dims=spatial_dims, sigma=self.sigma)(dist))
-        overall = AsDiscrete(threshold=self.threshold_overall)(overall)
+        overall = self.overall_discreter(overall)
 
         marker = blb - overall
         marker[marker < 0] = 0
-        marker = FillHoles(marker)
+        marker = self.fill_holes(marker)
 
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
         blb_np, *_ = convert_data_type(blb, np.ndarray)
-        marker_np = opening(marker_np, disk(self.radius))
+        print("marker_np shape:", marker_np.shape)
+        marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
-        marker_np = RemoveSmallObjects(min_size=self.min_size)(marker_np)
+        marker_np = self.remove_small_objects(marker_np)
 
         proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
 
