@@ -850,7 +850,7 @@ class GetInstancelabelledSegMapd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.transform = GetInstancelabelledSegMap(threshold_pred=threshold_pred, threshold_overall=threshold_overall, 
+        self.transform = GetInstancelabelledSegMap(threshold_pred=threshold_pred, threshold_overall=threshold_overall,
                                                 min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor], hover_key: str) -> Dict[Hashable, NdarrayOrTensor]:

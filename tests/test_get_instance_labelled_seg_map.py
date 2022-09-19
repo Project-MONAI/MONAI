@@ -12,11 +12,10 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms.post.array import GetInstancelabelledSegMap
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:
