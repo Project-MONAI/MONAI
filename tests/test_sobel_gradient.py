@@ -17,8 +17,8 @@ from parameterized import parameterized
 from monai.transforms import SobelGradients
 from tests.utils import assert_allclose
 
-IMAGE = torch.zeros(1, 1, 16, 16, dtype=torch.float32)
-IMAGE[0, 0, 8, :] = 1
+IMAGE = torch.zeros(1, 16, 16, dtype=torch.float32)
+IMAGE[0, 8, :] = 1
 OUTPUT_3x3 = torch.zeros(2, 16, 16, dtype=torch.float32)
 OUTPUT_3x3[0, 7, :] = 2.0
 OUTPUT_3x3[0, 9, :] = -2.0
@@ -28,7 +28,6 @@ OUTPUT_3x3[1, 7, 0] = OUTPUT_3x3[1, 9, 0] = 0.5
 OUTPUT_3x3[1, 8, 0] = 1.0
 OUTPUT_3x3[1, 8, -1] = -1.0
 OUTPUT_3x3[1, 7, -1] = OUTPUT_3x3[1, 9, -1] = -0.5
-OUTPUT_3x3 = OUTPUT_3x3.unsqueeze(1)
 
 TEST_CASE_0 = [IMAGE, {"kernel_size": 3, "dtype": torch.float32}, OUTPUT_3x3]
 TEST_CASE_1 = [IMAGE, {"kernel_size": 3, "dtype": torch.float64}, OUTPUT_3x3]
