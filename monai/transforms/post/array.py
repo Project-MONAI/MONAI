@@ -852,8 +852,9 @@ class SobelGradients(Transform):
         image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
         kernel_v = self.kernel.to(image_tensor.device)
         kernel_h = kernel_v.T
+        image_tensor = image_tensor.unsqueeze(0)  # adds a batch dim
         grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
         grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
-        grad = torch.cat([grad_h, grad_v])
-
+        grad = torch.cat([grad_h, grad_v], dim=1)
+        grad, *_ = convert_to_dst_type(grad.squeeze(0), image_tensor)
         return grad
