@@ -2311,6 +2311,7 @@ class ComputeHoVerMaps(Transform):
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)
+        instance_mask = instance_mask.squeeze(0)  # remove channel dim
 
         for region in skimage.measure.regionprops(instance_mask):
             v_dist = region.coords[:, 0] - region.centroid[0]
@@ -2325,5 +2326,5 @@ class ComputeHoVerMaps(Transform):
             h_map[h_map == region.label] = h_dist
             v_map[v_map == region.label] = v_dist
 
-        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta())
+        hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps
