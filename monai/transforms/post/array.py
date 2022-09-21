@@ -44,10 +44,10 @@ from monai.utils import (
 )
 from monai.utils.type_conversion import convert_to_dst_type
 
-label, has_label = optional_import("scipy.ndimage.measurements", name="label")
-disk, has_disk = optional_import("skimage.morphology", name="disk")
-opening, has_opening = optional_import("skimage.morphology", name="opening")
-watershed, has_watershed = optional_import("skimage.segmentation", name="watershed")
+label, _ = optional_import("scipy.ndimage.measurements", name="label")
+disk, _ = optional_import("skimage.morphology", name="disk")
+opening, _ = optional_import("skimage.morphology", name="opening")
+watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
 __all__ = [
     "Activations",
@@ -62,7 +62,7 @@ __all__ = [
     "SobelGradients",
     "VoteEnsemble",
     "Invert",
-    "GetInstancelabelledSegMap",
+    "GetInstanceLevelSegMap",
 ]
 
 
@@ -873,7 +873,7 @@ class SobelGradients(Transform):
         return grad
 
 
-class GetInstancelabelledSegMap(Transform):
+class GetInstanceLevelSegMap(Transform):
     """
     Process Nuclei Prediction with XY Coordinate Map.
 
@@ -888,7 +888,7 @@ class GetInstancelabelledSegMap(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,

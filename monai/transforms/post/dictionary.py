@@ -30,7 +30,7 @@ from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
-    GetInstancelabelledSegMap,
+    GetInstanceLevelSegMap,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
@@ -85,9 +85,9 @@ __all__ = [
     "VoteEnsembleD",
     "VoteEnsembleDict",
     "VoteEnsembled",
-    "GetInstancelabelledSegMapD",
-    "GetInstancelabelledSegMapDict",
-    "GetInstancelabelledSegMapd",
+    "GetInstanceLevelSegMapD",
+    "GetInstanceLevelSegMapDict",
+    "GetInstanceLevelSegMapd",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -822,11 +822,12 @@ class SobelGradientsd(MapTransform):
         return d
 
 
-class GetInstancelabelledSegMapd(MapTransform):
+class GetInstanceLevelSegMapd(MapTransform):
     """Process Nuclei Prediction with XY Coordinate Map.
 
     Args:
         keys: keys of the corresponding items to model output.
+        hover_key: keys of the probability map from nucleus prediction branch.
         threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
@@ -838,7 +839,7 @@ class GetInstancelabelledSegMapd(MapTransform):
 
     """
 
-    backend = GetInstancelabelledSegMap.backend
+    backend = GetInstanceLevelSegMap.backend
 
     def __init__(
         self,
@@ -854,7 +855,7 @@ class GetInstancelabelledSegMapd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
-        self.transform = GetInstancelabelledSegMap(
+        self.transform = GetInstanceLevelSegMap(
             threshold_pred=threshold_pred,
             threshold_overall=threshold_overall,
             min_size=min_size,
@@ -885,4 +886,4 @@ SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
 SobelGradientsD = SobelGradientsDict = SobelGradientsd
-GetInstancelabelledSegMapD = GetInstancelabelledSegMapDict = GetInstancelabelledSegMapd
+GetInstanceLevelSegMapD = GetInstanceLevelSegMapDict = GetInstanceLevelSegMapd

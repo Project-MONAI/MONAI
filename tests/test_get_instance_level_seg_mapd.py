@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.intensity.array import ComputeHoVerMaps
-from monai.transforms.post.dictionary import GetInstancelabelledSegMapd
+from monai.transforms.post.dictionary import GetInstanceLevelSegMapd
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -56,12 +56,12 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestGetInstancelabelledSegMap(unittest.TestCase):
+class TestGetInstanceLevelSegMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map, mask, expected):
         hover_map = in_type(ComputeHoVerMaps()(mask))
         data = {"image": probs_map, "hover": hover_map}
-        output = GetInstancelabelledSegMapd(**args)(data)
+        output = GetInstanceLevelSegMapd(**args)(data)
 
         # temporarily only test shape
         self.assertTupleEqual(output["image"].shape, expected)
