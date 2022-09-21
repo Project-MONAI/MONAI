@@ -879,7 +879,7 @@ class GetInstancelabelledSegMap(Transform):
 
     Args:
         threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
-        threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold. 
+        threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
         sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
