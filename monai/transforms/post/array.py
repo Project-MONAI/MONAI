@@ -915,7 +915,7 @@ class GetInstancelabelledSegMap(Transform):
 
         hover_h = hover_t[0:1, ...]
         hover_v = hover_t[1:2, ...]
-        
+
         # processing
         blb = self.pred_discreter(pred_t)
         blb = self.remove_small_objects(blb)
@@ -938,9 +938,9 @@ class GetInstancelabelledSegMap(Transform):
         ## nuclei values form mountains so inverse to get basins
         spatial_dims = pred.ndim - 1
         dist = torch.neg(GaussianFilter(spatial_dims=spatial_dims, sigma=self.sigma)(dist))
-        
+
         overall = self.overall_discreter(overall)
-        
+
         marker = blb - overall
         marker[marker < 0] = 0
         marker = self.fill_holes(marker)
@@ -948,11 +948,11 @@ class GetInstancelabelledSegMap(Transform):
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
         blb_np, *_ = convert_data_type(blb, np.ndarray)
-       
+
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
         marker_np = self.remove_small_objects(marker_np)
-        
+
 
         proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
         pred, *_ = convert_to_dst_type(proced_pred, pred)

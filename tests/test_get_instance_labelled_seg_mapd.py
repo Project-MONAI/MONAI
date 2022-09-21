@@ -26,7 +26,7 @@ for p in TEST_NDARRAYS:
     TEST_CASE_MASK[:, 7:10, 7:10] = 2
     TEST_CASE_hover_map = compute_hover_maps(TEST_CASE_MASK)
     hover_map = p(TEST_CASE_hover_map)
-    
+
     TEST_CASE_1 = np.zeros((1, 10, 10))
     TEST_CASE_1[:, 2:6, 2:6] = 0.7
     TEST_CASE_1[:, 7:10, 7:10] = 0.6
@@ -41,7 +41,7 @@ class TestGetInstancelabelledSegMap(unittest.TestCase):
     def test_output(self, args, probs_map, hover_map, expected):
         data = {"image": probs_map, "hover": hover_map}
         output = GetInstancelabelledSegMapd(**args)(data)
-        
+
         # temporarily only test shape
         self.assertTupleEqual(output["image"].shape, expected)
 
