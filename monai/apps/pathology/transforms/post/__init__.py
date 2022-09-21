@@ -10,3 +10,4 @@
 # limitations under the License.
 
 from .array import PostProcessHoVerNetOutput
+from .dictionary import PostProcessHoVerNetOutputD, PostProcessHoVerNetOutputd, PostProcessHoVerNetOutputDict

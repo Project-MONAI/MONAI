@@ -9,17 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Hashable, Mapping, Optional, Union, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.networks.nets import HoVerNet
+from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_tensor import get_track_meta
+
 from monai.transforms.post.array import GetInstanceLevelSegMap, Activations, AsDiscrete
+from monai.transforms.croppad.array import BoundingRect
 from monai.transforms.transform import Transform
-from monai.transforms.utils import generate_spatial_bounding_box
+from monai.utils import convert_to_numpy, convert_to_tensor, optional_import
 from monai.utils.enums import TransformBackends
-from monai.utils import convert_to_numpy, optional_import
 
 find_contours, has_findcontours = optional_import("skimage.measure", name="find_contours")
 moments, has_moments = optional_import("skimage.measure", name="moments")
@@ -222,34 +224,38 @@ class PostProcessHoVerNetOutput(Transform):
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
         kernel_size: int = 17,
         radius: int = 2,
-        ) -> None:
+    ) -> None:
         self.output_classes = output_classes
         self.return_centroids = return_centroids
-        self.getinstancelevelsegmap = GetInstanceLevelSegMap(
-            threshold_pred = threshold_pred,
-            threshold_overall = threshold_overall,
-            min_size = min_size,
-            sigma = sigma,
-            kernel_size = kernel_size,
-            radius = radius,
+
+        self.get_bbox = BoundingRect()
+        self.get_instance_level_seg_map = GetInstanceLevelSegMap(
+            threshold_pred=threshold_pred,
+            threshold_overall=threshold_overall,
+            min_size=min_size,
+            sigma=sigma,
+            kernel_size=kernel_size,
+            radius=radius,
         )
 
-    def __call__(self, pred: Mapping[Hashable, torch.Tensor]):
+    def __call__(self, NP_pred: NdarrayOrTensor, HV_pred: NdarrayOrTensor, NC_pred: Optional[NdarrayOrTensor] = None):
         """
         Args:
-            pred: a dict combined output of NC, NP and HV branches.
+            NP_pred: segmentation branch output with shape [1, W, H, [D]].
+            HV_pred: hover map branch output with shape [2, W, H, [D]].
+            NC_pred: classification branch output with shape [1, W, H, [D]]. Defaults to None.
         Returns:
             pred_inst: pixel-wise nuclear instance segmentation prediction.
             inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour.
                 If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
         """
-        NP_pred = pred[HoVerNet.Branch.NP.value]
-        HV_pred = pred[HoVerNet.Branch.HV.value]
-        if self.output_classes is not None:
-            NC_pred = pred[HoVerNet.Branch.NC.value]
+        NP_pred = convert_to_tensor(NP_pred, track_meta=get_track_meta())
+        HV_pred = convert_to_tensor(HV_pred, track_meta=get_track_meta())
+        if NC_pred is not None:
             NC_pred = AsDiscrete(argmax=True)(Activations(softmax=True)(NC_pred))
+            NC_pred = convert_to_tensor(NC_pred, track_meta=get_track_meta())
 
-        pred_inst = self.getinstancelevelsegmap(NP_pred, HV_pred)
+        pred_inst = self.get_instance_level_seg_map(NP_pred, HV_pred)
 
         inst_info_dict = None
         if self.return_centroids or self.output_classes is not None:
@@ -257,9 +263,8 @@ class PostProcessHoVerNetOutput(Transform):
             inst_info_dict = {}
             for inst_id in inst_id_list:
                 inst_map = pred_inst == inst_id
-                box_start, box_end = generate_spatial_bounding_box(inst_map)
-                inst_bbox = torch.tensor([box_start, box_end])
-                inst_map = inst_map[inst_bbox[0][0] : inst_bbox[1][0], inst_bbox[0][1] : inst_bbox[1][1]]
+                inst_bbox = self.get_bbox(inst_map)
+                inst_map = inst_map[inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[1][0] : inst_bbox[1][1]]
                 inst_map_np = convert_to_numpy(inst_map.squeeze(), dtype=np.uint8)  # squeeze remove channel dim
                 inst_moment = moments(inst_map_np, order=3)
 
@@ -305,4 +310,4 @@ class PostProcessHoVerNetOutput(Transform):
                 inst_info_dict[inst_id]["type"] = int(inst_type)
                 inst_info_dict[inst_id]["type_probability"] = float(type_prob)
 
-        return pred_inst, inst_info_dict
+        return (pred_inst, inst_info_dict)

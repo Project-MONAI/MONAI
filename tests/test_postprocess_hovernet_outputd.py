@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import PostProcessHoVerNetOutput
+from monai.apps.pathology.transforms import PostProcessHoVerNetOutputd
 from monai.networks.nets import HoVerNet
 from monai.transforms.intensity.array import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
@@ -46,6 +46,7 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {
+                "output_classes": 2,
                 "threshold_pred": 0.5,
                 "threshold_overall": 0.4,
                 "min_size": 4,
@@ -63,16 +64,23 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestPostProcessHoVerNetOutput(unittest.TestCase):
+class TestPostProcessHoVerNetOutputd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map_np, probs_map_nc, mask, expected):
-        hover_map = in_type(ComputeHoVerMaps()(mask))
 
-        postprocesshovernetoutput = PostProcessHoVerNetOutput(**args)
-        output = postprocesshovernetoutput(probs_map_np, hover_map, probs_map_nc)
+        hover_map = in_type(ComputeHoVerMaps()(mask))
+        pred = {
+            HoVerNet.Branch.NP.value: probs_map_np,
+            HoVerNet.Branch.NC.value: probs_map_nc,
+            HoVerNet.Branch.HV.value: hover_map,
+        }
+
+        post_process_hovernet_output = PostProcessHoVerNetOutputd(keys=HoVerNet.Branch.NP.value, **args)
+        output = post_process_hovernet_output(pred)
 
         # temporarily only test shape
-        self.assertTupleEqual(output[0].shape, expected)
+        self.assertTupleEqual(output[HoVerNet.Branch.NP.value].shape, expected)
+        self.assertIsInstance(output["inst_info"], dict)
 
 
 if __name__ == "__main__":
