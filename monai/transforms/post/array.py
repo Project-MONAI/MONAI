@@ -13,6 +13,7 @@ A collection of "vanilla" transforms for the model output tensors
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+from multiprocessing.sharedctypes import Value
 import warnings
 from typing import Callable, Iterable, Optional, Sequence, Union
 
@@ -36,6 +37,7 @@ from monai.transforms.utils import (
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.enums import Direction
 
 __all__ = [
     "Activations",
@@ -810,12 +812,13 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel horizontal and vertical gradients
+    """Calculate Sobel horizontal and vertical gradients of a binary image.
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        direction: the gradient direction to be calculated. "horizontal" or "vertical"
         device: the device to create the kernel on. Defaults to `"cpu"`.
 
     """
@@ -827,11 +830,34 @@ class SobelGradients(Transform):
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
         dtype: torch.dtype = torch.float32,
+        direction: Optional[str] = None,
         device: Union[torch.device, int, str] = "cpu",
     ) -> None:
         super().__init__()
         self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
         self.padding = padding
+
+        if direction is None:
+            self.direction = [Direction.HORIZONTAL, Direction.VERTICAL]
+        elif isinstance(direction, str):
+            if direction == Direction.HORIZONTAL:
+                self.direction = [Direction.HORIZONTAL]
+            elif direction == Direction.VERTICAL:
+                self.direction = [Direction.VERTICAL]
+            else:
+                raise ValueError(
+                    f"`direction` should be either {Direction.HORIZONTAL.value} or {Direction.VERTICAL.value}"
+                    f"but {direction} is given."
+                )
+        elif isinstance(direction, list):
+            for d in direction:
+                if d not in [Direction.HORIZONTAL, Direction.VERTICAL]:
+                    raise ValueError(
+                        f"`direction` should be either {Direction.HORIZONTAL.value} or {Direction.VERTICAL.value}"
+                        f"but {direction} is given."
+                    )
+        else:
+            raise ValueError(f"`direction` should be either str or list but {type(direction)} was given.")
 
     def _get_kernel(self, size, dtype, device) -> torch.Tensor:
         if size % 2 == 0:
@@ -850,11 +876,29 @@ class SobelGradients(Transform):
 
     def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
         image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
+        # Get the Sobel kernels
         kernel_v = self.kernel.to(image_tensor.device)
         kernel_h = kernel_v.T
-        image_tensor = image_tensor.unsqueeze(0)  # adds a batch dim
-        grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
-        grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
-        grad = torch.cat([grad_h, grad_v], dim=1)
-        grad, *_ = convert_to_dst_type(grad.squeeze(0), image_tensor)
+
+        # Add batch dimension to be able to use apply_filter
+        image_tensor = image_tensor.unsqueeze(0)
+
+        # Calculate gradients
+        grad_h = None
+        grad_v = None
+        if Direction.HORIZONTAL in self.direction:
+            grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
+        if Direction.VERTICAL in self.direction:
+            grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
+
+        # Check gradient direction
+        if grad_h is None:
+            grad = grad_v
+        elif grad_v is None:
+            grad = grad_h
+        else:
+            grad = torch.cat([grad_h, grad_v], dim=1)
+
+        # Remove batch dimension and convert the gradient type to be the same as input image
+        grad = convert_to_dst_type(grad.squeeze(0), image_tensor)[0]
         return grad

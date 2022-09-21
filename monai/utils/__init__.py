@@ -22,6 +22,7 @@ from .enums import (
     ColorOrder,
     CommonKeys,
     DiceCEReduction,
+    Direction,
     EngineStatsKeys,
     FastMRIKeys,
     ForwardMode,

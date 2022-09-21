@@ -52,6 +52,7 @@ __all__ = [
     "ImageStatsKeys",
     "LabelStatsKeys",
     "AlgoEnsembleKeys",
+    "Direction",
 ]
 
 
@@ -587,3 +588,12 @@ class AlgoEnsembleKeys(StrEnum):
     ID = "identifier"
     ALGO = "infer_algo"
     SCORE = "best_metric"
+
+
+class Direction(StrEnum):
+    """
+    Default keys for axis directions of an image
+    """
+
+    HORIZONTAL = "horizontal"
+    VERTICAL = "vertical"
