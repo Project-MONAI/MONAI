@@ -68,7 +68,7 @@ TEST_CASE_KERNEL_2 = [
         dtype=torch.float64,
     ),
 ]
-TEST_CASE_ERROR_0 = [{"kernel_size": 1}]  # kernel size on one
+TEST_CASE_ERROR_0 = [{"kernel_size": 1}]  # kernel size less than 3
 TEST_CASE_ERROR_1 = [{"kernel_size": 4}]  # even kernel size
 TEST_CASE_ERROR_2 = [{"direction": 1}]  # wrong type direction
 TEST_CASE_ERROR_3 = [{"direction": "not_exist_direction"}]  # wrong direction

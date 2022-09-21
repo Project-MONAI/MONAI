@@ -36,6 +36,26 @@ TEST_CASE_2 = [
     {"keys": "image", "kernel_size": 3, "dtype": torch.float32, "new_key_prefix": "sobel_"},
     {"sobel_image": OUTPUT_3x3},
 ]
+TEST_CASE_3 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "direction": "horizontal", "dtype": torch.float32},
+    {"image": OUTPUT_3x3[0][None, ...]},
+]
+TEST_CASE_4 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "direction": "vertical", "dtype": torch.float32},
+    {"image": OUTPUT_3x3[1][None, ...]},
+]
+TEST_CASE_5 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "direction": ["vertical"], "dtype": torch.float32},
+    {"image": OUTPUT_3x3[1][None, ...]},
+]
+TEST_CASE_6 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "direction": ["horizontal", "vertical"], "dtype": torch.float32},
+    {"image": OUTPUT_3x3},
+]
 
 TEST_CASE_KERNEL_0 = [
     {"keys": "image", "kernel_size": 3, "dtype": torch.float64},
@@ -69,13 +89,27 @@ TEST_CASE_KERNEL_2 = [
         dtype=torch.float64,
     ),
 ]
-TEST_CASE_ERROR_0 = [{"keys": "image", "kernel_size": 2, "dtype": torch.float32}]
+TEST_CASE_ERROR_0 = [{"keys": "image", "kernel_size": 1}]  # kernel size less than 3
+TEST_CASE_ERROR_1 = [{"keys": "image", "kernel_size": 4}]  # even kernel size
+TEST_CASE_ERROR_2 = [{"keys": "image", "kernel_size": 2, "direction": 1}]  # wrong type direction
+TEST_CASE_ERROR_3 = [{"keys": "image", "kernel_size": 2, "direction": "not_exist_direction"}]  # wrong direction
+TEST_CASE_ERROR_4 = [
+    {"keys": "image", "kernel_size": 2, "direction": ["not_exist_direction"]}
+]  # wrong direction in a list
+TEST_CASE_ERROR_5 = [
+    {"keys": "image", "kernel_size": 2, "direction": ["horizontal", "not_exist_direction"]}
+]  # correct and wrong direction in a list
+
+TEST_CASE_IMAGE_ERROR_0 = [
+    {"image": torch.cat([IMAGE, IMAGE], dim=0)},
+    {"keys": "image", "kernel_size": 3, "dtype": torch.float32},
+]
 
 
 class SobelGradientTests(unittest.TestCase):
     backend = None
 
-    @parameterized.expand([TEST_CASE_0])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_sobel_gradients(self, image_dict, arguments, expected_grad):
         sobel = SobelGradientsd(**arguments)
         grad = sobel(image_dict)
@@ -88,10 +122,25 @@ class SobelGradientTests(unittest.TestCase):
         self.assertTrue(sobel.transform.kernel.dtype == expected_kernel.dtype)
         assert_allclose(sobel.transform.kernel, expected_kernel)
 
-    @parameterized.expand([TEST_CASE_ERROR_0])
+    @parameterized.expand(
+        [
+            TEST_CASE_ERROR_0,
+            TEST_CASE_ERROR_1,
+            TEST_CASE_ERROR_2,
+            TEST_CASE_ERROR_3,
+            TEST_CASE_ERROR_4,
+            TEST_CASE_ERROR_5,
+        ]
+    )
     def test_sobel_gradients_error(self, arguments):
         with self.assertRaises(ValueError):
             SobelGradientsd(**arguments)
+
+    @parameterized.expand([TEST_CASE_IMAGE_ERROR_0])
+    def test_sobel_gradients_image_error(self, image_dict, arguments):
+        sobel = SobelGradientsd(**arguments)
+        with self.assertRaises(ValueError):
+            sobel(image_dict)
 
 
 if __name__ == "__main__":
