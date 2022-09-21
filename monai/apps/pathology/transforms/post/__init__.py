@@ -9,15 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .spatial.array import SplitOnGrid, TileOnGrid
-from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
-from .stain.array import ExtractHEStains, NormalizeHEStains
-from .stain.dictionary import (
-    ExtractHEStainsd,
-    ExtractHEStainsD,
-    ExtractHEStainsDict,
-    NormalizeHEStainsd,
-    NormalizeHEStainsD,
-    NormalizeHEStainsDict,
-)
-from .post.array import PostProcessHoVerNetOutput
+from .array import PostProcessHoVerNetOutput
