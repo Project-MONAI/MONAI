@@ -11,7 +11,6 @@
 
 from typing import Hashable, Mapping, Optional, Sequence, Union
 
-import numpy as np
 import torch
 
 from monai.apps.pathology.transforms.post.array import PostProcessHoVerNetOutput
