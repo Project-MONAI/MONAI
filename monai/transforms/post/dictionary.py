@@ -785,6 +785,8 @@ class SobelGradientsd(MapTransform):
         keys: keys of the corresponding items to model output.
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        direction: the direction in which the gradient to be calculated. It can be string "horizontal" or "vertical",
+            or list of strings ["horizontal", "vertical"]. By default it calculate the gradient in both directions.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
         device: the device to create the kernel on. Defaults to `"cpu"`.
         new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
@@ -800,13 +802,16 @@ class SobelGradientsd(MapTransform):
         keys: KeysCollection,
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
+        direction: Optional[str] = None,
         dtype: torch.dtype = torch.float32,
         device: Union[torch.device, int, str] = "cpu",
         new_key_prefix: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.transform = SobelGradients(kernel_size=kernel_size, padding=padding, dtype=dtype, device=device)
+        self.transform = SobelGradients(
+            kernel_size=kernel_size, padding=padding, direction=direction, dtype=dtype, device=device
+        )
         self.new_key_prefix = new_key_prefix
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

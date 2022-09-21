@@ -816,9 +816,9 @@ class SobelGradients(Transform):
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
-        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
         direction: the direction in which the gradient to be calculated. It can be string "horizontal" or "vertical",
             or list of strings ["horizontal", "vertical"]. By default it calculate the gradient in both directions.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
         device: the device to create the kernel on. Defaults to `"cpu"`.
 
     """
@@ -829,8 +829,8 @@ class SobelGradients(Transform):
         self,
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
-        dtype: torch.dtype = torch.float32,
         direction: Optional[str] = None,
+        dtype: torch.dtype = torch.float32,
         device: Union[torch.device, int, str] = "cpu",
     ) -> None:
         super().__init__()
