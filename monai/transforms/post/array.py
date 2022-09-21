@@ -903,19 +903,19 @@ class GetInstancelabelledSegMap(Transform):
     def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            pred: the probability map output of the NP branch, shape must be [C, H, W, [D]].
+            pred: the probability map output of the NP branch, shape must be [1, H, W, [D]].
             hover: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch,
                 shape must be [2, H, W, [D]].
 
         Returns:
-            instance labelled segmentation map with shape [C, H, W, [D]].
+            instance labelled segmentation map with shape [1, H, W, [D]].
         """
         pred_t = convert_to_tensor(pred, track_meta=get_track_meta())
         hover_t = convert_to_tensor(hover, track_meta=get_track_meta())
 
         hover_h = hover_t[0:1, ...]
         hover_v = hover_t[1:2, ...]
-
+        
         # processing
         blb = self.pred_discreter(pred_t)
         blb = self.remove_small_objects(blb)
@@ -923,8 +923,8 @@ class GetInstancelabelledSegMap(Transform):
         maph_norm = (hover_h-torch.min(hover_h))/(torch.max(hover_h)-torch.min(hover_h))
         mapv_norm = (hover_v-torch.min(hover_v))/(torch.max(hover_v)-torch.min(hover_v))
 
-        sobelh = self.sobel_gradient(maph_norm.unsqueeze(0))[0, ...]  # adds a batch dim
-        sobelv = self.sobel_gradient(mapv_norm.unsqueeze(0))[1, ...]  # adds a batch dim
+        sobelh = self.sobel_gradient(maph_norm)[0, ...]
+        sobelv = self.sobel_gradient(mapv_norm)[1, ...]
         sobelh_norm = 1 - (sobelh-torch.min(sobelh))/(torch.max(sobelh)-torch.min(sobelh))
         sobelv_norm = 1 - (sobelv-torch.min(sobelv))/(torch.max(sobelv)-torch.min(sobelv))
 
@@ -938,8 +938,9 @@ class GetInstancelabelledSegMap(Transform):
         ## nuclei values form mountains so inverse to get basins
         spatial_dims = pred.ndim - 1
         dist = torch.neg(GaussianFilter(spatial_dims=spatial_dims, sigma=self.sigma)(dist))
+        
         overall = self.overall_discreter(overall)
-
+        
         marker = blb - overall
         marker[marker < 0] = 0
         marker = self.fill_holes(marker)
@@ -947,12 +948,13 @@ class GetInstancelabelledSegMap(Transform):
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
         blb_np, *_ = convert_data_type(blb, np.ndarray)
+       
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
         marker_np = self.remove_small_objects(marker_np)
+        
 
         proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
-
         pred, *_ = convert_to_dst_type(proced_pred, pred)
 
         return pred

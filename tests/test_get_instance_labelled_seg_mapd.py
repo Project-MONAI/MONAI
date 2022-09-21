@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.post.array import GetInstancelabelledSegMap
+from monai.transforms.post.dictionary import GetInstancelabelledSegMapd
 from monai.transforms.intensity.array import ComputeHoVerMaps
 from tests.utils import TEST_NDARRAYS
 
@@ -33,17 +33,17 @@ for p in TEST_NDARRAYS:
 
     probs_map_1 = p(TEST_CASE_1)
     expected_1 = (1, 10, 10)
-    TESTS.append([{"threshold_pred": 0.5, "threshold_overall": 0.4, "min_size": 4, "sigma": 0.4, "kernel_size": 3, "radius": 2}, probs_map_1, hover_map, expected_1])
+    TESTS.append([{"keys": "image", "hover_key": "hover", "threshold_pred": 0.5, "threshold_overall": 0.4, "min_size": 4, "sigma": 0.4, "kernel_size": 3, "radius": 2}, probs_map_1, hover_map, expected_1])
 
 
 class TestGetInstancelabelledSegMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, probs_map, hover_map, expected):
-        getinstancelabel = GetInstancelabelledSegMap(**args)
-        output = getinstancelabel(probs_map, hover_map)
+        data = {"image": probs_map, "hover": hover_map}
+        output = GetInstancelabelledSegMapd(**args)(data)
         
         # temporarily only test shape
-        self.assertTupleEqual(output.shape, expected)
+        self.assertTupleEqual(output["image"].shape, expected)
 
 
 if __name__ == "__main__":

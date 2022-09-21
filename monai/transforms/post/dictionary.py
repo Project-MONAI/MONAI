@@ -821,6 +821,7 @@ class SobelGradientsd(MapTransform):
 
         return d
 
+
 class GetInstancelabelledSegMapd(MapTransform):
     """Process Nuclei Prediction with XY Coordinate Map.
 
@@ -841,6 +842,7 @@ class GetInstancelabelledSegMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
+        hover_key: str,
         threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
         min_size: int = 10,
@@ -850,13 +852,14 @@ class GetInstancelabelledSegMapd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
+        self.hover_key = hover_key
         self.transform = GetInstancelabelledSegMap(threshold_pred=threshold_pred, threshold_overall=threshold_overall,
                                                 min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor], hover_key: str) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            d[key] = self.transform(d[key], d[hover_key])
+            d[key] = self.transform(d[key], d[self.hover_key])
 
         return d
 
