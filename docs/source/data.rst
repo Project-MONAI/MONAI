@@ -318,6 +318,12 @@ OpenSlideWSIReader
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
 
+TiffFileWSIReader
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TiffFileWSIReader
+  :members:
+
+
 Whole slide image datasets
 --------------------------
 
@@ -340,3 +346,18 @@ Bounding box
 ------------
 .. automodule:: monai.data.box_utils
     :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.CameraDataset

@@ -18,6 +18,7 @@ import operator
 import os
 import queue
 import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -743,6 +744,18 @@ def test_local_inversion(invertible_xform, to_invert, im, dict_key=None):
     assert_allclose(im_inv.affine, im_ref.affine, atol=1e-3, rtol=1e-3)
 
 
+def command_line_tests(cmd, copy_env=True):
+    test_env = os.environ.copy() if copy_env else os.environ
+    print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
+    try:
+        normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
+        print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+    except subprocess.CalledProcessError as e:
+        output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
+        errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
 TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
@@ -765,4 +778,5 @@ if torch.cuda.is_available():
 
 
 if __name__ == "__main__":
-    print(query_memory())
+    print("\n", query_memory(), sep="\n")  # print to stdout
+    sys.exit(0)

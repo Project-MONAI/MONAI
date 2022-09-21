@@ -18,6 +18,7 @@ import numpy as np
 
 from monai.config import DtypeLike, IgniteInfo
 from monai.utils import ProbMapKeys, min_version, optional_import
+from monai.utils.enums import CommonKeys
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -28,7 +29,10 @@ else:
 
 class ProbMapProducer:
     """
-    Event handler triggered on completing every iteration to calculate and save the probability map
+    Event handler triggered on completing every iteration to calculate and save the probability map.
+    This handler use metadata from MetaTensor to create the probability map. This can be simply achieved by using
+    `monai.data.SlidingPatchWSIDataset` or `monai.data.MaskedPatchWSIDataset` as the dataset.
+
     """
 
     def __init__(
@@ -91,8 +95,8 @@ class ProbMapProducer:
         """
         if not isinstance(engine.state.batch, dict) or not isinstance(engine.state.output, dict):
             raise ValueError("engine.state.batch and engine.state.output must be dictionaries.")
-        names = engine.state.batch["metadata"][ProbMapKeys.NAME]
-        locs = engine.state.batch["metadata"][ProbMapKeys.LOCATION]
+        names = engine.state.batch[CommonKeys.IMAGE].meta[ProbMapKeys.NAME]
+        locs = engine.state.batch[CommonKeys.IMAGE].meta[ProbMapKeys.LOCATION]
         probs = engine.state.output[self.prob_key]
         for name, loc, prob in zip(names, locs, probs):
             self.prob_map[name][tuple(loc)] = prob

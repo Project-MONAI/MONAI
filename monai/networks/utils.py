@@ -21,10 +21,12 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import get_logger
 from monai.config import PathLike
-from monai.utils.deprecate_utils import deprecated, deprecated_arg
+from monai.utils.deprecate_utils import deprecated
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.type_conversion import convert_to_tensor
 
 __all__ = [
     "one_hot",
@@ -42,11 +44,14 @@ __all__ = [
     "save_state",
     "convert_to_torchscript",
     "meshgrid_ij",
+    "meshgrid_xy",
     "replace_modules",
     "replace_modules_temp",
     "look_up_named_module",
     "set_named_module",
 ]
+
+logger = get_logger(module_name=__name__)
 
 
 def look_up_named_module(name: str, mod, print_all_options=False):
@@ -190,7 +195,7 @@ def predict_segmentation(logits: torch.Tensor, mutually_exclusive: bool = False,
 
 
 def normalize_transform(
-    shape: Sequence[int],
+    shape,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
     align_corners: bool = False,
@@ -207,7 +212,7 @@ def normalize_transform(
         - `align_corners=True`, `zero_centered=True`, normalizing from ``[-(d-1)/2, (d-1)/2]``.
 
     Args:
-        shape: input spatial shape
+        shape: input spatial shape, a sequence of integers.
         device: device on which the returned affine will be allocated.
         dtype: data type of the returned affine
         align_corners: if True, consider -1 and 1 to refer to the centers of the
@@ -216,7 +221,8 @@ def normalize_transform(
         zero_centered: whether the coordinates are normalized from a zero-centered range, default to `False`.
             Setting this flag and `align_corners` will jointly specify the normalization source range.
     """
-    norm = torch.tensor(shape, dtype=torch.float64, device=device)  # no in-place change
+    shape = convert_to_tensor(shape, torch.float64, device=device, wrap_sequence=True, track_meta=False)
+    norm = shape.clone().detach().to(dtype=torch.float64, device=device)  # no in-place change
     if align_corners:
         norm[norm <= 1.0] = 2.0
         norm = 2.0 / (norm - 1.0)
@@ -227,10 +233,10 @@ def normalize_transform(
         norm[norm <= 0.0] = 2.0
         norm = 2.0 / norm
         norm = torch.diag(torch.cat((norm, torch.ones((1,), dtype=torch.float64, device=device))))
-        norm[:-1, -1] = 1.0 / torch.tensor(shape, dtype=torch.float64, device=device) - (0.0 if zero_centered else 1.0)
+        norm[:-1, -1] = 1.0 / shape - (0.0 if zero_centered else 1.0)
     norm = norm.unsqueeze(0).to(dtype=dtype)
     norm.requires_grad = False
-    return norm
+    return norm  # type: ignore
 
 
 def to_norm_affine(
@@ -314,12 +320,7 @@ def icnr_init(conv, upsample_factor, init=nn.init.kaiming_normal_):
     conv.weight.data.copy_(kernel)
 
 
-@deprecated_arg(
-    name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-)
-def pixelshuffle(
-    x: torch.Tensor, spatial_dims: int, scale_factor: int, dimensions: Optional[int] = None
-) -> torch.Tensor:
+def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
     """
     Apply pixel shuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
 
@@ -333,17 +334,12 @@ def pixelshuffle(
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Returns:
         Reshuffled version of `x`.
 
     Raises:
         ValueError: When input channels of `x` are not divisible by (scale_factor ** spatial_dims)
     """
-    if dimensions is not None:
-        spatial_dims = dimensions
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
@@ -518,7 +514,7 @@ def copy_model_state(
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
-    print(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
+    logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
@@ -616,7 +612,8 @@ def convert_to_torchscript(
         # compare TorchScript and PyTorch results
         for r1, r2 in zip(torch_out, torchscript_out):
             if isinstance(r1, torch.Tensor) or isinstance(r2, torch.Tensor):
-                torch.testing.assert_allclose(r1, r2, rtol=rtol, atol=atol)
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1, r2, rtol=rtol, atol=atol)
 
     return script_module
 
@@ -624,7 +621,15 @@ def convert_to_torchscript(
 def meshgrid_ij(*tensors):
     if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
         return torch.meshgrid(*tensors, indexing="ij")  # new api pytorch after 1.10
+
     return torch.meshgrid(*tensors)
+
+
+def meshgrid_xy(*tensors):
+    if torch.meshgrid.__kwdefaults__ is not None and "indexing" in torch.meshgrid.__kwdefaults__:
+        return torch.meshgrid(*tensors, indexing="xy")  # new api pytorch after 1.10
+
+    return torch.meshgrid(tensors[1], tensors[0], *tensors[2:])
 
 
 def _replace_modules(

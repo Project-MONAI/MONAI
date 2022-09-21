@@ -42,7 +42,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -50,7 +50,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -62,7 +62,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.07"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.08"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -85,7 +85,7 @@ jobs:
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -93,7 +93,7 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         BUILD_MONAI=1 ./runtests.sh --build --coverage --unittests --disttests  # unit tests with coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -106,7 +106,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.07"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.08"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -160,7 +160,7 @@ jobs:
           echo "Sleep $LAUNCH_DELAY"
           sleep $LAUNCH_DELAY
           nvidia-smi
-          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+          export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
           echo $CUDA_VISIBLE_DEVICES
           trap 'if pgrep python; then pkill python; fi;' ERR
           python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -183,7 +183,7 @@ jobs:
       run: |
         cd /opt/monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -192,7 +192,7 @@ jobs:
         ngc --version
         BUILD_MONAI=1 ./runtests.sh --build --coverage --pytype --unittests --disttests  # unit tests with pytype checks, coverage report
         BUILD_MONAI=1 ./runtests.sh --build --coverage --net  # integration tests with coverage report
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
       uses: codecov/codecov-action@v1
@@ -204,7 +204,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: cron-gpu  # so that monai itself is verified first
     container:
-      image: nvcr.io/nvidia/pytorch:22.07-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:22.08-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, common]
     steps:
@@ -217,7 +217,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         BUILD_MONAI=1 python setup.py develop  # install monai
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
     - name: Checkout tutorials and install their requirements

@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
-from monai.apps.reconstruction.mri_utils import root_sum_of_squares
+from monai.apps.reconstruction.mri_utils import root_sum_of_squares_t
 from monai.apps.reconstruction.networks.nets.complex_unet import ComplexUnet
 from monai.apps.reconstruction.networks.nets.utils import (
     reshape_batch_channel_to_channel_dim,
@@ -83,7 +83,7 @@ class CoilSensitivityModel(nn.Module):
         self.spatial_dims = spatial_dims
         self.coil_dim = coil_dim
 
-    def get_fully_sampled_region(self, mask: Tensor) -> Sequence[int]:
+    def get_fully_sampled_region(self, mask: Tensor) -> Tuple[int, int]:
         """
         Extracts the size of the fully-sampled part of the kspace. Note that when a kspace
         is under-sampled, a part of its center is fully sampled. This part is called the Auto
@@ -129,11 +129,12 @@ class CoilSensitivityModel(nn.Module):
         x[..., start : start + num_low_freqs, :] = masked_kspace[..., start : start + num_low_freqs, :]
 
         # apply inverse fourier to the extracted fully-sampled data
-        x = ifftn_centered_t(x, spatial_dims=self.spatial_dims)
+        x = ifftn_centered_t(x, spatial_dims=self.spatial_dims, is_complex=True)
 
         x, b = reshape_channel_to_batch_dim(x)  # shape of x will be (B*C,1,...)
         x = self.conv_net(x)
         x = reshape_batch_channel_to_channel_dim(x, b)  # shape will be (B,C,...)
         # normalize the maps
-        x = x / root_sum_of_squares(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)  # type: ignore
+        x = x / root_sum_of_squares_t(x, spatial_dim=self.coil_dim).unsqueeze(self.coil_dim)
+
         return x

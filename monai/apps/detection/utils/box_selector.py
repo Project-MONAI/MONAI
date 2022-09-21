@@ -105,7 +105,7 @@ class BoxSelector:
         """
         Select indices with highest scores.
 
-        The indice selection is performed with the following steps:
+        The indices selection is performed with the following steps:
 
         #. If self.apply_sigmoid, get scores by applying sigmoid to logits. Otherwise, use logits as scores.
         #. Discard indices with scores less than self.score_thresh

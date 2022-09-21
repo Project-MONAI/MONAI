@@ -4,6 +4,7 @@
 1. [From PyPI](#from-pypi)
 	1. [Milestone release](#milestone-release)
 	2. [Weekly preview release](#weekly-preview-release)
+	3. [Uninstall the packages](#uninstall-the-packages)
 1. [From conda-forge](#from-conda-forge)
 2. [From GitHub](#from-github)
 	1. [System-wide](#milestone-release)
@@ -46,6 +47,19 @@ The weekly build is released to PyPI every Sunday with a pre-release build numbe
 To report any issues on the weekly preview, please include the version and commit information:
 ```bash
 python -c "import monai; print(monai.__version__); print(monai.__commit_id__)"
+```
+
+Coexistence of package `monai` and `monai-weekly` in a system may cause namespace conflicts
+and `ImportError`.
+This is usually a result of running both `pip install monai` and `pip install monai-weekly`
+without uninstalling the existing one first.
+To address this issue, please uninstall both packages, and retry the installation.
+
+### Uninstall the packages
+The packages installed using `pip install` could be removed by:
+```bash
+pip uninstall -y monai
+pip uninstall -y monai-weekly
 ```
 
 ## From conda-forge
@@ -196,9 +210,9 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 
 - The options are
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom, h5py]
+[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, pynrrd, pydicom, h5py, nni, optuna]
 ```
 which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, h5py , respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

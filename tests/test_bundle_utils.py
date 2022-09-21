@@ -11,7 +11,6 @@
 
 import os
 import shutil
-import subprocess
 import tempfile
 import unittest
 
@@ -19,7 +18,7 @@ import torch
 
 from monai.bundle.utils import load_bundle_config
 from monai.networks.nets import UNet
-from tests.utils import skip_if_windows
+from tests.utils import command_line_tests, skip_if_windows
 
 metadata = """
 {
@@ -104,7 +103,7 @@ class TestLoadBundleConfig(unittest.TestCase):
         cmd += ["--config_file", self.test_name]
         cmd += ["--ckpt_file", self.modelpt_name]
 
-        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        command_line_tests(cmd)
 
         p = load_bundle_config(self.ts_file, "test.json")
 
