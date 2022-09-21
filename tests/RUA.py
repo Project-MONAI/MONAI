@@ -11,7 +11,6 @@
 import numpy as np
 from skimage.measure import find_contours
 
-from monai.transforms.utils import generate_spatial_bounding_box
 
 
 def _coords_to_pixel(current, previous):

@@ -14,7 +14,6 @@ from typing import Hashable, Mapping, Optional, Union, Sequence
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.nets import HoVerNet
 from monai.transforms.post.array import GetInstanceLevelSegMap, Activations, AsDiscrete
 from monai.transforms.transform import Transform
@@ -210,12 +209,12 @@ class PostProcessHoVerNetOutput(Transform):
         return_centroids: whether to generate coords for each nucleus instance.
             Defaults to True.
     """
-    
+
     backend = [TransformBackends.TORCH]
 
     def __init__(
-        self, 
-        output_classes: Optional[int] = None, 
+        self,
+        output_classes: Optional[int] = None,
         return_centroids: bool = True,
         threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
@@ -241,7 +240,7 @@ class PostProcessHoVerNetOutput(Transform):
             pred: a dict combined output of NC, NP and HV branches.
         Returns:
             pred_inst: pixel-wise nuclear instance segmentation prediction.
-            inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour. 
+            inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour.
                 If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
         """
         NP_pred = pred[HoVerNet.Branch.NP.value]
