@@ -811,7 +811,7 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel horizontal and vertical gradients of a binary image.
+    """Calculate Sobel horizontal and vertical gradients of a grayscale image.
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.

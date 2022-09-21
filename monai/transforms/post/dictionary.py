@@ -779,7 +779,7 @@ class SaveClassificationd(MapTransform):
 
 
 class SobelGradientsd(MapTransform):
-    """Calculate Sobel horizontal and vertical gradients.
+    """Calculate Sobel horizontal and vertical gradients of a grayscale image.
 
     Args:
         keys: keys of the corresponding items to model output.
