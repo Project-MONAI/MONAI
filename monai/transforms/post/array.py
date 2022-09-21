@@ -34,7 +34,14 @@ from monai.transforms.utils import (
     remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    TransformBackends,
+    convert_data_type,
+    convert_to_tensor,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 from monai.utils.type_conversion import convert_to_dst_type
 
 label, has_label = optional_import("scipy.ndimage.measurements", name="label")
@@ -920,13 +927,13 @@ class GetInstancelabelledSegMap(Transform):
         blb = self.pred_discreter(pred_t)
         blb = self.remove_small_objects(blb)
 
-        maph_norm = (hover_h-torch.min(hover_h))/(torch.max(hover_h)-torch.min(hover_h))
-        mapv_norm = (hover_v-torch.min(hover_v))/(torch.max(hover_v)-torch.min(hover_v))
+        maph_norm = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))
+        mapv_norm = (hover_v - torch.min(hover_v)) / (torch.max(hover_v) - torch.min(hover_v))
 
         sobelh = self.sobel_gradient(maph_norm)[0, ...]
         sobelv = self.sobel_gradient(mapv_norm)[1, ...]
-        sobelh_norm = 1 - (sobelh-torch.min(sobelh))/(torch.max(sobelh)-torch.min(sobelh))
-        sobelv_norm = 1 - (sobelv-torch.min(sobelv))/(torch.max(sobelv)-torch.min(sobelv))
+        sobelh_norm = 1 - (sobelh - torch.min(sobelh)) / (torch.max(sobelh) - torch.min(sobelh))
+        sobelv_norm = 1 - (sobelv - torch.min(sobelv)) / (torch.max(sobelv) - torch.min(sobelv))
 
         # combine the h & v values using max
         overall = torch.maximum(sobelh_norm, sobelv_norm)
@@ -952,7 +959,6 @@ class GetInstancelabelledSegMap(Transform):
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
         marker_np = self.remove_small_objects(marker_np)
-
 
         proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
         pred, *_ = convert_to_dst_type(proced_pred, pred)

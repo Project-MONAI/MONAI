@@ -30,6 +30,7 @@ from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
     FillHoles,
+    GetInstancelabelledSegMap,
     KeepLargestConnectedComponent,
     LabelFilter,
     LabelToContour,
@@ -38,7 +39,6 @@ from monai.transforms.post.array import (
     RemoveSmallObjects,
     SobelGradients,
     VoteEnsemble,
-    GetInstancelabelledSegMap,
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
@@ -853,8 +853,14 @@ class GetInstancelabelledSegMapd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
-        self.transform = GetInstancelabelledSegMap(threshold_pred=threshold_pred, threshold_overall=threshold_overall,
-                                                min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius)
+        self.transform = GetInstancelabelledSegMap(
+            threshold_pred=threshold_pred,
+            threshold_overall=threshold_overall,
+            min_size=min_size,
+            sigma=sigma,
+            kernel_size=kernel_size,
+            radius=radius,
+        )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

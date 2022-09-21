@@ -14,18 +14,20 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms.post.dictionary import GetInstancelabelledSegMapd
 from monai.transforms.intensity.array import ComputeHoVerMaps
+from monai.transforms.post.dictionary import GetInstancelabelledSegMapd
+from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
-compute_hover_maps = ComputeHoVerMaps()
+_, has_skimage = optional_import("skimage", "0.19.3", min_version)
+
+
 TESTS = []
 for p in TEST_NDARRAYS:
     TEST_CASE_MASK = np.zeros((1, 10, 10), dtype="int16")
     TEST_CASE_MASK[:, 2:6, 2:6] = 1
     TEST_CASE_MASK[:, 7:10, 7:10] = 2
-    TEST_CASE_hover_map = compute_hover_maps(TEST_CASE_MASK)
-    hover_map = p(TEST_CASE_hover_map)
+    mask = p(TEST_CASE_MASK)
 
     TEST_CASE_1 = np.zeros((1, 10, 10))
     TEST_CASE_1[:, 2:6, 2:6] = 0.7
@@ -33,12 +35,31 @@ for p in TEST_NDARRAYS:
 
     probs_map_1 = p(TEST_CASE_1)
     expected_1 = (1, 10, 10)
-    TESTS.append([{"keys": "image", "hover_key": "hover", "threshold_pred": 0.5, "threshold_overall": 0.4, "min_size": 4, "sigma": 0.4, "kernel_size": 3, "radius": 2}, probs_map_1, hover_map, expected_1])
+    TESTS.append(
+        [
+            {
+                "keys": "image",
+                "hover_key": "hover",
+                "threshold_pred": 0.5,
+                "threshold_overall": 0.4,
+                "min_size": 4,
+                "sigma": 0.4,
+                "kernel_size": 3,
+                "radius": 2,
+            },
+            p,
+            probs_map_1,
+            mask,
+            expected_1,
+        ]
+    )
 
 
+@unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestGetInstancelabelledSegMap(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, probs_map, hover_map, expected):
+    def test_output(self, args, in_type, probs_map, mask, expected):
+        hover_map = in_type(ComputeHoVerMaps()(mask))
         data = {"image": probs_map, "hover": hover_map}
         output = GetInstancelabelledSegMapd(**args)(data)
 
