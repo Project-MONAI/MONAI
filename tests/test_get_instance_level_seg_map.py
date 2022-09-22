@@ -20,6 +20,7 @@ from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
 
 
 TESTS = []
@@ -54,6 +55,7 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGetInstanceLevelSegMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map, mask, expected):

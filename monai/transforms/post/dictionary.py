@@ -864,12 +864,12 @@ class GetInstanceLevelSegMapd(MapTransform):
             radius=radius,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key], d[self.hover_key])
 
-        return d
+        return d  # type: ignore
 
 
 ActivationsD = ActivationsDict = Activationsd

@@ -898,7 +898,7 @@ class GetInstanceLevelSegMap(Transform):
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
         kernel_size: int = 17,
         radius: int = 2,
-    ):
+    ) -> None:
         self.sigma = sigma
         self.radius = radius
 
@@ -908,7 +908,7 @@ class GetInstanceLevelSegMap(Transform):
         self.overall_discreter = AsDiscrete(threshold=threshold_overall)
         self.fill_holes = FillHoles()
 
-    def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> torch.Tensor:  # type: ignore
         """
         Args:
             pred: the probability map output of the NP branch, shape must be [1, H, W, [D]].
@@ -947,11 +947,11 @@ class GetInstanceLevelSegMap(Transform):
         spatial_dims = pred.ndim - 1
         dist = torch.neg(GaussianFilter(spatial_dims=spatial_dims, sigma=self.sigma)(dist))
 
-        overall = self.overall_discreter(overall)
+        overall = self.overall_discreter(overall)  # type: ignore
 
         marker = blb - overall
         marker[marker < 0] = 0
-        marker = self.fill_holes(marker)
+        marker = self.fill_holes(marker)  # type: ignore
 
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
@@ -959,9 +959,9 @@ class GetInstanceLevelSegMap(Transform):
 
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
-        marker_np = self.remove_small_objects(marker_np)
+        marker_np = self.remove_small_objects(marker_np)  # type: ignore
 
         proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
-        pred, *_ = convert_to_dst_type(proced_pred, pred)
+        pred, *_ = convert_to_dst_type(proced_pred, pred_t)
 
-        return pred
+        return pred  # type: ignore
