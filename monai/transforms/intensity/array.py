@@ -2335,7 +2335,7 @@ class ComputeHoVerMaps(Transform):
 class GetForegroundPatches(Transform):
     """
     Get all foreground patches from image patches. The shape of image patches is [N, C, H, W, [D]] where N denotes the patch/tile count.
-    
+
     Args:
         select_fn: function to select whether a patch is foreground, default is to select if any values > 0.
         threshold: an int or a float number that defines the threshold that values less than that are foreground.
