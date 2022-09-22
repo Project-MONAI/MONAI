@@ -16,24 +16,30 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_tensor import get_track_meta
+from monai.transforms.croppad.array import BoundingRect
 
 from monai.transforms.post.array import GetInstanceLevelSegMap, Activations, AsDiscrete
-from monai.transforms.croppad.array import BoundingRect
 from monai.transforms.transform import Transform
 from monai.utils import convert_to_numpy, convert_to_tensor, optional_import
 from monai.utils.enums import TransformBackends
 
-find_contours, has_findcontours = optional_import("skimage.measure", name="find_contours")
-moments, has_moments = optional_import("skimage.measure", name="moments")
+find_contours, _ = optional_import("skimage.measure", name="find_contours")
+moments, _ = optional_import("skimage.measure", name="moments")
+
 
 __all__ = ["PostProcessHoVerNetOutput"]
 
 
-def _coords_to_pixel(current, previous):
-    """For contour coordinate generation.
+def _coords_to_pixel(current, previous) -> Sequence[int]:
+    """
+    For contour coordinate generation.
     Given the previous and current border positions,
     returns the int pixel that marks the extremity
     of the segmented pixels
+
+    Args:
+        current: coordinates of the current border positions
+        previous: coordinates of the previous border positions
     """
 
     p_delta = (current[0] - previous[0], current[1] - previous[1])
@@ -54,20 +60,23 @@ def _coords_to_pixel(current, previous):
     return row, col
 
 
-def _dist_from_topleft(sequence, h, w):
-    """For contour coordinate generation.
+def _dist_from_topleft(sequence, h, w) -> int:
+    """
+    For contour coordinate generation.
     Each sequence of cordinates describes a boundary between
     foreground and background starting and ending at two sides
     of the bounding box. To order the sequences correctly,
     we compute the distannce from the topleft of the bounding box
     around the perimeter in a clock-wise direction.
-     Args:
-         sequence: list of border points
-         h: height of the bounding box
-         w: width of the bounding box
-     Returns:
-         distance: the distance round the perimeter of the bounding
-             box from the top-left origin
+
+    Args:
+        sequence: list of border points
+        h: height of the bounding box
+        w: width of the bounding box
+
+    Returns:
+        the distance round the perimeter of the bounding
+            box from the top-left origin
     """
 
     first = sequence[0]
@@ -83,18 +92,21 @@ def _dist_from_topleft(sequence, h, w):
     return distance
 
 
-def _sp_contours_to_cv(contours, h, w):
-    """Converts Scipy-style contours to a more succinct version
-       which only includes the pixels to which lines need to
-       be drawn (i.e. not the intervening pixels along each line).
+def _sp_contours_to_cv(contours, h, w) -> np.array:
+    """
+    Converts Scipy-style contours to a more succinct version
+    which only includes the pixels to which lines need to
+    be drawn (i.e. not the intervening pixels along each line).
+    
     Args:
         contours: scipy-style clockwise line segments, with line separating foreground/background
         h: Height of bounding box - used to detect direction of line segment
         w: Width of bounding box - used to detect direction of line segment
+
     Returns:
-        pixels: the pixels that need to be joined by straight lines to
-                describe the outmost pixels of the foreground similar to
-                OpenCV's cv.CHAIN_APPROX_SIMPLE (anti-clockwise)
+        the pixels that need to be joined by straight lines to
+            describe the outmost pixels of the foreground similar to
+            OpenCV's cv.CHAIN_APPROX_SIMPLE (anti-clockwise)
     """
     pixels = None
     sequences = []
@@ -205,11 +217,22 @@ def _sp_contours_to_cv(contours, h, w):
 
 
 class PostProcessHoVerNetOutput(Transform):
-    """Post processing script for image tiles.
+    """
+    Post processing script for image tiles. It assumes network has three branches, with a segmentation branch that returns `np_pred`, 
+    a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this tranform, it 
+    will return pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary.
+
     Args:
         output_classes: number of types considered at output of NC branch.
         return_centroids: whether to generate coords for each nucleus instance.
             Defaults to True.
+        threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
+        threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
+            Defaults to 0.4.
+        min_size: objects smaller than this size are removed. Defaults to 10.
+        sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
+        kernel_size: the size of the Sobel kernel. Defaults to 17.
+        radius: the radius of the disk-shaped footprint. Defaults to 2.
     """
 
     backend = [TransformBackends.TORCH]
@@ -238,24 +261,24 @@ class PostProcessHoVerNetOutput(Transform):
             radius=radius,
         )
 
-    def __call__(self, NP_pred: NdarrayOrTensor, HV_pred: NdarrayOrTensor, NC_pred: Optional[NdarrayOrTensor] = None):
+    def __call__(self, np_pred: NdarrayOrTensor, hv_pred: NdarrayOrTensor, nc_pred: Optional[NdarrayOrTensor] = None):
         """
         Args:
-            NP_pred: segmentation branch output with shape [1, W, H, [D]].
-            HV_pred: hover map branch output with shape [2, W, H, [D]].
-            NC_pred: classification branch output with shape [1, W, H, [D]]. Defaults to None.
+            np_pred: segmentation branch output with shape [1, W, H, [D]].
+            hv_pred: hover map branch output with shape [2, W, H, [D]].
+            nc_pred: classification branch output with shape [1, W, H, [D]]. Defaults to None.
         Returns:
             pred_inst: pixel-wise nuclear instance segmentation prediction.
             inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour.
                 If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
         """
-        NP_pred = convert_to_tensor(NP_pred, track_meta=get_track_meta())
-        HV_pred = convert_to_tensor(HV_pred, track_meta=get_track_meta())
-        if NC_pred is not None:
-            NC_pred = AsDiscrete(argmax=True)(Activations(softmax=True)(NC_pred))
-            NC_pred = convert_to_tensor(NC_pred, track_meta=get_track_meta())
+        np_pred = convert_to_tensor(np_pred, track_meta=get_track_meta())
+        hv_pred = convert_to_tensor(hv_pred, track_meta=get_track_meta())
+        if nc_pred is not None:
+            nc_pred = AsDiscrete(argmax=True)(Activations(softmax=True)(nc_pred))
+            nc_pred = convert_to_tensor(nc_pred, track_meta=get_track_meta())
 
-        pred_inst = self.get_instance_level_seg_map(NP_pred, HV_pred)
+        pred_inst = self.get_instance_level_seg_map(np_pred, hv_pred)
 
         inst_info_dict = None
         if self.return_centroids or self.output_classes is not None:
@@ -295,7 +318,7 @@ class PostProcessHoVerNetOutput(Transform):
             for inst_id in list(inst_info_dict.keys()):
                 rmin, cmin, rmax, cmax = (inst_info_dict[inst_id]["bounding_box"]).flatten()
                 inst_map_crop = pred_inst[:, rmin:rmax, cmin:cmax]
-                inst_type_crop = NC_pred[:, rmin:rmax, cmin:cmax]
+                inst_type_crop = nc_pred[:, rmin:rmax, cmin:cmax]
                 inst_map_crop = inst_map_crop == inst_id
                 inst_type = inst_type_crop[inst_map_crop]
                 type_list, type_pixels = torch.unique(inst_type, return_counts=True)

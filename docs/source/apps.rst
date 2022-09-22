@@ -126,6 +126,17 @@ Applications
 .. autoclass:: TileOnGridd
     :members:
 
+.. automodule:: monai.apps.pathology.transforms.post.array
+.. autofunction:: _coords_to_pixel
+.. autofunction:: _dist_from_topleft
+.. autofunction:: _sp_contours_to_cv
+.. autoclass:: PostProcessHoVerNetOutput
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: PostProcessHoVerNetOutputd
+    :members:
+
 `Detection`
 -----------
 
