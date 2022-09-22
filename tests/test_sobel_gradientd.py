@@ -56,6 +56,11 @@ TEST_CASE_6 = [
     {"keys": "image", "kernel_size": 3, "direction": ["horizontal", "vertical"], "dtype": torch.float32},
     {"image": OUTPUT_3x3},
 ]
+TEST_CASE_7 = [
+    {"image": IMAGE},
+    {"keys": "image", "kernel_size": 3, "direction": ("horizontal", "vertical"), "dtype": torch.float32},
+    {"image": OUTPUT_3x3},
+]
 
 TEST_CASE_KERNEL_0 = [
     {"keys": "image", "kernel_size": 3, "dtype": torch.float64},
@@ -109,7 +114,9 @@ TEST_CASE_IMAGE_ERROR_0 = [
 class SobelGradientTests(unittest.TestCase):
     backend = None
 
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand(
+        [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
+    )
     def test_sobel_gradients(self, image_dict, arguments, expected_grad):
         sobel = SobelGradientsd(**arguments)
         grad = sobel(image_dict)

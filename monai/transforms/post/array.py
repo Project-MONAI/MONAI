@@ -817,7 +817,7 @@ class SobelGradients(Transform):
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
         direction: the direction in which the gradient to be calculated. It can be string "horizontal" or "vertical",
-            or list of strings ["horizontal", "vertical"]. By default it calculate the gradient in both directions.
+            or list/tuple of strings ["horizontal", "vertical"]. By default it calculate the gradient in both directions.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
         device: the device to create the kernel on. Defaults to `"cpu"`.
 
@@ -829,7 +829,7 @@ class SobelGradients(Transform):
         self,
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
-        direction: Optional[str] = None,
+        direction: Optional[Union[str, Sequence]] = None,
         dtype: torch.dtype = torch.float32,
         device: Union[torch.device, int, str] = "cpu",
     ) -> None:
@@ -838,31 +838,15 @@ class SobelGradients(Transform):
         self.padding = padding
 
         if direction is None:
-            self.direction = [Direction.HORIZONTAL, Direction.VERTICAL]
-        elif isinstance(direction, str):
-            if direction == Direction.HORIZONTAL:
-                self.direction = [Direction.HORIZONTAL]
-            elif direction == Direction.VERTICAL:
-                self.direction = [Direction.VERTICAL]
-            else:
-                raise ValueError(
-                    f"`direction` should be either {Direction.HORIZONTAL.value} or {Direction.VERTICAL.value} "
-                    f"but {direction} is given."
-                )
-        elif isinstance(direction, list):
-            self.direction = []
-            for d in direction:
-                if d == Direction.HORIZONTAL:
-                    self.direction.append(Direction.HORIZONTAL)
-                elif d == Direction.VERTICAL:
-                    self.direction.append(Direction.VERTICAL)
-                else:
+            self.direction = (Direction.HORIZONTAL, Direction.VERTICAL)
+        else:
+            self.direction = ensure_tuple(direction)
+            for d in self.direction:
+                if d not in (Direction.HORIZONTAL, Direction.VERTICAL):
                     raise ValueError(
-                        f"`direction` should be either {Direction.HORIZONTAL.value} or {Direction.VERTICAL.value}"
+                        f"`direction` should only contain {Direction.HORIZONTAL.value} or {Direction.VERTICAL.value}, "
                         f"but {d} is given."
                     )
-        else:
-            raise ValueError(f"`direction` should be either str or list but {type(direction)} was given.")
 
     def _get_kernel(self, size, dtype, device) -> torch.Tensor:
         if size < 3:
