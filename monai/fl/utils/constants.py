@@ -34,10 +34,19 @@ class FlPhase(StrEnum):
     TRAIN = "fl_train"
     EVALUATE = "fl_evaluate"
     GET_WEIGHTS = "fl_get_weights"
+    GET_DATA_STATS = "fl_get_data_stats"
 
 
 class FlStatistics(StrEnum):
     NUM_EXECUTED_ITERATIONS = "num_executed_iterations"
+    STATISTICS = "statistics"
+    HIST_BINS = "hist_bins"
+    HIST_RANGE = "hist_range"
+    DATA_STATS = "train_data_stats"
+    DATA_COUNT = "data_count"
+    FAIL_COUNT = "fail_count"
+    TOTAL_DATA = "total_data"
+    FEATURE_NAMES = "feature_names"
 
 
 class RequiredBundleKeys(StrEnum):
@@ -49,9 +58,13 @@ class BundleKeys(StrEnum):
     EVALUATOR = "validate#evaluator"
     TRAIN_TRAINER_MAX_EPOCHS = "train#trainer#max_epochs"
     VALIDATE_HANDLERS = "validate#handlers"
+    DATASET_DIR = "dataset_dir"
+    TRAIN_DATA = "train#dataset#data"
+    VALID_DATA = "validate#dataset#data"
 
 
 class FiltersType(StrEnum):
     PRE_FILTERS = "pre_filters"
     POST_WEIGHT_FILTERS = "post_weight_filters"
     POST_EVALUATE_FILTERS = "post_evaluate_filters"
+    POST_STATISTICS_FILTERS = "post_statistics_filters"
