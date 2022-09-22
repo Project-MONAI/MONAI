@@ -496,7 +496,7 @@ def min(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> 
     return ret
 
 
-def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbias: bool = False) -> NdarrayTensor:
+def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbiased: bool = False) -> NdarrayTensor:
     """`torch.std` with equivalent implementation for numpy
 
     Args:
@@ -508,12 +508,12 @@ def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbias: bool 
 
     ret: NdarrayTensor
     if dim is None:
-        ret = np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbias)  # type: ignore
+        ret = np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbiased)  # type: ignore
     else:
         if isinstance(x, (np.ndarray, list)):
             ret = np.std(x, axis=dim)
         else:
-            ret = torch.std(x, int(dim), unbias)  # type: ignore
+            ret = torch.std(x, int(dim), unbiased)  # type: ignore
 
     return ret
 

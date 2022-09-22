@@ -268,6 +268,7 @@ from .post.array import (
     MeanEnsemble,
     ProbNMS,
     RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from .post.dictionary import (
@@ -307,12 +308,15 @@ from .post.dictionary import (
     SaveClassificationD,
     SaveClassificationd,
     SaveClassificationDict,
+    SobelGradientsd,
+    SobelGradientsD,
+    SobelGradientsDict,
     VoteEnsembleD,
     VoteEnsembled,
     VoteEnsembleDict,
 )
 from .signal.array import (
-    SignalContinousWavelet,
+    SignalContinuousWavelet,
     SignalFillEmpty,
     SignalRandAddGaussianNoise,
     SignalRandAddSine,

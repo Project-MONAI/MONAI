@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .algo_gen import Algo, AlgoGen
 from .analyzer import (
     FgImageStats,
     FgImageStatsSumm,
@@ -21,6 +22,8 @@ from .analyzer import (
 from .operations import Operations, SampleOperations, SummaryOperations
 from .seg_summarizer import SegSummarizer
 from .utils import (
+    algo_from_pickle,
+    algo_to_pickle,
     concat_multikeys_to_dict,
     concat_val_to_np,
     datafold_read,

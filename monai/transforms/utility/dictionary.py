@@ -377,6 +377,9 @@ class RemoveRepeatedChanneld(MapTransform):
 
 
 class SplitDimd(MapTransform):
+
+    backend = SplitDim.backend
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -384,6 +387,7 @@ class SplitDimd(MapTransform):
         dim: int = 0,
         keepdim: bool = True,
         update_meta: bool = True,
+        list_output: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -399,15 +403,34 @@ class SplitDimd(MapTransform):
                 dimension will be squeezed.
             update_meta: if `True`, copy `[key]_meta_dict` for each output and update affine to
                 reflect the cropped image
+            list_output: it `True`, the output will be a list of dictionaries with the same keys as original.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
         self.output_postfixes = output_postfixes
         self.splitter = SplitDim(dim, keepdim, update_meta)
+        self.list_output = list_output
+        if self.list_output is None and self.output_postfixes is not None:
+            raise ValueError("`output_postfixes` should not be provided when `list_output` is `True`.")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor]
+    ) -> Union[Dict[Hashable, torch.Tensor], List[Dict[Hashable, torch.Tensor]]]:
         d = dict(data)
-        for key in self.key_iterator(d):
+        all_keys = list(set(self.key_iterator(d)))
+
+        if self.list_output:
+            output = []
+            results = [self.splitter(d[key]) for key in all_keys]
+            for row in zip(*results):
+                new_dict = {k: v for k, v in zip(all_keys, row)}
+                # fill in the extra keys with unmodified data
+                for k in set(d.keys()).difference(set(all_keys)):
+                    new_dict[k] = deepcopy(d[k])
+                output.append(new_dict)
+            return output
+
+        for key in all_keys:
             rets = self.splitter(d[key])
             postfixes: Sequence = list(range(len(rets))) if self.output_postfixes is None else self.output_postfixes
             if len(postfixes) != len(rets):
@@ -763,16 +786,19 @@ class SqueezeDimd(MapTransform):
 
     backend = SqueezeDim.backend
 
-    def __init__(self, keys: KeysCollection, dim: int = 0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, dim: int = 0, update_meta: bool = True, allow_missing_keys: bool = False
+    ) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             dim: dimension to be squeezed. Default: 0 (the first dimension)
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
-        self.converter = SqueezeDim(dim=dim)
+        self.converter = SqueezeDim(dim=dim, update_meta=update_meta)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

@@ -11,7 +11,6 @@
 
 import ast
 import inspect
-import os
 import sys
 import warnings
 from abc import ABC, abstractmethod
@@ -19,7 +18,7 @@ from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, first, instantiate, optional_import
+from monai.utils import ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
@@ -316,7 +315,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = EXPR_KEY
-    run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
+    run_eval = run_eval
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
@@ -365,7 +364,15 @@ class ConfigExpression(ConfigItem):
                 if k in globals_:
                     warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
                 globals_[k] = v
-        return eval(value[len(self.prefix) :], globals_, locals)
+        if not run_debug:
+            return eval(value[len(self.prefix) :], globals_, locals)
+        warnings.warn(
+            f"\n\npdb: value={value}\n"
+            f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+        )
+        import pdb
+
+        return pdb.run(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
     def is_expression(cls, config: Union[Dict, List, str]) -> bool:

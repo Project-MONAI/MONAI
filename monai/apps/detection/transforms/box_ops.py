@@ -328,7 +328,7 @@ def select_labels(
     labels: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor], keep: NdarrayOrTensor
 ) -> Union[Tuple, NdarrayOrTensor]:
     """
-    For element in labels, select indice keep from it.
+    For element in labels, select indices keep from it.
 
     Args:
         labels: Sequence of array. Each element represents classification labels or scores
@@ -372,8 +372,9 @@ def swapaxes_boxes(boxes: NdarrayOrTensor, axis1: int, axis2: int):
         boxes_swap = boxes.clone()
     else:
         boxes_swap = deepcopy(boxes)  # type: ignore
-    boxes_swap[:, [axis1, axis2]] = boxes_swap[:, [axis2, axis1]]  # type: ignore
-    boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[  # type: ignore
+    boxes_swap[:, [axis1, axis2]] = boxes_swap[:, [axis2, axis1]]
+
+    boxes_swap[:, [spatial_dims + axis1, spatial_dims + axis2]] = boxes_swap[
         :, [spatial_dims + axis2, spatial_dims + axis1]
     ]
     return boxes_swap

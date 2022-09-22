@@ -226,42 +226,42 @@ ADD_RANDOM_GUIDANCE_TEST_CASE_1 = [
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_1 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": "image", "spatial_dims": 3, "guidance": "guidance", "depth_first": True},
     DATA_5,
     [[0, 2, 2]],
     [],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_2 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": "image", "spatial_dims": 3, "guidance": "guidance", "depth_first": True},
     DATA_6,
     [[0, 2, 2]],
     [[0, 1, 0]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_3 = [
-    {"ref_image": "image", "dimensions": 3, "guidance": "guidance", "depth_first": True},
+    {"ref_image": "image", "spatial_dims": 3, "guidance": "guidance", "depth_first": True},
     DATA_7,
     [[3, 5, 7], [4, 5, 7]],
     [[4, 5, 8]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_4 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True},
+    {"ref_image": "image", "spatial_dims": 2, "guidance": "guidance", "depth_first": True},
     DATA_6,
     [[2, 2]],
     [[1, 0]],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_5 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True, "slice_key": "slice"},
+    {"ref_image": "image", "spatial_dims": 2, "guidance": "guidance", "depth_first": True, "slice_key": "slice"},
     DATA_7,
     [[5, 7]],
     [],
 ]
 
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE_6 = [
-    {"ref_image": "image", "dimensions": 2, "guidance": "guidance", "depth_first": True},
+    {"ref_image": "image", "spatial_dims": 2, "guidance": "guidance", "depth_first": True},
     DATA_5,
     [[2, 2]],
     [],

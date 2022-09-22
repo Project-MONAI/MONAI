@@ -36,12 +36,13 @@ from monai.transforms.post.array import (
     MeanEnsemble,
     ProbNMS,
     RemoveSmallObjects,
+    SobelGradients,
     VoteEnsemble,
 )
 from monai.transforms.transform import MapTransform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import allow_missing_keys_mode, convert_applied_interp_mode
-from monai.utils import PostFix, convert_to_tensor, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import PostFix, convert_to_tensor, ensure_tuple, ensure_tuple_rep
 
 __all__ = [
     "ActivationsD",
@@ -138,12 +139,6 @@ class AsDiscreted(MapTransform):
 
     backend = AsDiscrete.backend
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         keys: KeysCollection,
@@ -152,10 +147,6 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
-        n_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
-        num_classes: Optional[Union[Sequence[int], int]] = None,  # deprecated
-        logit_thresh: Union[Sequence[float], float] = 0.5,  # deprecated
-        threshold_values: Union[Sequence[bool], bool] = False,  # deprecated
     ) -> None:
         """
         Args:
@@ -172,36 +163,20 @@ class AsDiscreted(MapTransform):
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
 
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
-
         """
         super().__init__(keys, allow_missing_keys)
         self.argmax = ensure_tuple_rep(argmax, len(self.keys))
-        to_onehot_ = ensure_tuple_rep(to_onehot, len(self.keys))
-        num_classes = ensure_tuple_rep(num_classes, len(self.keys))
         self.to_onehot = []
-        for flag, val in zip(to_onehot_, num_classes):
+        for flag in ensure_tuple_rep(to_onehot, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-                self.to_onehot.append(val if flag else None)
-            else:
-                self.to_onehot.append(flag)
+                raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+            self.to_onehot.append(flag)
 
-        threshold_ = ensure_tuple_rep(threshold, len(self.keys))
-        logit_thresh = ensure_tuple_rep(logit_thresh, len(self.keys))
         self.threshold = []
-        for flag, val in zip(threshold_, logit_thresh):
+        for flag in ensure_tuple_rep(threshold, len(self.keys)):
             if isinstance(flag, bool):
-                warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-                self.threshold.append(val if flag else None)
-            else:
-                self.threshold.append(flag)
+                raise ValueError("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
+            self.threshold.append(flag)
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
@@ -229,6 +204,7 @@ class KeepLargestConnectedComponentd(MapTransform):
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
+        num_components: int = 1,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -249,12 +225,17 @@ class KeepLargestConnectedComponentd(MapTransform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
         self.converter = KeepLargestConnectedComponent(
-            applied_labels=applied_labels, is_onehot=is_onehot, independent=independent, connectivity=connectivity
+            applied_labels=applied_labels,
+            is_onehot=is_onehot,
+            independent=independent,
+            connectivity=connectivity,
+            num_components=num_components,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -278,6 +259,8 @@ class RemoveSmallObjectsd(MapTransform):
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
     """
+
+    backend = RemoveSmallObjects.backend
 
     def __init__(
         self,
@@ -795,6 +778,46 @@ class SaveClassificationd(MapTransform):
         return self.saver
 
 
+class SobelGradientsd(MapTransform):
+    """Calculate Sobel horizontal and vertical gradients.
+
+    Args:
+        keys: keys of the corresponding items to model output.
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        device: the device to create the kernel on. Defaults to `"cpu"`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = SobelGradients.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel_size: int = 3,
+        padding: Union[int, str] = "same",
+        dtype: torch.dtype = torch.float32,
+        device: Union[torch.device, int, str] = "cpu",
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = SobelGradients(kernel_size=kernel_size, padding=padding, dtype=dtype, device=device)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
@@ -808,3 +831,4 @@ ProbNMSD = ProbNMSDict = ProbNMSd
 SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
+SobelGradientsD = SobelGradientsDict = SobelGradientsd

@@ -12,14 +12,13 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, Union
 
 import torch
 
 import monai
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigComponent, ConfigItem
-from monai.config import IgniteInfo
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -33,12 +32,7 @@ from monai.fl.utils.constants import (
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
-from monai.utils import min_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import Events
-else:
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+from monai.utils import min_version, require_pkg
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -93,6 +87,7 @@ def disable_ckpt_loaders(parser):
                     h["_disabled_"] = True
 
 
+@require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
@@ -101,9 +96,11 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: path of bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
-        config_filters_filename: filter configuration file.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
+            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
+        config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
@@ -122,9 +119,9 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[str] = "configs/train.json",
-        config_evaluate_filename: Optional[str] = "configs/evaluate.json",
-        config_filters_filename: Optional[str] = None,
+        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
+        config_evaluate_filename: Optional[Union[str, list]] = "default",
+        config_filters_filename: Optional[Union[str, list]] = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
         final_model_filepath: Optional[str] = "models/model_final.pt",
@@ -133,7 +130,9 @@ class MonaiAlgo(ClientAlgo):
         benchmark: bool = True,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated.
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.bundle_root = bundle_root
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
@@ -185,16 +184,9 @@ class MonaiAlgo(ClientAlgo):
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = []
-        config_eval_files = []
-        config_filter_files = []
-        if self.config_train_filename:
-            config_train_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-        if self.config_evaluate_filename:
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_evaluate_filename))
-        if self.config_filters_filename:  # filters are read by train_parser
-            config_filter_files.append(os.path.join(self.bundle_root, self.config_filters_filename))
+        config_train_files = self._add_config_files(self.config_train_filename)
+        config_eval_files = self._add_config_files(self.config_evaluate_filename)
+        config_filter_files = self._add_config_files(self.config_filters_filename)
 
         # Parse
         self.train_parser = ConfigParser()
@@ -317,7 +309,7 @@ class MonaiAlgo(ClientAlgo):
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
-                    f"Requested model type {model_type} not specified in `model_filepahts`: {self.model_filepaths}"
+                    f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
             if self.trainer:
@@ -407,17 +399,13 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
-            self.trainer.terminate()
-            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
-            if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                self.trainer._fire_event(Events.EPOCH_COMPLETED)
+            self.trainer.interrupt()
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
-            self.evaluator.terminate()
+            self.evaluator.interrupt()
 
     def finalize(self, extra=None):
         """
@@ -425,10 +413,6 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
-        # TODO: finalize feature could be built into the MONAI Trainer class
-        if extra is None:
-            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
@@ -446,3 +430,20 @@ class MonaiAlgo(ClientAlgo):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
+
+    def _add_config_files(self, config_files):
+        files = []
+        if config_files:
+            if isinstance(config_files, str):
+                files.append(os.path.join(self.bundle_root, config_files))
+            elif isinstance(config_files, list):
+                for file in config_files:
+                    if isinstance(file, str):
+                        files.append(os.path.join(self.bundle_root, file))
+                    else:
+                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+            else:
+                raise ValueError(
+                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+                )
+        return files

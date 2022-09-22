@@ -46,7 +46,6 @@ from monai.utils import (
     PostFix,
     PytorchPadMode,
     TraceKeys,
-    deprecated_arg,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -58,9 +57,9 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
 
-measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
+measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
 ndimage, _ = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
@@ -952,7 +951,9 @@ def generate_spatial_bounding_box(
     return box_start, box_end
 
 
-def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optional[int] = None) -> NdarrayTensor:
+def get_largest_connected_component_mask(
+    img: NdarrayTensor, connectivity: Optional[int] = None, num_components: int = 1
+) -> NdarrayTensor:
     """
     Gets the largest connected component mask of an image.
 
@@ -962,24 +963,40 @@ def get_largest_connected_component_mask(img: NdarrayTensor, connectivity: Optio
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. for more details:
             https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+        num_components: The number of largest components to preserve.
     """
-    if isinstance(img, torch.Tensor) and has_cp and has_cucim:
-        x_cupy = monai.transforms.ToCupy()(img.short())
-        x_label = cucim.skimage.measure.label(x_cupy, connectivity=connectivity)
-        vals, counts = cp.unique(x_label[cp.nonzero(x_label)], return_counts=True)
-        comp = x_label == vals[cp.ndarray.argmax(counts)]
-        out_tensor = monai.transforms.ToTensor(device=img.device)(comp)
-        out_tensor = out_tensor.bool()
+    # use skimage/cucim.skimage and np/cp depending on whether packages are
+    # available and input is non-cpu torch.tensor
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
+    if use_cp:
+        img_ = convert_to_cupy(img.short())  # type: ignore
+        label = cucim.skimage.measure.label
+        lib = cp
+    else:
+        if not has_measure:
+            raise RuntimeError("Skimage.measure required.")
+        img_, *_ = convert_data_type(img, np.ndarray)
+        label = measure.label
+        lib = np
 
-        return out_tensor  # type: ignore
+    # features will be an image -- 0 for background and then each different
+    # feature will have its own index.
+    features, num_features = label(img_, connectivity=connectivity, return_num=True)
+    # if num features less than max desired, nothing to do.
+    if num_features <= num_components:
+        out = img_.astype(bool)
+    else:
+        # ignore background
+        nonzeros = features[lib.nonzero(features)]
+        # get number voxels per feature (bincount). argsort[::-1] to get indices
+        # of largest components.
+        features_to_keep = lib.argsort(lib.bincount(nonzeros))[::-1]
+        # only keep the first n non-background indices
+        features_to_keep = features_to_keep[:num_components]
+        # generate labelfield. True if in list of features to keep
+        out = lib.isin(features, features_to_keep)
 
-    img_arr = convert_data_type(img, np.ndarray)[0]
-    largest_cc: np.ndarray = np.zeros(shape=img_arr.shape, dtype=img_arr.dtype)
-    img_arr = measure.label(img_arr, connectivity=connectivity)
-    if img_arr.max() != 0:
-        largest_cc[...] = img_arr == (np.argmax(np.bincount(img_arr.flat)[1:]) + 1)
-
-    return convert_to_dst_type(largest_cc, dst=img, dtype=largest_cc.dtype)[0]
+    return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
 def remove_small_objects(
@@ -1009,7 +1026,7 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     img_np: np.ndarray
-    img_np, *_ = convert_data_type(img, np.ndarray)  # type: ignore
+    img_np, *_ = convert_data_type(img, np.ndarray)
 
     # morphology.remove_small_objects assumes them to be independent by default
     # else, convert to foreground vs background, remove small objects, then convert
@@ -1417,10 +1434,7 @@ class Fourier:
     """
 
     @staticmethod
-    @deprecated_arg(
-        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
-    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1429,14 +1443,9 @@ class Fourier:
             x: Image to transform.
             spatial_dims: Number of spatial dimensions.
 
-        .. deprecated:: 0.6.0
-            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
-
         Returns
             k: K-space data.
         """
-        if n_dims is not None:
-            spatial_dims = n_dims
         dims = tuple(range(-spatial_dims, 0))
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
@@ -1450,9 +1459,6 @@ class Fourier:
         return k
 
     @staticmethod
-    @deprecated_arg(
-        name="n_dims", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
@@ -1462,14 +1468,9 @@ class Fourier:
             k: K-space data.
             spatial_dims: Number of spatial dimensions.
 
-        .. deprecated:: 0.6.0
-            ``n_dims`` is deprecated, use ``spatial_dims`` instead.
-
         Returns:
             x: Tensor in image space.
         """
-        if n_dims is not None:
-            spatial_dims = n_dims
         dims = tuple(range(-spatial_dims, 0))
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):

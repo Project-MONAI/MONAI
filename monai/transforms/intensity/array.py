@@ -30,7 +30,6 @@ from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGola
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.module import min_version, optional_import
@@ -190,14 +189,13 @@ class RandRicianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             super().randomize(None)
 
         if not self._do_transform:
             return img
 
-        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -336,9 +334,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        if self.dtype is not None:
-            img, *_ = convert_data_type(img, dtype=self.dtype)
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)  # type: ignore
@@ -395,7 +391,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             self.randomize()
 
@@ -507,7 +503,7 @@ class RandScaleIntensity(RandomizableTransform):
             self.randomize()
 
         if not self._do_transform:
-            return img
+            return convert_data_type(img, dtype=self.dtype)[0]
 
         return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
 
@@ -1468,8 +1464,7 @@ class GibbsNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, alpha: float = 0.1, as_tensor_output: bool = True) -> None:
+    def __init__(self, alpha: float = 0.1) -> None:
 
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0, 1].")
@@ -1547,8 +1542,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
@@ -1620,13 +1614,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self,
-        loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
-    ):
+    def __init__(self, loc: Union[Tuple, Sequence[Tuple]], k_intensity: Optional[Union[Sequence[float], float]] = None):
 
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
@@ -1755,13 +1743,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range
@@ -2307,6 +2293,7 @@ class ForegroundMask(Transform):
 class ComputeHoVerMaps(Transform):
     """Compute horizontal and vertical maps from an instance mask
     It generates normalized horizontal and vertical distances to the center of mass of each region.
+    Input data with the size of [1xHxW[xD]], which channel dim will temporarily removed for calculating coordinates.
 
     Args:
         dtype: the data type of output Tensor. Defaults to `"float32"`.
@@ -2325,6 +2312,7 @@ class ComputeHoVerMaps(Transform):
 
         h_map = instance_mask.astype(self.dtype, copy=True)
         v_map = instance_mask.astype(self.dtype, copy=True)
+        instance_mask = instance_mask.squeeze(0)  # remove channel dim
 
         for region in skimage.measure.regionprops(instance_mask):
             v_dist = region.coords[:, 0] - region.centroid[0]
@@ -2339,5 +2327,5 @@ class ComputeHoVerMaps(Transform):
             h_map[h_map == region.label] = h_dist
             v_map[v_map == region.label] = v_dist
 
-        hv_maps = convert_to_tensor(np.stack([h_map, v_map]), track_meta=get_track_meta())
+        hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps

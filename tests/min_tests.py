@@ -29,6 +29,9 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_autorunner",
+        "test_auto3dseg_ensemble",
+        "test_auto3dseg_hpo",
         "test_auto3dseg",
         "test_cachedataset",
         "test_cachedataset_parallel",
@@ -59,6 +62,7 @@ def run_testsuit():
         "test_foreground_mask",
         "test_foreground_maskd",
         "test_global_mutual_information_loss",
+        "test_grid_patch",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -134,6 +138,7 @@ def run_testsuit():
         "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
+        "test_rand_grid_patch",
         "test_rand_rotate",
         "test_rand_rotated",
         "test_rand_zoom",
@@ -202,10 +207,7 @@ if __name__ == "__main__":
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    if err_mod:
-        print(err_mod)
-        # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+    assert not err_mod
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
