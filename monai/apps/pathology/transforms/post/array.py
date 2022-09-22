@@ -97,7 +97,7 @@ def _sp_contours_to_cv(contours, h, w) -> np.array:
     Converts Scipy-style contours to a more succinct version
     which only includes the pixels to which lines need to
     be drawn (i.e. not the intervening pixels along each line).
-    
+
     Args:
         contours: scipy-style clockwise line segments, with line separating foreground/background
         h: Height of bounding box - used to detect direction of line segment
@@ -218,8 +218,8 @@ def _sp_contours_to_cv(contours, h, w) -> np.array:
 
 class PostProcessHoVerNetOutput(Transform):
     """
-    Post processing script for image tiles. It assumes network has three branches, with a segmentation branch that returns `np_pred`, 
-    a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this tranform, it 
+    Post processing script for image tiles. It assumes network has three branches, with a segmentation branch that returns `np_pred`,
+    a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this tranform, it
     will return pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary.
 
     Args:

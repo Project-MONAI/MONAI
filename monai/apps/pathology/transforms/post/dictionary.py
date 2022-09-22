@@ -29,8 +29,8 @@ __all__ = ["PostProcessHoVerNetOutputDict", "PostProcessHoVerNetOutputD", "PostP
 
 class PostProcessHoVerNetOutputd(MapTransform):
     """
-    Dictionary-based transform that post processing image tiles. It assumes network has three branches, with a segmentation branch that 
-    returns `np_pred`, a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this 
+    Dictionary-based transform that post processing image tiles. It assumes network has three branches, with a segmentation branch that
+    returns `np_pred`, a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this
     tranform, it will return pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary.
 
     Args:
@@ -93,7 +93,7 @@ class PostProcessHoVerNetOutputd(MapTransform):
         """
         Args:
             pred: a dict combined output of classification(NC, optional), segmentation(NP) and hover map(HV) branches.
-        
+
         Returns:
             pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary stored in
             `inst_info_dict_key`.
