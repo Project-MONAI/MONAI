@@ -29,7 +29,7 @@ The solution offers different levels of user experience for beginners and advanc
 It has been tested on large-scale 3D medical imaging datasets in different modalities.
 
 ## Federated Learning Client
-![federated-learning](../images/federated.png)
+![federated-learning](../images/federated.svg)
 
 MONAI now includes the federated learning client algorithm APIs that are exposed as an abstract base class
 for defining an algorithm to be run on any federated learning platform.
