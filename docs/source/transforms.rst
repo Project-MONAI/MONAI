@@ -467,6 +467,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`GetForegroundPatches`
+""""""""""""""""""""""
+.. autoclass:: GetForegroundPatches
+    :members:
+    :special-members: __call__
+
 
 IO
 ^^
@@ -1490,6 +1496,12 @@ Intensity (Dict)
 `ComputeHoVerMapsd`
 """""""""""""""""""
 .. autoclass:: ComputeHoVerMapsd
+    :members:
+    :special-members: __call__
+
+`GetForegroundPatchesd`
+"""""""""""""""""""""""
+.. autoclass:: GetForegroundPatchesd
     :members:
     :special-members: __call__
 

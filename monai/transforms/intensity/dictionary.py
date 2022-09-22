@@ -28,6 +28,7 @@ from monai.transforms.intensity.array import (
     ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
+    GetForegroundPatches,
     GibbsNoise,
     HistogramNormalize,
     KSpaceSpikeNoise,
@@ -56,7 +57,7 @@ from monai.transforms.intensity.array import (
     ThresholdIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.transforms.utils import is_positive
+from monai.transforms.utils import has_postive, is_positive
 from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
@@ -92,6 +93,7 @@ __all__ = [
     "HistogramNormalized",
     "ForegroundMaskd",
     "ComputeHoVerMapsd",
+    "GetForegroundPatchesd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -154,6 +156,8 @@ __all__ = [
     "ForegroundMaskDict",
     "ComputeHoVerMapsD",
     "ComputeHoVerMapsDict",
+    "GetForegroundPatchesD",
+    "GetForegroundPatchesDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1761,6 +1765,54 @@ class ComputeHoVerMapsd(MapTransform):
         return d
 
 
+class GetForegroundPatchesd(MapTransform):
+    """Dictionary-based wrapper of :py:class:`monai.transforms.intensity.array.GetForegroundPatches`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        mask_key: key to save all foreground patches.
+        select_fn: function to select whether a patch is foreground, default is to select if any values > 0.
+        threshold: an int or a float number that defines the threshold that values less than that are foreground.
+            It also can be a callable that receives each dimension of the image and calculate the threshold,
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
+            Moreover, a dictionary can be passed that defines such thresholds for each channel, like
+            {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}.
+        hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
+            Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    backend = GetForegroundPatches.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mask_key: str = "mask",
+        select_fn: Callable = has_postive,
+        threshold: Union[Dict, Callable, str, float, int] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mask_key = mask_key
+        self.transform = GetForegroundPatches(
+            select_fn=select_fn, threshold=threshold, hsv_threshold=hsv_threshold, invert=invert
+        )
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key], d[self.mask_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1792,3 +1844,4 @@ HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
 ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
 ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd
+GetForegroundPatchesD = GetForegroundPatchesDict = GetForegroundPatchesd

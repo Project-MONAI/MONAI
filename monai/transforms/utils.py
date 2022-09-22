@@ -153,6 +153,13 @@ def is_positive(img):
     return img > 0
 
 
+def has_postive(img):
+    """
+    Returns Ture if `img` has positive values.
+    """
+    return (img > 0).any()
+
+
 def zero_margins(img: np.ndarray, margin: int) -> bool:
     """
     Returns True if the values within `margin` indices of the edges of `img` in dimensions 1 and 2 are 0.

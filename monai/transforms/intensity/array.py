@@ -28,7 +28,7 @@ from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils import Fourier, equalize_hist, has_postive, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
@@ -73,6 +73,7 @@ __all__ = [
     "RandIntensityRemap",
     "ForegroundMask",
     "ComputeHoVerMaps",
+    "GetForegroundPatches",
 ]
 
 
@@ -2329,3 +2330,55 @@ class ComputeHoVerMaps(Transform):
 
         hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps
+
+
+class GetForegroundPatches(Transform):
+    """
+    Get all foreground patches from image patches. The shape of image patches is [N, C, H, W, [D]] where N denotes the patch/tile count.
+    
+    Args:
+        select_fn: function to select whether a patch is foreground, default is to select if any values > 0.
+        threshold: an int or a float number that defines the threshold that values less than that are foreground.
+            It also can be a callable that receives each dimension of the image and calculate the threshold,
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
+            Moreover, a dictionary can be passed that defines such thresholds for each channel, like
+            {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
+        hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
+            Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        select_fn: Callable = has_postive,
+        threshold: Union[Dict, Callable, str, float, int] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+    ) -> None:
+        self.select_fn = select_fn
+        self.get_foreground_mask = ForegroundMask(threshold=threshold, hsv_threshold=hsv_threshold, invert=invert)
+
+    def __call__(self, image: NdarrayOrTensor) -> NdarrayOrTensor:
+        image = convert_to_tensor(image, track_meta=get_track_meta())
+
+        patch_count = image.shape[0]
+        foreground_masks = []
+        foreground_images = []
+        for i in range(patch_count):
+            foreground_mask = self.get_foreground_mask(image[i, ...])
+            if self.select_fn(foreground_mask):
+                foreground_masks.append(foreground_mask)
+                foreground_images.append(image[i, ...])
+
+        if foreground_masks:
+            foreground_images = torch.stack(foreground_images, dim=0)
+            foreground_masks = torch.stack(foreground_masks, dim=0)
+
+            foreground_images, *_ = convert_to_dst_type(foreground_images, image)
+            foreground_masks, *_ = convert_to_dst_type(foreground_masks, image)
+        return foreground_images, foreground_masks
