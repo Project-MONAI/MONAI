@@ -268,7 +268,7 @@ A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/mas
 
 ## Federated Learning
 
-![federated-learning](../images/federated.png)
+![federated-learning](../images/federated.svg)
 
 Using the MONAI bundle configurations, we can use MONAI's [`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) class (an implementation of the abstract [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) class for federated learning)
 to execute bundles from the [MONAI model zoo](https://github.com/Project-MONAI/model-zoo).
