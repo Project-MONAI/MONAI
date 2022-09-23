@@ -920,9 +920,6 @@ class CalcualteInstanceSegmentationMap(Transform):
         pred = convert_to_tensor(prob_map, track_meta=get_track_meta())
         hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
 
-        # ped_np, *_ = convert_data_type(prob_map, np.ndarray)
-        # hover_map_np, *_ = convert_data_type(hover_map, np.ndarray)
-
         # processing
         pred = self.pred_discreter(pred)
         pred = self.remove_small_objects(pred)
