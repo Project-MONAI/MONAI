@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .post.array import CalcualteInstanceSegmentationMap
+from .post.dictionary import CalcualteInstanceSegmentationMapd, CalcualteInstanceSegmentationMapD, CalcualteInstanceSegmentationMapDict
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
 from .stain.array import ExtractHEStains, NormalizeHEStains

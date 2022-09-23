@@ -126,6 +126,14 @@ Applications
 .. autoclass:: TileOnGridd
     :members:
 
+.. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: CalcualteInstanceSegmentationMap
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: CalcualteInstanceSegmentationMapd
+    :members:
+
 `Detection`
 -----------
 

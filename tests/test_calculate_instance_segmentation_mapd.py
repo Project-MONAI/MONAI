@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.intensity.array import ComputeHoVerMaps
-from monai.transforms.post.dictionary import CalcualteInstanceSegmentationMapd
+from monai.apps.pathology.transforms.post.dictionary import CalcualteInstanceSegmentationMapd
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
