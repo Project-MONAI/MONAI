@@ -829,7 +829,7 @@ class SobelGradients(Transform):
         self,
         kernel_size: int = 3,
         padding: Union[int, str] = "same",
-        direction: Optional[Union[str, Sequence]] = None,
+        direction: Optional[Union[str, Sequence[str]]] = None,
         dtype: torch.dtype = torch.float32,
         device: Union[torch.device, int, str] = "cpu",
     ) -> None:
@@ -837,6 +837,7 @@ class SobelGradients(Transform):
         self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
         self.padding = padding
 
+        self.direction: tuple
         if direction is None:
             self.direction = (Direction.HORIZONTAL, Direction.VERTICAL)
         else:
