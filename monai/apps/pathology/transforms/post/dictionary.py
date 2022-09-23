@@ -13,8 +13,8 @@ from typing import Dict, Hashable, Mapping, Sequence, Union
 
 import torch
 
-from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.apps.pathology.transforms.post.array import CalcualteInstanceSegmentationMap
+from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform
 
 __all__ = [

@@ -34,13 +34,7 @@ from monai.transforms.utils import (
     remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import (
-    TransformBackends,
-    convert_data_type,
-    convert_to_tensor,
-    ensure_tuple,
-    look_up_option,
-)
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [

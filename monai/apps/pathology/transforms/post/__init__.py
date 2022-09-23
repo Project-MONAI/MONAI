@@ -10,4 +10,8 @@
 # limitations under the License.
 
 from .array import CalcualteInstanceSegmentationMap
-from .dictionary import CalcualteInstanceSegmentationMapd, CalcualteInstanceSegmentationMapD, CalcualteInstanceSegmentationMapDict
+from .dictionary import (
+    CalcualteInstanceSegmentationMapd,
+    CalcualteInstanceSegmentationMapD,
+    CalcualteInstanceSegmentationMapDict,
+)

@@ -17,19 +17,9 @@ import torch
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.networks.layers import GaussianFilter
+from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
-from monai.transforms.post.array import (
-    SobelGradients,
-    RemoveSmallObjects,
-    AsDiscrete,
-    FillHoles,
-)
-from monai.utils import (
-    TransformBackends,
-    convert_data_type,
-    convert_to_tensor,
-    optional_import,
-)
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
@@ -37,9 +27,7 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = [
-    "CalcualteInstanceSegmentationMap",
-]
+__all__ = ["CalcualteInstanceSegmentationMap"]
 
 
 class CalcualteInstanceSegmentationMap(Transform):
@@ -77,7 +65,7 @@ class CalcualteInstanceSegmentationMap(Transform):
         self.overall_discreter = AsDiscrete(threshold=threshold_overall)
         self.fill_holes = FillHoles()
 
-    def __call__(self, prob_map: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, prob_map: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             prob_map: the probability map output of the NP branch, shape must be [1, H, W, [D]].
@@ -95,13 +83,14 @@ class CalcualteInstanceSegmentationMap(Transform):
 
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
-        hover_h = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))
-        hover_v = (hover_v - torch.min(hover_v)) / (torch.max(hover_v) - torch.min(hover_v))
+
+        hover_h = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))  # type: ignore
+        hover_v = (hover_v - torch.min(hover_v)) / (torch.max(hover_v) - torch.min(hover_v))  # type: ignore
 
         sobelh = self.sobel_gradient(hover_h)[0, ...]
         sobelv = self.sobel_gradient(hover_v)[1, ...]
-        sobelh = 1 - (sobelh - torch.min(sobelh)) / (torch.max(sobelh) - torch.min(sobelh))
-        sobelv = 1 - (sobelv - torch.min(sobelv)) / (torch.max(sobelv) - torch.min(sobelv))
+        sobelh = 1 - (sobelh - torch.min(sobelh)) / (torch.max(sobelh) - torch.min(sobelh))  # type: ignore
+        sobelv = 1 - (sobelv - torch.min(sobelv)) / (torch.max(sobelv) - torch.min(sobelv))  # type: ignore
 
         # combine the h & v values using max
         overall = torch.maximum(sobelh, sobelv)
@@ -118,7 +107,7 @@ class CalcualteInstanceSegmentationMap(Transform):
 
         marker = pred - overall
         marker[marker < 0] = 0
-        marker = self.fill_holes(marker)  # type: ignore
+        marker = self.fill_holes(marker)
 
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
