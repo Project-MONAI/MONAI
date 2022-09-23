@@ -15,6 +15,7 @@ import sys
 from typing import Optional, Union
 
 import torch
+import torch.distributed as dist
 
 import monai
 from monai.bundle import ConfigParser
@@ -112,6 +113,8 @@ class MonaiAlgo(ClientAlgo):
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
             Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
             e.g., the aggregator, which is not controlled by this class.
+        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
+        backend: backend to use for torch.distributed; defaults to "nccl".
     """
 
     def __init__(
@@ -128,6 +131,9 @@ class MonaiAlgo(ClientAlgo):
         save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
+        multi_gpu: bool = False,
+        backend: str = "nccl",
+        init_method: str = "env://",
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         if config_evaluate_filename == "default":
@@ -144,6 +150,9 @@ class MonaiAlgo(ClientAlgo):
         self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
+        self.multi_gpu = multi_gpu
+        self.backend = backend
+        self.init_method = init_method
 
         self.app_root = None
         self.train_parser = None
@@ -156,6 +165,7 @@ class MonaiAlgo(ClientAlgo):
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
         self.global_weights = None
+        self.rank = 0
 
         self.phase = FlPhase.IDLE
         self.client_name = None
@@ -174,7 +184,16 @@ class MonaiAlgo(ClientAlgo):
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
 
-        if self.seed:
+        if self.multi_gpu:
+            dist.init_process_group(backend=self.backend, init_method=self.init_method)
+            self._set_cuda_device()
+            self.logger.info(
+                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
+            )
+            if self.rank > 0:
+                self.logger.setLevel(logging.WARNING)
+
+        if self.seed:  # TODO: adjust for multi-gpu?
             monai.utils.set_determinism(seed=self.seed)
         torch.backends.cudnn.benchmark = self.benchmark
 
@@ -243,6 +262,8 @@ class MonaiAlgo(ClientAlgo):
             extra: Dict with additional information that can be provided by FL system.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -266,6 +287,7 @@ class MonaiAlgo(ClientAlgo):
         # get current iteration when a round starts
         self.iter_of_start_time = self.trainer.state.iteration
 
+        # if self.rank == 0:
         _, updated_keys, _ = copy_model_state(src=self.global_weights, dst=self.trainer.network)
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
@@ -284,6 +306,8 @@ class MonaiAlgo(ClientAlgo):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
 
@@ -312,7 +336,7 @@ class MonaiAlgo(ClientAlgo):
                     f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
-            if self.trainer:
+            if self.trainer:  # and self.rank == 0:
                 weights = get_state_dict(self.trainer.network)
                 # returned weights will be on the cpu
                 for k in weights.keys():
@@ -361,6 +385,8 @@ class MonaiAlgo(ClientAlgo):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -378,6 +404,7 @@ class MonaiAlgo(ClientAlgo):
         global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
         self._check_converted(data.weights, local_var_dict, n_converted)
 
+        # if self.rank == 0:  # Evaluation is only supporting single GPU
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
@@ -421,6 +448,9 @@ class MonaiAlgo(ClientAlgo):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
 
+        if self.multi_gpu:
+            dist.destroy_process_group()
+
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
             self.logger.warning(
@@ -447,3 +477,8 @@ class MonaiAlgo(ClientAlgo):
                     f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
                 )
         return files
+
+    def _set_cuda_device(self):
+        if self.multi_gpu:
+            self.rank = int(os.environ["LOCAL_RANK"])
+            torch.cuda.set_device(self.rank)

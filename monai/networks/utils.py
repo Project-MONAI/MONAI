@@ -452,7 +452,7 @@ def copy_model_state(
     dst_prefix="",
     mapping=None,
     exclude_vars=None,
-    inplace=True,
+    inplace=True
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -516,6 +516,8 @@ def copy_model_state(
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
     logger.info(f"'dst' model updated: {len(updated_keys)} of {len(dst_dict)} variables.")
     if inplace and isinstance(dst, torch.nn.Module):
+        if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            dst = dst.module
         dst.load_state_dict(dst_dict)
     return dst_dict, updated_keys, unchanged_keys
 
