@@ -864,4 +864,3 @@ class SobelGradients(Transform):
         grad = torch.cat([grad_h, grad_v], dim=1)
         grad, *_ = convert_to_dst_type(grad.squeeze(0), image_tensor)
         return grad
-
