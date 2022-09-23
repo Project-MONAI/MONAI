@@ -69,7 +69,8 @@ class CalcualteInstanceSegmentationMap(Transform):
         """
         Args:
             prob_map: the probability map output of the NP branch, shape must be [1, H, W, [D]].
-            hover_map: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch, shape must be [2, H, W, [D]].
+            hover_map: the horizontal and vertical distances of nuclear pixels to their centres 
+                of mass output from the HV branch, shape must be [2, H, W, [D]].
 
         Returns:
             instance labelled segmentation map with shape [1, H, W, [D]].
