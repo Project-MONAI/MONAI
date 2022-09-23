@@ -923,7 +923,7 @@ class CalcualteInstanceSegmentationMap(Transform):
         # processing
         pred = self.pred_discreter(pred)
         pred = self.remove_small_objects(pred)
-        
+
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
         hover_h = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))
