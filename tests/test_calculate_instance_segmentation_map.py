@@ -15,7 +15,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.intensity.array import ComputeHoVerMaps
-from monai.transforms.post.array import GetInstanceLevelSegMap
+from monai.transforms.post.array import CalcualteInstanceSegmentationMap
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -61,7 +61,7 @@ class TestGetInstanceLevelSegMap(unittest.TestCase):
     def test_output(self, args, in_type, probs_map, mask, expected):
 
         hover_map = in_type(ComputeHoVerMaps()(mask))
-        getinstancelabel = GetInstanceLevelSegMap(**args)
+        getinstancelabel = CalcualteInstanceSegmentationMap(**args)
         output = getinstancelabel(probs_map, hover_map)
 
         # temporarily only test shape

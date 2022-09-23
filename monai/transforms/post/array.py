@@ -873,7 +873,7 @@ class SobelGradients(Transform):
         return grad
 
 
-class GetInstanceLevelSegMap(Transform):
+class CalcualteInstanceSegmentationMap(Transform):
     """
     Process Nuclei Prediction with XY Coordinate Map.
 
@@ -908,40 +908,41 @@ class GetInstanceLevelSegMap(Transform):
         self.overall_discreter = AsDiscrete(threshold=threshold_overall)
         self.fill_holes = FillHoles()
 
-    def __call__(self, pred: NdarrayOrTensor, hover: NdarrayOrTensor) -> torch.Tensor:  # type: ignore
+    def __call__(self, prob_map: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            pred: the probability map output of the NP branch, shape must be [1, H, W, [D]].
-            hover: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch,
-                shape must be [2, H, W, [D]].
+            prob_map: the probability map output of the NP branch, shape must be [1, H, W, [D]].
+            hover_map: the horizontal and vertical distances of nuclear pixels to their centres of mass output from the HV branch, shape must be [2, H, W, [D]].
 
         Returns:
             instance labelled segmentation map with shape [1, H, W, [D]].
         """
-        pred_t = convert_to_tensor(pred, track_meta=get_track_meta())
-        hover_t = convert_to_tensor(hover, track_meta=get_track_meta())
+        pred = convert_to_tensor(prob_map, track_meta=get_track_meta())
+        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
 
-        hover_h = hover_t[0:1, ...]
-        hover_v = hover_t[1:2, ...]
+        # ped_np, *_ = convert_data_type(prob_map, np.ndarray)
+        # hover_map_np, *_ = convert_data_type(hover_map, np.ndarray)
 
         # processing
-        blb = self.pred_discreter(pred_t)
-        blb = self.remove_small_objects(blb)
+        pred = self.pred_discreter(pred)
+        pred = self.remove_small_objects(pred)
+        
+        hover_h = hover_map[0:1, ...]
+        hover_v = hover_map[1:2, ...]
+        hover_h = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))
+        hover_v = (hover_v - torch.min(hover_v)) / (torch.max(hover_v) - torch.min(hover_v))
 
-        maph_norm = (hover_h - torch.min(hover_h)) / (torch.max(hover_h) - torch.min(hover_h))
-        mapv_norm = (hover_v - torch.min(hover_v)) / (torch.max(hover_v) - torch.min(hover_v))
-
-        sobelh = self.sobel_gradient(maph_norm)[0, ...]
-        sobelv = self.sobel_gradient(mapv_norm)[1, ...]
-        sobelh_norm = 1 - (sobelh - torch.min(sobelh)) / (torch.max(sobelh) - torch.min(sobelh))
-        sobelv_norm = 1 - (sobelv - torch.min(sobelv)) / (torch.max(sobelv) - torch.min(sobelv))
+        sobelh = self.sobel_gradient(hover_h)[0, ...]
+        sobelv = self.sobel_gradient(hover_v)[1, ...]
+        sobelh = 1 - (sobelh - torch.min(sobelh)) / (torch.max(sobelh) - torch.min(sobelh))
+        sobelv = 1 - (sobelv - torch.min(sobelv)) / (torch.max(sobelv) - torch.min(sobelv))
 
         # combine the h & v values using max
-        overall = torch.maximum(sobelh_norm, sobelv_norm)
-        overall = overall - (1 - blb)
+        overall = torch.maximum(sobelh, sobelv)
+        overall = overall - (1 - pred)
         overall[overall < 0] = 0
 
-        dist = (1.0 - overall) * blb
+        dist = (1.0 - overall) * pred
 
         # nuclei values form mountains so inverse to get basins
         spatial_dims = pred.ndim - 1
@@ -949,19 +950,18 @@ class GetInstanceLevelSegMap(Transform):
 
         overall = self.overall_discreter(overall)  # type: ignore
 
-        marker = blb - overall
+        marker = pred - overall
         marker[marker < 0] = 0
         marker = self.fill_holes(marker)  # type: ignore
 
         marker_np, *_ = convert_data_type(marker, np.ndarray)
         dist_np, *_ = convert_data_type(dist, np.ndarray)
-        blb_np, *_ = convert_data_type(blb, np.ndarray)
-
+        pred_np, *_ = convert_data_type(pred, np.ndarray)
         marker_np = opening(marker_np.squeeze(0), disk(self.radius))
         marker_np = label(marker_np)[0]
         marker_np = self.remove_small_objects(marker_np)  # type: ignore
 
-        proced_pred = watershed(dist_np, markers=marker_np, mask=blb_np)
-        pred, *_ = convert_to_dst_type(proced_pred, pred_t)
+        proced_pred = watershed(dist_np, markers=marker_np, mask=pred_np)
+        pred, *_ = convert_to_dst_type(proced_pred, prob_map)
 
         return pred  # type: ignore
