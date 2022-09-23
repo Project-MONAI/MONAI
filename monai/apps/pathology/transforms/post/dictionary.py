@@ -66,12 +66,12 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
             radius=radius,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key], d[self.hover_key])
 
-        return d  # type: ignore
+        return d
 
 
 CalcualteInstanceSegmentationMapD = CalcualteInstanceSegmentationMapDict = CalcualteInstanceSegmentationMapd
