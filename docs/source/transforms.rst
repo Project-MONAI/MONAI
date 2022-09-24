@@ -590,12 +590,6 @@ Post-processing
     :members:
     :special-members: __call__
 
-`GetInstanceLevelSegMap`
-""""""""""""""""""""""""
-.. autoclass:: GetInstanceLevelSegMap
-  :members:
-  :special-members: __call__
-
 Signal
 ^^^^^^^
 
@@ -1609,13 +1603,6 @@ Post-processing (Dict)
 `SobelGradientsd`
 """""""""""""""""
 .. autoclass:: SobelGradientsd
-  :members:
-  :special-members: __call__
-
-
-`GetInstanceLevelSegMapd`
-"""""""""""""""""""""""""
-.. autoclass:: GetInstanceLevelSegMapd
   :members:
   :special-members: __call__
 

@@ -11,62 +11,61 @@
 
 import unittest
 
+import os
 import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import CalcualteInstanceSegmentationMapd
-from monai.transforms.intensity.array import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
+Image,  has_pil= optional_import("PIL", name="Image")
 
+input_image_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_input_image.png")
+test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
+
+test_image = np.asarray(Image.open(input_image_path))
+prediction = np.load(test_data_path)
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TEST_CASE_MASK = np.zeros((1, 10, 10), dtype="int16")
-    TEST_CASE_MASK[:, 2:6, 2:6] = 1
-    TEST_CASE_MASK[:, 7:10, 7:10] = 2
-    mask = p(TEST_CASE_MASK)
+    prob_map = prediction["prob_map"][None]
+    hover_maph = prediction["hover_map_h"][None]
+    hover_mapv = prediction["hover_map_v"][None]
+    expected = prediction["pred_instance"][None]
+    hover_map = np.concatenate([hover_maph, hover_mapv])
 
-    TEST_CASE_1 = np.zeros((1, 10, 10))
-    TEST_CASE_1[:, 2:6, 2:6] = 0.7
-    TEST_CASE_1[:, 7:10, 7:10] = 0.6
-
-    probs_map_1 = p(TEST_CASE_1)
-    expected_1 = (1, 10, 10)
     TESTS.append(
         [
             {
-                "keys": "image",
-                "hover_key": "hover",
                 "threshold_pred": 0.5,
                 "threshold_overall": 0.4,
-                "min_size": 4,
+                "min_size": 10,
                 "sigma": 0.4,
-                "kernel_size": 3,
+                "kernel_size": 21,
                 "radius": 2,
             },
             p,
-            probs_map_1,
-            mask,
-            expected_1,
+            prob_map,
+            hover_map,
+            expected,
         ]
     )
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
+@unittest.skipUnless(has_pil, "Requires PIL library.")
 class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, in_type, probs_map, mask, expected):
-        hover_map = in_type(ComputeHoVerMaps()(mask))
-        data = {"image": probs_map, "hover": hover_map}
-        output = CalcualteInstanceSegmentationMapd(**args)(data)
+    def test_output(self, args, in_type, probs_map, hover_map, expected):
+        data = {"image": in_type(probs_map), "hover": in_type(hover_map)}
+        output = CalcualteInstanceSegmentationMapd(keys="image", hover_key="hover", **args)(data)
 
-        # temporarily only test shape
-        self.assertTupleEqual(output["image"].shape, expected)
+        self.assertTupleEqual(output["image"].shape, expected.shape)
+        assert_allclose(output["image"], expected, type_test=False)
 
 
 if __name__ == "__main__":
