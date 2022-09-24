@@ -14,12 +14,11 @@ from typing import Sequence, Union
 import numpy as np
 import torch
 
-
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects, SobelGradients
+from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects
 from monai.transforms.transform import Transform
-from monai.utils import TransformBackends, convert_to_tensor, optional_import,convert_to_numpy
+from monai.utils import TransformBackends, convert_to_numpy, convert_to_tensor, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
@@ -27,7 +26,7 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 gaussian, _ = optional_import("skimage.filters", name="gaussian")
-cv2, _  = optional_import("cv2")
+cv2, _ = optional_import("cv2")
 
 __all__ = ["CalcualteInstanceSegmentationMap"]
 
@@ -47,7 +46,7 @@ class CalcualteInstanceSegmentationMap(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -77,10 +76,10 @@ class CalcualteInstanceSegmentationMap(Transform):
         Returns:
             instance labelled segmentation map with shape [1, H, W].
         """
-        pred = convert_to_tensor(prob_map, track_meta=get_track_meta())
+        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta())
         hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
-        
-        pred = convert_to_numpy(pred)
+
+        pred = convert_to_numpy(prob_map)
         hover_map = convert_to_numpy(hover_map)
 
         # processing
@@ -92,12 +91,12 @@ class CalcualteInstanceSegmentationMap(Transform):
         hover_h = hover_map[0, ...]
         hover_v = hover_map[1, ...]
 
-        hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))  # type: ignore
-        hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))  # type: ignore
+        hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))
+        hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))
         sobelh = cv2.Sobel(hover_h, cv2.CV_64F, 1, 0, ksize=self.kernel_size)
         sobelv = cv2.Sobel(hover_v, cv2.CV_64F, 0, 1, ksize=self.kernel_size)
-        sobelh = 1 - (sobelh - np.min(sobelh)) / (np.max(sobelh) - np.min(sobelh))  # type: ignore
-        sobelv = 1 - (sobelv - np.min(sobelv)) / (np.max(sobelv) - np.min(sobelv))  # type: ignore
+        sobelh = 1 - (sobelh - np.min(sobelh)) / (np.max(sobelh) - np.min(sobelh))
+        sobelv = 1 - (sobelv - np.min(sobelv)) / (np.max(sobelv) - np.min(sobelv))
 
         # combine the h & v values using max
         overall = np.maximum(sobelh, sobelv)
@@ -107,9 +106,9 @@ class CalcualteInstanceSegmentationMap(Transform):
         dist = (1.0 - overall) * pred
 
         # nuclei values form mountains so inverse to get basins
-        dist = - gaussian(dist, sigma=self.sigma) 
+        dist = -gaussian(dist, sigma=self.sigma)
 
-        overall = self.overall_discreter(overall)  # type: ignore
+        overall = self.overall_discreter(overall)
 
         marker = pred - overall
         marker[marker < 0] = 0
@@ -122,4 +121,4 @@ class CalcualteInstanceSegmentationMap(Transform):
         proced_pred = watershed(dist, markers=marker, mask=pred)
         pred, *_ = convert_to_dst_type(proced_pred, prob_map)
 
-        return pred
+        return pred  # type: ignore

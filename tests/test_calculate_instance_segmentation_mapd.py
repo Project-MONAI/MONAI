@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 
-import os
 import numpy as np
 from parameterized import parameterized
 
@@ -21,7 +21,7 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
-Image,  has_pil= optional_import("PIL", name="Image")
+Image, has_pil = optional_import("PIL", name="Image")
 
 input_image_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_input_image.png")
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")

@@ -9,20 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 
-import os
 import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import CalcualteInstanceSegmentationMap
-from monai.transforms.intensity.array import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
-Image,  has_pil= optional_import("PIL", name="Image")
+Image, has_pil = optional_import("PIL", name="Image")
 
 input_image_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_input_image.png")
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
@@ -63,8 +62,8 @@ class TestCalcualteInstanceSegmentationMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map, hover_map, expected):
 
-        caculate_instance_seg = CalcualteInstanceSegmentationMap(**args)
-        output = caculate_instance_seg(in_type(probs_map), in_type(hover_map))
+        calculate_instance_seg = CalcualteInstanceSegmentationMap(**args)
+        output = calculate_instance_seg(in_type(probs_map), in_type(hover_map))
 
         self.assertTupleEqual(output.shape, expected.shape)
         assert_allclose(output, expected, type_test=False)

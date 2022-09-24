@@ -35,7 +35,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
         sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        kernel_size: the size of the Sobel kernel. Defaults to 17.
+        kernel_size: the size of the Sobel kernel. Defaults to 21.
         radius: the radius of the disk-shaped footprint. Defaults to 2.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -51,7 +51,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         threshold_overall: float = 0.4,
         min_size: int = 10,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
-        kernel_size: int = 17,
+        kernel_size: int = 21,
         radius: int = 2,
         allow_missing_keys: bool = False,
     ) -> None:
