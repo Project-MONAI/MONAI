@@ -75,9 +75,23 @@ class CalcualteInstanceSegmentationMap(Transform):
 
         Returns:
             instance labelled segmentation map with shape [1, H, W].
+
+        Raises:
+            ValueError: when the `prob_map` dimension is not [1, H, W].
+            ValueError: when the `hover_map` dimension is not [2, H, W].
+
         """
         prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta())
         hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
+
+        if prob_map.shape[0] != 1:
+            raise ValueError("Only supports single channel probability map!")
+
+        if hover_map.shape[0] != 2:
+            raise ValueError("Hover map should with shape (2, H, W)!")
+
+        if len(prob_map.shape) > 3 or len(hover_map.shape) > 3:  # only for 2D
+            raise ValueError("Only supports probability map with shape (1, H, W)!")
 
         pred = convert_to_numpy(prob_map)
         hover_map = convert_to_numpy(hover_map)

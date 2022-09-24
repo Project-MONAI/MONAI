@@ -39,6 +39,10 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         radius: the radius of the disk-shaped footprint. Defaults to 2.
         allow_missing_keys: don't raise exception if key is missing.
 
+    Raises:
+            ValueError: when the `prob_map` dimension is not [1, H, W].
+            ValueError: when the `hover_map` dimension is not [2, H, W].
+
     """
 
     backend = CalcualteInstanceSegmentationMap.backend

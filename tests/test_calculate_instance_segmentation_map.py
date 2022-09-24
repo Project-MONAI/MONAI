@@ -54,6 +54,30 @@ for p in TEST_NDARRAYS:
         ]
     )
 
+ERROR_TESTS = []
+for p in TEST_NDARRAYS:
+    prob_map1 = np.zeros([2, 64, 64])
+    hover_map1 = np.zeros([2, 64, 64])
+
+    prob_map2 = np.zeros([1, 1, 64, 64])
+    hover_map2 = np.zeros([2, 64, 64])
+
+    prob_map3 = np.zeros([1, 64, 64])
+    hover_map3 = np.zeros([2, 1, 64, 64])
+
+    params = {
+        "threshold_pred": 0.5,
+        "threshold_overall": 0.4,
+        "min_size": 10,
+        "sigma": 0.4,
+        "kernel_size": 21,
+        "radius": 2,
+    }
+
+    ERROR_TESTS.append([params, p, prob_map1, hover_map1])
+    ERROR_TESTS.append([params, p, prob_map2, hover_map2])
+    ERROR_TESTS.append([params, p, prob_map3, hover_map3])
+
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
@@ -67,6 +91,12 @@ class TestCalcualteInstanceSegmentationMap(unittest.TestCase):
 
         self.assertTupleEqual(output.shape, expected.shape)
         assert_allclose(output, expected, type_test=False)
+
+    @parameterized.expand(ERROR_TESTS)
+    def test_value_error(self, args, in_type, probs_map, hover_map):
+        calculate_instance_seg = CalcualteInstanceSegmentationMap(**args)
+        with self.assertRaises(ValueError):
+            calculate_instance_seg(in_type(probs_map), in_type(hover_map))
 
 
 if __name__ == "__main__":
