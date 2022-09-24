@@ -21,6 +21,7 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
+_, has_cv2 = optional_import("cv2")
 
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
 
@@ -78,6 +79,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
+@unittest.skipUnless(has_cv2, "OpenCV required.")
 class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map, hover_map, expected):
