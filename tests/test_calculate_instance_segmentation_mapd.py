@@ -21,12 +21,9 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
-Image, has_pil = optional_import("PIL", name="Image")
 
-input_image_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_input_image.png")
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
 
-test_image = np.asarray(Image.open(input_image_path))
 prediction = np.load(test_data_path)
 
 TESTS = []
@@ -81,7 +78,6 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
-@unittest.skipUnless(has_pil, "Requires PIL library.")
 class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, probs_map, hover_map, expected):
