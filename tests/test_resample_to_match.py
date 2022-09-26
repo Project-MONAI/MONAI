@@ -60,8 +60,6 @@ class TestResampleToMatch(unittest.TestCase):
         loader = Compose([LoadImaged(("im1", "im2"), reader=reader), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
 
-        with self.assertRaises(ValueError):
-            ResampleToMatch(mode=None)(img=data["im2"], img_dst=data["im1"])
         im_mod = ResampleToMatch()(data["im2"], data["im1"])
         saver = SaveImaged(
             "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False

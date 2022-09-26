@@ -25,6 +25,14 @@ from typing import Any, Callable, Collection, Hashable, Iterable, List, Mapping,
 
 import torch
 
+# bundle config system flags
+# set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
+run_eval = os.environ.get("MONAI_EVAL_EXPR", "1") != "0"
+# set MONAI_DEBUG_CONFIG=1 to run in debug mode, default value: run_debug=False
+run_debug = os.environ.get("MONAI_DEBUG_CONFIG", "0") != "0"
+# set MONAI_ALLOW_MISSING_REFERENCE=1 to allow missing references, default value: allow_missing_reference=False
+allow_missing_reference = os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") != "0"
+
 OPTIONAL_IMPORT_MSG_FMT = "{}"
 
 __all__ = [
@@ -193,6 +201,12 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
+            except ImportError as e:
+                raise ImportError(
+                    "Multiple versions of MONAI may have been installed,\n"
+                    "please uninstall existing packages (both monai and monai-weekly) and install a version again.\n"
+                    "See also: https://docs.monai.io/en/stable/installation.html\n"
+                ) from e
 
     return submodules, err_mod
 
@@ -214,6 +228,14 @@ def instantiate(path: str, **kwargs):
     if component is None:
         raise ModuleNotFoundError(f"Cannot locate class or function path: '{path}'.")
     try:
+        if kwargs.pop("_debug_", False) or run_debug:
+            warnings.warn(
+                f"\n\npdb: instantiating component={component}\n"
+                f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+            )
+            import pdb
+
+            pdb.set_trace()
         if isclass(component):
             return component(**kwargs)
         # support regular function, static method and class method
@@ -237,7 +259,7 @@ def get_full_type_name(typeobj):
     return module + "." + typeobj.__name__
 
 
-def min_version(the_module, min_version_str: str = "") -> bool:
+def min_version(the_module, min_version_str: str = "", *_args) -> bool:
     """
     Convert version strings into tuples of int and compare them.
 
@@ -252,7 +274,7 @@ def min_version(the_module, min_version_str: str = "") -> bool:
     return mod_version >= required
 
 
-def exact_version(the_module, version_str: str = "") -> bool:
+def exact_version(the_module, version_str: str = "", *_args) -> bool:
     """
     Returns True if the module's __version__ matches version_str
     """
@@ -287,6 +309,7 @@ def optional_import(
     descriptor: str = OPTIONAL_IMPORT_MSG_FMT,
     version_args=None,
     allow_namespace_pkg: bool = False,
+    as_type: str = "default",
 ) -> Tuple[Any, bool]:
     """
     Imports an optional module specified by `module` string.
@@ -301,6 +324,10 @@ def optional_import(
         descriptor: a format string for the final error message when using a not imported module.
         version_args: additional parameters to the version checker.
         allow_namespace_pkg: whether importing a namespace package is allowed. Defaults to False.
+        as_type: there are cases where the optionally imported object is used as
+            a base class, or a decorator, the exceptions should raise accordingly. The current supported values
+            are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
+            and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -387,7 +414,22 @@ def optional_import(
             """
             raise self._exception
 
-    return _LazyRaise(), False
+        def __getitem__(self, item):
+            raise self._exception
+
+        def __iter__(self):
+            raise self._exception
+
+    if as_type == "default":
+        return _LazyRaise(), False
+
+    class _LazyCls(_LazyRaise):
+        def __init__(self, *_args, **kwargs):
+            super().__init__()
+            if not as_type.startswith("decorator"):
+                raise self._exception
+
+    return _LazyCls, False
 
 
 def require_pkg(

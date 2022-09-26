@@ -73,6 +73,8 @@ class TestEnsureChannelFirst(unittest.TestCase):
             result = LoadImage(image_only=True)(filename)
             result = EnsureChannelFirst()(result)
             self.assertEqual(result.shape[0], 3)
+            result = EnsureChannelFirst(channel_dim=-1)(result)
+            self.assertEqual(result.shape, (6, 3, 6))
 
     def test_check(self):
         im = torch.zeros(1, 2, 3)
@@ -85,7 +87,7 @@ class TestEnsureChannelFirst(unittest.TestCase):
         with self.assertRaises(ValueError):  # no meta
             EnsureChannelFirst(channel_dim=None)(test_case)
         with self.assertRaises(ValueError):  # no meta channel
-            EnsureChannelFirst(channel_dim=None)(im_nodim)
+            EnsureChannelFirst()(im_nodim)
 
         with self.assertWarns(Warning):
             EnsureChannelFirst(strict_check=False, channel_dim=None)(im)

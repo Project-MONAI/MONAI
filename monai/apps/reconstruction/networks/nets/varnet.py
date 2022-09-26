@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
+
 import torch.nn as nn
 from torch import Tensor
 
@@ -47,7 +49,7 @@ class VariationalNetworkModel(nn.Module):
     ):
         super().__init__()
         self.coil_sensitivity_model = coil_sensitivity_model
-        self.cascades = nn.ModuleList([VarNetBlock(refinement_model) for i in range(num_cascades)])
+        self.cascades = nn.ModuleList([VarNetBlock(copy.deepcopy(refinement_model)) for i in range(num_cascades)])
         self.spatial_dims = spatial_dims
 
     def forward(self, masked_kspace: Tensor, mask: Tensor) -> Tensor:
@@ -62,7 +64,7 @@ class VariationalNetworkModel(nn.Module):
             The reconstructed image which is the root sum of squares (rss) of the absolute value
                 of the inverse fourier of the predicted kspace (note that rss combines coil images into one image).
         """
-        sensitivity_maps = self.coil_sensitivity_model(masked_kspace, mask)  # shape is simlar to masked_kspace
+        sensitivity_maps = self.coil_sensitivity_model(masked_kspace, mask)  # shape is similar to masked_kspace
         kspace_pred = masked_kspace.clone()
 
         for cascade in self.cascades:
@@ -72,4 +74,4 @@ class VariationalNetworkModel(nn.Module):
             complex_abs_t(ifftn_centered_t(kspace_pred, spatial_dims=self.spatial_dims)),
             spatial_dim=1,  # 1 is for C which is the coil dimension
         )  # shape is (B,H,W) for 2D and (B,H,W,D) for 3D data.
-        return output_image  # type: ignore
+        return output_image

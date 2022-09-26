@@ -84,6 +84,7 @@ class ComplexUnet(nn.Module):
             if params[0][1] != 2:
                 raise ValueError(f"in_channels should be 2 but it's {params[0][1]}.")
             self.unet = conv_net
+
         self.pad_factor = pad_factor
 
     def forward(self, x: Tensor) -> Tensor:

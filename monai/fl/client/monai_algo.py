@@ -12,14 +12,13 @@
 import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, Union
 
 import torch
 
 import monai
 from monai.bundle import ConfigParser
-from monai.bundle.config_item import ConfigItem
-from monai.config import IgniteInfo
+from monai.bundle.config_item import ConfigComponent, ConfigItem
 from monai.fl.client.client_algo import ClientAlgo
 from monai.fl.utils.constants import (
     BundleKeys,
@@ -27,17 +26,13 @@ from monai.fl.utils.constants import (
     FiltersType,
     FlPhase,
     FlStatistics,
+    ModelType,
     RequiredBundleKeys,
     WeightType,
 )
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
-from monai.utils import min_version, optional_import
-
-if TYPE_CHECKING:
-    from ignite.engine import Events
-else:
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+from monai.utils import min_version, require_pkg
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -46,6 +41,7 @@ def convert_global_weights(global_weights, local_var_dict):
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
+    n_converted = 0
     for var_name in local_var_dict:
         if var_name in model_keys:
             weights = global_weights[var_name]
@@ -54,9 +50,10 @@ def convert_global_weights(global_weights, local_var_dict):
                 weights = torch.reshape(torch.as_tensor(weights), local_var_dict[var_name].shape)
                 # update the local dict
                 local_var_dict[var_name] = weights
+                n_converted += 1
             except Exception as e:
                 raise ValueError(f"Convert weight from {var_name} failed.") from e
-    return local_var_dict
+    return local_var_dict, n_converted
 
 
 def compute_weight_diff(global_weights, local_var_dict):
@@ -69,7 +66,8 @@ def compute_weight_diff(global_weights, local_var_dict):
     for name in global_weights:
         if name not in local_var_dict:
             continue
-        weight_diff[name] = local_var_dict[name].cpu() - global_weights[name]
+        # returned weight diff will be on the cpu
+        weight_diff[name] = local_var_dict[name].cpu() - global_weights[name].cpu()
         if torch.any(torch.isnan(weight_diff[name])):
             raise ValueError(f"Weights for {name} became NaN...")
     return weight_diff
@@ -81,6 +79,15 @@ def check_bundle_config(parser):
             raise KeyError(f"Bundle config misses required key `{k}`")
 
 
+def disable_ckpt_loaders(parser):
+    if BundleKeys.VALIDATE_HANDLERS in parser:
+        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
+            if ConfigComponent.is_instantiable(h):
+                if "CheckpointLoader" in h["_target_"]:
+                    h["_disabled_"] = True
+
+
+@require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
 class MonaiAlgo(ClientAlgo):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
@@ -89,9 +96,22 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: path of bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json"
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json"
-        config_filters_filename: filter configuration file.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
+            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
+        config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
+        best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
+        final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
+        save_dict_key: If a model checkpoint contains several state dicts,
+            the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
+            If all state dicts should be returned, set `save_dict_key` to None.
+        seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
+            i.e., non-deterministic training.
+        benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
+            Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
+            e.g., the aggregator, which is not controlled by this class.
     """
 
     def __init__(
@@ -99,18 +119,31 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[str] = "configs/train.json",
-        config_evaluate_filename: Optional[str] = "configs/evaluate.json",
-        config_filters_filename: Optional[str] = None,
+        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
+        config_evaluate_filename: Optional[Union[str, list]] = "default",
+        config_filters_filename: Optional[Union[str, list]] = None,
+        disable_ckpt_loading: bool = True,
+        best_model_filepath: Optional[str] = "models/model.pt",
+        final_model_filepath: Optional[str] = "models/model_final.pt",
+        save_dict_key: Optional[str] = "model",
+        seed: Optional[int] = None,
+        benchmark: bool = True,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated.
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.bundle_root = bundle_root
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
         self.config_train_filename = config_train_filename
         self.config_evaluate_filename = config_evaluate_filename
         self.config_filters_filename = config_filters_filename
+        self.disable_ckpt_loading = disable_ckpt_loading
+        self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
+        self.save_dict_key = save_dict_key
+        self.seed = seed
+        self.benchmark = benchmark
 
         self.app_root = None
         self.train_parser = None
@@ -133,13 +166,17 @@ class MonaiAlgo(ClientAlgo):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-            i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
 
         """
         if extra is None:
             extra = {}
-        self.logger.info(f"Initializing {self.client_name} ...")
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        self.logger.info(f"Initializing {self.client_name} ...")
+
+        if self.seed:
+            monai.utils.set_determinism(seed=self.seed)
+        torch.backends.cudnn.benchmark = self.benchmark
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
@@ -147,16 +184,9 @@ class MonaiAlgo(ClientAlgo):
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = []
-        config_eval_files = []
-        config_filter_files = []
-        if self.config_train_filename:
-            config_train_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-        if self.config_evaluate_filename:
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_evaluate_filename))
-        if self.config_filters_filename:  # filters are read by train_parser
-            config_filter_files.append(os.path.join(self.bundle_root, self.config_filters_filename))
+        config_train_files = self._add_config_files(self.config_train_filename)
+        config_eval_files = self._add_config_files(self.config_evaluate_filename)
+        config_filter_files = self._add_config_files(self.config_filters_filename)
 
         # Parse
         self.train_parser = ConfigParser()
@@ -178,9 +208,10 @@ class MonaiAlgo(ClientAlgo):
         if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
             self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
 
-        self.train_parser.parse()
-        self.eval_parser.parse()
-        self.filter_parser.parse()
+        # remove checkpoint loaders
+        if self.disable_ckpt_loading:
+            disable_ckpt_loaders(self.train_parser)
+            disable_ckpt_loaders(self.eval_parser)
 
         # Get trainer, evaluator
         self.trainer = self.train_parser.get_parsed_content(
@@ -224,16 +255,20 @@ class MonaiAlgo(ClientAlgo):
                 data = _filter(data, extra)
         self.phase = FlPhase.TRAIN
         self.logger.info(f"Load {self.client_name} weights...")
-        self.global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.trainer.network)
+        local_var_dict = get_state_dict(self.trainer.network)
+        self.global_weights, n_converted = convert_global_weights(
+            global_weights=data.weights, local_var_dict=local_var_dict
         )
+        self._check_converted(data.weights, local_var_dict, n_converted)
 
         # set engine state max epochs.
         self.trainer.state.max_epochs = self.trainer.state.epoch + self.local_epochs
         # get current iteration when a round starts
         self.iter_of_start_time = self.trainer.state.iteration
 
-        copy_model_state(src=self.global_weights, dst=self.trainer.network)
+        _, updated_keys, _ = copy_model_state(src=self.global_weights, dst=self.trainer.network)
+        if len(updated_keys) == 0:
+            self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} training...")
         self.trainer.run()
 
@@ -245,26 +280,58 @@ class MonaiAlgo(ClientAlgo):
             extra: Dict with additional information that can be provided by FL system.
 
         Returns:
-            return_weights: `ExchangeObject` containing current weights.
+            return_weights: `ExchangeObject` containing current weights (default)
+                or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
         if extra is None:
             extra = {}
+
+        # by default return current weights, return best if requested via model type.
         self.phase = FlPhase.GET_WEIGHTS
-        if self.trainer:
-            weights = get_state_dict(self.trainer.network)
-            weigh_type = WeightType.WEIGHTS
-            stats = self.trainer.get_stats()
-            # calculate current iteration and epoch data after training.
-            stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
-            # compute weight differences
-            if self.send_weight_diff:
-                weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
-                weigh_type = WeightType.WEIGHT_DIFF
+
+        if ExtraItems.MODEL_TYPE in extra:
+            model_type = extra.get(ExtraItems.MODEL_TYPE)
+            if not isinstance(model_type, ModelType):
+                raise ValueError(
+                    f"Expected requested model type to be of type `ModelType` but received {type(model_type)}"
+                )
+            if model_type in self.model_filepaths:
+                model_path = os.path.join(self.bundle_root, self.model_filepaths[model_type])
+                if not os.path.isfile(model_path):
+                    raise ValueError(f"No best model checkpoint exists at {model_path}")
+                weights = torch.load(model_path, map_location="cpu")
+                # if weights contain several state dicts, use the one defined by `save_dict_key`
+                if isinstance(weights, dict) and self.save_dict_key in weights:
+                    weights = weights.get(self.save_dict_key)
+                weigh_type = WeightType.WEIGHTS
+                stats = dict()
+                self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
+            else:
+                raise ValueError(
+                    f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
+                )
         else:
-            weights = None
-            weigh_type = None
-            stats = dict()
+            if self.trainer:
+                weights = get_state_dict(self.trainer.network)
+                # returned weights will be on the cpu
+                for k in weights.keys():
+                    weights[k] = weights[k].cpu()
+                weigh_type = WeightType.WEIGHTS
+                stats = self.trainer.get_stats()
+                # calculate current iteration and epoch data after training.
+                stats[FlStatistics.NUM_EXECUTED_ITERATIONS] = self.trainer.state.iteration - self.iter_of_start_time
+                # compute weight differences
+                if self.send_weight_diff:
+                    weights = compute_weight_diff(global_weights=self.global_weights, local_var_dict=weights)
+                    weigh_type = WeightType.WEIGHT_DIFF
+                    self.logger.info("Returning current weight differences.")
+                else:
+                    self.logger.info("Returning current weights.")
+            else:
+                weights = None
+                weigh_type = None
+                stats = dict()
 
         if not isinstance(stats, dict):
             raise ValueError(f"stats is not a dict, {stats}")
@@ -307,11 +374,13 @@ class MonaiAlgo(ClientAlgo):
 
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
-        global_weights = convert_global_weights(
-            global_weights=data.weights, local_var_dict=get_state_dict(self.evaluator.network)
-        )
+        local_var_dict = get_state_dict(self.evaluator.network)
+        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        self._check_converted(data.weights, local_var_dict, n_converted)
 
-        copy_model_state(src=global_weights, dst=self.evaluator.network)
+        _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
+        if len(updated_keys) == 0:
+            self.logger.warning("No weights loaded!")
         self.logger.info(f"Start {self.client_name} evaluating...")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.evaluator.run(self.trainer.state.epoch + 1)
@@ -330,17 +399,13 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} trainer...")
-            self.trainer.terminate()
-            self.trainer.state.dataloader_iter = self.trainer._dataloader_iter  # type: ignore
-            if self.trainer.state.iteration % self.trainer.state.epoch_length == 0:
-                self.trainer._fire_event(Events.EPOCH_COMPLETED)
+            self.trainer.interrupt()
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
-            self.evaluator.terminate()
+            self.evaluator.interrupt()
 
     def finalize(self, extra=None):
         """
@@ -348,10 +413,6 @@ class MonaiAlgo(ClientAlgo):
         Args:
             extra: Dict with additional information that can be provided by FL system.
         """
-
-        # TODO: finalize feature could be built into the MONAI Trainer class
-        if extra is None:
-            extra = {}
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} trainer...")
@@ -359,3 +420,30 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
+
+    def _check_converted(self, global_weights, local_var_dict, n_converted):
+        if n_converted == 0:
+            self.logger.warning(
+                f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}"
+            )
+        else:
+            self.logger.info(
+                f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
+            )
+
+    def _add_config_files(self, config_files):
+        files = []
+        if config_files:
+            if isinstance(config_files, str):
+                files.append(os.path.join(self.bundle_root, config_files))
+            elif isinstance(config_files, list):
+                for file in config_files:
+                    if isinstance(file, str):
+                        files.append(os.path.join(self.bundle_root, file))
+                    else:
+                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+            else:
+                raise ValueError(
+                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+                )
+        return files

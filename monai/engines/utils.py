@@ -22,7 +22,9 @@ from monai.utils.enums import CommonKeys, GanKeys
 if TYPE_CHECKING:
     from ignite.engine import EventEnum
 else:
-    EventEnum, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum")
+    EventEnum, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
+    )
 
 __all__ = [
     "IterationEvents",
@@ -90,30 +92,54 @@ def get_devices_spec(devices: Optional[Sequence[torch.device]] = None) -> List[t
 
 
 def default_prepare_batch(
-    batchdata: Dict[str, torch.Tensor],
+    batchdata: Union[Dict[str, torch.Tensor], torch.Tensor, Sequence[torch.Tensor]],
     device: Optional[Union[str, torch.device]] = None,
     non_blocking: bool = False,
     **kwargs,
 ) -> Union[Tuple[torch.Tensor, Optional[torch.Tensor]], torch.Tensor]:
     """
     Default function to prepare the data for current iteration.
-    Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
-    https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
-    `kwargs` supports other args for `Tensor.to()` API.
+
+    The input `batchdata` is either a single tensor, a pair of tensors, or a dictionary of data. In the first case the
+    return value is the tensor and None, in the second case the return value is the two tensors, and in the dictionary
+    case the return value depends on what keys are present. if `CommonKeys.IMAGE` and `CommonKeys.LABEL` are present
+    then the tensors they key to are returned, if only `CommonKeys.IMAGE` is present that tensor and None is returned.
+    If `CommonKeys.REALS` is present this is returned with None. All returned tensors are moved to the given device
+    using the given non-blocking argument before being returned.
+
+    This function implemenets the expected API for a `prepare_batch` callable in Ignite:
+    https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html
+
+    Args:
+        batchdata: input batch data which is either a single tensor, a pair, or a dictionary
+        device: device to move every returned tensor to
+        non_blocking: equivalent argument for `Tensor.to`
+        kwargs: further arguments for `Tensor.to`
 
     Returns:
         image, label(optional).
-
     """
     if not isinstance(batchdata, dict):
-        raise AssertionError("default prepare_batch expects dictionary input data.")
+        if isinstance(batchdata, torch.Tensor):
+            return batchdata.to(device=device, non_blocking=non_blocking, **kwargs), None
+        elif len(batchdata) == 2:
+            image, label = batchdata
+            return (
+                image.to(device=device, non_blocking=non_blocking, **kwargs),
+                label.to(device=device, non_blocking=non_blocking, **kwargs),
+            )
+
+        raise AssertionError("Default prepare_batch expects a single tensor, a tensor pair, or dictionary input data.")
+
     if isinstance(batchdata.get(CommonKeys.LABEL), torch.Tensor):
         return (
             batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking, **kwargs),
             batchdata[CommonKeys.LABEL].to(device=device, non_blocking=non_blocking, **kwargs),
         )
+
     if GanKeys.REALS in batchdata:
         return batchdata[GanKeys.REALS].to(device=device, non_blocking=non_blocking, **kwargs)
+
     return batchdata[CommonKeys.IMAGE].to(device=device, non_blocking=non_blocking, **kwargs), None
 
 
@@ -124,7 +150,6 @@ class PrepareBatch(ABC):
     Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
     https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
     `kwargs` supports other args for `Tensor.to()` API.
-
     """
 
     @abstractmethod
@@ -140,13 +165,12 @@ class PrepareBatch(ABC):
 
 class PrepareBatchDefault(PrepareBatch):
     """
-    Default prepare batch method to return `image` and `label` only,
-    it's to be consistent with `default_prepare_batch` API.
+    This wraps `default_prepare_batch` to return `image` and `label` only, so is consistent with its API.
     """
 
     def __call__(
         self,
-        batchdata: Dict[str, torch.Tensor],
+        batchdata: Union[Dict[str, torch.Tensor], torch.Tensor, Sequence[torch.Tensor]],
         device: Optional[Union[str, torch.device]] = None,
         non_blocking: bool = False,
         **kwargs,
@@ -162,16 +186,15 @@ class PrepareBatchDefault(PrepareBatch):
 
 class PrepareBatchExtraInput(PrepareBatch):
     """
-    Customized prepare_batch for trainer or evaluator that support extra input data for network.
-    Extra items are specified by the `extra_keys` parameter.
+    Customized prepare batch callable for trainers or evaluators which support extra input data for the network.
+    Extra items are specified by the `extra_keys` parameter and are extracted from the input dictionary (ie. the batch).
+    This uses `default_prepare_batch` but requires dictionary inputs.
 
     Args:
-        extra_keys: if a string or list provided, every item is the key of extra data in current batch,
-            and will pass the extra data to the `network(*args)` in order.
-            If a dictionary is provided, every `{k, v}` pair is the key of extra data in current batch,
-            `k` is the param name in network, `v` is the key of extra data in current batch,
-            and will pass the `{k1: batch[v1], k2: batch[v2], ...}` as kwargs to the network.
-
+        extra_keys: If a string or sequence of strings is provided, values from the input dictionary are extracted from
+            those keys and passed to the nework as extra positional arguments. If a dictionary is provided, every pair
+            `(k, v)` in that dictionary will become a new keyword argument assigning to `k` the value in the input
+            dictionary keyed to `v`.
     """
 
     def __init__(self, extra_keys: Union[str, Sequence[str], Dict[str, str]]) -> None:
@@ -188,7 +211,6 @@ class PrepareBatchExtraInput(PrepareBatch):
         Args `batchdata`, `device`, `non_blocking` refer to the ignite API:
         https://pytorch.org/ignite/v0.4.8/generated/ignite.engine.create_supervised_trainer.html.
         `kwargs` supports other args for `Tensor.to()` API.
-
         """
         image, label = default_prepare_batch(batchdata, device, non_blocking, **kwargs)
         args_ = list()
@@ -196,9 +218,11 @@ class PrepareBatchExtraInput(PrepareBatch):
 
         def _get_data(key: str):
             data = batchdata[key]
-            return (
-                data.to(device=device, non_blocking=non_blocking, **kwargs) if isinstance(data, torch.Tensor) else data
-            )
+
+            if isinstance(data, torch.Tensor):
+                data = data.to(device=device, non_blocking=non_blocking, **kwargs)
+
+            return data
 
         if isinstance(self.extra_keys, (str, list, tuple)):
             for k in ensure_tuple(self.extra_keys):

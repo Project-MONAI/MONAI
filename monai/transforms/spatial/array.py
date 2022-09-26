@@ -64,7 +64,7 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PytorchPadMode, TraceKeys, TransformBackends, WSIPatchKeys
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -116,7 +116,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
     by ``xform = linalg.solve(src_affine, dst_affine)``, and call ``monai.transforms.Affine`` with ``xform``.
     """
 
-    backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,
@@ -139,9 +139,9 @@ class SpatialResample(InvertibleTransform, LazyTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
         """
         self.mode = mode
         self.padding_mode = padding_mode
@@ -161,7 +161,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         """
         Small fn to simplify returning data. If `MetaTensor`, update affine. Elif
         tracking metadata is desired, create `MetaTensor` with affine. Else, return
-        image as `torch.Tensor`. Output type is always `torch.float32`.
+        image as `torch.Tensor`. Output type is always `float32`.
 
         Also append the transform to the stack.
         """
@@ -304,16 +304,13 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         if additional_dims:
             xform_shape = [-1] + in_spatial_size
             img = img.reshape(xform_shape)  # type: ignore
-        if align_corners:
-            _t_r = torch.eye(len(xform), dtype=xform.dtype, device=xform.device)
-            for idx, d_dst in enumerate(spatial_size[:spatial_rank]):
-                _t_r[idx, -1] = (max(d_dst, 2) - 1.0) / 2.0
-            xform = xform @ _t_r
-            if not USE_COMPILED and not isinstance(mode, int):
-                _t_l = normalize_transform(
-                    in_spatial_size, xform.device, xform.dtype, align_corners=True  # type: ignore
-                )[0]
-                xform = _t_l @ xform
+        if isinstance(mode, int):
+            dst_xform_1 = normalize_transform(spatial_size, xform.device, xform.dtype, True, True)[0]  # to (-1, 1)
+            if not align_corners:
+                norm = create_scale(spatial_rank, [(max(d, 2) - 1) / d for d in spatial_size], xform.device, "torch")
+                dst_xform_1 = norm.to(xform.dtype) @ dst_xform_1  # type: ignore  # scaling (num_step - 1) / num_step
+            dst_xform_d = normalize_transform(spatial_size, xform.device, xform.dtype, align_corners, False)[0]
+            xform = xform @ torch.inverse(dst_xform_d) @ dst_xform_1
             affine_xform = Affine(
                 affine=xform, spatial_size=spatial_size, normalized=True, image_only=True, dtype=_dtype
             )
@@ -322,7 +319,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         else:
             affine_xform = AffineTransform(
                 normalized=False,
-                mode=mode,  # type: ignore
+                mode=mode,
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 reverse_indexing=True,
@@ -451,6 +448,8 @@ class Spacing(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        scale_extent: bool = False,
+        recompute_affine: bool = False,
         image_only: bool = False,
     ) -> None:
         """
@@ -487,13 +486,22 @@ class Spacing(InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                default False. The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
+            recompute_affine: whether to recompute affine based on the output shape. The affine computed
+                analytically does not reflect the potential quantization errors in terms of the output shape.
+                Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.diagonal = diagonal
+        self.scale_extent = scale_extent
+        self.recompute_affine = recompute_affine
 
         self.sp_resample = SpatialResample(
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
@@ -512,6 +520,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         padding_mode: Optional[str] = None,
         align_corners: Optional[bool] = None,
         dtype: DtypeLike = None,
+        scale_extent: Optional[bool] = None,
         output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None,
     ) -> torch.Tensor:
         """
@@ -534,7 +543,11 @@ class Spacing(InvertibleTransform, LazyTransform):
                 Defaults to ``None``, effectively using the value of `self.align_corners`.
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
+            scale_extent: whether the scale is computed based on the spacing or the full extent of voxels,
+                The option is ignored if output spatial size is specified when calling this transform.
+                See also: :py:func:`monai.data.utils.compute_shape_offset`. When this is True, `align_corners`
+                should be `True` because `compute_shape_offset` already provides the corner alignment shift/scaling.
             output_spatial_shape: specify the shape of the output data_array. This is typically useful for
                 the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
                 error with the affine.
@@ -551,7 +564,6 @@ class Spacing(InvertibleTransform, LazyTransform):
         sr = len(original_spatial_shape)
         if sr <= 0:
             raise ValueError("data_array must have at least one spatial dimension.")
-        input_affine: Optional[NdarrayOrTensor] = None
         affine_: np.ndarray
         if affine is not None:
             warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
@@ -566,25 +578,31 @@ class Spacing(InvertibleTransform, LazyTransform):
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (sr - out_d.size))
 
+        if not align_corners and scale_extent:
+            warnings.warn("align_corners=False is not compatible with scale_extent=True.")
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine)
+        scale_extent = self.scale_extent if scale_extent is None else scale_extent
+        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
         new_affine[:sr, -1] = offset[:sr]
         # convert to MetaTensor if necessary
         data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        data_array.affine = torch.as_tensor(affine_)  # type: ignore
+        if isinstance(data_array, MetaTensor):
+            data_array.affine = torch.as_tensor(affine_)
 
         # we don't want to track the nested transform otherwise two will be appended
+        actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
-            spatial_size=list(output_shape) if output_spatial_shape is None else output_spatial_shape,
+            spatial_size=actual_shape,
             mode=mode,
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
         )
-
+        if self.recompute_affine and isinstance(data_array, MetaTensor):
+            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
         return data_array
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -990,9 +1008,9 @@ class Rotate(InvertibleTransform, LazyTransform):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float32``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1004,7 +1022,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = np.float32,
+        dtype: Union[DtypeLike, torch.dtype] = torch.float32,
     ) -> None:
         self.angle = angle
         self.keep_size = keep_size
@@ -1036,7 +1054,7 @@ class Rotate(InvertibleTransform, LazyTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
@@ -1472,9 +1490,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         align_corners: Defaults to False.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
-        dtype: data type for resampling computation. Defaults to ``np.float32``.
+        dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
-            the output data type is always ``np.float32``.
+            the output data type is always ``float32``.
     """
 
     backend = Rotate.backend
@@ -1544,7 +1562,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
-                the output data type is always ``np.float32``.
+                the output data type is always ``float32``.
             randomize: whether to execute `randomize()` function first, default to True.
         """
         if randomize:
@@ -1562,7 +1580,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             rotator.set_eager_mode(self.eager_mode)
             out = rotator(img)
         else:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
+            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         if get_track_meta():
             rot_info = self.pop_transform(out, check=False) if self._do_transform else {}
             self.push_transform(out, extra_info=rot_info)
@@ -1781,7 +1799,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize(img=img)
 
         if not self._do_transform:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
+            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         else:
             xform = Zoom(
                 self._zoom,
@@ -1826,27 +1844,22 @@ class AffineGrid(Transform, LazyTransform):
             pixel/voxel relative to the center of the input image. Defaults to no translation.
         scale_params: scale factor for every spatial dims. a tuple of 2 floats for 2D,
             a tuple of 3 floats for 3D. Defaults to `1.0`.
-        dtype: data type for the grid computation. Defaults to ``np.float32``.
+        dtype: data type for the grid computation. Defaults to ``float32``.
             If ``None``, use the data type of input data (if `grid` is provided).
         device: device on which the tensor will be allocated, if a new grid is generated.
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial dimensions + 1.
 
-    .. deprecated:: 0.6.0
-        ``as_tensor_output`` is deprecated.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_params: Optional[Union[Sequence[float], float]] = None,
         shear_params: Optional[Union[Sequence[float], float]] = None,
         translate_params: Optional[Union[Sequence[float], float]] = None,
         scale_params: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         affine: Optional[NdarrayOrTensor] = None,
@@ -1920,14 +1933,12 @@ class RandAffineGrid(Randomizable, Transform, LazyTransform):
 
     backend = AffineGrid.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         rotate_range: RandRange = None,
         shear_range: RandRange = None,
         translate_range: RandRange = None,
         scale_range: RandRange = None,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
     ) -> None:
@@ -1964,9 +1975,6 @@ class RandAffineGrid(Randomizable, Transform, LazyTransform):
             - :py:meth:`monai.transforms.utils.create_shear`
             - :py:meth:`monai.transforms.utils.create_translate`
             - :py:meth:`monai.transforms.utils.create_scale`
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         self.rotate_range = ensure_tuple(rotate_range)
@@ -2029,7 +2037,7 @@ class RandAffineGrid(Randomizable, Transform, LazyTransform):
         if not self.eager_mode:  # return the affine only, don't construct the grid
             return affine_grid(spatial_size, grid)[1]  # type: ignore
         _grid: torch.Tensor
-        _grid, self.affine = affine_grid(spatial_size, grid)
+        _grid, self.affine = affine_grid(spatial_size, grid)  # type: ignore
         return _grid
 
     def get_transformation_matrix(self) -> Optional[torch.Tensor]:
@@ -2090,12 +2098,10 @@ class Resample(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
-        as_tensor_output: bool = True,
         norm_coords: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float64,
@@ -2127,12 +2133,9 @@ class Resample(Transform):
                 `[-1, 1]` (for torch ``grid_sample`` implementation) to be compatible with the underlying
                 resampling API.
             device: device on which the tensor will be allocated.
-            dtype: data type for resampling computation. Defaults to ``np.float64`` for best precision.
+            dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         self.mode = mode
@@ -2186,7 +2189,8 @@ class Resample(Transform):
         _dtype = dtype or self.dtype or img.dtype
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         grid_t, *_ = convert_to_dst_type(grid, img_t, dtype=grid.dtype, wrap_sequence=True)
-        grid_t = grid_t.clone(memory_format=torch.contiguous_format)  # type: ignore
+        grid_t = grid_t.clone(memory_format=torch.contiguous_format)
+
         if self.norm_coords:
             grid_t[-1] = where(grid_t[-1] != 0, grid_t[-1], 1.0)  # type: ignore
         sr = min(len(img_t.shape[1:]), 3)
@@ -2257,7 +2261,6 @@ class Affine(InvertibleTransform, LazyTransform):
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     @deprecated_arg(name="norm_coords", since="0.8")
     def __init__(
         self,
@@ -2271,7 +2274,6 @@ class Affine(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.REFLECTION,
         normalized: bool = False,
         norm_coords: bool = True,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
         dtype: DtypeLike = np.float32,
         image_only: bool = False,
@@ -2323,13 +2325,11 @@ class Affine(InvertibleTransform, LazyTransform):
                 If `normalized=False`, additional coordinate normalization will be applied before resampling.
                 See also: :py:func:`monai.networks.utils.normalize_transform`.
             device: device on which the tensor will be allocated.
-            dtype: data type for resampling computation. Defaults to ``np.float32``.
+            dtype: data type for resampling computation. Defaults to ``float32``.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always `float32`.
             image_only: if True return only the image volume, otherwise return (image, affine).
 
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
         .. deprecated:: 0.8.1
             ``norm_coords`` is deprecated, please use ``normalized`` instead
             (the new flag is a negation, i.e., ``norm_coords == not normalized``).
@@ -2442,7 +2442,7 @@ class Affine(InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
 
 
 class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -2454,7 +2454,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     backend = Affine.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
@@ -2466,7 +2465,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
-        as_tensor_output: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2521,9 +2519,6 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2720,7 +2715,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             out = MetaTensor(out)
         out.meta = data.meta  # type: ignore
         self.update_meta(out, inv_affine, data.shape[1:], orig_size)
-        return out  # type: ignore
+        return out
 
 
 class Rand2DElastic(RandomizableTransform):
@@ -2732,7 +2727,6 @@ class Rand2DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         spacing: Union[Tuple[float, float], float],
@@ -2745,7 +2739,6 @@ class Rand2DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int], int]] = None,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2798,9 +2791,6 @@ class Rand2DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -2898,7 +2888,6 @@ class Rand3DElastic(RandomizableTransform):
 
     backend = Resample.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         sigma_range: Tuple[float, float],
@@ -2911,7 +2900,6 @@ class Rand3DElastic(RandomizableTransform):
         spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
         mode: Union[str, int] = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
-        as_tensor_output: bool = False,
         device: Optional[torch.device] = None,
     ) -> None:
         """
@@ -2967,9 +2955,6 @@ class Rand3DElastic(RandomizableTransform):
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
             - :py:class:`Affine` for the affine transformation parameters configurations.
-
-        .. deprecated:: 0.6.0
-            ``as_tensor_output`` is deprecated.
 
         """
         RandomizableTransform.__init__(self, prob)
@@ -3052,7 +3037,7 @@ class Rand3DElastic(RandomizableTransform):
             grid = self.rand_affine_grid(grid=grid)
         out: torch.Tensor = self.resampler(
             img,
-            grid,
+            grid,  # type: ignore
             mode=mode if mode is not None else self.mode,
             padding_mode=padding_mode if padding_mode is not None else self.padding_mode,
         )
@@ -3154,7 +3139,7 @@ class GridDistortion(Transform):
         coords = meshgrid_ij(*all_ranges)
         grid = torch.stack([*coords, torch.ones_like(coords[0])])
 
-        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)  # type: ignore
+        return self.resampler(img, grid=grid, mode=mode, padding_mode=padding_mode)
 
 
 class RandGridDistortion(RandomizableTransform):
@@ -3348,6 +3333,9 @@ class GridPatch(Transform):
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
 
+    Returns:
+        MetaTensor: A MetaTensor consisting of a batch of all the patches with associated metadata
+
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -3431,21 +3419,24 @@ class GridPatch(Transform):
         elif self.threshold:
             patched_image, locations = self.filter_threshold(patched_image, locations)
 
-        # Convert to original data type
-        output = list(
-            zip(
-                convert_to_dst_type(src=patched_image, dst=array)[0],
-                convert_to_dst_type(src=locations, dst=array, dtype=int)[0],
-            )
-        )
-
         # Pad the patch list to have the requested number of patches
-        if self.num_patches and len(output) < self.num_patches:
-            patch = convert_to_dst_type(
-                src=np.full((array.shape[0], *self.patch_size), self.pad_kwargs.get("constant_values", 0)), dst=array
-            )[0]
-            start_location = convert_to_dst_type(src=np.zeros(len(self.patch_size)), dst=array)[0]
-            output += [(patch, start_location)] * (self.num_patches - len(output))
+        if self.num_patches:
+            padding = self.num_patches - len(patched_image)
+            if padding > 0:
+                patched_image = np.pad(
+                    patched_image,
+                    [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
+                    constant_values=self.pad_kwargs.get("constant_values", 0),
+                )
+                locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
+
+        # Convert to MetaTensor
+        metadata = array.meta if isinstance(array, MetaTensor) else MetaTensor.get_default_meta()
+        metadata[WSIPatchKeys.LOCATION] = locations.T
+        metadata[WSIPatchKeys.COUNT] = len(locations)
+        metadata["spatial_shape"] = np.tile(np.array(self.patch_size), (len(locations), 1)).T
+        output = MetaTensor(x=patched_image, meta=metadata)
+        output.is_batch = True
 
         return output
 
@@ -3470,6 +3461,9 @@ class RandGridPatch(GridPatch, RandomizableTransform):
             Defaults to no filtering.
         pad_mode: refer to NumpyPadMode and PytorchPadMode. If None, no padding will be applied. Defaults to ``"constant"``.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+
+    Returns:
+        MetaTensor: A MetaTensor consisting of a batch of all the patches with associated metadata
 
     """
 

@@ -55,6 +55,7 @@ from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (
     MAX_SEED,
     ImageMetaKey,
+    MONAIEnvVars,
     check_parent_dir,
     copy_to_device,
     ensure_tuple,
@@ -74,11 +75,13 @@ from .misc import (
     save_obj,
     set_determinism,
     star_zip_with,
+    str2bool,
     zip_with,
 )
 from .module import (
     InvalidPyTorchVersionError,
     OptionalImportError,
+    allow_missing_reference,
     damerau_levenshtein_distance,
     exact_version,
     export,
@@ -92,6 +95,8 @@ from .module import (
     optional_import,
     pytorch_after,
     require_pkg,
+    run_debug,
+    run_eval,
     version_leq,
 )
 from .nvtx import Range

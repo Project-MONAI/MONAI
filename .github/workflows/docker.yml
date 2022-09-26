@@ -91,7 +91,7 @@ jobs:
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai

@@ -48,6 +48,10 @@ __all__ = [
     "MetaKeys",
     "ColorOrder",
     "EngineStatsKeys",
+    "DataStatsKeys",
+    "ImageStatsKeys",
+    "LabelStatsKeys",
+    "AlgoEnsembleKeys",
 ]
 
 
@@ -377,11 +381,16 @@ class PostFix(StrEnum):
 
 class TransformBackends(StrEnum):
     """
-    Transform backends.
+    Transform backends. Most of `monai.transforms` components first converts the input data into ``torch.Tensor`` or
+    ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
+    ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
+    converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
+    convert the input data types to accomodate the underlying API.
     """
 
     TORCH = "torch"
     NUMPY = "numpy"
+    CUPY = "cupy"
 
 
 class JITMetadataKeys(StrEnum):
@@ -460,10 +469,10 @@ class WSIPatchKeys(StrEnum):
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "patch_location"
-    LEVEL = "patch_level"
-    SIZE = "patch_size"
-    COUNT = "num_patches"
+    LOCATION = "location"
+    LEVEL = "level"
+    SIZE = "size"
+    COUNT = "count"
     PATH = "path"
 
 
@@ -527,3 +536,55 @@ class EngineStatsKeys(StrEnum):
     TOTAL_ITERATIONS = "total_iterations"
     BEST_VALIDATION_EPOCH = "best_validation_epoch"
     BEST_VALIDATION_METRIC = "best_validation_metric"
+
+
+class DataStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis modules
+
+    """
+
+    SUMMARY = "stats_summary"
+    BY_CASE = "stats_by_cases"
+    BY_CASE_IMAGE_PATH = "image_filepath"
+    BY_CASE_LABEL_PATH = "label_filepath"
+    IMAGE_STATS = "image_stats"
+    FG_IMAGE_STATS = "image_foreground_stats"
+    LABEL_STATS = "label_stats"
+
+
+class ImageStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis image modules
+
+    """
+
+    SHAPE = "shape"
+    CHANNELS = "channels"
+    CROPPED_SHAPE = "cropped_shape"
+    SPACING = "spacing"
+    INTENSITY = "intensity"
+
+
+class LabelStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis label modules
+
+    """
+
+    LABEL_UID = "labels"
+    PIXEL_PCT = "pixel_percentage"
+    IMAGE_INTST = "image_intensity"
+    LABEL = "label"
+    LABEL_SHAPE = "shape"
+    LABEL_NCOMP = "ncomponents"
+
+
+class AlgoEnsembleKeys(StrEnum):
+    """
+    Default keys for Mixed Ensemble
+    """
+
+    ID = "identifier"
+    ALGO = "infer_algo"
+    SCORE = "best_metric"

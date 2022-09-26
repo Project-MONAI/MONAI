@@ -210,3 +210,10 @@ Applications
 `ComplexConj`
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
+
+`auto3dseg`
+-----------
+
+.. automodule:: monai.apps.auto3dseg
+  :members:
+  :imported-members:
