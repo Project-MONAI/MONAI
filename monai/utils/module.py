@@ -205,7 +205,7 @@ def load_submodules(basemod, load_all: bool = True, exclude_pattern: str = "(.*[
                 msg = (
                     "\nMultiple versions of MONAI may have been installed?\n"
                     "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
-                )
+                )  # issue project-monai/monai#5193
                 raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
 
     return submodules, err_mod
