@@ -580,8 +580,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
-            prob: probability of rotating.
-                (Default 0.1, with 10% probability it returns a rotated array.)
+            prob: probability of scale.
+                (Default 0.1, with 10% probability it returns a scaled array.)
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
