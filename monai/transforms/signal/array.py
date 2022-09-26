@@ -13,6 +13,7 @@ A collection of transforms for signal operations
 https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
+import warnings
 from typing import Any, Optional, Sequence
 
 import numpy as np
@@ -27,7 +28,9 @@ from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
 shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
-filtfilt, has_filtfilt = optional_import("torchaudio.functional", name="filtfilt")
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", UserWarning)  # project-monai/monai#5204
+    filtfilt, has_filtfilt = optional_import("torchaudio.functional", name="filtfilt")
 central_frequency, has_central_frequency = optional_import("pywt", name="central_frequency")
 cwt, has_cwt = optional_import("pywt", name="cwt")
 
