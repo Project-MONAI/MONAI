@@ -15,6 +15,7 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
+from itertools import zip_longest
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -24,7 +25,7 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
+from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
@@ -437,6 +438,8 @@ class Spacing(InvertibleTransform):
         dtype: DtypeLike = np.float64,
         scale_extent: bool = False,
         recompute_affine: bool = False,
+        min_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
+        max_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
         image_only: bool = False,
     ) -> None:
         """
@@ -483,12 +486,24 @@ class Spacing(InvertibleTransform):
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
+            min_pixdim: minimal input spacing to be resampled. If provided, input image with a larger spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
+            max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
+        self.min_pixdim = np.array(ensure_tuple(min_pixdim), dtype=np.float64)
+        self.max_pixdim = np.array(ensure_tuple(max_pixdim), dtype=np.float64)
         self.diagonal = diagonal
         self.scale_extent = scale_extent
         self.recompute_affine = recompute_affine
+
+        for mn, mx in zip(self.min_pixdim, self.max_pixdim):
+            if (not np.isnan(mn)) and (not np.isnan(mx)) and ((mx < mn) or (mn < 0)):
+                raise ValueError(f"min_pixdim {self.min_pixdim} must be positive, smaller than max {self.max_pixdim}.")
 
         self.sp_resample = SpatialResample(
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
@@ -560,6 +575,16 @@ class Spacing(InvertibleTransform):
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
             out_d = np.append(out_d, [1.0] * (sr - out_d.size))
+        orig_d = affine_to_spacing(affine_, sr, out_d.dtype)
+        for idx, (_d, mn, mx) in enumerate(
+            zip_longest(orig_d, self.min_pixdim[:sr], self.max_pixdim[:sr], fillvalue=np.nan)
+        ):
+            target = out_d[idx]
+            mn = target if np.isnan(mn) else min(mn, target)
+            mx = target if np.isnan(mx) else max(mx, target)
+            if mn > mx:
+                raise ValueError(f"min_pixdim is larger than max_pixdim at dim {idx}: min {mn} max {mx} out {target}.")
+            out_d[idx] = _d if (mn - AFFINE_TOL) <= _d <= (mx + AFFINE_TOL) else target
 
         if not align_corners and scale_extent:
             warnings.warn("align_corners=False is not compatible with scale_extent=True.")
