@@ -388,10 +388,12 @@ class Spacingd(MapTransform, InvertibleTransform):
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
-            min_pixdim: minimally allowed input spacing. If provided, input image with a larger spacing than this value
-                will be kept the same (not be resampled to `pixdim`) by this transform, default to `None`.
-            max_pixdim: maximally allowed input spacing. If provided, input image with a smaller spacing than this value
-                will be kept the same (not be resampled to `pixdim`) by this transform, default to `None`.
+            min_pixdim: minimal input spacing to be resampled. If provided, input image with a larger spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
+            max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """

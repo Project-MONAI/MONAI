@@ -486,10 +486,12 @@ class Spacing(InvertibleTransform):
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
-            min_pixdim: minimally allowed input spacing. If provided, input image with a larger spacing than this value
-                will be kept the same (not be resampled to `pixdim`) by this transform, default to `None`.
-            max_pixdim: maximally allowed input spacing. If provided, input image with a smaller spacing than this value
-                will be kept the same (not be resampled to `pixdim`) by this transform, default to `None`.
+            min_pixdim: minimal input spacing to be resampled. If provided, input image with a larger spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
+            max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
 
         """
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
@@ -500,8 +502,8 @@ class Spacing(InvertibleTransform):
         self.recompute_affine = recompute_affine
 
         for mn, mx in zip(self.min_pixdim, self.max_pixdim):
-            if (not np.isnan(mn)) and (not np.isnan(mx)) and (mx < mn):
-                raise ValueError(f"min_pixdim {self.min_pixdim} must be smaller than the max {self.max_pixdim}.")
+            if (not np.isnan(mn)) and (not np.isnan(mx)) and ((mx < mn) or (mn < 0)):
+                raise ValueError(f"min_pixdim {self.min_pixdim} must be positive, smaller than max {self.max_pixdim}.")
 
         self.sp_resample = SpatialResample(
             mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
@@ -578,14 +580,11 @@ class Spacing(InvertibleTransform):
             zip_longest(orig_d, self.min_pixdim[:sr], self.max_pixdim[:sr], fillvalue=np.nan)
         ):
             target = out_d[idx]
-            if np.isnan(mn) and np.isnan(mx):
-                continue
-            elif not np.isnan(mn) and np.isnan(mx):
-                out_d[idx] = _d if _d > mn else target
-            elif not np.isnan(mx) and np.isnan(mn):
-                out_d[idx] = _d if _d < mx else target
-            else:
-                out_d[idx] = _d if mn < _d < mx else target
+            mn = target if np.isnan(mn) else min(mn, target)
+            mx = target if np.isnan(mx) else max(mx, target)
+            if mn > mx:
+                raise ValueError(f"min_pixdim is larger than max_pixdim at dim {idx}: min {mn} max {mx} out {target}.")
+            out_d[idx] = _d if (mn - AFFINE_TOL) <= _d <= (mx + AFFINE_TOL) else target
 
         if not align_corners and scale_extent:
             warnings.warn("align_corners=False is not compatible with scale_extent=True.")

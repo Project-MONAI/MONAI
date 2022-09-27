@@ -306,7 +306,7 @@ class TestSpacingCase(unittest.TestCase):
         img_out = tr(img)
         if isinstance(img_out, MetaTensor):
             assert_allclose(
-                img_out.pixdim, [1.0, 1.0, 0.888889] if recompute else [1.0, 1.0, 0.9], type_test=False, rtol=1e-4
+                img_out.pixdim, [1.0, 1.125, 0.888889] if recompute else [1.0, 1.2, 0.9], type_test=False, rtol=1e-4
             )
         img_out = tr.inverse(img_out)
         self.assertEqual(img_out.applied_operations, [])
