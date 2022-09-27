@@ -127,10 +127,14 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: GenerateSuccinctContour
+    :members:
 .. autoclass:: PostProcessHoVerNetOutput
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: GenerateSuccinctContourd
+    :members:
 .. autoclass:: PostProcessHoVerNetOutputd
     :members:
 

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from turtle import width
 from typing import Hashable, Mapping, Optional, Sequence, Union
 
 import torch
@@ -19,12 +20,46 @@ from monai.networks.nets import HoVerNet
 from monai.transforms.transform import MapTransform
 from monai.utils import optional_import
 
-from .array import PostProcessHoVerNetOutput
+from .array import GenerateSuccinctContour, PostProcessHoVerNetOutput
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
 moments, _ = optional_import("skimage.measure", name="moments")
 
-__all__ = ["PostProcessHoVerNetOutputDict", "PostProcessHoVerNetOutputD", "PostProcessHoVerNetOutputd"]
+__all__ = [
+    "GenerateSuccinctContourDict",
+    "GenerateSuccinctContourD",
+    "GenerateSuccinctContourd",
+    "PostProcessHoVerNetOutputDict", 
+    "PostProcessHoVerNetOutputD", 
+    "PostProcessHoVerNetOutputd",
+]
+
+
+class GenerateSuccinctContourd(MapTransform):
+    """
+    Args:
+        height: height of bounding box, used to detect direction of line segment.
+        width: width of bounding box, used to detect direction of line segment.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+    backend = GenerateSuccinctContour.backend
+    def __init__(
+        self, 
+        keys: KeysCollection,
+        height: int,
+        width: int,
+        allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = GenerateSuccinctContour(height=height, width=width)
+    
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+
+        return d
 
 
 class PostProcessHoVerNetOutputd(MapTransform):
@@ -114,3 +149,4 @@ class PostProcessHoVerNetOutputd(MapTransform):
 
 
 PostProcessHoVerNetOutputDict = PostProcessHoVerNetOutputD = PostProcessHoVerNetOutputd
+GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContourd

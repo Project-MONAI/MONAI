@@ -9,8 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import PostProcessHoVerNetOutput
-from .post.dictionary import PostProcessHoVerNetOutputD, PostProcessHoVerNetOutputd, PostProcessHoVerNetOutputDict
+from .post.array import GenerateSuccinctContour, PostProcessHoVerNetOutput
+from .post.dictionary import (
+    GenerateSuccinctContourD, 
+    GenerateSuccinctContourd, 
+    GenerateSuccinctContourDict,
+    PostProcessHoVerNetOutputD, 
+    PostProcessHoVerNetOutputd, 
+    PostProcessHoVerNetOutputDict,
+)
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
 from .stain.array import ExtractHEStains, NormalizeHEStains
