@@ -2644,6 +2644,12 @@ class Rand2DElastic(RandomizableTransform):
         super().set_random_state(seed, state)
         return self
 
+    def set_device(self, device):
+        self.deform_grid.device = device
+        self.rand_affine_grid.device = device
+        self.resampler.device = device
+        self.device = device
+
     def randomize(self, spatial_size: Sequence[int]) -> None:
         super().randomize(None)
         if not self._do_transform:
@@ -2811,6 +2817,11 @@ class Rand3DElastic(RandomizableTransform):
         self.rand_affine_grid.set_random_state(seed, state)
         super().set_random_state(seed, state)
         return self
+
+    def set_device(self, device):
+        self.rand_affine_grid.device = device
+        self.resampler.device = device
+        self.device = device
 
     def randomize(self, grid_size: Sequence[int]) -> None:
         super().randomize(None)
