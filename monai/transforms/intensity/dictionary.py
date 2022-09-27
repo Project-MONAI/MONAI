@@ -15,7 +15,7 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -206,13 +206,14 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random noise
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_gaussian_noise.randomize(d[first_key])  # type: ignore
+        self.rand_gaussian_noise.randomize(d[first_key])
+
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -661,13 +662,14 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
             return d
 
         # all the keys share the same random bias factor
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])  # type: ignore
+        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])
+
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -1551,8 +1553,8 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
@@ -1624,8 +1626,8 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             for key in self.key_iterator(d):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
