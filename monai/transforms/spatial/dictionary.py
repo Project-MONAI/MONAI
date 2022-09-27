@@ -335,6 +335,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         recompute_affine: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
+        min_pixdim: Union[Sequence[float], float, None] = None,
+        max_pixdim: Union[Sequence[float], float, None] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -386,11 +388,19 @@ class Spacingd(MapTransform, InvertibleTransform):
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
+            min_pixdim: minimal input spacing to be resampled. If provided, input image with a larger spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
+            max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, recompute_affine=recompute_affine)
+        self.spacing_transform = Spacing(
+            pixdim, diagonal=diagonal, recompute_affine=recompute_affine, min_pixdim=min_pixdim, max_pixdim=max_pixdim
+        )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
