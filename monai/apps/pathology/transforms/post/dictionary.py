@@ -29,8 +29,8 @@ __all__ = [
     "GenerateSuccinctContourDict",
     "GenerateSuccinctContourD",
     "GenerateSuccinctContourd",
-    "PostProcessHoVerNetOutputDict", 
-    "PostProcessHoVerNetOutputD", 
+    "PostProcessHoVerNetOutputDict",
+    "PostProcessHoVerNetOutputD",
     "PostProcessHoVerNetOutputd",
 ]
 
@@ -45,7 +45,7 @@ class GenerateSuccinctContourd(MapTransform):
     """
     backend = GenerateSuccinctContour.backend
     def __init__(
-        self, 
+        self,
         keys: KeysCollection,
         height: int,
         width: int,
@@ -53,7 +53,7 @@ class GenerateSuccinctContourd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = GenerateSuccinctContour(height=height, width=width)
-    
+
     def __call__(self, data):
         d = dict(data)
         for key in self.key_iterator(d):

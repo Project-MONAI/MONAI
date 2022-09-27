@@ -53,10 +53,10 @@ class GenerateSuccinctContour(Transform):
         ) -> None:
         self.height = height
         self.width = width
-        
+
     def _generate_contour_coord(self, current:  np.ndarray, previous: np.ndarray) -> Sequence[int]:
         """
-        Generate contour coordinates. Given the previous and current coordinates of border positions, 
+        Generate contour coordinates. Given the previous and current coordinates of border positions,
         returns the int pixel that marks the extremity of the segmented pixels.
 
         Args:
@@ -107,7 +107,7 @@ class GenerateSuccinctContour(Transform):
         return distance
 
     def __call__(self, contours: List[np.ndarray]) -> np.ndarray:
-        """        
+        """
         Args:
             contours: list of (n, 2)-ndarrays, scipy-style clockwise line segments, with lines separating foreground/background.
                 Each contour is an ndarray of shape (n, 2), consisting of n (row, column) coordinates along the contour.
@@ -159,7 +159,7 @@ class GenerateSuccinctContour(Transform):
                     if pixel != last_added:
                         sequence.append(pixel)
                         last_added = pixel
-                
+
                 # flag whether each corner has been crossed
                 if i == len(group) - 1:
                     if corner == 0:
@@ -179,7 +179,7 @@ class GenerateSuccinctContour(Transform):
             dist = self._calculate_distance_from_topleft(sequence)
 
             sequences.append({"distance": dist, "sequence": sequence})
-    
+
         # check whether we need to insert any missing corners
         if corners[0] is False:
             sequences.append({"distance": 0, "sequence": [(0, 0)]})

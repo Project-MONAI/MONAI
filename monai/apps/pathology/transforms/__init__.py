@@ -11,11 +11,11 @@
 
 from .post.array import GenerateSuccinctContour, PostProcessHoVerNetOutput
 from .post.dictionary import (
-    GenerateSuccinctContourD, 
-    GenerateSuccinctContourd, 
+    GenerateSuccinctContourD,
+    GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
-    PostProcessHoVerNetOutputD, 
-    PostProcessHoVerNetOutputd, 
+    PostProcessHoVerNetOutputD,
+    PostProcessHoVerNetOutputd,
     PostProcessHoVerNetOutputDict,
 )
 from .spatial.array import SplitOnGrid, TileOnGrid

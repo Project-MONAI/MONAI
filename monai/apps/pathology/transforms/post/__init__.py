@@ -11,10 +11,10 @@
 
 from .array import GenerateSuccinctContour, PostProcessHoVerNetOutput
 from .dictionary import (
-    GenerateSuccinctContourD, 
-    GenerateSuccinctContourd, 
+    GenerateSuccinctContourD,
+    GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
-    PostProcessHoVerNetOutputD, 
-    PostProcessHoVerNetOutputd, 
+    PostProcessHoVerNetOutputD,
+    PostProcessHoVerNetOutputd,
     PostProcessHoVerNetOutputDict,
 )
