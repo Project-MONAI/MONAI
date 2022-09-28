@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Mapping, Sequence, Union
+from typing import Dict, Hashable, Mapping, Sequence, Union, Callable
 
 import torch
 
@@ -36,6 +36,9 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         radius: the radius of the disk-shaped footprint. Defaults to 2.
+        gaussian: whether need to smooth the image to be applied by the watershed segmentation. Defaults to False.
+        remove_small_objects: whether need to remove some objects in segmentation results and marker. Defaults to False.
+        marker_postprocess_fn: execute additional post transformation on marker. Defaults to None.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -55,12 +58,22 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
         kernel_size: int = 21,
         radius: int = 2,
+        gaussian: bool = False,
+        remove_small_objects: bool = False,
+        marker_postprocess_fn: Callable = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
         self.transform = CalcualteInstanceSegmentationMap(
-            threshold_overall=threshold_overall, min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius
+            threshold_overall=threshold_overall, 
+            min_size=min_size, 
+            sigma=sigma, 
+            kernel_size=kernel_size, 
+            radius=radius,
+            gaussian=gaussian,
+            remove_small_objects=remove_small_objects,
+            marker_postprocess_fn=marker_postprocess_fn,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

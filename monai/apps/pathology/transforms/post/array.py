@@ -9,16 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from dis import dis
+from typing import Callable, Sequence, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects
+from monai.data.meta_obj import get_track_meta
+from monai.networks.layers.simplelayers import GaussianFilter
+from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -38,9 +41,12 @@ class CalcualteInstanceSegmentationMap(Transform):
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
-        sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
+        sigma: std. Used in `GaussianFilter`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         radius: the radius of the disk-shaped footprint. Defaults to 2.
+        gaussian: whether need to smooth the image to be applied by the watershed segmentation. Defaults to False.
+        remove_small_objects: whether need to remove some objects in segmentation results and marker. Defaults to False.
+        marker_postprocess_fn: execute additional post transformation on marker. Defaults to None.
 
     """
 
@@ -53,14 +59,20 @@ class CalcualteInstanceSegmentationMap(Transform):
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
         kernel_size: int = 21,
         radius: int = 2,
+        gaussian: bool = False,
+        remove_small_objects: bool = False,
+        marker_postprocess_fn: Callable = None,
     ) -> None:
         self.sigma = sigma
         self.radius = radius
         self.kernel_size = kernel_size
+        self.threshold_overall = threshold_overall
+        self.gaussian = gaussian
+        self.remove_small_objects = remove_small_objects
+        self.marker_postprocess_fn = marker_postprocess_fn
 
-        self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
-        self.overall_discreter = AsDiscrete(threshold=threshold_overall)
-        self.fill_holes = FillHoles()
+        if self.remove_small_objects:
+            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
 
     def __call__(self, seg_pred: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
@@ -85,21 +97,23 @@ class CalcualteInstanceSegmentationMap(Transform):
         if hover_map.shape[0] != 2:
             raise ValueError("Hover map should be with shape [2, H, W]!")
 
-        pred = convert_to_numpy(seg_pred)
-        hover_map = convert_to_numpy(hover_map)
+        if isinstance(seg_pred, torch.Tensor):
+            seg_pred = seg_pred.detach().cpu().numpy()
+        pred = convert_to_tensor(seg_pred, track_meta=get_track_meta())
+        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
 
-        # processing
         pred = label(pred)[0]
-        pred = self.remove_small_objects(pred)
+        if self.remove_small_objects:
+            pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1
 
-        hover_h = hover_map[0, ...]
-        hover_v = hover_map[1, ...]
+        hover_h = hover_map[0: 1, ...]
+        hover_v = hover_map[1: 2, ...]
 
         hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))
         hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))
-        sobelh = cv2.Sobel(hover_h, cv2.CV_64F, 1, 0, ksize=self.kernel_size)
-        sobelv = cv2.Sobel(hover_v, cv2.CV_64F, 0, 1, ksize=self.kernel_size)
+        sobelh = SobelGradients(kernel_size=self.kernel_size)(hover_h)[0, ...]
+        sobelv = SobelGradients(kernel_size=self.kernel_size)(hover_v)[1, ...]
         sobelh = 1 - (sobelh - np.min(sobelh)) / (np.max(sobelh) - np.min(sobelh))
         sobelv = 1 - (sobelv - np.min(sobelv)) / (np.max(sobelv) - np.min(sobelv))
 
@@ -109,21 +123,25 @@ class CalcualteInstanceSegmentationMap(Transform):
         overall[overall < 0] = 0
 
         dist = (1.0 - overall) * pred
+        if self.gaussian:
+            spatial_dim = len(dist.shape)- 1
+            gaussian = GaussianFilter(spatial_dims=spatial_dim, sigma=self.sigma)
+            dist = convert_to_tensor(dist[None])
+            dist = convert_to_numpy(gaussian(dist)).squeeze(0)
 
-        # nuclei values form mountains so inverse to get basins
-        dist = -gaussian(dist, sigma=self.sigma)
-
-        overall = self.overall_discreter(overall)
+        overall = overall >= self.threshold_overall
 
         marker = pred - overall
         marker[marker < 0] = 0
-        marker = self.fill_holes(marker)
-
-        marker = opening(marker.squeeze(0), disk(self.radius))
+        if self.marker_postprocess_fn:
+            marker = self.marker_postprocess_fn(marker)
+        marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]
-        marker = self.remove_small_objects(marker[None])
+        if self.remove_small_objects:
+            marker = self.remove_small_objects(marker[None])
 
-        proced_pred = watershed(dist, markers=marker, mask=pred)
+        # nuclei values form mountains so inverse to get basins
+        proced_pred = watershed(-dist, markers=marker, mask=pred)
         pred, *_ = convert_to_dst_type(proced_pred, seg_pred)
 
         return pred  # type: ignore
