@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dis import dis
 from typing import Callable, Sequence, Union
 
 import numpy as np
@@ -18,7 +17,7 @@ import torch
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects, SobelGradients
+from monai.transforms.post.array import RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
@@ -27,8 +26,6 @@ label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
-gaussian, _ = optional_import("skimage.filters", name="gaussian")
-cv2, _ = optional_import("cv2")
 
 __all__ = ["CalcualteInstanceSegmentationMap"]
 
@@ -61,18 +58,19 @@ class CalcualteInstanceSegmentationMap(Transform):
         radius: int = 2,
         gaussian: bool = False,
         remove_small_objects: bool = False,
-        marker_postprocess_fn: Callable = None,
+        marker_postprocess_fn: Callable = None,  # type: ignore
     ) -> None:
         self.sigma = sigma
         self.radius = radius
         self.kernel_size = kernel_size
         self.threshold_overall = threshold_overall
         self.gaussian = gaussian
-        self.remove_small_objects = remove_small_objects
         self.marker_postprocess_fn = marker_postprocess_fn
 
-        if self.remove_small_objects:
+        if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+        else:
+            self.remove_small_objects = None  # type: ignore
 
     def __call__(self, seg_pred: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
@@ -107,8 +105,8 @@ class CalcualteInstanceSegmentationMap(Transform):
             pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1
 
-        hover_h = hover_map[0: 1, ...]
-        hover_v = hover_map[1: 2, ...]
+        hover_h = hover_map[0:1, ...]
+        hover_v = hover_map[1:2, ...]
 
         hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))
         hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))
@@ -124,7 +122,7 @@ class CalcualteInstanceSegmentationMap(Transform):
 
         dist = (1.0 - overall) * pred
         if self.gaussian:
-            spatial_dim = len(dist.shape)- 1
+            spatial_dim = len(dist.shape) - 1
             gaussian = GaussianFilter(spatial_dims=spatial_dim, sigma=self.sigma)
             dist = convert_to_tensor(dist[None])
             dist = convert_to_numpy(gaussian(dist)).squeeze(0)

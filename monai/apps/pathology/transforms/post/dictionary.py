@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Mapping, Sequence, Union, Callable
+from typing import Callable, Dict, Hashable, Mapping, Sequence, Union
 
 import torch
 
@@ -60,16 +60,16 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         radius: int = 2,
         gaussian: bool = False,
         remove_small_objects: bool = False,
-        marker_postprocess_fn: Callable = None,
+        marker_postprocess_fn: Callable = None,  # type: ignore
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
         self.transform = CalcualteInstanceSegmentationMap(
-            threshold_overall=threshold_overall, 
-            min_size=min_size, 
-            sigma=sigma, 
-            kernel_size=kernel_size, 
+            threshold_overall=threshold_overall,
+            min_size=min_size,
+            sigma=sigma,
+            kernel_size=kernel_size,
             radius=radius,
             gaussian=gaussian,
             remove_small_objects=remove_small_objects,
