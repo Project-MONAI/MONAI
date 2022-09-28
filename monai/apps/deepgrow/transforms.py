@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
-from typing import Callable, Dict, Hashable, List, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -656,8 +656,8 @@ class SpatialCropGuidanced(MapTransform):
 
     def __call__(self, data):
         d: Dict = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             return d
 
         guidance = d[self.guidance]
