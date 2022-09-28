@@ -15,10 +15,9 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import get_track_meta
 from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects
 from monai.transforms.transform import Transform
-from monai.utils import TransformBackends, convert_to_numpy, convert_to_tensor, optional_import
+from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
@@ -36,7 +35,6 @@ class CalcualteInstanceSegmentationMap(Transform):
     Process Nuclei Prediction with XY Coordinate Map.
 
     Args:
-        threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
@@ -50,7 +48,6 @@ class CalcualteInstanceSegmentationMap(Transform):
 
     def __init__(
         self,
-        threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
         min_size: int = 10,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
@@ -62,14 +59,14 @@ class CalcualteInstanceSegmentationMap(Transform):
         self.kernel_size = kernel_size
 
         self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
-        self.pred_discreter = AsDiscrete(threshold=threshold_pred)
         self.overall_discreter = AsDiscrete(threshold=threshold_overall)
         self.fill_holes = FillHoles()
 
-    def __call__(self, prob_map: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, seg_pred: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
-            prob_map: the probability map output of the NP branch, shape must be [1, H, W].
+            seg_pred: the output of the NP(segmentation) branch, shape must be [1, H, W].
+                `seg_pred` have been applied activation layer and must be binarized.
             hover_map: the horizontal and vertical distances of nuclear pixels to their centres
                 of mass output from the HV branch, shape must be [2, H, W].
 
@@ -77,27 +74,21 @@ class CalcualteInstanceSegmentationMap(Transform):
             instance labelled segmentation map with shape [1, H, W].
 
         Raises:
-            ValueError: when the `prob_map` dimension is not [1, H, W].
+            ValueError: when the `seg_pred` dimension is not [1, H, W].
             ValueError: when the `hover_map` dimension is not [2, H, W].
 
         """
-        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta())
-        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
-
-        if prob_map.shape[0] != 1:
-            raise ValueError("Only supports single channel probability map!")
-
+        if len(seg_pred.shape) != 3 or len(hover_map.shape) != 3:  # only for 2D
+            raise ValueError("Only support 2D, shape must be [C, H, W]!")
+        if seg_pred.shape[0] != 1:
+            raise ValueError("Only supports single channel segmentation prediction!")
         if hover_map.shape[0] != 2:
-            raise ValueError("Hover map should with shape (2, H, W)!")
+            raise ValueError("Hover map should be with shape [2, H, W]!")
 
-        if len(prob_map.shape) > 3 or len(hover_map.shape) > 3:  # only for 2D
-            raise ValueError("Only supports probability map with shape (1, H, W)!")
-
-        pred = convert_to_numpy(prob_map)
+        pred = convert_to_numpy(seg_pred)
         hover_map = convert_to_numpy(hover_map)
 
         # processing
-        pred = self.pred_discreter(pred)
         pred = label(pred)[0]
         pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1
@@ -133,6 +124,6 @@ class CalcualteInstanceSegmentationMap(Transform):
         marker = self.remove_small_objects(marker[None])
 
         proced_pred = watershed(dist, markers=marker, mask=pred)
-        pred, *_ = convert_to_dst_type(proced_pred, prob_map)
+        pred, *_ = convert_to_dst_type(proced_pred, seg_pred)
 
         return pred  # type: ignore

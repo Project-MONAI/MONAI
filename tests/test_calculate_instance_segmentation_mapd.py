@@ -24,57 +24,31 @@ _, has_scipy = optional_import("scipy", "1.8.1", min_version)
 _, has_cv2 = optional_import("cv2")
 
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
-
 prediction = np.load(test_data_path)
+params = {"threshold_overall": 0.4, "min_size": 10, "sigma": 0.4, "kernel_size": 21, "radius": 2}
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    prob_map = prediction["prob_map"][None]
-    hover_maph = prediction["hover_map_h"][None]
-    hover_mapv = prediction["hover_map_v"][None]
+    seg_pred = prediction["seg_pred_act"]
+    hover_map = prediction["hover_map"]
     expected = prediction["pred_instance"][None]
-    hover_map = np.concatenate([hover_maph, hover_mapv])
 
-    TESTS.append(
-        [
-            {
-                "threshold_pred": 0.5,
-                "threshold_overall": 0.4,
-                "min_size": 10,
-                "sigma": 0.4,
-                "kernel_size": 21,
-                "radius": 2,
-            },
-            p,
-            prob_map,
-            hover_map,
-            expected,
-        ]
-    )
+    TESTS.append([params, p, seg_pred, hover_map, expected])
 
 ERROR_TESTS = []
 for p in TEST_NDARRAYS:
-    prob_map1 = np.zeros([2, 64, 64])
+    seg_pred1 = np.zeros([2, 64, 64])
     hover_map1 = np.zeros([2, 64, 64])
 
-    prob_map2 = np.zeros([1, 1, 64, 64])
+    seg_pred2 = np.zeros([1, 1, 64, 64])
     hover_map2 = np.zeros([2, 64, 64])
 
-    prob_map3 = np.zeros([1, 64, 64])
+    seg_pred3 = np.zeros([1, 64, 64])
     hover_map3 = np.zeros([2, 1, 64, 64])
 
-    params = {
-        "threshold_pred": 0.5,
-        "threshold_overall": 0.4,
-        "min_size": 10,
-        "sigma": 0.4,
-        "kernel_size": 21,
-        "radius": 2,
-    }
-
-    ERROR_TESTS.append([params, p, prob_map1, hover_map1])
-    ERROR_TESTS.append([params, p, prob_map2, hover_map2])
-    ERROR_TESTS.append([params, p, prob_map3, hover_map3])
+    ERROR_TESTS.append([params, p, seg_pred1, hover_map1])
+    ERROR_TESTS.append([params, p, seg_pred2, hover_map2])
+    ERROR_TESTS.append([params, p, seg_pred3, hover_map3])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
@@ -82,17 +56,17 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_cv2, "OpenCV required.")
 class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, in_type, probs_map, hover_map, expected):
-        data = {"image": in_type(probs_map), "hover": in_type(hover_map)}
-        output = CalcualteInstanceSegmentationMapd(keys="image", hover_key="hover", **args)(data)
+    def test_output(self, args, in_type, seg_pred, hover_map, expected):
+        data = {"seg_pred": in_type(seg_pred), "hover": in_type(hover_map)}
+        output = CalcualteInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)(data)
 
-        self.assertTupleEqual(output["image"].shape, expected.shape)
-        assert_allclose(output["image"], expected, type_test=False)
+        self.assertTupleEqual(output["seg_pred"].shape, expected.shape)
+        assert_allclose(output["seg_pred"], expected, type_test=False)
 
     @parameterized.expand(ERROR_TESTS)
-    def test_value_error(self, args, in_type, probs_map, hover_map):
-        data = {"image": in_type(probs_map), "hover": in_type(hover_map)}
-        calculate_instance_seg = CalcualteInstanceSegmentationMapd(keys="image", hover_key="hover", **args)
+    def test_value_error(self, args, in_type, seg_pred, hover_map):
+        data = {"seg_pred": in_type(seg_pred), "hover": in_type(hover_map)}
+        calculate_instance_seg = CalcualteInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)
         with self.assertRaises(ValueError):
             calculate_instance_seg(data)
 

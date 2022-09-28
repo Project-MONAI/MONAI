@@ -30,7 +30,6 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
     Args:
         keys: keys of the corresponding items to model output.
         hover_keys: keys of the probability map from nucleus prediction branch.
-        threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
@@ -40,7 +39,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
-            ValueError: when the `prob_map` dimension is not [1, H, W].
+            ValueError: when the `seg_pred` dimension is not [1, H, W].
             ValueError: when the `hover_map` dimension is not [2, H, W].
 
     """
@@ -51,7 +50,6 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         self,
         keys: KeysCollection,
         hover_key: str,
-        threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
         min_size: int = 10,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
@@ -62,12 +60,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
         self.transform = CalcualteInstanceSegmentationMap(
-            threshold_pred=threshold_pred,
-            threshold_overall=threshold_overall,
-            min_size=min_size,
-            sigma=sigma,
-            kernel_size=kernel_size,
-            radius=radius,
+            threshold_overall=threshold_overall, min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
