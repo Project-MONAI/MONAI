@@ -19,7 +19,7 @@ from monai.transforms.croppad.array import BoundingRect
 
 from monai.transforms.post.array import CalcualteInstanceSegmentationMap, Activations, AsDiscrete
 from monai.transforms.transform import Transform
-from monai.utils import convert_to_numpy, optional_import, convert_to_dst_type
+from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
