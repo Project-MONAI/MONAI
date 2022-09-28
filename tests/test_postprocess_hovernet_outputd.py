@@ -27,16 +27,16 @@ test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovern
 prediction = np.load(test_data_path)
 
 kwargs = {
-            "keys": "seg_pred",
-            "hover_pred_key": "hover_map",
-            "type_pred_key": "type_pred",
-            "inst_info_dict_key": "inst_info",
-            "threshold_overall": 0.4,
-            "min_size": 10,
-            "sigma": 0.4,
-            "kernel_size": 21,
-            "radius": 2,
-        }
+    "keys": "seg_pred",
+    "hover_pred_key": "hover_map",
+    "type_pred_key": "type_pred",
+    "inst_info_dict_key": "inst_info",
+    "threshold_overall": 0.4,
+    "min_size": 10,
+    "sigma": 0.4,
+    "kernel_size": 21,
+    "radius": 2,
+}
 
 TESTS = []
 for p in TEST_NDARRAYS:

@@ -16,17 +16,29 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import GenerateSuccinctContour
 
-TEST_CASE_1 = [[np.array([[1.5, 0. ], [1. , 0.5], [0.5, 1. ], [0. , 1.5]]),
-                np.array([[0. , 2.5], [0.5, 3. ], [1. , 3.5], [1.5, 4. ]]),
-                np.array([[4. , 1.5], [3.5, 1. ], [3. , 0.5], [2.5, 0. ]]),
-                np.array([[2.5, 4. ], [3. , 3.5], [3.5, 3. ], [4. , 2.5]])], 5, 5, [[2, 0], [0, 2], [2, 4], [4, 2]]]
+TEST_CASE_1 = [
+    [
+        np.array([[1.5, 0.0], [1.0, 0.5], [0.5, 1.0], [0.0, 1.5]]),
+        np.array([[0.0, 2.5], [0.5, 3.0], [1.0, 3.5], [1.5, 4.0]]),
+        np.array([[4.0, 1.5], [3.5, 1.0], [3.0, 0.5], [2.5, 0.0]]),
+        np.array([[2.5, 4.0], [3.0, 3.5], [3.5, 3.0], [4.0, 2.5]]),
+    ],
+    5,
+    5,
+    [[2, 0], [0, 2], [2, 4], [4, 2]],
+]
 
-TEST_CASE_2 = [[np.array([[1.5, 0. ], [1. , 0.5], [0.5, 1. ], [0.5, 2. ], [0. , 2.5]]),
-                np.array([[0. , 3.5], [0.5, 4. ], [0.5, 5. ], [1. , 5.5], [1.5, 6. ]]),
-                np.array([[4. , 2.5], [3.5, 2. ], [3.5, 1. ], [3. , 0.5], [2.5, 0. ]]),
-                np.array([[2.5, 6. ], [3. , 5.5], [3.5, 5. ], [3.5, 4. ], [4. , 3.5]])], 5, 7,
-                [[3, 0], [2, 1], [1, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 3], [5, 3], [6, 2], [5, 1], [4, 1]]]
-
+TEST_CASE_2 = [
+    [
+        np.array([[1.5, 0.0], [1.0, 0.5], [0.5, 1.0], [0.5, 2.0], [0.0, 2.5]]),
+        np.array([[0.0, 3.5], [0.5, 4.0], [0.5, 5.0], [1.0, 5.5], [1.5, 6.0]]),
+        np.array([[4.0, 2.5], [3.5, 2.0], [3.5, 1.0], [3.0, 0.5], [2.5, 0.0]]),
+        np.array([[2.5, 6.0], [3.0, 5.5], [3.5, 5.0], [3.5, 4.0], [4.0, 3.5]]),
+    ],
+    5,
+    7,
+    [[3, 0], [2, 1], [1, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 3], [5, 3], [6, 2], [5, 1], [4, 1]],
+]
 
 
 class TestGenerateSuccinctContour(unittest.TestCase):
@@ -34,7 +46,6 @@ class TestGenerateSuccinctContour(unittest.TestCase):
     def test_shape(self, test_data, height, width, expected):
         result = GenerateSuccinctContour(height=height, width=width)(test_data)
         np.testing.assert_allclose(result, expected)
-
 
 
 if __name__ == "__main__":

@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from turtle import width
 from typing import Hashable, Mapping, Optional, Sequence, Union
 
 import torch
@@ -43,14 +42,10 @@ class GenerateSuccinctContourd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     """
+
     backend = GenerateSuccinctContour.backend
-    def __init__(
-        self,
-        keys: KeysCollection,
-        height: int,
-        width: int,
-        allow_missing_keys: bool = False
-    ) -> None:
+
+    def __init__(self, keys: KeysCollection, height: int, width: int, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = GenerateSuccinctContour(height=height, width=width)
 
@@ -139,7 +134,7 @@ class PostProcessHoVerNetOutputd(MapTransform):
                 type_pred = None
 
             d[key], inst_info_dict = self.converter(seg_pred, hover_pred, type_pred)
-            d[self.inst_info_dict_key] = inst_info_dict
+            d[self.inst_info_dict_key] = inst_info_dict  # type: ignore
 
         return d
 

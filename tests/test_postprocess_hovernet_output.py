@@ -26,13 +26,7 @@ Image, has_pil = optional_import("PIL", name="Image")
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data_raw.npz")
 prediction = np.load(test_data_path)
 
-kwargs = {
-            "threshold_overall": 0.4,
-            "min_size": 10,
-            "sigma": 0.4,
-            "kernel_size": 21,
-            "radius": 2,
-        }
+kwargs = {"threshold_overall": 0.4, "min_size": 10, "sigma": 0.4, "kernel_size": 21, "radius": 2}
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -60,7 +54,6 @@ class TestPostProcessHoVerNetOutput(unittest.TestCase):
         self.assertEqual(output[1][pred_type[0]]["type"], None)
         self.assertEqual(output[1][pred_type[0]]["type_probability"], None)
         assert_allclose(output[0], expected, type_test=False)
-
 
 
 if __name__ == "__main__":
