@@ -66,10 +66,10 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
         self.transform = CalcualteInstanceSegmentationMap(
-            threshold_overall=threshold_overall, 
-            min_size=min_size, 
-            sigma=sigma, 
-            kernel_size=kernel_size, 
+            threshold_overall=threshold_overall,
+            min_size=min_size,
+            sigma=sigma,
+            kernel_size=kernel_size,
             radius=radius,
             gaussian=gaussian,
             remove_small_objects=remove_small_objects,

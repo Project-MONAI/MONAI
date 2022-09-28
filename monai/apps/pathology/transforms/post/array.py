@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dis import dis
 from typing import Callable, Sequence, Union
 
 import numpy as np
@@ -18,7 +17,7 @@ import torch
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.post.array import AsDiscrete, FillHoles, RemoveSmallObjects, SobelGradients
+from monai.transforms.post.array import RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
