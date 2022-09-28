@@ -28,7 +28,6 @@
 # =========================================================================
 
 from collections import OrderedDict
-from multiprocessing.sharedctypes import Value
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
