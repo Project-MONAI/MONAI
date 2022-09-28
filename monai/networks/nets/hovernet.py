@@ -28,6 +28,7 @@
 # =========================================================================
 
 from collections import OrderedDict
+from multiprocessing.sharedctypes import Value
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
@@ -388,7 +389,7 @@ class HoVerNet(nn.Module):
 
     def __init__(
         self,
-        mode: Union[HoVerNetMode, int] = HoVerNetMode.FAST,
+        mode: Union[HoVerNetMode, str] = HoVerNetMode.FAST,
         in_channels: int = 3,
         out_classes: int = 0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
@@ -398,10 +399,17 @@ class HoVerNet(nn.Module):
 
         super().__init__()
 
-        self.mode: int = mode.value if isinstance(mode, HoVerNetMode) else mode
+        if isinstance(mode, HoVerNetMode):
+            self.mode = mode.value
+        elif isinstance(mode, str):
+            self.mode = mode.upper()
+        else:
+            raise ValueError("`mode` should be either string or `HoVerNetMode` type.")
 
-        if mode not in [HoVerNetMode.ORIGINAL, HoVerNetMode.FAST]:
-            raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
+        if self.mode not in list(HoVerNetMode):
+            raise ValueError(
+                '`mode` should be either HoVerNetMode.FAST ("FAST") or HoVerNetMode.ORIGINAL ("ORIGINAL").'
+            )
 
         if out_classes > 128:
             raise ValueError("Number of nuclear types classes exceeds maximum (128)")
@@ -416,7 +424,7 @@ class HoVerNet(nn.Module):
         # number of layers in each pooling block.
         _block_config: Sequence[int] = (3, 4, 6, 3)
 
-        if mode == HoVerNetMode.FAST:
+        if self.mode == HoVerNetMode.FAST:
             _ksize = 3
             _pad = 3
         else:
@@ -485,7 +493,7 @@ class HoVerNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
-        if self.mode == 1:
+        if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
                 raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
         else:

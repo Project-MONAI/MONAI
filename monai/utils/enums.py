@@ -591,15 +591,15 @@ class AlgoEnsembleKeys(StrEnum):
     SCORE = "best_metric"
 
 
-class HoVerNetMode(Enum):
+class HoVerNetMode(StrEnum):
     """
     Modes for HoVerNet model:
     `FAST`: a faster implementation (than original)
     `ORIGINAL`: the original implementation
     """
 
-    FAST: int = 0
-    ORIGINAL: int = 1
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
 
 
 class HoVerNetBranch(StrEnum):

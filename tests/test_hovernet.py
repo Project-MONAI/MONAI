@@ -55,6 +55,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4]
 
 ILL_CASES = [
     [{"out_classes": 6, "mode": 3}],
+    [{"out_classes": 6, "mode": "Wrong"}],
     [{"out_classes": 1000, "mode": HoVerNetMode.ORIGINAL}],
     [{"out_classes": 1, "mode": HoVerNetMode.ORIGINAL}],
     [{"out_classes": 6, "mode": HoVerNetMode.ORIGINAL, "dropout_prob": 100}],
