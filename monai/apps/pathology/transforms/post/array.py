@@ -15,17 +15,15 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_tensor import get_track_meta
 from monai.transforms.croppad.array import BoundingRect
 
 from monai.transforms.post.array import CalcualteInstanceSegmentationMap, Activations, AsDiscrete
 from monai.transforms.transform import Transform
-from monai.utils import convert_to_numpy, convert_to_tensor, optional_import
+from monai.utils import convert_to_numpy, optional_import, convert_to_dst_type
 from monai.utils.enums import TransformBackends
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
 moments, _ = optional_import("skimage.measure", name="moments")
-
 
 __all__ = ["PostProcessHoVerNetOutput", "GenerateSuccinctContours"]
 
@@ -226,7 +224,6 @@ class PostProcessHoVerNetOutput(Transform):
         output_classes: number of types considered at output of NC branch.
         return_centroids: whether to generate coords for each nucleus instance.
             Defaults to True.
-        threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
@@ -241,7 +238,6 @@ class PostProcessHoVerNetOutput(Transform):
         self,
         output_classes: Optional[int] = None,
         return_centroids: bool = True,
-        threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
         min_size: int = 10,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
@@ -251,9 +247,10 @@ class PostProcessHoVerNetOutput(Transform):
         self.output_classes = output_classes
         self.return_centroids = return_centroids
 
+        self.activation = Activations(softmax=True)
+        self.asdiscrete = AsDiscrete(argmax=True)
         self.get_bbox = BoundingRect()
         self.get_instance_level_seg_map = CalcualteInstanceSegmentationMap(
-            threshold_pred=threshold_pred,
             threshold_overall=threshold_overall,
             min_size=min_size,
             sigma=sigma,
@@ -261,41 +258,43 @@ class PostProcessHoVerNetOutput(Transform):
             radius=radius,
         )
 
-    def __call__(self, np_pred: NdarrayOrTensor, hv_pred: NdarrayOrTensor, nc_pred: Optional[NdarrayOrTensor] = None):
+    def __call__(self, seg_pred: NdarrayOrTensor, hover_pred: NdarrayOrTensor, type_pred: Optional[NdarrayOrTensor] = None):
         """
         Args:
-            np_pred: segmentation branch output with shape [1, W, H, [D]].
-            hv_pred: hover map branch output with shape [2, W, H, [D]].
-            nc_pred: classification branch output with shape [1, W, H, [D]]. Defaults to None.
+            seg_pred: segmentation branch output with shape [2, H, W].
+            hover_pred: hover map branch output with shape [2, H, W].
+            type_pred: classification branch output with shape [B, H, W]. Defaults to None.
         Returns:
             pred_inst: pixel-wise nuclear instance segmentation prediction.
             inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour.
                 If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
         """
-        np_pred = convert_to_tensor(np_pred, track_meta=get_track_meta())
-        hv_pred = convert_to_tensor(hv_pred, track_meta=get_track_meta())
-        if nc_pred is not None:
-            nc_pred = AsDiscrete(argmax=True)(Activations(softmax=True)(nc_pred))
-            nc_pred = convert_to_tensor(nc_pred, track_meta=get_track_meta())
+        seg_pred = self.activation(seg_pred)
+        seg_pred = self.asdiscrete(seg_pred)
+        seg_pred = convert_to_numpy(seg_pred)
+        hover_pred = convert_to_numpy(hover_pred)
+        if type_pred is not None:
+            type_pred = self.activation(type_pred)
+            type_pred = self.asdiscrete(type_pred)
+            type_pred = convert_to_numpy(type_pred)
 
-        pred_inst = self.get_instance_level_seg_map(np_pred, hv_pred)
+        pred_inst = self.get_instance_level_seg_map(seg_pred, hover_pred)
 
         inst_info_dict = None
         if self.return_centroids or self.output_classes is not None:
-            inst_id_list = torch.unique(pred_inst)[1:]  # exlcude background
+            inst_id_list = np.unique(pred_inst)[1:]  # exlcude background
             inst_info_dict = {}
             for inst_id in inst_id_list:
                 inst_map = pred_inst == inst_id
                 inst_bbox = self.get_bbox(inst_map)
-                inst_map = inst_map[inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[1][0] : inst_bbox[1][1]]
-                inst_map_np = convert_to_numpy(inst_map.squeeze(), dtype=np.uint8)  # squeeze remove channel dim
-                inst_moment = moments(inst_map_np, order=3)
+                inst_map = inst_map[0, inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
+                inst_moment = moments(inst_map, order=3)
 
-                inst_contour_cv = find_contours(inst_map_np, 0.5)
+                inst_contour_cv = find_contours(inst_map, level=0.5)
                 generate_contour = GenerateSuccinctContour(inst_map.shape[0], inst_map.shape[1])
                 inst_contour = generate_contour(inst_contour_cv)
 
-                # < 3 points dont make a contour, so skip, likely artifact too
+                # < 3 points don't make a contour, so skip, likely artifact too
                 # as the contours obtained via approximation => too small or sthg
                 if inst_contour.shape[0] < 3:
                     continue
@@ -304,9 +303,9 @@ class PostProcessHoVerNetOutput(Transform):
 
                 inst_centroid = [(inst_moment[0, 1] / inst_moment[0, 0]), (inst_moment[1, 0] / inst_moment[0, 0])]
                 inst_centroid = np.array(inst_centroid)
-                inst_contour[:, 0] += inst_bbox[0][1]  # X
+                inst_contour[:, 0] += inst_bbox[0][2]  # X
                 inst_contour[:, 1] += inst_bbox[0][0]  # Y
-                inst_centroid[0] += inst_bbox[0][1]  # X why [0][1] represent x??
+                inst_centroid[0] += inst_bbox[0][2]  # X
                 inst_centroid[1] += inst_bbox[0][0]  # Y
                 inst_info_dict[inst_id] = {  # inst_id should start at 1
                     "bounding_box": inst_bbox,
@@ -315,14 +314,15 @@ class PostProcessHoVerNetOutput(Transform):
                     "type_probability": None,
                     "type": None,
                 }
+
         if self.output_classes is not None:
             for inst_id in list(inst_info_dict.keys()):
-                rmin, cmin, rmax, cmax = (inst_info_dict[inst_id]["bounding_box"]).flatten()
-                inst_map_crop = pred_inst[:, rmin:rmax, cmin:cmax]
-                inst_type_crop = nc_pred[:, rmin:rmax, cmin:cmax]
-                inst_map_crop = inst_map_crop == inst_id
+                rmin, rmax, cmin, cmax = (inst_info_dict[inst_id]["bounding_box"]).flatten()
+                inst_map_crop = pred_inst[0, rmin:rmax, cmin:cmax]
+                inst_type_crop = type_pred[0, rmin:rmax, cmin:cmax]
+                inst_map_crop = (inst_map_crop == inst_id)
                 inst_type = inst_type_crop[inst_map_crop]
-                type_list, type_pixels = torch.unique(inst_type, return_counts=True)
+                type_list, type_pixels = np.unique(inst_type, return_counts=True)
                 type_list = list(zip(type_list, type_pixels))
                 type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
                 inst_type = type_list[0][0]

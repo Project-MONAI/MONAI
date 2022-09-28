@@ -9,78 +9,63 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import PostProcessHoVerNetOutputd
-from monai.networks.nets import HoVerNet
-from monai.transforms.intensity.array import ComputeHoVerMaps
+from monai.apps.pathology.transforms.post.dictionary import PostProcessHoVerNetOutputd
 from monai.utils import min_version, optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
+Image, has_pil = optional_import("PIL", name="Image")
 
+test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data_raw.npz")
+prediction = np.load(test_data_path)
+
+kwargs = {
+            "keys": "seg_pred",
+            "hover_pred_key": "hover_map",
+            "type_pred_key": "type_pred",
+            "inst_info_dict_key": "inst_info",
+            "threshold_overall": 0.4,
+            "min_size": 10,
+            "sigma": 0.4,
+            "kernel_size": 21,
+            "radius": 2,
+        }
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TEST_CASE_MASK = np.zeros((1, 10, 10), dtype="int16")
-    TEST_CASE_MASK[:, 2:6, 2:6] = 1
-    TEST_CASE_MASK[:, 7:10, 7:10] = 2
-    mask = p(TEST_CASE_MASK)
+    type_pred = prediction["nc_map"]
+    seg_pred = prediction["prob_map"]
+    hover_map = prediction["hover_map"]
+    expected = prediction["pred_instance"][None]
 
-    TEST_CASE_NP = np.zeros((1, 10, 10))
-    TEST_CASE_NP[:, 2:6, 2:6] = 0.7
-    TEST_CASE_NP[:, 7:10, 7:10] = 0.6
-    probs_map_np = p(TEST_CASE_NP)
-
-    TEST_CASE_NC = np.zeros((2, 10, 10))
-    TEST_CASE_NC[0, 2:6, 2:6] = 0.8
-    TEST_CASE_NC[1, 2:6, 2:6] = 1.8
-    TEST_CASE_NC[0, 7:10, 7:10] = 0.6
-    TEST_CASE_NC[1, 7:10, 7:10] = 1.9
-    probs_map_nc = p(TEST_CASE_NC)
-
-    expected_shape = (1, 10, 10)
-    TESTS.append(
-        [
-            {
-                "output_classes": 2,
-                "threshold_pred": 0.5,
-                "threshold_overall": 0.4,
-                "min_size": 4,
-                "sigma": 0.4,
-                "kernel_size": 3,
-                "radius": 2,
-            },
-            p,
-            probs_map_np,
-            probs_map_nc,
-            mask,
-            expected_shape,
-        ]
-    )
+    TESTS.append([kwargs, p, type_pred, seg_pred, hover_map, expected, 20])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
+@unittest.skipUnless(has_pil, "Requires PIL library.")
 class TestPostProcessHoVerNetOutputd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, in_type, probs_map_np, probs_map_nc, mask, expected):
+    def test_output(self, args, in_type, type_pred, seg_pred, hover_map, expected, expected_num):
 
-        hover_map = in_type(ComputeHoVerMaps()(mask))
-        pred = {
-            HoVerNet.Branch.NP.value: probs_map_np,
-            HoVerNet.Branch.NC.value: probs_map_nc,
-            HoVerNet.Branch.HV.value: hover_map,
-        }
+        postprocesshovernetoutputd = PostProcessHoVerNetOutputd(**args)
+        input = {"seg_pred": in_type(seg_pred), "hover_map": in_type(hover_map), "type_pred": in_type(type_pred)}
+        output = postprocesshovernetoutputd(input)
+        pred_type = list(output["inst_info"].keys())
 
-        post_process_hovernet_output = PostProcessHoVerNetOutputd(keys=HoVerNet.Branch.NP.value, **args)
-        output = post_process_hovernet_output(pred)
-
-        # temporarily only test shape
-        self.assertTupleEqual(output[HoVerNet.Branch.NP.value].shape, expected)
-        self.assertIsInstance(output["inst_info"], dict)
+        self.assertIn("inst_info", output)
+        self.assertEqual(len(pred_type), expected_num)
+        self.assertEqual(output["inst_info"][pred_type[0]]["type"], None)
+        self.assertEqual(output["inst_info"][pred_type[0]]["type_probability"], None)
+        self.assertTupleEqual(output["seg_pred"].shape, expected.shape)
+        assert_allclose(output["seg_pred"], expected, type_test=False)
 
 
 if __name__ == "__main__":

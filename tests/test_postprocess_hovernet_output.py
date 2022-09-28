@@ -9,69 +9,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms import PostProcessHoVerNetOutput
-from monai.transforms.intensity.array import ComputeHoVerMaps
+from monai.apps.pathology.transforms.post.array import PostProcessHoVerNetOutput
 from monai.utils import min_version, optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
+Image, has_pil = optional_import("PIL", name="Image")
 
+test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data_raw.npz")
+prediction = np.load(test_data_path)
+
+kwargs = {
+            "threshold_overall": 0.4,
+            "min_size": 10,
+            "sigma": 0.4,
+            "kernel_size": 21,
+            "radius": 2,
+        }
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TEST_CASE_MASK = np.zeros((1, 10, 10), dtype="int16")
-    TEST_CASE_MASK[:, 2:6, 2:6] = 1
-    TEST_CASE_MASK[:, 7:10, 7:10] = 2
-    mask = p(TEST_CASE_MASK)
+    type_pred = prediction["nc_map"]
+    seg_pred = prediction["prob_map"]
+    hover_map = prediction["hover_map"]
+    expected = prediction["pred_instance"][None]
 
-    TEST_CASE_NP = np.zeros((1, 10, 10))
-    TEST_CASE_NP[:, 2:6, 2:6] = 0.7
-    TEST_CASE_NP[:, 7:10, 7:10] = 0.6
-    probs_map_np = p(TEST_CASE_NP)
-
-    TEST_CASE_NC = np.zeros((2, 10, 10))
-    TEST_CASE_NC[0, 2:6, 2:6] = 0.8
-    TEST_CASE_NC[1, 2:6, 2:6] = 1.8
-    TEST_CASE_NC[0, 7:10, 7:10] = 0.6
-    TEST_CASE_NC[1, 7:10, 7:10] = 1.9
-    probs_map_nc = p(TEST_CASE_NC)
-
-    expected_shape = (1, 10, 10)
-    TESTS.append(
-        [
-            {
-                "threshold_pred": 0.5,
-                "threshold_overall": 0.4,
-                "min_size": 4,
-                "sigma": 0.4,
-                "kernel_size": 3,
-                "radius": 2,
-            },
-            p,
-            probs_map_np,
-            probs_map_nc,
-            mask,
-            expected_shape,
-        ]
-    )
+    TESTS.append([kwargs, p, type_pred, seg_pred, hover_map, expected, 20])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
+@unittest.skipUnless(has_pil, "Requires PIL library.")
 class TestPostProcessHoVerNetOutput(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, in_type, probs_map_np, probs_map_nc, mask, expected):
-        hover_map = in_type(ComputeHoVerMaps()(mask))
+    def test_output(self, args, in_type, type_pred, seg_pred, hover_map, expected, expected_num):
 
         postprocesshovernetoutput = PostProcessHoVerNetOutput(**args)
-        output = postprocesshovernetoutput(probs_map_np, hover_map, probs_map_nc)
+        output = postprocesshovernetoutput(in_type(seg_pred), in_type(hover_map), in_type(type_pred))
+        pred_type = list(output[1].keys())
 
-        # temporarily only test shape
-        self.assertTupleEqual(output[0].shape, expected)
+        self.assertTupleEqual(output[0].shape, expected.shape)
+        self.assertEqual(len(pred_type), expected_num)
+        self.assertEqual(output[1][pred_type[0]]["type"], None)
+        self.assertEqual(output[1][pred_type[0]]["type_probability"], None)
+        assert_allclose(output[0], expected, type_test=False)
+
 
 
 if __name__ == "__main__":

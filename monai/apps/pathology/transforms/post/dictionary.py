@@ -69,20 +69,19 @@ class PostProcessHoVerNetOutputd(MapTransform):
     tranform, it will return pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary.
 
     Args:
-        hv_pred_key: hover map branch output key. Defaults to `HoVerNet.Branch.HV.value`.
-        nv_pred_key: classification branch output key. Defaults to `HoVerNet.Branch.NC.value`.
+        hover_pred_key: hover map branch output key. Defaults to `HoVerNet.Branch.HV.value`.
+        type_pred_key: classification branch output key. Defaults to `HoVerNet.Branch.NC.value`.
         inst_info_dict_key: a dict contaning a instance-level information dictionary will be added, which including bounding_box,
             centroid and contour. If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
             Defaults to "inst_info".
-        output_classes: number of types considered at output of NC branch.
+        output_classes: number of types considered at output of NC branch. Defaults to None.
         return_centroids: whether to generate coords for each nucleus instance.
             Defaults to True.
-        threshold_pred: threshold the float values of prediction to int 0 or 1 with specified theashold. Defaults to 0.5.
         threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
             Defaults to 0.4.
         min_size: objects smaller than this size are removed. Defaults to 10.
         sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        kernel_size: the size of the Sobel kernel. Defaults to 17.
+        kernel_size: the size of the Sobel kernel. Defaults to 21.
         radius: the radius of the disk-shaped footprint. Defaults to 2.
         allow_missing_keys: don't raise exception if key is missing.
     """
@@ -92,23 +91,21 @@ class PostProcessHoVerNetOutputd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection = HoVerNet.Branch.NP.value,
-        hv_pred_key: str = HoVerNet.Branch.HV.value,
-        nv_pred_key: str = HoVerNet.Branch.NC.value,
+        hover_pred_key: str = HoVerNet.Branch.HV.value,
+        type_pred_key: str = HoVerNet.Branch.NC.value,
         inst_info_dict_key: str = "inst_info",
         output_classes: Optional[int] = None,
         return_centroids: bool = True,
-        threshold_pred: float = 0.5,
         threshold_overall: float = 0.4,
         min_size: int = 10,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
-        kernel_size: int = 17,
+        kernel_size: int = 21,
         radius: int = 2,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.NP_pred_key = keys
-        self.hv_pred_key = hv_pred_key
-        self.nv_pred_key = nv_pred_key
+        self.hover_pred_key = hover_pred_key
+        self.type_pred_key = type_pred_key
         self.inst_info_dict_key = inst_info_dict_key
         self.output_classes = output_classes
         self.return_centroids = return_centroids
@@ -116,7 +113,6 @@ class PostProcessHoVerNetOutputd(MapTransform):
         self.converter = PostProcessHoVerNetOutput(
             output_classes=output_classes,
             return_centroids=return_centroids,
-            threshold_pred=threshold_pred,
             threshold_overall=threshold_overall,
             min_size=min_size,
             sigma=sigma,
@@ -135,14 +131,14 @@ class PostProcessHoVerNetOutputd(MapTransform):
         """
         d = dict(pred)
         for key in self.key_iterator(d):
-            np_pred = d[key]
-            hv_pred = d[self.hv_pred_key]
+            seg_pred = d[key]
+            hover_pred = d[self.hover_pred_key]
             if self.output_classes is not None:
-                NC_pred = d[self.nv_pred_key]
+                type_pred = d[self.type_pred_key]
             else:
-                NC_pred = None
+                type_pred = None
 
-            d[key], inst_info_dict = self.converter(np_pred, hv_pred, NC_pred)
+            d[key], inst_info_dict = self.converter(seg_pred, hover_pred, type_pred)
             d[self.inst_info_dict_key] = inst_info_dict
 
         return d
