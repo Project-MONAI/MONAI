@@ -36,11 +36,11 @@ class CalculateInstanceSegmentationMap(Transform):
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
 
     Args:
-        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection. 
+        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection.
             Following the scipy convention, default is a one-connected array of the dimension of the image.
 
     """
-    
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(self, connectivity: Optional[int] = 1) -> None:
@@ -85,7 +85,7 @@ class GenerateMask(Transform):
         sigmoid: bool = False,
         threshold: Optional[float] = None,
         argmax: bool = False,
-        remove_small_objects: bool = True, 
+        remove_small_objects: bool = True,
         min_size: int = 10
     ) -> None:
         self.activations = Activations(sigmoid=sigmoid, softmax=softmax)
@@ -115,7 +115,7 @@ class GenerateMask(Transform):
 
 class GenerateProbabilityMap(Transform):
     """
-    Generate foreground probability map by hover map. The more parts of the image that cannot be identified as foreground areas, 
+    Generate foreground probability map by hover map. The more parts of the image that cannot be identified as foreground areas,
     the larger the grey scale value. The grey value of the instance's border will be larger.
 
     Args:
@@ -124,11 +124,11 @@ class GenerateProbabilityMap(Transform):
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
 
     """
-    
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, 
+        self,
         kernel_size: int = 21,
         min_size: int = 10,
         remove_small_objects: bool = True,
@@ -144,9 +144,9 @@ class GenerateProbabilityMap(Transform):
         Args:
             mask: binarized segmentation result.  Shape must be [1, H, W].
             hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
-                The first and second channel represent the horizontal and vertical maps respectively. For more details refer 
+                The first and second channel represent the horizontal and vertical maps respectively. For more details refer
                 to papers: https://arxiv.org/abs/1812.06499.
-        
+
         Return:
             Foreground probability map.
         """
@@ -174,7 +174,7 @@ class GenerateProbabilityMap(Transform):
 class GenerateDistanceMap(Transform):
     """
     Generate distance map.
-    In general, the instance map is calculated from the distance to the background. Here, we use 1 - "foreground probability map" to 
+    In general, the instance map is calculated from the distance to the background. Here, we use 1 - "foreground probability map" to
     generate the distance map. Nnuclei values form mountains so inverse to get basins.
 
     Args:
@@ -182,11 +182,11 @@ class GenerateDistanceMap(Transform):
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify "guassian" or other callable functions.
             If specify "guassian", `GaussianFilter` will applied on distance map.
     """
-    
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, 
+        self,
         sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
         smooth_fn: Optional[Union[Callable, str]] = None,
     ) -> None:
@@ -216,20 +216,20 @@ class GenerateDistanceMap(Transform):
 
 class GenerateMarkers(Transform):
     """
-    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of the distance) 
-    are chosen as markers and the flooding of basins from such markers separates the two instances along a watershed line. 
+    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of the distance)
+    are chosen as markers and the flooding of basins from such markers separates the two instances along a watershed line.
     Here is the implementation from HoVerNet papar. For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
         threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
-            It turns uncertain area to 1 and other area to 0. Defaults to 0.4. 
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
 
     """
-    
+
     backend = [TransformBackends.NUMPY]
 
     def __init__(
@@ -267,6 +267,5 @@ class GenerateMarkers(Transform):
         marker = label(marker)[0]
         if self.remove_small_objects:
             marker = self.remove_small_objects(marker[None])
-        
+
         return convert_to_dst_type(marker, mask, dtype=np.uint8)[0]
-        
