@@ -17,6 +17,14 @@ from parameterized import parameterized
 from monai.networks.nets import DenseNet, DenseNet121
 from monai.visualize import OcclusionSensitivity
 
+
+class DenseNetAdjoint(DenseNet121):
+    def __call__(self, x, adjoint_info):
+        if adjoint_info != 42:
+            raise ValueError
+        return super().__call__(x)
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_channels_2d = 4
 out_channels_3d = 3
@@ -25,9 +33,12 @@ model_2d_2c = DenseNet121(spatial_dims=2, in_channels=2, out_channels=out_channe
 model_3d = DenseNet(
     spatial_dims=3, in_channels=1, out_channels=out_channels_3d, init_features=2, growth_rate=2, block_config=(6,)
 ).to(device)
+model_2d_adjoint = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
 model_2d.eval()
 model_2d_2c.eval()
 model_3d.eval()
+model_2d_adjoint.eval()
+
 
 # 2D w/ bounding box
 TEST_CASE_0 = [
@@ -59,10 +70,17 @@ TEST_MULTI_CHANNEL = [
     (1, 1, 48, 64, out_channels_2d),
     (1, 1, 48, 64),
 ]
+# 2D w/ bounding box and adjoint
+TEST_CASE_ADJOINT = [
+    {"nn_module": model_2d_adjoint},
+    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62], "adjoint_info": 42},
+    (1, 1, 39, 62, out_channels_2d),
+    (1, 1, 39, 62),
+]
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_MULTI_CHANNEL])
+    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_MULTI_CHANNEL, TEST_CASE_ADJOINT])
     def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)
         m, most_prob = occ_sens(**call_data)
