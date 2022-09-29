@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence, Union
+from typing import Callable, Sequence, Union, Optional
 
 import numpy as np
 import torch
@@ -17,7 +17,7 @@ import torch
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.networks.layers.simplelayers import GaussianFilter
-from monai.transforms.post.array import RemoveSmallObjects, SobelGradients
+from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
@@ -27,119 +27,246 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = ["CalcualteInstanceSegmentationMap"]
+__all__ = ["CalculateInstanceSegmentationMap", "GenerateMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateMarkers"]
 
 
-class CalcualteInstanceSegmentationMap(Transform):
+class CalculateInstanceSegmentationMap(Transform):
     """
-    Process Nuclei Prediction with XY Coordinate Map.
+    Use `skimage.segmentation.watershed` to get instance segmentation results from images.
+    See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
 
     Args:
-        threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
-            Defaults to 0.4.
-        min_size: objects smaller than this size are removed. Defaults to 10.
-        sigma: std. Used in `GaussianFilter`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        kernel_size: the size of the Sobel kernel. Defaults to 21.
-        radius: the radius of the disk-shaped footprint. Defaults to 2.
-        gaussian: whether need to smooth the image to be applied by the watershed segmentation. Defaults to False.
-        remove_small_objects: whether need to remove some objects in segmentation results and marker. Defaults to False.
-        marker_postprocess_fn: execute additional post transformation on marker. Defaults to None.
+        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection. 
+            Following the scipy convention, default is a one-connected array of the dimension of the image.
 
+    """
+    
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, connectivity: Optional[int] = 1) -> None:
+        self.connectivity = connectivity
+
+    def __call__(self, image: NdarrayOrTensor, markers: NdarrayOrTensor, mask: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            image: image where the lowest value points are labeled first. Shape must be [1, H, W].
+            markers: The desired number of markers, or an array marking the basins with the values to be assigned in the label matrix. 
+                Zero means not a marker. If None (no markers given), the local minima of the image are used as markers. Shape must be [1, H, W].
+            mask: the same shape as image. Only points at which mask == True will be labeled.
+        """
+
+        image = convert_to_numpy(image)
+        markers = convert_to_numpy(markers)
+        mask = convert_to_numpy(mask)
+
+        instance_seg = watershed(image, markers=markers, mask=mask, connectivity=self.connectivity)
+
+        return convert_to_dst_type(instance_seg, image, dtype=np.uint8)[0]
+
+
+class GenerateMask(Transform):
+    """
+    generate mask used in `watershed`. 
+    
+    Args:
+        softmax: if True, apply a softmax function to the prediction.
+        sigmoid: if True, apply a sigmoid function to the prediction.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        argmax: if True, execute argmax function on input data.
+        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
+        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
     """
 
     backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
-        threshold_overall: float = 0.4,
-        min_size: int = 10,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
-        kernel_size: int = 21,
-        radius: int = 2,
-        gaussian: bool = False,
-        remove_small_objects: bool = False,
-        marker_postprocess_fn: Callable = None,  # type: ignore
+        softmax: bool = False,
+        sigmoid: bool = False,
+        threshold: Optional[float] = None,
+        argmax: bool = False,
+        remove_small_objects: bool = True, 
+        min_size: int = 10
     ) -> None:
-        self.sigma = sigma
-        self.radius = radius
-        self.kernel_size = kernel_size
-        self.threshold_overall = threshold_overall
-        self.gaussian = gaussian
-        self.marker_postprocess_fn = marker_postprocess_fn
-
+        self.activations = Activations(sigmoid=sigmoid, softmax=softmax)
+        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=argmax)
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
         else:
             self.remove_small_objects = None  # type: ignore
 
-    def __call__(self, seg_pred: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            seg_pred: the output of the NP(segmentation) branch, shape must be [1, H, W].
-                `seg_pred` have been applied activation layer and must be binarized.
-            hover_map: the horizontal and vertical distances of nuclear pixels to their centres
-                of mass output from the HV branch, shape must be [2, H, W].
-
-        Returns:
-            instance labelled segmentation map with shape [1, H, W].
-
-        Raises:
-            ValueError: when the `seg_pred` dimension is not [1, H, W].
-            ValueError: when the `hover_map` dimension is not [2, H, W].
-
+            prob_map: probability map of segmentation, shape must be [C, H, W]
         """
-        if len(seg_pred.shape) != 3 or len(hover_map.shape) != 3:  # only for 2D
-            raise ValueError("Only support 2D, shape must be [C, H, W]!")
-        if seg_pred.shape[0] != 1:
-            raise ValueError("Only supports single channel segmentation prediction!")
-        if hover_map.shape[0] != 2:
-            raise ValueError("Hover map should be with shape [2, H, W]!")
+        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta())
 
-        if isinstance(seg_pred, torch.Tensor):
-            seg_pred = seg_pred.detach().cpu().numpy()
-        pred = convert_to_tensor(seg_pred, track_meta=get_track_meta())
-        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
+        pred = self.activations(prob_map)
+        pred = self.asdiscrete(pred)
 
         pred = label(pred)[0]
         if self.remove_small_objects:
             pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1
 
+        return convert_to_dst_type(pred, prob_map, dtype=np.uint8)[0]
+
+
+class GenerateProbabilityMap(Transform):
+    """
+    Generate foreground probability map by hover map. The more parts of the image that cannot be identified as foreground areas, 
+    the larger the grey scale value. The grey value of the instance's border will be larger.
+
+    Args:
+        kernel_size: the size of the Sobel kernel. Defaults to 21.
+        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
+        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+
+    """
+    
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self, 
+        kernel_size: int = 21,
+        min_size: int = 10,
+        remove_small_objects: bool = True,
+    ) -> None:
+        self.sobel_gradient =  SobelGradients(kernel_size=kernel_size)
+        if remove_small_objects:
+            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+        else:
+            self.remove_small_objects = None  # type: ignore
+
+    def __call__(self, mask, hover_map):
+        """
+        Args:
+            mask: binarized segmentation result.  Shape must be [1, H, W].
+            hover_map:  horizontal and vertical distances of nuclear pixels to their centres of mass. Shape must be [2, H, W].
+                The first and second channel represent the horizontal and vertical maps respectively. For more details refer 
+                to papers: https://arxiv.org/abs/1812.06499.
+        
+        Return:
+            Foreground probability map.
+        """
+        mask = convert_to_tensor(mask, track_meta=get_track_meta())
+        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
+
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
 
         hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))
         hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))
-        sobelh = SobelGradients(kernel_size=self.kernel_size)(hover_h)[0, ...]
-        sobelv = SobelGradients(kernel_size=self.kernel_size)(hover_v)[1, ...]
+        sobelh = self.sobel_gradient(hover_h)[0, ...]
+        sobelv = self.sobel_gradient(hover_v)[1, ...]
         sobelh = 1 - (sobelh - np.min(sobelh)) / (np.max(sobelh) - np.min(sobelh))
         sobelv = 1 - (sobelv - np.min(sobelv)) / (np.max(sobelv) - np.min(sobelv))
 
         # combine the h & v values using max
         overall = np.maximum(sobelh, sobelv)
-        overall = overall - (1 - pred)
+        overall = overall - (1 - mask)
         overall[overall < 0] = 0
 
-        dist = (1.0 - overall) * pred
-        if self.gaussian:
-            spatial_dim = len(dist.shape) - 1
+        return convert_to_dst_type(overall, mask, dtype=np.float32)[0]
+
+
+class GenerateDistanceMap(Transform):
+    """
+    Generate distance map.
+    In general, the instance map is calculated from the distance to the background. Here, we use 1 - "foreground probability map" to 
+    generate the distance map. Nnuclei values form mountains so inverse to get basins.
+
+    Args:
+        sigma: std. Used in `GaussianFilter`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
+        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify "guassian" or other callable functions.
+            If specify "guassian", `GaussianFilter` will applied on distance map.
+    """
+    
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self, 
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
+        smooth_fn: Optional[Union[Callable, str]] = None,
+    ) -> None:
+        self.sigma = sigma
+        self.smooth_fn = smooth_fn
+
+    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            mask: binarized segmentation result. Shape must be [1, H, W].
+            foreground_prob_map: foreground probability map. Shape must be [1, H, W].
+        """
+        mask = convert_to_tensor(mask, track_meta=get_track_meta())
+        foreground_prob_map = convert_to_tensor(foreground_prob_map, track_meta=get_track_meta())
+
+        distance_map = (1.0 - foreground_prob_map) * mask
+
+        if self.smooth_fn == "gaussian":
+            spatial_dim = len(distance_map.shape) - 1
             gaussian = GaussianFilter(spatial_dims=spatial_dim, sigma=self.sigma)
-            dist = convert_to_tensor(dist[None])
-            dist = convert_to_numpy(gaussian(dist)).squeeze(0)
+            distance_map = gaussian(distance_map.unsqueeze(0)).squeeze(0)
+        elif callable(self.smooth_fn):
+            distance_map = self.smooth_fn(distance_map)
 
-        overall = overall >= self.threshold_overall
+        return convert_to_dst_type(-distance_map, mask, dtype=np.float32)[0]
 
-        marker = pred - overall
+
+class GenerateMarkers(Transform):
+    """
+    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of the distance) 
+    are chosen as markers and the flooding of basins from such markers separates the two instances along a watershed line. 
+    Here is the implementation from HoVerNet papar. For more details refer to papers: https://arxiv.org/abs/1812.06499.
+
+    Args:
+        threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4. 
+        radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
+        min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
+        postprocess_fn: execute additional post transformation on marker. Defaults to None.
+
+    """
+    
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        threshold: float = 0.4,
+        radius: int = 2,
+        min_size: int = 10,
+        remove_small_objects: bool = True,
+        postprocess_fn: Callable = None,
+    ) -> None:
+        self.threshold = threshold
+        self.radius = radius
+        self.postprocess_fn = postprocess_fn
+
+        if remove_small_objects:
+            self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
+
+    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            mask: binarized segmentation result. Shape must be [1, H, W].
+            foreground_prob_map: foreground probability map. Shape must be [1, H, W].
+        """
+        mask = convert_to_tensor(mask, track_meta=get_track_meta())
+        foreground_prob_map = convert_to_tensor(foreground_prob_map, track_meta=get_track_meta())
+
+        foreground_prob_map = foreground_prob_map >= self.threshold  # uncertain area
+
+        marker = mask - foreground_prob_map.astype(torch.uint8) # certain foreground
         marker[marker < 0] = 0
-        if self.marker_postprocess_fn:
-            marker = self.marker_postprocess_fn(marker)
+        if self.postprocess_fn:
+            marker = self.postprocess_fn(marker)
+
         marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]
         if self.remove_small_objects:
             marker = self.remove_small_objects(marker[None])
-
-        # nuclei values form mountains so inverse to get basins
-        proced_pred = watershed(-dist, markers=marker, mask=pred)
-        pred, *_ = convert_to_dst_type(proced_pred, seg_pred)
-
-        return pred  # type: ignore
+        
+        return convert_to_dst_type(marker, mask, dtype=np.uint8)[0]
+        

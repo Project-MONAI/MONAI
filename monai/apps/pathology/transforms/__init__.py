@@ -9,11 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import CalcualteInstanceSegmentationMap
+from .post.array import CalculateInstanceSegmentationMap
 from .post.dictionary import (
-    CalcualteInstanceSegmentationMapd,
-    CalcualteInstanceSegmentationMapD,
-    CalcualteInstanceSegmentationMapDict,
+    CalculateInstanceSegmentationMapd,
+    CalculateInstanceSegmentationMapD,
+    CalculateInstanceSegmentationMapDict,
 )
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict

@@ -15,7 +15,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import CalcualteInstanceSegmentationMap
+from monai.apps.pathology.transforms.post.array import CalculateInstanceSegmentationMap
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -54,10 +54,10 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_cv2, "OpenCV required.")
-class TestCalcualteInstanceSegmentationMap(unittest.TestCase):
+class TestCalculateInstanceSegmentationMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, seg_pred, hover_map, expected):
-        calculate_instance_seg = CalcualteInstanceSegmentationMap(**args)
+        calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
         output = calculate_instance_seg(in_type(seg_pred), in_type(hover_map))
 
         self.assertTupleEqual(output.shape, expected.shape)
@@ -65,7 +65,7 @@ class TestCalcualteInstanceSegmentationMap(unittest.TestCase):
 
     @parameterized.expand(ERROR_TESTS)
     def test_value_error(self, args, in_type, seg_pred, hover_map):
-        calculate_instance_seg = CalcualteInstanceSegmentationMap(**args)
+        calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
         with self.assertRaises(ValueError):
             calculate_instance_seg(in_type(seg_pred), in_type(hover_map))
 

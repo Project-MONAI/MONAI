@@ -13,18 +13,18 @@ from typing import Callable, Dict, Hashable, Mapping, Sequence, Union
 
 import torch
 
-from monai.apps.pathology.transforms.post.array import CalcualteInstanceSegmentationMap
+from monai.apps.pathology.transforms.post.array import CalculateInstanceSegmentationMap
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform
 
 __all__ = [
-    "CalcualteInstanceSegmentationMapD",
-    "CalcualteInstanceSegmentationMapDict",
-    "CalcualteInstanceSegmentationMapd",
+    "CalculateInstanceSegmentationMapD",
+    "CalculateInstanceSegmentationMapDict",
+    "CalculateInstanceSegmentationMapd",
 ]
 
 
-class CalcualteInstanceSegmentationMapd(MapTransform):
+class CalculateInstanceSegmentationMapd(MapTransform):
     """Process Nuclei Prediction with XY Coordinate Map.
 
     Args:
@@ -47,7 +47,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
 
     """
 
-    backend = CalcualteInstanceSegmentationMap.backend
+    backend = CalculateInstanceSegmentationMap.backend
 
     def __init__(
         self,
@@ -65,7 +65,7 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_key = hover_key
-        self.transform = CalcualteInstanceSegmentationMap(
+        self.transform = CalculateInstanceSegmentationMap(
             threshold_overall=threshold_overall,
             min_size=min_size,
             sigma=sigma,
@@ -84,4 +84,4 @@ class CalcualteInstanceSegmentationMapd(MapTransform):
         return d
 
 
-CalcualteInstanceSegmentationMapD = CalcualteInstanceSegmentationMapDict = CalcualteInstanceSegmentationMapd
+CalculateInstanceSegmentationMapD = CalculateInstanceSegmentationMapDict = CalculateInstanceSegmentationMapd

@@ -127,11 +127,11 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.array
-.. autoclass:: CalcualteInstanceSegmentationMap
+.. autoclass:: CalculateInstanceSegmentationMap
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
-.. autoclass:: CalcualteInstanceSegmentationMapd
+.. autoclass:: CalculateInstanceSegmentationMapd
     :members:
 
 `Detection`

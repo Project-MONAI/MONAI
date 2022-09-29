@@ -15,7 +15,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import CalcualteInstanceSegmentationMapd
+from monai.apps.pathology.transforms.post.dictionary import CalculateInstanceSegmentationMapd
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -54,11 +54,11 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_cv2, "OpenCV required.")
-class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
+class TestCalculateInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, in_type, seg_pred, hover_map, expected):
         data = {"seg_pred": in_type(seg_pred), "hover": in_type(hover_map)}
-        output = CalcualteInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)(data)
+        output = CalculateInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)(data)
 
         self.assertTupleEqual(output["seg_pred"].shape, expected.shape)
         # assert_allclose(output["seg_pred"], expected, type_test=False)
@@ -66,7 +66,7 @@ class TestCalcualteInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(ERROR_TESTS)
     def test_value_error(self, args, in_type, seg_pred, hover_map):
         data = {"seg_pred": in_type(seg_pred), "hover": in_type(hover_map)}
-        calculate_instance_seg = CalcualteInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)
+        calculate_instance_seg = CalculateInstanceSegmentationMapd(keys="seg_pred", hover_key="hover", **args)
         with self.assertRaises(ValueError):
             calculate_instance_seg(data)
 

@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import CalcualteInstanceSegmentationMap
+from .array import CalculateInstanceSegmentationMap
 from .dictionary import (
-    CalcualteInstanceSegmentationMapd,
-    CalcualteInstanceSegmentationMapD,
-    CalcualteInstanceSegmentationMapDict,
+    CalculateInstanceSegmentationMapd,
+    CalculateInstanceSegmentationMapD,
+    CalculateInstanceSegmentationMapDict,
 )
