@@ -14,8 +14,8 @@ from typing import Callable, Dict, Hashable, Mapping, Sequence, Union, Optional
 import torch
 
 from monai.apps.pathology.transforms.post.array import (
-    CalculateInstanceSegmentationMap, 
-    GenerateMask, 
+    CalculateInstanceSegmentationMap,
+    GenerateMask,
     GenerateProbabilityMap,
     GenerateDistanceMap,
     GenerateMarkers,
@@ -43,7 +43,7 @@ __all__ = [
 
 
 class CalculateInstanceSegmentationMapd(MapTransform):
-    """    
+    """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.CalculateInstanceSegmentationMap`.
     Use `skimage.segmentation.watershed` to get instance segmentation results from images.
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
@@ -53,7 +53,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
             See also: monai.transforms.MapTransform
         mask_key: keys of mask used in watershed. Only points at which mask == True will be labeled.
         markers_key: keys of markers used in watershed. If None (no markers given), the local minima of the image are used as markers.
-        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection. 
+        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection.
             Following the scipy convention, default is a one-connected array of the dimension of the image.
         allow_missing_keys: don't raise exception if key is missing.
 
@@ -86,10 +86,10 @@ class CalculateInstanceSegmentationMapd(MapTransform):
             d[key] = self.transform(d[key], d[self.mask_key], markers)
 
         return d
-    
+
 
 class GenerateMaskd(MapTransform):
-    """    
+    """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateMask`.
 
     Args:
@@ -130,7 +130,7 @@ class GenerateMaskd(MapTransform):
             sigmoid = sigmoid,
             threshold = threshold,
             argmax = argmax,
-            remove_small_objects = remove_small_objects, 
+            remove_small_objects = remove_small_objects,
             min_size = min_size
         )
 
@@ -146,7 +146,7 @@ class GenerateMaskd(MapTransform):
 
 
 class GenerateProbabilityMapd(MapTransform):
-    """    
+    """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateProbabilityMap`.
 
     Args:
@@ -176,7 +176,7 @@ class GenerateProbabilityMapd(MapTransform):
         self.prob_key_postfix = prob_key_postfix
         self.transform = GenerateProbabilityMap(
             kernel_size = kernel_size,
-            remove_small_objects = remove_small_objects, 
+            remove_small_objects = remove_small_objects,
             min_size = min_size,
         )
 
@@ -192,7 +192,7 @@ class GenerateProbabilityMapd(MapTransform):
 
 
 class GenerateDistanceMapd(MapTransform):
-    """    
+    """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateDistanceMap`.
 
     Args:
@@ -236,7 +236,7 @@ class GenerateDistanceMapd(MapTransform):
 
 
 class GenerateMarkersd(MapTransform):
-    """    
+    """
     Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateMarkers`.
 
     Args:
@@ -244,7 +244,7 @@ class GenerateMarkersd(MapTransform):
         prob_key: keys of the foreground probability map used to generate markers.
         markers_key_postfix: the markers will be written to the value of `{key}_{markers_key_postfix}`.
         threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
-            It turns uncertain area to 1 and other area to 0. Defaults to 0.4. 
+            It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
