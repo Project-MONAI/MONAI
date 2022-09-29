@@ -36,8 +36,8 @@ import torch.nn as nn
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
-from monai.utils import InterpolateMode, UpsampleMode, export
-from monai.utils.enums import HoVerNetBranch, HoVerNetMode
+from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
+from monai.utils.module import export, look_up_option
 
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
@@ -379,12 +379,17 @@ class HoVerNet(nn.Module):
       Medical Image Analysis 2019
 
     Args:
+        mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
+          a faster implementation (`HoVerNetMODE.FAST` or "fast"). Defaults to `HoVerNetMODE.FAST`.
         in_channels: number of the input channel.
         out_classes: number of the nuclear type classes.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
         dropout_prob: dropout rate after each dense layer.
     """
+
+    Mode = HoVerNetMode
+    Branch = HoVerNetBranch
 
     def __init__(
         self,
@@ -398,12 +403,9 @@ class HoVerNet(nn.Module):
 
         super().__init__()
 
-        if isinstance(mode, HoVerNetMode):
-            self.mode = mode.value
-        elif isinstance(mode, str):
-            self.mode = mode.upper()
-        else:
-            raise ValueError("`mode` should be either string or `HoVerNetMode` type.")
+        if isinstance(mode, str):
+            mode = mode.upper()
+        self.mode = look_up_option(mode, HoVerNetMode)
 
         if self.mode not in list(HoVerNetMode):
             raise ValueError(
