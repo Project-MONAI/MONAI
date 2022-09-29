@@ -193,7 +193,7 @@ class MonaiAlgo(ClientAlgo):
             if self.rank > 0:
                 self.logger.setLevel(logging.WARNING)
 
-        if self.seed:  # TODO: adjust for multi-gpu?
+        if self.seed:
             monai.utils.set_determinism(seed=self.seed)
         torch.backends.cudnn.benchmark = self.benchmark
 
