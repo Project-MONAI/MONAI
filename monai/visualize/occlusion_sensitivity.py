@@ -68,10 +68,10 @@ def _check_input_bounding_box(b_box, im_shape):
     return b_box_min, b_box_max
 
 
-def _append_to_sensitivity_ims(model, batch_images, sensitivity_ims):
+def _append_to_sensitivity_ims(model, batch_images, sensitivity_ims, **kwargs):
     """Infer given images. Append to previous evaluations. Store each class separately."""
     batch_images = torch.cat(batch_images, dim=0)
-    scores = model(batch_images).detach()
+    scores = model(batch_images, **kwargs).detach()
     for i in range(scores.shape[1]):
         sensitivity_ims[i] = torch.cat((sensitivity_ims[i], scores[:, i]))
     return sensitivity_ims
@@ -183,14 +183,14 @@ class OcclusionSensitivity:
         self.per_channel = per_channel
         self.verbose = verbose
 
-    def _compute_occlusion_sensitivity(self, x, b_box):
+    def _compute_occlusion_sensitivity(self, x, b_box, **kwargs):
 
         # Get bounding box
         im_shape = np.array(x.shape[1:])
         b_box_min, b_box_max = _check_input_bounding_box(b_box, im_shape)
 
         # Get the number of prediction classes
-        num_classes = self.nn_module(x).numel()
+        num_classes = self.nn_module(x, **kwargs).numel()
 
         # If pad val not supplied, get the mean of the image
         pad_val = x.mean() if self.pad_val is None else self.pad_val
@@ -266,7 +266,7 @@ class OcclusionSensitivity:
             # Once the batch is complete (or on last iteration)
             if len(batch_images) == self.n_batch or i == num_required_predictions - 1:
                 # Do the predictions and append to sensitivity maps
-                sensitivity_ims = _append_to_sensitivity_ims(self.nn_module, batch_images, sensitivity_ims)
+                sensitivity_ims = _append_to_sensitivity_ims(self.nn_module, batch_images, sensitivity_ims, **kwargs)
                 # Clear lists
                 batch_images = []
 
@@ -276,7 +276,9 @@ class OcclusionSensitivity:
 
         return sensitivity_ims, output_im_shape
 
-    def __call__(self, x: torch.Tensor, b_box: Optional[Sequence] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(
+        self, x: torch.Tensor, b_box: Optional[Sequence] = None, **kwargs
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.
@@ -286,6 +288,7 @@ class OcclusionSensitivity:
                     be useful for larger images.
                 * Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
                 * Use -ve to use ``min=0`` and ``max=im.shape[x]-1`` for xth dimension.
+            kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
             * Occlusion map:
@@ -305,7 +308,7 @@ class OcclusionSensitivity:
             _check_input_image(x)
 
             # Generate sensitivity images
-            sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box)
+            sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box, **kwargs)
 
             # Loop over image for each classification
             for i, sens_i in enumerate(sensitivity_ims_list):
