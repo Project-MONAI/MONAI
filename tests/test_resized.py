@@ -82,7 +82,7 @@ class TestResized(NumpyImageTestCase2D):
             im = p(self.imt[0])
             out = resize({"img": im})
             test_local_inversion(resize, out, {"img": im}, "img")
-            assert_allclose(out["img"], expected, type_test=False, atol=0.9)
+            assert_allclose(out["img"], expected, type_test=False, atol=1.0)
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_longest_shape(self, input_param, expected_shape):
