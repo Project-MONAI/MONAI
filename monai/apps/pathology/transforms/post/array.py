@@ -46,13 +46,13 @@ class CalculateInstanceSegmentationMap(Transform):
     def __init__(self, connectivity: Optional[int] = 1) -> None:
         self.connectivity = connectivity
 
-    def __call__(self, image: NdarrayOrTensor, markers: NdarrayOrTensor, mask: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, image: NdarrayOrTensor, mask: NdarrayOrTensor, markers: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
         """
         Args:
             image: image where the lowest value points are labeled first. Shape must be [1, H, W].
+            mask: the same shape as image. Only points at which mask == True will be labeled.
             markers: The desired number of markers, or an array marking the basins with the values to be assigned in the label matrix. 
                 Zero means not a marker. If None (no markers given), the local minima of the image are used as markers. Shape must be [1, H, W].
-            mask: the same shape as image. Only points at which mask == True will be labeled.
         """
 
         image = convert_to_numpy(image)
@@ -66,7 +66,7 @@ class CalculateInstanceSegmentationMap(Transform):
 
 class GenerateMask(Transform):
     """
-    generate mask used in `watershed`. 
+    generate mask used in `watershed`. Only points at which mask == True will be labeled.
     
     Args:
         softmax: if True, apply a softmax function to the prediction.
