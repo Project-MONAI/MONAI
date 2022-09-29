@@ -287,7 +287,6 @@ class MonaiAlgo(ClientAlgo):
         # get current iteration when a round starts
         self.iter_of_start_time = self.trainer.state.iteration
 
-        # if self.rank == 0:
         _, updated_keys, _ = copy_model_state(src=self.global_weights, dst=self.trainer.network)
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
@@ -336,7 +335,7 @@ class MonaiAlgo(ClientAlgo):
                     f"Requested model type {model_type} not specified in `model_filepaths`: {self.model_filepaths}"
                 )
         else:
-            if self.trainer:  # and self.rank == 0:
+            if self.trainer:
                 weights = get_state_dict(self.trainer.network)
                 # returned weights will be on the cpu
                 for k in weights.keys():
@@ -404,7 +403,6 @@ class MonaiAlgo(ClientAlgo):
         global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
         self._check_converted(data.weights, local_var_dict, n_converted)
 
-        # if self.rank == 0:  # Evaluation is only supporting single GPU
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
         if len(updated_keys) == 0:
             self.logger.warning("No weights loaded!")
