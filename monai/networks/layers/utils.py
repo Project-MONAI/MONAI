@@ -47,6 +47,8 @@ def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, cha
         kw_args["num_features"] = channels
     if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
         kw_args["num_channels"] = channels
+    if has_option(norm_type, "affine") and "affine" not in kw_args:
+        kw_args["affine"] = True
     return norm_type(**kw_args)
 
 
