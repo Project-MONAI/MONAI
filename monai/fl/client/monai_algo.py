@@ -115,6 +115,7 @@ class MonaiAlgo(ClientAlgo):
             e.g., the aggregator, which is not controlled by this class.
         multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
         backend: backend to use for torch.distributed; defaults to "nccl".
+        init_method: init_method for torch.distributed; defaults to "env://".
     """
 
     def __init__(
