@@ -335,6 +335,8 @@ class Spacingd(MapTransform, InvertibleTransform):
         recompute_affine: bool = False,
         meta_keys: Optional[KeysCollection] = None,
         meta_key_postfix: str = "meta_dict",
+        min_pixdim: Union[Sequence[float], float, None] = None,
+        max_pixdim: Union[Sequence[float], float, None] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -386,11 +388,19 @@ class Spacingd(MapTransform, InvertibleTransform):
             recompute_affine: whether to recompute affine based on the output shape. The affine computed
                 analytically does not reflect the potential quantization errors in terms of the output shape.
                 Set this flag to True to recompute the output affine based on the actual pixdim. Default to ``False``.
+            min_pixdim: minimal input spacing to be resampled. If provided, input image with a larger spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
+            max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
+                value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
+                value of `pixdim`. Default to `None`.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         super().__init__(keys, allow_missing_keys)
-        self.spacing_transform = Spacing(pixdim, diagonal=diagonal, recompute_affine=recompute_affine)
+        self.spacing_transform = Spacing(
+            pixdim, diagonal=diagonal, recompute_affine=recompute_affine, min_pixdim=min_pixdim, max_pixdim=max_pixdim
+        )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
@@ -858,8 +868,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
@@ -867,7 +877,8 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform):
         # all the keys share the same random Affine factor
         self.rand_affine.randomize()
 
-        spatial_size = d[first_key].shape[1:]  # type: ignore
+        spatial_size = d[first_key].shape[1:]
+
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
         do_resampling = self._do_transform or (sp_size != ensure_tuple(spatial_size))
@@ -1006,14 +1017,19 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+
+        if first_key == ():
             out: Dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
+        device = self.rand_2d_elastic.device
+        if device is None and isinstance(d[first_key], torch.Tensor):
+            device = d[first_key].device  # type: ignore
+            self.rand_2d_elastic.set_device(device)
+        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first_key].shape[1:])
 
-        sp_size = fall_back_tuple(self.rand_2d_elastic.spatial_size, d[first_key].shape[1:])  # type: ignore
         # all the keys share the same random elastic factor
         self.rand_2d_elastic.randomize(sp_size)
 
@@ -1029,8 +1045,7 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
             )
             grid = CenterSpatialCrop(roi_size=sp_size)(grid[0])
         else:
-            _device = self.rand_2d_elastic.deform_grid.device
-            grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
+            grid = create_grid(spatial_size=sp_size, device=device, backend="torch")
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_2d_elastic.resampler(d[key], grid, mode=mode, padding_mode=padding_mode)  # type: ignore
@@ -1144,21 +1159,25 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+
+        if first_key == ():
             out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
 
-        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first_key].shape[1:])  # type: ignore
+        sp_size = fall_back_tuple(self.rand_3d_elastic.spatial_size, d[first_key].shape[1:])
+
         # all the keys share the same random elastic factor
         self.rand_3d_elastic.randomize(sp_size)
 
-        _device = self.rand_3d_elastic.device
-        grid = create_grid(spatial_size=sp_size, device=_device, backend="torch")
+        device = self.rand_3d_elastic.device
+        if device is None and isinstance(d[first_key], torch.Tensor):
+            device = d[first_key].device
+            self.rand_3d_elastic.set_device(device)
+        grid = create_grid(spatial_size=sp_size, device=device, backend="torch")
         if self._do_transform:
-            device = self.rand_3d_elastic.device
             gaussian = GaussianFilter(spatial_dims=3, sigma=self.rand_3d_elastic.sigma, truncated=3.0).to(device)
             offset = torch.as_tensor(self.rand_3d_elastic.rand_offset, device=device).unsqueeze(0)
             grid[:3] += gaussian(offset)[0] * self.rand_3d_elastic.magnitude
@@ -1294,14 +1313,15 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             return d
 
         self.randomize(None)
 
         # all the keys share the same random selected axis
-        self.flipper.randomize(d[first_key])  # type: ignore
+        self.flipper.randomize(d[first_key])
+
         for key in self.key_iterator(d):
             if self._do_transform:
                 d[key] = self.flipper(d[key], randomize=False)
@@ -1624,15 +1644,16 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
         self.randomize(None)
 
         # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[first_key])  # type: ignore
+        self.rand_zoom.randomize(d[first_key])
+
         for key, mode, padding_mode, align_corners in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners
         ):
@@ -1777,12 +1798,13 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
             out: Dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
             out = convert_to_tensor(d, track_meta=get_track_meta())
             return out
 
-        self.rand_grid_distortion.randomize(d[first_key].shape[1:])  # type: ignore
+        self.rand_grid_distortion.randomize(d[first_key].shape[1:])
+
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             d[key] = self.rand_grid_distortion(d[key], mode=mode, padding_mode=padding_mode, randomize=False)
         return d
