@@ -68,17 +68,17 @@ class VanillaGrad:
         else:
             self._model = m  # replace the ModelWithHooks
 
-    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph=True) -> torch.Tensor:
+    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph=True, **kwargs) -> torch.Tensor:
         if x.shape[0] != 1:
             raise ValueError("expect batch size of 1")
         x.requires_grad = True
 
-        self._model(x, class_idx=index, retain_graph=retain_graph)
+        self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
         grad: torch.Tensor = x.grad.detach()
         return grad
 
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        return self.get_grad(x, index)
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
+        return self.get_grad(x, index, **kwargs)
 
 
 class SmoothGrad(VanillaGrad):
@@ -105,7 +105,7 @@ class SmoothGrad(VanillaGrad):
         else:
             self.range = range
 
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         stdev = (self.stdev_spread * (x.max() - x.min())).item()
         total_gradients = torch.zeros_like(x)
         for _ in self.range(self.n_samples):
@@ -115,7 +115,7 @@ class SmoothGrad(VanillaGrad):
             x_plus_noise = x_plus_noise.detach()
 
             # get gradient and accumulate
-            grad = self.get_grad(x_plus_noise, index)
+            grad = self.get_grad(x_plus_noise, index, **kwargs)
             total_gradients += (grad * grad) if self.magnitude else grad
 
         # average
@@ -126,12 +126,12 @@ class SmoothGrad(VanillaGrad):
 
 
 class GuidedBackpropGrad(VanillaGrad):
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
-            return super().__call__(x, index)
+            return super().__call__(x, index, **kwargs)
 
 
 class GuidedBackpropSmoothGrad(SmoothGrad):
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
-            return super().__call__(x, index)
+            return super().__call__(x, index, **kwargs)
