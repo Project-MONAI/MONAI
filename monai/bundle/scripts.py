@@ -494,6 +494,8 @@ def run(
         _args, "config_file", meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
+        if not os.path.exists(logging_file_):
+            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
         logger.info(f"set logging properties based on config: {logging_file_}.")
         fileConfig(logging_file_, disable_existing_loggers=False)
 
