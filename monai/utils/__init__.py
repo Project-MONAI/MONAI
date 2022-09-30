@@ -29,6 +29,8 @@ from .enums import (
     GridPatchSort,
     GridSampleMode,
     GridSamplePadMode,
+    HoVerNetBranch,
+    HoVerNetMode,
     InterpolateMode,
     InverseKeys,
     JITMetadataKeys,
