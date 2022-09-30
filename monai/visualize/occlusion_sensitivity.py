@@ -74,12 +74,12 @@ class OcclusionSensitivity:
     @deprecated_arg(
         name="pad_val",
         since="1.0",
-        removed="1.1",
+        removed="1.2",
         msg_suffix="Please use `mode`. For backwards compatibility, use `mode=mean_img`.",
     )
-    @deprecated_arg(name="stride", since="1.0", removed="1.1", msg_suffix="Please use `overlap`.")
-    @deprecated_arg(name="per_channel", since="1.0", removed="1.1")
-    @deprecated_arg(name="upsampler", since="1.0", removed="1.1")
+    @deprecated_arg(name="stride", since="1.0", removed="1.2", msg_suffix="Please use `overlap`.")
+    @deprecated_arg(name="per_channel", since="1.0", removed="1.2")
+    @deprecated_arg(name="upsampler", since="1.0", removed="1.2")
     def __init__(
         self,
         nn_module: nn.Module,
@@ -137,8 +137,12 @@ class OcclusionSensitivity:
         return 0, ones * val
 
     @staticmethod
-    def gaussian_occlusion(x: torch.Tensor, mask_size) -> Tuple[torch.Tensor, float]:
-        """For Gaussian occlusion, Multiplicative is 1-Gaussian, additive is zero."""
+    def gaussian_occlusion(x: torch.Tensor, mask_size, sigma=0.25) -> Tuple[torch.Tensor, float]:
+        """
+        For Gaussian occlusion, Multiplicative is 1-Gaussian, additive is zero.
+        Default sigma of 0.25 empirically shown to give reasonable kernel, see here:
+        https://github.com/Project-MONAI/MONAI/pull/5230#discussion_r984520714.
+        """
         kernel = torch.zeros((x.shape[1], *mask_size), device=x.device, dtype=x.dtype)
         spatial_shape = kernel.shape[1:]
         # all channels (as occluded shape already takes into account per_channel), center in spatial dimensions
@@ -148,7 +152,7 @@ class OcclusionSensitivity:
         # Smooth with sigma equal to quarter of image, flip +ve/-ve so largest values are at edge
         # and smallest at center. Scale to [0, 1].
         gaussian = Compose(
-            [GaussianSmooth(sigma=[b // 4 for b in spatial_shape]), Lambda(lambda x: -x), ScaleIntensity()]
+            [GaussianSmooth(sigma=[b * sigma for b in spatial_shape]), Lambda(lambda x: -x), ScaleIntensity()]
         )
         # transform and add batch
         mul: torch.Tensor = gaussian(kernel)[None]  # type: ignore
@@ -194,14 +198,14 @@ class OcclusionSensitivity:
         sd = cropped_grid.ndim - 2
         # start with copies of x to infer
         im = torch.repeat_interleave(x, n_batch, 0)
+        # get coordinates of top left corner of occluded region (possible because we use meshgrid)
+        corner_coord_slices = [slice(None)] * 2 + [slice(1)] * sd
+        top_corners = cropped_grid[corner_coord_slices]
+
         # replace occluded regions
-        for b, i in enumerate(cropped_grid):
-            # get coordinates of top left corner of occluded region (possible because we use meshgrid)
-            corner_coord_slices = [slice(None)] + [slice(1)] * sd
+        for b, t in enumerate(top_corners):
             # starting from corner, get the slices to extract the occluded region from the image
-            slices = [slice(b, b + 1), slice(None)] + [
-                slice(int(j), int(j) + m) for j, m in zip(i[corner_coord_slices], mask_size)
-            ]
+            slices = [slice(b, b + 1), slice(None)] + [slice(int(j), int(j) + m) for j, m in zip(t, mask_size)]
             to_occlude = im[slices]
             if occ_mode == "mean_patch":
                 add, mul = OcclusionSensitivity.constant_occlusion(x, to_occlude.mean().item(), mask_size)
@@ -210,6 +214,8 @@ class OcclusionSensitivity:
                 to_occlude = occ_mode(x, to_occlude)
             else:
                 to_occlude = to_occlude * mul + add
+            if add is None or mul is None:
+                raise RuntimeError("Shouldn't be here, something's gone wrong...")
             im[slices] = to_occlude
         # infer
         out: torch.Tensor = nn_module(im, **module_kwargs)
