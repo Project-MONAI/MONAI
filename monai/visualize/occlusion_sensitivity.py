@@ -291,7 +291,7 @@ class OcclusionSensitivity:
 
         # check that the grid is bigger than the mask size
         if any(m > g for g, m in zip(grid.shape[2:], mask_size)):
-            raise ValueError(f"Image (after cropping with bounding box) should be bigger than mask.")
+            raise ValueError("Image (after cropping with bounding box) should be bigger than mask.")
 
         # get additive and multiplicative factors if they are unchanged for all patches (i.e., not mean_patch)
         add: Optional[Union[float, torch.Tensor]]
