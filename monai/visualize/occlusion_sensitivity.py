@@ -94,7 +94,8 @@ class OcclusionSensitivity:
         overlap: float = 0.25,
         activate: Union[bool, Callable] = True,
     ) -> None:
-        """Occlusion sensitivity constructor.
+        """
+        Occlusion sensitivity constructor.
 
         Args:
             nn_module: Classification model to use for inference
@@ -104,16 +105,19 @@ class OcclusionSensitivity:
             n_batch: Number of images in a batch for inference.
             verbose: Use progress bar (if ``tqdm`` available).
             mode: what should the occluded region be replaced with? If a float is given, that value will be used
-                throughout the occlusion. Else, ``gaussian``, ``mean_img`` and ``mean_patch`` can be supplied.
-                    * ``gaussian``: occluded region is multiplied by 1 - gaussian kernel. In this fashion, the occlusion
-                        will be 0 at the center and will be unchanged towards the edges, varying smoothly between. When
-                        gaussian is used, a weighted average will be used to combine overlapping regions. This will be
-                        done using the gaussian (not 1-gaussian) as occluded regions count more.
-                    * ``mean_patch``: occluded region will be replaced with the mean of occluded region.
-                    * ``mean_img``: occluded region will be replaced with the mean of the whole image.
+                throughout the occlusion. Else, ``gaussian``, ``mean_img`` and ``mean_patch`` can be supplied:
+
+                * ``gaussian``: occluded region is multiplied by 1 - gaussian kernel. In this fashion, the occlusion
+                  will be 0 at the center and will be unchanged towards the edges, varying smoothly between. When
+                  gaussian is used, a weighted average will be used to combine overlapping regions. This will be
+                  done using the gaussian (not 1-gaussian) as occluded regions count more.
+                * ``mean_patch``: occluded region will be replaced with the mean of occluded region.
+                * ``mean_img``: occluded region will be replaced with the mean of the whole image.
+
             overlap: overlap between inferred regions. Should be in range 0<=x<1.
-            activate: if `True`, do softmax activation if num_channels > 1 else do `sigmoid`. If `False`, don't do any
-                activation. If `callable`, use callable on inferred outputs.
+            activate: if ``True``, do softmax activation if num_channels > 1 else do ``sigmoid``. If ``False``, don't do any
+                activation. If ``callable``, use callable on inferred outputs.
+
         """
         self.nn_module = nn_module
         self.mask_size = mask_size
@@ -165,25 +169,25 @@ class OcclusionSensitivity:
         """
         Predictor function to be passed to the sliding window inferer. Takes a cropped meshgrid,
         referring to the coordinates in the input image. We use the index of the top-left corner
-        in combination `mask_size` to figure out which region of the image is to be occluded. The
-        occlusion is performed on the original image, `x`, using `cropped_region * mul + add`. `mul`
-        and `add` are sometimes pre-computed (e.g., a constant Gaussian blur), or they are
+        in combination ``mask_size`` to figure out which region of the image is to be occluded. The
+        occlusion is performed on the original image, ``x``, using ``cropped_region * mul + add``. ``mul``
+        and ``add`` are sometimes pre-computed (e.g., a constant Gaussian blur), or they are
         sometimes calculated on the fly (e.g., the mean of the occluded patch). For this reason
-        `occ_mode` is given. Lastly, `activate` is used to activate after each call of the model.
+        ``occ_mode`` is given. Lastly, ``activate`` is used to activate after each call of the model.
 
         Args:
             cropped_grid: subsection of the meshgrid, where each voxel refers to the coordinate of
-                the input image. The meshgrid is created by the `OcclusionSensitivity` class, and
-                the generation of the subset is determined by `sliding_window_inference`.
+                the input image. The meshgrid is created by the ``OcclusionSensitivity`` class, and
+                the generation of the subset is determined by ``sliding_window_inference``.
             nn_module: module to call on data.
-            x: the image that was originally passed into `OcclusionSensitivity.__call__`.
-            mul: occluded region will be multiplied by this. Can be `torch.Tensor` or `float`.
-            add: after multiplication, this is added to the occluded region. Can be `torch.Tensor` or `float`.
+            x: the image that was originally passed into ``OcclusionSensitivity.__call__``.
+            mul: occluded region will be multiplied by this. Can be ``torch.Tensor`` or ``float``.
+            add: after multiplication, this is added to the occluded region. Can be ``torch.Tensor`` or ``float``.
             mask_size: Size of box to be occluded, centred on the central voxel. Should be
                 a sequence, one value for each spatial dimension.
-            occ_mode: might be used to calculate `mul` and `add` on the fly.
-            activate: if `True`, do softmax activation if num_channels > 1 else do `sigmoid`. If `False`, don't do any
-                activation. If `callable`, use callable on inferred outputs.
+            occ_mode: might be used to calculate ``mul`` and ``add`` on the fly.
+            activate: if ``True``, do softmax activation if num_channels > 1 else do ``sigmoid``. If ``False``, don't do any
+                activation. If ``callable``, use callable on inferred outputs.
             module_kwargs: kwargs to be passed onto module when inferring
         """
         n_batch = cropped_grid.shape[0]
