@@ -278,7 +278,7 @@ class LoadImage(Transform):
             img = EnsureChannelFirst()(img)
         if self.image_only:
             return img
-        return img, img.meta  # for compatibility purpose
+        return img, img.meta if isinstance(img, MetaTensor) else meta_data
 
 
 class SaveImage(Transform):
