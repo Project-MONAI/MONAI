@@ -87,9 +87,13 @@ class UpSample(nn.Sequential):
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
 
             if not kernel_size:
-                kernel_size = scale_factor
-            kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
-            padding = tuple((i-1)//2 for i in kernel_size_)
+                kernel_size_ = scale_factor_
+                output_padding = padding = 0
+            else:
+                kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
+                padding = tuple((k-1)//2 for k in kernel_size_)
+                output_padding = tuple(s - 1 - (k-1) % 2 for k,s in zip(kernel_size_, scale_factor_))
+
 
             self.add_module(
                 "deconv",
@@ -99,7 +103,7 @@ class UpSample(nn.Sequential):
                     kernel_size=kernel_size_,
                     stride=scale_factor_,
                     padding=padding,
-                    output_padding=padding,
+                    output_padding=output_padding,
                     bias=bias,
                 ),
             )

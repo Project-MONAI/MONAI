@@ -88,13 +88,35 @@ for s in range(1, 5):
         TEST_CASES_EQ.append(test_case)
 
 
+TEST_CASES_EQ2 = []
+for s in range(2, 5):
+    for k in range(1, 7):
+        expected_shape = (16, 5, 4 * s, 5 * s, 6 * s)
+        for t in UpsampleMode:
+            test_case = [
+                {
+                    "spatial_dims": 3,
+                    "in_channels": 3,
+                    "out_channels": 5,
+                    "mode": t,
+                    "scale_factor": s,
+                    "kernel_size": k,
+                    "align_corners": False,
+                },
+                (16, 3, 4, 5, 6),
+                expected_shape,
+            ]
+            TEST_CASES_EQ.append(test_case)
+
+
+
 class TestUpsample(unittest.TestCase):
-    @parameterized.expand(TEST_CASES + TEST_CASES_EQ)
+    @parameterized.expand(TEST_CASES + TEST_CASES_EQ + TEST_CASES_EQ2)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UpSample(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
-            self.assertEqual(result.shape, expected_shape)
+            self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
 
 if __name__ == "__main__":
