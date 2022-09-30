@@ -23,7 +23,7 @@ jobs:
           - "PT17+CUDA102"
           - "PT18+CUDA102"
           - "PT18+CUDA112"
-          - "PT112+CUDA116"
+          - "PT112+CUDA117"
           - "PT110+CUDA102"
           - "PT112+CUDA102"
         include:
@@ -45,16 +45,16 @@ jobs:
             # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          - environment: PT112+CUDA116
+          - environment: PT112+CUDA117
             # we explicitly set pytorch to -h to avoid pip install error
-            # 22.06: 1.13.0a0+340c412
+            # 22.08: 1.13.0a0+d321be6
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.06-py3"
+            base: "nvcr.io/nvidia/pytorch:22.08-py3"
           - environment: PT110+CUDA102
             pytorch: "torch==1.10.2 torchvision==0.11.3"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT112+CUDA102
-            pytorch: "torch==1.12.0 torchvision==0.13.0"
+            pytorch: "torch==1.12.1 torchvision==0.13.1"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
@@ -129,7 +129,7 @@ jobs:
         export LAUNCH_DELAY=$(python -c "import numpy; print(numpy.random.randint(30) * 10)")
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
-        export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(coverage run -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
@@ -142,7 +142,7 @@ jobs:
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
-        coverage xml
+        coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
