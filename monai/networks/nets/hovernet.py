@@ -407,11 +407,6 @@ class HoVerNet(nn.Module):
             mode = mode.upper()
         self.mode = look_up_option(mode, HoVerNetMode)
 
-        if self.mode not in list(HoVerNetMode):
-            raise ValueError(
-                '`mode` should be either HoVerNetMode.FAST ("FAST") or HoVerNetMode.ORIGINAL ("ORIGINAL").'
-            )
-
         if out_classes > 128:
             raise ValueError("Number of nuclear types classes exceeds maximum (128)")
         elif out_classes == 1:
