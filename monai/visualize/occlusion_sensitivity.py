@@ -152,6 +152,7 @@ class OcclusionSensitivity:
         per_channel: bool = True,
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
+        bbox: Optional[Sequence] = None
     ) -> None:
         """Occlusion sensitivity constructor.
 
@@ -172,6 +173,12 @@ class OcclusionSensitivity:
                 N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
                 dimensions of input.
             verbose: Use ``tqdm.trange`` output (if available).
+            b_box: Bounding box on which to perform the analysis. The output image will be limited to this size.
+                There should be a minimum and maximum for all dimensions except batch: ``[min1, max1, min2, max2,...]``.
+                * By default, the whole image will be used. Decreasing the size will speed the analysis up, which might
+                    be useful for larger images.
+                * Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
+                * Use -ve to use ``min=0`` and ``max=im.shape[x]-1`` for xth dimension.
         """
 
         self.nn_module = nn_module
@@ -182,6 +189,7 @@ class OcclusionSensitivity:
         self.stride = stride
         self.per_channel = per_channel
         self.verbose = verbose
+        self.bbox = bbox
 
     def _compute_occlusion_sensitivity(self, x, b_box, **kwargs):
 
@@ -301,6 +309,7 @@ class OcclusionSensitivity:
                 * The most probable class when the corresponding part of the image is occluded (``argmax(dim=-1)``).
             Both images will be cropped if a bounding box used, but voxel sizes will always match the input.
         """
+        bbox = bbox if bbox is not None else self.bbox
 
         with eval_mode(self.nn_module):
 
