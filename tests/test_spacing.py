@@ -19,8 +19,8 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
-from monai.utils import ensure_tuple, fall_back_tuple
-from tests.utils import TEST_DEVICES, assert_allclose
+from monai.utils import fall_back_tuple
+from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 for device in TEST_DEVICES:
@@ -223,8 +223,15 @@ for device in TEST_DEVICES:
 
 TESTS_TORCH = []
 for track_meta in (False, True):
-    for device in TEST_DEVICES:
-        TESTS_TORCH.append([[1.2, 1.3, 0.9], torch.zeros((1, 3, 4, 5)), track_meta, *device])
+    for p in TEST_NDARRAYS_ALL:
+        TESTS_TORCH.append([[1.2, 1.3, 0.9], p(torch.zeros((1, 3, 4, 5))), track_meta])
+
+TEST_INVERSE = []
+for d in TEST_DEVICES:
+    for recompute in (False, True):
+        for align in (False, True):
+            for scale_extent in (False, True):
+                TEST_INVERSE.append([*d, recompute, align, scale_extent])
 
 
 class TestSpacingCase(unittest.TestCase):
@@ -238,16 +245,14 @@ class TestSpacingCase(unittest.TestCase):
         sr = min(len(res.shape) - 1, 3)
         if isinstance(init_param["pixdim"], float):
             init_param["pixdim"] = [init_param["pixdim"]] * sr
-        init_pixdim = ensure_tuple(init_param["pixdim"])
         init_pixdim = init_param["pixdim"][:sr]
         norm = affine_to_spacing(res.affine, sr).cpu().numpy()
         assert_allclose(fall_back_tuple(init_pixdim, norm), norm, type_test=False)
 
     @parameterized.expand(TESTS_TORCH)
-    def test_spacing_torch(self, pixdim, img: torch.Tensor, track_meta: bool, device):
+    def test_spacing_torch(self, pixdim, img, track_meta: bool):
         set_track_meta(track_meta)
         tr = Spacing(pixdim=pixdim)
-        img = img.to(device)
         res = tr(img)
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
@@ -258,16 +263,17 @@ class TestSpacingCase(unittest.TestCase):
             self.assertIsInstance(res, torch.Tensor)
             self.assertNotIsInstance(res, MetaTensor)
             self.assertNotEqual(img.shape, res.shape)
+        set_track_meta(True)
 
-    @parameterized.expand(TEST_DEVICES)
-    def test_inverse(self, device):
+    @parameterized.expand(TEST_INVERSE)
+    def test_inverse(self, device, recompute, align, scale_extent):
         img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
         affine = torch.tensor(
-            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device=device
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
         )
         meta = {"fname": "somewhere"}
         img = MetaTensor(img_t, affine=affine, meta=meta)
-        tr = Spacing(pixdim=[1.1, 1.2, 0.9])
+        tr = Spacing(pixdim=[1.1, 1.2, 0.9], recompute_affine=recompute, align_corners=align, scale_extent=scale_extent)
         # check that image and affine have changed
         img = tr(img)
         self.assertNotEqual(img.shape, img_t.shape)
@@ -279,6 +285,33 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img.shape, img_t.shape)
         l2_norm_affine = ((affine - img.affine) ** 2).sum() ** 0.5
         self.assertLess(l2_norm_affine, 5e-2)
+
+    @parameterized.expand(TEST_INVERSE)
+    def test_inverse_mn_mx(self, device, recompute, align, scale_extent):
+        img_t = torch.rand((1, 10, 9, 8), dtype=torch.float32, device=device)
+        affine = torch.tensor(
+            [[0, 0, -1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
+        )
+        img = MetaTensor(img_t, affine=affine, meta={"fname": "somewhere"})
+        choices = [(None, None), [1.2, None], [None, 0.7], [0.7, 0.9]]
+        idx = np.random.choice(range(len(choices)), size=1)[0]
+        tr = Spacing(
+            pixdim=[1.1, 1.2, 0.9],
+            recompute_affine=recompute,
+            align_corners=align,
+            scale_extent=scale_extent,
+            min_pixdim=[0.9, None, choices[idx][0]],
+            max_pixdim=[1.1, 1.1, choices[idx][1]],
+        )
+        img_out = tr(img)
+        if isinstance(img_out, MetaTensor):
+            assert_allclose(
+                img_out.pixdim, [1.0, 1.125, 0.888889] if recompute else [1.0, 1.2, 0.9], type_test=False, rtol=1e-4
+            )
+        img_out = tr.inverse(img_out)
+        self.assertEqual(img_out.applied_operations, [])
+        self.assertEqual(img_out.shape, img_t.shape)
+        self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
 
 
 if __name__ == "__main__":

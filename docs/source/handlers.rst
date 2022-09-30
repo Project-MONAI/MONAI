@@ -41,6 +41,12 @@ Mean Dice metrics handler
     :members:
 
 
+Mean IoU metric handler
+-----------------------
+.. autoclass:: MeanIoUHandler
+    :members:
+
+
 ROC AUC metrics handler
 -----------------------
 .. autoclass:: ROCAUC
@@ -92,6 +98,12 @@ Peak signal to noise ratio metrics handler
 Metric logger
 -------------
 .. autoclass:: MetricLogger
+    :members:
+
+
+Logfile handler
+---------------
+.. autoclass:: LogfileHandler
     :members:
 
 

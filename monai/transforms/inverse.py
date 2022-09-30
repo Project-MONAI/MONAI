@@ -16,6 +16,7 @@ from typing import Any, Hashable, Mapping, Optional, Tuple
 
 import torch
 
+from monai import transforms
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Transform
 from monai.utils.enums import TraceKeys
@@ -55,7 +56,7 @@ class TraceableTransform(Transform):
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = not os.environ.get("MONAI_TRACE_TRANSFORM", "1") == "0"
+    tracing = os.environ.get("MONAI_TRACE_TRANSFORM", "1") != "0"
 
     def set_tracing(self, tracing: bool) -> None:
         """Set whether to trace transforms."""
@@ -249,6 +250,22 @@ class InvertibleTransform(TraceableTransform):
            ``pop_transform`` is called.
 
     """
+
+    def inverse_update(self, data):
+        """
+        This function is to be called before every `self.inverse(data)`,
+        update each MetaTensor `data[key]` using `data[key_transforms]` and `data[key_meta_dict]`,
+        for MetaTensor backward compatibility 0.9.0.
+        """
+        if not isinstance(data, dict) or not isinstance(self, transforms.MapTransform):
+            return data
+        d = dict(data)
+        for k in self.key_iterator(data):
+            transform_key = transforms.TraceableTransform.trace_key(k)
+            if transform_key not in data or not data[transform_key]:
+                continue
+            d = transforms.sync_meta_info(k, data, t=False)
+        return d
 
     def inverse(self, data: Any) -> Any:
         """

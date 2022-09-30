@@ -290,6 +290,9 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
         else:
             # even-sized kernels are not supported
             kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+    elif kwargs["padding"] == "same" and not pytorch_after(1, 10):
+        # even-sized kernels are not supported
+        kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
 
     if "stride" not in kwargs:
         kwargs["stride"] = 1
@@ -363,7 +366,11 @@ class SavitzkyGolayFilter(nn.Module):
         a = idx ** torch.arange(order + 1, dtype=torch.float, device="cpu").reshape(-1, 1)
         y = torch.zeros(order + 1, dtype=torch.float, device="cpu")
         y[0] = 1.0
-        return torch.lstsq(y, a).solution.squeeze()
+        return (
+            torch.lstsq(y, a).solution.squeeze()
+            if not pytorch_after(1, 11)
+            else torch.linalg.lstsq(a, y).solution.squeeze()
+        )
 
 
 class HilbertTransform(nn.Module):
