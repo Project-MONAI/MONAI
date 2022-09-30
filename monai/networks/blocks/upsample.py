@@ -94,7 +94,6 @@ class UpSample(nn.Sequential):
                 padding = tuple((k-1)//2 for k in kernel_size_)
                 output_padding = tuple(s - 1 - (k-1) % 2 for k,s in zip(kernel_size_, scale_factor_))
 
-
             self.add_module(
                 "deconv",
                 Conv[Conv.CONVTRANS, spatial_dims](

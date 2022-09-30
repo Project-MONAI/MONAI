@@ -109,7 +109,6 @@ for s in range(2, 5):
             TEST_CASES_EQ.append(test_case)
 
 
-
 class TestUpsample(unittest.TestCase):
     @parameterized.expand(TEST_CASES + TEST_CASES_EQ + TEST_CASES_EQ2)
     def test_shape(self, input_param, input_shape, expected_shape):
