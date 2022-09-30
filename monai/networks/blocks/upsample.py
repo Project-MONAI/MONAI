@@ -91,8 +91,8 @@ class UpSample(nn.Sequential):
                 output_padding = padding = 0
             else:
                 kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
-                padding = tuple((k-1)//2 for k in kernel_size_)
-                output_padding = tuple(s - 1 - (k-1) % 2 for k,s in zip(kernel_size_, scale_factor_))
+                padding = tuple((k - 1) // 2 for k in kernel_size_)
+                output_padding = tuple(s - 1 - (k - 1) % 2 for k, s in zip(kernel_size_, scale_factor_))
 
             self.add_module(
                 "deconv",
