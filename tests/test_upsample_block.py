@@ -88,7 +88,7 @@ for s in range(1, 5):
         TEST_CASES_EQ.append(test_case)
 
 
-TEST_CASES_EQ2 = []
+TEST_CASES_EQ2 = []  # type: ignore
 for s in range(2, 5):
     for k in range(1, 7):
         expected_shape = (16, 5, 4 * s, 5 * s, 6 * s)
