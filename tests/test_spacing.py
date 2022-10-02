@@ -50,7 +50,7 @@ for device in TEST_DEVICES:
             torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
             torch.eye(4),
             {},
-            torch.tensor([[[1.0, 0.], [0., 0.]]]),
+            torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]),
             *device,
         ]
     )
