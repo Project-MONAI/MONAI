@@ -12,6 +12,7 @@
 import os
 import tempfile
 import unittest
+from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
@@ -20,7 +21,7 @@ from monai import config as monai_config
 from monai.bundle import ConfigParser
 from monai.data import CacheDataset, DataLoader, MetaTensor, decollate_batch
 from monai.data.utils import TraceKeys
-from monai.transforms import InvertD, SaveImageD
+from monai.transforms import InvertD, SaveImageD, reset_ops_id
 from monai.utils import optional_import, set_determinism
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
@@ -80,6 +81,10 @@ class TestMetaTensorIntegration(unittest.TestCase):
         self.assertTrue(len(tracked_cls) <= len(test_cls))  # tracked items should  be no more than the compose items.
         with tempfile.TemporaryDirectory() as tempdir:  # test writer
             SaveImageD(keys, resample=False, output_dir=tempdir, output_postfix=case_id)(loaded)
+        test_data = reset_ops_id(deepcopy(loaded))
+        for val in test_data.values():
+            if isinstance(val, MetaTensor) and val.applied_operations:
+                self.assertEqual(val.applied_operations[-1][TraceKeys.ID], TraceKeys.NONE)
 
         # test inverse
         inv = InvertD(keys, orig_keys=keys, transform=test_case, nearest_interp=True)

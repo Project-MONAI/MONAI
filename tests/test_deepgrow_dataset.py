@@ -29,20 +29,20 @@ TEST_CASE_3 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1}, 3, 1]
 
 TEST_CASE_4 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1}, 1, 1]
 
-TEST_CASE_5 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 4}, 1, 1]
+TEST_CASE_5 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 1}, 1, 1]
 
-TEST_CASE_6 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 4}, 3, 1]
+TEST_CASE_6 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 1}, 3, 1]
 
 TEST_CASE_7 = [
     {"dimension": 2, "pixdim": (1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
+    {"length": 1, "image_channel": 1, "with_label": False},
     40,
     None,
 ]
 
 TEST_CASE_8 = [
     {"dimension": 3, "pixdim": (1, 1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
+    {"length": 1, "image_channel": 1, "with_label": False},
     1,
     None,
 ]

@@ -13,7 +13,7 @@ import json
 import logging
 import random
 import warnings
-from typing import Dict, Hashable, Mapping, Optional
+from typing import Dict, Hashable, List, Mapping, Optional
 
 import numpy as np
 import torch
@@ -98,22 +98,22 @@ class NormalizeLabelsInDatasetd(MapTransform):
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
         for key in self.key_iterator(d):
-            if key == "label":
-                # Dictionary containing new label numbers
-                new_label_names = {}
-                label = np.zeros(d[key].shape)
-                # Making sure the range values and number of labels are the same
-                for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
-                    if key_label != "background":
-                        new_label_names[key_label] = idx
-                        label[d[key] == val_label] = idx
-                    if key_label == "background":
-                        new_label_names["background"] = 0
+            # Dictionary containing new label numbers
+            new_label_names = {}
+            label = np.zeros(d[key].shape)
+            # Making sure the range values and number of labels are the same
+            for idx, (key_label, val_label) in enumerate(self.label_names.items(), start=1):
+                if key_label != "background":
+                    new_label_names[key_label] = idx
+                    label[d[key] == val_label] = idx
+                if key_label == "background":
+                    new_label_names["background"] = 0
 
-                d["label_names"] = new_label_names
-                d[key] = label
+            d["label_names"] = new_label_names
+            if isinstance(d[key], MetaTensor):
+                d[key].array = label
             else:
-                warnings.warn("This transform only applies to the label")
+                d[key] = label
         return d
 
 
@@ -500,13 +500,14 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
-        self.guidance = guidance
+        self.guidance_key = guidance
         self.discrepancy = discrepancy
         self.probability = probability
         self._will_interact = None
         self.is_pos = None
         self.is_other = None
         self.default_guidance = None
+        self.guidance: Dict[str, List[List[int]]] = {}
 
     def randomize(self, data=None):
         probability = data[self.probability]
@@ -559,31 +560,30 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                     tmp_label = np.copy(labels)
                     tmp_label[tmp_label != label_names[key_label]] = 0
                     tmp_label = (tmp_label > 0.5).astype(np.float32)
-                    self.tmp_guidance[key_label].append(self.find_guidance(discrepancy[1] * tmp_label))
+                    self.guidance[key_label].append(self.find_guidance(discrepancy[1] * tmp_label))
                 else:
                     tmp_label = np.copy(labels)
                     tmp_label[tmp_label != label_names[key_label]] = 1
                     tmp_label = 1 - tmp_label
-                    self.tmp_guidance[key_label].append(self.find_guidance(discrepancy[1] * tmp_label))
+                    self.guidance[key_label].append(self.find_guidance(discrepancy[1] * tmp_label))
 
     def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
         d: Dict = dict(data)
-        guidance = d[self.guidance]
+        guidance = d[self.guidance_key]
         discrepancy = d[self.discrepancy]
         self.randomize(data)
         if self._will_interact:
             # Convert all guidance to lists so new guidance can be easily appended
-            self.tmp_guidance = {}
             for key_label in d["label_names"].keys():
                 tmp_gui = guidance[key_label]
                 tmp_gui = tmp_gui.tolist() if isinstance(tmp_gui, np.ndarray) else tmp_gui
                 tmp_gui = json.loads(tmp_gui) if isinstance(tmp_gui, str) else tmp_gui
-                self.tmp_guidance[key_label] = [j for j in tmp_gui if -1 not in j]
+                self.guidance[key_label] = [j for j in tmp_gui if -1 not in j]
 
             # Add guidance according to discrepancy
             for key_label in d["label_names"].keys():
                 # Add guidance based on discrepancy
-                self.add_guidance(self.tmp_guidance[key_label], discrepancy[key_label], d["label_names"], d["label"])
+                self.add_guidance(self.guidance[key_label], discrepancy[key_label], d["label_names"], d["label"])
 
             # Checking the number of clicks
             num_clicks = random.randint(1, 10)
@@ -595,12 +595,12 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                     pass
                 else:
                     keep_guidance.append(aux_label)
-                    counter = counter + len(self.tmp_guidance[aux_label])
+                    counter = counter + len(self.guidance[aux_label])
                     # If collected clicks is bigger than max clicks, discard the others
                     if counter >= num_clicks:
                         for key_label in d["label_names"].keys():
                             if key_label not in keep_guidance:
-                                self.tmp_guidance[key_label] = []
+                                self.guidance[key_label] = []
                         logger.info(f"Number of simulated clicks: {counter}")
                         break
 
@@ -608,7 +608,7 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                 if len(keep_guidance) == len(d["label_names"].keys()):
                     logger.info(f"Number of simulated clicks: {counter}")
                     break
-
+        d[self.guidance_key] = self.guidance  # Update the guidance
         return d
 
 
@@ -626,7 +626,7 @@ class AddGuidanceFromPointsDeepEditd(Transform):
             for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
             the metadata is a dictionary object which contains: filename, original_shape, etc.
             if None, will try to construct meta_keys by `{ref_image}_{meta_key_postfix}`.
-        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to to fetch the metadata according
+        meta_key_postfix: if meta_key is None, use `{ref_image}_{meta_key_postfix}` to fetch the metadata according
             to the key data, default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.

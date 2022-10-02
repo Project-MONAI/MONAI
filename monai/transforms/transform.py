@@ -24,6 +24,7 @@ from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import MONAIEnvVars
 
 __all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
@@ -89,7 +90,10 @@ def apply_transform(
             return [_apply_transform(transform, item, unpack_items) for item in data]
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
-
+        # if in debug mode, don't swallow exception so that the breakpoint
+        # appears where the exception was raised.
+        if MONAIEnvVars.debug():
+            raise
         if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
@@ -127,7 +131,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -211,9 +215,13 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
-    # Transforms should add data types to this list if they are capable of performing a transform without
-    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
-    # are required if the input is either `torch.Tensor` or `np.ndarray`.
+    # Transforms should add `monai.transforms.utils.TransformBackends` to this list if they are performing
+    # the data processing using the corresponding backend APIs.
+    # Most of MONAI transform's inputs and outputs will be converted into torch.Tensor or monai.data.MetaTensor.
+    # This variable provides information about whether the input will be converted
+    # to other data types during the transformation. Note that not all `dtype` (such as float32, uint8) are supported
+    # by all the data types, the `dtype` during the conversion is determined automatically by each transform,
+    # please refer to the transform's docstring.
     backend: List[TransformBackends] = []
 
     @abstractmethod
@@ -407,10 +415,10 @@ class MapTransform(Transform):
     def first_key(self, data: Dict[Hashable, Any]):
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
-        If no available key, return an empty list `[]`.
+        If no available key, return an empty tuple `()`.
 
         Args:
             data: data that the transform will be applied to.
 
         """
-        return first(self.key_iterator(data), [])
+        return first(self.key_iterator(data), ())

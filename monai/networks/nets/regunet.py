@@ -167,8 +167,6 @@ class RegUNet(nn.Module):
         )
 
     def build_decode_layers(self):
-        # decoding / up-sampling
-        # [depth - 1, depth - 2, ..., min_extract_level]
         self.decode_deconvs = nn.ModuleList(
             [
                 self.build_up_sampling_block(in_channels=self.num_channels[d + 1], out_channels=self.num_channels[d])
@@ -221,9 +219,7 @@ class RegUNet(nn.Module):
 
         outs = [decoded]
 
-        # [depth - 1, ..., min_extract_level]
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):
-            # [depth - 1, depth - 2, ..., min_extract_level]
             decoded = decode_deconv(decoded)
             if self.concat_skip:
                 decoded = torch.cat([decoded, skips[-i - 1]], dim=1)

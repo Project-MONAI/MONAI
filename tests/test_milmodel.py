@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import MILModel
 from monai.utils.module import optional_import
-from tests.utils import test_script_save
+from tests.utils import skip_if_downloading_fails, test_script_save
 
 models, _ = optional_import("torchvision.models")
 
@@ -65,7 +65,8 @@ TEST_CASE_MILMODEL.append(
 class TestMilModel(unittest.TestCase):
     @parameterized.expand(TEST_CASE_MILMODEL)
     def test_shape(self, input_param, input_shape, expected_shape):
-        net = MILModel(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = MILModel(**input_param).to(device)
         with eval_mode(net):
             result = net(torch.randn(input_shape, dtype=torch.float).to(device))
             self.assertEqual(result.shape, expected_shape)

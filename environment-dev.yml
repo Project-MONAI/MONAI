@@ -13,7 +13,7 @@ dependencies:
   - gdown>=4.4.0
   - scipy
   - nibabel
-  - pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
+  - pillow!=8.3.0 # https://github.com/python-pillow/Pillow/issues/5571
   - tensorboard
   - scikit-image>=0.14.2
   - tqdm>=4.47.0
@@ -21,7 +21,6 @@ dependencies:
   - flake8>=3.8.1
   - flake8-bugbear
   - flake8-comprehensions
-  - flake8-pyi
   - pylint
   - mccabe
   - pep8-naming
@@ -39,7 +38,7 @@ dependencies:
   - pandas
   - requests
   - einops
-  - transformers
+  - transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
   - mlflow
   - tensorboardX
   - pyyaml
@@ -48,6 +47,7 @@ dependencies:
   - pynrrd
   - pydicom
   - h5py
+  - optuna
   - pip
   - pip:
     # pip for itk as conda-forge version only up to v5.1
@@ -60,7 +60,8 @@ dependencies:
     #   https://github.com/conda/conda/issues/8089
     - pytype>=2020.6.1; platform_system != "Windows"
     - openslide-python==1.1.2
-    - cucim>=21.8.2; platform_system == "Linux"
+    - cucim>=22.8.1; platform_system == "Linux"
     - imagecodecs; platform_system == "Linux"
     - tifffile; platform_system == "Linux"
     - matplotlib!=3.5.0
+    - nni

@@ -174,7 +174,8 @@ class MetaObj:
         """Set the meta."""
         if d == TraceKeys.NONE:
             self._meta = MetaObj.get_default_meta()
-        self._meta = d
+        else:
+            self._meta = d
 
     @property
     def applied_operations(self) -> list[dict]:

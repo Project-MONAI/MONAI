@@ -29,12 +29,18 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_autorunner",
+        "test_auto3dseg_ensemble",
+        "test_auto3dseg_hpo",
+        "test_auto3dseg",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
-        "test_contrastive_loss",
         "test_check_missing_files",
+        "test_compute_ho_ver_maps",
+        "test_compute_ho_ver_maps_d",
+        "test_contrastive_loss",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_cumulative_average_dist",
@@ -56,6 +62,7 @@ def run_testsuit():
         "test_foreground_mask",
         "test_foreground_maskd",
         "test_global_mutual_information_loss",
+        "test_grid_patch",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -68,6 +75,7 @@ def run_testsuit():
         "test_handler_hausdorff_distance",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
+        "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_mlflow",
@@ -130,11 +138,13 @@ def run_testsuit():
         "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
+        "test_rand_grid_patch",
         "test_rand_rotate",
         "test_rand_rotated",
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",
@@ -162,7 +172,6 @@ def run_testsuit():
         "test_vitautoenc",
         "test_write_metrics_reports",
         "test_wsireader",
-        "test_wsireader_new",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
@@ -198,10 +207,7 @@ if __name__ == "__main__":
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    if err_mod:
-        print(err_mod)
-        # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+    assert not err_mod
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)

@@ -42,9 +42,6 @@ class FastMRIReader(ImageReader):
     - patient_id (str): the patient's id whose measurements were recorded
     """
 
-    def __init__(self):
-        super().__init__()
-
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
          Verify whether the specified file format is supported by h5py reader.

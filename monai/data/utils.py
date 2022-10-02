@@ -286,7 +286,7 @@ def iter_patch(
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
     # set padded flag to false if pad mode is None
-    padded = True if mode else False
+    padded = bool(mode)
     # pad image by maximum values needed to ensure patches are taken from inside an image
     if padded:
         arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
@@ -670,6 +670,11 @@ def set_rnd(obj, seed: int) -> int:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
+    if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
+        _seed = seed
+        for item in obj:
+            _seed = set_rnd(item, seed=seed)
+        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if hasattr(obj, "set_random_state"):
@@ -690,7 +695,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
         affine: a d x d affine matrix.
         r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
         dtype: data type of the output.
-        suppress_zeros: whether to surpress the zeros with ones.
+        suppress_zeros: whether to suppress the zeros with ones.
 
     Returns:
         an `r` dimensional vector of spacing.
@@ -822,7 +827,10 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
+    spatial_shape: Union[np.ndarray, Sequence[int]],
+    in_affine: NdarrayOrTensor,
+    out_affine: NdarrayOrTensor,
+    scale_extent: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
@@ -834,12 +842,29 @@ def compute_shape_offset(
         spatial_shape: input array's shape
         in_affine (matrix): 2D affine matrix
         out_affine (matrix): 2D affine matrix
+        scale_extent: whether the scale is computed based on the spacing or the full extent of voxels, for example, for
+            a factor of 0.5 scaling:
+
+            option 1, "o" represents a voxel, scaling the distance between voxels::
+
+                o--o--o
+                o-----o
+
+            option 2, each voxel has a physical extent, scaling the full voxel extent::
+
+                | voxel 1 | voxel 2 | voxel 3 | voxel 4 |
+                |      voxel 1      |      voxel 2      |
+
+            Option 1 may reduce the number of locations that requiring interpolation. Option 2 is more resolution
+            agnostic, that is, resampling coordinates depend on the scaling factor, not on the number of voxels.
+            Default is False, using option 1 to compute the shape and offset.
+
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
-    in_coords = [(0.0, dim - 1.0) for dim in shape]
+    in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
     corners = in_affine_ @ corners
@@ -849,15 +874,17 @@ def compute_shape_offset(
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
+    out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
     mat = inv_mat[:-1, :-1]
-    k = 0
+    i = 0
     for i in range(corners.shape[1]):
         min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
-            k = i
             break
-    offset = corners[:-1, k]
+    offset = corners[:-1, i]
+    if scale_extent:
+        in_offset = np.append(0.5 * (shape / out_shape - 1.0), 1.0)
+        offset = np.abs((in_affine_ @ in_offset / in_offset[-1])[:-1]) * np.sign(offset)
     return out_shape.astype(int, copy=False), offset
 
 
