@@ -46,6 +46,16 @@ for device in TEST_DEVICES:
     )
     TESTS.append(
         [
+            {"pixdim": 2.0, "padding_mode": "zeros", "dtype": float},
+            torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
+            torch.eye(4),
+            {},
+            torch.tensor([[[1.0, 0.], [0., 0.]]]),
+            *device,
+        ]
+    )
+    TESTS.append(
+        [
             {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
             torch.ones((1, 2, 1, 2)),  # data
             torch.eye(4),
