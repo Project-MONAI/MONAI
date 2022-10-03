@@ -10,88 +10,17 @@
 # limitations under the License.
 
 from collections.abc import Sequence
-from functools import partial
 from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.utils import eval_mode
+from monai.transforms import Compose, GaussianSmooth, Lambda, ScaleIntensity, SpatialCrop
+from monai.utils import deprecated_arg, ensure_tuple_rep
 from monai.visualize.visualizer import default_upsampler
-
-try:
-    from tqdm import trange
-
-    trange = partial(trange, desc="Computing occlusion sensitivity")
-except (ImportError, AttributeError):
-    trange = range
-
-# For stride two (for example),
-# if input array is:     |0|1|2|3|4|5|6|7|
-# downsampled output is: | 0 | 1 | 2 | 3 |
-# So the upsampling should do it by the corners of the image, not their centres
-default_upsampler = partial(default_upsampler, align_corners=True)
-
-
-def _check_input_image(image):
-    """Check that the input image is as expected."""
-    # Only accept batch size of 1
-    if image.shape[0] > 1:
-        raise RuntimeError("Expected batch size of 1.")
-
-
-def _check_input_bounding_box(b_box, im_shape):
-    """Check that the bounding box (if supplied) is as expected."""
-    # If no bounding box has been supplied, set min and max to None
-    if b_box is None:
-        b_box_min = b_box_max = None
-
-    # Bounding box has been supplied
-    else:
-        # Should be twice as many elements in `b_box` as `im_shape`
-        if len(b_box) != 2 * len(im_shape):
-            raise ValueError("Bounding box should contain upper and lower for all dimensions (except batch number)")
-
-        # If any min's or max's are -ve, set them to 0 and im_shape-1, respectively.
-        b_box_min = np.array(b_box[::2])
-        b_box_max = np.array(b_box[1::2])
-        b_box_min[b_box_min < 0] = 0
-        b_box_max[b_box_max < 0] = im_shape[b_box_max < 0] - 1
-        # Check all max's are < im_shape
-        if np.any(b_box_max >= im_shape):
-            raise ValueError("Max bounding box should be < image size for all values")
-        # Check all min's are <= max's
-        if np.any(b_box_min > b_box_max):
-            raise ValueError("Min bounding box should be <= max for all values")
-
-    return b_box_min, b_box_max
-
-
-def _append_to_sensitivity_ims(model, batch_images, sensitivity_ims, **kwargs):
-    """Infer given images. Append to previous evaluations. Store each class separately."""
-    batch_images = torch.cat(batch_images, dim=0)
-    scores = model(batch_images, **kwargs).detach()
-    for i in range(scores.shape[1]):
-        sensitivity_ims[i] = torch.cat((sensitivity_ims[i], scores[:, i]))
-    return sensitivity_ims
-
-
-def _get_as_np_array(val, numel):
-    # If not a sequence, then convert scalar to numpy array
-    if not isinstance(val, Sequence):
-        out = np.full(numel, val, dtype=np.int32)
-        out[0] = 1  # mask_size and stride always 1 in channel dimension
-    else:
-        # Convert to numpy array and check dimensions match
-        out = np.array(val, dtype=np.int32)
-        # Add stride of 1 to the channel direction (since user input was only for spatial dimensions)
-        out = np.insert(out, 0, 1)
-        if out.size != numel:
-            raise ValueError(
-                "If supplying stride/mask_size as sequence, number of elements should match number of spatial dimensions."
-            )
-    return out
 
 
 class OcclusionSensitivity:
@@ -142,139 +71,191 @@ class OcclusionSensitivity:
         - :py:class:`monai.visualize.occlusion_sensitivity.OcclusionSensitivity.`
     """
 
+    @deprecated_arg(
+        name="pad_val",
+        since="1.0",
+        removed="1.2",
+        msg_suffix="Please use `mode`. For backwards compatibility, use `mode=mean_img`.",
+    )
+    @deprecated_arg(name="stride", since="1.0", removed="1.2", msg_suffix="Please use `overlap`.")
+    @deprecated_arg(name="per_channel", since="1.0", removed="1.2")
+    @deprecated_arg(name="upsampler", since="1.0", removed="1.2")
     def __init__(
         self,
         nn_module: nn.Module,
         pad_val: Optional[float] = None,
-        mask_size: Union[int, Sequence] = 15,
-        n_batch: int = 128,
+        mask_size: Union[int, Sequence] = 16,
+        n_batch: int = 16,
         stride: Union[int, Sequence] = 1,
         per_channel: bool = True,
         upsampler: Optional[Callable] = default_upsampler,
         verbose: bool = True,
+        mode: Union[str, float, Callable] = "gaussian",
+        overlap: float = 0.25,
+        activate: Union[bool, Callable] = True,
     ) -> None:
-        """Occlusion sensitivity constructor.
+        """
+        Occlusion sensitivity constructor.
 
         Args:
             nn_module: Classification model to use for inference
-            pad_val: When occluding part of the image, which values should we put
-                in the image? If ``None`` is used, then the average of the image will be used.
-            mask_size: Size of box to be occluded, centred on the central voxel. To ensure that the occluded area
-                is correctly centred, ``mask_size`` and ``stride`` should both be odd or even.
+            mask_size: Size of box to be occluded, centred on the central voxel. If a single number
+                is given, this is used for all dimensions. If a sequence is given, this is used for each dimension
+                individually.
             n_batch: Number of images in a batch for inference.
-            stride: Stride in spatial directions for performing occlusions. Can be single
-                value or sequence (for varying stride in the different directions).
-                Should be >= 1. Striding in the channel direction depends on the `per_channel` argument.
-            per_channel: If `True`, `mask_size` and `stride` both equal 1 in the channel dimension. If `False`,
-                then both `mask_size` equals the number of channels in the image. If `True`, the output image will be:
-                `[B, C, H, W, D, num_seg_classes]`. Else, will be `[B, 1, H, W, D, num_seg_classes]`
-            upsampler: An upsampling method to upsample the output image. Default is
-                N-dimensional linear (bilinear, trilinear, etc.) depending on num spatial
-                dimensions of input.
-            verbose: Use ``tqdm.trange`` output (if available).
-        """
+            verbose: Use progress bar (if ``tqdm`` available).
+            mode: what should the occluded region be replaced with? If a float is given, that value will be used
+                throughout the occlusion. Else, ``gaussian``, ``mean_img`` and ``mean_patch`` can be supplied:
 
+                * ``gaussian``: occluded region is multiplied by 1 - gaussian kernel. In this fashion, the occlusion
+                  will be 0 at the center and will be unchanged towards the edges, varying smoothly between. When
+                  gaussian is used, a weighted average will be used to combine overlapping regions. This will be
+                  done using the gaussian (not 1-gaussian) as occluded regions count more.
+                * ``mean_patch``: occluded region will be replaced with the mean of occluded region.
+                * ``mean_img``: occluded region will be replaced with the mean of the whole image.
+
+            overlap: overlap between inferred regions. Should be in range 0<=x<1.
+            activate: if ``True``, do softmax activation if num_channels > 1 else do ``sigmoid``. If ``False``, don't do any
+                activation. If ``callable``, use callable on inferred outputs.
+
+        """
         self.nn_module = nn_module
-        self.upsampler = upsampler
-        self.pad_val = pad_val
         self.mask_size = mask_size
         self.n_batch = n_batch
-        self.stride = stride
-        self.per_channel = per_channel
         self.verbose = verbose
+        self.overlap = overlap
+        self.activate = activate
+        # mode
+        if isinstance(mode, str) and mode not in ("gaussian", "mean_patch", "mean_img"):
+            raise NotImplementedError
+        self.mode = mode
 
-    def _compute_occlusion_sensitivity(self, x, b_box, **kwargs):
+    @staticmethod
+    def constant_occlusion(x: torch.Tensor, val: float, mask_size: tuple) -> Tuple[float, torch.Tensor]:
+        """Occlude with a constant occlusion. Multiplicative is zero, additive is constant value."""
+        ones = torch.ones((*x.shape[:2], *mask_size), device=x.device, dtype=x.dtype)
+        return 0, ones * val
 
-        # Get bounding box
-        im_shape = np.array(x.shape[1:])
-        b_box_min, b_box_max = _check_input_bounding_box(b_box, im_shape)
+    @staticmethod
+    def gaussian_occlusion(x: torch.Tensor, mask_size, sigma=0.25) -> Tuple[torch.Tensor, float]:
+        """
+        For Gaussian occlusion, Multiplicative is 1-Gaussian, additive is zero.
+        Default sigma of 0.25 empirically shown to give reasonable kernel, see here:
+        https://github.com/Project-MONAI/MONAI/pull/5230#discussion_r984520714.
+        """
+        kernel = torch.zeros((x.shape[1], *mask_size), device=x.device, dtype=x.dtype)
+        spatial_shape = kernel.shape[1:]
+        # all channels (as occluded shape already takes into account per_channel), center in spatial dimensions
+        center = [slice(None)] + [slice(s // 2, s // 2 + 1) for s in spatial_shape]
+        # place value of 1 at center
+        kernel[center] = 1.0
+        # Smooth with sigma equal to quarter of image, flip +ve/-ve so largest values are at edge
+        # and smallest at center. Scale to [0, 1].
+        gaussian = Compose(
+            [GaussianSmooth(sigma=[b * sigma for b in spatial_shape]), Lambda(lambda x: -x), ScaleIntensity()]
+        )
+        # transform and add batch
+        mul: torch.Tensor = gaussian(kernel)[None]
 
-        # Get the number of prediction classes
-        num_classes = self.nn_module(x, **kwargs).numel()
+        return mul, 0
 
-        # If pad val not supplied, get the mean of the image
-        pad_val = x.mean() if self.pad_val is None else self.pad_val
+    @staticmethod
+    def predictor(
+        cropped_grid: torch.Tensor,
+        nn_module: nn.Module,
+        x: torch.Tensor,
+        mul: Union[torch.Tensor, float],
+        add: Union[torch.Tensor, float],
+        mask_size: Sequence,
+        occ_mode: str,
+        activate: Union[bool, Callable],
+        module_kwargs,
+    ) -> torch.Tensor:
+        """
+        Predictor function to be passed to the sliding window inferer. Takes a cropped meshgrid,
+        referring to the coordinates in the input image. We use the index of the top-left corner
+        in combination ``mask_size`` to figure out which region of the image is to be occluded. The
+        occlusion is performed on the original image, ``x``, using ``cropped_region * mul + add``. ``mul``
+        and ``add`` are sometimes pre-computed (e.g., a constant Gaussian blur), or they are
+        sometimes calculated on the fly (e.g., the mean of the occluded patch). For this reason
+        ``occ_mode`` is given. Lastly, ``activate`` is used to activate after each call of the model.
 
-        # List containing a batch of images to be inferred
-        batch_images = []
+        Args:
+            cropped_grid: subsection of the meshgrid, where each voxel refers to the coordinate of
+                the input image. The meshgrid is created by the ``OcclusionSensitivity`` class, and
+                the generation of the subset is determined by ``sliding_window_inference``.
+            nn_module: module to call on data.
+            x: the image that was originally passed into ``OcclusionSensitivity.__call__``.
+            mul: occluded region will be multiplied by this. Can be ``torch.Tensor`` or ``float``.
+            add: after multiplication, this is added to the occluded region. Can be ``torch.Tensor`` or ``float``.
+            mask_size: Size of box to be occluded, centred on the central voxel. Should be
+                a sequence, one value for each spatial dimension.
+            occ_mode: might be used to calculate ``mul`` and ``add`` on the fly.
+            activate: if ``True``, do softmax activation if num_channels > 1 else do ``sigmoid``. If ``False``, don't do any
+                activation. If ``callable``, use callable on inferred outputs.
+            module_kwargs: kwargs to be passed onto module when inferring
+        """
+        n_batch = cropped_grid.shape[0]
+        sd = cropped_grid.ndim - 2
+        # start with copies of x to infer
+        im = torch.repeat_interleave(x, n_batch, 0)
+        # get coordinates of top left corner of occluded region (possible because we use meshgrid)
+        corner_coord_slices = [slice(None)] * 2 + [slice(1)] * sd
+        top_corners = cropped_grid[corner_coord_slices]
 
-        # List of sensitivity images, one for each inferred class
-        sensitivity_ims = num_classes * [torch.empty(0, dtype=torch.float32, device=x.device)]
+        # replace occluded regions
+        for b, t in enumerate(top_corners):
+            # starting from corner, get the slices to extract the occluded region from the image
+            slices = [slice(b, b + 1), slice(None)] + [slice(int(j), int(j) + m) for j, m in zip(t, mask_size)]
+            to_occlude = im[slices]
+            if occ_mode == "mean_patch":
+                add, mul = OcclusionSensitivity.constant_occlusion(x, to_occlude.mean().item(), mask_size)
 
-        # If no bounding box supplied, output shape is same as input shape.
-        # If bounding box is present, shape is max - min + 1
-        output_im_shape = im_shape if b_box is None else b_box_max - b_box_min + 1
+            if callable(occ_mode):
+                to_occlude = occ_mode(x, to_occlude)
+            else:
+                to_occlude = to_occlude * mul + add
+            if add is None or mul is None:
+                raise RuntimeError("Shouldn't be here, something's gone wrong...")
+            im[slices] = to_occlude
+        # infer
+        out: torch.Tensor = nn_module(im, **module_kwargs)
 
-        # Get the stride and mask_size as numpy arrays
-        stride = _get_as_np_array(self.stride, len(im_shape))
-        mask_size = _get_as_np_array(self.mask_size, len(im_shape))
+        # if activation is callable, call it
+        if callable(activate):
+            out = activate(out)
+        # else if True (should be boolean), sigmoid if n_chan == 1 else softmax
+        elif activate:
+            out = out.sigmoid() if x.shape[1] == 1 else out.softmax(1)
 
-        # If not doing it on a per-channel basis, then the output image will have 1 output channel
-        # (since all will be occluded together)
-        if not self.per_channel:
-            output_im_shape[0] = 1
-            stride[0] = x.shape[1]
-            mask_size[0] = x.shape[1]
+        # the output will have shape [B,C] where C is number of channels output by model (inference classes)
+        # we need to return it to sliding window inference with shape [B,C,H,W,[D]], so add dims and repeat values
+        for m in mask_size:
+            out = torch.repeat_interleave(out.unsqueeze(-1), m, dim=-1)
 
-        # For each dimension, ...
-        for o, s in zip(output_im_shape, stride):
-            # if the size is > 1, then check that the stride is a factor of the output image shape
-            if o > 1 and o % s != 0:
-                raise ValueError(
-                    "Stride should be a factor of the image shape. Im shape "
-                    + f"(taking bounding box into account): {output_im_shape}, stride: {stride}"
-                )
+        return out
 
-        # to ensure the occluded area is nicely centred if stride is even, ensure that so is the mask_size
-        if np.any(mask_size % 2 != stride % 2):
-            raise ValueError(
-                "Stride and mask size should both be odd or even (element-wise). "
-                + f"``stride={stride}``, ``mask_size={mask_size}``"
-            )
-
-        downsampled_im_shape = (output_im_shape / stride).astype(np.int32)
-        downsampled_im_shape[downsampled_im_shape == 0] = 1  # make sure dimension sizes are >= 1
-        num_required_predictions = np.prod(downsampled_im_shape)
-
-        # Get bottom left and top right corners of occluded region
-        lower_corner = (stride - mask_size) // 2
-        upper_corner = (stride + mask_size) // 2
-
-        # Loop 1D over image
-        verbose_range = trange if self.verbose else range
-        for i in verbose_range(num_required_predictions):
-            # Get corresponding ND index
-            idx = np.unravel_index(i, downsampled_im_shape)
-            # Multiply by stride
-            idx *= stride
-            # If a bounding box is being used, we need to add on
-            # the min to shift to start of region of interest
-            if b_box_min is not None:
-                idx += b_box_min
-
-            # Get min and max index of box to occlude (and make sure it's in bounds)
-            min_idx = np.maximum(idx + lower_corner, 0)
-            max_idx = np.minimum(idx + upper_corner, im_shape)
-
-            # Clone and replace target area with `pad_val`
-            occlu_im = x.detach().clone()
-            occlu_im[(...,) + tuple(slice(i, j) for i, j in zip(min_idx, max_idx))] = pad_val
-
-            # Add to list
-            batch_images.append(occlu_im)
-
-            # Once the batch is complete (or on last iteration)
-            if len(batch_images) == self.n_batch or i == num_required_predictions - 1:
-                # Do the predictions and append to sensitivity maps
-                sensitivity_ims = _append_to_sensitivity_ims(self.nn_module, batch_images, sensitivity_ims, **kwargs)
-                # Clear lists
-                batch_images = []
-
-        # Reshape to match downsampled image, and unsqueeze to add batch dimension back in
-        for i in range(num_classes):
-            sensitivity_ims[i] = sensitivity_ims[i].reshape(tuple(downsampled_im_shape)).unsqueeze(0)
-
-        return sensitivity_ims, output_im_shape
+    @staticmethod
+    def crop_meshgrid(grid: MetaTensor, b_box: Sequence, mask_size: Sequence) -> Tuple[MetaTensor, SpatialCrop]:
+        """Crop the meshgrid so we only perform occlusion sensitivity on a subsection of the image."""
+        # distance from center of mask to edge is -1 // 2.
+        mask_edge = [(m - 1) // 2 for m in mask_size]
+        bbox_min = [max(b - m, 0) for b, m in zip(b_box[::2], mask_edge)]
+        bbox_max = []
+        for b, m, s in zip(b_box[1::2], mask_edge, grid.shape[2:]):
+            # if bbox is -ve for that dimension, no cropping so use current image size
+            if b == -1:
+                bbox_max.append(s)
+            # else bounding box plus distance to mask edge. Make sure it's not bigger than the size of the image
+            else:
+                bbox_max.append(min(b + m, s))
+        # bbox_max = [min(b + m, s) if b >= 0 else s for b, m, s in zip(b_box[1::2], mask_edge, grid.shape[2:])]
+        # No need for batch and channel slices. Batch will be removed and added back in, and
+        # SpatialCrop doesn't act on the first dimension anyway.
+        slices = [slice(s, e) for s, e in zip(bbox_min, bbox_max)]
+        cropper = SpatialCrop(roi_slices=slices)
+        cropped: MetaTensor = cropper(grid[0])[None]  # type: ignore
+        return cropped, cropper
 
     def __call__(
         self, x: torch.Tensor, b_box: Optional[Sequence] = None, **kwargs
@@ -283,11 +264,13 @@ class OcclusionSensitivity:
         Args:
             x: Image to use for inference. Should be a tensor consisting of 1 batch.
             b_box: Bounding box on which to perform the analysis. The output image will be limited to this size.
-                There should be a minimum and maximum for all dimensions except batch: ``[min1, max1, min2, max2,...]``.
+                There should be a minimum and maximum for all spatial dimensions: ``[min1, max1, min2, max2,...]``.
                 * By default, the whole image will be used. Decreasing the size will speed the analysis up, which might
                     be useful for larger images.
                 * Min and max are inclusive, so ``[0, 63, ...]`` will have size ``(64, ...)``.
                 * Use -ve to use ``min=0`` and ``max=im.shape[x]-1`` for xth dimension.
+                * N.B.: we add half of the mask size to the bounding box to ensure that the region of interest has a
+                    sufficiently large area surrounding it.
             kwargs: any extra arguments to be passed on to the module as part of its `__call__`.
 
         Returns:
@@ -301,29 +284,73 @@ class OcclusionSensitivity:
                 * The most probable class when the corresponding part of the image is occluded (``argmax(dim=-1)``).
             Both images will be cropped if a bounding box used, but voxel sizes will always match the input.
         """
+        if x.shape[0] > 1:
+            raise ValueError("Expected batch size of 1.")
+
+        sd = x.ndim - 2
+        mask_size = ensure_tuple_rep(self.mask_size, sd)
+
+        # get the meshgrid (so that sliding_window_inference can tell us which bit to occlude)
+        grid: MetaTensor = MetaTensor(
+            np.stack(np.meshgrid(*[np.arange(0, i) for i in x.shape[2:]], indexing="ij"))[None],
+            device=x.device,
+            dtype=x.dtype,
+        )
+        # if bounding box given, crop the grid to only infer subsections of the image
+        if b_box is not None:
+            grid, cropper = self.crop_meshgrid(grid, b_box, mask_size)
+
+        # check that the grid is bigger than the mask size
+        if any(m > g for g, m in zip(grid.shape[2:], mask_size)):
+            raise ValueError("Image (after cropping with bounding box) should be bigger than mask.")
+
+        # get additive and multiplicative factors if they are unchanged for all patches (i.e., not mean_patch)
+        add: Optional[Union[float, torch.Tensor]]
+        mul: Optional[Union[float, torch.Tensor]]
+        # multiply by 0, add value
+        if isinstance(self.mode, float):
+            mul, add = self.constant_occlusion(x, self.mode, mask_size)
+        # multiply by 0, add mean of image
+        elif self.mode == "mean_img":
+            mul, add = self.constant_occlusion(x, x.mean().item(), mask_size)
+        # for gaussian, additive = 0, multiplicative = gaussian
+        elif self.mode == "gaussian":
+            mul, add = self.gaussian_occlusion(x, mask_size)
+        # else will be determined on each patch individually so calculated later
+        else:
+            add, mul = None, None
 
         with eval_mode(self.nn_module):
+            # needs to go here to avoid cirular import
+            from monai.inferers import sliding_window_inference
 
-            # Check input arguments
-            _check_input_image(x)
+            sensitivity_im: MetaTensor = sliding_window_inference(  # type: ignore
+                grid,
+                roi_size=mask_size,
+                sw_batch_size=self.n_batch,
+                predictor=OcclusionSensitivity.predictor,
+                overlap=self.overlap,
+                mode="gaussian" if self.mode == "gaussian" else "constant",
+                progress=self.verbose,
+                nn_module=self.nn_module,
+                x=x,
+                add=add,
+                mul=mul,
+                mask_size=mask_size,
+                occ_mode=self.mode,
+                activate=self.activate,
+                module_kwargs=kwargs,
+            )
 
-            # Generate sensitivity images
-            sensitivity_ims_list, output_im_shape = self._compute_occlusion_sensitivity(x, b_box, **kwargs)
+        if b_box is not None:
+            # undo the cropping that was applied to the meshgrid
+            sensitivity_im = cropper.inverse(sensitivity_im[0])[None]  # type: ignore
+            # crop using the bounding box (ignoring the mask size this time)
+            bbox_min = [max(b, 0) for b in b_box[::2]]
+            bbox_max = [b if b > 0 else s for b, s in zip(b_box[1::2], x.shape[2:])]
+            cropper = SpatialCrop(roi_start=bbox_min, roi_end=bbox_max)
+            sensitivity_im = cropper(sensitivity_im[0])[None]  # type: ignore
 
-            # Loop over image for each classification
-            for i, sens_i in enumerate(sensitivity_ims_list):
-                # upsample
-                if self.upsampler is not None:
-                    if len(sens_i.shape) != len(x.shape):
-                        raise AssertionError
-                    if np.any(sens_i.shape != x.shape):
-                        img_spatial = tuple(output_im_shape[1:])
-                        sensitivity_ims_list[i] = self.upsampler(img_spatial)(sens_i)
-
-            # Convert list of tensors to tensor
-            sensitivity_ims = torch.stack(sensitivity_ims_list, dim=-1)
-
-            # The most probable class is the max in the classification dimension (last)
-            most_probable_class = sensitivity_ims.argmax(dim=-1)
-
-            return sensitivity_ims, most_probable_class
+        # The most probable class is the max in the classification dimension (1)
+        most_probable_class = sensitivity_im.argmax(dim=1, keepdim=True)
+        return sensitivity_im, most_probable_class

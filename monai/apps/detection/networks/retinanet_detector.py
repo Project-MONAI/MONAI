@@ -318,13 +318,17 @@ class RetinaNetDetector(nn.Module):
         Args:
             fg_iou_thresh: foreground IoU threshold for Matcher, considered as matched if IoU > fg_iou_thresh
             bg_iou_thresh: background IoU threshold for Matcher, considered as not matched if IoU < bg_iou_thresh
+            allow_low_quality_matches: if True, produce additional matches
+                for predictions that have only low-quality match candidates.
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
                 "Require fg_iou_thresh >= bg_iou_thresh. "
                 f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
             )
-        self.proposal_matcher = Matcher(fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=True)
+        self.proposal_matcher = Matcher(
+            fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
+        )
 
     def set_atss_matcher(self, num_candidates: int = 4, center_in_gt: bool = False) -> None:
         """

@@ -447,7 +447,8 @@ class Spacing(InvertibleTransform):
             pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
                 items of the pixdim sequence map to the spatial dimensions of input image, if length
                 of pixdim sequence is longer than image spatial dimensions, will ignore the longer part,
-                if shorter, will pad with `1.0`.
+                if shorter, will pad with the last value. For example, for 3D image if pixdim is [1.0, 2.0] it
+                will be padded to [1.0, 2.0, 2.0]
                 if the components of the `pixdim` are non-positive values, the transform will use the
                 corresponding components of the original pixdim, which is computed from the `affine`
                 matrix of input image.
@@ -574,7 +575,8 @@ class Spacing(InvertibleTransform):
 
         out_d = self.pixdim[:sr]
         if out_d.size < sr:
-            out_d = np.append(out_d, [1.0] * (sr - out_d.size))
+            out_d = np.append(out_d, [out_d[-1]] * (sr - out_d.size))
+
         orig_d = affine_to_spacing(affine_, sr, out_d.dtype)
         for idx, (_d, mn, mx) in enumerate(
             zip_longest(orig_d, self.min_pixdim[:sr], self.max_pixdim[:sr], fillvalue=np.nan)
@@ -588,6 +590,7 @@ class Spacing(InvertibleTransform):
 
         if not align_corners and scale_extent:
             warnings.warn("align_corners=False is not compatible with scale_extent=True.")
+
         # compute output affine, shape and offset
         new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
         scale_extent = self.scale_extent if scale_extent is None else scale_extent
