@@ -436,10 +436,10 @@ class MapTransform(Transform):
     def first_key(self, data: Dict[Hashable, Any]):
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
-        If no available key, return an empty list `[]`.
+        If no available key, return an empty tuple `()`.
 
         Args:
             data: data that the transform will be applied to.
 
         """
-        return first(self.key_iterator(data), [])
+        return first(self.key_iterator(data), ())

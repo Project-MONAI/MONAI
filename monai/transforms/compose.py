@@ -312,26 +312,27 @@ class OneOf(Compose):
         _transform = self.transforms[index]
         data = apply_transform(_transform, data, self.map_items, self.unpack_items, self.log_stats)
         # if the data is a mapping (dictionary), append the OneOf transform to the end
-        if isinstance(data, Mapping):
-            for key in data.keys():
-                if self.trace_key(key) in data:
+        if isinstance(data, monai.data.MetaTensor):
+            self.push_transform(data, extra_info={"index": index})
+        elif isinstance(data, Mapping):
+            for key in data:  # dictionary not change size during iteration
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
                     self.push_transform(data, key, extra_info={"index": index})
         return data
 
     def inverse(self, data):
         if len(self.transforms) == 0:
             return data
-        if not isinstance(data, Mapping):
-            raise RuntimeError("Inverse only implemented for Mapping (dictionary) data")
 
-        # loop until we get an index and then break (since they'll all be the same)
         index = None
-        for key in data.keys():
-            if self.trace_key(key) in data:
-                # get the index of the applied OneOf transform
-                index = self.get_most_recent_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
-                # and then remove the OneOf transform
-                self.pop_transform(data, key)
+        if isinstance(data, monai.data.MetaTensor):
+            index = self.pop_transform(data)[TraceKeys.EXTRA_INFO]["index"]
+        elif isinstance(data, Mapping):
+            for key in data:
+                if isinstance(data[key], monai.data.MetaTensor) or self.trace_key(key) in data:
+                    index = self.pop_transform(data, key)[TraceKeys.EXTRA_INFO]["index"]
+        else:
+            raise RuntimeError("Inverse only implemented for Mapping (dictionary) or MetaTensor data.")
         if index is None:
             # no invertible transforms have been applied
             return data

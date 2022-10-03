@@ -52,6 +52,8 @@ __all__ = [
     "ImageStatsKeys",
     "LabelStatsKeys",
     "AlgoEnsembleKeys",
+    "HoVerNetMode",
+    "HoVerNetBranch",
 ]
 
 
@@ -588,3 +590,28 @@ class AlgoEnsembleKeys(StrEnum):
     ID = "identifier"
     ALGO = "infer_algo"
     SCORE = "best_metric"
+
+
+class HoVerNetMode(StrEnum):
+    """
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
+    """
+
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"
