@@ -609,6 +609,15 @@ class Resized(MapTransform, InvertibleTransform):
             'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             It also can be a sequence of bool or None, each element corresponds to a key in ``keys``.
+        anti_aliasing: bool
+            Whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+            By default, this value is chosen as (s - 1) / 2 where s is the
+            downsampling factor, where s > 1. For the up-size case, s < 1, no
+            anti-aliasing is performed prior to rescaling.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -621,17 +630,29 @@ class Resized(MapTransform, InvertibleTransform):
         size_mode: str = "all",
         mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
+        anti_aliasing: Union[Sequence[bool], bool] = False,
+        anti_aliasing_sigma: Union[Sequence[Union[Sequence[float], float, None]], Sequence[float], float, None] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
+        self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
+        self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
         self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, mode, align_corners in self.key_iterator(d, self.mode, self.align_corners):
-            d[key] = self.resizer(d[key], mode=mode, align_corners=align_corners)
+        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
+            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
+        ):
+            d[key] = self.resizer(
+                d[key],
+                mode=mode,
+                align_corners=align_corners,
+                anti_aliasing=anti_aliasing,
+                anti_aliasing_sigma=anti_aliasing_sigma,
+            )
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:

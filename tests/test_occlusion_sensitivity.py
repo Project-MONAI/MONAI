@@ -10,12 +10,21 @@
 # limitations under the License.
 
 import unittest
+from typing import Any, List
 
 import torch
 from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, DenseNet121
 from monai.visualize import OcclusionSensitivity
+
+
+class DenseNetAdjoint(DenseNet121):
+    def __call__(self, x, adjoint_info):
+        if adjoint_info != 42:
+            raise ValueError
+        return super().__call__(x)
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 out_channels_2d = 4
@@ -25,44 +34,76 @@ model_2d_2c = DenseNet121(spatial_dims=2, in_channels=2, out_channels=out_channe
 model_3d = DenseNet(
     spatial_dims=3, in_channels=1, out_channels=out_channels_3d, init_features=2, growth_rate=2, block_config=(6,)
 ).to(device)
+model_2d_adjoint = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=out_channels_2d).to(device)
 model_2d.eval()
 model_2d_2c.eval()
 model_3d.eval()
+model_2d_adjoint.eval()
 
-# 2D w/ bounding box
-TEST_CASE_0 = [
-    {"nn_module": model_2d},
-    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 40, 1, 62]},
-    (1, 1, 39, 62, out_channels_2d),
-    (1, 1, 39, 62),
-]
-# 3D w/ bounding box and stride
-TEST_CASE_1 = [
-    {"nn_module": model_3d, "n_batch": 10, "stride": (2, 1, 2), "mask_size": (16, 15, 14)},
-    {"x": torch.rand(1, 1, 6, 6, 6).to(device), "b_box": [-1, -1, 2, 3, -1, -1, -1, -1]},
-    (1, 1, 2, 6, 6, out_channels_3d),
-    (1, 1, 2, 6, 6),
-]
 
-TEST_CASE_FAIL_0 = [  # 2D should fail, since 3 stride values given
-    {"nn_module": model_2d, "n_batch": 10, "stride": (2, 2, 2)},
-    {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [-1, -1, 2, 3, -1, -1]},
-]
+TESTS: List[Any] = []
+TESTS_FAIL: List[Any] = []
 
-TEST_CASE_FAIL_1 = [  # 2D should fail, since stride is not a factor of image size
-    {"nn_module": model_2d, "stride": 3},
-    {"x": torch.rand(1, 1, 48, 64).to(device)},
-]
-TEST_MULTI_CHANNEL = [
-    {"nn_module": model_2d_2c, "per_channel": False},
-    {"x": torch.rand(1, 2, 48, 64).to(device)},
-    (1, 1, 48, 64, out_channels_2d),
-    (1, 1, 48, 64),
-]
+# 2D w/ bounding box with all modes
+for mode in ("gaussian", "mean_patch", "mean_img"):
+    TESTS.append(
+        [
+            {"nn_module": model_2d, "mode": mode},
+            {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [2, 40, 1, 62]},
+            (1, out_channels_2d, 38, 61),
+            (1, 1, 38, 61),
+        ]
+    )
+# 3D w/ bounding box
+TESTS.append(
+    [
+        {"nn_module": model_3d, "n_batch": 10, "mask_size": (16, 15, 14)},
+        {"x": torch.rand(1, 1, 64, 32, 16).to(device), "b_box": [2, 43, -1, -1, -1, -1]},
+        (1, out_channels_3d, 41, 32, 16),
+        (1, 1, 41, 32, 16),
+    ]
+)
+TESTS.append(
+    [
+        {"nn_module": model_2d_2c},
+        {"x": torch.rand(1, 2, 48, 64).to(device)},
+        (1, out_channels_2d, 48, 64),
+        (1, 1, 48, 64),
+    ]
+)
+# 2D w/ bounding box and adjoint
+TESTS.append(
+    [
+        {"nn_module": model_2d_adjoint},
+        {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [2, 40, 1, 62], "adjoint_info": 42},
+        (1, out_channels_2d, 38, 61),
+        (1, 1, 38, 61),
+    ]
+)
+# 2D should fail: bbox makes image too small
+TESTS_FAIL.append(
+    [
+        {"nn_module": model_2d, "n_batch": 10, "mask_size": 15},
+        {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [2, 3, -1, -1]},
+        ValueError,
+    ]
+)
+# 2D should fail: batch > 1
+TESTS_FAIL.append(
+    [
+        {"nn_module": model_2d, "n_batch": 10},
+        {"x": torch.rand(2, 1, 48, 64).to(device), "b_box": [2, 3, -1, -1]},
+        ValueError,
+    ]
+)
+# 2D should fail: unknown mode
+TESTS_FAIL.append(
+    [{"nn_module": model_2d, "mode": "test"}, {"x": torch.rand(1, 1, 48, 64).to(device)}, NotImplementedError]
+)
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_MULTI_CHANNEL])
+    @parameterized.expand(TESTS)
     def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)
         m, most_prob = occ_sens(**call_data)
@@ -73,10 +114,10 @@ class TestComputeOcclusionSensitivity(unittest.TestCase):
         self.assertGreaterEqual(most_prob.min(), 0)
         self.assertLess(most_prob.max(), m.shape[-1])
 
-    @parameterized.expand([TEST_CASE_FAIL_0, TEST_CASE_FAIL_1])
-    def test_fail(self, init_data, call_data):
-        occ_sens = OcclusionSensitivity(**init_data)
-        with self.assertRaises(ValueError):
+    @parameterized.expand(TESTS_FAIL)
+    def test_fail(self, init_data, call_data, error_type):
+        with self.assertRaises(error_type):
+            occ_sens = OcclusionSensitivity(**init_data)
             occ_sens(**call_data)
 
 
