@@ -155,7 +155,8 @@ class OcclusionSensitivity:
             [GaussianSmooth(sigma=[b * sigma for b in spatial_shape]), Lambda(lambda x: -x), ScaleIntensity()]
         )
         # transform and add batch
-        mul: torch.Tensor = gaussian(kernel)[None]  # type: ignore
+        mul: torch.Tensor = gaussian(kernel)[None]
+
         return mul, 0
 
     @staticmethod

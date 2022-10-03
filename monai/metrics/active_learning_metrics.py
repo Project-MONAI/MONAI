@@ -15,6 +15,7 @@ from typing import Any
 import torch
 
 from monai.metrics.utils import ignore_background
+from monai.utils import MetricReduction
 
 from .metric import Metric
 
@@ -135,7 +136,7 @@ def compute_variance(
 
     n_len = len(y_pred.shape)
 
-    if n_len < 4 and spatial_map is True:
+    if n_len < 4 and spatial_map:
         warnings.warn("Spatial map requires a 2D/3D image with N-repeats and C-channels")
         return None
 
@@ -149,16 +150,14 @@ def compute_variance(
     y_reshaped = torch.reshape(y_pred, new_shape)
     variance = torch.var(y_reshaped, dim=0, unbiased=False)
 
-    if spatial_map is True:
+    if spatial_map:
         return variance
 
-    elif spatial_map is False:
-        if scalar_reduction == "mean":
-            var_mean = torch.mean(variance)
-            return var_mean
-        elif scalar_reduction == "sum":
-            var_sum = torch.sum(variance)
-            return var_sum
+    if scalar_reduction == MetricReduction.MEAN:
+        return torch.mean(variance)
+    if scalar_reduction == MetricReduction.SUM:
+        return torch.sum(variance)
+    raise ValueError(f"scalar_reduction={scalar_reduction} not supported.")
 
 
 def label_quality_score(
@@ -196,13 +195,11 @@ def label_quality_score(
 
     abs_diff_map = torch.abs(y_pred - y)
 
-    if scalar_reduction == "none":
+    if scalar_reduction == MetricReduction.NONE:
         return abs_diff_map
 
-    elif scalar_reduction != "none":
-        if scalar_reduction == "mean":
-            lbl_score_mean = torch.mean(abs_diff_map, dim=list(range(1, n_len)))
-            return lbl_score_mean
-        elif scalar_reduction == "sum":
-            lbl_score_sum = torch.sum(abs_diff_map, dim=list(range(1, n_len)))
-            return lbl_score_sum
+    if scalar_reduction == MetricReduction.MEAN:
+        return torch.mean(abs_diff_map, dim=list(range(1, n_len)))
+    if scalar_reduction == MetricReduction.SUM:
+        return torch.sum(abs_diff_map, dim=list(range(1, n_len)))
+    raise ValueError(f"scalar_reduction={scalar_reduction} not supported.")
