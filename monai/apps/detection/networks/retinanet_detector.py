@@ -318,6 +318,8 @@ class RetinaNetDetector(nn.Module):
         Args:
             fg_iou_thresh: foreground IoU threshold for Matcher, considered as matched if IoU > fg_iou_thresh
             bg_iou_thresh: background IoU threshold for Matcher, considered as not matched if IoU < bg_iou_thresh
+            allow_low_quality_matches: if True, produce additional matches
+                for predictions that have only low-quality match candidates.
         """
         if fg_iou_thresh < bg_iou_thresh:
             raise ValueError(
