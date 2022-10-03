@@ -877,8 +877,9 @@ def compute_shape_offset(
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
     mat = inv_mat[:-1, :-1]
     k, min_dist = 0, np.inf
+    all_dist = mat @ corners[:-1, :]
     for i in range(corners.shape[1]):
-        dist = np.sum(np.abs(np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)))
+        dist = np.sum(np.abs(np.min(all_dist - all_dist[:, i : i + 1], 1)))
         if dist < min_dist:
             min_dist, k = dist, i  # find the corner closest to the origin
         if np.allclose(min_dist, 0.0, rtol=AFFINE_TOL):  # matches the origin
