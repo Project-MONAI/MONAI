@@ -326,7 +326,9 @@ class RetinaNetDetector(nn.Module):
                 "Require fg_iou_thresh >= bg_iou_thresh. "
                 f"Got fg_iou_thresh={fg_iou_thresh}, bg_iou_thresh={bg_iou_thresh}."
             )
-        self.proposal_matcher = Matcher(fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches)
+        self.proposal_matcher = Matcher(
+            fg_iou_thresh, bg_iou_thresh, allow_low_quality_matches=allow_low_quality_matches
+        )
 
     def set_atss_matcher(self, num_candidates: int = 4, center_in_gt: bool = False) -> None:
         """
