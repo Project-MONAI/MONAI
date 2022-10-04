@@ -76,7 +76,7 @@ class DataLoader(_TorchDataLoader):
             # when num_workers > 0, random states are determined by worker_init_fn
             # this is to make the behavior consistent when num_workers == 0
             # torch.int64 doesn't work well on some versions of windows
-            _g = torch.random.default_generator if kwargs.get("generator", None) is None else kwargs["generator"]
+            _g = torch.random.default_generator if kwargs.get("generator") is None else kwargs["generator"]
             init_seed = _g.initial_seed()
             _seed = torch.empty((), dtype=torch.int64).random_(generator=_g).item()
             set_rnd(dataset, int(_seed))
