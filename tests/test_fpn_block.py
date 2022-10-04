@@ -74,6 +74,7 @@ class TestFPN(unittest.TestCase):
         self.assertEqual(result["pool"].shape, expected_shape[1])
 
     @parameterized.expand(TEST_CASES2)
+    @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_script(self, input_param, input_shape, expected_shape):
         # test whether support torchscript
         net = _resnet_fpn_extractor(backbone=resnet50(), spatial_dims=input_param["spatial_dims"], returned_layers=[1])
