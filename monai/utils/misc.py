@@ -397,7 +397,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def data_dir() -> Optional[str]:
-        return os.environ.get("MONAI_DATA_DIRECTORY", None)
+        return os.environ.get("MONAI_DATA_DIRECTORY")
 
     @staticmethod
     def debug() -> bool:
@@ -406,7 +406,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def doc_images() -> Optional[str]:
-        return os.environ.get("MONAI_DOC_IMAGES", None)
+        return os.environ.get("MONAI_DOC_IMAGES")
 
 
 class ImageMetaKey:

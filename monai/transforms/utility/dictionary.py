@@ -423,7 +423,7 @@ class SplitDimd(MapTransform):
             output = []
             results = [self.splitter(d[key]) for key in all_keys]
             for row in zip(*results):
-                new_dict = {k: v for k, v in zip(all_keys, row)}
+                new_dict = dict(zip(all_keys, row))
                 # fill in the extra keys with unmodified data
                 for k in set(d.keys()).difference(set(all_keys)):
                     new_dict[k] = deepcopy(d[k])
