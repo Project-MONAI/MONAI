@@ -106,7 +106,7 @@ class ComponentLocator:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
 
-        mods: Optional[Union[List[str], str]] = self._components_table.get(name, None)
+        mods: Optional[Union[List[str], str]] = self._components_table.get(name)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
         return mods
