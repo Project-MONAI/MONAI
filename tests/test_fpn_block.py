@@ -19,7 +19,7 @@ from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.blocks.feature_pyramid_network import FeaturePyramidNetwork
 from monai.networks.nets.resnet import resnet50
 from monai.utils import optional_import
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -53,6 +53,7 @@ class TestFPNBlock(unittest.TestCase):
         self.assertEqual(result["feat1"].shape, expected_shape[1])
 
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_script(self, input_param, input_shape, expected_shape):
         # test whether support torchscript
         net = FeaturePyramidNetwork(**input_param)
