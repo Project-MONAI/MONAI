@@ -230,6 +230,24 @@ for device in TEST_DEVICES:
             *device,
         ]
     )
+    TESTS.append(  # 5D input
+        [
+            {"pixdim": 0.5, "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
+            torch.ones((1, 368, 336, 368)),  # data
+            torch.tensor(
+                [
+                    [0.41, 0.005, 0.008, -79.7],
+                    [-0.0049, 0.592, 0.0664, -57.4],
+                    [-0.0073, -0.0972, 0.404, -32.1],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+            {},
+            torch.ones((1, 302, 403, 301)),
+            *device,
+        ]
+    )
+
 
 TESTS_TORCH = []
 for track_meta in (False, True):
