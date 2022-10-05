@@ -25,6 +25,13 @@ Occlusion sensitivity
 .. automodule:: monai.visualize.occlusion_sensitivity
   :members:
 
+Gradient-based saliency maps
+----------------------------
+
+.. automodule:: monai.visualize.gradient_based
+  :members:
+
+
 Utilities
 ---------
 .. automodule:: monai.visualize.utils
