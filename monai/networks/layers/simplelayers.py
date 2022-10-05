@@ -32,10 +32,12 @@ __all__ = [
     "GaussianFilter",
     "HilbertTransform",
     "LLTM",
+    "MedianBlur",
     "Reshape",
     "SavitzkyGolayFilter",
     "SkipConnection",
     "apply_filter",
+    "median_blur",
     "separable_filtering",
 ]
 
@@ -47,11 +49,11 @@ class ChannelPad(nn.Module):
     """
 
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
+            self,
+            spatial_dims: int,
+            in_channels: int,
+            out_channels: int,
+            mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
 
@@ -160,15 +162,14 @@ class Reshape(nn.Module):
 
 
 def _separable_filtering_conv(
-    input_: torch.Tensor,
-    kernels: List[torch.Tensor],
-    pad_mode: str,
-    d: int,
-    spatial_dims: int,
-    paddings: List[int],
-    num_channels: int,
+        input_: torch.Tensor,
+        kernels: List[torch.Tensor],
+        pad_mode: str,
+        d: int,
+        spatial_dims: int,
+        paddings: List[int],
+        num_channels: int,
 ) -> torch.Tensor:
-
     if d < 0:
         return input_
 
@@ -280,7 +281,7 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
         )
     kernel = kernel.to(x)
     # broadcast kernel size to (batch chns, spatial_kernel_size)
-    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial) :])
+    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial):])
     kernel = kernel.reshape(-1, 1, *kernel.shape[2:])  # group=1
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
@@ -434,14 +435,111 @@ class HilbertTransform(nn.Module):
         return torch.as_tensor(ht, device=ht.device, dtype=ht.dtype)
 
 
+def get_binary_kernel3d(window_size: Sequence[int]) -> torch.Tensor:
+    r"""Create a binary kernel to extract the patches.
+    If the window size is HxWxD will create a (H*W*D)xHxWxD kernel.
+    """
+    window_range: int = window_size[0] * window_size[1] * window_size[2]
+    kernel: torch.Tensor = torch.zeros(window_range, 1, window_size[0], window_size[1], window_size[2])
+    for i in range(window_size[0]):
+        for j in range(window_size[1]):
+            for k in range(window_size[2]):
+                l: int = i * window_size[2] * window_size[1] + j * window_size[2] + k
+                kernel[l, 0, i, j, k] += 1.0
+    return kernel
+
+
+def _compute_zero_padding(kernel_size: Sequence[int]) -> List[int]:
+    r"""Utility function that computes zero padding tuple."""
+    computed: List[int] = [(k - 1) // 2 for k in kernel_size]
+    return computed
+
+
+def median_blur(in_tensor: torch.Tensor, kernel_size: Sequence[int],
+                kernel: torch.Tensor = None) -> torch.Tensor:
+    r"""Blur an image using the median filter.
+    Args:
+        in_tensor: the input image with shape :math:`(B,C,H,W,D)`.
+        kernel_size: the blurring kernel size.
+    Returns:
+        the blurred input tensor with shape :math:`(B,C,H,W,D)`.
+    Example:
+        >>> x = torch.rand(2, 4, 5, 7, 6)
+        >>> output = median_blur(x, (3, 3, 3))
+        >>> output.shape
+        torch.Size([2, 4, 5, 7, 6])
+    """
+    if not isinstance(in_tensor, torch.Tensor):
+        raise TypeError(f"Input type is not a torch.Tensor. Got {type(in_tensor)}")
+
+    if not len(in_tensor.shape) == 5:
+        raise ValueError(f"Invalid in_tensor shape, we expect BxCxHxWxD. Got: {in_tensor.shape}")
+
+    padding: Sequence[int] = _compute_zero_padding(kernel_size)
+
+    # prepare kernel
+    if kernel is None:
+        kernel: torch.Tensor = get_binary_kernel3d(kernel_size).to(in_tensor)
+    b, c, h, w, d = in_tensor.shape
+
+    # map the local window to single vector
+    features: torch.Tensor = F.conv3d(in_tensor.reshape(b * c, 1, h, w, d), kernel, padding=padding, stride=1)
+    features = features.view(b, c, -1, h, w, d)  # BxCx(K_h * K_w * K_d)xHxWxD
+
+    # compute the median along the feature axis
+    median: torch.Tensor = torch.median(features, dim=2)[0]
+
+    return median
+
+
+class MedianBlur(nn.Module):
+    r"""Blur an image using the median filter.
+    Args:
+        radius: the blurring kernel radius (radius of 1 corresponds to 3x3x3 kernel).
+    Returns:
+        the blurred in_tensor tensor.
+    Shape:
+        - Input: :math:`(B, C, H, W, D)`
+        - Output: :math:`(B, C, H, W, D)`
+    Example:
+        >>> in_tensor = torch.rand(2, 4, 5, 7, 6)
+        >>> blur = MedianBlur([1, 1, 1])  # 3x3x3 kernel
+        >>> output = blur(in_tensor)
+        >>> output.shape
+        torch.Size([2, 4, 5, 7, 6])
+    """
+
+    def __init__(self, radius: Union[Sequence[int], int], device='cpu') -> None:
+        super().__init__()
+        self.radius: Sequence[int] = radius
+        if issequenceiterable(radius):
+            if len(radius) != 3:
+                raise ValueError(f"Only 3 dimensional images are supported by {str(self.__class__)}")
+        else:
+            sigma = [deepcopy(radius) for _ in range(3)]
+        self.radius: Sequence[int] = radius
+        self.radius = get_binary_kernel3d(1 + 2 * radius).to(device)
+
+    def forward(self, in_tensor: torch.Tensor, number_of_passes=1) -> torch.Tensor:
+        """
+        Args:
+            in_tensor: in shape [batch, channels, H, W, D].
+            number_of_passes: median filtering will be repeated this many times
+        """
+        x = in_tensor
+        for _ in range(number_of_passes):
+            x = median_blur(x, self.radius, self.kernel)
+        return x
+
+
 class GaussianFilter(nn.Module):
     def __init__(
-        self,
-        spatial_dims: int,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
-        truncated: float = 4.0,
-        approx: str = "erf",
-        requires_grad: bool = False,
+            self,
+            spatial_dims: int,
+            sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
+            truncated: float = 4.0,
+            approx: str = "erf",
+            requires_grad: bool = False,
     ) -> None:
         """
         Args:
