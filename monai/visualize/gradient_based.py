@@ -156,6 +156,7 @@ class GuidedBackpropGrad(VanillaGrad):
         - Springenberg and Dosovitskiy et al. Striving for Simplicity: The All Convolutional Net
           (https://arxiv.org/abs/1412.6806)
     """
+
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index, **kwargs)
@@ -165,6 +166,7 @@ class GuidedBackpropSmoothGrad(SmoothGrad):
     """
     Compute gradient-based saliency maps based on both ``GuidedBackpropGrad`` and ``SmoothGrad``.
     """
+
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
             return super().__call__(x, index, **kwargs)

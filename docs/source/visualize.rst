@@ -34,5 +34,6 @@ Gradient-based saliency maps
 
 Utilities
 ---------
+
 .. automodule:: monai.visualize.utils
   :members:
