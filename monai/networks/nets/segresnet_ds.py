@@ -185,8 +185,9 @@ class ResEncoder(nn.Module):
         act: activation type and arguments. Defaults to ``RELU``.
         norm: feature normalization type and arguments. Defaults to ``BATCH``.
         blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
-        return_levels: wheather to return a list of all features (at all levels), otherwise returns only the final output. Defaults to True.
-        head_module: optional callable module to apply to the final features (in case when return_levels==False).
+        return_levels: wheather to return a list of all features (at all levels),
+                       otherwise returns only the final output. Defaults to True.
+        head_module: optional callable module to apply to the final features.
         anisotropic_scales: optional list of scale for each scale level.
     """
 
@@ -243,7 +244,6 @@ class ResEncoder(nn.Module):
                     stride=stride,
                     padding=padding,
                 )
-                # level['downsample'] =  DownSample(spatial_dims=spatial_dims, in_channels=2*filters, out_channels=filters, kernel_size=kernel_size, scale_factor=stride, bias=False, mode=downsample_mode)
             else:
                 level["downsample"] = nn.Identity()
 
@@ -303,8 +303,9 @@ class SegResNetDS(nn.Module):
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
-        resolution: optional input image resolution. When provided, the nework will first use non-isotropic kernels (and downsampling) to bring
-                    image spacing into an approximetely isotropic space. Otherwise, by default, the kernel size and downsampling is always isotropic.
+        resolution: optional input image resolution. When provided, the nework will first use non-isotropic kernels to bring
+                    image spacing into an approximetely isotropic space.
+                    Otherwise, by default, the kernel size and downsampling is always isotropic.
 
     """
 
@@ -377,7 +378,6 @@ class SegResNetDS(nn.Module):
             )
 
             level = nn.ModuleDict()
-            # level['upsample'] =  Conv[Conv.CONVTRANS, spatial_dims](in_channels=2*filters, out_channels=filters, kernel_size=kernel_size, stride=stride, padding=padding, output_padding=padding, bias=False)
             level["upsample"] = UpSample(
                 mode=upsample_mode,
                 spatial_dims=spatial_dims,
