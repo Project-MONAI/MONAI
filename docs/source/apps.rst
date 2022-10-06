@@ -129,9 +129,25 @@ Applications
 .. automodule:: monai.apps.pathology.transforms.post.array
 .. autoclass:: CalculateInstanceSegmentationMap
     :members:
+.. autoclass:: GenerateMask
+    :members:
+.. autoclass:: GenerateProbabilityMap
+    :members:
+.. autoclass:: GenerateDistanceMap
+    :members:
+.. autoclass:: GenerateMarkers
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: CalculateInstanceSegmentationMapd
+    :members:
+.. autoclass:: GenerateMaskd
+    :members:
+.. autoclass:: GenerateProbabilityMapd
+    :members:
+.. autoclass:: GenerateDistanceMapd
+    :members:
+.. autoclass:: GenerateMarkersd
     :members:
 
 `Detection`

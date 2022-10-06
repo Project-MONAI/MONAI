@@ -16,8 +16,8 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
-from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Transform
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
@@ -139,7 +139,7 @@ class GenerateProbabilityMap(Transform):
         else:
             self.remove_small_objects = None  # type: ignore
 
-    def __call__(self, mask, hover_map):
+    def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             mask: binarized segmentation result.  Shape must be [1, H, W].
@@ -178,16 +178,16 @@ class GenerateDistanceMap(Transform):
     generate the distance map. Nnuclei values form mountains so inverse to get basins.
 
     Args:
-        sigma: std. Used in `GaussianFilter`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
+        sigma: std. Used in `GaussianSmooth`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify "guassian" or other callable functions.
-            If specify "guassian", `GaussianFilter` will applied on distance map.
+            If specify "guassian", `GaussianSmooth` will applied on distance map.
     """
 
     backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
+        sigma: Union[Sequence[float], float] = 0.4,
         smooth_fn: Optional[Union[Callable, str]] = None,
     ) -> None:
         self.sigma = sigma
@@ -205,9 +205,8 @@ class GenerateDistanceMap(Transform):
         distance_map = (1.0 - foreground_prob_map) * mask
 
         if self.smooth_fn == "gaussian":
-            spatial_dim = len(distance_map.shape) - 1
-            gaussian = GaussianFilter(spatial_dims=spatial_dim, sigma=self.sigma)
-            distance_map = gaussian(distance_map.unsqueeze(0)).squeeze(0)
+            gaussian = GaussianSmooth(sigma=self.sigma)
+            distance_map = gaussian(distance_map)
         elif callable(self.smooth_fn):
             distance_map = self.smooth_fn(distance_map)
 
