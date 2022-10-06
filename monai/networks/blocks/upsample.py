@@ -82,18 +82,18 @@ class UpSample(nn.Sequential):
         super().__init__()
         scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
         up_mode = look_up_option(mode, UpsampleMode)
+
+        if not kernel_size:
+            kernel_size_ = scale_factor_
+            output_padding = padding = 0
+        else:
+            kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
+            padding = tuple((k - 1) // 2 for k in kernel_size_)  # type: ignore
+            output_padding = tuple(s - 1 - (k - 1) % 2 for k, s in zip(kernel_size_, scale_factor_))  # type: ignore
+
         if up_mode == UpsampleMode.DECONV:
             if not in_channels:
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
-
-            if not kernel_size:
-                kernel_size_ = scale_factor_
-                output_padding = padding = 0
-            else:
-                kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
-                padding = tuple((k - 1) // 2 for k in kernel_size_)  # type: ignore
-                output_padding = tuple(s - 1 - (k - 1) % 2 for k, s in zip(kernel_size_, scale_factor_))  # type: ignore
-
             self.add_module(
                 "deconv",
                 Conv[Conv.CONVTRANS, spatial_dims](
@@ -103,6 +103,27 @@ class UpSample(nn.Sequential):
                     stride=scale_factor_,
                     padding=padding,
                     output_padding=output_padding,
+                    bias=bias,
+                ),
+            )
+        elif up_mode == UpsampleMode.DECONVGROUP:
+            if not in_channels:
+                raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
+
+            if out_channels is None:
+                out_channels = in_channels
+            groups = out_channels if in_channels % out_channels == 0 else 1
+
+            self.add_module(
+                "deconvgroup",
+                Conv[Conv.CONVTRANS, spatial_dims](
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size_,
+                    stride=scale_factor_,
+                    padding=padding,
+                    output_padding=output_padding,
+                    groups=groups,
                     bias=bias,
                 ),
             )
