@@ -229,6 +229,11 @@ class DataAnalyzer:
                 )
             result[DataStatsKeys.BY_CASE].append(stats_by_cases)
 
+            if (self.device.type == "cuda"):
+                # release unreferenced tensors
+                # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
+                torch.cuda.empty_cache()
+
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
