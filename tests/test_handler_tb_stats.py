@@ -14,11 +14,14 @@ import tempfile
 import unittest
 
 from ignite.engine import Engine, Events
-from torch.utils.tensorboard import SummaryWriter
 
 from monai.handlers import TensorBoardStatsHandler
+from monai.utils import optional_import
+
+SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestHandlerTBStats(unittest.TestCase):
     def test_metrics_print(self):
         with tempfile.TemporaryDirectory() as tempdir:

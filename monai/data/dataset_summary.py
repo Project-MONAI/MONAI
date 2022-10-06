@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from itertools import chain
 from typing import List, Optional
 
@@ -18,9 +19,10 @@ import torch
 from monai.config import KeysCollection
 from monai.data.dataloader import DataLoader
 from monai.data.dataset import Dataset
+from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import affine_to_spacing
 from monai.transforms import concatenate
-from monai.utils import convert_data_type
-from monai.utils.enums import PostFix
+from monai.utils import PostFix, convert_data_type, convert_to_tensor
 
 DEFAULT_POST_FIX = PostFix.meta()
 
@@ -30,9 +32,9 @@ class DatasetSummary:
     This class provides a way to calculate a reasonable output voxel spacing according to
     the input dataset. The achieved values can used to resample the input in 3d segmentation tasks
     (like using as the `pixdim` parameter in `monai.transforms.Spacingd`).
-    In addition, it also supports to count the mean, std, min and max intensities of the input,
+    In addition, it also supports to compute the mean, std, min and max intensities of the input,
     and these statistics are helpful for image normalization
-    (like using in `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
+    (as parameters of `monai.transforms.ScaleIntensityRanged` and `monai.transforms.NormalizeIntensityd`).
 
     The algorithm for calculation refers to:
     `Automated Design of Deep Learning Methods for Biomedical Image Segmentation <https://arxiv.org/abs/1904.08128>`_.
@@ -54,12 +56,13 @@ class DatasetSummary:
             dataset: dataset from which to load the data.
             image_key: key name of images (default: ``image``).
             label_key: key name of labels (default: ``label``).
-            meta_key: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_key: explicitly indicate the key of the corresponding metadata dictionary.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, affine, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, affine, original_shape, etc.
                 if None, will try to construct meta_keys by `{image_key}_{meta_key_postfix}`.
-            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the meta data from dict,
-                the meta data is a dictionary object (default: ``meta_dict``).
+                This is not required if `data[image_key]` is a MetaTensor.
+            meta_key_postfix: use `{image_key}_{meta_key_postfix}` to fetch the metadata from dict,
+                the metadata is a dictionary object (default: ``meta_dict``).
             num_workers: how many subprocesses to use for data loading.
                 ``0`` means that the data will be loaded in the main process (default: ``0``).
             kwargs: other parameters (except `batch_size` and `num_workers`) for DataLoader,
@@ -76,24 +79,28 @@ class DatasetSummary:
 
     def collect_meta_data(self):
         """
-        This function is used to collect the meta data for all images of the dataset.
+        This function is used to collect the metadata for all images of the dataset.
         """
 
         for data in self.data_loader:
-            if self.meta_key not in data:
-                raise ValueError(f"To collect meta data for the dataset, key `{self.meta_key}` must exist in `data`.")
-            self.all_meta_data.append(data[self.meta_key])
+            if isinstance(data[self.image_key], MetaTensor):
+                meta_dict = data[self.image_key].meta
+            elif self.meta_key in data:
+                meta_dict = data[self.meta_key]
+            else:
+                warnings.warn(f"To collect metadata for the dataset, `{self.meta_key}` or `data.meta` must exist.")
+            self.all_meta_data.append(meta_dict)
 
-    def get_target_spacing(self, spacing_key: str = "pixdim", anisotropic_threshold: int = 3, percentile: float = 10.0):
+    def get_target_spacing(self, spacing_key: str = "affine", anisotropic_threshold: int = 3, percentile: float = 10.0):
         """
         Calculate the target spacing according to all spacings.
         If the target spacing is very anisotropic,
         decrease the spacing value of the maximum axis according to percentile.
-        So far, this function only supports NIFTI images which store spacings in headers with key "pixdim".
-        After loading with `monai.DataLoader`, "pixdim" is in the form of `torch.Tensor` with size `(batch_size, 8)`.
+        The spacing is computed from `affine_to_spacing(data[spacing_key][0], 3)` if `data[spacing_key]` is a matrix,
+        otherwise, the `data[spacing_key]` must be a vector of pixdim values.
 
         Args:
-            spacing_key: key of spacing in meta data (default: ``pixdim``).
+            spacing_key: key of the affine used to compute spacing in metadata (default: ``affine``).
             anisotropic_threshold: threshold to decide if the target spacing is anisotropic (default: ``3``).
             percentile: for anisotropic target spacing, use the percentile of all spacings of the anisotropic axis to
                 replace that axis.
@@ -103,7 +110,16 @@ class DatasetSummary:
             self.collect_meta_data()
         if spacing_key not in self.all_meta_data[0]:
             raise ValueError("The provided spacing_key is not in self.all_meta_data.")
-        all_spacings = concatenate(to_cat=[data[spacing_key][:, 1:4] for data in self.all_meta_data], axis=0)
+        spacings = []
+        for data in self.all_meta_data:
+            spacing_vals = convert_to_tensor(data[spacing_key][0], track_meta=False, wrap_sequence=True)
+            if spacing_vals.ndim == 1:  # vector
+                spacings.append(spacing_vals[:3][None])
+            elif spacing_vals.ndim == 2:  # matrix
+                spacings.append(affine_to_spacing(spacing_vals, 3)[None])
+            else:
+                raise ValueError("data[spacing_key] must be a vector or a matrix.")
+        all_spacings = concatenate(to_cat=spacings, axis=0)
         all_spacings, *_ = convert_data_type(data=all_spacings, output_type=np.ndarray, wrap_sequence=True)
 
         target_spacing = np.median(all_spacings, axis=0)

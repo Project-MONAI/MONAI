@@ -32,11 +32,7 @@ class PatchIter:
     """
 
     def __init__(
-        self,
-        patch_size: Sequence[int],
-        start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-        **pad_opts: Dict,
+        self, patch_size: Sequence[int], start_pos: Sequence[int] = (), mode: str = NumpyPadMode.WRAP, **pad_opts: Dict
     ):
         """
 
@@ -73,6 +69,7 @@ class PatchIter:
             array,
             patch_size=self.patch_size,  # type: ignore
             start_pos=self.start_pos,
+            overlap=0.0,
             copy_back=False,
             mode=self.mode,
             **self.pad_opts,
@@ -108,7 +105,7 @@ class PatchIterd:
         keys: KeysCollection,
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
-        mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
+        mode: str = NumpyPadMode.WRAP,
         **pad_opts,
     ):
         self.keys = ensure_tuple(keys)
@@ -186,23 +183,19 @@ class GridPatchDataset(IterableDataset):
     ) -> None:
         super().__init__(data=data, transform=None)
         self.patch_iter = patch_iter
-        self.transform = transform
+        self.patch_transform = transform
         self.with_coordinates = with_coordinates
 
     def __iter__(self):
         for image in super().__iter__():
-            if not self.with_coordinates:
-                for patch, *_ in self.patch_iter(image):  # patch_iter to yield at least 1 item: patch
-                    out_patch = (
-                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
-                    )
+            for patch, *others in self.patch_iter(image):
+                out_patch = patch
+                if self.patch_transform is not None:
+                    out_patch = apply_transform(self.patch_transform, patch, map_items=False)
+                if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
+                    yield out_patch, others[0]
+                else:
                     yield out_patch
-            else:
-                for patch, slices, *_ in self.patch_iter(image):  # patch_iter to yield at least 2 items: patch, coords
-                    out_patch = (
-                        patch if self.transform is None else apply_transform(self.transform, patch, map_items=False)
-                    )
-                    yield out_patch, slices
 
 
 class PatchDataset(Dataset):

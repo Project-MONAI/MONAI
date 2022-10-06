@@ -5,6 +5,7 @@
     1. [Unit testing](#unit-testing)
     1. [Building the documentation](#building-the-documentation)
     1. [Automatic code formatting](#automatic-code-formatting)
+    1. [Adding new optional dependencies](#adding-new-optional-dependencies)
     1. [Signing your work](#signing-your-work)
     1. [Utility functions](#utility-functions)
     1. [Backwards compatibility](#backwards-compatibility)
@@ -31,7 +32,7 @@ MONAI is part of [PyTorch Ecosystem](https://pytorch.org/ecosystem/), and mainly
 
 _Pull request early_
 
-We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. Change your pull request's title, to begin with `[WIP]` and/or [create a draft pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/about-pull-requests#draft-pull-requests) until it is ready for formal review.
+We encourage you to create pull requests early. It helps us track the contributions under development, whether they are ready to be merged or not. [Create a draft pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/changing-the-stage-of-a-pull-request) until it is ready for formal review.
 
 Please note that, as per PyTorch, MONAI uses American English spelling. This means classes and variables should be: normali**z**e, visuali**z**e, colo~~u~~r, etc.
 
@@ -171,6 +172,49 @@ The first line of the comment must be `/black` so that it will be interpreted by
 - [Auto] After the formatting commit, the GitHub action adds an emoji to the comment that triggered the process.
 - Repeat the above steps if necessary.
 
+#### Adding new optional dependencies
+In addition to the minimal requirements of PyTorch and Numpy, MONAI's core modules are built optionally based on 3rd-party packages.
+The current set of dependencies is listed in [installing dependencies](https://docs.monai.io/en/stable/installation.html#installing-the-recommended-dependencies).
+
+To allow for flexible integration of MONAI with other systems and environments,
+the optional dependency APIs are always invoked lazily. For example,
+```py
+from monai.utils import optional_import
+itk, _ = optional_import("itk", ...)
+
+class ITKReader(ImageReader):
+    ...
+    def read(self, ...):
+        return itk.imread(...)
+```
+The availability of the external `itk.imread` API is not required unless `monai.data.ITKReader.read` is called by the user.
+Integration tests with minimal requirements are deployed to ensure this strategy.
+
+To add new optional dependencies, please communicate with the core team during pull request reviews,
+and add the necessary information (at least) to the following files:
+- [setup.cfg](https://github.com/Project-MONAI/MONAI/blob/dev/setup.cfg)  (for package's `[options.extras_require]` config)
+- [requirements-dev.txt](https://github.com/Project-MONAI/MONAI/blob/dev/requirements-dev.txt) (pip requirements file)
+- [docs/requirements.txt](https://github.com/Project-MONAI/MONAI/blob/dev/docs/requirements.txt) (docs pip requirements file)
+- [environment-dev.yml](https://github.com/Project-MONAI/MONAI/blob/dev/environment-dev.yml) (conda environment file)
+- [installation.md](https://github.com/Project-MONAI/MONAI/blob/dev/docs/source/installation.md) (documentation)
+
+When writing unit tests that use 3rd-party packages, it is a good practice to always consider
+an appropriate fallback default behaviour when the packages are not installed in
+the testing environment. For example:
+```py
+from monai.utils import optional_import
+plt, has_matplotlib = optional_import("matplotlib.pyplot")
+
+@skipUnless(has_matplotlib, "Matplotlib required")
+class TestBlendImages(unittest.TestCase):
+```
+It skips the test cases when `matplotlib.pyplot` APIs are not available.
+
+Alternatively, add the test file name to the ``exclude_cases`` in `tests/min_tests.py` to completely skip the test
+cases when running in a minimal setup.
+
+
+
 #### Signing your work
 MONAI enforces the [Developer Certificate of Origin](https://developercertificate.org/) (DCO) on all pull requests.
 All commit messages should contain the `Signed-off-by` line with an email address. The [GitHub DCO app](https://github.com/apps/dco) is deployed on MONAI. The pull request's status will be `failed` if commits do not contain a valid `Signed-off-by` line.
@@ -240,10 +284,25 @@ for example, ``import monai.transforms.Spacing`` is the equivalent of ``monai.tr
 For string definition, [f-string](https://www.python.org/dev/peps/pep-0498/) is recommended to use over `%-print` and `format-print`. So please try to use `f-string` if you need to define any string object.
 
 #### Backwards compatibility
-MONAI is currently under active development, and with major version zero (following the [Semantic Versioning](https://semver.org/)).
-The backwards compatibility of the API is not always guaranteed at this initial development stage.
-However, utility functions are provided in the `monai.utils.deprecated` modules to help users migrate to the new API.
-The use of these functions is encouraged.
+MONAI in general follows [PyTorch's policy for backward compatibility](https://github.com/pytorch/pytorch/wiki/PyTorch's-Python-Frontend-Backward-and-Forward-Compatibility-Policy).
+Utility functions are provided in `monai.utils.deprecated` to help migrate from the deprecated to new APIs. The use of these utilities is encouraged.
+The pull request [template contains checkboxes](https://github.com/Project-MONAI/MONAI/blame/dev/.github/pull_request_template.md#L11-L12) that
+the contributor should use accordingly to clearly indicate breaking changes.
+
+The process of releasing backwards incompatible API changes is as follows:
+1. discuss the breaking changes during pull requests or in dev meetings with a feature proposal if needed.
+1. add a warning message in the upcoming release (version `X.Y`), the warning message should include a forecast of removing the deprecated API in:
+   1. `X+1.0` -- major version `X+1` and minor version `0` the next major version if it's a significant change,
+   1. `X.Y+2` -- major version `X` and minor version `Y+2` (the minor version after the next one), if it's a minor API change.
+   1. Note that the versioning policy is similar to PyTorch's approach which does not precisely follow [the semantic versioning](https://semver.org/) definition.
+      Major version numbers are instead used to represent major product version (which is currently not planned to be greater than 1),
+      minor version for both compatible and incompatible, and patch version for bug fixes.
+   1. when recommending new API to use in place of a deprecated API, the recommended version should
+      provide exact feature-like behaviour otherwise users will have a harder time migrating.
+1. add new test cases by extending the existing unit tests to cover both the deprecated and updated APIs.
+1. collect feedback from the users during the subsequent few releases, and reconsider step 1 if needed.
+1. before each release, review the deprecating APIs and relevant tests, and clean up the removed APIs described in step 2.
+
 
 
 ### Submitting pull requests
@@ -306,12 +365,11 @@ When major features are ready for a milestone, to prepare for a new release:
 - Merge `releasing/[version number]` to `dev`, this step must make sure that the tagging commit unchanged on `dev`.
 - Publish the release note.
 
-Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant
-[semantic versioning](https://semver.org/spec/v2.0.0.html) number.
+Note that the release should be tagged with a [PEP440](https://www.python.org/dev/peps/pep-0440/) compliant version number.
 
 If any error occurs during the release process, first check out a new hotfix branch from the `releasing/[version number]`,
 then make PRs to the `releasing/[version number]` to fix the bugs via the regular contribution procedure.
 
 If any error occurs after the release process, first check out a new hotfix branch from the `main` branch,
-make a minor version release following the semantic versioning, for example, `releasing/0.1.1`.
+make a patch version release following the semantic versioning, for example, `releasing/0.1.1`.
 Make sure the `releasing/0.1.1` is merged back into both `dev` and `main` and all the test pipelines succeed.

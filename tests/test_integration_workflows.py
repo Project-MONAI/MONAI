@@ -19,8 +19,8 @@ from glob import glob
 import nibabel as nib
 import numpy as np
 import torch
+from ignite.engine import Events
 from ignite.metrics import Accuracy
-from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.data import create_test_image_3d
@@ -30,7 +30,6 @@ from monai.handlers import (
     CheckpointSaver,
     LrScheduleHandler,
     MeanDice,
-    SegmentationSaver,
     StatsHandler,
     TensorBoardImageHandler,
     TensorBoardStatsHandler,
@@ -47,14 +46,15 @@ from monai.transforms import (
     LoadImaged,
     RandCropByPosNegLabeld,
     RandRotate90d,
+    SaveImage,
     SaveImaged,
     ScaleIntensityd,
-    ToTensord,
 )
-from monai.utils import set_determinism
-from monai.utils.enums import PostFix
+from monai.utils import optional_import, set_determinism
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, pytorch_after, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, assert_allclose, pytorch_after, skip_if_quick
+
+SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 TASK = "integration_workflows"
 
@@ -75,7 +75,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
             ),
             RandRotate90d(keys=["image", "label"], prob=0.5, spatial_axes=[0, 2]),
-            ToTensord(keys=["image", "label"]),
         ]
     )
     val_transforms = Compose(
@@ -83,7 +82,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
         ]
     )
 
@@ -111,7 +109,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -154,7 +151,6 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
 
     train_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
@@ -209,7 +205,12 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
     trainer.run()
 
-    return evaluator.state.best_metric
+    # test train and validation stats
+    train_stats = trainer.get_stats("output")
+    assert_allclose(train_stats["output"][0]["loss"], trainer.state.output[0]["loss"])
+    val_stats = evaluator.get_stats("metrics")
+
+    return val_stats["best_validation_metric"]
 
 
 def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_workers=4):
@@ -223,7 +224,6 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
             LoadImaged(keys=["image", "label"]),
             AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
-            ToTensord(keys=["image", "label"]),
         ]
     )
 
@@ -243,26 +243,23 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
     val_postprocessing = Compose(
         [
-            ToTensord(keys=["pred", "label"]),
             Activationsd(keys="pred", sigmoid=True),
             AsDiscreted(keys="pred", threshold=0.5),
             KeepLargestConnectedComponentd(keys="pred", applied_labels=[1]),
             # test the case that `pred` in `engine.state.output`, while `image_meta_dict` in `engine.state.batch`
-            SaveImaged(
-                keys="pred", meta_keys=PostFix.meta("image"), output_dir=root_dir, output_postfix="seg_transform"
-            ),
+            SaveImaged(keys="pred", output_dir=root_dir, output_postfix="seg_transform"),
         ]
     )
     val_handlers = [
         StatsHandler(iteration_log=False),
         CheckpointLoader(load_path=f"{model_file}", load_dict={"net": net}),
-        SegmentationSaver(
-            output_dir=root_dir,
-            output_postfix="seg_handler",
-            batch_transform=from_engine(PostFix.meta("image")),
-            output_transform=from_engine("pred"),
-        ),
     ]
+
+    saver = SaveImage(output_dir=root_dir, output_postfix="seg_handler")
+
+    def save_func(engine):
+        for o in from_engine("pred")(engine.state.output):
+            saver(o)
 
     evaluator = SupervisedEvaluator(
         device=device,
@@ -277,6 +274,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
         val_handlers=val_handlers,
         amp=bool(amp),
     )
+    evaluator.add_event_handler(Events.ITERATION_COMPLETED, save_func)
     evaluator.run()
 
     return evaluator.state.best_metric

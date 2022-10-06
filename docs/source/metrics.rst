@@ -17,6 +17,20 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
+`LabelQualityScore`
+--------------------
+.. autofunction:: label_quality_score
+
+.. autoclass:: LabelQualityScore
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -37,6 +51,20 @@ Metrics
 .. autofunction:: compute_meandice
 
 .. autoclass:: DiceMetric
+    :members:
+
+`Mean IoU`
+----------
+.. autofunction:: compute_meaniou
+
+.. autoclass:: MeanIoU
+    :members:
+
+`Generalized Dice Score`
+------------------------
+.. autofunction:: compute_generalized_dice
+
+.. autoclass:: GeneralizedDiceScore
     :members:
 
 `Area under the ROC curve`
@@ -95,6 +123,10 @@ Metrics
 ----------------------------
 .. autoclass:: PSNRMetric
     :members:
+
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
 
 `Cumulative average`
 --------------------

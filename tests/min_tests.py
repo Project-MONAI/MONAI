@@ -29,12 +29,18 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_autorunner",
+        "test_auto3dseg_ensemble",
+        "test_auto3dseg_hpo",
+        "test_auto3dseg",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
-        "test_contrastive_loss",
         "test_check_missing_files",
+        "test_compute_ho_ver_maps",
+        "test_compute_ho_ver_maps_d",
+        "test_contrastive_loss",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_cumulative_average_dist",
@@ -53,8 +59,10 @@ def run_testsuit():
         "test_ensure_channel_firstd",
         "test_fill_holes",
         "test_fill_holesd",
+        "test_foreground_mask",
+        "test_foreground_maskd",
         "test_global_mutual_information_loss",
-        "test_gmm",
+        "test_grid_patch",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -67,6 +75,7 @@ def run_testsuit():
         "test_handler_hausdorff_distance",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
+        "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_mlflow",
@@ -78,7 +87,6 @@ def run_testsuit():
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
-        "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_surface_distance",
@@ -98,6 +106,7 @@ def run_testsuit():
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
+        "test_invert",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",
@@ -115,6 +124,8 @@ def run_testsuit():
         "test_nifti_header_revise",
         "test_nifti_rw",
         "test_nifti_saver",
+        "test_nuclick_transforms",
+        "test_nrrd_reader",
         "test_occlusion_sensitivity",
         "test_orientation",
         "test_orientationd",
@@ -127,11 +138,13 @@ def run_testsuit():
         "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
+        "test_rand_grid_patch",
         "test_rand_rotate",
         "test_rand_rotated",
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",
@@ -159,7 +172,6 @@ def run_testsuit():
         "test_vitautoenc",
         "test_write_metrics_reports",
         "test_wsireader",
-        "test_wsireader_new",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
@@ -168,6 +180,9 @@ def run_testsuit():
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
+        "test_bundle_utils",
+        "test_bundle_init_bundle",
+        "test_fastmri_reader",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -192,10 +207,7 @@ if __name__ == "__main__":
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    if err_mod:
-        print(err_mod)
-        # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+    assert not err_mod
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)

@@ -104,6 +104,8 @@ class DynUNet(nn.Module):
             If not specified, the way which nnUNet used will be employed. Defaults to ``None``.
         dropout: dropout ratio. Defaults to no dropout.
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+            `INSTANCE_NVFUSER` is a faster version of the instance norm layer, it can be used when:
+            1) `spatial_dims=3`, 2) CUDA device is available, 3) `apex` is installed and 4) non-Windows OS is used.
         act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the final feature map

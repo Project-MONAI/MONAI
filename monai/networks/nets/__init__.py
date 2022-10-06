@@ -13,6 +13,7 @@ from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
+from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
 from .densenet import (
     DenseNet,
@@ -40,9 +41,11 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
+from .flexible_unet import FlexibleUNet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
+from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
@@ -80,7 +83,8 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
-from .torchvision_fc import TorchVisionFCModel, TorchVisionFullyConvModel
+from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
+from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
 from .unet import UNet, Unet
 from .unetr import UNETR

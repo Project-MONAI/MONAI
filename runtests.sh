@@ -51,6 +51,7 @@ doPytypeFormat=false
 doMypyFormat=false
 doCleanup=false
 doDistTests=false
+doPrecommit=false
 
 NUM_PARALLEL=1
 
@@ -59,7 +60,7 @@ PY_EXE=${MONAI_PY_EXE:-$(which python)}
 function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--build] [--clean] [--help] [--version]"
+    echo "            [--copyright] [--build] [--clean] [--precommit] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -78,6 +79,7 @@ function print_usage {
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
+    echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks"
@@ -108,6 +110,13 @@ function print_usage {
     echo "To choose an alternative python executable, set the environmental variable, \"MONAI_PY_EXE\"."
     exit 1
 }
+
+# FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
+protobuf_major_version=$(${PY_EXE} -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
+if [ "$protobuf_major_version" -ge "4" ]
+then
+    export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+fi
 
 function check_import {
     echo "Python: ${PY_EXE}"
@@ -275,6 +284,9 @@ do
         --pylint)
             doPylintFormat=true
         ;;
+        --precommit)
+            doPrecommit=true
+        ;;
         --pytype)
             doPytypeFormat=true
         ;;
@@ -361,7 +373,6 @@ then
     clang_format
 
     echo "${green}done!${noColor}"
-    exit
 fi
 
 # unconditionally report on the state of monai
@@ -389,6 +400,30 @@ then
         echo ""
         exit 1
     fi
+fi
+
+
+if [ $doPrecommit = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    echo "${separator}${blue}pre-commit${noColor}"
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed pre_commit
+    then
+        install_deps
+    fi
+    ${cmdPrefix}${PY_EXE} -m pre_commit run --all-files
+
+    pre_commit_status=$?
+    if [ ${pre_commit_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${pre_commit_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
 fi
 
 
@@ -501,8 +536,8 @@ then
     fi
     ${cmdPrefix}${PY_EXE} -m pylint --version
 
-    ignore_codes="E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
-    ${cmdPrefix}${PY_EXE} -m pylint monai tests -E --disable=$ignore_codes -j $NUM_PARALLEL
+    ignore_codes="C,R,W,E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
+    ${cmdPrefix}${PY_EXE} -m pylint monai tests --disable=$ignore_codes -j $NUM_PARALLEL
     pylint_status=$?
 
     if [ ${pylint_status} -ne 0 ]
@@ -558,13 +593,7 @@ then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m mypy --version
-
-    if [ $doDryRun = true ]
-    then
-        ${cmdPrefix}MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)"
-    else
-        MYPYPATH="$(pwd)"/monai ${PY_EXE} -m mypy "$(pwd)" # cmdPrefix does not work with MYPYPATH
-    fi
+    ${cmdPrefix}${PY_EXE} -m mypy "$(pwd)"
 
     mypy_status=$?
     if [ ${mypy_status} -ne 0 ]
@@ -652,5 +681,5 @@ if [ $doCoverage = true ]
 then
     echo "${separator}${blue}coverage${noColor}"
     ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report
+    ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
 fi

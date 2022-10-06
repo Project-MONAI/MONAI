@@ -19,13 +19,13 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
       - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.8
       - shell: bash
@@ -50,7 +50,7 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         ref: dev
     - name: Download version
@@ -91,7 +91,7 @@ jobs:
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai

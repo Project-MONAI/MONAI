@@ -18,18 +18,13 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo
-from monai.engines.utils import (
-    GanKeys,
-    IterationEvents,
-    default_make_latent,
-    default_metric_cmp_fn,
-    default_prepare_batch,
-)
+from monai.engines.utils import IterationEvents, default_make_latent, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
-from monai.utils import min_version, optional_import
+from monai.utils import GanKeys, deprecated, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.enums import EngineStatsKeys as ESKeys
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -57,8 +52,31 @@ class Trainer(Workflow):
         self.scaler = torch.cuda.amp.GradScaler() if self.amp else None
         super().run()
 
-    def get_train_stats(self) -> dict[str, float]:
-        return {"total_epochs": self.state.max_epochs, "total_iterations": self.state.epoch_length}
+    def get_stats(self, *vars):
+        """
+        Get the statistics information of the training process.
+        Default to return the `rank`, `current_epoch`, `current_iteration`, `total_epochs`, `total_iterations`.
+
+        Args:
+            vars: except for the default stats, other variables name in the `self.state` to return,
+                will use the variable name as the key and the state content as the value.
+                if the variable doesn't exist, default value is `None`.
+
+        """
+        stats = {
+            ESKeys.RANK: self.state.rank,
+            ESKeys.CURRENT_EPOCH: self.state.epoch,
+            ESKeys.CURRENT_ITERATION: self.state.iteration,
+            ESKeys.TOTAL_EPOCHS: self.state.max_epochs,
+            ESKeys.TOTAL_ITERATIONS: self.state.epoch_length,
+        }
+        for k in vars:
+            stats[k] = getattr(self.state, k, None)
+        return stats
+
+    @deprecated(since="0.9", msg_suffix="please use the `get_stats()` API instead.")
+    def get_train_stats(self):
+        return self.get_stats()
 
 
 class SupervisedTrainer(Trainer):
@@ -95,7 +113,7 @@ class SupervisedTrainer(Trainer):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision training, default is False.
         event_names: additional custom ignite events that will register to the engine.
             new events can be a list of str or `ignite.engine.events.EventEnum`.
@@ -271,7 +289,7 @@ class GanTrainer(Trainer):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         train_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         decollate: whether to decollate the batch-first data to a list of data after model computation,
             recommend `decollate=True` when `postprocessing` uses components from `monai.transforms`.
             default to `True`.

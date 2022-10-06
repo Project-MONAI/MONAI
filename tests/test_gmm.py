@@ -259,7 +259,7 @@ TEST_CASES = [
 
 class GMMTestCase(unittest.TestCase):
     def setUp(self):
-        self._var = os.environ.get("TORCH_EXTENSIONS_DIR", None)
+        self._var = os.environ.get("TORCH_EXTENSIONS_DIR")
         self.tempdir = tempfile.mkdtemp()
         os.environ["TORCH_EXTENSIONS_DIR"] = self.tempdir
 

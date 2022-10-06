@@ -15,7 +15,13 @@ from typing import Optional, Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    is_binary_tensor,
+)
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -32,6 +38,8 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
     The implementation refers to `DeepMind's implementation <https://github.com/deepmind/surface-distance>`_.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         include_background: whether to include distance computation on the first channel of
@@ -80,12 +88,9 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            warnings.warn("y should be a binarized tensor.")
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
+
         dims = y_pred.ndimension()
         if dims < 3:
             raise ValueError("y_pred should have at least three dimensions.")

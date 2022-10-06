@@ -17,6 +17,7 @@ import logging
 import sys
 import time
 import warnings
+from copy import deepcopy
 from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -24,6 +25,10 @@ import torch
 
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import no_collation
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     extreme_points_to_image,
@@ -33,6 +38,7 @@ from monai.transforms.utils import (
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
 from monai.utils import (
+    TraceKeys,
     convert_data_type,
     convert_to_cupy,
     convert_to_numpy,
@@ -106,6 +112,7 @@ class Identity(Transform):
         return img
 
 
+@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
 class AsChannelFirst(Transform):
     """
     Change the channel dimension of the image to the first dimension.
@@ -133,7 +140,8 @@ class AsChannelFirst(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, 0)
+        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, 0), track_meta=get_track_meta())
+        return out
 
 
 class AsChannelLast(Transform):
@@ -162,9 +170,11 @@ class AsChannelLast(Transform):
         """
         Apply the transform to `img`.
         """
-        return moveaxis(img, self.channel_dim, -1)
+        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, -1), track_meta=get_track_meta())
+        return out
 
 
+@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
 class AddChannel(Transform):
     """
     Adds a 1-length channel dimension to the input image.
@@ -185,49 +195,70 @@ class AddChannel(Transform):
         """
         Apply the transform to `img`.
         """
-        return img[None]
+        out: NdarrayOrTensor = convert_to_tensor(img[None], track_meta=get_track_meta())
+        return out
 
 
 class EnsureChannelFirst(Transform):
     """
-    Automatically adjust or add the channel dimension of input data to ensure `channel_first` shape.
-    It extracts the `original_channel_dim` info from provided meta_data dictionary.
-    Typical values of `original_channel_dim` can be: "no_channel", 0, -1.
-    Convert the data to `channel_first` based on the `original_channel_dim` information.
+    Adjust or add the channel dimension of input data to ensure `channel_first` shape.
+
+    This extracts the `original_channel_dim` info from provided meta_data dictionary or MetaTensor input. This value
+    should state which dimension is the channel dimension so that it can be moved forward, or contain "no_channel" to
+    state no dimension is the channel and so a 1-size first dimension is to be added.
+
+    Args:
+        strict_check: whether to raise an error when the meta information is insufficient.
+        channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+            It overrides the `original_channel_dim` from provided MetaTensor input.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
+            If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True):
-        """
-        Args:
-            strict_check: whether to raise an error when the meta information is insufficient.
-        """
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
         self.strict_check = strict_check
-        self.add_channel = AddChannel()
+        self.input_channel_dim = channel_dim
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: Optional[Mapping] = None) -> NdarrayOrTensor:
+    def __call__(self, img: torch.Tensor, meta_dict: Optional[Mapping] = None) -> torch.Tensor:
         """
         Apply the transform to `img`.
         """
-        if not isinstance(meta_dict, Mapping):
-            msg = "meta_dict not available, EnsureChannelFirst is not in use."
-            if self.strict_check:
-                raise ValueError(msg)
-            warnings.warn(msg)
-            return img
+        if not isinstance(img, MetaTensor) and not isinstance(meta_dict, Mapping):
+            if self.input_channel_dim is None:
+                msg = "Metadata not available and channel_dim=None, EnsureChannelFirst is not in use."
+                if self.strict_check:
+                    raise ValueError(msg)
+                warnings.warn(msg)
+                return img
+            else:
+                img = MetaTensor(img)
 
-        channel_dim = meta_dict.get("original_channel_dim")
+        if isinstance(img, MetaTensor):
+            meta_dict = img.meta
+
+        channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        if self.input_channel_dim is not None:
+            channel_dim = self.input_channel_dim
 
         if channel_dim is None:
-            msg = "Unknown original_channel_dim in the meta_dict, EnsureChannelFirst is not in use."
+            msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
             if self.strict_check:
                 raise ValueError(msg)
             warnings.warn(msg)
             return img
+
+        # track the original channel dim
+        if isinstance(meta_dict, dict):
+            meta_dict["original_channel_dim"] = channel_dim
+
         if channel_dim == "no_channel":
-            return self.add_channel(img)
-        return AsChannelFirst(channel_dim=channel_dim)(img)
+            result = img[None]
+        else:
+            result = moveaxis(img, channel_dim, 0)  # type: ignore
+
+        return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
 class RepeatChannel(Transform):
@@ -240,7 +271,7 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
@@ -252,7 +283,7 @@ class RepeatChannel(Transform):
         Apply the transform to `img`, assuming `img` is a "channel-first" array.
         """
         repeat_fn = torch.repeat_interleave if isinstance(img, torch.Tensor) else np.repeat
-        return repeat_fn(img, self.repeats, 0)  # type: ignore
+        return convert_to_tensor(repeat_fn(img, self.repeats, 0), track_meta=get_track_meta())  # type: ignore
 
 
 class RemoveRepeatedChannel(Transform):
@@ -280,7 +311,8 @@ class RemoveRepeatedChannel(Transform):
         if img.shape[0] < 2:
             raise AssertionError("Image must have more than one channel")
 
-        return img[:: self.repeats, :]
+        out: NdarrayOrTensor = convert_to_tensor(img[:: self.repeats, :], track_meta=get_track_meta())
+        return out
 
 
 class SplitDim(Transform):
@@ -295,27 +327,39 @@ class SplitDim(Transform):
         dim: dimension on which to split
         keepdim: if `True`, output will have singleton in the split dimension. If `False`, this
             dimension will be squeezed.
+        update_meta: whether to update the MetaObj in each split result.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: int = -1, keepdim: bool = True) -> None:
+    def __init__(self, dim: int = -1, keepdim: bool = True, update_meta=True) -> None:
         self.dim = dim
         self.keepdim = keepdim
+        self.update_meta = update_meta
 
-    def __call__(self, img: NdarrayOrTensor) -> List[NdarrayOrTensor]:
+    def __call__(self, img: torch.Tensor) -> List[torch.Tensor]:
         """
         Apply the transform to `img`.
         """
         n_out = img.shape[self.dim]
         if n_out <= 1:
-            raise RuntimeError("Input image is singleton along dimension to be split.")
+            raise RuntimeError(f"Input image is singleton along dimension to be split, got shape {img.shape}.")
         if isinstance(img, torch.Tensor):
             outputs = list(torch.split(img, 1, self.dim))
         else:
             outputs = np.split(img, n_out, self.dim)
-        if not self.keepdim:
-            outputs = [o.squeeze(self.dim) for o in outputs]
+        for idx, item in enumerate(outputs):
+            if not self.keepdim:
+                outputs[idx] = item.squeeze(self.dim)
+            if self.update_meta and isinstance(img, MetaTensor):
+                if not isinstance(item, MetaTensor):
+                    item = MetaTensor(item, meta=img.meta)
+                if self.dim == 0:  # don't update affine if channel dim
+                    continue
+                ndim = len(item.affine)
+                shift = torch.eye(ndim, device=item.affine.device, dtype=item.affine.dtype)
+                shift[self.dim - 1, -1] = idx
+                item.affine = item.affine @ shift
         return outputs
 
 
@@ -377,24 +421,35 @@ class ToTensor(Transform):
         device: target device to put the converted Tensor data.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: whether to convert to `MetaTensor` or regular tensor, default to `None`,
+            use the return value of ``get_track_meta``.
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
-        self, dtype: Optional[torch.dtype] = None, device: Optional[torch.device] = None, wrap_sequence: bool = True
+        self,
+        dtype: Optional[torch.dtype] = None,
+        device: Optional[torch.device] = None,
+        wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
     ) -> None:
         super().__init__()
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, img: NdarrayOrTensor):
         """
         Apply the transform to `img` and make it contiguous.
         """
-        return convert_to_tensor(img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence)
+        if isinstance(img, MetaTensor):
+            img.applied_operations = []  # drops tracking info
+        return convert_to_tensor(
+            img, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence, track_meta=self.track_meta
+        )
 
 
 class EnsureType(Transform):
@@ -410,6 +465,8 @@ class EnsureType(Transform):
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
             E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
+        track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
+            if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
     """
 
@@ -421,11 +478,13 @@ class EnsureType(Transform):
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         device: Optional[torch.device] = None,
         wrap_sequence: bool = True,
+        track_meta: Optional[bool] = None,
     ) -> None:
         self.data_type = look_up_option(data_type.lower(), {"tensor", "numpy"})
         self.dtype = dtype
         self.device = device
         self.wrap_sequence = wrap_sequence
+        self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
     def __call__(self, data: NdarrayOrTensor):
         """
@@ -436,10 +495,17 @@ class EnsureType(Transform):
                 if applicable and `wrap_sequence=False`.
 
         """
-        output_type = torch.Tensor if self.data_type == "tensor" else np.ndarray
+        if self.data_type == "tensor":
+            output_type = MetaTensor if self.track_meta else torch.Tensor
+        else:
+            output_type = np.ndarray  # type: ignore
         out: NdarrayOrTensor
         out, *_ = convert_data_type(
-            data=data, output_type=output_type, dtype=self.dtype, device=self.device, wrap_sequence=self.wrap_sequence
+            data=data,
+            output_type=output_type,  # type: ignore
+            dtype=self.dtype,
+            device=self.device,
+            wrap_sequence=self.wrap_sequence,
         )
         return out
 
@@ -455,7 +521,7 @@ class ToNumpy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -482,7 +548,7 @@ class ToCupy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.CUPY]
 
     def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -501,7 +567,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -519,7 +585,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
@@ -528,9 +594,8 @@ class Transpose(Transform):
         """
         Apply the transform to `img`.
         """
-        if isinstance(img, torch.Tensor):
-            return img.permute(self.indices or tuple(range(img.ndim)[::-1]))
-        return img.transpose(self.indices)  # type: ignore
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        return img.permute(self.indices or tuple(range(img.ndim)[::-1]))  # type: ignore
 
 
 class SqueezeDim(Transform):
@@ -540,11 +605,12 @@ class SqueezeDim(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, dim: Optional[int] = 0) -> None:
+    def __init__(self, dim: Optional[int] = 0, update_meta=True) -> None:
         """
         Args:
             dim: dimension to be squeezed. Default = 0
                 "None" works when the input is numpy array.
+            update_meta: whether to update the meta info if the input is a metatensor. Default is ``True``.
 
         Raises:
             TypeError: When ``dim`` is not an ``Optional[int]``.
@@ -553,18 +619,34 @@ class SqueezeDim(Transform):
         if dim is not None and not isinstance(dim, int):
             raise TypeError(f"dim must be None or a int but is {type(dim).__name__}.")
         self.dim = dim
+        self.update_meta = update_meta
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
             img: numpy arrays with required dimension `dim` removed
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if self.dim is None:
+            if self.update_meta:
+                warnings.warn("update_meta=True is ignored when dim=None.")
             return img.squeeze()
+        dim = (self.dim + len(img.shape)) if self.dim < 0 else self.dim
         # for pytorch/numpy unification
-        if img.shape[self.dim] != 1:
-            raise ValueError("Can only squeeze singleton dimension")
-        return img.squeeze(self.dim)
+        if img.shape[dim] != 1:
+            raise ValueError(f"Can only squeeze singleton dimension, got shape {img.shape[dim]} of {img.shape}.")
+        img = img.squeeze(dim)
+        if self.update_meta and isinstance(img, MetaTensor) and dim > 0 and len(img.affine.shape) == 2:
+            h, w = img.affine.shape
+            affine, device = img.affine, img.affine.device if isinstance(img.affine, torch.Tensor) else None
+            if h > dim:
+                affine = affine[torch.arange(0, h, device=device) != dim - 1]
+            if w > dim:
+                affine = affine[:, torch.arange(0, w, device=device) != dim - 1]
+            if (affine.shape[0] == affine.shape[1]) and not np.linalg.det(convert_to_numpy(affine, wrap_sequence=True)):
+                warnings.warn(f"After SqueezeDim, img.affine is ill-posed: \n{img.affine}.")
+            img.affine = affine
+        return img
 
 
 class DataStats(Transform):
@@ -621,10 +703,17 @@ class DataStats(Transform):
         _logger = logging.getLogger(self._logger_name)
         _logger.setLevel(logging.INFO)
         if logging.root.getEffectiveLevel() > logging.INFO:
-            # if the root log level is higher than INFO, set a separate stream handler to record
-            console = logging.StreamHandler(sys.stdout)
-            console.setLevel(logging.INFO)
-            _logger.addHandler(console)
+            # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
+            has_console_handler = any(
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler  # type:ignore[attr-defined]
+                for h in _logger.handlers
+            )
+            if not has_console_handler:
+                # if the root log level is higher than INFO, set a separate stream handler to record
+                console = logging.StreamHandler(sys.stdout)
+                console.setLevel(logging.INFO)
+                console.is_data_stats_handler = True  # type:ignore[attr-defined]
+                _logger.addHandler(console)
 
     def __call__(
         self,
@@ -697,7 +786,7 @@ class SimulateDelay(Transform):
         return img
 
 
-class Lambda(Transform):
+class Lambda(InvertibleTransform):
     """
     Apply a user-defined lambda as a transform.
 
@@ -713,6 +802,7 @@ class Lambda(Transform):
 
     Args:
         func: Lambda/function to be applied.
+        inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -721,10 +811,11 @@ class Lambda(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Optional[Callable] = None) -> None:
+    def __init__(self, func: Optional[Callable] = None, inv_func: Callable = no_collation) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
+        self.inv_func = inv_func
 
     def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         """
@@ -735,16 +826,23 @@ class Lambda(Transform):
 
         Raises:
             TypeError: When ``func`` is not an ``Optional[Callable]``.
-            ValueError: When ``func=None`` and ``self.func=None``. Incompatible values.
 
         """
-        if func is not None:
-            if not callable(func):
-                raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
-            return func(img)
-        if self.func is not None:
-            return self.func(img)
-        raise ValueError("Incompatible values: func=None and self.func=None.")
+        fn = func if func is not None else self.func
+        if not callable(fn):
+            raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
+        out = fn(img)
+        # convert to MetaTensor if necessary
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
+        if isinstance(out, MetaTensor):
+            self.push_transform(out)
+        return out
+
+    def inverse(self, data: torch.Tensor):
+        if isinstance(data, MetaTensor):
+            self.pop_transform(data)
+        return self.inv_func(data)
 
 
 class RandLambda(Lambda, RandomizableTransform):
@@ -755,19 +853,35 @@ class RandLambda(Lambda, RandomizableTransform):
     Args:
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
+        inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0) -> None:
-        Lambda.__init__(self=self, func=func)
+    def __init__(self, func: Optional[Callable] = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func)
         RandomizableTransform.__init__(self=self, prob=prob)
 
     def __call__(self, img: NdarrayOrTensor, func: Optional[Callable] = None):
         self.randomize(img)
-        return super().__call__(img=img, func=func) if self._do_transform else img
+        out = deepcopy(super().__call__(img, func) if self._do_transform else img)
+        # convert to MetaTensor if necessary
+        if not isinstance(out, MetaTensor) and get_track_meta():
+            out = MetaTensor(out)
+        if isinstance(out, MetaTensor):
+            lambda_info = self.pop_transform(out) if self._do_transform else {}
+            self.push_transform(out, extra_info=lambda_info)
+        return out
+
+    def inverse(self, data: torch.Tensor):
+        do_transform = self.get_most_recent_transform(data).pop(TraceKeys.DO_TRANSFORM)
+        if do_transform:
+            data = super().inverse(data)
+        else:
+            self.pop_transform(data)
+        return data
 
 
 class LabelToMask(Transform):
@@ -811,6 +925,7 @@ class LabelToMask(Transform):
             merge_channels: whether to use `np.any()` to merge the result on channel dim. if yes,
                 will return a single channel mask with binary data.
         """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         if select_labels is None:
             select_labels = self.select_labels
         else:
@@ -938,7 +1053,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
     Convert labels to multi channels based on brats18 classes:
     label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the the peritumoral edema
+    label 2 is the peritumoral edema
     label 4 is the GD-enhancing tumor
     The possible classes are TC (Tumor core), WT (Whole tumor)
     and ET (Enhancing tumor).
@@ -977,7 +1092,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
         ValueError: When label image is not single channel.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
@@ -1051,6 +1166,7 @@ class TorchVision:
 
         """
         img_t, *_ = convert_data_type(img, torch.Tensor)
+
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
@@ -1105,7 +1221,7 @@ class MapLabelValue:
 
 class IntensityStats(Transform):
     """
-    Compute statistics for the intensity values of input image and store into the meta data dictionary.
+    Compute statistics for the intensity values of input image and store into the metadata dictionary.
     For example: if `ops=[lambda x: np.mean(x), "max"]` and `key_prefix="orig"`, may generate below stats:
     `{"orig_custom_0": 1.5, "orig_max": 3.0}`.
 
@@ -1115,7 +1231,7 @@ class IntensityStats(Transform):
             mapping to `np.nanmean`, `np.nanmedian`, `np.nanmax`, `np.nanmin`, `np.nanstd`.
             if a callable function, will execute the function on input image.
         key_prefix: the prefix to combine with `ops` name to generate the key to store the results in the
-            meta data dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
+            metadata dictionary. if some `ops` are callable functions, will use "{key_prefix}_custom_{index}"
             as the key, where index counts from 0.
         channel_wise: whether to compute statistics for every channel of input image separately.
             if True, return a list of values for every operation, default to False.
@@ -1137,7 +1253,7 @@ class IntensityStats(Transform):
 
         Args:
             img: input image to compute intensity stats.
-            meta_data: meta data dictionary to store the statistics data, if None, will create an empty dictionary.
+            meta_data: metadata dictionary to store the statistics data, if None, will create an empty dictionary.
             mask: if not None, mask the image to extract only the interested area to compute statistics.
                 mask must have the same shape as input `img`.
 
@@ -1308,7 +1424,7 @@ class AddCoordinateChannels(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     @deprecated_arg(
         name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."

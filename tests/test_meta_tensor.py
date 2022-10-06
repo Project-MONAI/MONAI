@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import os
 import random
 import string
@@ -16,24 +17,29 @@ import tempfile
 import unittest
 import warnings
 from copy import deepcopy
+from multiprocessing.reduction import ForkingPickler
 from typing import Optional, Union
 
+import numpy as np
 import torch
+import torch.multiprocessing
 from parameterized import parameterized
 
+from monai import config
 from monai.data import DataLoader, Dataset
-from monai.data.meta_obj import get_track_meta, get_track_transforms, set_track_meta, set_track_transforms
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
+from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
 
-DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
+DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
 TESTS = []
 for _device in TEST_DEVICES:
     for _dtype in DTYPES:
-        TESTS.append((*_device, *_dtype))
+        TESTS.append((*_device, *_dtype))  # type: ignore
 
 
 def rand_string(min_len=5, max_len=10):
@@ -101,9 +107,7 @@ class TestMetaTensor(unittest.TestCase):
         # check meta and affine are equal and affine is on correct device
         if isinstance(orig, MetaTensor) and isinstance(out, MetaTensor) and meta:
             self.check_meta(orig, out)
-            self.assertTrue(str(device) in str(out.affine.device))
             if check_ids:
-                self.check_ids(out.affine, orig.affine, ids)
                 self.check_ids(out.meta, orig.meta, ids)
 
     @parameterized.expand(TESTS)
@@ -160,7 +164,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_affine_device(self):
         m, _ = self.get_im()  # device="cuda")
         m.affine = torch.eye(4)
-        self.assertEqual(m.device, m.affine.device)
+        self.assertTrue("cpu" in str(m.affine.device))
 
     @parameterized.expand(TESTS)
     def test_copy(self, device, dtype):
@@ -174,6 +178,8 @@ class TestMetaTensor(unittest.TestCase):
         # clone
         a = m.clone()
         self.check(a, m, ids=False)
+        a = MetaTensor([[]], device=device, dtype=dtype)
+        self.check(a, deepcopy(a), ids=False)
 
     @parameterized.expand(TESTS)
     def test_add(self, device, dtype):
@@ -216,10 +222,6 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(get_track_meta(), False)
         set_track_meta(True)
         self.assertEqual(get_track_meta(), True)
-        set_track_transforms(False)
-        self.assertEqual(get_track_transforms(), False)
-        set_track_transforms(True)
-        self.assertEqual(get_track_transforms(), True)
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -267,24 +269,24 @@ class TestMetaTensor(unittest.TestCase):
         im_conv = conv(im)
         with torch.cuda.amp.autocast():
             im_conv2 = conv(im)
-        self.check(im_conv2, im_conv, ids=False, rtol=1e-4, atol=1e-3)
+        self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
 
     def test_out(self):
         """Test when `out` is given as an argument."""
         m1, _ = self.get_im()
-        m1_orig = deepcopy(m1)
         m2, _ = self.get_im()
         m3, _ = self.get_im()
         torch.add(m2, m3, out=m1)
         m1_add = m2 + m3
 
         assert_allclose(m1, m1_add)
-        self.check_meta(m1, m1_orig)
+        # self.check_meta(m1, m2)  # meta is from first input tensor
 
     @parameterized.expand(TESTS)
     def test_collate(self, device, dtype):
         numel = 3
         ims = [self.get_im(device=device, dtype=dtype)[0] for _ in range(numel)]
+        ims = [MetaTensor(im, applied_operations=[f"t{i}"]) for i, im in enumerate(ims)]
         collated = list_data_collate(ims)
         # tensor
         self.assertIsInstance(collated, MetaTensor)
@@ -296,6 +298,7 @@ class TestMetaTensor(unittest.TestCase):
         self.assertIsInstance(collated.affine, torch.Tensor)
         expected_shape = (numel,) + tuple(ims[0].affine.shape)
         self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
+        self.assertEqual(len(collated.applied_operations), numel)
 
     @parameterized.expand(TESTS)
     def test_dataset(self, device, dtype):
@@ -309,6 +312,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_dataloader(self, dtype):
         batch_size = 5
         ims = [self.get_im(dtype=dtype)[0] for _ in range(batch_size * 2)]
+        ims = [MetaTensor(im, applied_operations=[f"t{i}"]) for i, im in enumerate(ims)]
         ds = Dataset(ims)
         im_shape = tuple(ims[0].shape)
         affine_shape = tuple(ims[0].affine.shape)
@@ -319,6 +323,7 @@ class TestMetaTensor(unittest.TestCase):
             self.assertIsInstance(batch, MetaTensor)
             self.assertTupleEqual(tuple(batch.shape), expected_im_shape)
             self.assertTupleEqual(tuple(batch.affine.shape), expected_affine_shape)
+            self.assertEqual(len(batch.applied_operations), batch_size)
 
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_indexing(self):
@@ -334,6 +339,9 @@ class TestMetaTensor(unittest.TestCase):
         im = ims[0]
         self.check_meta(im[0], im)
         self.check_meta(next(iter(im)), im)
+
+        self.assertEqual(im[None].shape, (1, 1, 10, 8))
+        self.assertEqual(data[None].shape, (1, 5, 1, 10, 8))
 
         # index
         d = data[0]
@@ -356,6 +364,7 @@ class TestMetaTensor(unittest.TestCase):
         # `is_batch==False`, should have first metadata and subset of first image.
         d = data[0, 0]
         self.check(d, ims[0][0], ids=False)
+        self.assertEqual(d.applied_operations, ims[0][0].applied_operations)
 
         # `is_batch==True`, should have all metadata and subset of all images.
         d = data[:, 0]
@@ -380,6 +389,7 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(len(d), len(ims))
         for _d, _im in zip(d, ims):
             self.check(_d, _im, ids=False)
+            self.assertEqual(_d.applied_operations, _im.applied_operations)
 
         # `is_batch==True`, tuple split along non-batch dim. Should have all metadata.
         d = data.unbind(-1)
@@ -409,6 +419,130 @@ class TestMetaTensor(unittest.TestCase):
         for elem, im in zip(decollated, ims):
             self.assertIsInstance(elem, MetaTensor)
             self.check(elem, im, ids=False)
+
+    def test_str(self):
+        t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
+        self.assertEqual(str(t), "tensor([1.])")
+
+    def test_astype(self):
+        t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
+        for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.compat.long, np.uint16):
+            self.assertIsInstance(t.astype(np_types), np.ndarray)
+        for pt_types in ("torch.float", torch.float, "torch.float64"):
+            self.assertIsInstance(t.astype(pt_types), torch.Tensor)
+        self.assertIsInstance(t.astype("torch.float", device="cpu"), torch.Tensor)
+
+    def test_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([ToMetaTensord(key), BorderPadd(key, 1), DivisiblePadd(key, 16), FromMetaTensord(key)])
+        num_tr = len(tr.transforms)
+        data = {key: im, PostFix.meta(key): {"affine": torch.eye(4)}}
+
+        # apply one at a time
+        for i, _tr in enumerate(tr.transforms):
+            data = _tr(data)
+            is_meta = isinstance(_tr, (ToMetaTensord, BorderPadd, DivisiblePadd))
+            if is_meta:
+                self.assertEqual(len(data), 1 if not config.USE_META_DICT else 2)  # im, im_transforms, compatibility
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].applied_operations)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, i + 1)
+
+        # inverse one at a time
+        for i, _tr in enumerate(tr.transforms[::-1]):
+            data = _tr.inverse(data)
+            is_meta = isinstance(_tr, (FromMetaTensord, BorderPadd, DivisiblePadd))
+            if is_meta:
+                self.assertEqual(len(data), 1)  # im
+                self.assertIsInstance(data[key], MetaTensor)
+                n_applied = len(data[key].applied_operations)
+            else:
+                self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+                self.assertIsInstance(data[key], torch.Tensor)
+                self.assertNotIsInstance(data[key], MetaTensor)
+                n_applied = len(data[PostFix.transforms(key)])
+
+            self.assertEqual(n_applied, num_tr - i - 1)
+
+        # apply all in one go
+        data = tr({key: im, PostFix.meta(key): {"affine": torch.eye(4)}})
+        self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+        self.assertIsInstance(data[key], torch.Tensor)
+        self.assertNotIsInstance(data[key], MetaTensor)
+        n_applied = len(data[PostFix.transforms(key)])
+        self.assertEqual(n_applied, num_tr)
+
+        # inverse all in one go
+        data = tr.inverse(data)
+        self.assertEqual(len(data), 3)  # im, im_meta_dict, im_transforms
+        self.assertIsInstance(data[key], torch.Tensor)
+        self.assertNotIsInstance(data[key], MetaTensor)
+        n_applied = len(data[PostFix.transforms(key)])
+        self.assertEqual(n_applied, 0)
+
+    def test_construct_with_pre_applied_transforms(self):
+        key = "im"
+        _, im = self.get_im()
+        tr = Compose([BorderPadd(key, 1), DivisiblePadd(key, 16)])
+        data = tr({key: im})
+        m = MetaTensor(im, applied_operations=data["im"].applied_operations)
+        self.assertEqual(len(m.applied_operations), len(tr.transforms))
+
+    @parameterized.expand(TESTS)
+    def test_multiprocessing(self, device=None, dtype=None):
+        """multiprocessing sharing with 'device' and 'dtype'"""
+        buf = io.BytesIO()
+        t = MetaTensor([0.0, 0.0], device=device, dtype=dtype)
+        t.is_batch = True
+        if t.is_cuda:
+            with self.assertRaises(NotImplementedError):
+                ForkingPickler(buf).dump(t)
+            return
+        ForkingPickler(buf).dump(t)
+        obj = ForkingPickler.loads(buf.getvalue())
+        self.assertIsInstance(obj, MetaTensor)
+        assert_allclose(obj.as_tensor(), t)
+        assert_allclose(obj.is_batch, True)
+
+    @parameterized.expand(TESTS)
+    def test_array_function(self, device="cpu", dtype=float):
+        a = np.random.RandomState().randn(100, 100)
+        b = MetaTensor(a, device=device)
+        assert_allclose(np.sum(a), np.sum(b))
+        assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
+        assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
+        c = MetaTensor([1.0, 2.0, 3.0], device=device, dtype=dtype)
+        assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
+        assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
+        if pytorch_after(1, 8, 1):
+            assert_allclose(c > np.asarray([1.0, 1.0, 1.0]), np.asarray([False, True, True]))
+            assert_allclose(
+                c > torch.as_tensor([1.0, 1.0, 1.0], device=device), torch.as_tensor([False, True, True], device=device)
+            )
+
+    @parameterized.expand(TESTS)
+    def test_numpy(self, device=None, dtype=None):
+        """device, dtype"""
+        t = MetaTensor([0.0], device=device, dtype=dtype)
+        self.assertIsInstance(t, MetaTensor)
+        assert_allclose(t.array, np.asarray([0.0]))
+        t.array = np.asarray([1.0])
+        self.check_meta(t, MetaTensor([1.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([1.0]))
+        t.array = [2.0]
+        self.check_meta(t, MetaTensor([2.0]))
+        assert_allclose(t.as_tensor(), torch.as_tensor([2.0]))
+        if not t.is_cuda:
+            t.array[0] = torch.as_tensor(3.0, device=device, dtype=dtype)
+            self.check_meta(t, MetaTensor([3.0]))
+            assert_allclose(t.as_tensor(), torch.as_tensor([3.0]))
 
 
 if __name__ == "__main__":

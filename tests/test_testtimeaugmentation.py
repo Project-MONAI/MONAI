@@ -32,7 +32,7 @@ from monai.transforms import (
     RandScaleIntensityd,
 )
 from monai.transforms.croppad.dictionary import SpatialPadd
-from monai.transforms.spatial.dictionary import RandFlipd, Spacingd
+from monai.transforms.spatial.dictionary import RandFlipd
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix
 from tests.utils import TEST_NDARRAYS
@@ -58,9 +58,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
         data = []
         for i in range(num_examples):
             im, label = custom_create_test_image_2d()
-            d = {}
-            d["image"] = data_type(im[:, i:])
-            d[PostFix.meta("image")] = {"affine": np.eye(4)}
+            d = {"image": data_type(im[:, i:])}
             if include_label:
                 d["label"] = data_type(label[:, i:])
                 d[PostFix.meta("label")] = {"affine": np.eye(4)}
@@ -94,7 +92,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
                     scale_range=((0.8, 1), (0.8, 1)),
                     padding_mode="zeros",
                     mode=("bilinear", "nearest"),
-                    as_tensor_output=False,
                 ),
                 CropForegroundd(keys, source_key="image"),
                 DivisiblePadd(keys, 4),
@@ -173,12 +170,6 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_image_no_label(self):
         transforms = RandFlipd(["image"], prob=1.0)
-        tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
-        tta(self.get_data(1, (20, 20), include_label=False))
-
-    @unittest.skipUnless(has_nib, "Requires nibabel")
-    def test_requires_meta_dict(self):
-        transforms = Compose([AddChanneld("image"), RandFlipd("image"), Spacingd("image", pixdim=1.1)])
         tta = TestTimeAugmentation(transforms, batch_size=5, num_workers=0, inferrer_fn=lambda x: x, orig_key="image")
         tta(self.get_data(1, (20, 20), include_label=False))
 

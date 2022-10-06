@@ -11,7 +11,6 @@
 
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
-import numpy as np
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
@@ -73,6 +72,25 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
 
+    Note:
+        Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
+        ``IterableDataset``) at run time. ``persistent_workers=True`` flag (and pytorch>1.8) is therefore required
+        for multiple epochs of loading when ``num_workers>0``. For example::
+
+            import monai
+
+            def run():
+                dss = monai.data.ShuffleBuffer([1, 2, 3, 4], buffer_size=30, seed=42)
+
+                dataloader = monai.data.DataLoader(
+                    dss, batch_size=1, num_workers=2, persistent_workers=True)
+                for epoch in range(3):
+                    for item in dataloader:
+                        print(f"epoch: {epoch} item: {item}.")
+
+            if __name__ == '__main__':
+                run()
+
     """
 
     def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0) -> None:
@@ -81,42 +99,34 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         self.seed = seed
         self._idx = 0
 
+    def randomized_pop(self, buffer):
+        """Return the item at a randomized location `self._idx` in `buffer`."""
+        self.randomize(len(buffer))
+        ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
+        buffer.pop()
+        return ret
+
+    def generate_item(self):
+        """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
+        buffer = []
+        for item in iter(self.data):
+            if len(buffer) >= self.size:
+                yield self.randomized_pop(buffer)
+            buffer.append(item)
+        while buffer:
+            yield self.randomized_pop(buffer)
+
     def __iter__(self):
         """
-        Fetch data from the source, if buffer is not full, fill into buffer, otherwise,
-        randomly pop items from the buffer.
-        After loading all the data from source, randomly pop items from the buffer.
-
+        Randomly pop buffered items from `self.data`.
+        Multiple dataloader workers sharing this dataset will generate identical item sequences.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
-        buffer = []
-        source = self.data
-
-        def _pop_item():
-            self.randomize(len(buffer))
-            # switch random index data and the last index data
-            ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
-            buffer.pop()
-            return ret
-
-        def _get_item():
-            for item in source:
-                if len(buffer) >= self.size:
-                    yield _pop_item()
-                buffer.append(item)
-
-            while buffer:
-                yield _pop_item()
-
-        self.data = _get_item()
-        return super().__iter__()
+        yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
-
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
-        raise NotImplementedError(f"`set_random_state` is not available in {self.__class__.__name__}.")
 
 
 class CSVIterableDataset(IterableDataset):

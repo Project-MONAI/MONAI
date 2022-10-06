@@ -16,7 +16,7 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pad, Pool
 from monai.networks.utils import icnr_init, pixelshuffle
-from monai.utils import InterpolateMode, UpsampleMode, deprecated_arg, ensure_tuple_rep, look_up_option
+from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["Upsample", "UpSample", "SubpixelUpsample", "Subpixelupsample", "SubpixelUpSample"]
 
@@ -34,23 +34,20 @@ class UpSample(nn.Sequential):
     (often used to map the number of features from `in_channels` to `out_channels`).
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
         scale_factor: Union[Sequence[float], float] = 2,
+        kernel_size: Optional[Union[Sequence[float], float]] = None,
         size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
-        interp_mode: Union[InterpolateMode, str] = InterpolateMode.LINEAR,
+        interp_mode: str = InterpolateMode.LINEAR,
         align_corners: Optional[bool] = True,
         bias: bool = True,
         apply_pad_pool: bool = True,
-        dimensions: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -58,6 +55,7 @@ class UpSample(nn.Sequential):
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
+            kernel_size: kernel size used during UpsampleMode.DECONV. Defaults to `scale_factor`.
             size: spatial size of the output image.
                 Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
                 In torch.nn.functional.interpolate, only one of `size` or `scale_factor` should be defined,
@@ -80,24 +78,31 @@ class UpSample(nn.Sequential):
                 size of `scale_factor` with a stride of 1. See also: :py:class:`monai.networks.blocks.SubpixelUpsample`.
                 Only used in the "pixelshuffle" mode.
 
-        .. deprecated:: 0.6.0
-            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
-        if dimensions is not None:
-            spatial_dims = dimensions
         scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
         up_mode = look_up_option(mode, UpsampleMode)
         if up_mode == UpsampleMode.DECONV:
             if not in_channels:
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
+
+            if not kernel_size:
+                kernel_size_ = scale_factor_
+                output_padding = padding = 0
+            else:
+                kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
+                padding = tuple((k - 1) // 2 for k in kernel_size_)  # type: ignore
+                output_padding = tuple(s - 1 - (k - 1) % 2 for k, s in zip(kernel_size_, scale_factor_))  # type: ignore
+
             self.add_module(
                 "deconv",
                 Conv[Conv.CONVTRANS, spatial_dims](
                     in_channels=in_channels,
                     out_channels=out_channels or in_channels,
-                    kernel_size=scale_factor_,
+                    kernel_size=kernel_size_,
                     stride=scale_factor_,
+                    padding=padding,
+                    output_padding=output_padding,
                     bias=bias,
                 ),
             )
@@ -173,9 +178,6 @@ class SubpixelUpsample(nn.Module):
 
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -185,7 +187,6 @@ class SubpixelUpsample(nn.Module):
         conv_block: Optional[Union[nn.Module, str]] = "default",
         apply_pad_pool: bool = True,
         bias: bool = True,
-        dimensions: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -204,15 +205,13 @@ class SubpixelUpsample(nn.Module):
                 component of subpixel convolutions described in Aitken et al.
             bias: whether to have a bias term in the default conv_block. Defaults to True.
 
-        .. deprecated:: 0.6.0
-            ``dimensions`` is deprecated, use ``spatial_dims`` instead.
         """
         super().__init__()
 
         if scale_factor <= 0:
             raise ValueError(f"The `scale_factor` multiplier must be an integer greater than 0, got {scale_factor}.")
 
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.scale_factor = scale_factor
 
         if conv_block == "default":

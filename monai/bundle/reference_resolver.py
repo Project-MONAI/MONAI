@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import re
 import warnings
 from typing import Any, Dict, Optional, Sequence, Set
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
-from monai.utils import look_up_option
+from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
 
@@ -53,7 +52,7 @@ class ReferenceResolver:
     # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
-    allow_missing_reference = not os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "0") == "0"
+    allow_missing_reference = allow_missing_reference
 
     def __init__(self, items: Optional[Sequence[ConfigItem]] = None):
         # save the items in a dictionary with the `ConfigItem.id` as key
@@ -111,14 +110,16 @@ class ReferenceResolver:
             waiting_list: set of ids pending to be resolved.
                 It's used to detect circular references such as:
                 `{"name": "A", "dep": "@B"}` and `{"name": "B", "dep": "@A"}`.
-             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
         if id in self.resolved_content:
             return self.resolved_content[id]
         try:
-            item = look_up_option(id, self.items, print_all_options=False)
+            item = look_up_option(id, self.items, print_all_options=False, default=kwargs.get("default", "no_default"))
         except ValueError as err:
             raise KeyError(f"id='{id}' is not found in the config resolver.") from err
         item_config = item.get_config()
@@ -163,7 +164,7 @@ class ReferenceResolver:
         elif isinstance(item, ConfigExpression):
             run_eval = kwargs.get("eval_expr", True)
             self.resolved_content[id] = (
-                item.evaluate(locals={f"{self._vars}": self.resolved_content}) if run_eval else item
+                item.evaluate(globals={f"{self._vars}": self.resolved_content}) if run_eval else item
             )
         else:
             self.resolved_content[id] = new_config
@@ -175,8 +176,10 @@ class ReferenceResolver:
 
         Args:
             id: id name of the expected item.
-            kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
-                Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
+            kwargs: keyword arguments to pass to ``_resolve_one_item()``.
+                Currently support ``instantiate``, ``eval_expr`` and ``default``.
+                `instantiate` and `eval_expr` are defaulting to True, `default` is the target config item
+                if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
         return self._resolve_one_item(id=id, **kwargs)
@@ -227,7 +230,8 @@ class ReferenceResolver:
                 else:
                     raise KeyError(msg)
             if value_is_expr:
-                # replace with local code, will be used in the `evaluate` logic with `locals={"refs": ...}`
+                # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
+                # the `globals` argument of python `eval` in the `evaluate`
                 value = value.replace(item, f"{cls._vars}['{ref_id}']")
             elif value == item:
                 # the whole content is "@XXX", it will avoid the case that regular string contains "@"

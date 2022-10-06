@@ -11,7 +11,6 @@
 
 import ast
 import inspect
-import os
 import sys
 import warnings
 from abc import ABC, abstractmethod
@@ -19,7 +18,7 @@ from importlib import import_module
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, first, instantiate, optional_import
+from monai.utils import ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
@@ -107,7 +106,7 @@ class ComponentLocator:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
 
-        mods: Optional[Union[List[str], str]] = self._components_table.get(name, None)
+        mods: Optional[Union[List[str], str]] = self._components_table.get(name)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
         return mods
@@ -176,6 +175,7 @@ class ConfigComponent(ConfigItem, Instantiable):
           component doesn't explicitly depend on the other `ConfigItems` via its arguments,
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
+        - ``"_desc_"`` (optional): free text descriptions of the component for code readability.
 
     Other fields in the config content are input arguments to the python module.
 
@@ -203,7 +203,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_"}
 
     def __init__(
         self,
@@ -281,7 +281,10 @@ class ConfigComponent(ConfigItem, Instantiable):
         modname = self.resolve_module_name()
         args = self.resolve_args()
         args.update(kwargs)
-        return instantiate(modname, **args)
+        try:
+            return instantiate(modname, **args)
+        except Exception as e:
+            raise RuntimeError(f"Failed to instantiate {self}.") from e
 
 
 class ConfigExpression(ConfigItem):
@@ -312,7 +315,7 @@ class ConfigExpression(ConfigItem):
     """
 
     prefix = EXPR_KEY
-    run_eval = not os.environ.get("MONAI_EVAL_EXPR", "1") == "0"
+    run_eval = run_eval
 
     def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
         super().__init__(config=config, id=id)
@@ -337,12 +340,13 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, locals: Optional[Dict] = None):
+    def evaluate(self, globals: Optional[Dict] = None, locals: Optional[Dict] = None):
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
 
         Args:
+            globals: besides ``self.globals``, other global symbols used in the expression at runtime.
             locals: besides ``globals``, may also have some local symbols used in the expression at runtime.
 
         """
@@ -354,7 +358,21 @@ class ConfigExpression(ConfigItem):
             return optional_module
         if not self.run_eval:
             return f"{value[len(self.prefix) :]}"
-        return eval(value[len(self.prefix) :], self.globals, locals)
+        globals_ = dict(self.globals)
+        if globals is not None:
+            for k, v in globals.items():
+                if k in globals_:
+                    warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
+                globals_[k] = v
+        if not run_debug:
+            return eval(value[len(self.prefix) :], globals_, locals)
+        warnings.warn(
+            f"\n\npdb: value={value}\n"
+            f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
+        )
+        import pdb
+
+        return pdb.run(value[len(self.prefix) :], globals_, locals)
 
     @classmethod
     def is_expression(cls, config: Union[Dict, List, str]) -> bool:
