@@ -16,7 +16,6 @@ from parameterized import parameterized
 from monai.apps.pathology.transforms.post.dictionary import GenerateProbabilityMapd
 from tests.utils import TEST_NDARRAYS
 import numpy as np
-import torch
 
 EXCEPTION_TESTS = []
 TESTS = []

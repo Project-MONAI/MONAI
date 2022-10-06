@@ -9,20 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from multiprocessing.sharedctypes import Value
-from typing import Callable, Sequence, Union, Optional
+from typing import Callable, Union, Optional
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import get_track_meta
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, min, maximum
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -83,7 +81,7 @@ class GenerateMask(Transform):
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
-    
+
     Raises:
         ValueError: when the `prob_map` shape is not [C, H, W].
 
@@ -144,7 +142,7 @@ class GenerateProbabilityMap(Transform):
     Raises:
         ValueError: when the `mask` shape is not [1, H, W].
         ValueError: when the `hover_map` shape is not [2, H, W].
-    
+
     """
 
     backend = [TransformBackends.NUMPY]

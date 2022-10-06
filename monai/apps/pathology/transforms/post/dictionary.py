@@ -9,9 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Sequence, Union, Optional
+from typing import Callable, Dict, Hashable, Mapping, Union, Optional
 
-import torch
 
 from monai.apps.pathology.transforms.post.array import (
     CalculateInstanceSegmentationMap,
