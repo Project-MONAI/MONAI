@@ -122,8 +122,8 @@ class DataAnalyzer:
         output_path: str = "./data_stats.yaml",
         average: bool = True,
         do_ccp: bool = True,
-        device: Union[str, torch.device] = "cuda",
-        worker: int = 0,
+        device: Union[str, torch.device] = "cpu",
+        worker: int = 2,
         image_key: str = "image",
         label_key: Optional[str] = "label",
     ):
