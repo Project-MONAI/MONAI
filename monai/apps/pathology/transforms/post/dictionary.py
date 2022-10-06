@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Optional, Union
+from typing import Callable, Dict, Hashable, Mapping, Optional
 
 from monai.apps.pathology.transforms.post.array import (
     CalculateInstanceSegmentationMap,
@@ -19,7 +19,6 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateProbabilityMap,
 )
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
-from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import MapTransform
 
 __all__ = [
@@ -51,9 +50,11 @@ class CalculateInstanceSegmentationMapd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         mask_key: keys of mask used in watershed. Only points at which mask == True will be labeled.
-        markers_key: keys of markers used in watershed. If None (no markers given), the local minima of the image are used as markers.
-        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection.
-            Following the scipy convention, default is a one-connected array of the dimension of the image.
+        markers_key: keys of markers used in watershed. If None (no markers given), the local minima of the image are
+            used as markers.
+        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors
+            for connection. Following the scipy convention, default is a one-connected array of the dimension of the
+            image.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -193,7 +194,9 @@ class GenerateDistanceMapd(MapTransform):
         keys: keys of the corresponding items to be transformed.
         prob_key: keys of the foreground probability map used to generate distance map.
         dist_key_postfix: the distance map will be written to the value of `{key}_{dist_key_postfix}`.
-        smooth_fn: execute smooth function on distance map. Defaults to `GaussianFilter`. You can also specify other callable functions for smoothing,
+        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
+            callable functions for smoothing.
+            For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -204,7 +207,7 @@ class GenerateDistanceMapd(MapTransform):
         keys: KeysCollection,
         prob_key: str = "prob",
         dist_key_postfix: str = "dist",
-        smooth_fn: Union[Callable, None] = GaussianSmooth(0.4),
+        smooth_fn: Optional[Callable] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

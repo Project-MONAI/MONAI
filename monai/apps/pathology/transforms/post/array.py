@@ -9,13 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional, Union
+from typing import Callable, Optional
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min
@@ -42,8 +41,9 @@ class CalculateInstanceSegmentationMap(Transform):
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
 
     Args:
-        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors for connection.
-            Following the scipy convention, default is a one-connected array of the dimension of the image.
+        connectivity: An array with the same number of dimensions as image whose non-zero elements indicate
+            neighbors for connection. Following the scipy convention, default is a one-connected array of
+            the dimension of the image.
 
     """
 
@@ -59,8 +59,9 @@ class CalculateInstanceSegmentationMap(Transform):
         Args:
             image: image where the lowest value points are labeled first. Shape must be [1, H, W].
             mask: the same shape as image. Only points at which mask == True will be labeled.
-            markers: The desired number of markers, or an array marking the basins with the values to be assigned in the label matrix.
-                Zero means not a marker. If None (no markers given), the local minima of the image are used as markers. Shape must be [1, H, W].
+            markers: The desired number of markers, or an array marking the basins with the values to be assigned
+                in the label matrix. Zero means not a marker. If None (no markers given), the local minima of the
+                image are used as markers. Shape must be [1, H, W].
         """
 
         image = convert_to_numpy(image)
@@ -205,16 +206,19 @@ class GenerateProbabilityMap(Transform):
 class GenerateDistanceMap(Transform):
     """
     Generate distance map.
-    In general, the instance map is calculated from the distance to the background. Here, we use 1 - "foreground probability map" to
-    generate the distance map. Nnuclei values form mountains so inverse to get basins.
+    In general, the instance map is calculated from the distance to the background.
+    Here, we use 1 - "foreground probability map" to generate the distance map.
+    Nuclei values form mountains so inverse to get basins.
 
     Args:
-        smooth_fn: execute smooth function on distance map. Default is `GaussianSmooth`. You can also pass your own smooth function for smoothing.
+        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
+            callable functions for smoothing.
+            For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, smooth_fn: Union[Callable, None] = GaussianSmooth(sigma=0.4)) -> None:
+    def __init__(self, smooth_fn: Optional[Callable] = None) -> None:
         self.smooth_fn = smooth_fn
 
     def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
@@ -240,9 +244,10 @@ class GenerateDistanceMap(Transform):
 
 class GenerateMarkers(Transform):
     """
-    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of the distance)
-    are chosen as markers and the flooding of basins from such markers separates the two instances along a watershed line.
-    Here is the implementation from HoVerNet papar. For more details refer to papers: https://arxiv.org/abs/1812.06499.
+    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of
+    the distance) are chosen as markers and the flooding of basins from such markers separates the two instances along
+    a watershed line. Here is the implementation from HoVerNet papar.
+    For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
         threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
