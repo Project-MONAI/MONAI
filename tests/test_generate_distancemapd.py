@@ -11,11 +11,11 @@
 
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateDistanceMapD
 from tests.utils import TEST_NDARRAYS
-import numpy as np
 
 EXCEPTION_TESTS = []
 TESTS = []
@@ -24,31 +24,16 @@ np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "prob_key": "prob"},
-            p(np.random.rand(2, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            ValueError
-        ]
+        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
     )
 
     EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "prob_key": "prob"},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(2, 5, 5)),
-            ValueError
-        ]
+        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
     )
 
 for p in TEST_NDARRAYS:
     TESTS.append(
-        [
-            {"keys": "mask", "prob_key": "prob"},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            (1, 5, 5),
-        ]
+        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
     )
 
 

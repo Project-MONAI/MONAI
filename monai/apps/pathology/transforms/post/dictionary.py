@@ -9,15 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Hashable, Mapping, Union, Optional
-
+from typing import Callable, Dict, Hashable, Mapping, Optional, Union
 
 from monai.apps.pathology.transforms.post.array import (
     CalculateInstanceSegmentationMap,
-    GenerateMask,
-    GenerateProbabilityMap,
     GenerateDistanceMap,
     GenerateMarkers,
+    GenerateMask,
+    GenerateProbabilityMap,
 )
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.transforms.intensity.array import GaussianSmooth
@@ -124,11 +123,11 @@ class GenerateMaskd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mask_key_postfix = mask_key_postfix
         self.transform = GenerateMask(
-            softmax = softmax,
-            sigmoid = sigmoid,
-            threshold = threshold,
-            remove_small_objects = remove_small_objects,
-            min_size = min_size
+            softmax=softmax,
+            sigmoid=sigmoid,
+            threshold=threshold,
+            remove_small_objects=remove_small_objects,
+            min_size=min_size,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -172,9 +171,7 @@ class GenerateProbabilityMapd(MapTransform):
         self.hover_map_key = hover_map_key
         self.prob_key_postfix = prob_key_postfix
         self.transform = GenerateProbabilityMap(
-            kernel_size = kernel_size,
-            remove_small_objects = remove_small_objects,
-            min_size = min_size,
+            kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -213,7 +210,7 @@ class GenerateDistanceMapd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
         self.dist_key_postfix = dist_key_postfix
-        self.transform = GenerateDistanceMap(smooth_fn = smooth_fn)
+        self.transform = GenerateDistanceMap(smooth_fn=smooth_fn)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -261,11 +258,11 @@ class GenerateMarkersd(MapTransform):
         self.prob_key = prob_key
         self.markers_key_postfix = markers_key_postfix
         self.transform = GenerateMarkers(
-            threshold = threshold,
-            radius = radius,
-            min_size = min_size,
-            remove_small_objects = remove_small_objects,
-            postprocess_fn = postprocess_fn,
+            threshold=threshold,
+            radius=radius,
+            min_size=min_size,
+            remove_small_objects=remove_small_objects,
+            postprocess_fn=postprocess_fn,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

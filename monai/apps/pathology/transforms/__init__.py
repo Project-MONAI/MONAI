@@ -9,23 +9,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import CalculateInstanceSegmentationMap, GenerateMask, GenerateProbabilityMap, GenerateDistanceMap, GenerateMarkers
+from .post.array import (
+    CalculateInstanceSegmentationMap,
+    GenerateDistanceMap,
+    GenerateMarkers,
+    GenerateMask,
+    GenerateProbabilityMap,
+)
 from .post.dictionary import (
     CalculateInstanceSegmentationMapD,
-    CalculateInstanceSegmentationMapDict,
     CalculateInstanceSegmentationMapd,
-    GenerateMaskD,
-    GenerateMaskDict,
-    GenerateMaskd,
-    GenerateProbabilityMapD,
-    GenerateProbabilityMapDict,
-    GenerateProbabilityMapd,
+    CalculateInstanceSegmentationMapDict,
     GenerateDistanceMapD,
-    GenerateDistanceMapDict,
     GenerateDistanceMapd,
+    GenerateDistanceMapDict,
     GenerateMarkersD,
-    GenerateMarkersDict,
     GenerateMarkersd,
+    GenerateMarkersDict,
+    GenerateMaskD,
+    GenerateMaskd,
+    GenerateMaskDict,
+    GenerateProbabilityMapD,
+    GenerateProbabilityMapd,
+    GenerateProbabilityMapDict,
 )
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict

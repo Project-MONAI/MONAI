@@ -31,8 +31,8 @@ TESTS = []
 params = {"keys": "image", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
 for p in TEST_NDARRAYS:
     image = p(np.random.rand(1, 10, 10))
-    mask = p((np.random.rand(1, 10, 10)>0.5).astype(np.uint8))
-    marker = p((np.random.rand(1, 10, 10)>0.5).astype(np.uint8))
+    mask = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
+    marker = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
 
     TESTS.append([params, image, mask, marker, (1, 10, 10)])
     params.update({"markers_key": None})
@@ -41,8 +41,8 @@ for p in TEST_NDARRAYS:
 ERROR_TESTS = []
 for p in TEST_NDARRAYS:
     image = p(np.random.rand(3, 10, 10))
-    mask = p((np.random.rand(2, 10, 10)>0.5).astype(np.uint8))
-    marker = p((np.random.rand(2, 10, 10)>0.5).astype(np.uint8))
+    mask = p((np.random.rand(2, 10, 10) > 0.5).astype(np.uint8))
+    marker = p((np.random.rand(2, 10, 10) > 0.5).astype(np.uint8))
 
     ERROR_TESTS.append([params, image, mask, marker])
 

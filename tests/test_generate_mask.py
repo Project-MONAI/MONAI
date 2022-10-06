@@ -11,12 +11,12 @@
 
 import unittest
 
+import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import GenerateMask
 from tests.utils import TEST_NDARRAYS
-import numpy as np
-import torch
 
 EXCEPTION_TESTS = []
 TESTS = []
@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
         [
             {"softmax": True, "sigmoid": False, "threshold": None, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5, 5)),
-            ValueError
+            ValueError,
         ]
     )
 
@@ -37,7 +37,7 @@ for p in TEST_NDARRAYS:
         [
             {"softmax": False, "sigmoid": True, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
-            ValueError
+            ValueError,
         ]
     )
 
@@ -45,10 +45,12 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"softmax": True, "sigmoid": False, "threshold": None, "remove_small_objects": False, "min_size": 10},
-            p([
-                [[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [0.6134, 0.6389, 0.0680]],
-                [[0.5000, 0.3400, 0.9900], [0.8900, 0.5600, 0.2700], [0.6100, 0.6300, 0.0600]],
-              ]),
+            p(
+                [
+                    [[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [0.6134, 0.6389, 0.0680]],
+                    [[0.5000, 0.3400, 0.9900], [0.8900, 0.5600, 0.2700], [0.6100, 0.6300, 0.0600]],
+                ]
+            ),
             (1, 3, 3),
             [0, 1],
         ]
@@ -59,11 +61,9 @@ for p in TEST_NDARRAYS:
             {"softmax": False, "sigmoid": True, "threshold": 0.5, "remove_small_objects": False, "min_size": 10},
             p([[[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [-0.1134, -0.0389, -0.0680]]]),
             (1, 3, 3),
-            [0, 1]
+            [0, 1],
         ]
     )
-
-
 
 
 class TestGenerateMask(unittest.TestCase):

@@ -11,11 +11,11 @@
 
 import unittest
 
+import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateProbabilityMapd
 from tests.utils import TEST_NDARRAYS
-import numpy as np
 
 EXCEPTION_TESTS = []
 TESTS = []
@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
             {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5, 5)),
             p(np.random.rand(2, 5, 5)),
-            ValueError
+            ValueError,
         ]
     )
 
@@ -38,7 +38,7 @@ for p in TEST_NDARRAYS:
             {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
-            ValueError
+            ValueError,
         ]
     )
 
@@ -47,7 +47,7 @@ for p in TEST_NDARRAYS:
             {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(2, 5, 5)),
             p(np.random.rand(2, 5, 5)),
-            ValueError
+            ValueError,
         ]
     )
 
@@ -68,7 +68,6 @@ for p in TEST_NDARRAYS:
             (1, 5, 5),
         ]
     )
-
 
 
 class TestGenerateProbabilityMap(unittest.TestCase):

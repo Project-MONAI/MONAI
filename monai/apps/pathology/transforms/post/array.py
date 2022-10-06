@@ -9,16 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union, Optional
+from typing import Callable, Optional, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.intensity.array import GaussianSmooth
+from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import max, min, maximum
+from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -27,7 +27,13 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = ["CalculateInstanceSegmentationMap", "GenerateMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateMarkers"]
+__all__ = [
+    "CalculateInstanceSegmentationMap",
+    "GenerateMask",
+    "GenerateProbabilityMap",
+    "GenerateDistanceMap",
+    "GenerateMarkers",
+]
 
 
 class CalculateInstanceSegmentationMap(Transform):
@@ -46,7 +52,9 @@ class CalculateInstanceSegmentationMap(Transform):
     def __init__(self, connectivity: Optional[int] = 1) -> None:
         self.connectivity = connectivity
 
-    def __call__(self, image: NdarrayOrTensor, mask: NdarrayOrTensor, markers: Optional[NdarrayOrTensor] = None) -> NdarrayOrTensor:
+    def __call__(
+        self, image: NdarrayOrTensor, mask: NdarrayOrTensor, markers: Optional[NdarrayOrTensor] = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             image: image where the lowest value points are labeled first. Shape must be [1, H, W].
@@ -95,7 +103,7 @@ class GenerateMask(Transform):
         sigmoid: bool = False,
         threshold: Optional[float] = None,
         remove_small_objects: bool = True,
-        min_size: int = 10
+        min_size: int = 10,
     ) -> None:
         if sigmoid and threshold is None:
             raise ValueError("Threshold is needed when using sigmoid activation.")
@@ -113,7 +121,9 @@ class GenerateMask(Transform):
             prob_map: probability map of segmentation, shape must be [C, H, W]
         """
         if len(prob_map.shape) != 3:
-            raise ValueError(f"Suppose the input probability map should be with shape of [C, H, W], but got {prob_map.shape}")
+            raise ValueError(
+                f"Suppose the input probability map should be with shape of [C, H, W], but got {prob_map.shape}"
+            )
 
         pred = self.activations(prob_map)
         pred = self.asdiscrete(pred)
@@ -147,13 +157,8 @@ class GenerateProbabilityMap(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(
-        self,
-        kernel_size: int = 21,
-        min_size: int = 10,
-        remove_small_objects: bool = True,
-    ) -> None:
-        self.sobel_gradient =  SobelGradients(kernel_size=kernel_size)
+    def __init__(self, kernel_size: int = 21, min_size: int = 10, remove_small_objects: bool = True) -> None:
+        self.sobel_gradient = SobelGradients(kernel_size=kernel_size)
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
         else:
@@ -171,7 +176,9 @@ class GenerateProbabilityMap(Transform):
             Foreground probability map.
         """
         if len(mask.shape) != 3 or len(hover_map.shape) != 3:
-            raise ValueError(f"Suppose the mask and hover map should be with shape of [C, H, W], but got {mask.shape}, {hover_map.shape}")
+            raise ValueError(
+                f"Suppose the mask and hover map should be with shape of [C, H, W], but got {mask.shape}, {hover_map.shape}"
+            )
         if mask.shape[0] != 1:
             raise ValueError(f"Suppose the mask only has one channel, but got {mask.shape[0]}")
         if hover_map.shape[0] != 2:
@@ -207,10 +214,7 @@ class GenerateDistanceMap(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(
-        self,
-        smooth_fn: Union[Callable, None] = GaussianSmooth(sigma=0.4),
-    ) -> None:
+    def __init__(self, smooth_fn: Union[Callable, None] = GaussianSmooth(sigma=0.4)) -> None:
         self.smooth_fn = smooth_fn
 
     def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -222,7 +226,9 @@ class GenerateDistanceMap(Transform):
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
         if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
-            raise ValueError(f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}")
+            raise ValueError(
+                f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}"
+            )
 
         distance_map = (1.0 - foreground_prob_map) * mask
 
@@ -274,11 +280,13 @@ class GenerateMarkers(Transform):
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
         if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
-            raise ValueError(f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}")
+            raise ValueError(
+                f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}"
+            )
 
         foreground_prob_map = foreground_prob_map >= self.threshold  # uncertain area
 
-        marker = mask - convert_to_dst_type(foreground_prob_map, mask, np.uint8)[0] # certain foreground
+        marker = mask - convert_to_dst_type(foreground_prob_map, mask, np.uint8)[0]  # certain foreground
         marker[marker < 0] = 0
         if self.postprocess_fn:
             marker = self.postprocess_fn(marker)
