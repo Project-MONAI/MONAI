@@ -875,17 +875,19 @@ def compute_shape_offset(
     corners_out = inv_mat @ corners
     corners_out = corners_out[:-1] / corners_out[-1]
     out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
-    mat = inv_mat[:-1, :-1]
-    i = 0
+    all_dist = inv_mat[:-1, :-1] @ corners[:-1, :]
+    offset = None
     for i in range(corners.shape[1]):
-        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
+            offset = corners[:-1, i]  # corner is the smallest, shift the corner to origin
             break
-    offset = corners[:-1, i]
+    if offset is None:  # otherwise make output image center aligned with the input image center
+        offset = in_affine_[:-1, :-1] @ (shape / 2.0) + in_affine_[:-1, -1] - out_affine_[:-1, :-1] @ (out_shape / 2.0)
     if scale_extent:
         in_offset = np.append(0.5 * (shape / out_shape - 1.0), 1.0)
         offset = np.abs((in_affine_ @ in_offset / in_offset[-1])[:-1]) * np.sign(offset)
-    return out_shape.astype(int, copy=False), offset
+    return out_shape.astype(int, copy=False), offset  # type: ignore
 
 
 def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:

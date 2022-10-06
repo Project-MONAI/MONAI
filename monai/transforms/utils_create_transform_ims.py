@@ -427,8 +427,6 @@ def create_transform_im(
         seed = seed + 1 if isinstance(transform, MapTransform) else seed
         transform.set_random_state(seed)
 
-    from monai.utils.misc import MONAIEnvVars
-
     out_dir = MONAIEnvVars.doc_images()
     if out_dir is None:
         raise RuntimeError(

@@ -555,9 +555,6 @@ class OpenSlideWSIReader(BaseWSIReader):
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "openslide"
 
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
-
     @staticmethod
     def get_level_count(wsi) -> int:
         """
@@ -701,9 +698,6 @@ class TiffFileWSIReader(BaseWSIReader):
 
     supported_suffixes = ["tif", "tiff", "svs"]
     backend = "tifffile"
-
-    def __init__(self, level: int = 0, channel_dim: int = 0, **kwargs):
-        super().__init__(level, channel_dim, **kwargs)
 
     @staticmethod
     def get_level_count(wsi) -> int:
