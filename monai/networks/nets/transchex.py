@@ -72,6 +72,7 @@ class BertPreTrainedModel(nn.Module):
         else:
             tempdir = tempfile.mkdtemp()
             with tarfile.open(resolved_archive_file, "r:gz") as archive:
+
                 def is_within_directory(directory, target):
 
                     abs_directory = os.path.abspath(directory)
@@ -89,7 +90,6 @@ class BertPreTrainedModel(nn.Module):
                             raise Exception("Attempted Path Traversal in Tar File")
 
                     tar.extractall(path, members, numeric_owner=numeric_owner)
-
 
                 safe_extract(archive, tempdir)
             serialization_dir = tempdir
