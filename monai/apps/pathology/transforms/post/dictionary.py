@@ -98,7 +98,6 @@ class GenerateMaskd(MapTransform):
         softmax: if True, apply a softmax function to the prediction.
         sigmoid: if True, apply a sigmoid function to the prediction.
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
-        argmax: if True, execute argmax function on input data.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         allow_missing_keys: don't raise exception if key is missing.
@@ -118,7 +117,6 @@ class GenerateMaskd(MapTransform):
         softmax: bool = False,
         sigmoid: bool = False,
         threshold: Optional[float] = None,
-        argmax: bool = False,
         remove_small_objects: bool = True,
         min_size: int = 10,
         allow_missing_keys: bool = False,
@@ -129,7 +127,6 @@ class GenerateMaskd(MapTransform):
             softmax = softmax,
             sigmoid = sigmoid,
             threshold = threshold,
-            argmax = argmax,
             remove_small_objects = remove_small_objects,
             min_size = min_size
         )

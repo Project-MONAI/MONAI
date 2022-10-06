@@ -72,7 +72,6 @@ class GenerateMask(Transform):
         softmax: if True, apply a softmax function to the prediction.
         sigmoid: if True, apply a sigmoid function to the prediction.
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
-        argmax: if True, execute argmax function on input data.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
     """
@@ -81,15 +80,17 @@ class GenerateMask(Transform):
 
     def __init__(
         self,
-        softmax: bool = False,
+        softmax: bool = True,
         sigmoid: bool = False,
         threshold: Optional[float] = None,
-        argmax: bool = False,
         remove_small_objects: bool = True,
         min_size: int = 10
     ) -> None:
+        if sigmoid and threshold is None:
+            raise ValueError("Threshold is needed when using sigmoid activation.")
+
         self.activations = Activations(sigmoid=sigmoid, softmax=softmax)
-        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=argmax)
+        self.asdiscrete = AsDiscrete(threshold=threshold, argmax=softmax)
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
         else:
@@ -100,10 +101,14 @@ class GenerateMask(Transform):
         Args:
             prob_map: probability map of segmentation, shape must be [C, H, W]
         """
-        prob_map = convert_to_tensor(prob_map, track_meta=get_track_meta())
+        if len(prob_map.shape) != 3:
+            raise ValueError("Suppose the input probability map should be with shape of [C, H, W], but got {}".format(prob_map.shape))
 
         pred = self.activations(prob_map)
         pred = self.asdiscrete(pred)
+
+        if isinstance(pred, torch.Tensor):
+            pred = pred.cpu()
 
         pred = label(pred)[0]
         if self.remove_small_objects:
