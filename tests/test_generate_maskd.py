@@ -14,7 +14,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateMaskd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS
 import numpy as np
 import torch
 
