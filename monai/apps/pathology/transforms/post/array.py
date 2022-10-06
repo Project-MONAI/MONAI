@@ -52,7 +52,7 @@ class CalculateInstanceSegmentationMap(Transform):
     def __init__(self, connectivity: Optional[int] = 1) -> None:
         self.connectivity = connectivity
 
-    def __call__(
+    def __call__(  # type: ignore
         self, image: NdarrayOrTensor, mask: NdarrayOrTensor, markers: Optional[NdarrayOrTensor] = None
     ) -> NdarrayOrTensor:
         """
@@ -71,7 +71,7 @@ class CalculateInstanceSegmentationMap(Transform):
             raise ValueError(f"Input image should be with size of [1, H, W], but got {image.shape}")
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
-        if markers and (markers.shape[0] != 1 or markers.ndim != 3):
+        if markers is not None and (markers.shape[0] != 1 or markers.ndim != 3):
             raise ValueError(f"Input markers should be with size of [1, H, W], but got {markers.shape}")
 
         instance_seg = watershed(image, markers=markers, mask=mask, connectivity=self.connectivity)
@@ -134,7 +134,7 @@ class GenerateMask(Transform):
         pred = label(pred)[0]
         if self.remove_small_objects:
             pred = self.remove_small_objects(pred)
-        pred[pred > 0] = 1
+        pred[pred > 0] = 1  # type: ignore
 
         return convert_to_dst_type(pred, prob_map, dtype=np.uint8)[0]
 
@@ -164,7 +164,7 @@ class GenerateProbabilityMap(Transform):
         else:
             self.remove_small_objects = None  # type: ignore
 
-    def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, mask: NdarrayOrTensor, hover_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             mask: binarized segmentation result.  Shape must be [1, H, W].
@@ -217,7 +217,7 @@ class GenerateDistanceMap(Transform):
     def __init__(self, smooth_fn: Union[Callable, None] = GaussianSmooth(sigma=0.4)) -> None:
         self.smooth_fn = smooth_fn
 
-    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             mask: binarized segmentation result. Shape must be [1, H, W].
@@ -262,7 +262,7 @@ class GenerateMarkers(Transform):
         radius: int = 2,
         min_size: int = 10,
         remove_small_objects: bool = True,
-        postprocess_fn: Callable = None,
+        postprocess_fn: Optional[Callable] = None,
     ) -> None:
         self.threshold = threshold
         self.radius = radius
@@ -271,7 +271,7 @@ class GenerateMarkers(Transform):
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
 
-    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             mask: binarized segmentation result. Shape must be [1, H, W].

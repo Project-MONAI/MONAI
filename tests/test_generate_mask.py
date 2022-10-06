@@ -16,7 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import GenerateMask
+from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
+
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
 
 EXCEPTION_TESTS = []
 TESTS = []
@@ -66,6 +69,7 @@ for p in TEST_NDARRAYS:
     )
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGenerateMask(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, image, exception_type):

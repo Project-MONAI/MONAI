@@ -251,7 +251,7 @@ class GenerateMarkersd(MapTransform):
         radius: int = 2,
         min_size: int = 10,
         remove_small_objects: bool = True,
-        postprocess_fn: Callable = None,
+        postprocess_fn: Optional[Callable] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

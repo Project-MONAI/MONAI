@@ -14,8 +14,12 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import GenerateMarkersD
+from monai.apps.pathology.transforms.post.dictionary import GenerateMarkersd
+from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
+
+_, has_skimage = optional_import("skimage", "0.19.3", min_version)
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
 
 EXCEPTION_TESTS = []
 TESTS = []
@@ -46,15 +50,17 @@ for p in TEST_NDARRAYS:
     )
 
 
-class TestGenerateMask(unittest.TestCase):
+@unittest.skipUnless(has_skimage, "Requires scikit-image library.")
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
+class TestGenerateMarkersd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):
-            GenerateMarkersD(**argments)({"mask": mask, "prob": probmap, "mask_old_markers": 1})
+            GenerateMarkersd(**argments)({"mask": mask, "prob": probmap, "mask_old_markers": 1})
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, probmap, expected_shape):
-        result = GenerateMarkersD(**argments)({"mask": mask, "prob": probmap})
+        result = GenerateMarkersd(**argments)({"mask": mask, "prob": probmap})
         self.assertEqual(result["mask_markers"].shape, expected_shape)
 
 

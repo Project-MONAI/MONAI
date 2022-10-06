@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import GenerateDistanceMapD
+from monai.apps.pathology.transforms.post.dictionary import GenerateDistanceMapd
 from tests.utils import TEST_NDARRAYS
 
 EXCEPTION_TESTS = []
@@ -37,15 +37,15 @@ for p in TEST_NDARRAYS:
     )
 
 
-class TestGenerateMask(unittest.TestCase):
+class TestGenerateDistanceMapd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):
-            GenerateDistanceMapD(**argments)({"mask": mask, "prob": probmap})
+            GenerateDistanceMapd(**argments)({"mask": mask, "prob": probmap})
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, probmap, expected_shape):
-        result = GenerateDistanceMapD(**argments)({"mask": mask, "prob": probmap})
+        result = GenerateDistanceMapd(**argments)({"mask": mask, "prob": probmap})
         self.assertEqual(result["mask_dist"].shape, expected_shape)
 
 

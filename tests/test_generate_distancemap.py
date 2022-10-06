@@ -31,7 +31,7 @@ for p in TEST_NDARRAYS:
     TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
 
 
-class TestGenerateMask(unittest.TestCase):
+class TestGenerateDistanceMapd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):

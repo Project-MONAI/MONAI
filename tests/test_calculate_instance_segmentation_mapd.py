@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import unittest
 
 import numpy as np
@@ -20,12 +19,6 @@ from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
-_, has_scipy = optional_import("scipy", "1.8.1", min_version)
-_, has_cv2 = optional_import("cv2")
-
-test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
-prediction = np.load(test_data_path)
-params = {"threshold_overall": 0.4, "min_size": 10, "sigma": 0.4, "kernel_size": 21, "radius": 2}
 
 TESTS = []
 params = {"keys": "image", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
@@ -48,8 +41,6 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-@unittest.skipUnless(has_scipy, "Requires scipy library.")
-@unittest.skipUnless(has_cv2, "OpenCV required.")
 class TestCalculateInstanceSegmentationMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, image, mask, markers, expected_shape):
