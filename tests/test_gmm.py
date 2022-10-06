@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai._extensions import load_module
 from monai.networks.layers import GaussianMixtureModel
-from tests.utils import skip_if_no_cuda
+from tests.utils import skip_if_darwin, skip_if_no_cuda, skip_if_windows
 
 TEST_CASES = [
     [
@@ -298,6 +298,8 @@ class GMMTestCase(unittest.TestCase):
         # Ensure result are as expected
         np.testing.assert_allclose(results, expected, atol=1e-3)
 
+    @skip_if_darwin
+    @skip_if_windows
     def test_load(self):
         if not torch.cuda.is_available():
             with self.assertRaisesRegex(ImportError, ".*symbol.*"):  # expecting import error if no cuda
