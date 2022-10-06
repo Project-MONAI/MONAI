@@ -61,9 +61,9 @@ torch::Tensor apply(torch::Tensor gmm_tensor, torch::Tensor input_tensor) {
   long int* output_size = new long int[dim];
   memcpy(output_size, input_tensor.sizes().data(), dim * sizeof(long int));
   output_size[1] = MIXTURE_COUNT;
-  torch::Tensor output_tensor =
-      torch::empty(c10::IntArrayRef(output_size, dim), torch::dtype(torch::kFloat32).device(device_type));
-  delete output_size;
+  torch::Tensor output_tensor = torch::empty(
+      c10::IntArrayRef((long long int*)output_size, dim), torch::dtype(torch::kFloat32).device(device_type));
+  delete[] output_size;
 
   const float* gmm = gmm_tensor.data_ptr<float>();
   const float* input = input_tensor.data_ptr<float>();
