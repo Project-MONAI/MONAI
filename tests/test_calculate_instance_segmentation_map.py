@@ -25,30 +25,26 @@ _, has_cv2 = optional_import("cv2")
 
 test_data_path = os.path.join(os.path.dirname(__file__), "testing_data", "hovernet_test_data.npz")
 prediction = np.load(test_data_path)
-params = {"threshold_overall": 0.4, "min_size": 10, "sigma": 0.4, "kernel_size": 21, "radius": 2}
+
+
+np.random.RandomState(123)
 
 TESTS = []
+params = {"connectivity": 1}
 for p in TEST_NDARRAYS:
-    seg_pred = prediction["seg_pred_act"]
-    hover_map = prediction["hover_map"]
-    expected = prediction["pred_instance"][None]
+    image = p(np.random.rand(1, 10, 10))
+    mask = p((np.random.rand(1, 10, 10)>0.5).astype(np.uint8))
+    marker = p((np.random.rand(1, 10, 10)>0.5).astype(np.uint8))
 
-    TESTS.append([params, p, seg_pred, hover_map, expected])
+    TESTS.append([params, image, mask, marker, (1, 10, 10)])
 
 ERROR_TESTS = []
 for p in TEST_NDARRAYS:
-    seg_pred1 = np.zeros([2, 64, 64])
-    hover_map1 = np.zeros([2, 64, 64])
+    image = p(np.random.rand(3, 10, 10))
+    mask = p((np.random.rand(2, 10, 10)>0.5).astype(np.uint8))
+    marker = p((np.random.rand(2, 10, 10)>0.5).astype(np.uint8))
 
-    seg_pred2 = np.zeros([1, 1, 64, 64])
-    hover_map2 = np.zeros([2, 64, 64])
-
-    seg_pred3 = np.zeros([1, 64, 64])
-    hover_map3 = np.zeros([2, 1, 64, 64])
-
-    ERROR_TESTS.append([params, p, seg_pred1, hover_map1])
-    ERROR_TESTS.append([params, p, seg_pred2, hover_map2])
-    ERROR_TESTS.append([params, p, seg_pred3, hover_map3])
+    ERROR_TESTS.append([params, image, mask, marker])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
@@ -56,18 +52,17 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_cv2, "OpenCV required.")
 class TestCalculateInstanceSegmentationMap(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, in_type, seg_pred, hover_map, expected):
+    def test_output(self, args, image, mask, markers, expected_shape):
         calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
-        output = calculate_instance_seg(in_type(seg_pred), in_type(hover_map))
+        output = calculate_instance_seg(image, mask, markers)
 
-        self.assertTupleEqual(output.shape, expected.shape)
-        # assert_allclose(output, expected, type_test=False)
+        self.assertTupleEqual(output.shape, expected_shape)
 
     @parameterized.expand(ERROR_TESTS)
-    def test_value_error(self, args, in_type, seg_pred, hover_map):
+    def test_value_error(self, args, image, mask, markers):
         calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
         with self.assertRaises(ValueError):
-            calculate_instance_seg(in_type(seg_pred), in_type(hover_map))
+            calculate_instance_seg(image, mask, markers)
 
 
 if __name__ == "__main__":

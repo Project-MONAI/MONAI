@@ -21,6 +21,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateMarkers,
 )
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
+from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import MapTransform
 
 __all__ = [
@@ -58,8 +59,8 @@ class CalculateInstanceSegmentationMapd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
-            ValueError: when the `image` shape is not [1, H, W].
-            ValueError: when the `mask` shape is not [1, H, W].
+        ValueError: when the `image` shape is not [1, H, W].
+        ValueError: when the `mask` shape is not [1, H, W].
 
     """
 
@@ -80,8 +81,8 @@ class CalculateInstanceSegmentationMapd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        if self.markers_key:
-            markers = d[self.markers_key]
+        markers = d[self.markers_key] if self.markers_key else None
+
         for key in self.key_iterator(d):
             d[key] = self.transform(d[key], d[self.mask_key], markers)
 
@@ -114,7 +115,7 @@ class GenerateMaskd(MapTransform):
         self,
         keys: KeysCollection,
         mask_key_postfix: str = "mask",
-        softmax: bool = False,
+        softmax: bool = True,
         sigmoid: bool = False,
         threshold: Optional[float] = None,
         remove_small_objects: bool = True,
@@ -196,9 +197,7 @@ class GenerateDistanceMapd(MapTransform):
         keys: keys of the corresponding items to be transformed.
         prob_key: keys of the foreground probability map used to generate distance map.
         dist_key_postfix: the distance map will be written to the value of `{key}_{dist_key_postfix}`.
-        sigma: std. Used in `GaussianFilter`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify "guassian" or other callable functions.
-            If specify "guassian", `GaussianFilter` will applied on distance map.
+        smooth_fn: execute smooth function on distance map. Defaults to `GaussianFilter`. You can also specify other callable functions for smoothing,
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -209,17 +208,13 @@ class GenerateDistanceMapd(MapTransform):
         keys: KeysCollection,
         prob_key: str = "prob",
         dist_key_postfix: str = "dist",
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
-        smooth_fn: Optional[Union[Callable, str]] = None,
+        smooth_fn: Union[Callable, None] = GaussianSmooth(0.4),
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
         self.dist_key_postfix = dist_key_postfix
-        self.transform = GenerateDistanceMap(
-            sigma = sigma,
-            smooth_fn = smooth_fn
-        )
+        self.transform = GenerateDistanceMap(smooth_fn = smooth_fn)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

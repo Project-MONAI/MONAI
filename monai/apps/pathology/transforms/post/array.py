@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from multiprocessing.sharedctypes import Value
 from typing import Callable, Sequence, Union, Optional
 
 import numpy as np
@@ -19,8 +20,9 @@ from monai.data.meta_obj import get_track_meta
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.transform import Transform
+from monai.transforms.utils_pytorch_numpy_unification import max, min, maximum
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
-from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -59,6 +61,13 @@ class CalculateInstanceSegmentationMap(Transform):
         markers = convert_to_numpy(markers)
         mask = convert_to_numpy(mask)
 
+        if image.shape[0] != 1 or image.ndim != 3:
+            raise ValueError(f"Input image should be with size of [1, H, W], but got {image.shape}")
+        if mask.shape[0] != 1 or mask.ndim != 3:
+            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
+        if markers and (markers.shape[0] != 1 or markers.ndim != 3):
+            raise ValueError(f"Input markers should be with size of [1, H, W], but got {markers.shape}")
+
         instance_seg = watershed(image, markers=markers, mask=mask, connectivity=self.connectivity)
 
         return convert_to_dst_type(instance_seg, image, dtype=np.uint8)[0]
@@ -74,6 +83,10 @@ class GenerateMask(Transform):
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+    
+    Raises:
+        ValueError: when the `prob_map` shape is not [C, H, W].
+
     """
 
     backend = [TransformBackends.NUMPY]
@@ -108,7 +121,7 @@ class GenerateMask(Transform):
         pred = self.asdiscrete(pred)
 
         if isinstance(pred, torch.Tensor):
-            pred = pred.cpu()
+            pred = pred.detach().cpu()
 
         pred = label(pred)[0]
         if self.remove_small_objects:
@@ -128,6 +141,10 @@ class GenerateProbabilityMap(Transform):
         remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
 
+    Raises:
+        ValueError: when the `mask` shape is not [1, H, W].
+        ValueError: when the `hover_map` shape is not [2, H, W].
+    
     """
 
     backend = [TransformBackends.NUMPY]
@@ -155,21 +172,25 @@ class GenerateProbabilityMap(Transform):
         Return:
             Foreground probability map.
         """
-        mask = convert_to_tensor(mask, track_meta=get_track_meta())
-        hover_map = convert_to_tensor(hover_map, track_meta=get_track_meta())
+        if len(mask.shape) != 3 or len(hover_map.shape) != 3:
+            raise ValueError(f"Suppose the mask and hover map should be with shape of [C, H, W], but got {mask.shape}, {hover_map.shape}")
+        if mask.shape[0] != 1:
+            raise ValueError(f"Suppose the mask only has one channel, but got {mask.shape[0]}")
+        if hover_map.shape[0] != 2:
+            raise ValueError(f"Suppose the hover map only has two channels, but got {hover_map.shape[0]}")
 
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
 
-        hover_h = (hover_h - np.min(hover_h)) / (np.max(hover_h) - np.min(hover_h))
-        hover_v = (hover_v - np.min(hover_v)) / (np.max(hover_v) - np.min(hover_v))
+        hover_h = (hover_h - min(hover_h)) / (max(hover_h) - min(hover_h))
+        hover_v = (hover_v - min(hover_v)) / (max(hover_v) - min(hover_v))
         sobelh = self.sobel_gradient(hover_h)[0, ...]
         sobelv = self.sobel_gradient(hover_v)[1, ...]
-        sobelh = 1 - (sobelh - np.min(sobelh)) / (np.max(sobelh) - np.min(sobelh))
-        sobelv = 1 - (sobelv - np.min(sobelv)) / (np.max(sobelv) - np.min(sobelv))
+        sobelh = 1 - (sobelh - min(sobelh)) / (max(sobelh) - min(sobelh))
+        sobelv = 1 - (sobelv - min(sobelv)) / (max(sobelv) - min(sobelv))
 
         # combine the h & v values using max
-        overall = np.maximum(sobelh, sobelv)
+        overall = maximum(sobelh, sobelv)
         overall = overall - (1 - mask)
         overall[overall < 0] = 0
 
@@ -183,19 +204,15 @@ class GenerateDistanceMap(Transform):
     generate the distance map. Nnuclei values form mountains so inverse to get basins.
 
     Args:
-        sigma: std. Used in `GaussianSmooth`. Could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        smooth_fn: execute smooth function on distance map. Defaults to None. You can specify "guassian" or other callable functions.
-            If specify "guassian", `GaussianSmooth` will applied on distance map.
+        smooth_fn: execute smooth function on distance map. Default is `GaussianSmooth`. You can also pass your own smooth function for smoothing.
     """
 
     backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
-        sigma: Union[Sequence[float], float] = 0.4,
-        smooth_fn: Optional[Union[Callable, str]] = None,
+        smooth_fn: Union[Callable, None] = GaussianSmooth(sigma=0.4),
     ) -> None:
-        self.sigma = sigma
         self.smooth_fn = smooth_fn
 
     def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -204,15 +221,14 @@ class GenerateDistanceMap(Transform):
             mask: binarized segmentation result. Shape must be [1, H, W].
             foreground_prob_map: foreground probability map. Shape must be [1, H, W].
         """
-        mask = convert_to_tensor(mask, track_meta=get_track_meta())
-        foreground_prob_map = convert_to_tensor(foreground_prob_map, track_meta=get_track_meta())
+        if mask.shape[0] != 1 or mask.ndim != 3:
+            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
+        if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
+            raise ValueError(f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}")
 
         distance_map = (1.0 - foreground_prob_map) * mask
 
-        if self.smooth_fn == "gaussian":
-            gaussian = GaussianSmooth(sigma=self.sigma)
-            distance_map = gaussian(distance_map)
-        elif callable(self.smooth_fn):
+        if callable(self.smooth_fn):
             distance_map = self.smooth_fn(distance_map)
 
         return convert_to_dst_type(-distance_map, mask, dtype=np.float32)[0]
@@ -257,15 +273,20 @@ class GenerateMarkers(Transform):
             mask: binarized segmentation result. Shape must be [1, H, W].
             foreground_prob_map: foreground probability map. Shape must be [1, H, W].
         """
-        mask = convert_to_tensor(mask, track_meta=get_track_meta())
-        foreground_prob_map = convert_to_tensor(foreground_prob_map, track_meta=get_track_meta())
+        if mask.shape[0] != 1 or mask.ndim != 3:
+            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
+        if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
+            raise ValueError(f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}")
 
         foreground_prob_map = foreground_prob_map >= self.threshold  # uncertain area
 
-        marker = mask - foreground_prob_map.astype(torch.uint8) # certain foreground
+        marker = mask - convert_to_dst_type(foreground_prob_map, mask, np.uint8)[0] # certain foreground
         marker[marker < 0] = 0
         if self.postprocess_fn:
             marker = self.postprocess_fn(marker)
+
+        if isinstance(marker, torch.Tensor):
+            marker = marker.detach().cpu()
 
         marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]
