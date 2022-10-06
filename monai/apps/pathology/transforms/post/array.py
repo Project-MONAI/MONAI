@@ -102,7 +102,7 @@ class GenerateMask(Transform):
             prob_map: probability map of segmentation, shape must be [C, H, W]
         """
         if len(prob_map.shape) != 3:
-            raise ValueError("Suppose the input probability map should be with shape of [C, H, W], but got {}".format(prob_map.shape))
+            raise ValueError(f"Suppose the input probability map should be with shape of [C, H, W], but got {prob_map.shape}")
 
         pred = self.activations(prob_map)
         pred = self.asdiscrete(pred)

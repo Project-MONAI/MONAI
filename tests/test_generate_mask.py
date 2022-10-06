@@ -58,7 +58,7 @@ for p in TEST_NDARRAYS:
         [
             {"softmax": False, "sigmoid": True, "threshold": 0.5, "remove_small_objects": False, "min_size": 10},
             p([[[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [-0.1134, -0.0389, -0.0680]]]),
-            (1, 3, 3), 
+            (1, 3, 3),
             [0, 1]
         ]
     )
@@ -76,7 +76,7 @@ class TestGenerateMask(unittest.TestCase):
     def test_value2(self, argments, image, expected_shape, expected_value):
         result = GenerateMask(**argments)(image)
         self.assertEqual(result.shape, expected_shape)
-        
+
         if isinstance(result, torch.Tensor):
             result = result.cpu().numpy()
         self.assertEqual(np.unique(result).tolist(), expected_value)
