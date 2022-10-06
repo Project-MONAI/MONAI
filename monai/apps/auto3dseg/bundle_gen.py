@@ -180,7 +180,8 @@ class BundleAlgo(Algo):
             ps_environ = os.environ.copy()
             if devices_info:
                 ps_environ["CUDA_VISIBLE_DEVICES"] = devices_info
-            normal_out = subprocess.run(cmd.split(), env=ps_environ, check=True, capture_output=True)
+            cmd = [f'{c}'.replace("\\", "/") for c in cmd.split()]
+            normal_out = subprocess.run(cmd, env=ps_environ, check=True, capture_output=True)
             logger.info(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
         except subprocess.CalledProcessError as e:
             output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
