@@ -89,11 +89,10 @@ def scales_for_resolution(resolution: Union[Tuple, List], n_stages: Optional[int
     """
 
     ndim = len(resolution)
-    resolution = np.array(resolution)
-    assert all(resolution > 0), f"resolution must be positive, got: {resolution}"
-    nl = np.floor(np.log2(np.max(resolution) / resolution)).astype(np.int32)
-    scales = [np.where(2**i >= 2**nl, 1, 2) for i in range(max(nl))]
-    scales = [tuple(s) for s in scales]
+    res = np.array(resolution)
+    assert all(res > 0), f"resolution must be positive, got: {res}"
+    nl = np.floor(np.log2(np.max(res) / res)).astype(np.int32)
+    scales = [tuple(np.where(2**i >= 2**nl, 1, 2)) for i in range(max(nl))]
     if n_stages and n_stages > max(nl):
         scales = scales + [(2,) * ndim] * (n_stages - max(nl))
     else:
@@ -358,7 +357,7 @@ class SegResNetDS(nn.Module):
                 blocks_down=blocks_down,
                 return_levels=True,
                 anisotropic_scales=anisotropic_scales,
-            )
+            )  # type: ignore
         else:
             self.encoder = encoder  # custom encoder
 
@@ -452,7 +451,7 @@ class SegResNetDS(nn.Module):
         if len(x_down) == 0:
             x_down = [torch.zeros(1, device=x.device, dtype=x.dtype)]
 
-        outputs = []
+        outputs: List[torch.Tensor] = []
 
         i = 0
         for level in self.up_layers:
