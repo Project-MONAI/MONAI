@@ -9,17 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from multiprocessing.sharedctypes import Value
 import tempfile
 import unittest
 from copy import deepcopy
 from numbers import Number
-from os import path
 
+import os
 import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.auto3dseg import DataAnalyzer
 from monai.auto3dseg import (
     Operations,
     SampleOperations,
@@ -27,8 +28,6 @@ from monai.auto3dseg import (
     SummaryOperations,
     datafold_read,
     verify_report_format,
-)
-from monai.auto3dseg.analyzer import (
     Analyzer,
     FgImageStats,
     FgImageStatsSumm,
@@ -39,7 +38,7 @@ from monai.auto3dseg.analyzer import (
     LabelStatsSumm,
 )
 from monai.bundle import ConfigParser
-from monai.data import DataLoader, Dataset, create_test_image_3d
+from monai.data import DataLoader, Dataset, create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import no_collation
 from monai.transforms import (
@@ -53,11 +52,13 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils.enums import DataStatsKeys
+from parameterized import parameterized
+from tests.utils import skip_if_no_cuda
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-n_workers = 2 if device == "cpu" else 0
+device = "cpu"
+n_workers = 2
 
-fake_datalist = {
+sim_datalist = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
         {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
@@ -66,6 +67,54 @@ fake_datalist = {
         {"fold": 1, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
     ],
 }
+
+SIM_CPU_TEST_CASES = [
+    [{"sim_dim": (32, 32, 32), "label_key": "label"}],
+    [{"sim_dim": (32, 32, 32, 2), "label_key": "label"}],
+    [{"sim_dim": (32, 32, 32), "label_key": None}],
+]
+
+SIM_GPU_TEST_CASES = [
+    [{"sim_dim": (32, 32, 32)}],
+]
+
+def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, **kwargs) -> None:
+    """
+    Create simulated data using create_test_image_3d.
+
+    Args:
+        dataroot: data directory path that hosts the "nii.gz" image files.
+        sim_datalist: a list of data to create.
+        sim_dim: the image sizes, for examples: a tuple of (64, 64, 64) for 3d, or (128, 128) for 2d
+    """
+    if not os.path.isdir(dataroot):
+        os.makedirs(dataroot)
+
+    # Generate a fake dataset
+    for d in sim_datalist["testing"] + sim_datalist["training"]:
+        if len(sim_dim) == 2:  # 2D image
+            im, seg = create_test_image_2d(sim_dim[0], sim_dim[1], **kwargs)
+        elif len(sim_dim) == 3:  # 3D image
+            im, seg = create_test_image_3d(sim_dim[0], sim_dim[1], sim_dim[2], **kwargs)
+        elif len(sim_dim) == 4:   # multi-modality 3D image
+            im_list = []
+            seg_list = []
+            for _ in range(sim_dim[3]):
+                im_3d, seg_3d = create_test_image_3d(sim_dim[0], sim_dim[1], sim_dim[2], **kwargs)
+                im_list.append(im_3d[..., np.newaxis])
+                seg_list.append(seg_3d[..., np.newaxis])
+            im = np.concatenate(im_list, axis=3)
+            seg = np.concatenate(seg_list, axis=3)
+        else:
+            raise ValueError(f"Invalid argument input. sim_dim has f{len(sim_dim)} values. 2-4 values are expected.")
+        nib_image = nib.Nifti1Image(im, affine=np.eye(4))
+        image_fpath = os.path.join(dataroot, d["image"])
+        nib.save(nib_image, image_fpath)
+
+        if "label" in d:
+            nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
+            label_fpath = os.path.join(dataroot, d["label"])
+            nib.save(nib_image, label_fpath)
 
 
 class TestOperations(Operations):
@@ -118,51 +167,51 @@ class TestImageAnalyzer(Analyzer):
 class TestDataAnalyzer(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
-        dataroot = self.test_dir.name
+        work_dir = self.test_dir.name
+        self.dataroot_dir = os.path.join(work_dir, "sim_dataroot")
+        self.datalist_file = os.path.join(work_dir, "sim_datalist.json")
+        self.datastat_file = os.path.join(work_dir, "data_stats.yaml")
+        ConfigParser.export_config_file(sim_datalist, self.datalist_file)
 
-        # Generate a fake dataset
-        for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(39, 47, 46, rad_max=10)
-            nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-            image_fpath = path.join(dataroot, d["image"])
-            nib.save(nib_image, image_fpath)
+    @parameterized.expand(SIM_CPU_TEST_CASES)
+    def test_data_analyzer_cpu(self, input_params):
 
-            if "label" in d:
-                nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                label_fpath = path.join(dataroot, d["label"])
-                nib.save(nib_image, label_fpath)
+        sim_dim = input_params["sim_dim"]
+        create_sim_data(
+            self.dataroot_dir,
+            sim_datalist,
+            sim_dim,
+            rad_max=max(int(sim_dim[0] / 4), 1),
+            rad_min=1,
+            num_seg_classes=1
+        )
 
-        # write to a json file
-        self.fake_json_datalist = path.join(dataroot, "fake_input.json")
-        ConfigParser.export_config_file(fake_datalist, self.fake_json_datalist)
-
-    def test_data_analyzer(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
-        analyser = DataAnalyzer(fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers)
-        datastat = analyser.get_all_case_stats()
-
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
-
-    def test_data_analyzer_image_only(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
         analyser = DataAnalyzer(
-            fake_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers, label_key=None
+            self.datalist_file,
+            self.dataroot_dir, 
+            output_path=self.datastat_file,
+            label_key=input_params["label_key"],
         )
         datastat = analyser.get_all_case_stats()
 
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+        assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
-    def test_data_analyzer_from_yaml(self):
-        dataroot = self.test_dir.name
-        yaml_fpath = path.join(dataroot, "data_stats.yaml")
-        analyser = DataAnalyzer(
-            self.fake_json_datalist, dataroot, output_path=yaml_fpath, device=device, worker=n_workers
+    @skip_if_no_cuda
+    @parameterized.expand(SIM_GPU_TEST_CASES)
+    def test_data_analyzer_gpu(self, input_params):
+        sim_dim = (input_params["sim_dim"])
+        create_sim_data(
+            self.dataroot_dir,
+            sim_datalist,
+            sim_dim,
+            rad_max=max(int(sim_dim[0] / 4), 1),
+            rad_min=1,
+            num_seg_classes=1
         )
+        analyser = DataAnalyzer(self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda", show_progress=False)
         datastat = analyser.get_all_case_stats()
 
-        assert len(datastat["stats_by_cases"]) == len(fake_datalist["training"])
+        assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
     def test_basic_operation_class(self):
         op = TestOperations()
@@ -217,10 +266,9 @@ class TestDataAnalyzer(unittest.TestCase):
         assert result["test"]["stats"]["mean"] == np.mean(test_data["image_test"])
 
     def test_transform_analyzer_class(self):
-        transform_list = [LoadImaged(keys=["image"]), TestImageAnalyzer(image_key="image")]
-        transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        transform = Compose([LoadImaged(keys=["image"]), TestImageAnalyzer(image_key="image")])
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -233,17 +281,16 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_image_stats_case_analyzer(self):
         analyzer = ImageStats(image_key="image")
-        transform_list = [
+        transform = Compose([
             LoadImaged(keys=["image"]),
             EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image"], device=device, non_blocking=True),
             Orientationd(keys=["image"], axcodes="RAS"),
             EnsureTyped(keys=["image"], data_type="tensor"),
             analyzer,
-        ]
-        transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ])
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -264,8 +311,8 @@ class TestDataAnalyzer(unittest.TestCase):
             analyzer,
         ]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -275,7 +322,7 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_label_stats_case_analyzer(self):
         analyzer = LabelStats(image_key="image", label_key="label")
-        transform_list = [
+        transform = Compose([
             LoadImaged(keys=["image", "label"]),
             EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
             ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
@@ -284,10 +331,9 @@ class TestDataAnalyzer(unittest.TestCase):
             Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
             SqueezeDimd(keys=["label"], dim=0),
             analyzer,
-        ]
-        transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        ])
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -300,8 +346,8 @@ class TestDataAnalyzer(unittest.TestCase):
         analyzer_label = FilenameStats("label", DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image", "label"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -314,8 +360,8 @@ class TestDataAnalyzer(unittest.TestCase):
         analyzer_label = FilenameStats(None, DataStatsKeys.BY_CASE_IMAGE_PATH)
         transform_list = [LoadImaged(keys=["image"]), analyzer_image, analyzer_label]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
@@ -335,8 +381,8 @@ class TestDataAnalyzer(unittest.TestCase):
             ImageStats(image_key="image"),
         ]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
@@ -360,8 +406,8 @@ class TestDataAnalyzer(unittest.TestCase):
             FgImageStats(image_key="image", label_key="label"),
         ]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
@@ -385,8 +431,8 @@ class TestDataAnalyzer(unittest.TestCase):
             LabelStats(image_key="image", label_key="label"),
         ]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
@@ -410,8 +456,8 @@ class TestDataAnalyzer(unittest.TestCase):
             summarizer,
         ]
         transform = Compose(transform_list)
-        dataroot = self.test_dir.name
-        files, _ = datafold_read(self.fake_json_datalist, dataroot, fold=-1)
+        create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
+        files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         stats = []
