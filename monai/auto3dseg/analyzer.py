@@ -229,7 +229,6 @@ class ImageStats(Analyzer):
         """
         d = dict(data)
         start = time.time()
-        using_cuda = True if d[self.image_key].device.type == "cuda" else False
 
         with torch.no_grad():
             ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]
@@ -311,7 +310,6 @@ class FgImageStats(Analyzer):
 
         d = dict(data)
         start = time.time()
-        using_cuda = True if d[self.image_key].device.type == "cuda" else False
 
         with torch.no_grad():
             ndas = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]

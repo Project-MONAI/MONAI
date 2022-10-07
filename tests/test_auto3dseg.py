@@ -13,7 +13,6 @@ import os
 import tempfile
 import unittest
 from copy import deepcopy
-from multiprocessing.sharedctypes import Value
 from numbers import Number
 
 import nibabel as nib
