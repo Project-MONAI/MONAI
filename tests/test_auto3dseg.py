@@ -193,9 +193,7 @@ class TestDataAnalyzer(unittest.TestCase):
         create_sim_data(
             self.dataroot_dir, sim_datalist, sim_dim, rad_max=max(int(sim_dim[0] / 4), 1), rad_min=1, num_seg_classes=1
         )
-        analyser = DataAnalyzer(
-            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda", show_progress=False
-        )
+        analyser = DataAnalyzer(self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda")
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
