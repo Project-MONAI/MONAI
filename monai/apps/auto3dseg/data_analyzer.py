@@ -141,7 +141,6 @@ class DataAnalyzer:
         self.image_key = image_key
         self.label_key = label_key
 
-
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
         """
@@ -235,7 +234,7 @@ class DataAnalyzer:
         ConfigParser.export_config_file(result, self.output_path, fmt="yaml", default_flow_style=None)
 
         del d["image"], d["label"]
-        if (self.device.type == "cuda"):
+        if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
             torch.cuda.empty_cache()

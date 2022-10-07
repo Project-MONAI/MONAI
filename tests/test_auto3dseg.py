@@ -9,25 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from multiprocessing.sharedctypes import Value
+import os
 import tempfile
 import unittest
 from copy import deepcopy
+from multiprocessing.sharedctypes import Value
 from numbers import Number
 
-import os
 import nibabel as nib
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.apps.auto3dseg import DataAnalyzer
 from monai.auto3dseg import (
-    Operations,
-    SampleOperations,
-    SegSummarizer,
-    SummaryOperations,
-    datafold_read,
-    verify_report_format,
     Analyzer,
     FgImageStats,
     FgImageStatsSumm,
@@ -36,6 +31,12 @@ from monai.auto3dseg import (
     ImageStatsSumm,
     LabelStats,
     LabelStatsSumm,
+    Operations,
+    SampleOperations,
+    SegSummarizer,
+    SummaryOperations,
+    datafold_read,
+    verify_report_format,
 )
 from monai.bundle import ConfigParser
 from monai.data import DataLoader, Dataset, create_test_image_2d, create_test_image_3d
@@ -52,7 +53,6 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils.enums import DataStatsKeys
-from parameterized import parameterized
 from tests.utils import skip_if_no_cuda
 
 device = "cpu"
@@ -74,9 +74,8 @@ SIM_CPU_TEST_CASES = [
     [{"sim_dim": (32, 32, 32), "label_key": None}],
 ]
 
-SIM_GPU_TEST_CASES = [
-    [{"sim_dim": (32, 32, 32)}],
-]
+SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32)}]]
+
 
 def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, **kwargs) -> None:
     """
@@ -96,7 +95,7 @@ def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, **kwargs)
             im, seg = create_test_image_2d(sim_dim[0], sim_dim[1], **kwargs)
         elif len(sim_dim) == 3:  # 3D image
             im, seg = create_test_image_3d(sim_dim[0], sim_dim[1], sim_dim[2], **kwargs)
-        elif len(sim_dim) == 4:   # multi-modality 3D image
+        elif len(sim_dim) == 4:  # multi-modality 3D image
             im_list = []
             seg_list = []
             for _ in range(sim_dim[3]):
@@ -178,19 +177,11 @@ class TestDataAnalyzer(unittest.TestCase):
 
         sim_dim = input_params["sim_dim"]
         create_sim_data(
-            self.dataroot_dir,
-            sim_datalist,
-            sim_dim,
-            rad_max=max(int(sim_dim[0] / 4), 1),
-            rad_min=1,
-            num_seg_classes=1
+            self.dataroot_dir, sim_datalist, sim_dim, rad_max=max(int(sim_dim[0] / 4), 1), rad_min=1, num_seg_classes=1
         )
 
         analyser = DataAnalyzer(
-            self.datalist_file,
-            self.dataroot_dir, 
-            output_path=self.datastat_file,
-            label_key=input_params["label_key"],
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=input_params["label_key"]
         )
         datastat = analyser.get_all_case_stats()
 
@@ -199,16 +190,13 @@ class TestDataAnalyzer(unittest.TestCase):
     @skip_if_no_cuda
     @parameterized.expand(SIM_GPU_TEST_CASES)
     def test_data_analyzer_gpu(self, input_params):
-        sim_dim = (input_params["sim_dim"])
+        sim_dim = input_params["sim_dim"]
         create_sim_data(
-            self.dataroot_dir,
-            sim_datalist,
-            sim_dim,
-            rad_max=max(int(sim_dim[0] / 4), 1),
-            rad_min=1,
-            num_seg_classes=1
+            self.dataroot_dir, sim_datalist, sim_dim, rad_max=max(int(sim_dim[0] / 4), 1), rad_min=1, num_seg_classes=1
         )
-        analyser = DataAnalyzer(self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda", show_progress=False)
+        analyser = DataAnalyzer(
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda", show_progress=False
+        )
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
@@ -281,14 +269,16 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_image_stats_case_analyzer(self):
         analyzer = ImageStats(image_key="image")
-        transform = Compose([
-            LoadImaged(keys=["image"]),
-            EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=["image"], device=device, non_blocking=True),
-            Orientationd(keys=["image"], axcodes="RAS"),
-            EnsureTyped(keys=["image"], data_type="tensor"),
-            analyzer,
-        ])
+        transform = Compose(
+            [
+                LoadImaged(keys=["image"]),
+                EnsureChannelFirstd(keys=["image"]),  # this creates label to be (1,H,W,D)
+                ToDeviced(keys=["image"], device=device, non_blocking=True),
+                Orientationd(keys=["image"], axcodes="RAS"),
+                EnsureTyped(keys=["image"], data_type="tensor"),
+                analyzer,
+            ]
+        )
         create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
         files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
@@ -322,16 +312,18 @@ class TestDataAnalyzer(unittest.TestCase):
 
     def test_label_stats_case_analyzer(self):
         analyzer = LabelStats(image_key="image", label_key="label")
-        transform = Compose([
-            LoadImaged(keys=["image", "label"]),
-            EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
-            ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
-            Orientationd(keys=["image", "label"], axcodes="RAS"),
-            EnsureTyped(keys=["image", "label"], data_type="tensor"),
-            Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
-            SqueezeDimd(keys=["label"], dim=0),
-            analyzer,
-        ])
+        transform = Compose(
+            [
+                LoadImaged(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"]),  # this creates label to be (1,H,W,D)
+                ToDeviced(keys=["image", "label"], device=device, non_blocking=True),
+                Orientationd(keys=["image", "label"], axcodes="RAS"),
+                EnsureTyped(keys=["image", "label"], data_type="tensor"),
+                Lambdad(keys=["label"], func=lambda x: torch.argmax(x, dim=0, keepdim=True) if x.shape[0] > 1 else x),
+                SqueezeDimd(keys=["label"], dim=0),
+                analyzer,
+            ]
+        )
         create_sim_data(self.dataroot_dir, sim_datalist, (32, 32, 32), rad_max=8, rad_min=1, num_seg_classes=1)
         files, _ = datafold_read(sim_datalist, self.dataroot_dir, fold=-1)
         ds = Dataset(data=files)
