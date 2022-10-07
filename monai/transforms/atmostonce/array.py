@@ -229,8 +229,8 @@ class Zoom(LazyTransform, InvertibleTransform):
 
     def __init__(
             self,
-            zoom: Union[Sequence[float], float],
-            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+            factor: Union[Sequence[float], float],
+            mode: Union[InterpolateMode, str] = InterpolateMode.BILINEAR,
             padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
             align_corners: Optional[bool] = None,
             keep_size: Optional[bool] = True,
@@ -239,35 +239,37 @@ class Zoom(LazyTransform, InvertibleTransform):
             **kwargs
     ):
         LazyTransform.__init__(self, lazy_evaluation)
-        self.zoom = zoom
+        self.factor = factor
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
         self.dtype = dtype
         self.kwargs = kwargs
+        print("mode =", self.mode)
 
     def __call__(
         self,
         img: NdarrayOrTensor,
-        zoom: Optional[Union[Sequence[float], float]] = None,
+        factor: Optional[Union[Sequence[float], float]] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
         shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
 
-        mode = self.mode or mode
-        padding_mode = self.padding_mode or padding_mode
-        align_corners = self.align_corners or align_corners
+        factor = self.factor if factor is None else factor
+        mode = self.mode if mode is None else mode
+        padding_mode = self.padding_mode if padding_mode is None else padding_mode
+        align_corners = self.align_corners if align_corners is None else align_corners
         keep_size = self.keep_size
         dtype = self.dtype
 
         shape_override_ = shape_override
         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
-
-        img_t, transform, metadata = zoom(img, self.zoom, mode, padding_mode, align_corners,
+        print("mode =", mode)
+        img_t, transform, metadata = zoom(img, factor, mode, padding_mode, align_corners,
                                           keep_size, dtype, shape_override_)
 
         # TODO: candidate for refactoring into a LazyTransform method

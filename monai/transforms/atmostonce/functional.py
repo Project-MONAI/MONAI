@@ -243,16 +243,13 @@ def rotate(
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    to_center_tx = create_translate(input_ndim, [d / 2 for d in input_shape[1:]])
-    rotate_tx = create_rotate(input_ndim, angle_)
+    rotate_tx = torch.from_numpy(create_rotate(input_ndim, angle_))
     im_extents = extents_from_shape(input_shape)
     if not keep_size:
         im_extents = [rotate_tx @ e for e in im_extents]
         spatial_shape = shape_from_extents(input_shape, im_extents)
     else:
         spatial_shape = input_shape
-    from_center_tx = create_translate(input_ndim, [-d / 2 for d in input_shape[1:]])
-    # transform = from_center_tx @ rotate_tx @ to_center_tx
     transform = rotate_tx
     metadata = {
         "angle": angle_,
@@ -269,8 +266,8 @@ def rotate(
 
 def zoom(
         img: torch.Tensor,
-        zoom: Union[Sequence[float], float],
-        mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.AREA,
+        factor: Union[Sequence[float], float],
+        mode: Optional[Union[InterpolateMode, str]] = InterpolateMode.BILINEAR,
         padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         align_corners: Optional[bool] = False,
         keep_size: Optional[bool] = True,
@@ -297,7 +294,8 @@ def zoom(
     input_shape = img_.shape if shape_override is None else shape_override
     input_ndim = len(input_shape) - 1
 
-    zoom_factors = ensure_tuple_rep(zoom, input_ndim)
+    zoom_factors = ensure_tuple_rep(factor, input_ndim)
+    zoom_factors = [1 / f for f in zoom_factors]
 
     mode_ = look_up_option(mode, GridSampleMode)
     padding_mode_ = look_up_option(padding_mode, GridSamplePadMode)
@@ -312,7 +310,7 @@ def zoom(
         shape_override_ = input_shape
 
     metadata = {
-        "zoom": zoom_factors,
+        "factor": zoom_factors,
         "mode": mode_,
         "padding_mode": padding_mode_,
         "align_corners": align_corners,
@@ -346,6 +344,7 @@ def rotate90(
         "spatial_axes": spatial_axes,
         "shape_override": shape_override
     }
+    return img_, transform, metadata
 
 
 def translate(

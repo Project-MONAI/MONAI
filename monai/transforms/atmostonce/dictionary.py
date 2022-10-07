@@ -75,7 +75,7 @@ def expand_potential_tuple(keys, value):
 #         raise NotImplementedError(msg)
 
 
-class Spaced(LazyTransform, MapTransform, InvertibleTransform):
+class Spacingd(LazyTransform, MapTransform, InvertibleTransform):
 
     def __init__(self,
                  keys: KeysCollection,
@@ -192,7 +192,7 @@ class Resized(LazyTransform, MapTransform, InvertibleTransform):
             keys_present = self.keys
 
         for ik, k in enumerate(keys_present):
-            tx = Resize(spatial_size, size_mode, self.modes[ik], self.align_corners,
+            tx = Resize(self.spatial_size, self.size_mode, self.modes[ik], self.align_corners,
                         self.anti_aliasing, self.anti_aliasing_sigma, self.dtype)
             rd[k] = tx(d[k])
 
