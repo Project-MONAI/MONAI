@@ -186,8 +186,8 @@ class TestDataAnalyzer(unittest.TestCase):
 
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
-    @skip_if_no_cuda
     @parameterized.expand(SIM_GPU_TEST_CASES)
+    @skip_if_no_cuda
     def test_data_analyzer_gpu(self, input_params):
         sim_dim = input_params["sim_dim"]
         create_sim_data(
