@@ -257,7 +257,7 @@ class ImageStats(Analyzer):
         del nda_croppeds
         if using_cuda:
             torch.cuda.empty_cache()
-        
+
         logger.debug(f"Get image stats spent {time.time()-start}")
         return d
 
