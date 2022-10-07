@@ -137,12 +137,10 @@ class DataAnalyzer:
         self.average = average
         self.do_ccp = do_ccp
         self.device = torch.device(device)
-        self.worker = worker
+        self.worker = 0 if (self.device.type == "cuda") else worker
         self.image_key = image_key
         self.label_key = label_key
 
-        if (self.device.type == "cuda") and (worker > 0):
-            raise ValueError("CUDA does not support multiple subprocess. If device is GPU, please set worker to 0")
 
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
