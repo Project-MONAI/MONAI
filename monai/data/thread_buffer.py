@@ -83,7 +83,7 @@ class ThreadBuffer:
 def buffer_iterator(src, buffer_size: int = 1, timeout: float = 0.01, repeats: int = 1):
     """
     Create a ThreadBuffer object using the `src`, `buffer_size`, and `timeout` parameters given for the constructor
-    aguments of the same names, and yield each generated object `repeats` number of times successively.
+    arguments of the same names, and yield each generated object `repeats` number of times successively.
 
     Args:
         src: Source data iterable

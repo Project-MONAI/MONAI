@@ -45,12 +45,29 @@ class _AutoGradReLU(torch.autograd.Function):
 
 
 class _GradReLU(torch.nn.Module):
+    """
+    A customized ReLU with the backward pass imputed for guided backpropagation (https://arxiv.org/abs/1412.6806).
+    """
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out: torch.Tensor = _AutoGradReLU.apply(x)
         return out
 
 
 class VanillaGrad:
+    """
+    Given an input image ``x``, calling this class will perform the forward pass, then set to zero
+    all activations except one (defined by ``index``) and propagate back to the image to achieve a gradient-based
+    saliency map.
+
+    If ``index`` is None, argmax of the output logits will be used.
+
+    See also:
+
+        - Simonyan et al. Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps
+          (https://arxiv.org/abs/1312.6034)
+    """
+
     def __init__(self, model: torch.nn.Module) -> None:
         if not isinstance(model, ModelWithHooks):  # Convert to model with hooks if necessary
             self._model = ModelWithHooks(model, target_layer_names=(), register_backward=True)
@@ -68,22 +85,26 @@ class VanillaGrad:
         else:
             self._model = m  # replace the ModelWithHooks
 
-    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph=True) -> torch.Tensor:
+    def get_grad(self, x: torch.Tensor, index: torch.Tensor | int | None, retain_graph=True, **kwargs) -> torch.Tensor:
         if x.shape[0] != 1:
             raise ValueError("expect batch size of 1")
         x.requires_grad = True
 
-        self._model(x, class_idx=index, retain_graph=retain_graph)
+        self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
         grad: torch.Tensor = x.grad.detach()
         return grad
 
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
-        return self.get_grad(x, index)
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
+        return self.get_grad(x, index, **kwargs)
 
 
 class SmoothGrad(VanillaGrad):
     """
+    Compute averaged sensitivity map based on ``n_samples`` (Gaussian additive) of noisy versions
+    of the input image ``x``.
+
     See also:
+
         - Smilkov et al. SmoothGrad: removing noise by adding noise https://arxiv.org/abs/1706.03825
     """
 
@@ -105,7 +126,7 @@ class SmoothGrad(VanillaGrad):
         else:
             self.range = range
 
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         stdev = (self.stdev_spread * (x.max() - x.min())).item()
         total_gradients = torch.zeros_like(x)
         for _ in self.range(self.n_samples):
@@ -115,7 +136,7 @@ class SmoothGrad(VanillaGrad):
             x_plus_noise = x_plus_noise.detach()
 
             # get gradient and accumulate
-            grad = self.get_grad(x_plus_noise, index)
+            grad = self.get_grad(x_plus_noise, index, **kwargs)
             total_gradients += (grad * grad) if self.magnitude else grad
 
         # average
@@ -126,12 +147,26 @@ class SmoothGrad(VanillaGrad):
 
 
 class GuidedBackpropGrad(VanillaGrad):
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    """
+    Based on Springenberg and Dosovitskiy et al. https://arxiv.org/abs/1412.6806,
+    compute gradient-based saliency maps by backpropagating positive graidents and inputs (see ``_AutoGradReLU``).
+
+    See also:
+
+        - Springenberg and Dosovitskiy et al. Striving for Simplicity: The All Convolutional Net
+          (https://arxiv.org/abs/1412.6806)
+    """
+
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
-            return super().__call__(x, index)
+            return super().__call__(x, index, **kwargs)
 
 
 class GuidedBackpropSmoothGrad(SmoothGrad):
-    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None) -> torch.Tensor:
+    """
+    Compute gradient-based saliency maps based on both ``GuidedBackpropGrad`` and ``SmoothGrad``.
+    """
+
+    def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:
         with replace_modules_temp(self.model, "relu", _GradReLU(), strict_match=False):
-            return super().__call__(x, index)
+            return super().__call__(x, index, **kwargs)

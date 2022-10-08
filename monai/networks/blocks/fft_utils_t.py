@@ -9,12 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from typing import List
 
 import torch
 from torch import Tensor
-
-from monai.utils.type_conversion import convert_data_type
 
 
 def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
@@ -44,7 +42,7 @@ def roll_1d(x: Tensor, shift: int, shift_dim: int) -> Tensor:
     return torch.cat((right, left), dim=shift_dim)
 
 
-def roll(x: Tensor, shift: Sequence[int], shift_dims: Sequence[int]) -> Tensor:
+def roll(x: Tensor, shift: List[int], shift_dims: List[int]) -> Tensor:
     """
     Similar to np.roll but applies to PyTorch Tensors
 
@@ -68,7 +66,7 @@ def roll(x: Tensor, shift: Sequence[int], shift_dims: Sequence[int]) -> Tensor:
     return x
 
 
-def fftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
+def fftshift(x: Tensor, shift_dims: List[int]) -> Tensor:
     """
     Similar to np.fft.fftshift but applies to PyTorch Tensors
 
@@ -84,18 +82,13 @@ def fftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
     Note:
         This function is called when fftshift is not available in the running pytorch version
     """
-    if shift_dims is None:
-        # for torch.jit.script based on the fastmri repository
-        shift_dims = [0] * (x.dim())
-        for i in range(1, x.dim()):
-            shift_dims[i] = i
     shift = [0] * len(shift_dims)
     for i, dim_num in enumerate(shift_dims):
         shift[i] = x.shape[dim_num] // 2
     return roll(x, shift, shift_dims)
 
 
-def ifftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
+def ifftshift(x: Tensor, shift_dims: List[int]) -> Tensor:
     """
     Similar to np.fft.ifftshift but applies to PyTorch Tensors
 
@@ -111,11 +104,6 @@ def ifftshift(x: Tensor, shift_dims: Optional[Sequence[int]] = None) -> Tensor:
     Note:
         This function is called when ifftshift is not available in the running pytorch version
     """
-    if shift_dims is None:
-        # for torch.jit.script based on the fastmri repository
-        shift_dims = [0] * (x.dim())
-        for i in range(1, x.dim()):
-            shift_dims[i] = i
     shift = [0] * len(shift_dims)
     for i, dim_num in enumerate(shift_dims):
         shift[i] = (x.shape[dim_num] + 1) // 2
@@ -151,28 +139,21 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
             output2 = ifftn_centered(ksp, spatial_dims=2, is_complex=True)
     """
     # define spatial dims to perform ifftshift, fftshift, and ifft
-    shift = tuple(range(-spatial_dims, 0))
+    shift = list(range(-spatial_dims, 0))
     if is_complex:
         if ksp.shape[-1] != 2:
             raise ValueError(f"ksp.shape[-1] is not 2 ({ksp.shape[-1]}).")
-        shift = tuple(range(-spatial_dims - 1, -1))
-    dims = tuple(range(-spatial_dims, 0))
+        shift = list(range(-spatial_dims - 1, -1))
+    dims = list(range(-spatial_dims, 0))
 
-    # apply ifft
-    if hasattr(torch.fft, "ifftshift"):  # ifftshift was added in pytorch 1.8
-        x = torch.fft.ifftshift(ksp, dim=shift)
-    else:
-        x = ifftshift(ksp, shift)
+    x = ifftshift(ksp, shift)
 
     if is_complex:
         x = torch.view_as_real(torch.fft.ifftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
 
-    if hasattr(torch.fft, "fftshift"):
-        out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
-    else:
-        out = convert_data_type(fftshift(x, shift), torch.Tensor)[0]
+    out: Tensor = fftshift(x, shift)
 
     return out
 
@@ -206,27 +187,20 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
             output2 = fftn_centered(im, spatial_dims=2, is_complex=True)
     """
     # define spatial dims to perform ifftshift, fftshift, and fft
-    shift = tuple(range(-spatial_dims, 0))
+    shift = list(range(-spatial_dims, 0))
     if is_complex:
         if im.shape[-1] != 2:
             raise ValueError(f"img.shape[-1] is not 2 ({im.shape[-1]}).")
-        shift = tuple(range(-spatial_dims - 1, -1))
-    dims = tuple(range(-spatial_dims, 0))
+        shift = list(range(-spatial_dims - 1, -1))
+    dims = list(range(-spatial_dims, 0))
 
-    # apply fft
-    if hasattr(torch.fft, "ifftshift"):  # ifftshift was added in pytorch 1.8
-        x = torch.fft.ifftshift(im, dim=shift)
-    else:
-        x = ifftshift(im, shift)
+    x = ifftshift(im, shift)
 
     if is_complex:
         x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
 
-    if hasattr(torch.fft, "fftshift"):
-        out = convert_data_type(torch.fft.fftshift(x, dim=shift), torch.Tensor)[0]
-    else:
-        out = convert_data_type(fftshift(x, shift), torch.Tensor)[0]
+    out: Tensor = fftshift(x, shift)
 
     return out

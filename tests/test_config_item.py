@@ -26,7 +26,7 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 TEST_CASE_1 = [{"lr": 0.001}, 0.0001]
 
-TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"]}, LoadImaged]
+TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"], "_desc_": "an image reader for 'image'"}, LoadImaged]
 # test full module path
 TEST_CASE_3 = [{"_target_": "monai.transforms.LoadImaged", "keys": ["image"]}, LoadImaged]
 # test `_disabled_`

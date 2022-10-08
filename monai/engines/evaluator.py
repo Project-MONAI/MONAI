@@ -22,8 +22,9 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
+from monai.utils import ForwardMode, deprecated, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.enums import EngineStatsKeys as ESKeys
 from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
@@ -146,7 +147,28 @@ class Evaluator(Workflow):
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> dict[str, float]:
+    def get_stats(self, *vars):
+        """
+        Get the statistics information of the validation process.
+        Default to return the `rank`, `best_validation_epoch` and `best_validation_metric`.
+
+        Args:
+            vars: except for the default stats, other variables name in the `self.state` to return,
+                will use the variable name as the key and the state content as the value.
+                if the variable doesn't exist, default value is `None`.
+
+        """
+        stats = {
+            ESKeys.RANK: self.state.rank,
+            ESKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
+            ESKeys.BEST_VALIDATION_METRIC: self.state.best_metric,
+        }
+        for k in vars:
+            stats[k] = getattr(self.state, k, None)
+        return stats
+
+    @deprecated(since="0.9", msg_suffix="please use the `get_stats()` API instead.")
+    def get_validation_stats(self):
         return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 

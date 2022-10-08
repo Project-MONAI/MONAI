@@ -51,6 +51,10 @@ class LoadImaged(MapTransform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
+    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
+    loading the array because the `HW` definition for non-medical specific file formats is different
+    from other common medical packages.
+
     Note:
 
         - If `reader` is specified, the loader will attempt to use the specified readers and the default supported
@@ -75,6 +79,8 @@ class LoadImaged(MapTransform):
         image_only: bool = False,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
+        prune_meta_pattern: Optional[str] = None,
+        prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
         *args,
         **kwargs,
@@ -105,12 +111,27 @@ class LoadImaged(MapTransform):
             ensure_channel_first: if `True` and loaded both image array and metadata, automatically convert
                 the image array shape to `channel first`. default to `False`.
             simple_keys: whether to remove redundant metadata keys, default to False for backward compatibility.
+            prune_meta_pattern: combined with `prune_meta_sep`, a regular expression used to match and prune keys
+                in the metadata (nested dictionary), default to None, no key deletion.
+            prune_meta_sep: combined with `prune_meta_pattern`, used to match and prune keys
+                in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
+                e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             allow_missing_keys: don't raise exception if key is missing.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
         super().__init__(keys, allow_missing_keys)
-        self._loader = LoadImage(reader, image_only, dtype, ensure_channel_first, simple_keys, *args, **kwargs)
+        self._loader = LoadImage(
+            reader,
+            image_only,
+            dtype,
+            ensure_channel_first,
+            simple_keys,
+            prune_meta_pattern,
+            prune_meta_sep,
+            *args,
+            **kwargs,
+        )
         if not isinstance(meta_key_postfix, str):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)

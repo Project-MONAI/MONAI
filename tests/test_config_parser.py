@@ -22,8 +22,17 @@ from monai.bundle.config_item import ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
+from tests.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
+
+
+@TimedCall(seconds=100, force_quit=True)
+def case_pdb(sarg=None):
+    config = {"transform": {"_target_": "Compose", "transforms": [], "_debug_": True}}
+    parser = ConfigParser(config=config)
+    parser.get_parsed_content()
+
 
 # test the resolved and parsed instances
 TEST_CASE_1 = [
@@ -104,6 +113,8 @@ class TestConfigParser(unittest.TestCase):
         # test nested ids
         parser["dataset#_target_"] = "Dataset"
         self.assertEqual(parser["dataset#_target_"], "Dataset")
+        parser.update({"dataset#_target_1": "Dataset1"})
+        self.assertEqual(parser["dataset#_target_1"], "Dataset1")
         # test int id
         parser.set(["test1", "test2", "test3"])
         parser[1] = "test4"
@@ -121,9 +132,15 @@ class TestConfigParser(unittest.TestCase):
         self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0"))
         self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
         self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
-        # test nested id
+        # test new nested id
+        parser.set("fake_key", "transform#other_transforms#keys", True)
+        self.assertEqual(parser.get(id="transform#other_transforms#keys"), "fake_key")
+        # remove temp fake data
+        parser["transform"].pop("other_transforms")
+        # test update nested id
         parser["transform#transforms#0#keys"] = "label2"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
+
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
         # test root content
@@ -202,17 +219,23 @@ class TestConfigParser(unittest.TestCase):
         empty_parser = ConfigParser({})
         empty_parser.parse()
 
-        parser = ConfigParser({"value": 1, "entry": "string content"})
+        parser = ConfigParser({"value": 1, "entry": "string content", "array": [1, 2]})
         parser.parse()
 
         with self.subTest("Testing empty parser"):
             self.assertFalse("something" in empty_parser)
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
+        empty_parser["osmething"] = "test"
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
 
         with self.subTest("Testing with keys"):
             self.assertTrue("value" in parser)
             self.assertFalse("value1" in parser)
             self.assertTrue("entry" in parser)
             self.assertFalse("entr" in parser)
+            self.assertFalse("array#2" in parser)
 
     def test_lambda_reference(self):
         configs = {
@@ -229,6 +252,10 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config)
         with self.assertRaises(RuntimeError):
             parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
+
+    def test_pdb(self):
+        with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
+            case_pdb()
 
 
 if __name__ == "__main__":

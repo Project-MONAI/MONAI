@@ -20,10 +20,8 @@ import numpy as np
 from monai.data import Dataset, DatasetSummary, create_test_image_3d
 from monai.transforms import LoadImaged
 from monai.transforms.compose import Compose
-from monai.transforms.meta_utility.dictionary import FromMetaTensord
 from monai.transforms.utility.dictionary import ToNumpyd
 from monai.utils import set_determinism
-from monai.utils.enums import PostFix
 
 
 def test_collate(batch):
@@ -56,7 +54,6 @@ class TestDatasetSummary(unittest.TestCase):
             t = Compose(
                 [
                     LoadImaged(keys=["image", "label"]),
-                    FromMetaTensord(keys=["image", "label"]),
                     ToNumpyd(keys=["image", "label", "image_meta_dict", "label_meta_dict"]),
                 ]
             )
@@ -65,7 +62,7 @@ class TestDatasetSummary(unittest.TestCase):
             # test **kwargs of `DatasetSummary` for `DataLoader`
             calculator = DatasetSummary(dataset, num_workers=4, meta_key="image_meta_dict", collate_fn=test_collate)
 
-            target_spacing = calculator.get_target_spacing()
+            target_spacing = calculator.get_target_spacing(spacing_key="pixdim")
             self.assertEqual(target_spacing, (1.0, 1.0, 1.0))
             calculator.calculate_statistics()
             np.testing.assert_allclose(calculator.data_mean, 0.892599, rtol=1e-5, atol=1e-5)
@@ -93,10 +90,10 @@ class TestDatasetSummary(unittest.TestCase):
                 {"image": image_name, "label": label_name} for image_name, label_name in zip(train_images, train_labels)
             ]
 
-            t = Compose([LoadImaged(keys=["image", "label"]), FromMetaTensord(keys=["image", "label"])])
+            t = Compose([LoadImaged(keys=["image", "label"])])
             dataset = Dataset(data=data_dicts, transform=t)
 
-            calculator = DatasetSummary(dataset, num_workers=4, meta_key_postfix=PostFix.meta())
+            calculator = DatasetSummary(dataset, num_workers=4)
 
             target_spacing = calculator.get_target_spacing(anisotropic_threshold=4.0, percentile=20.0)
             np.testing.assert_allclose(target_spacing, (1.0, 1.0, 1.8))
