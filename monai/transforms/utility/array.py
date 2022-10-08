@@ -209,15 +209,15 @@ class EnsureChannelFirst(Transform):
 
     Args:
         strict_check: whether to raise an error when the meta information is insufficient.
-        channel_dim: If the input image `img` is not a MetaTensor or `meta_dict` is not given,
-            this argument can be used to specify the original channel dimension (integer) of the input array.
-            If the input array doesn't have a channel dim, this value should be ``'no_channel'`` (default).
+        channel_dim: This argument can be used to specify the original channel dimension (integer) of the input array.
+            It overrides the `original_channel_dim` from provided MetaTensor input.
+            If the input array doesn't have a channel dim, this value should be ``'no_channel'``.
             If this is set to `None`, this class relies on `img` or `meta_dict` to provide the channel dimension.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = "no_channel"):
+    def __init__(self, strict_check: bool = True, channel_dim: Union[None, str, int] = None):
         self.strict_check = strict_check
         self.input_channel_dim = channel_dim
 
@@ -239,17 +239,19 @@ class EnsureChannelFirst(Transform):
             meta_dict = img.meta
 
         channel_dim = meta_dict.get("original_channel_dim", None) if isinstance(meta_dict, Mapping) else None
+        if self.input_channel_dim is not None:
+            channel_dim = self.input_channel_dim
 
         if channel_dim is None:
-            if self.input_channel_dim is None:
-                msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
-                if self.strict_check:
-                    raise ValueError(msg)
-                warnings.warn(msg)
-                return img
-            channel_dim = self.input_channel_dim
-            if isinstance(meta_dict, dict):
-                meta_dict["original_channel_dim"] = self.input_channel_dim
+            msg = "Unknown original_channel_dim in the MetaTensor meta dict or `meta_dict` or `channel_dim`."
+            if self.strict_check:
+                raise ValueError(msg)
+            warnings.warn(msg)
+            return img
+
+        # track the original channel dim
+        if isinstance(meta_dict, dict):
+            meta_dict["original_channel_dim"] = channel_dim
 
         if channel_dim == "no_channel":
             result = img[None]
@@ -269,7 +271,7 @@ class RepeatChannel(Transform):
         repeats: the number of repetitions for each element.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, repeats: int) -> None:
         if repeats <= 0:
@@ -424,7 +426,7 @@ class ToTensor(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(
         self,
@@ -519,7 +521,7 @@ class ToNumpy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(self, dtype: DtypeLike = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -546,7 +548,7 @@ class ToCupy(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.CUPY]
 
     def __init__(self, dtype: Optional[np.dtype] = None, wrap_sequence: bool = True) -> None:
         super().__init__()
@@ -565,7 +567,7 @@ class ToPIL(Transform):
     Converts the input image (in the form of NumPy array or PyTorch Tensor) to PIL image
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __call__(self, img):
         """
@@ -583,7 +585,7 @@ class Transpose(Transform):
     Transposes the input image based on the given `indices` dimension ordering.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, indices: Optional[Sequence[int]]) -> None:
         self.indices = None if indices is None else tuple(indices)
@@ -1090,7 +1092,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
         ValueError: When label image is not single channel.
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.TORCH]
 
     def __init__(self, background: int = 0, pert: float = 0.0) -> None:
         self._background = background
@@ -1422,7 +1424,7 @@ class AddCoordinateChannels(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     @deprecated_arg(
         name="spatial_channels", new_name="spatial_dims", since="0.8", msg_suffix="please use `spatial_dims` instead."

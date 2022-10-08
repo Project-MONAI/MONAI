@@ -15,6 +15,7 @@ from typing import Any
 import torch
 
 from monai.metrics.utils import ignore_background
+from monai.utils import MetricReduction
 
 from .metric import Metric
 
@@ -67,6 +68,41 @@ class VarianceMetric(Metric):
         )
 
 
+class LabelQualityScore(Metric):
+    """
+    The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
+    can be treated as a label quality score
+
+    It can be combined with variance/uncertainty for active learning frameworks to factor in the quality of label along
+    with uncertainty
+    Args:
+        include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
+        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
+        dimensions
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
+
+    """
+
+    def __init__(self, include_background: bool = True, scalar_reduction: str = "sum") -> None:
+        super().__init__()
+        self.include_background = include_background
+        self.scalar_reduction = scalar_reduction
+
+    def __call__(self, y_pred: Any, y: Any):  # type: ignore
+        """
+        Args:
+            y_pred: Predicted segmentation, typically segmentation model output.
+                It must be N-repeats, repeat-first tensor [N,C,H,W,D].
+
+        Returns:
+            Pytorch tensor of scalar value of variance as uncertainty or a spatial map of uncertainty
+
+        """
+        return label_quality_score(
+            y_pred=y_pred, y=y, include_background=self.include_background, scalar_reduction=self.scalar_reduction
+        )
+
+
 def compute_variance(
     y_pred: torch.Tensor,
     include_background: bool = True,
@@ -77,9 +113,10 @@ def compute_variance(
     """
     Args:
         y_pred: [N, C, H, W, D] or [N, C, H, W] or [N, C, H] where N is repeats, C is channels and H, W, D stand for
-        Height, Width & Depth
+            Height, Width & Depth
         include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
-        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image dimensions
+        spatial_map: Boolean, if set to True, spatial map of variance will be returned corresponding to i/p image
+            dimensions
         scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used
         threshold: To avoid NaN's a threshold is used to replace zero's
     Returns:
@@ -99,7 +136,7 @@ def compute_variance(
 
     n_len = len(y_pred.shape)
 
-    if n_len < 4 and spatial_map is True:
+    if n_len < 4 and spatial_map:
         warnings.warn("Spatial map requires a 2D/3D image with N-repeats and C-channels")
         return None
 
@@ -113,13 +150,56 @@ def compute_variance(
     y_reshaped = torch.reshape(y_pred, new_shape)
     variance = torch.var(y_reshaped, dim=0, unbiased=False)
 
-    if spatial_map is True:
+    if spatial_map:
         return variance
 
-    elif spatial_map is False:
-        if scalar_reduction == "mean":
-            var_mean = torch.mean(variance)
-            return var_mean
-        elif scalar_reduction == "sum":
-            var_sum = torch.sum(variance)
-            return var_sum
+    if scalar_reduction == MetricReduction.MEAN:
+        return torch.mean(variance)
+    if scalar_reduction == MetricReduction.SUM:
+        return torch.sum(variance)
+    raise ValueError(f"scalar_reduction={scalar_reduction} not supported.")
+
+
+def label_quality_score(
+    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, scalar_reduction: str = "mean"
+):
+    """
+    The assumption is that the DL model makes better predictions than the provided label quality, hence the difference
+    can be treated as a label quality score
+
+    Args:
+        y_pred: Input data of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is
+            channels and H, W, D stand for Height, Width & Depth
+        y: Ground Truth of dimension [B, C, H, W, D] or [B, C, H, W] or [B, C, H] where B is Batch-size, C is channels
+            and H, W, D stand for Height, Width & Depth
+        include_background: Whether to include the background of the spatial image or channel 0 of the 1-D vector
+        scalar_reduction: reduction type of the metric, either 'sum' or 'mean' can be used to retrieve a single scalar
+            value, if set to 'none' a spatial map will be returned
+
+    Returns:
+        A single scalar absolute difference value as score with a reduction based on sum/mean or the spatial map of
+        absolute difference
+    """
+
+    # The background utils is only applicable here because instead of Batch-dimension we have repeats here
+    y_pred = y_pred.float()
+    y = y.float()
+
+    if not include_background:
+        y_pred, y = ignore_background(y_pred=y_pred, y=y)
+
+    n_len = len(y_pred.shape)
+    if n_len < 4 and scalar_reduction == "none":
+        warnings.warn("Reduction set to None, Spatial map return requires a 2D/3D image of B-Batchsize and C-channels")
+        return None
+
+    abs_diff_map = torch.abs(y_pred - y)
+
+    if scalar_reduction == MetricReduction.NONE:
+        return abs_diff_map
+
+    if scalar_reduction == MetricReduction.MEAN:
+        return torch.mean(abs_diff_map, dim=list(range(1, n_len)))
+    if scalar_reduction == MetricReduction.SUM:
+        return torch.sum(abs_diff_map, dim=list(range(1, n_len)))
+    raise ValueError(f"scalar_reduction={scalar_reduction} not supported.")

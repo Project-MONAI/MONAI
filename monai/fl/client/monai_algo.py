@@ -12,9 +12,10 @@
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 import torch
+import torch.distributed as dist
 
 import monai
 from monai.bundle import ConfigParser
@@ -96,9 +97,11 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: path of bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root; defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root; defaults to "configs/evaluate.json".
-        config_filters_filename: filter configuration file.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json".
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
+            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
+        config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
         final_model_filepath: location of final model checkpoint; defaults "models/model_final.pt" relative to `bundle_root`.
@@ -110,6 +113,9 @@ class MonaiAlgo(ClientAlgo):
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
             Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
             e.g., the aggregator, which is not controlled by this class.
+        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
+        backend: backend to use for torch.distributed; defaults to "nccl".
+        init_method: init_method for torch.distributed; defaults to "env://".
     """
 
     def __init__(
@@ -117,18 +123,23 @@ class MonaiAlgo(ClientAlgo):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[str] = "configs/train.json",
-        config_evaluate_filename: Optional[str] = "configs/evaluate.json",
-        config_filters_filename: Optional[str] = None,
+        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
+        config_evaluate_filename: Optional[Union[str, list]] = "default",
+        config_filters_filename: Optional[Union[str, list]] = None,
         disable_ckpt_loading: bool = True,
         best_model_filepath: Optional[str] = "models/model.pt",
         final_model_filepath: Optional[str] = "models/model_final.pt",
         save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
+        multi_gpu: bool = False,
+        backend: str = "nccl",
+        init_method: str = "env://",
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
-
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated.
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.bundle_root = bundle_root
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
@@ -140,6 +151,9 @@ class MonaiAlgo(ClientAlgo):
         self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
+        self.multi_gpu = multi_gpu
+        self.backend = backend
+        self.init_method = init_method
 
         self.app_root = None
         self.train_parser = None
@@ -152,6 +166,7 @@ class MonaiAlgo(ClientAlgo):
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
         self.global_weights = None
+        self.rank = 0
 
         self.phase = FlPhase.IDLE
         self.client_name = None
@@ -170,6 +185,15 @@ class MonaiAlgo(ClientAlgo):
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
 
+        if self.multi_gpu:
+            dist.init_process_group(backend=self.backend, init_method=self.init_method)
+            self._set_cuda_device()
+            self.logger.info(
+                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
+            )
+            if self.rank > 0:
+                self.logger.setLevel(logging.WARNING)
+
         if self.seed:
             monai.utils.set_determinism(seed=self.seed)
         torch.backends.cudnn.benchmark = self.benchmark
@@ -180,16 +204,9 @@ class MonaiAlgo(ClientAlgo):
         # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = []
-        config_eval_files = []
-        config_filter_files = []
-        if self.config_train_filename:
-            config_train_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_train_filename))
-        if self.config_evaluate_filename:
-            config_eval_files.append(os.path.join(self.bundle_root, self.config_evaluate_filename))
-        if self.config_filters_filename:  # filters are read by train_parser
-            config_filter_files.append(os.path.join(self.bundle_root, self.config_filters_filename))
+        config_train_files = self._add_config_files(self.config_train_filename)
+        config_eval_files = self._add_config_files(self.config_evaluate_filename)
+        config_filter_files = self._add_config_files(self.config_filters_filename)
 
         # Parse
         self.train_parser = ConfigParser()
@@ -246,6 +263,8 @@ class MonaiAlgo(ClientAlgo):
             extra: Dict with additional information that can be provided by FL system.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -287,6 +306,8 @@ class MonaiAlgo(ClientAlgo):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
 
@@ -364,6 +385,8 @@ class MonaiAlgo(ClientAlgo):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -424,6 +447,9 @@ class MonaiAlgo(ClientAlgo):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
 
+        if self.multi_gpu:
+            dist.destroy_process_group()
+
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
             self.logger.warning(
@@ -433,3 +459,25 @@ class MonaiAlgo(ClientAlgo):
             self.logger.info(
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
+
+    def _add_config_files(self, config_files):
+        files = []
+        if config_files:
+            if isinstance(config_files, str):
+                files.append(os.path.join(self.bundle_root, config_files))
+            elif isinstance(config_files, list):
+                for file in config_files:
+                    if isinstance(file, str):
+                        files.append(os.path.join(self.bundle_root, file))
+                    else:
+                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+            else:
+                raise ValueError(
+                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+                )
+        return files
+
+    def _set_cuda_device(self):
+        if self.multi_gpu:
+            self.rank = int(os.environ["LOCAL_RANK"])
+            torch.cuda.set_device(self.rank)

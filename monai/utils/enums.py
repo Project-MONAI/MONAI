@@ -52,6 +52,8 @@ __all__ = [
     "ImageStatsKeys",
     "LabelStatsKeys",
     "AlgoEnsembleKeys",
+    "HoVerNetMode",
+    "HoVerNetBranch",
 ]
 
 
@@ -381,11 +383,16 @@ class PostFix(StrEnum):
 
 class TransformBackends(StrEnum):
     """
-    Transform backends.
+    Transform backends. Most of `monai.transforms` components first converts the input data into ``torch.Tensor`` or
+    ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
+    ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
+    converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
+    convert the input data types to accomodate the underlying API.
     """
 
     TORCH = "torch"
     NUMPY = "numpy"
+    CUPY = "cupy"
 
 
 class JITMetadataKeys(StrEnum):
@@ -464,10 +471,10 @@ class WSIPatchKeys(StrEnum):
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "patch_location"
-    LEVEL = "patch_level"
-    SIZE = "patch_size"
-    COUNT = "num_patches"
+    LOCATION = "location"
+    LEVEL = "level"
+    SIZE = "size"
+    COUNT = "count"
     PATH = "path"
 
 
@@ -582,3 +589,28 @@ class AlgoEnsembleKeys(StrEnum):
     ID = "identifier"
     ALGO = "infer_algo"
     SCORE = "best_metric"
+
+
+class HoVerNetMode(StrEnum):
+    """
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
+    """
+
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"

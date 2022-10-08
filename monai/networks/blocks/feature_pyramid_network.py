@@ -258,6 +258,6 @@ class FeaturePyramidNetwork(nn.Module):
             results, names = self.extra_blocks(results, x_values, names)
 
         # make it back an OrderedDict
-        out = OrderedDict([(k, v) for k, v in zip(names, results)])
+        out = OrderedDict(list(zip(names, results)))
 
         return out

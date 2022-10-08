@@ -31,14 +31,14 @@ Sphinx==3.5.3
 recommonmark==0.6.0
 sphinx-autodoc-typehints==1.11.1
 sphinx-rtd-theme==0.5.2
-cucim==22.2.1; platform_system == "Linux"
+cucim==22.8.1; platform_system == "Linux"
 openslide-python==1.1.2
 imagecodecs; platform_system == "Linux"
 tifffile; platform_system == "Linux"
 pandas
 requests
 einops
-transformers
+transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow
 matplotlib!=3.5.0
 tensorboardX
@@ -50,3 +50,5 @@ pynrrd
 pre-commit
 pydicom
 h5py
+nni
+optuna

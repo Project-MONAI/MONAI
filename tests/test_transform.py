@@ -29,7 +29,7 @@ class TestTransform(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.orig_value = os.environ.get("MONAI_DEBUG", None)
+        cls.orig_value = os.environ.get("MONAI_DEBUG")
 
     @classmethod
     def tearDownClass(cls):

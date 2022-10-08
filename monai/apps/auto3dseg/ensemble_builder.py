@@ -11,7 +11,6 @@
 
 
 import json
-import logging
 import os
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -21,6 +20,7 @@ from warnings import warn
 import numpy as np
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
+from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
 from monai.bundle import ConfigParser
 from monai.transforms import MeanEnsemble, VoteEnsemble
@@ -28,7 +28,7 @@ from monai.utils.enums import AlgoEnsembleKeys
 from monai.utils.misc import prob2class
 from monai.utils.module import look_up_option
 
-logger = logging.getLogger(__name__)
+logger = get_logger(module_name=__name__)
 
 
 class AlgoEnsemble(ABC):
@@ -87,7 +87,7 @@ class AlgoEnsemble(ABC):
         ensemble the results using either "mean" or "vote" method
 
         Args:
-            preds: a list of probablity prediction in Tensor-Like format.
+            preds: a list of probability prediction in Tensor-Like format.
             sigmoid: use the sigmoid function to threshold probability one-hot map.
 
         Returns:
@@ -205,7 +205,7 @@ class AlgoEnsembleBestByFold(AlgoEnsemble):
     Ensemble method that select the best models that are the tops in each fold.
 
     Args:
-        n_fold: number of cross-valiation folds used in training
+        n_fold: number of cross-validation folds used in training
     """
 
     def __init__(self, n_fold: int = 5):
@@ -243,7 +243,8 @@ class AlgoEnsembleBuilder:
 
     Examples:
 
-        ..code-block:: python
+        .. code-block:: python
+
             builder = AlgoEnsembleBuilder(history, data_src_cfg)
             builder.set_ensemble_method(BundleAlgoEnsembleBestN(3))
             ensemble = builder.get_ensemble()
@@ -290,7 +291,7 @@ class AlgoEnsembleBuilder:
         """
 
         if best_metric is None:
-            raise ValueError("Feature to re-valiate is to be implemented")
+            raise ValueError("Feature to re-validate is to be implemented")
 
         algo = {AlgoEnsembleKeys.ID: identifier, AlgoEnsembleKeys.ALGO: gen_algo, AlgoEnsembleKeys.SCORE: best_metric}
         self.infer_algos.append(algo)

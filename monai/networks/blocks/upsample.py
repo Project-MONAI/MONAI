@@ -40,6 +40,7 @@ class UpSample(nn.Sequential):
         in_channels: Optional[int] = None,
         out_channels: Optional[int] = None,
         scale_factor: Union[Sequence[float], float] = 2,
+        kernel_size: Optional[Union[Sequence[float], float]] = None,
         size: Optional[Union[Tuple[int], int]] = None,
         mode: Union[UpsampleMode, str] = UpsampleMode.DECONV,
         pre_conv: Optional[Union[nn.Module, str]] = "default",
@@ -54,6 +55,7 @@ class UpSample(nn.Sequential):
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
+            kernel_size: kernel size used during UpsampleMode.DECONV. Defaults to `scale_factor`.
             size: spatial size of the output image.
                 Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
                 In torch.nn.functional.interpolate, only one of `size` or `scale_factor` should be defined,
@@ -83,13 +85,24 @@ class UpSample(nn.Sequential):
         if up_mode == UpsampleMode.DECONV:
             if not in_channels:
                 raise ValueError(f"in_channels needs to be specified in the '{mode}' mode.")
+
+            if not kernel_size:
+                kernel_size_ = scale_factor_
+                output_padding = padding = 0
+            else:
+                kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
+                padding = tuple((k - 1) // 2 for k in kernel_size_)  # type: ignore
+                output_padding = tuple(s - 1 - (k - 1) % 2 for k, s in zip(kernel_size_, scale_factor_))  # type: ignore
+
             self.add_module(
                 "deconv",
                 Conv[Conv.CONVTRANS, spatial_dims](
                     in_channels=in_channels,
                     out_channels=out_channels or in_channels,
-                    kernel_size=scale_factor_,
+                    kernel_size=kernel_size_,
                     stride=scale_factor_,
+                    padding=padding,
+                    output_padding=output_padding,
                     bias=bias,
                 ),
             )

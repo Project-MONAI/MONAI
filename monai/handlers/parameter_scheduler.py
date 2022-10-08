@@ -45,10 +45,10 @@ class ParamSchedulerHandler:
         vc_kwargs: Dict,
         epoch_level: bool = False,
         name: Optional[str] = None,
-        event=Events.ITERATION_COMPLETED,
+        event=None,
     ):
         self.epoch_level = epoch_level
-        self.event = event
+        self.event = event if event is not None else Events.ITERATION_COMPLETED
 
         self._calculators = {
             "linear": self._linear,
