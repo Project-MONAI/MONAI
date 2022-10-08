@@ -122,6 +122,8 @@ class SlidingWindowInferer(Inferer):
             `inputs` and `roi_size`. Output is on the `device`.
         progress: whether to print a tqdm progress bar.
         cache_roi_weight_map: whether to precompute the ROI weight map.
+        cpu_thresh: when provided, adaptively switch to stitching on cpu (to save gpu memory)
+                    when input image volume is larger than this threshold. Otherwise use ``"device"``.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -142,8 +144,9 @@ class SlidingWindowInferer(Inferer):
         device: Union[torch.device, str, None] = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
+        cpu_thresh: Optional[int] = None,
     ) -> None:
-        Inferer.__init__(self)
+        super().__init__()
         self.roi_size = roi_size
         self.sw_batch_size = sw_batch_size
         self.overlap = overlap
@@ -154,6 +157,7 @@ class SlidingWindowInferer(Inferer):
         self.sw_device = sw_device
         self.device = device
         self.progress = progress
+        self.cpu_thresh = cpu_thresh
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -189,6 +193,11 @@ class SlidingWindowInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
+
+        device = self.device
+        if self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
+            device = "cpu"  # stitch in cpu memory if image is too large
+
         return sliding_window_inference(
             inputs,
             self.roi_size,
@@ -200,7 +209,7 @@ class SlidingWindowInferer(Inferer):
             self.padding_mode,
             self.cval,
             self.sw_device,
-            self.device,
+            device,
             self.progress,
             self.roi_weight_map,
             *args,
