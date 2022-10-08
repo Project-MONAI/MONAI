@@ -27,6 +27,7 @@ class UpSample(nn.Sequential):
     Supported modes are:
 
         - "deconv": uses a transposed convolution.
+        - "deconvgroup": uses a transposed group convolution.
         - "nontrainable": uses :py:class:`torch.nn.Upsample`.
         - "pixelshuffle": uses :py:class:`monai.networks.blocks.SubpixelUpsample`.
 
@@ -55,13 +56,13 @@ class UpSample(nn.Sequential):
             in_channels: number of channels of the input image.
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size. Has to match input size if it is a tuple. Defaults to 2.
-            kernel_size: kernel size used during UpsampleMode.DECONV. Defaults to `scale_factor`.
+            kernel_size: kernel size used during transposed convolutions. Defaults to `scale_factor`.
             size: spatial size of the output image.
                 Only used when ``mode`` is ``UpsampleMode.NONTRAINABLE``.
                 In torch.nn.functional.interpolate, only one of `size` or `scale_factor` should be defined,
                 thus if size is defined, `scale_factor` will not be used.
                 Defaults to None.
-            mode: {``"deconv"``, ``"nontrainable"``, ``"pixelshuffle"``}. Defaults to ``"deconv"``.
+            mode: {``"deconv"``, ``"deconvgroup"``, ``"nontrainable"``, ``"pixelshuffle"``}. Defaults to ``"deconv"``.
             pre_conv: a conv block applied before upsampling. Defaults to "default".
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized when
                 Only used in the "nontrainable" or "pixelshuffle" mode.
