@@ -250,7 +250,7 @@ class FlexibleUNet(nn.Module):
         super().__init__()
 
         if backbone not in BACKBONE.register_dict:
-            raise ValueError(f"invalid model_name {backbone} found, must be one of {encoder_feature_channel.keys()}.")
+            raise ValueError(f"invalid model_name {backbone} found, must be one of {BACKBONE.register_dict.keys()}.")
 
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
