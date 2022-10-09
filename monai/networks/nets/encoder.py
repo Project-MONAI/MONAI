@@ -10,7 +10,7 @@
 # limitations under the License.
 
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 __all__ = ["BasicEncoder"]
 
@@ -29,7 +29,7 @@ class BasicEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def _get_parameter(cls) -> List[Dict]:
+    def get_parameter(cls) -> List[Dict]:
         """
         The parameters list to initialize encoder networks.
         """
@@ -37,15 +37,15 @@ class BasicEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def _get_output_feature_channel_list(cls) -> List[List[int]]:
+    def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
         pass
 
     @classmethod
     @abstractmethod
-    def _get_output_feature_number_list(cls) -> List[int]:
+    def get_output_feature_number_list(cls) -> List[int]:
         pass
 
     @classmethod
     @abstractmethod
-    def _get_encoder_name_string_list(cls) -> List[str]:
+    def get_encoder_name_string_list(cls) -> List[str]:
         pass
