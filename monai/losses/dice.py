@@ -704,6 +704,12 @@ class DiceCELoss(_Loss):
         if n_pred_ch != n_target_ch and n_target_ch == 1:
             target = torch.squeeze(target, dim=1)
             target = target.long()
+        else:
+            v = torch.__version__.split(".")[:2]
+            if int(v[0]) < 1 or (int(v[0]) == 1 and int(v[1]) < 10):
+                # in older pytorch, we cannot handle multichannel targets
+                warnings.warn(f"Multichannel target is not supported, using argmax to convert to a single channel.")
+                target = torch.argmax(target, dim=1)
 
         return self.cross_entropy(input, target)
 
