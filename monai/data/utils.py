@@ -1070,7 +1070,6 @@ def compute_importance_map(
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
-        importance_map = 0
         for i in range(len(patch_size)):
             x = torch.arange(
                 start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.float, device=device
