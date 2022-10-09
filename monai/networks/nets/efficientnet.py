@@ -13,7 +13,7 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import List, NamedTuple, Optional, Tuple, Type, Union
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -23,6 +23,8 @@ from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
 
+from .encoder import BasicEncoder
+
 __all__ = [
     "EfficientNet",
     "EfficientNetBN",
@@ -30,6 +32,7 @@ __all__ = [
     "drop_connect",
     "EfficientNetBNFeatures",
     "BlockArgs",
+    "EfficientNetEncoder",
 ]
 
 efficientnet_params = {
@@ -636,6 +639,78 @@ class EfficientNetBNFeatures(EfficientNet):
             if i + 1 in self.extract_stacks:
                 features.append(x)
         return features
+
+
+class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
+    """
+    Make the original efficientnet an encoder for flexible-unet.
+    """
+
+    backbone_names = [
+        "efficientnet-b0",
+        "efficientnet-b1",
+        "efficientnet-b2",
+        "efficientnet-b3",
+        "efficientnet-b4",
+        "efficientnet-b5",
+        "efficientnet-b6",
+        "efficientnet-b7",
+        "efficientnet-b8",
+        "efficientnet-l2",
+    ]
+
+    @classmethod
+    def get_parameter(cls) -> List[Dict]:
+        """
+        Get the initialization parameter for backbones.
+        """
+        parameter_list = []
+        for backbone_name in cls.backbone_names:
+            parameter_list.append(
+                {
+                    "model_name": backbone_name,
+                    "pretrained": True,
+                    "progress": True,
+                    "spatial_dims": 2,
+                    "in_channels": 3,
+                    "num_classes": 1000,
+                    "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+                    "adv_prop": "ap" in backbone_name,
+                }
+            )
+        return parameter_list
+
+    @classmethod
+    def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
+        """
+        Get channels of output feature maps in encoder.
+        """
+        return [
+            (16, 24, 40, 112, 320),
+            (16, 24, 40, 112, 320),
+            (16, 24, 48, 120, 352),
+            (24, 32, 48, 136, 384),
+            (24, 32, 56, 160, 448),
+            (24, 40, 64, 176, 512),
+            (32, 40, 72, 200, 576),
+            (32, 48, 80, 224, 640),
+            (32, 56, 88, 248, 704),
+            (72, 104, 176, 480, 1376),
+        ]
+
+    @classmethod
+    def get_output_feature_number_list(cls) -> List[int]:
+        """
+        Get the number of output feature maps in encoder.
+        """
+        return [5] * 10
+
+    @classmethod
+    def get_encoder_name_string_list(cls) -> List[str]:
+        """
+        Get the name of backbones.
+        """
+        return cls.backbone_names
 
 
 def get_efficientnet_image_size(model_name: str) -> int:

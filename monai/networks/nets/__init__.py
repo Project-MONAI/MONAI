@@ -38,6 +38,7 @@ from .efficientnet import (
     EfficientNet,
     EfficientNetBN,
     EfficientNetBNFeatures,
+    EfficientNetEncoder,
     drop_connect,
     get_efficientnet_image_size,
 )
