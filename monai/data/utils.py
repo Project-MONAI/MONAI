@@ -1072,11 +1072,11 @@ def compute_importance_map(
 
         importance_map = 0
         for i in range(len(patch_size)):
-            x = torch.arange(start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.double)
+            x = torch.arange(
+                start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.float, device=device
+            )
             x = torch.exp(x**2 / (-2 * sigmas[i] ** 2))  # 1D gaussian
             importance_map = importance_map.unsqueeze(-1) * x[(None,) * i] if i > 0 else x
-        importance_map = importance_map.to(device=device, dtype=torch.float)
-
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
