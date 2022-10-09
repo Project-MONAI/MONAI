@@ -122,8 +122,9 @@ class SlidingWindowInferer(Inferer):
             `inputs` and `roi_size`. Output is on the `device`.
         progress: whether to print a tqdm progress bar.
         cache_roi_weight_map: whether to precompute the ROI weight map.
-        cpu_thresh: when provided, adaptively switch to stitching on cpu (to save gpu memory)
-                    when input image volume is larger than this threshold. Otherwise use ``"device"``.
+        cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
+                    when input image volume is larger than this threshold (in pixels/volxels). 
+                    Otherwise use ``"device"``.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
