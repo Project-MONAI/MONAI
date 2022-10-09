@@ -23,19 +23,6 @@ from monai.utils import InterpolateMode
 
 __all__ = ["FlexibleUNet", "BACKBONE"]
 
-encoder_feature_channel = {
-    "efficientnet-b0": (16, 24, 40, 112, 320),
-    "efficientnet-b1": (16, 24, 40, 112, 320),
-    "efficientnet-b2": (16, 24, 48, 120, 352),
-    "efficientnet-b3": (24, 32, 48, 136, 384),
-    "efficientnet-b4": (24, 32, 56, 160, 448),
-    "efficientnet-b5": (24, 40, 64, 176, 512),
-    "efficientnet-b6": (32, 40, 72, 200, 576),
-    "efficientnet-b7": (32, 48, 80, 224, 640),
-    "efficientnet-b8": (32, 56, 88, 248, 704),
-    "efficientnet-l2": (72, 104, 176, 480, 1376),
-}
-
 
 class Register:
     """
