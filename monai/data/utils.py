@@ -30,7 +30,6 @@ from torch.utils.data._utils.collate import default_collate
 from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
-from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
@@ -1067,17 +1066,17 @@ def compute_importance_map(
     if mode == BlendMode.CONSTANT:
         importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
-        center_coords = [i // 2 for i in patch_size]
+
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
-        importance_map = torch.zeros(patch_size, device=device)
-        importance_map[tuple(center_coords)] = 1
-        pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device=device, dtype=torch.float)
-        importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))
-        importance_map = importance_map.squeeze(0).squeeze(0)
-        importance_map = importance_map / torch.max(importance_map)
-        importance_map = importance_map.float()
+        importance_map = 0
+        for i in range(len(patch_size)):
+            x = torch.arange(start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.double)
+            x = torch.exp(x**2 / (-2 * sigmas[i] ** 2))  # 1D gaussian
+            importance_map = importance_map.unsqueeze(-1) * x[(None,) * i] if i > 0 else x
+        importance_map = importance_map.to(device=device, dtype=torch.float)
+
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
