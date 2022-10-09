@@ -217,9 +217,6 @@ class FlexibleUNet(nn.Module):
         and the spatial size of each dimension must be a multiple of 32 if is pad parameter
         is False
 
-        TODO(binliu@nvidia.com): Add more backbones/encoders to this class and make a general
-        encoder-decoder structure. ETC:2022.09.01
-
         Args:
             in_channels: number of input channels.
             out_channels: number of output channels.
@@ -240,8 +237,9 @@ class FlexibleUNet(nn.Module):
                 ``"nontrainable"``.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
-            is_pad: whether to use padding feature maps to enable the input spatial not necessary
-                to be a multiple of 32. Default to True.
+            is_pad: whether to pad upsampling features to fit features from encoder. Default to True.
+                If this parameter is set to "True", the spatial dim of network input can be arbitary
+                size, which is not supported by TensorRT. Otherwise, it must be a multiple of 32.
         """
         super().__init__()
 
