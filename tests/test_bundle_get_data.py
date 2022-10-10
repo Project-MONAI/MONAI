@@ -14,8 +14,8 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import get_all_bundles_list, get_bundle_info, get_bundle_versions
-from tests.utils import skip_if_downloading_fails, skip_if_quick, skip_if_windows, SkipIfNoModule
 from monai.utils import optional_import
+from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick, skip_if_windows
 
 requests, _ = optional_import("requests")
 
