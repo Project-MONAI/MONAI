@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Type, Union
 
 import torch
 from torch import nn
@@ -33,7 +33,7 @@ class Register:
     def __init__(self):
         self.register_dict = {}
 
-    def regist_class(self, name: BasicEncoder):
+    def regist_class(self, name: Type):
         """
         Regist a given class to the encoder dict. Please notice the class must be a
         subclass of BasicEncoder.
