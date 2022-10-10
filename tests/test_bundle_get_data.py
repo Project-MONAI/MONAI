@@ -14,14 +14,20 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import get_all_bundles_list, get_bundle_info, get_bundle_versions
-from tests.utils import skip_if_downloading_fails, skip_if_quick, skip_if_windows
+from tests.utils import skip_if_downloading_fails, skip_if_quick, skip_if_windows, SkipIfNoModule
+from monai.utils import optional_import
+
+requests, _ = optional_import("requests")
 
 TEST_CASE_1 = [{"bundle_name": "brats_mri_segmentation"}]
 
-TEST_CASE_2 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0"}]
+TEST_CASE_2 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": None}]
+
+TEST_CASE_FAKE_TOKEN = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": "ghp_errortoken"}]
 
 
 @skip_if_windows
+@SkipIfNoModule("requests")
 class TestGetBundleData(unittest.TestCase):
     @skip_if_quick
     def test_get_all_bundles_list(self):
@@ -48,6 +54,13 @@ class TestGetBundleData(unittest.TestCase):
             self.assertTrue(isinstance(output, dict))
             for key in ["id", "name", "size", "download_count", "browser_download_url"]:
                 self.assertTrue(key in output)
+
+    @parameterized.expand([TEST_CASE_FAKE_TOKEN])
+    @skip_if_quick
+    def test_fake_token(self, params):
+        with skip_if_downloading_fails():
+            with self.assertRaises(requests.exceptions.HTTPError):
+                get_bundle_info(**params)
 
 
 if __name__ == "__main__":
