@@ -17,13 +17,12 @@ __all__ = ["BasicEncoder"]
 
 class BasicEncoder(metaclass=ABCMeta):
     """
-    An abstract class defines inferfaces of backbones/encoders in flexible unet.
-    The encoders/backbones in flexible unet need to derive from this class and
-    implement all the abstractmethods in this class. A list contains a series relative
-    information about networks should be returned, in case the encoder defines a
-    series of network structures. For example, the efficient-net encoder implement 10
-    basic network structures in an encoder. When calling a _get_encoder_name_string_list
-    function, a string list ["efficientnet-b0", "efficientnet-b1" ... "efficientnet-l2"]
+    Abstract class defines inferface of backbones/encoders in flexible unet.
+    The encoders/backbones in flexible unet must derive from this class. Each interface
+    should return a list containing relative information about a series of newtworks
+    defined by encoder. For example, the efficient-net encoder implement 10 basic
+    network structures in one encoder. When calling `get_encoder_name_string_list`
+    function, a string list like ["efficientnet-b0", "efficientnet-b1" ... "efficientnet-l2"]
     should be returned.
     """
 
@@ -31,8 +30,9 @@ class BasicEncoder(metaclass=ABCMeta):
     @abstractmethod
     def get_backbone_parameter(cls) -> List[Dict]:
         """
-        The parameters list to initialize encoder networks. The parameter dict must have spatial_dims,
-        in_channels and pretrained parameters.
+        Get parameter list to initialize encoder networks.
+        Each parameter dict must have `spatial_dims`, `in_channels`
+        and `pretrained` parameters.
         """
         pass
 
