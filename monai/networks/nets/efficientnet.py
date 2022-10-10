@@ -19,11 +19,10 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
+from monai.networks.blocks import BasicEncoder
 from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
-
-from monai.networks.blocks import BasicEncoder
 
 __all__ = [
     "EfficientNet",
@@ -660,7 +659,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     ]
 
     @classmethod
-    def get_parameter(cls) -> List[Dict]:
+    def get_backbone_parameter(cls) -> List[Dict]:
         """
         Get the initialization parameter for backbones.
         """

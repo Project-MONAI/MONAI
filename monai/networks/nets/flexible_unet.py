@@ -14,7 +14,7 @@ from typing import List, Optional, Sequence, Tuple, Type, Union
 import torch
 from torch import nn
 
-from monai.networks.blocks import UpSample, BasicEncoder
+from monai.networks.blocks import BasicEncoder, UpSample
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.nets import EfficientNetEncoder
@@ -43,7 +43,7 @@ class Register:
         name_string_list = name.get_encoder_name_string_list()
         feature_number_list = name.get_output_feature_number_list()
         feature_channel_list = name.get_output_feature_channel_list()
-        parameter_list = name.get_parameter()
+        parameter_list = name.get_backbone_parameter()
 
         assert len(name_string_list) == len(feature_number_list) == len(feature_channel_list) == len(parameter_list)
         for cnt, name_string in enumerate(name_string_list):

@@ -29,7 +29,7 @@ class BasicEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def get_parameter(cls) -> List[Dict]:
+    def get_backbone_parameter(cls) -> List[Dict]:
         """
         The parameters list to initialize encoder networks.
         """
