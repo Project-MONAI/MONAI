@@ -642,7 +642,7 @@ class EfficientNetBNFeatures(EfficientNet):
 
 class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     """
-    Make the original efficientnet an encoder for flexible-unet.
+    Wrap the original efficientnet to an encoder for flexible-unet.
     """
 
     backbone_names = [
@@ -661,7 +661,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     @classmethod
     def get_backbone_parameter(cls) -> List[Dict]:
         """
-        Get the initialization parameter for backbones.
+        Get the initialization parameter for efficientnet backbones.
         """
         parameter_list = []
         for backbone_name in cls.backbone_names:
@@ -682,7 +682,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     @classmethod
     def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
         """
-        Get channels of output feature maps in encoder.
+        Get number of efficientnet backbone output feature maps' channel.
         """
         return [
             (16, 24, 40, 112, 320),
@@ -700,14 +700,16 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     @classmethod
     def get_output_feature_number_list(cls) -> List[int]:
         """
-        Get the number of output feature maps in encoder.
+        Get number of efficientnet backbone output feature maps.
+        Since every backbone contains the same 5 output feature maps,
+        the number list should be `[5] * 10`.
         """
         return [5] * 10
 
     @classmethod
     def get_encoder_name_string_list(cls) -> List[str]:
         """
-        Get the name of backbones.
+        Get names of efficient backbone.
         """
         return cls.backbone_names
 
