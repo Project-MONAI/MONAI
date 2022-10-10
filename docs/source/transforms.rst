@@ -336,6 +336,14 @@ Intensity
     :members:
     :special-members: __call__
 
+`MedianSmooth`
+""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmooth.png
+    :alt: example of MedianSmooth
+.. autoclass:: MedianSmooth
+    :members:
+    :special-members: __call__
+
 `GaussianSmooth`
 """"""""""""""""
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmooth.png
@@ -1412,6 +1420,14 @@ Intensity (Dict)
 .. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmoothd.png
     :alt: example of SavitzkyGolaySmoothd
 .. autoclass:: SavitzkyGolaySmoothd
+    :members:
+    :special-members: __call__
+
+`MedianSmoothd`
+"""""""""""""""""
+.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmoothd.png
+    :alt: example of MedianSmoothd
+.. autoclass:: MedianSmoothd
     :members:
     :special-members: __call__
 

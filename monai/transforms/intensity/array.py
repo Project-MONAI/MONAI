@@ -26,7 +26,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
+from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
@@ -56,6 +56,7 @@ __all__ = [
     "MaskIntensity",
     "DetectEnvelope",
     "SavitzkyGolaySmooth",
+    "MedianSmooth",
     "GaussianSmooth",
     "RandGaussianSmooth",
     "GaussianSharpen",
@@ -1132,6 +1133,37 @@ class DetectEnvelope(Transform):
         # convert to Tensor and add Batch axis expected by HilbertTransform
         out = hilbert_transform(img_t.unsqueeze(0)).squeeze(0).abs()
         out, *_ = convert_to_dst_type(src=out, dst=img)
+
+        return out
+
+
+class MedianSmooth(Transform):
+    """
+    Apply median filter to the input data based on specified `radius` parameter.
+    A default value `radius=1` is provided for reference.
+
+    Args:
+        radius: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, radius: Union[Sequence[int], int] = 1) -> None:
+        self.radius = radius
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
+        radius: Union[Sequence[torch.Tensor], torch.Tensor]
+        if isinstance(self.radius, Sequence):
+            radius = [torch.as_tensor(s, device=img_t.device) for s in self.radius]
+        else:
+            radius = torch.as_tensor(self.radius, device=img_t.device)
+        median_filter_instance = MedianFilter(radius)  # dim=img_t.ndim - 1
+        out_t: torch.Tensor = median_filter_instance(img_t.unsqueeze(0)).squeeze(0)
+        out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
 
         return out
 

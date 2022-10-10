@@ -32,6 +32,7 @@ from monai.transforms.intensity.array import (
     HistogramNormalize,
     KSpaceSpikeNoise,
     MaskIntensity,
+    MedianSmooth,
     NormalizeIntensity,
     RandAdjustContrast,
     RandBiasField,
@@ -78,6 +79,7 @@ __all__ = [
     "ScaleIntensityRangePercentilesd",
     "MaskIntensityd",
     "SavitzkyGolaySmoothd",
+    "MedianSmoothd",
     "GaussianSmoothd",
     "RandGaussianSmoothd",
     "GaussianSharpend",
@@ -124,6 +126,8 @@ __all__ = [
     "MaskIntensityDict",
     "SavitzkyGolaySmoothD",
     "SavitzkyGolaySmoothDict",
+    "MedianSmoothD",
+    "MedianSmoothDict",
     "GaussianSmoothD",
     "GaussianSmoothDict",
     "RandGaussianSmoothD",
@@ -988,6 +992,35 @@ class SavitzkyGolaySmoothd(MapTransform):
         return d
 
 
+class MedianSmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MedianSmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        radius: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = MedianSmooth.backend
+
+    def __init__(
+        self, keys: KeysCollection, radius: Union[Sequence[int], int], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = MedianSmooth(radius)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 class GaussianSmoothd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
@@ -1780,6 +1813,7 @@ RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
 SavitzkyGolaySmoothD = SavitzkyGolaySmoothDict = SavitzkyGolaySmoothd
+MedianSmoothD = MedianSmoothDict = MedianSmoothd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend

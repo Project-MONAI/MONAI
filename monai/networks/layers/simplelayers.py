@@ -32,12 +32,12 @@ __all__ = [
     "GaussianFilter",
     "HilbertTransform",
     "LLTM",
-    "MedianBlur",
+    "MedianFilter",
     "Reshape",
     "SavitzkyGolayFilter",
     "SkipConnection",
     "apply_filter",
-    "median_blur",
+    "median_filter",
     "separable_filtering",
 ]
 
@@ -49,11 +49,11 @@ class ChannelPad(nn.Module):
     """
 
     def __init__(
-            self,
-            spatial_dims: int,
-            in_channels: int,
-            out_channels: int,
-            mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
     ):
         """
 
@@ -162,13 +162,13 @@ class Reshape(nn.Module):
 
 
 def _separable_filtering_conv(
-        input_: torch.Tensor,
-        kernels: List[torch.Tensor],
-        pad_mode: str,
-        d: int,
-        spatial_dims: int,
-        paddings: List[int],
-        num_channels: int,
+    input_: torch.Tensor,
+    kernels: List[torch.Tensor],
+    pad_mode: str,
+    d: int,
+    spatial_dims: int,
+    paddings: List[int],
+    num_channels: int,
 ) -> torch.Tensor:
     if d < 0:
         return input_
@@ -281,7 +281,7 @@ def apply_filter(x: torch.Tensor, kernel: torch.Tensor, **kwargs) -> torch.Tenso
         )
     kernel = kernel.to(x)
     # broadcast kernel size to (batch chns, spatial_kernel_size)
-    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial):])
+    kernel = kernel.expand(batch, chns, *kernel.shape[(k_size - n_spatial) :])
     kernel = kernel.reshape(-1, 1, *kernel.shape[2:])  # group=1
     x = x.view(1, kernel.shape[0], *spatials)
     conv = [F.conv1d, F.conv2d, F.conv3d][n_spatial - 1]
@@ -455,91 +455,97 @@ def _compute_zero_padding(kernel_size: Sequence[int]) -> List[int]:
     return computed
 
 
-def median_blur(in_tensor: torch.Tensor, kernel_size: Sequence[int],
-                kernel: torch.Tensor = None) -> torch.Tensor:
-    r"""Blur an image using the median filter.
+def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: torch.Tensor = None) -> torch.Tensor:
+    r"""Apply median filter to an image.
     Args:
-        in_tensor: the input image with shape :math:`(B,C,H,W,D)`.
-        kernel_size: the blurring kernel size.
+        in_tensor: the input image with shape :math:`(C,H,W,D)`.
+        kernel_size: the convolution kernel size.
     Returns:
-        the blurred input tensor with shape :math:`(B,C,H,W,D)`.
+        the filtered input tensor with shape :math:`(C,H,W,D)`.
     Example:
-        >>> x = torch.rand(2, 4, 5, 7, 6)
-        >>> output = median_blur(x, (3, 3, 3))
+        >>> x = torch.rand(4, 5, 7, 6)
+        >>> output = median_filter(x, (3, 3, 3))
         >>> output.shape
-        torch.Size([2, 4, 5, 7, 6])
+        torch.Size([4, 5, 7, 6])
     """
     if not isinstance(in_tensor, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(in_tensor)}")
 
-    if not len(in_tensor.shape) == 5:
-        raise ValueError(f"Invalid in_tensor shape, we expect BxCxHxWxD. Got: {in_tensor.shape}")
+    original_shape = in_tensor.shape
+    if len(original_shape) == 5 and original_shape[0] == 1:
+        in_tensor = in_tensor.squeeze(0)
+    if not len(in_tensor.shape) == 4:
+        raise ValueError(f"Invalid in_tensor shape, we expect CxHxWxD. Got: {in_tensor.shape}")
 
     padding: Sequence[int] = _compute_zero_padding(kernel_size)
 
     # prepare kernel
     if kernel is None:
         kernel: torch.Tensor = get_binary_kernel3d(kernel_size).to(in_tensor)
-    b, c, h, w, d = in_tensor.shape
+    else:
+        kernel: torch.Tensor = kernel.to(in_tensor)
+    c, h, w, d = in_tensor.shape
 
     # map the local window to single vector
-    features: torch.Tensor = F.conv3d(in_tensor.reshape(b * c, 1, h, w, d), kernel, padding=padding, stride=1)
-    features = features.view(b, c, -1, h, w, d)  # BxCx(K_h * K_w * K_d)xHxWxD
+    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, h, w, d), kernel, padding=padding, stride=1)
+    features = features.view(c, -1, h, w, d)  # Cx(K_h * K_w * K_d)xHxWxD
 
     # compute the median along the feature axis
-    median: torch.Tensor = torch.median(features, dim=2)[0]
+    median: torch.Tensor = torch.median(features, dim=1)[0]
+    median = median.reshape(original_shape)
 
     return median
 
 
-class MedianBlur(nn.Module):
-    r"""Blur an image using the median filter.
+class MedianFilter(nn.Module):
+    r"""Apply median filter to an image.
     Args:
         radius: the blurring kernel radius (radius of 1 corresponds to 3x3x3 kernel).
     Returns:
-        the blurred in_tensor tensor.
+        filtered input tensor.
     Shape:
-        - Input: :math:`(B, C, H, W, D)`
-        - Output: :math:`(B, C, H, W, D)`
+        - Input: :math:`(C, H, W, D)`
+        - Output: :math:`(C, H, W, D)`
     Example:
-        >>> in_tensor = torch.rand(2, 4, 5, 7, 6)
-        >>> blur = MedianBlur([1, 1, 1])  # 3x3x3 kernel
+        >>> in_tensor = torch.rand(4, 5, 7, 6)
+        >>> blur = MedianFilter([1, 1, 1])  # 3x3x3 kernel
         >>> output = blur(in_tensor)
         >>> output.shape
-        torch.Size([2, 4, 5, 7, 6])
+        torch.Size([4, 5, 7, 6])
     """
 
-    def __init__(self, radius: Union[Sequence[int], int], device='cpu') -> None:
+    def __init__(self, radius: Union[Sequence[int], int], device="cpu") -> None:
         super().__init__()
         self.radius: Sequence[int] = radius
         if issequenceiterable(radius):
             if len(radius) != 3:
                 raise ValueError(f"Only 3 dimensional images are supported by {str(self.__class__)}")
+            else:
+                self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in radius]
         else:
-            sigma = [deepcopy(radius) for _ in range(3)]
-        self.radius: Sequence[int] = radius
-        self.radius = get_binary_kernel3d(1 + 2 * radius).to(device)
+            self.window: Sequence[int] = [1 + 2 * deepcopy(radius) for _ in range(3)]
+        self.kernel = get_binary_kernel3d(self.window).to(device)
 
     def forward(self, in_tensor: torch.Tensor, number_of_passes=1) -> torch.Tensor:
         """
         Args:
-            in_tensor: in shape [batch, channels, H, W, D].
+            in_tensor: in shape [channels, H, W, D].
             number_of_passes: median filtering will be repeated this many times
         """
         x = in_tensor
         for _ in range(number_of_passes):
-            x = median_blur(x, self.radius, self.kernel)
+            x = median_filter(x, self.window, self.kernel)
         return x
 
 
 class GaussianFilter(nn.Module):
     def __init__(
-            self,
-            spatial_dims: int,
-            sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
-            truncated: float = 4.0,
-            approx: str = "erf",
-            requires_grad: bool = False,
+        self,
+        spatial_dims: int,
+        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
+        truncated: float = 4.0,
+        approx: str = "erf",
+        requires_grad: bool = False,
     ) -> None:
         """
         Args:
