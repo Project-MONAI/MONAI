@@ -222,7 +222,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": 0.5, "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
+            {"pixdim": (0.5, 0.5, 0.5), "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
             torch.ones((1, 368, 336, 368)),  # data
             torch.tensor(
                 [
