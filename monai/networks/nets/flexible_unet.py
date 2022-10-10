@@ -35,7 +35,7 @@ class Register:
 
     def regist_class(self, name: Type):
         """
-        Regist a given class to the encoder dict. Please notice the class must be a
+        Regist a given class to the encoder dict. Please notice that input class must be a
         subclass of BasicEncoder.
         """
         if not issubclass(name, BasicEncoder):
@@ -259,6 +259,11 @@ class FlexibleUNet(nn.Module):
         self.backbone = backbone
         self.spatial_dims = spatial_dims
         encoder_parameters = encoder["parameter"]
+        assert (
+            ("spatial_dims" in encoder_parameters)
+            and ("in_channels" in encoder_parameters)
+            and ("pretrained" in encoder_parameters)
+        )
         encoder_parameters.update({"spatial_dims": spatial_dims, "in_channels": in_channels, "pretrained": pretrained})
         encoder_channels = tuple([in_channels] + list(encoder["feature_channel"]))
         encoder_type = encoder["type"]
