@@ -31,7 +31,8 @@ class BasicEncoder(metaclass=ABCMeta):
     @abstractmethod
     def get_backbone_parameter(cls) -> List[Dict]:
         """
-        The parameters list to initialize encoder networks.
+        The parameters list to initialize encoder networks. The parameter dict must have spatial_dims,
+        in_channels and pretrained parameters.
         """
         pass
 
@@ -39,16 +40,22 @@ class BasicEncoder(metaclass=ABCMeta):
     @abstractmethod
     def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
         """
-        Get number of output feature channels.
+        Get number of output features' channel.
         """
         pass
 
     @classmethod
     @abstractmethod
     def get_output_feature_number_list(cls) -> List[int]:
+        """
+        Get number of output feature.
+        """
         pass
 
     @classmethod
     @abstractmethod
     def get_encoder_name_string_list(cls) -> List[str]:
+        """
+        Get the name string of backbones which will be used to initialize flexible unet.
+        """
         pass
