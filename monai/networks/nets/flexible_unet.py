@@ -14,10 +14,10 @@ from typing import List, Optional, Sequence, Tuple, Type, Union
 import torch
 from torch import nn
 
-from monai.networks.blocks import UpSample
+from monai.networks.blocks import UpSample, BasicEncoder
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
-from monai.networks.nets import BasicEncoder, EfficientNetEncoder
+from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
 from monai.utils import InterpolateMode
 

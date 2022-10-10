@@ -23,7 +23,7 @@ from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
 
-from .encoder import BasicEncoder
+from monai.networks.blocks import BasicEncoder
 
 __all__ = [
     "EfficientNet",

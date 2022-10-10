@@ -38,6 +38,9 @@ class BasicEncoder(metaclass=ABCMeta):
     @classmethod
     @abstractmethod
     def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
+        """
+        Get number of output feature channels.
+        """
         pass
 
     @classmethod

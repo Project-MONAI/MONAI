@@ -42,7 +42,6 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
-from .encoder import BasicEncoder
 from .flexible_unet import FlexibleUNet
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
