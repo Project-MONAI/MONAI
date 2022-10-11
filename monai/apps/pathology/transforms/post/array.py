@@ -166,9 +166,9 @@ class GenerateProbabilityMap(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, 
-        kernel_size: int = 21, 
-        min_size: int = 10, 
+        self,
+        kernel_size: int = 21,
+        min_size: int = 10,
         remove_small_objects: bool = True,
         dtype : DtypeLike = np.float32
     ) -> None:
