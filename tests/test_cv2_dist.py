@@ -29,7 +29,7 @@ def main_worker(rank, ngpus_per_node):
     model = torch.nn.parallel.DistributedDataParallel(
         model, device_ids=[rank], output_device=rank, find_unused_parameters=False
     )
-    x = torch.ones(1, 1, 192, 192, 192).to(rank)
+    x = torch.ones(1, 1, 12, 12, 12).to(rank)
     with autocast(enabled=True):
         model(x)
 
