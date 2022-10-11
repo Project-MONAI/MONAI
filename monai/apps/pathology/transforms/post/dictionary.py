@@ -68,7 +68,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mask_key: str = "mask",
+        mask_key: Optional[str] = 'mask',
         markers_key: Optional[str] = None,
         connectivity: Optional[int] = 1,
         allow_missing_keys: bool = False,
@@ -81,9 +81,10 @@ class CalculateInstanceSegmentationMapd(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         markers = d[self.markers_key] if self.markers_key else None
+        mask = d[self.mask_key] if self.mask_key else None
 
         for key in self.key_iterator(d):
-            d[key] = self.transform(d[key], d[self.mask_key], markers)
+            d[key] = self.transform(d[key], mask, markers)
 
         return d
 

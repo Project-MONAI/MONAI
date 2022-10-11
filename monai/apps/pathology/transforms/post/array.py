@@ -53,12 +53,12 @@ class CalculateInstanceSegmentationMap(Transform):
         self.connectivity = connectivity
 
     def __call__(  # type: ignore
-        self, image: NdarrayOrTensor, mask: NdarrayOrTensor, markers: Optional[NdarrayOrTensor] = None
+        self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None, markers: Optional[NdarrayOrTensor] = None
     ) -> NdarrayOrTensor:
         """
         Args:
             image: image where the lowest value points are labeled first. Shape must be [1, H, W].
-            mask: the same shape as image. Only points at which mask == True will be labeled.
+            mask: optional, the same shape as image. Only points at which mask == True will be labeled.
             markers: The desired number of markers, or an array marking the basins with the values to be assigned
                 in the label matrix. Zero means not a marker. If None (no markers given), the local minima of the
                 image are used as markers. Shape must be [1, H, W].
@@ -70,7 +70,7 @@ class CalculateInstanceSegmentationMap(Transform):
 
         if image.shape[0] != 1 or image.ndim != 3:
             raise ValueError(f"Input image should be with size of [1, H, W], but got {image.shape}")
-        if mask.shape[0] != 1 or mask.ndim != 3:
+        if mask is not None and (mask.shape[0] != 1 or mask.ndim != 3):
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
         if markers is not None and (markers.shape[0] != 1 or markers.ndim != 3):
             raise ValueError(f"Input markers should be with size of [1, H, W], but got {markers.shape}")
