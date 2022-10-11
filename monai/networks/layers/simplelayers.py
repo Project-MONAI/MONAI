@@ -459,6 +459,7 @@ def median_filter(
     kernel_size: Sequence[int] = (3, 3, 3),
     spatial_dims: int = 3,
     kernel: Optional[torch.Tensor] = None,
+    **kwargs,
 ) -> torch.Tensor:
     """
     Apply median filter to an image.
@@ -468,6 +469,7 @@ def median_filter(
         kernel_size: the convolution kernel size.
         spatial_dims: number of spatial dimensions to apply median filtering.
         kernel: an optional customized kernel.
+        kwargs: additional parameters to the `conv`.
 
     Returns:
         the filtered input tensor, shape remains the same as ``in_tensor``
@@ -496,7 +498,16 @@ def median_filter(
         kernel = kernel.to(in_tensor)
     # map the local window to single vector
     conv = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]  # type: ignore
-    features: torch.Tensor = conv(in_tensor.reshape(oprod, 1, *sshape), kernel, padding="same", stride=1)  # type: ignore
+    if "padding" not in kwargs:
+        if pytorch_after(1, 10):
+            kwargs["padding"] = "same"
+        else:
+            # even-sized kernels are not supported
+            kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+    elif kwargs["padding"] == "same" and not pytorch_after(1, 10):
+        # even-sized kernels are not supported
+        kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
+    features: torch.Tensor = conv(in_tensor.reshape(oprod, 1, *sshape), kernel, stride=1, **kwargs)  # type: ignore
     features = features.view(oprod, -1, *sshape)  # type: ignore
 
     # compute the median along the feature axis
