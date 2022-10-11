@@ -11,7 +11,7 @@
 
 import math
 from copy import deepcopy
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import torch
 import torch.nn.functional as F
@@ -20,8 +20,16 @@ from torch.autograd import Function
 
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
-from monai.utils import ChannelMatching, SkipMode, look_up_option, optional_import, pytorch_after
-from monai.utils.misc import issequenceiterable
+from monai.utils import (
+    ChannelMatching,
+    SkipMode,
+    convert_to_tensor,
+    ensure_tuple_rep,
+    issequenceiterable,
+    look_up_option,
+    optional_import,
+    pytorch_after,
+)
 
 _C, _ = optional_import("monai._C")
 fft, _ = optional_import("torch.fft")
@@ -435,45 +443,61 @@ class HilbertTransform(nn.Module):
         return torch.as_tensor(ht, device=ht.device, dtype=ht.dtype)
 
 
-def get_binary_kernel(window_size: Sequence[int]) -> torch.Tensor:
-    r"""Create a binary kernel to extract the patches.
+def get_binary_kernel(window_size: Sequence[int], dtype=torch.float, device=None) -> torch.Tensor:
+    """
+    Create a binary kernel to extract the patches.
     The window size HxWxD will create a (H*W*D)xHxWxD kernel.
     """
-    prod = torch.prod(torch.tensor(window_size))
-    return torch.diag(torch.ones(prod)).reshape(prod, 1, *window_size)
+    win_size = convert_to_tensor(window_size, int, wrap_sequence=True)
+    prod = torch.prod(win_size)
+    s = [prod, 1, *win_size]
+    return torch.diag(torch.ones(prod, dtype=dtype, device=device)).view(s)  # type: ignore
 
 
-def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: torch.Tensor = None) -> torch.Tensor:
-    r"""Apply median filter to an image.
+def median_filter(
+    in_tensor: torch.Tensor,
+    kernel_size: Sequence[int] = (3, 3, 3),
+    spatial_dims: int = 3,
+    kernel: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    """
+    Apply median filter to an image.
+
     Args:
-        in_tensor: the input image with shape :math:`(C,H,W,D)`.
+        in_tensor: input tensor; median filtering will be applied to the last `spatial_dims` dimensions.
         kernel_size: the convolution kernel size.
+        spatial_dims: number of spatial dimensions to apply median filtering.
+        kernel: an optional customized kernel.
+
     Returns:
-        the filtered input tensor with shape :math:`(C,H,W,D)`.
-    Example:
+        the filtered input tensor, shape remains the same as ``in_tensor``
+
+    Example::
+
+        >>> from monai.networks.layers import median_filter
+        >>> import torch
         >>> x = torch.rand(4, 5, 7, 6)
         >>> output = median_filter(x, (3, 3, 3))
         >>> output.shape
         torch.Size([4, 5, 7, 6])
+
     """
     if not isinstance(in_tensor, torch.Tensor):
         raise TypeError(f"Input type is not a torch.Tensor. Got {type(in_tensor)}")
 
     original_shape = in_tensor.shape
-    if len(original_shape) == 5 and original_shape[0] == 1:
-        in_tensor = in_tensor.squeeze(0)
-    if not len(in_tensor.shape) != len(kernel_size):
-        raise ValueError(f"in_tensor has dimension {len(in_tensor.shape)}, kernel dimension is {len(kernel_size)}")
-
+    oshape, sshape = original_shape[: len(original_shape) - spatial_dims], original_shape[-spatial_dims:]
+    oprod = torch.prod(convert_to_tensor(oshape, int, wrap_sequence=True))
     # prepare kernel
     if kernel is None:
-        kernel: torch.Tensor = get_binary_kernel(kernel_size).to(in_tensor)
+        kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)
+        kernel = get_binary_kernel(kernel_size, in_tensor.dtype, in_tensor.device)
     else:
-        kernel: torch.Tensor = kernel.to(in_tensor)
-    c, *sshape = in_tensor.shape
+        kernel = kernel.to(in_tensor)
     # map the local window to single vector
-    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding="same", stride=1)
-    features = features.view(c, -1, *sshape)  # Cx(K_h * K_w * K_d)xHxWxD
+    conv = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]  # type: ignore
+    features: torch.Tensor = conv(in_tensor.reshape(oprod, 1, *sshape), kernel, padding="same", stride=1)  # type: ignore
+    features = features.view(oprod, -1, *sshape)  # type: ignore
 
     # compute the median along the feature axis
     median: torch.Tensor = torch.median(features, dim=1)[0]
@@ -483,40 +507,43 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
 
 
 class MedianFilter(nn.Module):
-    r"""Apply median filter to an image.
+    """
+    Apply median filter to an image.
+
     Args:
-        radius: the blurring kernel radius (radius of 1 corresponds to 3x3x3 kernel).
+        radius: the blurring kernel radius (radius of 1 corresponds to 3x3x3 kernel when spatial_dims=3).
+
     Returns:
         filtered input tensor.
-    Shape:
-        - Input: :math:`(C, H, W, D)`
-        - Output: :math:`(C, H, W, D)`
-    Example:
+
+    Example::
+
+        >>> from monai.networks.layers import MedianFilter
+        >>> import torch
         >>> in_tensor = torch.rand(4, 5, 7, 6)
         >>> blur = MedianFilter([1, 1, 1])  # 3x3x3 kernel
         >>> output = blur(in_tensor)
         >>> output.shape
         torch.Size([4, 5, 7, 6])
+
     """
 
-    def __init__(self, radius: Union[Sequence[int], int], device="cpu") -> None:
+    def __init__(self, radius: Union[Sequence[int], int], spatial_dims: int = 3, device="cpu") -> None:
         super().__init__()
-        self.radius: Sequence[int] = radius
-        if issequenceiterable(radius):
-            self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in radius]
-        else:
-            self.window: Sequence[int] = [1 + 2 * deepcopy(radius) for _ in range(3)]
-        self.kernel = get_binary_kernel(self.window).to(device)
+        self.spatial_dims = spatial_dims
+        self.radius: Sequence[int] = ensure_tuple_rep(radius, spatial_dims)
+        self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in self.radius]
+        self.kernel = get_binary_kernel(self.window, device=device)
 
     def forward(self, in_tensor: torch.Tensor, number_of_passes=1) -> torch.Tensor:
         """
         Args:
-            in_tensor: in shape [channels, H, W, D].
+            in_tensor: input tensor, median filtering will be applied to the last `spatial_dims` dimensions.
             number_of_passes: median filtering will be repeated this many times
         """
         x = in_tensor
         for _ in range(number_of_passes):
-            x = median_filter(x, self.window, self.kernel)
+            x = median_filter(x, kernel=self.kernel, spatial_dims=self.spatial_dims)
         return x
 
 

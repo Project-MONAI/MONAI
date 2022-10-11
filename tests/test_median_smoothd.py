@@ -18,12 +18,12 @@ from monai.transforms import MedianSmoothd
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS[0:1]:
     TESTS.append(
         [
             {"keys": "img", "radius": [0, 1]},
-            {"img": p(np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]))},
-            np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]),
+            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]]]))},
+            np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]]]),
         ]
     )
 
@@ -32,7 +32,27 @@ for p in TEST_NDARRAYS:
             {"keys": "img", "radius": 1},
             {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
             np.array(
-                [[[0.0, 0.0, 0.0], [0.0, 2, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 2, 0.0], [0.0, 0.0, 0.0]]]
+                [[[0.0, 1.0, 0.0], [1.0, 2, 1.0], [0.0, 2.0, 0.0]], [[0.0, 4.0, 0.0], [4.0, 5, 4.0], [0.0, 5.0, 0.0]]]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            {"keys": "img", "radius": [1, 1]},
+            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
+            np.array(
+                [[[0.0, 1.0, 0.0], [1.0, 2, 1.0], [0.0, 2.0, 0.0]], [[0.0, 4.0, 0.0], [4.0, 5, 4.0], [0.0, 5.0, 0.0]]]
+            ),
+        ]
+    )
+
+    TESTS.append(
+        [
+            {"keys": "img", "radius": [1, 1]},
+            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 0, 5], [6, 6, 6]]]))},
+            np.array(
+                [[[0.0, 1.0, 0.0], [1.0, 2, 1.0], [0.0, 2.0, 0.0]], [[0.0, 4.0, 0.0], [4.0, 5, 4.0], [0.0, 5.0, 0.0]]]
             ),
         ]
     )
@@ -40,36 +60,18 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"keys": "img", "radius": [1, 1, 1]},
-            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
+            {"img": p(np.array([[[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]]))},
             np.array(
-                [[[0.0, 0.0, 0.0], [0.0, 2, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 2, 0.0], [0.0, 0.0, 0.0]]]
+                [[[[0.0, 0.0, 0.0], [0.0, 2, 0.0], [0.0, 0, 0.0]], [[0.0, 0, 0.0], [0.0, 2, 0.0], [0.0, 0, 0.0]]]]
             ),
-        ]
-    )
-
-    TESTS.append(
-        [
-            {"keys": "img", "radius": [1, 1, 2]},
-            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
-            np.array(
-                [[[0.0, 0.0, 0.0], [0.0, 0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [0.0, 0, 0.0], [0.0, 0.0, 0.0]]]
-            ),
-        ]
-    )
-
-    TESTS.append(
-        [
-            {"keys": "img", "radius": [1, 0, 1]},
-            {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
-            np.array([[[0.0, 1, 0.0], [0.0, 2, 0.0], [0.0, 3, 0.0]], [[0.0, 1, 0.0], [0.0, 2, 0.0], [0.0, 3, 0.0]]]),
         ]
     )
 
 
 class TestMedianSmoothd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        result = MedianSmoothd(**argments)(image)
+    def test_value(self, arguments, image, expected_data):
+        result = MedianSmoothd(**arguments)(image)
         assert_allclose(result["img"], expected_data, rtol=1e-4, type_test="tensor")
 
 

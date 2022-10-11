@@ -1142,6 +1142,8 @@ class MedianSmooth(Transform):
     Apply median filter to the input data based on specified `radius` parameter.
     A default value `radius=1` is provided for reference.
 
+    See also: :py:func:`monai.networks.layers.median_filter`
+
     Args:
         radius: if a list of values, must match the count of spatial dimensions of input data,
             and apply every value in the list to 1 spatial dimension. if only 1 value provided,
@@ -1156,15 +1158,11 @@ class MedianSmooth(Transform):
     def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
-        radius: Union[Sequence[torch.Tensor], torch.Tensor]
-        if isinstance(self.radius, Sequence):
-            radius = [torch.as_tensor(s, device=img_t.device) for s in self.radius]
-        else:
-            radius = torch.as_tensor(self.radius, device=img_t.device)
-        median_filter_instance = MedianFilter(radius)  # dim=img_t.ndim - 1
-        out_t: torch.Tensor = median_filter_instance(img_t.unsqueeze(0)).squeeze(0)
+        spatial_dims = img_t.ndim - 1
+        r = ensure_tuple_rep(self.radius, spatial_dims)
+        median_filter_instance = MedianFilter(r, spatial_dims=img_t.ndim - 1)
+        out_t: torch.Tensor = median_filter_instance(img_t)
         out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
-
         return out
 
 
