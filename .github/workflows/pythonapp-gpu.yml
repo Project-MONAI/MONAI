@@ -45,11 +45,11 @@ jobs:
             # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          - environment: PT112+CUDA117
+          - environment: PT112+CUDA118
             # we explicitly set pytorch to -h to avoid pip install error
-            # 22.08: 1.13.0a0+d321be6
+            # 22.09: 1.13.0a0+d0d6b1f
             pytorch: "-h"
-            base: "nvcr.io/nvidia/pytorch:22.08-py3"
+            base: "nvcr.io/nvidia/pytorch:22.09-py3"
           - environment: PT110+CUDA102
             pytorch: "torch==1.10.2 torchvision==0.11.3"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
@@ -64,7 +64,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: apt install
       run: |
-        # workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
         apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
         apt-get update
         apt-get install -y wget
