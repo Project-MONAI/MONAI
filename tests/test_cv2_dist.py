@@ -21,7 +21,7 @@ from tests.utils import skip_if_no_cuda
 
 
 def main_worker(rank, ngpus_per_node):
-    dist.init_process_group(backend='nccl', init_method='tcp://127.0.0.1:12345', world_size=ngpus_per_node, rank=rank)
+    dist.init_process_group(backend="nccl", init_method="tcp://127.0.0.1:12345", world_size=ngpus_per_node, rank=rank)
     # `benchmark = True` is not compatible with openCV in PyTorch 22.09 docker for multi-gpu training
     torch.backends.cudnn.benchmark = True
 
