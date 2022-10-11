@@ -59,23 +59,17 @@ class CalculateInstanceSegmentationMap(Transform):
     ) -> NdarrayOrTensor:
         """
         Args:
-            image: image where the lowest value points are labeled first. Shape must be [1, H, W].
+            image: image where the lowest value points are labeled first. Shape must be [1, H, W, [D]].
             mask: optional, the same shape as image. Only points at which mask == True will be labeled.
-            markers: The desired number of markers, or an array marking the basins with the values to be assigned
-                in the label matrix. Zero means not a marker. If None (no markers given), the local minima of the
-                image are used as markers. Shape must be [1, H, W].
+                If None (no mask given), it is a volume of all 1s.
+            markers: optional, the same shape as image. The desired number of markers, or an array marking 
+                the basins with the values to be assigned in the label matrix. Zero means not a marker. 
+                If None (no markers given), the local minima of the image are used as markers.
         """
 
         image = convert_to_numpy(image)
         markers = convert_to_numpy(markers)
         mask = convert_to_numpy(mask)
-
-        if image.shape[0] != 1 or image.ndim != 3:
-            raise ValueError(f"Input image should be with size of [1, H, W], but got {image.shape}")
-        if mask is not None and (mask.shape[0] != 1 or mask.ndim != 3):
-            raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
-        if markers is not None and (markers.shape[0] != 1 or markers.ndim != 3):
-            raise ValueError(f"Input markers should be with size of [1, H, W], but got {markers.shape}")
 
         instance_seg = watershed(image, markers=markers, mask=mask, connectivity=self.connectivity)
 
@@ -93,9 +87,6 @@ class GenerateMask(Transform):
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         dtype: target data content type to convert, default is np.uint8.
-
-    Raises:
-        ValueError: when the `prob_map` shape is not [C, H, W].
 
     """
 
@@ -124,12 +115,8 @@ class GenerateMask(Transform):
     def __call__(self, prob_map: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            prob_map: probability map of segmentation, shape must be [C, H, W]
+            prob_map: probability map of segmentation, shape must be [C, H, W, [D]]
         """
-        if len(prob_map.shape) != 3:
-            raise ValueError(
-                f"Suppose the input probability map should be with shape of [C, H, W], but got {prob_map.shape}"
-            )
 
         pred = self.activations(prob_map)
         pred = self.asdiscrete(pred)

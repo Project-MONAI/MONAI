@@ -108,10 +108,6 @@ class GenerateMaskd(MapTransform):
         dtype: target data content type to convert. Defaults to np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
 
-    Raises:
-            ValueError: when the `image` shape is not [1, H, W].
-            ValueError: when the `mask` shape is not [1, H, W].
-
     """
 
     backend = GenerateMask.backend
