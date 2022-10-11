@@ -439,8 +439,8 @@ def get_binary_kernel(window_size: Sequence[int]) -> torch.Tensor:
     r"""Create a binary kernel to extract the patches.
     The window size HxWxD will create a (H*W*D)xHxWxD kernel.
     """
-    prod=torch.prod(torch.tensor(window_size))
-    return torch.diag(torch.ones(prod)).reshape(prod,1,*window_size)
+    prod = torch.prod(torch.tensor(window_size))
+    return torch.diag(torch.ones(prod)).reshape(prod, 1, *window_size)
 
 
 def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: torch.Tensor = None) -> torch.Tensor:
@@ -462,8 +462,8 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
     original_shape = in_tensor.shape
     if len(original_shape) == 5 and original_shape[0] == 1:
         in_tensor = in_tensor.squeeze(0)
-    if not len(in_tensor.shape) == 4:
-        raise ValueError(f"Invalid in_tensor shape, we expect CxHxWxD. Got: {in_tensor.shape}")
+    if not len(in_tensor.shape) != len(kernel_size):
+        raise ValueError(f"in_tensor has dimension {len(in_tensor.shape)}, kernel dimension is {len(kernel_size)}")
 
     # prepare kernel
     if kernel is None:
@@ -472,7 +472,7 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
         kernel: torch.Tensor = kernel.to(in_tensor)
     c, *sshape = in_tensor.shape
     # map the local window to single vector
-    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding='same', stride=1)
+    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding="same", stride=1)
     features = features.view(c, -1, *sshape)  # Cx(K_h * K_w * K_d)xHxWxD
 
     # compute the median along the feature axis
@@ -503,10 +503,7 @@ class MedianFilter(nn.Module):
         super().__init__()
         self.radius: Sequence[int] = radius
         if issequenceiterable(radius):
-            if len(radius) != 3:
-                raise ValueError(f"Only 3 dimensional images are supported by {str(self.__class__)}")
-            else:
-                self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in radius]
+            self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in radius]
         else:
             self.window: Sequence[int] = [1 + 2 * deepcopy(radius) for _ in range(3)]
         self.kernel = get_binary_kernel(self.window).to(device)

@@ -21,6 +21,14 @@ TESTS = []
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
+            {"keys": "img", "radius": [0, 1]},
+            {"img": p(np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]))},
+            np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]]),
+        ]
+    )
+
+    TESTS.append(
+        [
             {"keys": "img", "radius": 1},
             {"img": p(np.array([[[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[4, 4, 4], [5, 5, 5], [6, 6, 6]]]))},
             np.array(
