@@ -163,7 +163,7 @@ class GenerateProbabilityMapd(MapTransform):
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
-    
+
     Raises:
         ValueError: when the `hover_map` has only one value.
         ValueError: when the `sobel gradient map` has only one value.
