@@ -23,7 +23,7 @@ jobs:
           - "PT17+CUDA102"
           - "PT18+CUDA102"
           - "PT18+CUDA112"
-          - "PT112+CUDA117"
+          - "PT112+CUDA118"
           - "PT110+CUDA102"
           - "PT112+CUDA102"
         include:
