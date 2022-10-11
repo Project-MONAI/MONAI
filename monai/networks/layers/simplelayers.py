@@ -443,12 +443,6 @@ def get_binary_kernel(window_size: Sequence[int]) -> torch.Tensor:
     return torch.diag(torch.ones(prod)).reshape(prod,1,*window_size)
 
 
-def _compute_zero_padding(kernel_size: Sequence[int]) -> List[int]:
-    r"""Utility function that computes zero padding tuple."""
-    computed: List[int] = [(k - 1) // 2 for k in kernel_size]
-    return computed
-
-
 def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: torch.Tensor = None) -> torch.Tensor:
     r"""Apply median filter to an image.
     Args:
@@ -471,8 +465,6 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
     if not len(in_tensor.shape) == 4:
         raise ValueError(f"Invalid in_tensor shape, we expect CxHxWxD. Got: {in_tensor.shape}")
 
-    padding: Sequence[int] = _compute_zero_padding(kernel_size)
-
     # prepare kernel
     if kernel is None:
         kernel: torch.Tensor = get_binary_kernel(kernel_size).to(in_tensor)
@@ -480,7 +472,7 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
         kernel: torch.Tensor = kernel.to(in_tensor)
     c, *sshape = in_tensor.shape
     # map the local window to single vector
-    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding=padding, stride=1)
+    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding='same', stride=1)
     features = features.view(c, -1, *sshape)  # Cx(K_h * K_w * K_d)xHxWxD
 
     # compute the median along the feature axis
