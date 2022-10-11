@@ -20,6 +20,7 @@ import threading
 import time
 import warnings
 from copy import copy, deepcopy
+from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
@@ -868,6 +869,126 @@ class CacheDataset(Dataset):
         data = self._cache[index_]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
+        for _transform in self.transform.transforms:
+            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                # only need to deep copy data on first non-deterministic transform
+                if not start_run:
+                    start_run = True
+                    if self.copy_cache:
+                        data = deepcopy(data)
+                data = apply_transform(_transform, data)
+        return data
+
+
+class SharedCacheDataset(Dataset):
+    """
+    Dataset with a shared cache among the processes. Particularly useful in DistributedDataParallel
+    multigpu run, when each process is able to read/write to the same shared cache list and
+    collectively cache the whole dataset in RAM.
+
+    Leading subset of non-random transforms are cached to accelerate the training data pipeline.
+    The transforms which are supposed to be cached must implement the `monai.transforms.Transform`
+    interface and should not be `Randomizable`. This dataset will cache the outcomes before the first
+    `Randomizable` `Transform` within a `Compose` instance.
+    So to improve the caching efficiency, please always put as many as possible non-random transforms
+    before the randomized ones when composing the chain of transforms.
+
+    For example, if the transform is a `Compose` of::
+
+        transforms = Compose([
+            LoadImaged(),
+            EnsureChannelFirstd(),
+            Spacingd(),
+            Orientationd(),
+            ScaleIntensityRanged(),
+            RandCropByPosNegLabeld(),
+            ToTensord()
+        ])
+
+    when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
+    this dataset will cache the results up to ``ScaleIntensityRanged``, as
+    all non-random transforms `LoadImaged`, `EnsureChannelFirstd`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+    can be cached. During training, the dataset will load the cached results and run
+    ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
+    and the outcome not cached.
+
+    Note:
+        Unlike `CacheDataset` class, `SharedCacheDataset` caches the full dataset in the shared memory (via ListProxy),
+        so each process within DistributedDataParallel can access items previously cached by other processes.
+        Data is cached on the fly, so there is no need to wait to cache all the data beforehand.
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Union[Sequence[Callable], Callable],
+        copy_cache: bool = False,
+        as_contiguous: bool = True,
+        cache_list: Optional[ListProxy] = None,
+        use_cache: bool = True,
+    ) -> None:
+        """
+        Args:
+            data: input data to load and transform to generate dataset for model.
+            transform: transforms to execute operations on input data.
+            copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
+                default to `False`.
+            as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+                it may help improve the performance of following logic.
+            cache_list: ListProxy instance created by a master process, to hold the shared memory list
+                It must be crated on the master process e.g. as cache_list = multiprocessing.Manager().list()
+                before spawning/forking the subprocesses. If no cache_list is provided, a local (per process)
+                non-shared cache list will be created (could be sufficient in single gpu environment)
+            use_cache: whether to use cache mechanism. Defaults to True.  When False, the logic becomes equivalent
+                to a Dataset super class (no caching)
+        """
+        if not isinstance(transform, Compose):
+            transform = Compose(transform)
+        super().__init__(data=data, transform=transform)
+        self.copy_cache = copy_cache
+        self.as_contiguous = as_contiguous
+
+        if cache_list is None and use_cache:
+            cache_list = torch.multiprocessing.Manager().list()
+
+        if cache_list is not None:
+            cache_list[:] = [None] * len(data)
+
+        self._cache = cache_list
+
+    def _load_cache_item(self, idx: int):
+        """
+        Args:
+            idx: the index of the input data sequence.
+        """
+        item = self.data[idx]
+        for _transform in self.transform.transforms:  # type:ignore
+            # execute all the deterministic transforms
+            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
+                break
+            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
+            item = apply_transform(_xform, item)
+        if self.as_contiguous:
+            item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
+        return item
+
+    def _transform(self, index: int):
+        """
+        Args:
+            index: the index of the input data sequence.
+        """
+        if self._cache is None:
+            return super()._transform(index=index)
+
+        data = self._cache[index]
+
+        # if data is not in cache yet, transform (non-randoms) and cache it
+        if data is None:
+            data = self._load_cache_item(index)
+            self._cache[index] = data
+
+        # proceed with randomizable transforms
+        start_run = False
         for _transform in self.transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
