@@ -191,6 +191,11 @@ class GenerateProbabilityMap(Transform):
 
         Return:
             Foreground probability map.
+        
+        Raises:
+            ValueError: when the `hover_map` has only one value.
+            ValueError: when the `sobel gradient map` has only one value.
+
         """
         if len(mask.shape) != 3 or len(hover_map.shape) != 3:
             raise ValueError(
@@ -204,10 +209,14 @@ class GenerateProbabilityMap(Transform):
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
 
+        if (max(hover_h) - min(hover_h)) == 0 or (max(hover_v) - min(hover_v)) == 0:
+            raise ValueError("Not a valid hover map, please check your input")
         hover_h = (hover_h - min(hover_h)) / (max(hover_h) - min(hover_h))
         hover_v = (hover_v - min(hover_v)) / (max(hover_v) - min(hover_v))
         sobelh = self.sobel_gradient(hover_h)[0, ...]
         sobelv = self.sobel_gradient(hover_v)[1, ...]
+        if (max(sobelh) - min(sobelh)) == 0 or (max(sobelv) - min(sobelv)) == 0:
+            raise ValueError("Not a valid sobel gradient map")
         sobelh = 1 - (sobelh - min(sobelh)) / (max(sobelh) - min(sobelh))
         sobelv = 1 - (sobelv - min(sobelv)) / (max(sobelv) - min(sobelv))
 
