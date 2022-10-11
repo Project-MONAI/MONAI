@@ -11,6 +11,8 @@
 
 from typing import Callable, Dict, Hashable, Mapping, Optional
 
+import numpy as np
+
 from monai.apps.pathology.transforms.post.array import (
     CalculateInstanceSegmentationMap,
     GenerateDistanceMap,
@@ -18,7 +20,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateMask,
     GenerateProbabilityMap,
 )
-from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform
 
 __all__ = [
@@ -55,6 +57,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
         connectivity: An array with the same number of dimensions as image whose non-zero elements indicate neighbors
             for connection. Following the scipy convention, default is a one-connected array of the dimension of the
             image.
+        dtype: target data content type to convert. Defaults to np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -71,12 +74,13 @@ class CalculateInstanceSegmentationMapd(MapTransform):
         mask_key: Optional[str] = 'mask',
         markers_key: Optional[str] = None,
         connectivity: Optional[int] = 1,
+        dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.markers_key = markers_key
-        self.transform = CalculateInstanceSegmentationMap(connectivity=connectivity)
+        self.transform = CalculateInstanceSegmentationMap(connectivity=connectivity, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -101,6 +105,7 @@ class GenerateMaskd(MapTransform):
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        dtype: target data content type to convert. Defaults to np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
 
     Raises:
@@ -120,6 +125,7 @@ class GenerateMaskd(MapTransform):
         threshold: Optional[float] = None,
         remove_small_objects: bool = True,
         min_size: int = 10,
+        dtype : DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -130,6 +136,7 @@ class GenerateMaskd(MapTransform):
             threshold=threshold,
             remove_small_objects=remove_small_objects,
             min_size=min_size,
+            dtype=dtype,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -154,6 +161,7 @@ class GenerateProbabilityMapd(MapTransform):
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -167,13 +175,14 @@ class GenerateProbabilityMapd(MapTransform):
         kernel_size: int = 21,
         min_size: int = 10,
         remove_small_objects: bool = True,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_map_key = hover_map_key
         self.prob_key_postfix = prob_key_postfix
         self.transform = GenerateProbabilityMap(
-            kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size
+            kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size, dtype=dtype
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
@@ -198,6 +207,7 @@ class GenerateDistanceMapd(MapTransform):
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
             callable functions for smoothing.
             For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
+        dtype: target data content type to convert, default is np.float32.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -209,12 +219,13 @@ class GenerateDistanceMapd(MapTransform):
         prob_key: str = "prob",
         dist_key_postfix: str = "dist",
         smooth_fn: Optional[Callable] = None,
+        dtype : DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
         self.dist_key_postfix = dist_key_postfix
-        self.transform = GenerateDistanceMap(smooth_fn=smooth_fn)
+        self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -241,6 +252,7 @@ class GenerateMarkersd(MapTransform):
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
+        dtype: target data content type to convert, default is np.uint8.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -256,6 +268,7 @@ class GenerateMarkersd(MapTransform):
         min_size: int = 10,
         remove_small_objects: bool = True,
         postprocess_fn: Optional[Callable] = None,
+        dtype : DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -267,6 +280,7 @@ class GenerateMarkersd(MapTransform):
             min_size=min_size,
             remove_small_objects=remove_small_objects,
             postprocess_fn=postprocess_fn,
+            dtype=dtype,
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:

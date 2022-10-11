@@ -14,7 +14,7 @@ from typing import Callable, Optional
 import numpy as np
 import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min
@@ -44,13 +44,15 @@ class CalculateInstanceSegmentationMap(Transform):
         connectivity: An array with the same number of dimensions as image whose non-zero elements indicate
             neighbors for connection. Following the scipy convention, default is a one-connected array of
             the dimension of the image.
+        dtype: target data content type to convert, default is np.uint8.
 
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, connectivity: Optional[int] = 1) -> None:
+    def __init__(self, connectivity: Optional[int] = 1, dtype: DtypeLike = np.uint8) -> None:
         self.connectivity = connectivity
+        self.dtype = dtype
 
     def __call__(  # type: ignore
         self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None, markers: Optional[NdarrayOrTensor] = None
@@ -77,7 +79,7 @@ class CalculateInstanceSegmentationMap(Transform):
 
         instance_seg = watershed(image, markers=markers, mask=mask, connectivity=self.connectivity)
 
-        return convert_to_dst_type(instance_seg, image, dtype=np.uint8)[0]
+        return convert_to_dst_type(instance_seg, image, dtype=self.dtype)[0]
 
 
 class GenerateMask(Transform):
@@ -90,6 +92,7 @@ class GenerateMask(Transform):
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        dtype: target data content type to convert, default is np.uint8.
 
     Raises:
         ValueError: when the `prob_map` shape is not [C, H, W].
@@ -105,10 +108,12 @@ class GenerateMask(Transform):
         threshold: Optional[float] = None,
         remove_small_objects: bool = True,
         min_size: int = 10,
+        dtype: DtypeLike = np.uint8,
     ) -> None:
         if sigmoid and threshold is None:
             raise ValueError("Threshold is needed when using sigmoid activation.")
 
+        self.dtype = dtype
         self.activations = Activations(sigmoid=sigmoid, softmax=softmax)
         self.asdiscrete = AsDiscrete(threshold=threshold, argmax=softmax)
         if remove_small_objects:
@@ -137,7 +142,7 @@ class GenerateMask(Transform):
             pred = self.remove_small_objects(pred)
         pred[pred > 0] = 1  # type: ignore
 
-        return convert_to_dst_type(pred, prob_map, dtype=np.uint8)[0]
+        return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
 
 
 class GenerateProbabilityMap(Transform):
@@ -149,6 +154,8 @@ class GenerateProbabilityMap(Transform):
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        dtype: target data content type to convert, default is np.float32.
+
 
     Raises:
         ValueError: when the `mask` shape is not [1, H, W].
@@ -158,7 +165,16 @@ class GenerateProbabilityMap(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, kernel_size: int = 21, min_size: int = 10, remove_small_objects: bool = True) -> None:
+    def __init__(
+        self, 
+        kernel_size: int = 21, 
+        min_size: int = 10, 
+        remove_small_objects: bool = True,
+        dtype : DtypeLike = np.float32
+    ) -> None:
+
+        self.dtype = dtype
+
         self.sobel_gradient = SobelGradients(kernel_size=kernel_size)
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
@@ -200,7 +216,7 @@ class GenerateProbabilityMap(Transform):
         overall = overall - (1 - mask)
         overall[overall < 0] = 0
 
-        return convert_to_dst_type(overall, mask, dtype=np.float32)[0]
+        return convert_to_dst_type(overall, mask, dtype=self.dtype)[0]
 
 
 class GenerateDistanceMap(Transform):
@@ -214,12 +230,14 @@ class GenerateDistanceMap(Transform):
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
             callable functions for smoothing.
             For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
+        dtype: target data content type to convert, default is np.float32.
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, smooth_fn: Optional[Callable] = None) -> None:
+    def __init__(self, smooth_fn: Optional[Callable] = None, dtype: DtypeLike = np.float32) -> None:
         self.smooth_fn = smooth_fn
+        self.dtype = dtype
 
     def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
@@ -239,7 +257,7 @@ class GenerateDistanceMap(Transform):
         if callable(self.smooth_fn):
             distance_map = self.smooth_fn(distance_map)
 
-        return convert_to_dst_type(-distance_map, mask, dtype=np.float32)[0]
+        return convert_to_dst_type(-distance_map, mask, dtype=self.dtype)[0]
 
 
 class GenerateMarkers(Transform):
@@ -256,6 +274,7 @@ class GenerateMarkers(Transform):
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         remove_small_objects: whether need to remove some objects in the marker. Defaults to True.
         postprocess_fn: execute additional post transformation on marker. Defaults to None.
+        dtype: target data content type to convert, default is np.uint8.
 
     """
 
@@ -268,10 +287,12 @@ class GenerateMarkers(Transform):
         min_size: int = 10,
         remove_small_objects: bool = True,
         postprocess_fn: Optional[Callable] = None,
+        dtype: DtypeLike = np.uint8
     ) -> None:
         self.threshold = threshold
         self.radius = radius
         self.postprocess_fn = postprocess_fn
+        self.dtype = dtype
 
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
@@ -304,4 +325,4 @@ class GenerateMarkers(Transform):
         if self.remove_small_objects:
             marker = self.remove_small_objects(marker[None])
 
-        return convert_to_dst_type(marker, mask, dtype=np.uint8)[0]
+        return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
