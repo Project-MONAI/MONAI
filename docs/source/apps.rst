@@ -215,6 +215,11 @@ Applications
 `Reconstruction`
 ----------------
 
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
 `ConvertToTensorComplex`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.convert_to_tensor_complex
