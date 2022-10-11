@@ -435,18 +435,12 @@ class HilbertTransform(nn.Module):
         return torch.as_tensor(ht, device=ht.device, dtype=ht.dtype)
 
 
-def get_binary_kernel3d(window_size: Sequence[int]) -> torch.Tensor:
+def get_binary_kernel(window_size: Sequence[int]) -> torch.Tensor:
     r"""Create a binary kernel to extract the patches.
-    If the window size is HxWxD will create a (H*W*D)xHxWxD kernel.
+    The window size HxWxD will create a (H*W*D)xHxWxD kernel.
     """
-    window_range: int = window_size[0] * window_size[1] * window_size[2]
-    kernel: torch.Tensor = torch.zeros(window_range, 1, window_size[0], window_size[1], window_size[2])
-    for i in range(window_size[0]):
-        for j in range(window_size[1]):
-            for k in range(window_size[2]):
-                l: int = i * window_size[2] * window_size[1] + j * window_size[2] + k
-                kernel[l, 0, i, j, k] += 1.0
-    return kernel
+    prod=torch.prod(torch.tensor(window_size))
+    return torch.diag(torch.ones(prod)).reshape(prod,1,*window_size)
 
 
 def _compute_zero_padding(kernel_size: Sequence[int]) -> List[int]:
@@ -481,14 +475,13 @@ def median_filter(in_tensor: torch.Tensor, kernel_size: Sequence[int], kernel: t
 
     # prepare kernel
     if kernel is None:
-        kernel: torch.Tensor = get_binary_kernel3d(kernel_size).to(in_tensor)
+        kernel: torch.Tensor = get_binary_kernel(kernel_size).to(in_tensor)
     else:
         kernel: torch.Tensor = kernel.to(in_tensor)
-    c, h, w, d = in_tensor.shape
-
+    c, *sshape = in_tensor.shape
     # map the local window to single vector
-    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, h, w, d), kernel, padding=padding, stride=1)
-    features = features.view(c, -1, h, w, d)  # Cx(K_h * K_w * K_d)xHxWxD
+    features: torch.Tensor = F.conv3d(in_tensor.reshape(c, 1, *sshape), kernel, padding=padding, stride=1)
+    features = features.view(c, -1, *sshape)  # Cx(K_h * K_w * K_d)xHxWxD
 
     # compute the median along the feature axis
     median: torch.Tensor = torch.median(features, dim=1)[0]
@@ -524,7 +517,7 @@ class MedianFilter(nn.Module):
                 self.window: Sequence[int] = [1 + 2 * deepcopy(r) for r in radius]
         else:
             self.window: Sequence[int] = [1 + 2 * deepcopy(radius) for _ in range(3)]
-        self.kernel = get_binary_kernel3d(self.window).to(device)
+        self.kernel = get_binary_kernel(self.window).to(device)
 
     def forward(self, in_tensor: torch.Tensor, number_of_passes=1) -> torch.Tensor:
         """
