@@ -16,7 +16,6 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNetDS
-from monai.utils import UpsampleMode
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
