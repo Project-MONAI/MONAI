@@ -17,61 +17,10 @@ import torch.nn as nn
 
 from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Act, Conv, Norm, split_args
+from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import UpsampleMode, has_option
 
 __all__ = ["SegResNetDS"]
-
-
-def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, channels: Optional[int] = 1):
-    """
-    Create a normalization layer, with affine==True (default)
-
-    .. code-block:: python
-
-        get_norm_layer("batch", spatial_dims=2) #2D batchnorm
-        get_norm_layer("instance", spatial_dims=3) #3D instancenorm
-        get_norm_layer(("group", {"affine": False, num_groups=8}), spatial_dims=3) #3D groupnorm without trainable affine parameters
-
-    Args:
-        name: a normalization type string or a tuple of type string and parameters.
-        spatial_dims: number of spatial dimensions of the input.
-        channels: number of input features/channels
-    """
-    if name == "":
-        return nn.Identity()
-    norm_name, norm_args = split_args(name)
-    norm_type = Norm[norm_name, spatial_dims]
-    kw_args = dict(norm_args)
-    if has_option(norm_type, "num_features") and "num_features" not in kw_args:
-        kw_args["num_features"] = channels
-    if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
-        kw_args["num_channels"] = channels
-    if has_option(norm_type, "affine") and "affine" not in kw_args:
-        kw_args["affine"] = True
-
-    return norm_type(**kw_args)
-
-
-def get_act_layer(name: Union[Tuple, str]):
-    """
-    Create an activation layer, with inplace==True (default)
-
-    .. code-block:: python
-
-        get_act_layer("relu") # ReLU
-        get_act_layer(("leakyrelu", {"negative_slope":0.01, inplace=True})) # LeakyReLU
-
-    Args:
-        name: an activation type string or a tuple of type string and parameters.
-    """
-    if name == "":
-        return nn.Identity()
-    act_name, act_args = split_args(name)
-    act_type = Act[act_name]
-    if has_option(act_type, "inplace") and "inplace" not in act_args:
-        act_args["inplace"] = True
-
-    return act_type(**act_args)
 
 
 def scales_for_resolution(resolution: Union[Tuple, List], n_stages: Optional[int] = None):
@@ -112,9 +61,9 @@ def aniso_kernel(scale: Union[Tuple, List]):
     return kernel_size, padding, scale
 
 
-class ResBlock(nn.Module):
+class SegResBlock(nn.Module):
     """
-    ResBlock residual network block used SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization
+    Residual network block used SegResNet based on `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
     """
 
@@ -171,9 +120,9 @@ class ResBlock(nn.Module):
         return x
 
 
-class ResEncoder(nn.Module):
+class SegResEncoder(nn.Module):
     """
-    ResEncoder based on the econder structure in `3D MRI brain tumor segmentation using autoencoder regularization
+    SegResEncoder based on the econder structure in `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
 
     Args:
@@ -184,7 +133,7 @@ class ResEncoder(nn.Module):
         act: activation type and arguments. Defaults to ``RELU``.
         norm: feature normalization type and arguments. Defaults to ``BATCH``.
         blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
-        return_levels: wheather to return a list of all features (at all levels),
+        return_levels: whether to return a list of all features (at all levels),
                        otherwise returns only the final output. Defaults to True.
         head_module: optional callable module to apply to the final features.
         anisotropic_scales: optional list of scale for each scale level.
@@ -208,6 +157,16 @@ class ResEncoder(nn.Module):
         if spatial_dims not in (1, 2, 3):
             raise ValueError("`spatial_dims` can only be 1, 2 or 3.")
 
+        # ensure normalization has affine trainable parameters (if not specified)
+        norm = split_args(norm)
+        if has_option(Norm[norm[0], spatial_dims], "affine"):
+            norm[1].setdefault("affine", True)
+
+        # ensure activation is inplace (if not specified)
+        act = split_args(act)
+        if has_option(Act[act[0], spatial_dims], "inplace"):
+            act[1].setdefault("inplace", True)
+
         filters = init_filters  # base number of features
 
         kernel_size, padding, _ = aniso_kernel(anisotropic_scales[0]) if anisotropic_scales else (3, 1, 1)
@@ -225,14 +184,11 @@ class ResEncoder(nn.Module):
             level = nn.ModuleDict()
 
             kernel_size, padding, stride = aniso_kernel(anisotropic_scales[i]) if anisotropic_scales else (3, 1, 2)
-            level["blocks"] = nn.Sequential(
-                *[
-                    ResBlock(
-                        spatial_dims=spatial_dims, in_channels=filters, kernel_size=kernel_size, norm=norm, act=act
-                    )
-                    for _ in range(blocks_down[i])
-                ]
-            )
+            blocks = [
+                SegResBlock(spatial_dims=spatial_dims, in_channels=filters, kernel_size=kernel_size, norm=norm, act=act)
+                for _ in range(blocks_down[i])
+            ]
+            level["blocks"] = nn.Sequential(*blocks)
 
             if i < len(blocks_down) - 1:
                 level["downsample"] = Conv[Conv.CONV, spatial_dims](
@@ -298,12 +254,11 @@ class SegResNetDS(nn.Module):
         norm: feature normalization type and arguments. Defaults to ``BATCH``.
         blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
         blocks_up: number of upsample blocks (optional).
-        encoder: a different encoder to use instead of the default (optional).
         dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
                  At dsdepth==1,only a single output is returned.
         preprocess: optional callable function to apply before the model's forward pass
         resolution: optional input image resolution. When provided, the nework will first use non-isotropic kernels to bring
-                    image spacing into an approximetely isotropic space.
+                    image spacing into an approximately isotropic space.
                     Otherwise, by default, the kernel size and downsampling is always isotropic.
 
     """
@@ -318,7 +273,6 @@ class SegResNetDS(nn.Module):
         norm: Union[Tuple, str] = "batch",
         blocks_down: tuple = (1, 2, 2, 4),
         blocks_up: Optional[Tuple] = None,
-        encoder: Optional[nn.Module] = None,
         dsdepth: int = 1,
         preprocess: Optional[Union[nn.Module, Callable]] = None,
         upsample_mode: Union[UpsampleMode, str] = "deconv",
@@ -341,25 +295,32 @@ class SegResNetDS(nn.Module):
         self.resolution = resolution
         self.preprocess = preprocess
 
+        # ensure normalization had affine trainable parameters (if not specified)
+        norm = split_args(norm)
+        if has_option(Norm[norm[0], spatial_dims], "affine"):
+            norm[1].setdefault("affine", True)
+
+        # ensure activation is inplace (if not specified)
+        act = split_args(act)
+        if has_option(Act[act[0], spatial_dims], "inplace"):
+            act[1].setdefault("inplace", True)
+
         anisotropic_scales = None
         if resolution:
             anisotropic_scales = scales_for_resolution(resolution, n_stages=len(blocks_down))
             print("Using anisotropic scales", anisotropic_scales)
         self.anisotropic_scales = anisotropic_scales
 
-        if encoder is None:
-            self.encoder = ResEncoder(
-                spatial_dims=spatial_dims,
-                init_filters=init_filters,
-                in_channels=in_channels,
-                act=act,
-                norm=norm,
-                blocks_down=blocks_down,
-                return_levels=True,
-                anisotropic_scales=anisotropic_scales,
-            )  # type: ignore
-        else:
-            self.encoder = encoder  # custom encoder
+        self.encoder = SegResEncoder(
+            spatial_dims=spatial_dims,
+            init_filters=init_filters,
+            in_channels=in_channels,
+            act=act,
+            norm=norm,
+            blocks_down=blocks_down,
+            return_levels=True,
+            anisotropic_scales=anisotropic_scales,
+        )
 
         n_up = len(blocks_down) - 1
         if blocks_up is None:
@@ -387,14 +348,11 @@ class SegResNetDS(nn.Module):
                 bias=False,
                 align_corners=False,
             )
-            level["blocks"] = nn.Sequential(
-                *[
-                    ResBlock(
-                        spatial_dims=spatial_dims, in_channels=filters, kernel_size=kernel_size, norm=norm, act=act
-                    )
-                    for _ in range(blocks_up[i])
-                ]
-            )
+            blocks = [
+                SegResBlock(spatial_dims=spatial_dims, in_channels=filters, kernel_size=kernel_size, norm=norm, act=act)
+                for _ in range(blocks_up[i])
+            ]
+            level["blocks"] = nn.Sequential(*blocks)
 
             if len(blocks_up) - i <= dsdepth:  # deep supervision heads
                 level["head"] = Conv[Conv.CONV, spatial_dims](
