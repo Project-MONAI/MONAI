@@ -5,6 +5,35 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2022-10-19
+### Fixes
+* DiceCELoss for multichannel targets
+* Auto3DSeg DataAnalyzer out-of-memory error and other minor issues
+* An optional flag issue in the retinanet detector
+* An issue with output offset for Spacing
+* A `LoadImage` issue when `track_meta` is `False`
+* 1D data output error in `VarAutoEncoder`
+
+### Added
+* Flexible min/max pixdim options for Spacing
+* Upsample mode `deconvgroup` and optional kernel sizes
+* Docstrings for gradient-based saliency maps
+* Occlusion sensitivity to use sliding window inference
+* Enhanced Gaussian window for sliding window inference
+* Multi-GPU support to MonaiAlgo
+* MetaTensor support for `OneOf`
+* Add a file check for bundle logging config
+* Additional content and an authentication token option for bundle info API
+* An anti-aliasing option for `Resized`
+
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.09-py3` from `nvcr.io/nvidia/pytorch:22.08-py3`
+* Replace `None` type metadata content with `"none"` for `collate_fn` compatibility
+* HoVerNet Mode and Branch to independent StrEnum
+* Automatically infer device from the first item in random elastic deformation dict
+* Add channel dim in `ComputeHoVerMaps` and `ComputeHoVerMapsd`
+* Remove batch dim in `SobelGradients` and `SobelGradientsd`
+
 ## [1.0.0] - 2022-09-16
 ### Added
 * `monai.auto3dseg` base APIs and `monai.apps.auto3dseg` components for automated machine learning (AutoML) workflow
@@ -608,8 +637,9 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...HEAD
-[1.0.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...1.0.1
+[1.0.0]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...1.0.0
 [0.9.1]: https://github.com/Project-MONAI/MONAI/compare/0.9.0...0.9.1
 [0.9.0]: https://github.com/Project-MONAI/MONAI/compare/0.8.1...0.9.0
 [0.8.1]: https://github.com/Project-MONAI/MONAI/compare/0.8.0...0.8.1
