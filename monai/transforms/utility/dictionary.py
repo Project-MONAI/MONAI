@@ -44,6 +44,7 @@ from monai.transforms.utility.array import (
     FgBgToIndices,
     Identity,
     IntensityStats,
+    KernelTransform,
     LabelToMask,
     Lambda,
     MapLabelValue,
@@ -118,6 +119,7 @@ __all__ = [
     "IntensityStatsd",
     "IntensityStatsD",
     "IntensityStatsDict",
+    "KernelTransformd",
     "LabelToMaskD",
     "LabelToMaskDict",
     "LabelToMaskd",
@@ -130,6 +132,7 @@ __all__ = [
     "RandCuCIMd",
     "RandCuCIMD",
     "RandCuCIMDict",
+    "RandKernelTransformd",
     "RandLambdaD",
     "RandLambdaDict",
     "RandLambdad",
@@ -1657,6 +1660,88 @@ class AddCoordinateChannelsd(MapTransform):
         return d
 
 
+class KernelTransformd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.KernelTransform`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        kernel:
+            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplacian`, `elliptical`, `sobel_{w,h,d}``
+        kernel_size:
+            A single integer value specifying the size of the quadratic or cubic kernel.
+            Computational complexity increases exponentially with kernel_size, which
+            should be considered when choosing the kernel size.
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    backend = KernelTransform.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel: Union[str, NdarrayOrTensor],
+        kernel_size: Optional[int] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.filter = KernelTransform(kernel, kernel_size)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.filter(d[key])
+        return d
+
+
+class RandKernelTransformd(MapTransform, RandomizableTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandomFilterKernel`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        kernel:
+            A string specifying the kernel or a custom kernel as `torch.Tenor` or `np.ndarray`.
+            Available options are: `mean`, `laplacian`, `elliptical`, `sobel_{w,h,d}``
+        kernel_size:
+            A single integer value specifying the size of the quadratic or cubic kernel.
+            Computational complexity increases exponentially with kernel_size, which
+            should be considered when choosing the kernel size.
+        prob:
+            Probability the transform is applied to the data
+        allow_missing_keys:
+            Don't raise exception if key is missing.
+    """
+
+    backend = KernelTransform.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel: Union[str, NdarrayOrTensor],
+        kernel_size: Optional[int] = None,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.filter = KernelTransform(kernel, kernel_size)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = self.filter(d[key])
+        return d
+
+
+RandKernelTransformD = RandKernelTransformDict = RandKernelTransformd
+KernelTransformD = KernelTransformDict = KernelTransformd
 IdentityD = IdentityDict = Identityd
 AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
