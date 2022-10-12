@@ -131,8 +131,8 @@ class GenerateProbabilityMap(Transform):
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 21.
-        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
+        remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
         dtype: target data content type to convert, default is np.float32.
 
 
