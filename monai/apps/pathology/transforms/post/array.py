@@ -9,21 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
-import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.croppad.array import BoundingRect
-from monai.transforms.post.array import Activations, AsDiscrete
-from monai.apps.pathology.transforms.post.array import (
-    Watershed, 
-    GenerateProbabilityMap, 
-    GenerateMask, 
-    GenerateMarkers, 
-    GenerateDistanceMap,
-)
 from monai.transforms.transform import Transform
 from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
@@ -221,18 +210,18 @@ class GenerateInstanceContour(Transform):
     Args:
         points_num: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
-        level: optional. Value along which to find contours in the array. By default, the level is set 
-            to (max(image) + min(image)) / 2. 
+        level: optional. Value along which to find contours in the array. By default, the level is set
+            to (max(image) + min(image)) / 2.
 
     """
     def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
         self.level = level
         self.points_num = points_num
-    
+
     def __call__(self, instance_map, offset):
         """
         Args:
-            
+
         """
         inst_contour_cv = find_contours(instance_map, level=self.level)
         generate_contour = GenerateSuccinctContour(instance_map.shape[0], instance_map.shape[1])
@@ -270,7 +259,7 @@ class GenerateInstanceCentroid(Transform):
 class GenerateInstanceType(Transform):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def __call__(self, instance_type_map, instance_seg_map, instance_id):
         instance_map = instance_map == instance_id
         inst_type = instance_type_map[instance_id]  # type: ignore
