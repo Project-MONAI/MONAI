@@ -16,8 +16,14 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms.croppad.array import BoundingRect
-
-from monai.transforms.post.array import CalcualteInstanceSegmentationMap, Activations, AsDiscrete
+from monai.transforms.post.array import Activations, AsDiscrete
+from monai.apps.pathology.transforms.post.array import (
+    Watershed, 
+    GenerateProbabilityMap, 
+    GenerateMask, 
+    GenerateMarkers, 
+    GenerateDistanceMap,
+)
 from monai.transforms.transform import Transform
 from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
@@ -207,121 +213,75 @@ class GenerateSuccinctContour(Transform):
         return np.flip(convert_to_numpy(pixels, dtype=np.int32))  # type: ignore
 
 
-class PostProcessHoVerNetOutput(Transform):
+class GenerateInstanceContour(Transform):
     """
-    Post processing script for image tiles. It assumes network has three branches, with a segmentation branch that returns `np_pred`,
-    a hover map branch that returns `hv_pred` and an optional classification branch that returns `nc_pred`. After this tranform, it
-    will return pixel-wise nuclear instance segmentation prediction and a instance-level information dictionary.
+    Generate contour for each instance. Use `GenerateSuccinctContour` to only include
+    the pixels to which lines need to be drawn
 
     Args:
-        output_classes: number of types considered at output of NC branch.
-        return_centroids: whether to generate coords for each nucleus instance.
-            Defaults to True.
-        threshold_overall: threshold the float values of overall gradient map to int 0 or 1 with specified theashold.
-            Defaults to 0.4.
-        min_size: objects smaller than this size are removed. Defaults to 10.
-        sigma: std. could be a single value, or `spatial_dims` number of values. Defaults to 0.4.
-        kernel_size: the size of the Sobel kernel. Defaults to 21.
-        radius: the radius of the disk-shaped footprint. Defaults to 2.
+        points_num: assumed that the created contour does not form a contour if it does not contain more points
+            than the specified value. Defaults to 3.
+        level: optional. Value along which to find contours in the array. By default, the level is set 
+            to (max(image) + min(image)) / 2. 
+
     """
-
-    backend = [TransformBackends.NUMPY]
-
-    def __init__(
-        self,
-        output_classes: Optional[int] = None,
-        return_centroids: bool = True,
-        threshold_overall: float = 0.4,
-        min_size: int = 10,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.4,
-        kernel_size: int = 21,
-        radius: int = 2,
-    ) -> None:
-        self.output_classes = output_classes
-        self.return_centroids = return_centroids
-
-        self.activation = Activations(softmax=True)
-        self.asdiscrete = AsDiscrete(argmax=True)
-        self.get_bbox = BoundingRect()
-        self.get_instance_level_seg_map = CalcualteInstanceSegmentationMap(
-            threshold_overall=threshold_overall, min_size=min_size, sigma=sigma, kernel_size=kernel_size, radius=radius
-        )
-
-    def __call__(self, seg_pred: NdarrayOrTensor, hover_pred: NdarrayOrTensor, type_pred: Optional[NdarrayOrTensor] = None) -> Tuple[NdarrayOrTensor, Dict]:  # type: ignore
+    def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
+        self.level = level
+        self.points_num = points_num
+    
+    def __call__(self, instance_map, offset):
         """
         Args:
-            seg_pred: segmentation branch output with shape [2, H, W].
-            hover_pred: hover map branch output with shape [2, H, W].
-            type_pred: classification branch output with shape [B, H, W]. Defaults to None.
-        Returns:
-            pred_inst: pixel-wise nuclear instance segmentation prediction.
-            inst_info_dict: a instance-level information dictionary containing bounding_box, centroid and contour.
-                If output_classes is not None, the dictionary will also contain pixel-wise nuclear type prediction.
+            
         """
-        seg_pred = self.activation(seg_pred)
-        seg_pred = self.asdiscrete(seg_pred)
-        seg_pred = convert_to_numpy(seg_pred)
-        hover_pred = convert_to_numpy(hover_pred)
-        if type_pred is not None:
-            type_pred = self.activation(type_pred)
-            type_pred = self.asdiscrete(type_pred)
-            type_pred = convert_to_numpy(type_pred)
+        inst_contour_cv = find_contours(instance_map, level=self.level)
+        generate_contour = GenerateSuccinctContour(instance_map.shape[0], instance_map.shape[1])
+        inst_contour = generate_contour(inst_contour_cv)
 
-        pred_inst = self.get_instance_level_seg_map(seg_pred, hover_pred)
+        # < `self.points_num` points don't make a contour, so skip, likely artifact too
+        # as the contours obtained via approximation => too small or sthg
+        if inst_contour.shape[0] < self.points_num:
+            return False
+        elif len(inst_contour.shape) != 2:
+            return False  # ! check for tricky shape
+        else:
+            inst_contour[:, 0] += offset[0]  # X
+            inst_contour[:, 1] += offset[1]  # Y
 
-        inst_info_dict = None
-        if self.return_centroids or self.output_classes is not None:
-            inst_id_list = np.unique(pred_inst)[1:]  # exlcude background
-            inst_info_dict = {}
-            for inst_id in inst_id_list:
-                inst_map = pred_inst == inst_id
-                inst_bbox = self.get_bbox(inst_map)
-                inst_map = inst_map[0, inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
-                inst_moment = moments(inst_map, order=3)
+            return inst_contour
 
-                inst_contour_cv = find_contours(inst_map, level=0.5)
-                generate_contour = GenerateSuccinctContour(inst_map.shape[0], inst_map.shape[1])
-                inst_contour = generate_contour(inst_contour_cv)
 
-                # < 3 points don't make a contour, so skip, likely artifact too
-                # as the contours obtained via approximation => too small or sthg
-                if inst_contour.shape[0] < 3:
-                    continue
-                if len(inst_contour.shape) != 2:
-                    continue  # ! check for tricky shape
+class GenerateInstanceCentroid(Transform):
+    def __init__(self) -> None:
+        pass
 
-                inst_centroid = np.array(
-                    [(inst_moment[0, 1] / inst_moment[0, 0]), (inst_moment[1, 0] / inst_moment[0, 0])]
-                )
-                inst_contour[:, 0] += inst_bbox[0][2]  # X
-                inst_contour[:, 1] += inst_bbox[0][0]  # Y
-                inst_centroid[0] += inst_bbox[0][2]  # X
-                inst_centroid[1] += inst_bbox[0][0]  # Y
-                inst_info_dict[inst_id] = {  # inst_id should start at 1
-                    "bounding_box": inst_bbox,
-                    "centroid": inst_centroid,
-                    "contour": inst_contour,
-                    "type_probability": None,
-                    "type": None,
-                }
+    def __call__(self, pred_instance_map, offset) -> Any:
+        inst_moment = moments(pred_instance_map, order=3)
 
-        if self.output_classes is not None:
-            for inst_id in list(inst_info_dict.keys()):
-                rmin, rmax, cmin, cmax = (inst_info_dict[inst_id]["bounding_box"]).flatten()  # type: ignore
-                inst_map_crop = pred_inst[0, rmin:rmax, cmin:cmax]
-                inst_type_crop = type_pred[0, rmin:rmax, cmin:cmax]  # type: ignore
-                inst_map_crop = inst_map_crop == inst_id
-                inst_type = inst_type_crop[inst_map_crop]  # type: ignore
-                type_list, type_pixels = np.unique(inst_type, return_counts=True)
-                type_list = list(zip(type_list, type_pixels))
-                type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
-                inst_type = type_list[0][0]
-                if inst_type == 0:  # ! pick the 2nd most dominant if exist
-                    if len(type_list) > 1:
-                        inst_type = type_list[1][0]
-                type_dict = {v[0]: v[1] for v in type_list}
-                type_prob = type_dict[inst_type] / (np.sum(inst_map_crop) + 1.0e-6)
-                inst_info_dict[inst_id]["type"] = int(inst_type)  # type: ignore
-                inst_info_dict[inst_id]["type_probability"] = float(type_prob)  # type: ignore
+        inst_centroid = np.array(
+            [(inst_moment[0, 1] / inst_moment[0, 0]), (inst_moment[1, 0] / inst_moment[0, 0])]
+        )
+        inst_centroid[0] += offset[0]  # X
+        inst_centroid[1] += offset[1]  # Y
 
-        return (pred_inst, inst_info_dict)
+        return inst_centroid
+
+
+class GenerateInstanceType(Transform):
+    def __init__(self) -> None:
+        super().__init__()
+    
+    def __call__(self, instance_type_map, instance_seg_map, instance_id):
+        instance_map = instance_map == instance_id
+        inst_type = instance_type_map[instance_id]  # type: ignore
+        type_list, type_pixels = np.unique(inst_type, return_counts=True)
+        type_list = list(zip(type_list, type_pixels))
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
+        inst_type = type_list[0][0]
+        if inst_type == 0:  # ! pick the 2nd most dominant if exist
+            if len(type_list) > 1:
+                inst_type = type_list[1][0]
+        type_dict = {v[0]: v[1] for v in type_list}
+        type_prob = type_dict[inst_type] / (np.sum(instance_id) + 1.0e-6)
+
+        return int(inst_type), float(type_prob)
