@@ -169,6 +169,7 @@ class UpsampleMode(StrEnum):
     """
 
     DECONV = "deconv"
+    DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
 
