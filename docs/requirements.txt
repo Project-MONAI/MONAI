@@ -33,3 +33,4 @@ pydicom
 h5py
 nni
 optuna
+opencv-python-headless

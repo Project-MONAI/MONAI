@@ -106,7 +106,9 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
-from .video_dataset import CameraDataset, VideoDataset, VideoFileDataset
+
+# FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/5291
+# from .video_dataset import CameraDataset, VideoDataset, VideoFileDataset
 from .wsi_datasets import MaskedPatchWSIDataset, PatchWSIDataset, SlidingPatchWSIDataset
 from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, TiffFileWSIReader, WSIReader
 
