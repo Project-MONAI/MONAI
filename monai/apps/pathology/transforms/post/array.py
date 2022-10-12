@@ -258,9 +258,10 @@ class GenerateDistanceMap(Transform):
 
 class GenerateMarkers(Transform):
     """
-    Generate markers used in `watershed`. Generally, The maximum of this distance (i.e., the minimum of the opposite of
-    the distance) are chosen as markers and the flooding of basins from such markers separates the two instances along
-    a watershed line. Here is the implementation from HoVerNet papar.
+    Generate markers to be used in `watershed`. The watershed algorithm treats pixels values as a local topography
+    (elevation). The algorithm floods basins from the markers until basins attributed to different markers meet on
+    watershed lines. Generally, markers are chosen as local minima of the image, from which basins are flooded. 
+    Here is the implementation from HoVerNet papar.
     For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
     Args:
