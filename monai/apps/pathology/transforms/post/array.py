@@ -121,8 +121,7 @@ class GenerateMask(Transform):
         pred = self.activations(prob_map)
         pred = self.asdiscrete(pred)
 
-        if isinstance(pred, torch.Tensor):
-            pred = pred.detach().cpu()
+        pred = convert_to_numpy(pred)
 
         pred = label(pred)[0]
         if self.remove_small_objects:
@@ -318,8 +317,7 @@ class GenerateMarkers(Transform):
         if self.postprocess_fn:
             marker = self.postprocess_fn(marker)
 
-        if isinstance(marker, torch.Tensor):
-            marker = marker.detach().cpu()
+        marker = convert_to_numpy(marker)
 
         marker = opening(marker.squeeze(), disk(self.radius))
         marker = label(marker)[0]

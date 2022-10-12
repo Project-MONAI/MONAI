@@ -99,7 +99,7 @@ class GenerateMaskd(MapTransform):
 
     Args:
         keys: keys of the corresponding items to be transformed.
-        mask_key_postfix: the mask will be written to the value of `{key}_{mask_key_postfix}`.
+        mask_key: the mask will be written to the value of `{mask_key}`.
         softmax: if True, apply a softmax function to the prediction.
         sigmoid: if True, apply a sigmoid function to the prediction.
         threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
@@ -115,7 +115,7 @@ class GenerateMaskd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mask_key_postfix: str = "mask",
+        mask_key: str = "mask",
         softmax: bool = True,
         sigmoid: bool = False,
         threshold: Optional[float] = None,
@@ -125,7 +125,7 @@ class GenerateMaskd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.mask_key_postfix = mask_key_postfix
+        self.mask_key = mask_key
         self.transform = GenerateMask(
             softmax=softmax,
             sigmoid=sigmoid,
@@ -139,7 +139,7 @@ class GenerateMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             mask = self.transform(d[key])
-            key_to_add = f"{key}_{self.mask_key_postfix}"
+            key_to_add = f"{self.mask_key}"
             if key_to_add in d:
                 raise KeyError(f"Mask with key {key_to_add} already exists.")
             d[key_to_add] = mask
@@ -204,7 +204,7 @@ class GenerateDistanceMapd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
         prob_key: keys of the foreground probability map used to generate distance map.
-        dist_key_postfix: the distance map will be written to the value of `{key}_{dist_key_postfix}`.
+        dist_key: the distance map will be written to the value of `{dist_key}`.
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
             callable functions for smoothing.
             For example, if you want apply gaussian smooth, you can specify `smooth_fn = GaussianSmooth()`
@@ -218,21 +218,21 @@ class GenerateDistanceMapd(MapTransform):
         self,
         keys: KeysCollection,
         prob_key: str = "prob",
-        dist_key_postfix: str = "dist",
+        dist_key: str = "dist",
         smooth_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
-        self.dist_key_postfix = dist_key_postfix
+        self.dist_key = dist_key
         self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             distance_map = self.transform(d[key], d[self.prob_key])
-            key_to_add = f"{key}_{self.dist_key_postfix}"
+            key_to_add = f"{self.dist_key}"
             if key_to_add in d:
                 raise KeyError(f"Distance map with key {key_to_add} already exists.")
             d[key_to_add] = distance_map
@@ -246,7 +246,7 @@ class GenerateMarkersd(MapTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
         prob_key: keys of the foreground probability map used to generate markers.
-        markers_key_postfix: the markers will be written to the value of `{key}_{markers_key_postfix}`.
+        markers_key: the markers will be written to the value of `{markers_key}`.
         threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
@@ -263,7 +263,7 @@ class GenerateMarkersd(MapTransform):
         self,
         keys: KeysCollection,
         prob_key: str = "prob",
-        markers_key_postfix: str = "markers",
+        markers_key: str = "markers",
         threshold: float = 0.4,
         radius: int = 2,
         min_size: int = 10,
@@ -274,7 +274,7 @@ class GenerateMarkersd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
-        self.markers_key_postfix = markers_key_postfix
+        self.markers_key = markers_key
         self.transform = GenerateMarkers(
             threshold=threshold,
             radius=radius,
@@ -288,7 +288,7 @@ class GenerateMarkersd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             markers = self.transform(d[key], d[self.prob_key])
-            key_to_add = f"{key}_{self.markers_key_postfix}"
+            key_to_add = f"{self.markers_key}"
             if key_to_add in d:
                 raise KeyError(f"Markers with key {key_to_add} already exists.")
             d[key_to_add] = markers

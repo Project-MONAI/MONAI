@@ -37,7 +37,7 @@ for p in TEST_NDARRAYS:
 
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "prob_key": "prob", "markers_key_postfix": "old_markers"},
+            {"keys": "mask", "prob_key": "prob", "markers_key": "old_markers"},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             KeyError,
@@ -56,12 +56,12 @@ class TestGenerateMarkersd(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):
-            GenerateMarkersd(**argments)({"mask": mask, "prob": probmap, "mask_old_markers": 1})
+            GenerateMarkersd(**argments)({"mask": mask, "prob": probmap, "old_markers": 1})
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, probmap, expected_shape):
         result = GenerateMarkersd(**argments)({"mask": mask, "prob": probmap})
-        self.assertEqual(result["mask_markers"].shape, expected_shape)
+        self.assertEqual(result["markers"].shape, expected_shape)
 
 
 if __name__ == "__main__":

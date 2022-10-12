@@ -55,7 +55,7 @@ class TestGenerateDistanceMapd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, probmap, expected_shape):
         result = GenerateDistanceMapd(**argments)({"mask": mask, "prob": probmap})
-        self.assertEqual(result["mask_dist"].shape, expected_shape)
+        self.assertEqual(result["dist"].shape, expected_shape)
 
 
 if __name__ == "__main__":

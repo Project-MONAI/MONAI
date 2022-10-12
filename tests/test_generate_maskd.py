@@ -41,7 +41,7 @@ for p in TEST_NDARRAYS:
         [
             {
                 "keys": "img",
-                "mask_key_postfix": "mask",
+                "mask_key": "mask",
                 "softmax": True,
                 "sigmoid": False,
                 "threshold": None,
@@ -63,7 +63,7 @@ for p in TEST_NDARRAYS:
         [
             {
                 "keys": "img",
-                "mask_key_postfix": "mask",
+                "mask_key": "mask",
                 "softmax": False,
                 "sigmoid": True,
                 "threshold": 0.5,
@@ -87,11 +87,11 @@ class TestGenerateMask(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value2(self, argments, image, expected_shape, expected_value):
         result = GenerateMaskd(**argments)({"img": image})
-        self.assertEqual(result["img_mask"].shape, expected_shape)
+        self.assertEqual(result["mask"].shape, expected_shape)
 
-        if isinstance(result["img_mask"], torch.Tensor):
-            result["img_mask"] = result["img_mask"].cpu().numpy()
-        self.assertEqual(np.unique(result["img_mask"]).tolist(), expected_value)
+        if isinstance(result["mask"], torch.Tensor):
+            result["mask"] = result["mask"].cpu().numpy()
+        self.assertEqual(np.unique(result["mask"]).tolist(), expected_value)
 
 
 if __name__ == "__main__":

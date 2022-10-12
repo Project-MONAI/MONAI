@@ -14,47 +14,53 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import Watershedd
+from monai.apps.pathology.transforms.post.dictionary import (
+    Watershedd,
+    GenerateProbabilityMapd, 
+    GenerateMaskd, 
+    GenerateMarkersd, 
+    GenerateDistanceMapd,
+)
+from monai.transforms import Compose
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
+_, has_scipy = optional_import("scipy", "1.8.1", min_version)
 
 TESTS = []
-params = {"keys": "image", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
+params = {"keys": "dist", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
 for p in TEST_NDARRAYS:
     image = p(np.random.rand(1, 10, 10))
-    mask = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
-    marker = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
+    hover_map = p(np.random.rand(2, 10, 10))
 
-    TESTS.append([params, image, mask, marker, (1, 10, 10)])
+    TESTS.append([params, image, hover_map, (1, 10, 10)])
+
     params.update({"markers_key": None})
-    TESTS.append([params, image, mask, marker, (1, 10, 10)])
+    TESTS.append([params, image, hover_map, (1, 10, 10)])
 
-ERROR_TESTS = []
-for p in TEST_NDARRAYS:
-    image = p(np.random.rand(3, 10, 10))
-    mask = p((np.random.rand(2, 10, 10) > 0.5).astype(np.uint8))
-    marker = p((np.random.rand(2, 10, 10) > 0.5).astype(np.uint8))
-
-    ERROR_TESTS.append([params, image, mask, marker])
+    params.update({"mask_key": None, "markers_key": None})
+    TESTS.append([params, image, hover_map, (1, 10, 10)])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestWatershedd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_output(self, args, image, mask, markers, expected_shape):
-        data = {"image": image, "mask": mask, "markers": markers}
-        output = Watershedd(**args)(data)
+    def test_output(self, args, image, hover_map, expected_shape):
+        data = {"output": image, "hover_map": hover_map}
 
-        self.assertTupleEqual(output["image"].shape, expected_shape)
+        trans = Compose([
+            GenerateMaskd(keys='output'),
+            GenerateProbabilityMapd(keys='mask', hover_map_key='hover_map'),
+            GenerateDistanceMapd(keys='mask', prob_key='mask_prob'),
+            GenerateMarkersd(keys='mask', prob_key='mask_prob'),
+            Watershedd(**args)
+        ])
 
-    @parameterized.expand(ERROR_TESTS)
-    def test_value_error(self, args, image, mask, markers):
-        data = {"image": image, "mask": mask, "markers": markers}
-        calculate_instance_seg = Watershedd(**args)
-        with self.assertRaises(ValueError):
-            calculate_instance_seg(data)
+        output = trans(data)
+        self.assertTupleEqual(output["dist"].shape, expected_shape)
+
 
 
 if __name__ == "__main__":
