@@ -21,7 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option
+from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after
 
 
 class DiceLoss(_Loss):
@@ -692,6 +692,7 @@ class DiceCELoss(_Loss):
             raise ValueError("lambda_ce should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
+        self.old_pt_ver = not pytorch_after(1,10)
 
     def ce(self, input: torch.Tensor, target: torch.Tensor):
         """
@@ -704,12 +705,10 @@ class DiceCELoss(_Loss):
         if n_pred_ch != n_target_ch and n_target_ch == 1:
             target = torch.squeeze(target, dim=1)
             target = target.long()
-        else:
-            v = torch.__version__.split(".")[:2]
-            if int(v[0]) < 1 or (int(v[0]) == 1 and int(v[1]) < 10):
-                # in older pytorch, we cannot handle multichannel targets
-                warnings.warn("Multichannel target is not supported, using argmax to convert to a single channel.")
-                target = torch.argmax(target, dim=1)
+        elif self.old_pt_ver:
+            warnings.warn(f"Multichannel targets are not supported in this older Pytorch version {torch.__version__}. "
+                           "Using argmax (as a workaround) to convert target to a single channel.")
+            target = torch.argmax(target, dim=1)
 
         return self.cross_entropy(input, target)
 
