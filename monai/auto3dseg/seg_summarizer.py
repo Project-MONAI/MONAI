@@ -104,7 +104,7 @@ class SegSummarizer(Compose):
 
             .. code-block:: python
 
-                from monai.auto3dseg.analyzer import Analyzer
+                from monai.auto3dseg import Analyzer
                 from monai.auto3dseg.utils import concat_val_to_np
                 from monai.auto3dseg.analyzer_engine import SegSummarizer
 
