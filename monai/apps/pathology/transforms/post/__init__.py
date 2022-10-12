@@ -9,9 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import CalculateInstanceSegmentationMap
+from .array import Watershed
 from .dictionary import (
-    CalculateInstanceSegmentationMapd,
-    CalculateInstanceSegmentationMapD,
-    CalculateInstanceSegmentationMapDict,
+    Watershedd,
+    WatershedD,
+    WatershedDict,
 )

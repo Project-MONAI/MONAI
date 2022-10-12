@@ -14,21 +14,21 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import CalculateInstanceSegmentationMap
+from monai.apps.pathology.transforms.post.dictionary import Watershedd
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 
-np.random.RandomState(123)
-
 TESTS = []
-params = {"connectivity": 1}
+params = {"keys": "image", "mask_key": "mask", "markers_key": "markers", "connectivity": 1}
 for p in TEST_NDARRAYS:
     image = p(np.random.rand(1, 10, 10))
     mask = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
     marker = p((np.random.rand(1, 10, 10) > 0.5).astype(np.uint8))
 
+    TESTS.append([params, image, mask, marker, (1, 10, 10)])
+    params.update({"markers_key": None})
     TESTS.append([params, image, mask, marker, (1, 10, 10)])
 
 ERROR_TESTS = []
@@ -41,19 +41,20 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestCalculateInstanceSegmentationMap(unittest.TestCase):
+class TestWatershedd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, image, mask, markers, expected_shape):
-        calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
-        output = calculate_instance_seg(image, mask, markers)
+        data = {"image": image, "mask": mask, "markers": markers}
+        output = Watershedd(**args)(data)
 
-        self.assertTupleEqual(output.shape, expected_shape)
+        self.assertTupleEqual(output["image"].shape, expected_shape)
 
     @parameterized.expand(ERROR_TESTS)
     def test_value_error(self, args, image, mask, markers):
-        calculate_instance_seg = CalculateInstanceSegmentationMap(**args)
+        data = {"image": image, "mask": mask, "markers": markers}
+        calculate_instance_seg = Watershedd(**args)
         with self.assertRaises(ValueError):
-            calculate_instance_seg(image, mask, markers)
+            calculate_instance_seg(data)
 
 
 if __name__ == "__main__":

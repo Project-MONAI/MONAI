@@ -27,7 +27,7 @@ opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
 __all__ = [
-    "CalculateInstanceSegmentationMap",
+    "Watershed",
     "GenerateMask",
     "GenerateProbabilityMap",
     "GenerateDistanceMap",
@@ -35,7 +35,7 @@ __all__ = [
 ]
 
 
-class CalculateInstanceSegmentationMap(Transform):
+class Watershed(Transform):
     """
     Use `skimage.segmentation.watershed` to get instance segmentation results from images.
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.

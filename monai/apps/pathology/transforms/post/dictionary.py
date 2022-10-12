@@ -14,7 +14,7 @@ from typing import Callable, Dict, Hashable, Mapping, Optional
 import numpy as np
 
 from monai.apps.pathology.transforms.post.array import (
-    CalculateInstanceSegmentationMap,
+    Watershed,
     GenerateDistanceMap,
     GenerateMarkers,
     GenerateMask,
@@ -24,9 +24,9 @@ from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTe
 from monai.transforms.transform import MapTransform
 
 __all__ = [
-    "CalculateInstanceSegmentationMapD",
-    "CalculateInstanceSegmentationMapDict",
-    "CalculateInstanceSegmentationMapd",
+    "WatershedD",
+    "WatershedDict",
+    "Watershedd",
     "GenerateMaskD",
     "GenerateMaskDict",
     "GenerateMaskd",
@@ -42,9 +42,9 @@ __all__ = [
 ]
 
 
-class CalculateInstanceSegmentationMapd(MapTransform):
+class Watershedd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.CalculateInstanceSegmentationMap`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.Watershed`.
     Use `skimage.segmentation.watershed` to get instance segmentation results from images.
     See: https://scikit-image.org/docs/stable/api/skimage.segmentation.html#skimage.segmentation.watershed.
 
@@ -66,7 +66,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
 
     """
 
-    backend = CalculateInstanceSegmentationMap.backend
+    backend = Watershed.backend
 
     def __init__(
         self,
@@ -80,7 +80,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
         self.markers_key = markers_key
-        self.transform = CalculateInstanceSegmentationMap(connectivity=connectivity, dtype=dtype)
+        self.transform = Watershed(connectivity=connectivity, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -295,7 +295,7 @@ class GenerateMarkersd(MapTransform):
         return d
 
 
-CalculateInstanceSegmentationMapD = CalculateInstanceSegmentationMapDict = CalculateInstanceSegmentationMapd
+WatershedD = WatershedDict = Watershedd
 GenerateMaskD = GenerateMaskDict = GenerateMaskd
 GenerateProbabilityMapD = GenerateProbabilityMapDict = GenerateProbabilityMapd
 GenerateDistanceMapD = GenerateDistanceMapDict = GenerateDistanceMapd

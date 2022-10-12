@@ -10,16 +10,16 @@
 # limitations under the License.
 
 from .post.array import (
-    CalculateInstanceSegmentationMap,
+    Watershed,
     GenerateDistanceMap,
     GenerateMarkers,
     GenerateMask,
     GenerateProbabilityMap,
 )
 from .post.dictionary import (
-    CalculateInstanceSegmentationMapD,
-    CalculateInstanceSegmentationMapd,
-    CalculateInstanceSegmentationMapDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
     GenerateDistanceMapD,
     GenerateDistanceMapd,
     GenerateDistanceMapDict,

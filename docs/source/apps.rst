@@ -127,7 +127,7 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.array
-.. autoclass:: CalculateInstanceSegmentationMap
+.. autoclass:: Watershed
     :members:
 .. autoclass:: GenerateMask
     :members:
@@ -139,7 +139,7 @@ Applications
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
-.. autoclass:: CalculateInstanceSegmentationMapd
+.. autoclass:: Watershedd
     :members:
 .. autoclass:: GenerateMaskd
     :members:
