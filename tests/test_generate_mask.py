@@ -30,14 +30,6 @@ np.random.RandomState(123)
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
         [
-            {"softmax": True, "sigmoid": False, "threshold": None, "remove_small_objects": True, "min_size": 10},
-            p(np.random.rand(1, 5, 5, 5)),
-            ValueError,
-        ]
-    )
-
-    EXCEPTION_TESTS.append(
-        [
             {"softmax": False, "sigmoid": True, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             ValueError,
