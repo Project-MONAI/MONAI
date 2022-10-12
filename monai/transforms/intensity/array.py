@@ -1160,7 +1160,7 @@ class MedianSmooth(Transform):
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         spatial_dims = img_t.ndim - 1
         r = ensure_tuple_rep(self.radius, spatial_dims)
-        median_filter_instance = MedianFilter(r, spatial_dims=img_t.ndim - 1)
+        median_filter_instance = MedianFilter(r, spatial_dims=spatial_dims)
         out_t: torch.Tensor = median_filter_instance(img_t)
         out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
         return out
