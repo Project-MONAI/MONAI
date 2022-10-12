@@ -88,7 +88,7 @@ class SegResBlock(nn.Module):
         if isinstance(kernel_size, (tuple, list)):
             padding = tuple(k // 2 for k in kernel_size)
         else:
-            padding = kernel_size // 2
+            padding = kernel_size // 2  # type: ignore
 
         self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.act1 = get_act_layer(act)
@@ -160,12 +160,12 @@ class SegResEncoder(nn.Module):
         # ensure normalization has affine trainable parameters (if not specified)
         norm = split_args(norm)
         if has_option(Norm[norm[0], spatial_dims], "affine"):
-            norm[1].setdefault("affine", True)
+            norm[1].setdefault("affine", True)  # type: ignore
 
         # ensure activation is inplace (if not specified)
         act = split_args(act)
         if has_option(Act[act[0]], "inplace"):
-            act[1].setdefault("inplace", True)
+            act[1].setdefault("inplace", True)  # type: ignore
 
         filters = init_filters  # base number of features
 
@@ -298,12 +298,12 @@ class SegResNetDS(nn.Module):
         # ensure normalization had affine trainable parameters (if not specified)
         norm = split_args(norm)
         if has_option(Norm[norm[0], spatial_dims], "affine"):
-            norm[1].setdefault("affine", True)
+            norm[1].setdefault("affine", True)  # type: ignore
 
         # ensure activation is inplace (if not specified)
         act = split_args(act)
         if has_option(Act[act[0]], "inplace"):
-            act[1].setdefault("inplace", True)
+            act[1].setdefault("inplace", True)  # type: ignore
 
         anisotropic_scales = None
         if resolution:
