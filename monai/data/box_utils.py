@@ -657,7 +657,7 @@ def boxes_center_distance(
     center2 = box_centers(boxes2_t.to(COMPUTE_DTYPE))  # (M, spatial_dims)
 
     if euclidean:
-        dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()
+        dists = (center1[:, None] - center2[None]).pow(2).sum(-1).sqrt()  # type: ignore
     else:
         # before sum: (N, M, spatial_dims)
         dists = (center1[:, None] - center2[None]).sum(-1)
