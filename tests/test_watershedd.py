@@ -15,11 +15,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import (
-    Watershedd,
-    GenerateProbabilityMapd, 
-    GenerateMaskd, 
-    GenerateMarkersd, 
     GenerateDistanceMapd,
+    GenerateMarkersd,
+    GenerateMaskd,
+    GenerateProbabilityMapd,
+    Watershedd,
 )
 from monai.transforms import Compose
 from monai.utils import min_version, optional_import
@@ -50,17 +50,18 @@ class TestWatershedd(unittest.TestCase):
     def test_output(self, args, image, hover_map, expected_shape):
         data = {"output": image, "hover_map": hover_map}
 
-        trans = Compose([
-            GenerateMaskd(keys='output'),
-            GenerateProbabilityMapd(keys='mask', hover_map_key='hover_map'),
-            GenerateDistanceMapd(keys='mask', prob_key='mask_prob'),
-            GenerateMarkersd(keys='mask', prob_key='mask_prob'),
-            Watershedd(**args)
-        ])
+        trans = Compose(
+            [
+                GenerateMaskd(keys="output"),
+                GenerateProbabilityMapd(keys="mask", hover_map_key="hover_map"),
+                GenerateDistanceMapd(keys="mask", prob_key="mask_prob"),
+                GenerateMarkersd(keys="mask", prob_key="mask_prob"),
+                Watershedd(**args),
+            ]
+        )
 
         output = trans(data)
         self.assertTupleEqual(output["dist"].shape, expected_shape)
-
 
 
 if __name__ == "__main__":

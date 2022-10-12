@@ -10,8 +10,4 @@
 # limitations under the License.
 
 from .array import Watershed
-from .dictionary import (
-    Watershedd,
-    WatershedD,
-    WatershedDict,
-)
+from .dictionary import Watershedd, WatershedD, WatershedDict

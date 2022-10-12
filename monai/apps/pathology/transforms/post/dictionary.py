@@ -14,11 +14,11 @@ from typing import Callable, Dict, Hashable, Mapping, Optional
 import numpy as np
 
 from monai.apps.pathology.transforms.post.array import (
-    Watershed,
     GenerateDistanceMap,
     GenerateMarkers,
     GenerateMask,
     GenerateProbabilityMap,
+    Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform

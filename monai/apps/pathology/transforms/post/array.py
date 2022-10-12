@@ -12,7 +12,6 @@
 from typing import Callable, Optional
 
 import numpy as np
-import torch
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
@@ -26,13 +25,7 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = [
-    "Watershed",
-    "GenerateMask",
-    "GenerateProbabilityMap",
-    "GenerateDistanceMap",
-    "GenerateMarkers",
-]
+__all__ = ["Watershed", "GenerateMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateMarkers"]
 
 
 class Watershed(Transform):

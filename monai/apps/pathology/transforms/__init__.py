@@ -9,17 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import (
-    Watershed,
-    GenerateDistanceMap,
-    GenerateMarkers,
-    GenerateMask,
-    GenerateProbabilityMap,
-)
+from .post.array import GenerateDistanceMap, GenerateMarkers, GenerateMask, GenerateProbabilityMap, Watershed
 from .post.dictionary import (
-    WatershedD,
-    Watershedd,
-    WatershedDict,
     GenerateDistanceMapD,
     GenerateDistanceMapd,
     GenerateDistanceMapDict,
@@ -32,6 +23,9 @@ from .post.dictionary import (
     GenerateProbabilityMapD,
     GenerateProbabilityMapd,
     GenerateProbabilityMapDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
 )
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
