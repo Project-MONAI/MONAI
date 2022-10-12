@@ -62,8 +62,8 @@ class CalculateInstanceSegmentationMap(Transform):
             image: image where the lowest value points are labeled first. Shape must be [1, H, W, [D]].
             mask: optional, the same shape as image. Only points at which mask == True will be labeled.
                 If None (no mask given), it is a volume of all 1s.
-            markers: optional, the same shape as image. The desired number of markers, or an array marking 
-                the basins with the values to be assigned in the label matrix. Zero means not a marker. 
+            markers: optional, the same shape as image. The desired number of markers, or an array marking
+                the basins with the values to be assigned in the label matrix. Zero means not a marker.
                 If None (no markers given), the local minima of the image are used as markers.
         """
 
@@ -260,7 +260,7 @@ class GenerateMarkers(Transform):
     """
     Generate markers to be used in `watershed`. The watershed algorithm treats pixels values as a local topography
     (elevation). The algorithm floods basins from the markers until basins attributed to different markers meet on
-    watershed lines. Generally, markers are chosen as local minima of the image, from which basins are flooded. 
+    watershed lines. Generally, markers are chosen as local minima of the image, from which basins are flooded.
     Here is the implementation from HoVerNet papar.
     For more details refer to papers: https://arxiv.org/abs/1812.06499.
 
