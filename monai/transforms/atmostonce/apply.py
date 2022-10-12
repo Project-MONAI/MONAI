@@ -171,9 +171,6 @@ def apply(data: Union[torch.Tensor, MetaTensor],
         cur_device = cur_device if new_device is None else new_device
         cur_dtype = cur_dtype if new_dtype is None else new_dtype
         cur_shape = cur_shape if new_shape is None else new_shape
-    # TODO: figure out how to propagate extents properly
-    # TODO: resampling strategy: augment resample or perform multiple stages if necessary
-    # TODO: resampling strategy - antialiasing: can resample just be augmented?
 
     kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
 

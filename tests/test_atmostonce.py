@@ -13,13 +13,15 @@ from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import TransformBackends
 
-from monai.transforms import Affined, Affine, Flip
-from monai.transforms.atmostonce.functional import croppad, resize, rotate, spacing, flip
+from monai.transforms import Affined, Affine, Flip, RandSpatialCropSamplesd, RandRotated
+from monai.transforms.atmostonce.functional import croppad, resize, rotate, zoom, spacing, flip
 from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory
+
+from monai.transforms.atmostonce.utility import CachedTransform, CacheMechanism
 
 
 def get_img(size, dtype=torch.float32, offset=0):
@@ -154,44 +156,69 @@ class TestMappingStack(unittest.TestCase):
 
 class TestFunctional(unittest.TestCase):
 
+    def _test_functional_impl(self,
+                              op,
+                              image,
+                              params,
+                              expected_matrix):
+        r_image, r_transform, r_metadata = op(image, **params)
+        enumerate_results_of_op((r_image, r_transform, r_metadata))
+        self.assertTrue(torch.allclose(r_transform, expected_matrix))
+
     # TODO: turn into proper test
     def test_spacing(self):
-        results = spacing(np.zeros((1, 24, 32), dtype=np.float32),
-                          (0.5, 0.6),
-                          (1.0, 1.0),
-                          False,
-                          "bilinear",
-                          "border",
-                          False)
+        kwargs = {
+            "pixdim": (0.5, 0.6), "src_pixdim": (1.0, 1.0), "diagonal": False,
+            "mode": "bilinear", "padding_mode": "border", "align_corners": None
+        }
+        expected_tx = torch.DoubleTensor([[2.0, 0.0, 0.0],
+                                          [0.0, 1.66666667, 0.0],
+                                          [0.0, 0.0, 1.0]])
+        self._test_functional_impl(spacing, get_img((24, 32)), kwargs, expected_tx)
 
 
     # TODO: turn into proper test
     def test_resize(self):
-        results = resize(np.zeros((1, 24, 32), dtype=np.float32),
-                         (40, 40),
-                         "all",
-                         "bilinear",
-                         False)
-        enumerate_results_of_op(results)
+        kwargs = {
+            "spatial_size": (40, 40), "size_mode": "all",
+            "mode": "bilinear", "align_corners": None
+        }
+        expected_tx = torch.DoubleTensor([[1.66666667, 0.0, 0.0],
+                                          [0.0, 1.25, 0.0],
+                                          [0.0, 0.0, 1.0]])
+        self._test_functional_impl(resize, get_img((24, 32)), kwargs, expected_tx)
+
 
     # TODO: turn into proper test
     def test_rotate(self):
-        results = rotate(np.zeros((1, 64, 64), dtype=np.float32),
-                         torch.pi / 4,
-                         True,
-                         "bilinear",
-                         "border")
-        enumerate_results_of_op(results)
+        kwargs = {
+            "angle": torch.pi / 4, "keep_size": True,
+            "mode": "bilinear", "padding_mode": "border"
+        }
+        expected_tx = torch.DoubleTensor([[0.70710678, -0.70710678, 0.0],
+                                          [0.70710678, 0.70710678, 0.0],
+                                          [0.0, 0.0, 1.0]])
+        self._test_functional_impl(rotate, get_img((24, 32)), kwargs, expected_tx)
 
-        results = rotate(np.zeros((1, 64, 64), dtype=np.float32),
-                         torch.pi / 4,
-                         False,
-                         "bilinear",
-                         "border")
-        enumerate_results_of_op(results)
+
+    def test_zoom(self):
+        # results = zoom(np.zeros((1, 64, 64), dtype=np.float32),
+        #                2,
+        #                "bilinear",
+        #                "zeros")
+        # enumerate_results_of_op(results)
+        kwargs = {
+            "factor": 2, "mode": "nearest", "padding_mode": "border", "keep_size": True
+        }
+        expected_tx = torch.DoubleTensor([[0.5, 0.0, 0.0],
+                                          [0.0, 0.5, 0.0],
+                                          [0.0, 0.0, 1.0]])
+        self._test_functional_impl(zoom, get_img((24, 32)), kwargs, expected_tx)
+
 
     def _check_matrix(self, actual, expected):
         np.allclose(actual, expected)
+
     def _test_rotate_90_impl(self, values, keep_dims, expected):
         results = rotate(np.zeros((1, 64, 64, 32), dtype=np.float32),
                          values,
@@ -410,8 +437,26 @@ class TestArrayTransforms(unittest.TestCase):
         data = get_img((32, 32))
         data = r(data)
         data = apply(data)
-        print(data.shape)
-        print(data)
+        expected = torch.DoubleTensor([[0.70710677, 0.70710677, 0.0, -15.61269784],
+                                       [-0.70710677, 0.70710677, 0.0, 15.5],
+                                       [0.0, 0.0, 1.0, 0.0],
+                                       [0.0, 0.0, 0.0, 1.0]])
+        self.assertTrue(torch.allclose(expected, data.affine))
+
+    def test_zoom_apply_lazy(self):
+        r = amoa.Zoom(2,
+                      mode="bilinear",
+                      padding_mode="border",
+                      keep_size=False)
+        r.lazy_evaluation = True
+        data = get_img((32, 32))
+        data = r(data)
+        data = apply(data)
+        expected = torch.DoubleTensor([[0.5, 0.0, 0.0, 11.75],
+                                      [0.0, 0.5, 0.0, 11.75],
+                                      [0.0, 0.0, 1.0, 0.0],
+                                      [0.0, 0.0, 0.0, 1.0]])
+        self.assertTrue(torch.allclose(expected, data.affine))
 
     def test_crop_then_rotate_apply_lazy(self):
         data = get_img((32, 32))
@@ -429,6 +474,7 @@ class TestArrayTransforms(unittest.TestCase):
         datas.append(data1)
         data2 = lr1(data1)
         datas.append(data2)
+
 
 class TestDictionaryTransforms(unittest.TestCase):
 
@@ -509,3 +555,80 @@ class TestUtils(unittest.TestCase):
         self.assertTupleEqual(value_to_tuple_range([4.3, -2.1]), (-2.1, 4.3))
         self.assertTupleEqual(value_to_tuple_range((4.3, -2.1)), (-2.1, 4.3))
 
+
+# Utility transforms for compose compiler
+# =================================================================================================
+
+class TestMemoryCacheMechanism(CacheMechanism):
+
+    def __init__(
+            self,
+            max_count: int
+    ):
+        self.max_count = max_count
+        self.contents = dict()
+        self.order = list()
+
+    def try_fetch(
+            self,
+            key
+    ):
+        if key in self.contents:
+            return True, self.contents[key]
+
+        return False, None
+
+    def store(
+            self,
+            key,
+            value
+    ):
+        if key in self.contents:
+            self.contents[key] = value
+        else:
+            if len(self.contents) >= self.max_count:
+                last = self.order.pop()
+                del self.contents[last]
+
+            self.contents[key] = value
+            self.order.append(key)
+
+
+class TestUtilityTransforms(unittest.TestCase):
+
+    def test_cached_transform(self):
+
+        def generate_noise(shape):
+            def _inner(*args, **kwargs):
+                return np.random.normal(size=shape)
+            return _inner
+
+        ct = CachedTransform(transforms=generate_noise((1, 16, 16)),
+                             cache=TestMemoryCacheMechanism(4))
+
+        first = ct("foo")
+        second = ct("foo")
+        third = ct("bar")
+
+        self.assertIs(first, second)
+        self.assertIsNot(first, third)
+
+    def test_multi_transform(self):
+
+        def fake_multi_sample(keys, num_samples, roi_size):
+            def _inner(t):
+                for i in range(num_samples):
+                    yield {'image': t[i:i+roi_size[0], i:i+roi_size[1]]}
+            return _inner
+
+#        t1 = RandSpatialCropSamplesd(keys=('image',), num_samples=4, roi_size=(32, 32))
+        t1 = fake_multi_sample(keys=('image',), num_samples=4, roi_size=(32, 32))
+        t2 = RandRotated(keys=('image',), range_z=(-torch.pi/2, torch.pi/2))
+        c = Compose([t1, t2])
+
+        d = torch.rand((1, 64, 64))
+
+        _d = d.data
+        _dd = d.data.clone()
+        d.data = _dd
+        r = c({'image': d})
