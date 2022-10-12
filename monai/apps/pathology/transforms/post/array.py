@@ -196,16 +196,20 @@ class GenerateProbabilityMap(Transform):
         hover_h = hover_map[0:1, ...]
         hover_v = hover_map[1:2, ...]
 
-        if (max(hover_h) - min(hover_h)) == 0 or (max(hover_v) - min(hover_v)) == 0:
+        hover_h_min, hover_h_max = min(hover_h), max(hover_h)
+        hover_v_min, hover_v_max = min(hover_v), max(hover_v)
+        if (hover_h_max - hover_h_min) == 0 or (hover_v_max - hover_v_min) == 0:
             raise ValueError("Not a valid hover map, please check your input")
-        hover_h = (hover_h - min(hover_h)) / (max(hover_h) - min(hover_h))
-        hover_v = (hover_v - min(hover_v)) / (max(hover_v) - min(hover_v))
+        hover_h = (hover_h - hover_h_min) / (hover_h_max - hover_h_min)
+        hover_v = (hover_v - hover_v_min) / (hover_v_max - hover_v_min)
         sobelh = self.sobel_gradient(hover_h)[0, ...]
         sobelv = self.sobel_gradient(hover_v)[1, ...]
-        if (max(sobelh) - min(sobelh)) == 0 or (max(sobelv) - min(sobelv)) == 0:
+        sobelh_min, sobelh_max = min(sobelh), max(sobelh)
+        sobelv_min, sobelv_max = min(sobelv), max(sobelv)
+        if (sobelh_max - sobelh_min) == 0 or (sobelv_max - sobelv_min) == 0:
             raise ValueError("Not a valid sobel gradient map")
-        sobelh = 1 - (sobelh - min(sobelh)) / (max(sobelh) - min(sobelh))
-        sobelv = 1 - (sobelv - min(sobelv)) / (max(sobelv) - min(sobelv))
+        sobelh = 1 - (sobelh - sobelh_min) / (sobelh_max - sobelh_min)
+        sobelv = 1 - (sobelv - sobelv_min) / (sobelv_max - sobelv_min)
 
         # combine the h & v values using max
         overall = maximum(sobelh, sobelv)
