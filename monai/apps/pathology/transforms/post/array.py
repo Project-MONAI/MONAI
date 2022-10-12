@@ -178,7 +178,7 @@ class GenerateProbabilityMap(Transform):
 
         Return:
             Foreground probability map.
-        
+
         Raises:
             ValueError: when the `hover_map` has only one value.
             ValueError: when the `sobel gradient map` has only one value.
