@@ -122,8 +122,8 @@ class DataAnalyzer:
         output_path: str = "./data_stats.yaml",
         average: bool = True,
         do_ccp: bool = True,
-        device: Union[str, torch.device] = "cuda",
-        worker: int = 0,
+        device: Union[str, torch.device] = "cpu",
+        worker: int = 2,
         image_key: str = "image",
         label_key: Optional[str] = "label",
     ):
@@ -137,12 +137,9 @@ class DataAnalyzer:
         self.average = average
         self.do_ccp = do_ccp
         self.device = torch.device(device)
-        self.worker = worker
+        self.worker = 0 if (self.device.type == "cuda") else worker
         self.image_key = image_key
         self.label_key = label_key
-
-        if (self.device.type == "cuda") and (worker > 0):
-            raise ValueError("CUDA does not support multiple subprocess. If device is GPU, please set worker to 0")
 
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
@@ -232,8 +229,14 @@ class DataAnalyzer:
         result[DataStatsKeys.SUMMARY] = summarizer.summarize(result[DataStatsKeys.BY_CASE])
 
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
-            logger.warning("Data is not completely uniform. MONAI transforms may provide unexpected result")
+            logger.warning("data spacing is not completely uniform. MONAI transforms may provide unexpected result")
 
         ConfigParser.export_config_file(result, self.output_path, fmt="yaml", default_flow_style=None)
+
+        del d["image"], d["label"]
+        if self.device.type == "cuda":
+            # release unreferenced tensors to mitigate OOM
+            # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
+            torch.cuda.empty_cache()
 
         return result

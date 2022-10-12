@@ -153,12 +153,6 @@ PILReader
   :members:
 
 
-FastMRIReader
-~~~~~~~~~~~~~
-.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
-  :members:
-
-
 Image writer
 ------------
 
@@ -352,12 +346,12 @@ Video datasets
 
 VideoDataset
 ~~~~~~~~~~~~
-.. autoclass:: monai.data.VideoDataset
+.. autoclass:: monai.data.video_dataset.VideoDataset
 
 VideoFileDataset
 ~~~~~~~~~~~~~~~~
-.. autoclass:: monai.data.VideoFileDataset
+.. autoclass:: monai.data.video_dataset.VideoFileDataset
 
 CameraDataset
 ~~~~~~~~~~~~~
-.. autoclass:: monai.data.CameraDataset
+.. autoclass:: monai.data.video_dataset.CameraDataset
