@@ -71,7 +71,7 @@ class CalculateInstanceSegmentationMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mask_key: Optional[str] = 'mask',
+        mask_key: Optional[str] = "mask",
         markers_key: Optional[str] = None,
         connectivity: Optional[int] = 1,
         dtype: DtypeLike = np.uint8,
@@ -121,7 +121,7 @@ class GenerateMaskd(MapTransform):
         threshold: Optional[float] = None,
         remove_small_objects: bool = True,
         min_size: int = 10,
-        dtype : DtypeLike = np.uint8,
+        dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -220,7 +220,7 @@ class GenerateDistanceMapd(MapTransform):
         prob_key: str = "prob",
         dist_key_postfix: str = "dist",
         smooth_fn: Optional[Callable] = None,
-        dtype : DtypeLike = np.float32,
+        dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -269,7 +269,7 @@ class GenerateMarkersd(MapTransform):
         min_size: int = 10,
         remove_small_objects: bool = True,
         postprocess_fn: Optional[Callable] = None,
-        dtype : DtypeLike = np.uint8,
+        dtype: DtypeLike = np.uint8,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
