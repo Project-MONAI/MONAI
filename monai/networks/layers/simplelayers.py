@@ -499,16 +499,13 @@ def median_filter(
     # map the local window to single vector
     conv = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
 
-    if "padding" not in kwargs:
-        if pytorch_after(1, 10):
-            kwargs["padding"] = "same"
-        else:
-            # even-sized kernels are not supported
-            kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
-    elif kwargs["padding"] == "same" and not pytorch_after(1, 10):
-        # even-sized kernels are not supported
-        kwargs["padding"] = [(k - 1) // 2 for k in kernel.shape[2:]]
-    features: torch.Tensor = conv(in_tensor.reshape(oprod, 1, *sshape), kernel, stride=1, **kwargs)  # type: ignore
+    # even-sized kernels are not supported
+    padding = [(k - 1) // 2 for k in kernel.shape[2:] for _ in range(2)]
+    padding.reverse()
+    padded_input: torch.Tensor = F.pad(in_tensor, pad=padding, mode="replicate")
+    psshape = padded_input.shape[-spatial_dims:]
+    reshaped_input: torch.Tensor = padded_input.reshape(oprod, 1, *psshape)
+    features: torch.Tensor = conv(reshaped_input, kernel, padding=0, stride=1, **kwargs)  # type: ignore
     features = features.view(oprod, -1, *sshape)  # type: ignore
 
     # compute the median along the feature axis
