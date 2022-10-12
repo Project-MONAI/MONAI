@@ -9,5 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import Watershed
-from .dictionary import Watershedd, WatershedD, WatershedDict
+from .array import GenerateDistanceMap, GenerateMarkers, GenerateMask, GenerateProbabilityMap, Watershed
+from .dictionary import ( 
+    GenerateDistanceMapD,
+    GenerateDistanceMapd,
+    GenerateDistanceMapDict,
+    GenerateMarkersD,
+    GenerateMarkersd,
+    GenerateMarkersDict,
+    GenerateMaskD,
+    GenerateMaskd,
+    GenerateMaskDict,
+    GenerateProbabilityMapD,
+    GenerateProbabilityMapd,
+    GenerateProbabilityMapDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
+)
