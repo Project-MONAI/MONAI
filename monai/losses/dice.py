@@ -692,7 +692,7 @@ class DiceCELoss(_Loss):
             raise ValueError("lambda_ce should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
-        self.old_pt_ver = not pytorch_after(1,10)
+        self.old_pt_ver = not pytorch_after(1, 10)
 
     def ce(self, input: torch.Tensor, target: torch.Tensor):
         """
@@ -706,8 +706,10 @@ class DiceCELoss(_Loss):
             target = torch.squeeze(target, dim=1)
             target = target.long()
         elif self.old_pt_ver:
-            warnings.warn(f"Multichannel targets are not supported in this older Pytorch version {torch.__version__}. "
-                           "Using argmax (as a workaround) to convert target to a single channel.")
+            warnings.warn(
+                f"Multichannel targets are not supported in this older Pytorch version {torch.__version__}. "
+                "Using argmax (as a workaround) to convert target to a single channel."
+            )
             target = torch.argmax(target, dim=1)
 
         return self.cross_entropy(input, target)
