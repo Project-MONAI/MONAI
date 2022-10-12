@@ -164,7 +164,7 @@ class SegResEncoder(nn.Module):
 
         # ensure activation is inplace (if not specified)
         act = split_args(act)
-        if has_option(Act[act[0], spatial_dims], "inplace"):
+        if has_option(Act[act[0]], "inplace"):
             act[1].setdefault("inplace", True)
 
         filters = init_filters  # base number of features
@@ -302,13 +302,12 @@ class SegResNetDS(nn.Module):
 
         # ensure activation is inplace (if not specified)
         act = split_args(act)
-        if has_option(Act[act[0], spatial_dims], "inplace"):
+        if has_option(Act[act[0]], "inplace"):
             act[1].setdefault("inplace", True)
 
         anisotropic_scales = None
         if resolution:
             anisotropic_scales = scales_for_resolution(resolution, n_stages=len(blocks_down))
-            print("Using anisotropic scales", anisotropic_scales)
         self.anisotropic_scales = anisotropic_scales
 
         self.encoder = SegResEncoder(
