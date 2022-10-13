@@ -93,7 +93,7 @@ class GenerateInstanceContourd(MapTransform):
         offset_key: Optional[str] = None,
         points_num: int = 3,
         level: Optional[float] = None,
-        allow_missing_keys: bool = False,
+        allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.converter = GenerateInstanceContour(points_num=points_num, level=level)

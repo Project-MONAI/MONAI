@@ -292,9 +292,13 @@ class GenerateInstanceType(Transform):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(  # type: ignore
-        self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
-    ) -> Tuple[int, float]:
+    def __call__(
+        self,
+        type_pred: NdarrayOrTensor,
+        seg_pred: NdarrayOrTensor,
+        bbox: np.ndarray,
+        instance_id: int
+    ) -> Sequence[int, float]:
         """
         Args:
             type_pred: pixel-level type prediction map after activation function.
