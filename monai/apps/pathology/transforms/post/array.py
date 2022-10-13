@@ -293,11 +293,7 @@ class GenerateInstanceType(Transform):
         super().__init__()
 
     def __call__(
-        self,
-        type_pred: NdarrayOrTensor,
-        seg_pred: NdarrayOrTensor,
-        bbox: np.ndarray,
-        instance_id: int
+        self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
     ) -> Tuple[int, float]:
         """
         Args:
