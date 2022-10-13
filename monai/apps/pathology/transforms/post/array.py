@@ -14,15 +14,6 @@ from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.croppad.array import BoundingRect
-from monai.transforms.post.array import Activations, AsDiscrete
-from monai.apps.pathology.transforms.post.array import (
-    Watershed, 
-    GenerateProbabilityMap, 
-    GenerateMask, 
-    GenerateMarkers, 
-    GenerateDistanceMap,
-)
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import unique
 from monai.utils import convert_to_numpy, optional_import
@@ -230,7 +221,7 @@ class GenerateInstanceContour(Transform):
     def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
         self.level = level
         self.points_num = points_num
-    
+
     def __call__(self, image: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
         """
         Args:
@@ -291,7 +282,7 @@ class GenerateInstanceType(Transform):
     """
     def __init__(self) -> None:
         super().__init__()
-    
+
     def __call__(self, bbox, type_pred, seg_pred, instance_id):
         """
         Args:
