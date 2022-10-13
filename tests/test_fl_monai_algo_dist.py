@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+from os.path import join as pathjoin
 import unittest
 
 import torch.distributed as dist
@@ -21,13 +22,24 @@ from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from tests.utils import DistCall, DistTestCase, SkipIfNoModule
 
-_root_dir = os.path.join(os.path.dirname(__file__))
+_root_dir = pathjoin(os.path.dirname(__file__))
+_data_dir = pathjoin(_root_dir, "testing_data")
 TEST_TRAIN_1 = [
     {
         "bundle_root": _root_dir,
-        "config_train_filename": os.path.join(_root_dir, "testing_data", "config_fl_train.json"),
+        "config_train_filename": [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")],
         "config_evaluate_filename": None,
-        "config_filters_filename": os.path.join(_root_dir, "testing_data", "config_fl_filters.json"),
+        "config_filters_filename": pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
+        "multi_gpu": True,
+    }
+]
+
+TEST_EVALUATE_1 = [
+    {
+        "bundle_root": _root_dir,
+        "config_train_filename": None,
+        "config_evaluate_filename": [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")],
+        "config_filters_filename": pathjoin(_data_dir, "config_fl_filters.json"),
         "multi_gpu": True,
     }
 ]
@@ -45,12 +57,29 @@ class TestFLMonaiAlgo(DistTestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config(os.path.join(input_params["bundle_root"], input_params["config_train_filename"]))
+        parser.read_config([pathjoin(input_params["bundle_root"], x) for x in input_params["config_train_filename"]])
         parser.parse()
         network = parser.get_parsed_content("network")
         data = ExchangeObject(weights=network.state_dict())
         # test train
         algo.train(data=data, extra={})
+
+    @parameterized.expand([TEST_EVALUATE_1])
+    @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
+    def test_evaluate(self, input_params):
+        # initialize algo
+        algo = MonaiAlgo(**input_params)
+        algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
+        self.assertTrue(dist.get_rank() in (0, 1))
+
+        # initialize model
+        parser = ConfigParser()
+        parser.read_config([os.path.join(input_params["bundle_root"], x) for x in input_params["config_evaluate_filename"]])
+        parser.parse()
+        network = parser.get_parsed_content("network")
+        data = ExchangeObject(weights=network.state_dict())
+        # test evaluate
+        algo.evaluate(data=data, extra={})
 
 
 if __name__ == "__main__":

@@ -7,24 +7,21 @@
             "@device"
         ]
     },
-    "train#sampler": {
+    "validate#sampler": {
         "_target_": "DistributedSampler",
-        "dataset": "@train#dataset",
-        "even_divisible": true,
-        "shuffle": true
+        "dataset": "@validate#dataset",
+        "even_divisible": false,
+        "shuffle": false
     },
-    "train#dataloader#sampler": "@train#sampler",
-    "train#dataloader#shuffle": false,
-    "train#trainer#train_handlers": "$@train#handlers[: -2 if dist.get_rank() > 0 else None]",
-    "training": [
+    "validate#dataloader#sampler": "@validate#sampler",
+    "evaluating": [
         "$import torch.distributed as dist",
         "$dist.init_process_group(backend='nccl')",
         "$torch.cuda.set_device(@device)",
-        "$monai.utils.set_determinism(seed=123)",
         "$setattr(torch.backends.cudnn, 'benchmark', True)",
         "$import logging",
-        "$@train#trainer.logger.setLevel(logging.WARNING if dist.get_rank() > 0 else logging.INFO)",
-        "$@train#trainer.run()",
+        "$@validate#evaluator.logger.setLevel(logging.WARNING if dist.get_rank() > 0 else logging.INFO)",
+        "$@validate#evaluator.run()",
         "$dist.destroy_process_group()"
     ]
 }
