@@ -988,7 +988,7 @@ class SharedCacheDataset(Dataset):
 
         # proceed with randomizable transforms
         start_run = False
-        comp_transform: Compose = self.transform
+        comp_transform: Compose = self.transform  # type:ignore
         for _transform in comp_transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
