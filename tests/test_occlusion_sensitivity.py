@@ -40,7 +40,6 @@ model_2d_2c.eval()
 model_3d.eval()
 model_2d_adjoint.eval()
 
-
 TESTS: List[Any] = []
 TESTS_FAIL: List[Any] = []
 

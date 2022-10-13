@@ -21,7 +21,6 @@ from tests.utils import SkipIfNoModule
 
 models, has_torchvision = optional_import("torchvision.models")
 
-
 TEST_INIT_1 = [{"weights": None, "optim": None, "metrics": None, "weight_type": None, "statistics": None}, "{}"]
 TEST_INIT_2: list = []
 if has_torchvision:
