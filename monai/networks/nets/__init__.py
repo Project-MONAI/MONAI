@@ -51,7 +51,18 @@ from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
-from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from .resnet import (
+    ResNet,
+    ResNetBlock,
+    ResNetBottleneck,
+    resnet10,
+    resnet18,
+    resnet34,
+    resnet50,
+    resnet101,
+    resnet152,
+    resnet200,
+)
 from .segresnet import SegResNet, SegResNetVAE
 from .senet import (
     SENet,

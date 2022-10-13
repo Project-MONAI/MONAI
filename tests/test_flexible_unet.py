@@ -10,21 +10,124 @@
 # limitations under the License.
 
 import unittest
+from typing import Dict, List, Tuple
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import EfficientNetBNFeatures, FlexibleUNet
+from monai.networks.nets import BACKBONE, EfficientNetBNFeatures, FlexibleUNet, ResNet, ResNetBlock, ResNetBottleneck
+from monai.networks.blocks.encoder import BasicEncoder
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, skip_if_quick
+
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
 
 
+class ResNetEncoder(ResNet, BasicEncoder):
+    backbone_names = ["resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
+    output_feature_channels = [(64, 128, 256, 512)] * 3 + [(256, 512, 1024, 2048)] * 4
+    parameter_layers = [
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 4, 6, 3],
+        [3, 4, 6, 3],
+        [3, 4, 23, 3],
+        [3, 8, 36, 3],
+        [3, 24, 36, 3],
+    ]
+
+    def __init__(self, in_channels, pretrained, **kargs):
+        super().__init__(**kargs, n_input_channels=in_channels)
+        if pretrained:
+            # Author of paper zipped the state_dict on googledrive,
+            # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
+            # Would like to load dict from url but need somewhere to save the state dicts.
+            raise NotImplementedError(
+                "Currently not implemented. You need to manually download weights provided by the paper's author"
+                " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
+            )
+
+    @staticmethod
+    def get_inplanes():
+        return [64, 128, 256, 512]
+
+    @classmethod
+    def get_backbone_parameter(cls) -> List[Dict]:
+        """
+        Get parameter list to initialize encoder networks.
+        Each parameter dict must have `spatial_dims`, `in_channels`
+        and `pretrained` parameters.
+        """
+        parameter_list = []
+        for backbone in range(len(cls.backbone_names)):
+            if backbone < 3:
+                res_type = ResNetBlock
+            else:
+                res_type = ResNetBottleneck
+            parameter_list.append(
+                {
+                    "block": res_type,
+                    "layers": cls.parameter_layers[backbone],
+                    "block_inplanes": ResNetEncoder.get_inplanes(),
+                    "spatial_dims": 2,
+                    "in_channels": 3,
+                    "pretrained": False,
+                }
+            )
+        return parameter_list
+
+    @classmethod
+    def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
+        """
+        Get number of output features' channel.
+        """
+        return cls.output_feature_channels
+
+    @classmethod
+    def get_output_feature_number_list(cls) -> List[int]:
+        """
+        Get number of output feature.
+        """
+        return [4] * 7
+
+    @classmethod
+    def get_encoder_name_string_list(cls) -> List[str]:
+        """
+        Get the name string of backbones which will be used to initialize flexible unet.
+        """
+        return cls.backbone_names
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        feature_list = []
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        if not self.no_max_pool:
+            x = self.maxpool(x)
+        x = self.layer1(x)
+        feature_list.append(x)
+        x = self.layer2(x)
+        feature_list.append(x)
+        x = self.layer3(x)
+        feature_list.append(x)
+        x = self.layer4(x)
+        feature_list.append(x)
+
+        return feature_list
+
+
+BACKBONE.regist_class(ResNetEncoder)
+
+
 def get_model_names():
     return [f"efficientnet-b{d}" for d in range(8)]
+
+
+def get_resnet_names():
+    return ResNetEncoder.get_encoder_name_string_list()
 
 
 def make_shape_cases(
@@ -42,6 +145,8 @@ def make_shape_cases(
         for batch in batches:  # check single batch as well as multiple batch input
             for model in models:  # selected models
                 for is_pretrained in pretrained:  # pretrained or not pretrained
+                    if ("resnet" in model) and is_pretrained:
+                        continue
                     kwargs = {
                         "in_channels": in_channels,
                         "out_channels": num_classes,
@@ -63,6 +168,7 @@ def make_shape_cases(
 # create list of selected models to speed up redundant tests
 # only test the models B0, B3
 SEL_MODELS = [get_model_names()[i] for i in [0, 3]]
+SEL_MODELS += [get_resnet_names()[i] for i in [0, 1, 2]]
 
 # pretrained=False cases
 # 2D and 3D models are expensive so use selected models

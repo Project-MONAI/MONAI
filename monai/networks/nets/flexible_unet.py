@@ -264,6 +264,10 @@ class FlexibleUNet(nn.Module):
             and ("in_channels" in encoder_parameters)
             and ("pretrained" in encoder_parameters)
         )
+        encoder_feature_num = encoder["feature_number"]
+        assert encoder_feature_num < 6
+        decoder_channels = decoder_channels[:encoder_feature_num]
+        self.skip_connect = encoder_feature_num - 1
         encoder_parameters.update({"spatial_dims": spatial_dims, "in_channels": in_channels, "pretrained": pretrained})
         encoder_channels = tuple([in_channels] + list(encoder["feature_channel"]))
         encoder_type = encoder["type"]
@@ -305,7 +309,7 @@ class FlexibleUNet(nn.Module):
         """
         x = inputs
         enc_out = self.encoder(x)
-        decoder_out = self.decoder(enc_out)
+        decoder_out = self.decoder(enc_out, self.skip_connect)
         x_seg = self.segmentation_head(decoder_out)
 
         return x_seg
