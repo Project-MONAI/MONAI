@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This utility module mainly supports rectangular bounding boxes with a few
 different parameterizations and methods for converting between them. It
@@ -35,7 +34,6 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 # We support 2-D or 3-D bounding boxes
 SUPPORTED_SPATIAL_DIMS = [2, 3]
-
 
 # TO_REMOVE = 0.0 if the bottom-right corner pixel/voxel is not included in the boxes,
 #      i.e., when xmin=1., xmax=2., we have w = 1.

@@ -32,7 +32,6 @@
 # * Neither the name of the copyright holder nor the names of its
 #   contributors may be used to endorse or promote products derived from
 #   this software without specific prior written permission.
-
 """
 This script is adapted from
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py

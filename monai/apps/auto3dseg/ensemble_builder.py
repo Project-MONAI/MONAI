@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import json
 import os
 from abc import ABC, abstractmethod
@@ -176,7 +175,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
         scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
-    def collect_algos(self, n_best: int = -1):  # type: ignore
+    def collect_algos(self, n_best: int = -1):
         """
         Rank the algos by finding the top N (n_best) validation scores.
         """

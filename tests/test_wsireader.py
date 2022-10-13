@@ -107,7 +107,6 @@ TEST_CASE_4 = [
     np.moveaxis(np.array([[[239], [239]], [[239], [239]], [[239], [239]]]), 0, -1),
 ]
 
-
 TEST_CASE_5 = [
     FILE_PATH,
     {"level": 2},
@@ -126,7 +125,6 @@ TEST_CASE_MULTI_WSI = [
         axis=0,
     ),
 ]
-
 
 TEST_CASE_RGB_0 = [np.ones((3, 2, 2), dtype=np.uint8)]  # CHW
 
