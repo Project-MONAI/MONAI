@@ -404,6 +404,7 @@ class DistCall:
             timeout: Timeout for operations executed against the process group.
             init_method: URL specifying how to initialize the process group.
                 Default is "env://" or "file:///d:/a_temp" (windows) if unspecified.
+                If ``"no_init"``, the `dist.init_process_group` must be called within the code to be tested.
             backend: The backend to use. Depending on build-time configurations,
                 valid values include ``mpi``, ``gloo``, and ``nccl``.
             daemon: the process’s daemon flag.
@@ -451,13 +452,14 @@ class DistCall:
             if torch.cuda.is_available():
                 torch.cuda.set_device(int(local_rank))  # using device ids from CUDA_VISIBILE_DEVICES
 
-            dist.init_process_group(
-                backend=self.backend,
-                init_method=self.init_method,
-                timeout=self.timeout,
-                world_size=int(os.environ["WORLD_SIZE"]),
-                rank=int(os.environ["RANK"]),
-            )
+            if init_method is not "no_init":
+                dist.init_process_group(
+                    backend=self.backend,
+                    init_method=self.init_method,
+                    timeout=self.timeout,
+                    world_size=int(os.environ["WORLD_SIZE"]),
+                    rank=int(os.environ["RANK"]),
+                )
             func(*args, **kwargs)
             # the primary node lives longer to
             # avoid _store_based_barrier, RuntimeError: Broken pipe

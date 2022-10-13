@@ -51,7 +51,7 @@ class TestFLMonaiAlgo(DistTestCase):
             json.dump(config_train, f, indent=4)
 
     @parameterized.expand([TEST_TRAIN_1])
-    @DistCall(nnodes=1, nproc_per_node=2)
+    @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     def test_train(self, input_params):
         # initialize algo
         algo = MonaiAlgo(**input_params)
