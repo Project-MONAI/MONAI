@@ -13,7 +13,16 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
+from monai.config.type_definitions import NdarrayOrTensor
+from monai.transforms.croppad.array import BoundingRect
+from monai.transforms.post.array import Activations, AsDiscrete
+from monai.apps.pathology.transforms.post.array import (
+    Watershed, 
+    GenerateProbabilityMap, 
+    GenerateMask, 
+    GenerateMarkers, 
+    GenerateDistanceMap,
+)
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import unique
 from monai.utils import convert_to_numpy, optional_import
@@ -214,8 +223,8 @@ class GenerateInstanceContour(Transform):
     Args:
         points_num: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
-        level: optional. Value along which to find contours in the array. By default, the level is set 
-            to (max(image) + min(image)) / 2. 
+        level: optional. Value along which to find contours in the array. By default, the level is set
+            to (max(image) + min(image)) / 2.
 
     """
     def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
