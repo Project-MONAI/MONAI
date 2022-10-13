@@ -298,7 +298,7 @@ class GenerateInstanceType(Transform):
         seg_pred: NdarrayOrTensor,
         bbox: np.ndarray,
         instance_id: int
-    ) -> Sequence[int, float]:
+    ) -> Tuple[int, float]:
         """
         Args:
             type_pred: pixel-level type prediction map after activation function.
