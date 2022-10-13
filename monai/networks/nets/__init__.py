@@ -52,6 +52,7 @@ from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from .segresnet import SegResNet, SegResNetVAE
+from .segresnet_ds import SegResNetDS
 from .senet import (
     SENet,
     SEnet,
