@@ -196,7 +196,7 @@ class SlidingWindowInferer(Inferer):
         """
 
         device = self.device
-        if self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
+        if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
 
         return sliding_window_inference(
