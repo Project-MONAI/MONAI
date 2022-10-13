@@ -10,8 +10,8 @@
 # limitations under the License.
 
 import os
-from os.path import join as pathjoin
 import unittest
+from os.path import join as pathjoin
 
 import torch.distributed as dist
 from parameterized import parameterized
@@ -27,7 +27,10 @@ _data_dir = pathjoin(_root_dir, "testing_data")
 TEST_TRAIN_1 = [
     {
         "bundle_root": _root_dir,
-        "config_train_filename": [pathjoin(_data_dir, "config_fl_train.json"), pathjoin(_data_dir, "multi_gpu_train.json")],
+        "config_train_filename": [
+            pathjoin(_data_dir, "config_fl_train.json"),
+            pathjoin(_data_dir, "multi_gpu_train.json"),
+        ],
         "config_evaluate_filename": None,
         "config_filters_filename": pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
         "multi_gpu": True,
@@ -38,7 +41,10 @@ TEST_EVALUATE_1 = [
     {
         "bundle_root": _root_dir,
         "config_train_filename": None,
-        "config_evaluate_filename": [pathjoin(_data_dir, "config_fl_evaluate.json"), pathjoin(_data_dir, "multi_gpu_evaluate.json")],
+        "config_evaluate_filename": [
+            pathjoin(_data_dir, "config_fl_evaluate.json"),
+            pathjoin(_data_dir, "multi_gpu_evaluate.json"),
+        ],
         "config_filters_filename": pathjoin(_data_dir, "config_fl_filters.json"),
         "multi_gpu": True,
     }
@@ -74,7 +80,9 @@ class TestFLMonaiAlgo(DistTestCase):
 
         # initialize model
         parser = ConfigParser()
-        parser.read_config([os.path.join(input_params["bundle_root"], x) for x in input_params["config_evaluate_filename"]])
+        parser.read_config(
+            [os.path.join(input_params["bundle_root"], x) for x in input_params["config_evaluate_filename"]]
+        )
         parser.parse()
         network = parser.get_parsed_content("network")
         data = ExchangeObject(weights=network.state_dict())
