@@ -15,12 +15,12 @@ from monai.auto3dseg.analyzer import (
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,
+    ImageHistogram,
+    ImageHistogramSumm,
     ImageStats,
     ImageStatsSumm,
     LabelStats,
     LabelStatsSumm,
-    ImageHistogram,
-    ImageHistogramSumm
 )
 from monai.transforms import Compose
 from monai.utils.enums import DataStatsKeys
@@ -73,15 +73,26 @@ class SegSummarizer(Compose):
             report = summarizer.summarize(stats)
     """
 
-    def __init__(self, image_key: str, label_key: str, average=True, do_ccp: bool = True,
-                 hist_bins: int = 0,
-                 hist_range: list = [-500, 500]
-                 ) -> None:
+    def __init__(
+        self,
+        image_key: str,
+        label_key: str,
+        average=True,
+        do_ccp: bool = True,
+        hist_bins: int = None,
+        hist_range: list = None,
+    ) -> None:
 
         self.image_key = image_key
         self.label_key = label_key
         self.hist_bins = hist_bins
         self.hist_range = hist_range
+
+        # set defaults
+        if self.hist_bins is None:
+            self.hist_bins: list = [100]
+        if self.hist_range is None:
+            self.hist_range: list = [-500, 500]
 
         self.summary_analyzers: List[Any] = []
         super().__init__()
@@ -106,18 +117,21 @@ class SegSummarizer(Compose):
             if not all(isinstance(hr, list) for hr in hist_range):
                 hist_range = [hist_range]
             if len(hist_bins) != len(hist_range):
-                raise ValueError(f"Number of histogram bins ({len(hist_bins)}) and histogram ranges ({len(hist_range)}) need to be the same!")
+                raise ValueError(
+                    f"Number of histogram bins ({len(hist_bins)}) and histogram ranges ({len(hist_range)}) need to be the same!"
+                )
             for i, hist_params in enumerate(zip(hist_bins, hist_range)):
                 _hist_bins, _hist_range = hist_params
                 if not isinstance(_hist_bins, int) or _hist_bins < 0:
                     raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
                 if not isinstance(_hist_range, list) or len(_hist_range) != 2:
-                    raise ValueError(f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}")
+                    raise ValueError(
+                        f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}"
+                    )
 
             # compute histograms
             self.add_analyzer(
-                ImageHistogram(image_key=image_key, num_of_bins=hist_bins,
-                               hist_range=hist_range), ImageHistogramSumm()
+                ImageHistogram(image_key=image_key, num_of_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
             )
 
     def add_analyzer(self, case_analyzer, summary_analyzer) -> None:

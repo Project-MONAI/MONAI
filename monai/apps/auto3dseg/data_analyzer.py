@@ -130,8 +130,8 @@ class DataAnalyzer:
         image_key: str = "image",
         label_key: Optional[str] = "label",
         hist_bins: Optional[Union[list, int]] = 0,
-        hist_range: Optional[list] = [-500, 500],
-        fmt: Optional[str] = "yaml"
+        hist_range: Optional[list] = None,
+        fmt: Optional[str] = "yaml",
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -148,6 +148,8 @@ class DataAnalyzer:
         self.label_key = label_key
         self.hist_bins = hist_bins
         self.hist_range = hist_range
+        if self.hist_range is None:
+            self.hist_range = [-500, 500]
         self.fmt = fmt
 
     @staticmethod
@@ -200,8 +202,14 @@ class DataAnalyzer:
             dictionary will include .nan/.inf in the statistics.
 
         """
-        summarizer = SegSummarizer(self.image_key, self.label_key, average=self.average, do_ccp=self.do_ccp,
-                                   hist_bins=self.hist_bins, hist_range=self.hist_range)
+        summarizer = SegSummarizer(
+            self.image_key,
+            self.label_key,
+            average=self.average,
+            do_ccp=self.do_ccp,
+            hist_bins=self.hist_bins,
+            hist_range=self.hist_range,
+        )
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:
             transform_list = [
