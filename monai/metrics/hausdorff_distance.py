@@ -104,7 +104,7 @@ class HausdorffDistanceMetric(CumulativeIterationMetric):
             directed=self.directed,
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_hausdorff_distance`.
 

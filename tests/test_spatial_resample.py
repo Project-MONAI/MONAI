@@ -25,7 +25,6 @@ from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 
-
 destinations_3d = [
     torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, -1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
     torch.tensor([[-1.0, 0.0, 0.0, 1.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]),
@@ -58,7 +57,6 @@ for dst, expct in zip(destinations_3d, expected_3d):
 if optional_import("cupy")[1] and optional_import("scipy.ndimage")[1]:
     TESTS.append(deepcopy(TESTS[-1]))
     TESTS[-1][2].update({"align_corners": True, "mode": 1, "padding_mode": "reflect"})  # type: ignore
-
 
 destinations_2d = [
     torch.tensor([[1.0, 0.0, 0.0], [0.0, -1.0, 1.0], [0.0, 0.0, 1.0]]),  # flip the second

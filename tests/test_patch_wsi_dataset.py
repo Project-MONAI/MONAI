@@ -71,7 +71,6 @@ TEST_CASE_DEP_0_L2 = [
     [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
 ]
 
-
 TEST_CASE_DEP_1 = [
     {
         "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [10004, 20004], "label": [0, 0, 0, 1]}],
@@ -87,7 +86,6 @@ TEST_CASE_DEP_1 = [
         {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
-
 
 TEST_CASE_DEP_1_L0 = [
     {
@@ -105,7 +103,6 @@ TEST_CASE_DEP_1_L0 = [
         {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
-
 
 TEST_CASE_DEP_1_L1 = [
     {
@@ -180,7 +177,6 @@ TEST_CASE_DEP_OPENSLIDE_0_L1 = [
     [{"image": np.array([[[239]], [[239]], [[239]]], dtype=np.uint8), "label": np.array([[[1]]])}],
 ]
 
-
 TEST_CASE_DEP_OPENSLIDE_0_L2 = [
     {
         "data": [{"image": FILE_PATH, WSIPatchKeys.LOCATION.value: [0, 0], "label": [1]}],
@@ -208,7 +204,6 @@ TEST_CASE_DEP_OPENSLIDE_1 = [
         {"image": np.array([[[246]], [[246]], [[246]]], dtype=np.uint8), "label": np.array([[[1]]])},
     ],
 ]
-
 
 TEST_CASE_0 = [
     {

@@ -154,7 +154,7 @@ class NNIGen(HPOGen):
         warn("NNI is not detected. The code will continue to run without NNI.")
         return {}
 
-    def update_params(self, params: dict):  # type: ignore
+    def update_params(self, params: dict):
         """
         Translate the parameter from monai bundle to meet NNI requirements.
 
@@ -198,7 +198,7 @@ class NNIGen(HPOGen):
         else:
             warn("NNI is not detected. The code will continue to run without NNI.")
 
-    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:  # type: ignore
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
         """
         The python interface for NNI to run.
 
@@ -333,7 +333,7 @@ class OptunaGen(HPOGen):
         self.run_algo(obj_filename, output_folder, template_path)
         return self.acc
 
-    def update_params(self, params: dict):  # type: ignore
+    def update_params(self, params: dict):
         """
         Translate the parameter from monai bundle.
 
@@ -368,7 +368,7 @@ class OptunaGen(HPOGen):
             ConfigParser.export_config_file(self.params, write_path)
             logger.info(write_path)
 
-    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:  # type: ignore
+    def run_algo(self, obj_filename: str, output_folder: str = ".", template_path=None) -> None:
         """
         The python interface for NNI to run.
 

@@ -334,6 +334,16 @@ Layers
 .. autoclass:: GaussianFilter
     :members:
 
+`MedianFilter`
+~~~~~~~~~~~~~~
+.. autoclass:: MedianFilter
+    :members:
+
+`median_filter`
+~~~~~~~~~~~~~~~
+.. autoclass:: median_filter
+    :members:
+
 `BilateralFilter`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: BilateralFilter

@@ -24,13 +24,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache
@@ -65,7 +65,7 @@ jobs:
         disk-root: "D:"
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: Prepare pip wheel
@@ -75,8 +75,8 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
-        echo "::set-output name=dir::$(pip cache dir)"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
       uses: actions/cache@v3
@@ -117,13 +117,13 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache
@@ -150,9 +150,9 @@ jobs:
         python setup.py check -m -s
         python setup.py sdist bdist_wheel
         python -m twine check dist/*
-    - run: echo "::set-output name=pwd::$PWD"
+    - run: echo "pwd=$PWD" >> $GITHUB_OUTPUT
       id: root
-    - run: echo "::set-output name=tmp_dir::$(mktemp -d)"
+    - run: echo "tmp_dir=$(mktemp -d)" >> $GITHUB_OUTPUT
       id: mktemp
     - name: Move packages
       run: |
@@ -198,13 +198,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache

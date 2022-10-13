@@ -24,7 +24,6 @@ else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
-
 __all__ = ["RangeHandler", "RangePushHandler", "RangePopHandler", "MarkHandler"]
 
 

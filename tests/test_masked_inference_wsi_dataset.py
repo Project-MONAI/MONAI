@@ -134,7 +134,6 @@ TEST_CASE_4 = [
     ],
 ]
 
-
 TEST_CASE_OPENSLIDE_0 = [
     {"data": [{"image": FILE_PATH, "mask": MASK1}], "patch_size": 1, "image_reader_name": "OpenSlide"},
     [{"image": np.array([[[243]], [[243]], [[243]]], dtype=np.uint8), "name": FILE_NAME, "mask_location": [100, 100]}],
