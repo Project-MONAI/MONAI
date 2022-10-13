@@ -20,7 +20,7 @@ from monai.bundle import ConfigParser
 from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
-from tests.utils import DistCall, DistTestCase, SkipIfNoModule
+from tests.utils import DistCall, DistTestCase, SkipIfNoModule, skip_if_no_cuda
 
 _root_dir = pathjoin(os.path.dirname(__file__))
 _data_dir = pathjoin(_root_dir, "testing_data")
@@ -55,6 +55,7 @@ TEST_EVALUATE_1 = [
 class TestFLMonaiAlgo(DistTestCase):
     @parameterized.expand([TEST_TRAIN_1])
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
+    @skip_if_no_cuda
     def test_train(self, input_params):
         # initialize algo
         algo = MonaiAlgo(**input_params)
@@ -72,6 +73,7 @@ class TestFLMonaiAlgo(DistTestCase):
 
     @parameterized.expand([TEST_EVALUATE_1])
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
+    @skip_if_no_cuda
     def test_evaluate(self, input_params):
         # initialize algo
         algo = MonaiAlgo(**input_params)
