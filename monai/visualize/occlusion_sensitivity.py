@@ -53,18 +53,19 @@ class OcclusionSensitivity:
         # densenet 2d
         from monai.networks.nets import DenseNet121
         from monai.visualize import OcclusionSensitivity
+        import torch
 
         model_2d = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         occ_sens = OcclusionSensitivity(nn_module=model_2d)
-        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), b_box=[-1, -1, 2, 40, 1, 62])
+        occ_map, most_probable_class = occ_sens(x=torch.rand((1, 1, 48, 64)), b_box=[2, 40, 1, 62])
 
         # densenet 3d
         from monai.networks.nets import DenseNet
         from monai.visualize import OcclusionSensitivity
 
         model_3d = DenseNet(spatial_dims=3, in_channels=1, out_channels=3, init_features=2, growth_rate=2, block_config=(6,))
-        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10, stride=3)
-        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[-1, -1, 1, 3, -1, -1, -1, -1])
+        occ_sens = OcclusionSensitivity(nn_module=model_3d, n_batch=10)
+        occ_map, most_probable_class = occ_sens(torch.rand(1, 1, 6, 6, 6), b_box=[1, 3, -1, -1, -1, -1])
 
     See Also:
 
@@ -255,7 +256,10 @@ class OcclusionSensitivity:
         slices = [slice(s, e) for s, e in zip(bbox_min, bbox_max)]
         cropper = SpatialCrop(roi_slices=slices)
         cropped: MetaTensor = cropper(grid[0])[None]  # type: ignore
-        return cropped, cropper
+        mask_size = list(mask_size)
+        for i, s in enumerate(cropped.shape[2:]):
+            mask_size[i] = min(s, mask_size[i])
+        return cropped, cropper, mask_size
 
     def __call__(
         self, x: torch.Tensor, b_box: Optional[Sequence] = None, **kwargs
@@ -298,11 +302,11 @@ class OcclusionSensitivity:
         )
         # if bounding box given, crop the grid to only infer subsections of the image
         if b_box is not None:
-            grid, cropper = self.crop_meshgrid(grid, b_box, mask_size)
+            grid, cropper, mask_size = self.crop_meshgrid(grid, b_box, mask_size)
 
         # check that the grid is bigger than the mask size
         if any(m > g for g, m in zip(grid.shape[2:], mask_size)):
-            raise ValueError("Image (after cropping with bounding box) should be bigger than mask.")
+            raise ValueError(f"Image (spatial shape) {grid.shape[2:]} should be bigger than mask {mask_size}.")
 
         # get additive and multiplicative factors if they are unchanged for all patches (i.e., not mean_patch)
         add: Optional[Union[float, torch.Tensor]]
