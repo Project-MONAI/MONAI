@@ -176,7 +176,7 @@ class AlgoEnsembleBestN(AlgoEnsemble):
         scores = concat_val_to_np(self.algos, [AlgoEnsembleKeys.SCORE])
         return np.argsort(scores).tolist()
 
-    def collect_algos(self, n_best: int = -1):  # type: ignore
+    def collect_algos(self, n_best: int = -1):
         """
         Rank the algos by finding the top N (n_best) validation scores.
         """
