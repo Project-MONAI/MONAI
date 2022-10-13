@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 import unittest
 
@@ -22,12 +21,13 @@ from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from tests.utils import DistCall, DistTestCase, SkipIfNoModule
 
+_root_dir = os.path.join(os.path.dirname(__file__))
 TEST_TRAIN_1 = [
     {
-        "bundle_root": os.path.join(os.path.dirname(__file__)),
-        "config_train_filename": os.path.join("testing_data", "config_fl_train.json"),
+        "bundle_root": _root_dir,
+        "config_train_filename": os.path.join(_root_dir, "testing_data", "config_fl_train.json"),
         "config_evaluate_filename": None,
-        "config_filters_filename": os.path.join("testing_data", "config_fl_filters.json"),
+        "config_filters_filename": os.path.join(_root_dir, "testing_data", "config_fl_filters.json"),
         "multi_gpu": True,
     }
 ]
@@ -35,21 +35,6 @@ TEST_TRAIN_1 = [
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(DistTestCase):
-    def setUp(self):
-        input_params = TEST_TRAIN_1[0]
-        # get testing data dir and update train config; using the first to define data dir
-        if isinstance(input_params["config_train_filename"], list):
-            config_train_filename = input_params["config_train_filename"][0]
-        else:
-            config_train_filename = input_params["config_train_filename"]
-        with open(os.path.join(input_params["bundle_root"], config_train_filename)) as f:
-            config_train = json.load(f)
-
-        config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
-
-        with open(os.path.join(input_params["bundle_root"], config_train_filename), "w") as f:
-            json.dump(config_train, f, indent=4)
-
     @parameterized.expand([TEST_TRAIN_1])
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     def test_train(self, input_params):
