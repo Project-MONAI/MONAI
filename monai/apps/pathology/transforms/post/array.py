@@ -9,29 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
-import torch
 
-from monai.config.type_definitions import NdarrayOrTensor
-from monai.transforms.croppad.array import BoundingRect
-from monai.transforms.post.array import Activations, AsDiscrete
-from monai.apps.pathology.transforms.post.array import (
-    Watershed, 
-    GenerateProbabilityMap, 
-    GenerateMask, 
-    GenerateMarkers, 
-    GenerateDistanceMap,
-)
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.transform import Transform
+from monai.transforms.utils_pytorch_numpy_unification import unique
 from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import ensure_tuple_rep
+from monai.utils.type_conversion import convert_to_dst_type
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
-moments, _ = optional_import("skimage.measure", name="moments")
+centroid, _ = optional_import("skimage.measure", name="centroid")
 
-__all__ = ["PostProcessHoVerNetOutput", "GenerateSuccinctContour"]
+__all__ = ["GenerateSuccinctContour", "GenerateInstanceContour", "GenerateInstanceCentroid", "GenerateInstanceType"]
 
 
 class GenerateSuccinctContour(Transform):
@@ -215,7 +208,7 @@ class GenerateSuccinctContour(Transform):
 
 class GenerateInstanceContour(Transform):
     """
-    Generate contour for each instance. Use `GenerateSuccinctContour` to only include
+    Generate contour for each instance in a 2D array. Use `GenerateSuccinctContour` to only include
     the pixels to which lines need to be drawn
 
     Args:
@@ -229,52 +222,84 @@ class GenerateInstanceContour(Transform):
         self.level = level
         self.points_num = points_num
     
-    def __call__(self, instance_map, offset):
+    def __call__(self, image: NdarrayOrTensor, offset: Optional[Sequence[int]] = (0, 0)) -> np.ndarray:
         """
         Args:
-            
+            image: instance-level segmentation result. Shape should be [C, H, W]
+            offset: optional, offset of starting position of the instance in the array, default is (0, 0).
         """
-        inst_contour_cv = find_contours(instance_map, level=self.level)
-        generate_contour = GenerateSuccinctContour(instance_map.shape[0], instance_map.shape[1])
+        inst_contour_cv = find_contours(image, level=self.level)
+        generate_contour = GenerateSuccinctContour(image.shape[0], image.shape[1])
         inst_contour = generate_contour(inst_contour_cv)
 
         # < `self.points_num` points don't make a contour, so skip, likely artifact too
         # as the contours obtained via approximation => too small or sthg
         if inst_contour.shape[0] < self.points_num:
+            print(f"< {self.points_num} points don't make a contour, so skip")
             return False
         elif len(inst_contour.shape) != 2:
+            print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
             return False  # ! check for tricky shape
         else:
             inst_contour[:, 0] += offset[0]  # X
             inst_contour[:, 1] += offset[1]  # Y
-
             return inst_contour
 
 
 class GenerateInstanceCentroid(Transform):
-    def __init__(self) -> None:
-        pass
+    """
+    Generate instance centroid using `skimage.measure.centroid`.
 
-    def __call__(self, pred_instance_map, offset) -> Any:
-        inst_moment = moments(pred_instance_map, order=3)
+    Args:
+        dtype: the data type of output centroid.
 
-        inst_centroid = np.array(
-            [(inst_moment[0, 1] / inst_moment[0, 0]), (inst_moment[1, 0] / inst_moment[0, 0])]
-        )
-        inst_centroid[0] += offset[0]  # X
-        inst_centroid[1] += offset[1]  # Y
+    """
+    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+        self.dtype = dtype
 
-        return inst_centroid
+    def __call__(self, image: NdarrayOrTensor, offset: Union[Sequence[int], int] = 0) -> np.ndarray:
+        """
+        Args:
+            image: instance-level segmentation result. Shape should be [1, H, W, [D]]
+            offset: optional, offset of starting position of the instance in the array, default is 0 for each dim.
+
+        """
+        image = convert_to_numpy(image)
+        image = image.squeeze(0) # squeeze channel dim
+        ndim = len(image.shape)
+        offset = ensure_tuple_rep(offset, ndim)
+
+        inst_centroid = centroid(image)
+        for i in range(ndim):
+            inst_centroid[i] += offset[i]
+
+        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)
 
 
 class GenerateInstanceType(Transform):
+    """
+    Generate instance type and probability for each instance.
+    """
     def __init__(self) -> None:
         super().__init__()
     
-    def __call__(self, instance_type_map, instance_seg_map, instance_id):
-        instance_map = instance_map == instance_id
-        inst_type = instance_type_map[instance_id]  # type: ignore
-        type_list, type_pixels = np.unique(inst_type, return_counts=True)
+    def __call__(self, bbox, type_pred, seg_pred, instance_id):
+        """
+        Args:
+            bbox: bounding box coordinates of the instance, shape is [channel, 2 * spatial dims].
+            type_pred: pixel-level type prediction map after activation function.
+            seg_pred: pixel-level segmentation prediction map after activation function.
+            instance_id: get instance type from specified instance id.
+        """
+
+        rmin, rmax, cmin, cmax = bbox.flatten()
+        seg_map_crop = seg_pred[0, rmin:rmax, cmin:cmax]
+        type_map_crop = type_pred[0, rmin:rmax, cmin:cmax]
+
+        seg_map_crop = seg_map_crop == instance_id
+        inst_type = type_map_crop[seg_map_crop]  # type: ignore
+        type_list = unique(inst_type)
+        type_pixels = len(type_list)
         type_list = list(zip(type_list, type_pixels))
         type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
         inst_type = type_list[0][0]
@@ -282,6 +307,6 @@ class GenerateInstanceType(Transform):
             if len(type_list) > 1:
                 inst_type = type_list[1][0]
         type_dict = {v[0]: v[1] for v in type_list}
-        type_prob = type_dict[inst_type] / (np.sum(instance_id) + 1.0e-6)
+        type_prob = type_dict[inst_type] / (sum(seg_map_crop) + 1.0e-6)
 
         return int(inst_type), float(type_prob)
