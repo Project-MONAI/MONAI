@@ -1,4 +1,7 @@
 {
+    "imports": [
+        "$import os"
+    ],
     "bundle_root": "tests/testing_data",
     "dataset_dir": "tests/testing_data",
     "train": {
