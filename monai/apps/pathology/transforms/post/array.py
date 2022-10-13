@@ -13,7 +13,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from monai.config.type_definitions import NdarrayOrTensor
+from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import unique
 from monai.utils import convert_to_numpy, optional_import
@@ -218,6 +218,9 @@ class GenerateInstanceContour(Transform):
             to (max(image) + min(image)) / 2.
 
     """
+
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self, points_num: int = 3, level: Optional[float] = None) -> None:
         self.level = level
         self.points_num = points_num
@@ -236,10 +239,10 @@ class GenerateInstanceContour(Transform):
         # as the contours obtained via approximation => too small or sthg
         if inst_contour.shape[0] < self.points_num:
             print(f"< {self.points_num} points don't make a contour, so skip")
-            return False
+            return None
         elif len(inst_contour.shape) != 2:
             print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
-            return False  # ! check for tricky shape
+            return None  # ! check for tricky shape
         else:
             inst_contour[:, 0] += offset[0]  # X
             inst_contour[:, 1] += offset[1]  # Y
@@ -254,6 +257,9 @@ class GenerateInstanceCentroid(Transform):
         dtype: the data type of output centroid.
 
     """
+
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
         self.dtype = dtype
 
@@ -280,15 +286,24 @@ class GenerateInstanceType(Transform):
     """
     Generate instance type and probability for each instance.
     """
+
+    backend = [TransformBackends.NUMPY]
+
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(self, bbox, type_pred, seg_pred, instance_id):
+    def __call__(
+        self, 
+        type_pred: NdarrayOrTensor,
+        seg_pred: NdarrayOrTensor,
+        bbox: np.ndarray,
+        instance_id: int
+    ) -> Sequence[int, float]:
         """
         Args:
-            bbox: bounding box coordinates of the instance, shape is [channel, 2 * spatial dims].
             type_pred: pixel-level type prediction map after activation function.
             seg_pred: pixel-level segmentation prediction map after activation function.
+            bbox: bounding box coordinates of the instance, shape is [channel, 2 * spatial dims].
             instance_id: get instance type from specified instance id.
         """
 

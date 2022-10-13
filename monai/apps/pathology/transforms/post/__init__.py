@@ -9,12 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import GenerateSuccinctContour, PostProcessHoVerNetOutput
+from .array import GenerateSuccinctContour
 from .dictionary import (
     GenerateSuccinctContourD,
     GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
-    PostProcessHoVerNetOutputD,
-    PostProcessHoVerNetOutputd,
-    PostProcessHoVerNetOutputDict,
 )
