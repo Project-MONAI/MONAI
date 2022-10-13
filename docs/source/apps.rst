@@ -129,13 +129,21 @@ Applications
 .. automodule:: monai.apps.pathology.transforms.post.array
 .. autoclass:: GenerateSuccinctContour
     :members:
-.. autoclass:: PostProcessHoVerNetOutput
+.. autoclass:: GenerateInstanceContour
+    :members:
+.. autoclass:: GenerateInstanceCentroid
+    :members:
+.. autoclass:: GenerateInstanceType
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: GenerateSuccinctContourd
     :members:
-.. autoclass:: PostProcessHoVerNetOutputd
+.. autoclass:: GenerateInstanceContourd
+    :members:
+.. autoclass:: GenerateInstanceCentroidd
+    :members:
+.. autoclass:: GenerateInstanceTyped
     :members:
 
 `Detection`
