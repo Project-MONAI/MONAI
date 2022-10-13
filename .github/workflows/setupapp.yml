@@ -29,7 +29,7 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache
@@ -80,13 +80,13 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache
@@ -116,13 +116,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache

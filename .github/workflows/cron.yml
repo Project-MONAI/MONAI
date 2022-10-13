@@ -219,7 +219,7 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
-        echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
+        echo "devices=$CUDA_VISIBLE_DEVICES" >> $GITHUB_OUTPUT
     - name: Checkout tutorials and install their requirements
       run: |
         cd /opt
