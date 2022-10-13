@@ -41,7 +41,6 @@ __all__ = [
     "SequenceStr",
 ]
 
-
 #: KeysCollection
 #
 # The KeyCollection type is used to for defining variables

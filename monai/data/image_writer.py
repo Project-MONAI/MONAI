@@ -46,7 +46,6 @@ else:
     nib, _ = optional_import("nibabel")
     PILImage, _ = optional_import("PIL.Image")
 
-
 __all__ = [
     "ImageWriter",
     "ITKWriter",
