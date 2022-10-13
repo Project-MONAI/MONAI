@@ -30,7 +30,6 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
 base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
@@ -142,7 +141,6 @@ TEST_CASE_SMALL_6 = [
         {"image": ARRAY_SMALL_1[:, 2:4, 2:4]},
     ],
 ]
-
 
 TEST_CASE_SMALL_7 = [
     {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}], "offset": (1, 0)},

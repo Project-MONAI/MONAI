@@ -34,7 +34,6 @@ with warnings.catch_warnings():
 central_frequency, has_central_frequency = optional_import("pywt", name="central_frequency")
 cwt, has_cwt = optional_import("pywt", name="cwt")
 
-
 __all__ = [
     "SignalRandDrop",
     "SignalRandScale",
