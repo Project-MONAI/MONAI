@@ -199,6 +199,9 @@ class MonaiAlgoStats(ClientAlgoStats):
             else:
                 hist_range = extra[FlStatistics.HIST_RANGE]
 
+            stats_dict = {}
+
+            # train data stats
             train_summary_stats, train_case_stats = self._get_data_key_stats(
                 parser=self.train_parser,
                 data_key=self.train_data_key,
@@ -206,6 +209,11 @@ class MonaiAlgoStats(ClientAlgoStats):
                 hist_range=hist_range,
                 output_path=os.path.join(self.app_root, "train_data_stats.yaml"),
             )
+            if train_case_stats:
+                # Only return summary statistics to FL server
+                stats_dict.update({self.train_data_key: train_summary_stats})
+
+            # eval data stats
             eval_summary_stats, eval_case_stats = self._get_data_key_stats(
                 parser=self.train_parser,
                 data_key=self.eval_data_key,
@@ -213,18 +221,20 @@ class MonaiAlgoStats(ClientAlgoStats):
                 hist_range=hist_range,
                 output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
             )
-            # Compute total summary
-            total_summary_stats = self._compute_total_stats([train_case_stats, eval_case_stats], hist_bins, hist_range)
+            if eval_summary_stats:
+                # Only return summary statistics to FL server
+                stats_dict.update({self.eval_data_key: eval_summary_stats})
 
-            # Only return summary statistics to FL server
-            stats = ExchangeObject(
-                statistics={
-                    self.train_data_key: train_summary_stats,
-                    self.eval_data_key: eval_summary_stats,
-                    FlStatistics.TOTAL_DATA: total_summary_stats,
-                }
-            )
+            # total stats
+            if train_case_stats and eval_case_stats:
+                # Compute total summary
+                total_summary_stats = self._compute_total_stats(
+                    [train_case_stats, eval_case_stats], hist_bins, hist_range
+                )
+                stats_dict.update({FlStatistics.TOTAL_DATA: total_summary_stats})
 
+            # optional filter of data stats
+            stats = ExchangeObject(statistics=stats_dict)
             if self.post_statistics_filters is not None:
                 for _filter in self.post_statistics_filters:
                     stats = _filter(stats, extra)
@@ -234,6 +244,9 @@ class MonaiAlgoStats(ClientAlgoStats):
             raise ValueError("data_root not set!")
 
     def _get_data_key_stats(self, parser, data_key, hist_bins, hist_range, output_path=None):
+        if data_key not in parser:
+            self.logger.warning(f"Data key {data_key} not available in bundle configs.")
+            return None, None
         data = parser.get_parsed_content(data_key)
 
         datalist = {data_key: data}
