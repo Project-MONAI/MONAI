@@ -293,7 +293,7 @@ class GenerateInstanceType(Transform):
         super().__init__()
 
     def __call__(
-        self, 
+        self,
         type_pred: NdarrayOrTensor,
         seg_pred: NdarrayOrTensor,
         bbox: np.ndarray,
