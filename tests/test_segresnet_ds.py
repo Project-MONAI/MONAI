@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNetDS
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_SEGRESNET_DS = []
@@ -49,31 +49,24 @@ for spatial_dims in range(2, 4):
             ]
             TEST_CASE_SEGRESNET_DS2.append(test_case)
 
-TEST_CASE_SEGRESNET_DS3 = []
-TEST_CASE_SEGRESNET_DS3.append(
-    ({"init_filters": 8, "dsdepth": 2, "resolution": None}, (2, 1, 16, 16, 16), ((2, 2, 16, 16, 16), (2, 2, 8, 8, 8)))
-)
-TEST_CASE_SEGRESNET_DS3.append(
+TEST_CASE_SEGRESNET_DS3 = [
+    ({"init_filters": 8, "dsdepth": 2, "resolution": None}, (2, 1, 16, 16, 16), ((2, 2, 16, 16, 16), (2, 2, 8, 8, 8))),
     (
         {"init_filters": 8, "dsdepth": 3, "resolution": None},
         (2, 1, 16, 16, 16),
         ((2, 2, 16, 16, 16), (2, 2, 8, 8, 8), (2, 2, 4, 4, 4)),
-    )
-)
-TEST_CASE_SEGRESNET_DS3.append(
+    ),
     (
         {"init_filters": 8, "dsdepth": 3, "resolution": [1, 1, 5]},
         (2, 1, 16, 16, 16),
         ((2, 2, 16, 16, 16), (2, 2, 8, 8, 16), (2, 2, 4, 4, 16)),
-    )
-)
-TEST_CASE_SEGRESNET_DS3.append(
+    ),
     (
         {"init_filters": 8, "dsdepth": 3, "resolution": [1, 2, 5]},
         (2, 1, 16, 16, 16),
         ((2, 2, 16, 16, 16), (2, 2, 8, 8, 16), (2, 2, 4, 8, 16)),
-    )
-)
+    ),
+]
 
 
 class TestResNetDS(unittest.TestCase):
@@ -85,7 +78,7 @@ class TestResNetDS(unittest.TestCase):
             self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS2)
-    def test_shape(self, input_param, input_shape, expected_shape):
+    def test_shape2(self, input_param, input_shape, expected_shape):
 
         dsdepth = input_param.get("dsdepth", 1)
         net = SegResNetDS(**input_param).to(device)
@@ -111,7 +104,7 @@ class TestResNetDS(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS3)
-    def test_shape(self, input_param, input_shape, expected_shapes):
+    def test_shape3(self, input_param, input_shape, expected_shapes):
 
         dsdepth = input_param.get("dsdepth", 1)
         net = SegResNetDS(**input_param).to(device)
@@ -127,6 +120,7 @@ class TestResNetDS(unittest.TestCase):
         with self.assertRaises(ValueError):
             SegResNetDS(spatial_dims=4)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_script(self):
         input_param, input_shape, _ = TEST_CASE_SEGRESNET_DS[0]
         net = SegResNetDS(**input_param)

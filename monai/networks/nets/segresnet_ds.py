@@ -39,7 +39,9 @@ def scales_for_resolution(resolution: Union[Tuple, List], n_stages: Optional[int
 
     ndim = len(resolution)
     res = np.array(resolution)
-    assert all(res > 0), f"resolution must be positive, got: {res}"
+    if not all(res > 0):
+        raise ValueError("Resolution must be positive")
+
     nl = np.floor(np.log2(np.max(res) / res)).astype(np.int32)
     scales = [tuple(np.where(2**i >= 2**nl, 1, 2)) for i in range(max(nl))]
     if n_stages and n_stages > max(nl):
@@ -133,8 +135,6 @@ class SegResEncoder(nn.Module):
         act: activation type and arguments. Defaults to ``RELU``.
         norm: feature normalization type and arguments. Defaults to ``BATCH``.
         blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
-        return_levels: whether to return a list of all features (at all levels),
-                       otherwise returns only the final output. Defaults to True.
         head_module: optional callable module to apply to the final features.
         anisotropic_scales: optional list of scale for each scale level.
     """
@@ -147,7 +147,6 @@ class SegResEncoder(nn.Module):
         act: Union[Tuple, str] = "relu",
         norm: Union[Tuple, str] = "batch",
         blocks_down: tuple = (1, 2, 2, 4),
-        return_levels: bool = True,
         head_module: Optional[nn.Module] = None,
         anisotropic_scales: Optional[Tuple] = None,
     ):
@@ -208,13 +207,12 @@ class SegResEncoder(nn.Module):
         self.head_module = head_module
         self.in_channels = in_channels
         self.blocks_down = blocks_down
-        self.return_levels = return_levels
         self.init_filters = init_filters
         self.norm = norm
         self.act = act
         self.spatial_dims = spatial_dims
 
-    def _forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
+    def _forward(self, x: torch.Tensor) -> List[torch.Tensor]:
 
         outputs = []
         x = self.conv_init(x)
@@ -224,17 +222,12 @@ class SegResEncoder(nn.Module):
             outputs.append(x)
             x = level["downsample"](x)
 
-        if self.return_levels:
-            return outputs
-        else:
+        if self.head_module is not None:
+            outputs = self.head_module(outputs)
 
-            x = outputs[-1]
-            if self.head_module is not None:
-                x = self.head_module(x)
+        return outputs
 
-            return x
-
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         return self._forward(x)
 
 
@@ -291,9 +284,15 @@ class SegResNetDS(nn.Module):
         self.act = act
         self.norm = norm
         self.blocks_down = blocks_down
-        self.dsdepth = dsdepth
+        self.dsdepth = max(dsdepth, 1)
         self.resolution = resolution
         self.preprocess = preprocess
+
+        if resolution is not None:
+            if not isinstance(resolution, (list, tuple)):
+                raise TypeError("resolution must be a tuple")
+            elif not all(r > 0 for r in resolution):
+                raise ValueError("resolution must be positive")
 
         # ensure normalization had affine trainable parameters (if not specified)
         norm = split_args(norm)
@@ -317,7 +316,6 @@ class SegResNetDS(nn.Module):
             act=act,
             norm=norm,
             blocks_down=blocks_down,
-            return_levels=True,
             anisotropic_scales=anisotropic_scales,
         )
 
@@ -332,7 +330,7 @@ class SegResNetDS(nn.Module):
         for i in range(n_up):
 
             filters = filters // 2
-            kernel_size, padding, stride = (
+            kernel_size, _, stride = (
                 aniso_kernel(anisotropic_scales[len(blocks_up) - i - 1]) if anisotropic_scales else (3, 1, 2)
             )
 
@@ -388,7 +386,8 @@ class SegResNetDS(nn.Module):
         """
         Calculate if the input shape is divisible by the minimum factors for the current nework configuration
         """
-        return all([i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())])
+        a = [i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())]
+        return all(a)
 
     def _forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
 
@@ -399,8 +398,6 @@ class SegResNetDS(nn.Module):
             raise ValueError(f"Input spatial dims {x.shape} must be divisible by {self.shape_factor()}")
 
         x_down = self.encoder(x)
-
-        assert torch.jit.isinstance(x_down, List[torch.Tensor])
 
         x_down.reverse()
         x = x_down.pop(0)
