@@ -25,12 +25,12 @@
             "_target_": "Dataset",
             "data": [
                 {
-                    "image": "$os.path.join(@dataset_dir, anatomical.nii')",
-                    "label": "$os.path.join(@dataset_dir, anatomical_label.nii.gz')"
+                    "image": "$os.path.join(@dataset_dir, 'anatomical.nii')",
+                    "label": "$os.path.join(@dataset_dir, 'anatomical_label.nii.gz')"
                 },
                 {
-                    "image": "$os.path.join(@dataset_dir, reoriented_anat_moved.nii')",
-                    "label": "$os.path.join(@dataset_dir, reoriented_anat_moved_label.nii.gz')"
+                    "image": "$os.path.join(@dataset_dir, 'reoriented_anat_moved.nii')",
+                    "label": "$os.path.join(@dataset_dir, 'reoriented_anat_moved_label.nii.gz')"
                 }
             ],
             "transform": "@train#preprocessing"
