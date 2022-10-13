@@ -65,10 +65,10 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   test-py3x:
     runs-on: ubuntu-latest
@@ -107,10 +107,10 @@ jobs:
         BUILD_MONAI=1 ./runtests.sh --build --quick --unittests --disttests
         coverage xml --ignore-errors
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest

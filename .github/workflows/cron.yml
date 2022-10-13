@@ -53,10 +53,10 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pt-image:
     if: github.repository == 'Project-MONAI/MONAI'
@@ -96,10 +96,10 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pip:
     # pip install monai[all] and use it to run unit tests
@@ -195,10 +195,10 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-tutorial-notebooks:
     if: github.repository == 'Project-MONAI/MONAI'
