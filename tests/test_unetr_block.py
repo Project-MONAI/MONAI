@@ -67,7 +67,6 @@ for spatial_dims in range(1, 4):
                     ]
                     TEST_UP_BLOCK.append(test_case)
 
-
 TEST_PRUP_BLOCK = []
 in_channels, out_channels = 4, 2
 for spatial_dims in range(1, 4):

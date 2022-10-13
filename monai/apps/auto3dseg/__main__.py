@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from monai.apps.auto3dseg.auto_runner import AutoRunner
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo, BundleGen
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer

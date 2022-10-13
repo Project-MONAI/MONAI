@@ -57,7 +57,6 @@ TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
 
-
 # add every test back with the pad/pool sequential component omitted
 for tests in list(TEST_CASE_SUBPIXEL):
     args: dict = tests[0]  # type: ignore

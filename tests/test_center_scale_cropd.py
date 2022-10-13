@@ -23,7 +23,6 @@ TESTS = [
     [{"keys": "img", "roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2)],
 ]
 
-
 TEST_VALUES = [
     [
         {"keys": "img", "roi_scale": [0.4, 0.4]},

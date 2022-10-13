@@ -140,6 +140,7 @@ class TestOneOf(unittest.TestCase):
     def test_compose_flatten_does_not_affect_one_of(self):
         p = Compose([A(), B(), OneOf([C(), Inv(KEYS), Compose([X(), Y()])])])
         f = p.flatten()
+
         # in this case the flattened transform should be the same.
 
         def _match(a, b):

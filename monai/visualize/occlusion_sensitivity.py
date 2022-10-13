@@ -132,7 +132,7 @@ class OcclusionSensitivity:
         self.mode = mode
 
     @staticmethod
-    def constant_occlusion(x: torch.Tensor, val: float, mask_size: tuple) -> Tuple[float, torch.Tensor]:
+    def constant_occlusion(x: torch.Tensor, val: float, mask_size: Sequence) -> Tuple[float, torch.Tensor]:
         """Occlude with a constant occlusion. Multiplicative is zero, additive is constant value."""
         ones = torch.ones((*x.shape[:2], *mask_size), device=x.device, dtype=x.dtype)
         return 0, ones * val
@@ -237,7 +237,9 @@ class OcclusionSensitivity:
         return out
 
     @staticmethod
-    def crop_meshgrid(grid: MetaTensor, b_box: Sequence, mask_size: Sequence) -> Tuple[MetaTensor, SpatialCrop]:
+    def crop_meshgrid(
+        grid: MetaTensor, b_box: Sequence, mask_size: Sequence
+    ) -> Tuple[MetaTensor, SpatialCrop, Sequence]:
         """Crop the meshgrid so we only perform occlusion sensitivity on a subsection of the image."""
         # distance from center of mask to edge is -1 // 2.
         mask_edge = [(m - 1) // 2 for m in mask_size]
@@ -292,7 +294,7 @@ class OcclusionSensitivity:
             raise ValueError("Expected batch size of 1.")
 
         sd = x.ndim - 2
-        mask_size = ensure_tuple_rep(self.mask_size, sd)
+        mask_size: Sequence = ensure_tuple_rep(self.mask_size, sd)
 
         # get the meshgrid (so that sliding_window_inference can tell us which bit to occlude)
         grid: MetaTensor = MetaTensor(
