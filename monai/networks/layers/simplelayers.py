@@ -497,7 +497,8 @@ def median_filter(
     else:
         kernel = kernel.to(in_tensor)
     # map the local window to single vector
-    conv = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]  # type: ignore
+    conv = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
+
     if "padding" not in kwargs:
         if pytorch_after(1, 10):
             kwargs["padding"] = "same"
