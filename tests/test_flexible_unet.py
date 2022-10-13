@@ -16,11 +16,10 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import BACKBONE, EfficientNetBNFeatures, FlexibleUNet, ResNet, ResNetBlock, ResNetBottleneck
 from monai.networks.blocks.encoder import BasicEncoder
+from monai.networks.nets import BACKBONE, EfficientNetBNFeatures, FlexibleUNet, ResNet, ResNetBlock, ResNetBottleneck
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, skip_if_quick
-
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
