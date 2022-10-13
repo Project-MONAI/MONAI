@@ -9,14 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import GenerateSuccinctContour, PostProcessHoVerNetOutput
+from .post.array import GenerateInstanceCentroid, GenerateInstanceContour, GenerateInstanceType, GenerateSuccinctContour
 from .post.dictionary import (
+    GenerateInstanceCentroidD,
+    GenerateInstanceCentroidd,
+    GenerateInstanceCentroidDict,
+    GenerateInstanceContourD,
+    GenerateInstanceContourd,
+    GenerateInstanceContourDict,
+    GenerateInstanceTypeD,
+    GenerateInstanceTyped,
+    GenerateInstanceTypeDict,
     GenerateSuccinctContourD,
     GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
-    PostProcessHoVerNetOutputD,
-    PostProcessHoVerNetOutputd,
-    PostProcessHoVerNetOutputDict,
 )
 from .spatial.array import SplitOnGrid, TileOnGrid
 from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict

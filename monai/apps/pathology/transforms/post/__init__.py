@@ -9,8 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import GenerateSuccinctContour
+from .array import GenerateInstanceCentroid, GenerateInstanceContour, GenerateInstanceType, GenerateSuccinctContour
 from .dictionary import (
+    GenerateInstanceCentroidD,
+    GenerateInstanceCentroidd,
+    GenerateInstanceCentroidDict,
+    GenerateInstanceContourD,
+    GenerateInstanceContourd,
+    GenerateInstanceContourDict,
+    GenerateInstanceTypeD,
+    GenerateInstanceTyped,
+    GenerateInstanceTypeDict,
     GenerateSuccinctContourD,
     GenerateSuccinctContourd,
     GenerateSuccinctContourDict,

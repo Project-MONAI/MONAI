@@ -15,7 +15,6 @@ import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import unique
 from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple_rep
@@ -239,13 +238,14 @@ class GenerateInstanceContour(Transform):
         # as the contours obtained via approximation => too small or sthg
         if inst_contour.shape[0] < self.points_num:
             print(f"< {self.points_num} points don't make a contour, so skip")
-            return None
+            return None  # type: ignore
+        # check for tricky shape
         elif len(inst_contour.shape) != 2:
             print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
-            return None  # ! check for tricky shape
+            return None  # type: ignore
         else:
-            inst_contour[:, 0] += offset[0]  # X
-            inst_contour[:, 1] += offset[1]  # Y
+            inst_contour[:, 0] += offset[0]  # X  # type: igonre
+            inst_contour[:, 1] += offset[1]  # Y  # type: igonre
             return inst_contour
 
 
@@ -271,7 +271,7 @@ class GenerateInstanceCentroid(Transform):
 
         """
         image = convert_to_numpy(image)
-        image = image.squeeze(0) # squeeze channel dim
+        image = image.squeeze(0)  # squeeze channel dim
         ndim = len(image.shape)
         offset = ensure_tuple_rep(offset, ndim)
 
@@ -279,7 +279,7 @@ class GenerateInstanceCentroid(Transform):
         for i in range(ndim):
             inst_centroid[i] += offset[i]
 
-        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)
+        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)[0]
 
 
 class GenerateInstanceType(Transform):
@@ -292,13 +292,9 @@ class GenerateInstanceType(Transform):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(
-        self, 
-        type_pred: NdarrayOrTensor,
-        seg_pred: NdarrayOrTensor,
-        bbox: np.ndarray,
-        instance_id: int
-    ) -> Sequence[int, float]:
+    def __call__(  # type: ignore
+        self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
+    ) -> Tuple[int, float]:
         """
         Args:
             type_pred: pixel-level type prediction map after activation function.
@@ -313,8 +309,7 @@ class GenerateInstanceType(Transform):
 
         seg_map_crop = seg_map_crop == instance_id
         inst_type = type_map_crop[seg_map_crop]  # type: ignore
-        type_list = unique(inst_type)
-        type_pixels = len(type_list)
+        type_list, type_pixels = np.unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
         type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
         inst_type = type_list[0][0]
@@ -324,4 +319,4 @@ class GenerateInstanceType(Transform):
         type_dict = {v[0]: v[1] for v in type_list}
         type_prob = type_dict[inst_type] / (sum(seg_map_crop) + 1.0e-6)
 
-        return int(inst_type), float(type_prob)
+        return (int(inst_type), float(type_prob))
