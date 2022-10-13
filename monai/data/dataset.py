@@ -20,7 +20,7 @@ import threading
 import time
 import warnings
 from copy import copy, deepcopy
-from multiprocessing.managers import ListProxy
+from multiprocessing.managers import ListProxy  # type:ignore
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
@@ -921,7 +921,7 @@ class SharedCacheDataset(Dataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Optional[Union[Sequence[Callable], Callable]] = None,
         copy_cache: bool = False,
         as_contiguous: bool = True,
         cache_list: Optional[ListProxy] = None,
@@ -989,7 +989,8 @@ class SharedCacheDataset(Dataset):
 
         # proceed with randomizable transforms
         start_run = False
-        for _transform in self.transform.transforms:
+        comp_transform: Compose = self.transform
+        for _transform in comp_transform.transforms:
             if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
                 # only need to deep copy data on first non-deterministic transform
                 if not start_run:

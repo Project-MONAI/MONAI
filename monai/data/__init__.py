@@ -34,6 +34,7 @@ from .dataset import (
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
+    SharedCacheDataset,
     SmartCacheDataset,
     ZipDataset,
 )
