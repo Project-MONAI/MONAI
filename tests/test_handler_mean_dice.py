@@ -33,6 +33,7 @@ class TestHandlerMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg, details_shape):
         dice_metric = MeanDice(**input_params)
+
         # set up engine
 
         def _val_func(engine, batch):

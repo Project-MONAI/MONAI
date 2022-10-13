@@ -83,7 +83,6 @@ TEST_CASE_8_1 = [
     (384, 128, 128),
 ]
 
-
 TEST_CASE_9 = [
     {"reader": ITKReader()},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
@@ -140,7 +139,6 @@ TEST_CASE_21 = [
 
 # test reader consistency between PydicomReader and ITKReader on dicom data
 TEST_CASE_22 = ["tests/testing_data/CT_DICOM"]
-
 
 TESTS_META = []
 for track_meta in (False, True):

@@ -41,7 +41,6 @@ TEST_CASE_RAND_ROTATE_1 = [
     np.array([[[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]], [[1.0, 3.0], [0.0, 2.0]]], dtype=np.float32),
 ]
 
-
 TEST_CASE_RAND_ROTATE_2 = [
     {"name": "rand_image_rotate_90", "prob": 0.0, "max_k": 1, "spatial_axis": (-2, -1)},
     np.array([[[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]], [[0.0, 1.0], [2.0, 3.0]]], dtype=np.float32),
