@@ -64,6 +64,14 @@ TESTS.append(
 )
 TESTS.append(
     [
+        {"nn_module": model_3d, "n_batch": 10},
+        {"x": torch.rand(1, 1, 6, 7, 8).to(device), "b_box": [1, 3, -1, -1, -1, -1]},
+        (1, out_channels_3d, 2, 7, 8),
+        (1, 1, 2, 7, 8),
+    ]
+)
+TESTS.append(
+    [
         {"nn_module": model_2d_2c},
         {"x": torch.rand(1, 2, 48, 64).to(device)},
         (1, out_channels_2d, 48, 64),
@@ -81,19 +89,11 @@ TESTS.append(
 )
 # 2D should fail: bbox makes image too small
 TESTS_FAIL.append(
-    [
-        {"nn_module": model_2d, "n_batch": 10, "mask_size": 15},
-        {"x": torch.rand(1, 1, 48, 64).to(device), "b_box": [2, 3, -1, -1]},
-        ValueError,
-    ]
+    [{"nn_module": model_2d, "n_batch": 10, "mask_size": 200}, {"x": torch.rand(1, 1, 48, 64).to(device)}, ValueError]
 )
 # 2D should fail: batch > 1
 TESTS_FAIL.append(
-    [
-        {"nn_module": model_2d, "n_batch": 10},
-        {"x": torch.rand(2, 1, 48, 64).to(device), "b_box": [2, 3, -1, -1]},
-        ValueError,
-    ]
+    [{"nn_module": model_2d, "n_batch": 10, "mask_size": 100}, {"x": torch.rand(2, 1, 48, 64).to(device)}, ValueError]
 )
 # 2D should fail: unknown mode
 TESTS_FAIL.append(
