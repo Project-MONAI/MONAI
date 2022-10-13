@@ -609,7 +609,6 @@ class HoVerNetBranch(StrEnum):
     `HV` is horizontal and vertical gradient map of each nucleus (regression),
     `NP` is the pixel prediction of all nuclei (segmentation), and
     `NC` is the type of each nucleus (classification).
-
     """
 
     HV = "horizontal_vertical"
