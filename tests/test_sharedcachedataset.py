@@ -66,12 +66,12 @@ class TestCacheDataset(unittest.TestCase):
                 self.assertTupleEqual(d["image"].shape, expected_shape)
 
 
-class Transform_Nonrandom(Transform):
+class TransformNonrandom(Transform):
     def __call__(self, x):
         return np.array([x * 10])
 
 
-class Transform_Random(RandomizableTransform):
+class TransformRandom(RandomizableTransform):
     def __call__(self, x):
         return x + 1
 
@@ -92,7 +92,7 @@ def main_worker(rank, nprocs, cache_list):
     )
 
     data_list1 = list(range(4 * nprocs))
-    transform = Compose([Transform_Nonrandom(), Transform_Random()])
+    transform = Compose([TransformNonrandom(), TransformRandom()])
 
     dataset = SharedCacheDataset(data=data_list1, transform=transform, copy_cache=False, cache_list=cache_list)
     sampler = DistributedSampler(dataset, shuffle=False)

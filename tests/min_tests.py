@@ -34,6 +34,7 @@ def run_testsuit():
         "test_auto3dseg_hpo",
         "test_auto3dseg",
         "test_cachedataset",
+        "test_sharedcachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
