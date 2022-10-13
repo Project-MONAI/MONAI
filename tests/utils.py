@@ -452,7 +452,7 @@ class DistCall:
             if torch.cuda.is_available():
                 torch.cuda.set_device(int(local_rank))  # using device ids from CUDA_VISIBILE_DEVICES
 
-            if init_method is not "no_init":
+            if self.init_method != "no_init":
                 dist.init_process_group(
                     backend=self.backend,
                     init_method=self.init_method,
