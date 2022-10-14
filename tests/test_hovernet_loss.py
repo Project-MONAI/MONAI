@@ -21,6 +21,7 @@ from monai.apps.pathology.losses import HoVerNetLoss
 from monai.transforms import GaussianSmooth, Rotate
 from monai.transforms.intensity.array import ComputeHoVerMaps
 from monai.utils.enums import HoVerNetBranch
+from tests.utils import SkipIfBeforePyTorchVersion
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -28,7 +29,7 @@ s = 10e-8
 t = 1.0 - s
 
 
-class TestInputs:
+class PrepareTestInputs:
     def __init__(self, inputs):
         self.inputs = {HoVerNetBranch.NP: inputs[1], HoVerNetBranch.HV: inputs[3]}
         self.targets = {HoVerNetBranch.NP: inputs[0], HoVerNetBranch.HV: inputs[2]}
@@ -114,12 +115,18 @@ H = 40
 W = 40
 N = 5
 B = 2
-inputs_test = [TestInputs(test_shape_generator(height=H, width=W))]
-inputs_test.append(TestInputs(test_shape_generator(num_classes=N, height=H, width=W)))
-inputs_test.append(TestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W)))
-inputs_test.append(TestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.15)))
-inputs_test.append(TestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.2)))
-inputs_test.append(TestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.25)))
+inputs_test = [PrepareTestInputs(test_shape_generator(height=H, width=W))]
+inputs_test.append(PrepareTestInputs(test_shape_generator(num_classes=N, height=H, width=W)))
+inputs_test.append(PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W)))
+inputs_test.append(
+    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.15))
+)
+inputs_test.append(
+    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.2))
+)
+inputs_test.append(
+    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.25))
+)
 
 TEST_CASE_0 = [  # batch size of 1, no type prediction
     {"prediction": inputs_test[0].inputs, "target": inputs_test[0].targets},
@@ -166,6 +173,7 @@ ILL_CASES = [
 ]
 
 
+@SkipIfBeforePyTorchVersion((1, 9))
 class TestHoverNetLoss(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, expected_loss):
