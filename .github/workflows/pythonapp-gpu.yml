@@ -7,6 +7,7 @@ on:
       - main
       - releasing/*
   pull_request:
+    types: [opened, synchronize, closed]
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -63,6 +64,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: apt install
+      if: github.event.pull_request.merged != true
       run: |
         # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
         apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
@@ -112,6 +114,7 @@ jobs:
       name: Optional Cupy dependency (cuda114)
       run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
+      if: github.event.pull_request.merged != true
       run: |
         which python
         python -m pip install --upgrade pip wheel
@@ -146,6 +149,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
+      if: github.event.pull_request.merged != true
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage.xml
