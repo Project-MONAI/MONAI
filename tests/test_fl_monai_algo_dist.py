@@ -26,7 +26,7 @@ _root_dir = pathjoin(os.path.dirname(__file__))
 _data_dir = pathjoin(_root_dir, "testing_data")
 TEST_TRAIN_1 = [
     {
-        "bundle_root": _root_dir,
+        "bundle_root": _data_dir,
         "config_train_filename": [
             pathjoin(_data_dir, "config_fl_train.json"),
             pathjoin(_data_dir, "multi_gpu_train.json"),
@@ -39,7 +39,7 @@ TEST_TRAIN_1 = [
 
 TEST_EVALUATE_1 = [
     {
-        "bundle_root": _root_dir,
+        "bundle_root": _data_dir,
         "config_train_filename": None,
         "config_evaluate_filename": [
             pathjoin(_data_dir, "config_fl_evaluate.json"),
