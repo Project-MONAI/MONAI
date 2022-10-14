@@ -36,7 +36,7 @@ from monai.fl.utils.constants import (
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
-from monai.utils.enums import DataStatsKeys, ImageStatsKeys
+from monai.utils.enums import DataStatsKeys
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
