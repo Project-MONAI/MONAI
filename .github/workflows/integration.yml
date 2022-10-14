@@ -20,7 +20,7 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache

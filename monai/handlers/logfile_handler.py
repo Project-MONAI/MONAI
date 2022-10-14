@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
 
-
 __all__ = ["LogfileHandler"]
 
 

@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 else:
     torchvision, has_torchvision = optional_import("torchvision")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel

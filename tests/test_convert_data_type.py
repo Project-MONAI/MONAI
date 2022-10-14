@@ -39,7 +39,6 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
             )
         )
 
-
 UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.int64, np.dtype("uint64"): torch.int64}
 
 
