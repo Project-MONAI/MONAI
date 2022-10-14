@@ -62,7 +62,7 @@
         "dataloader": {
             "_target_": "DataLoader",
             "dataset": "@validate#dataset",
-            "batch_size": 128,
+            "batch_size": 3,
             "shuffle": false,
             "num_workers": 4
         },

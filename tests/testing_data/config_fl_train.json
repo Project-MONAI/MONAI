@@ -96,7 +96,7 @@
         "dataloader": {
             "_target_": "DataLoader",
             "dataset": "@train#dataset",
-            "batch_size": 128,
+            "batch_size": 3,
             "shuffle": true,
             "num_workers": 2
         },
