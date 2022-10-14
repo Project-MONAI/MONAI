@@ -81,6 +81,7 @@ class DataAnalyzer:
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
         fmt: format used to save the analysis results. Defaults to "yaml"
+        histogram_only: whether to only compute histograms. Defaults to False.
 
     Raises:
         ValueError if device is GPU and worker > 0.
@@ -132,6 +133,7 @@ class DataAnalyzer:
         hist_bins: Optional[Union[list, int]] = 0,
         hist_range: Optional[list] = None,
         fmt: Optional[str] = "yaml",
+        histogram_only: bool = False
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -148,9 +150,9 @@ class DataAnalyzer:
         self.label_key = label_key
         self.hist_bins = hist_bins
         self.hist_range = hist_range
-        if self.hist_range is None:
-            self.hist_range = [-500, 500]
+        self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.fmt = fmt
+        self.histogram_only = histogram_only
 
     @staticmethod
     def _check_data_uniformity(keys: List[str], result: Dict):
@@ -209,6 +211,7 @@ class DataAnalyzer:
             do_ccp=self.do_ccp,
             hist_bins=self.hist_bins,
             hist_range=self.hist_range,
+            histogram_only=self.histogram_only
         )
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:

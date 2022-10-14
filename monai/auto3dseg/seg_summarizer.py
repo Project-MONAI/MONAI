@@ -44,7 +44,11 @@ class SegSummarizer(Compose):
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
         do_ccp: apply the connected component algorithm to process the labels/images.
-        histogram: whether to compute intensity histgrams
+        hist_bins: list of positive integers (one for each channel) for setting the number of bins used to
+            compute the histogram. Defaults to [100].
+        hist_range: list of lists of two floats (one for each channel) setting the intensity range to
+            compute the histogram. Defaults to [-500, 500].
+        histogram_only: whether to only compute histograms. Defaults to False.
 
     Examples:
         .. code-block:: python
@@ -81,58 +85,37 @@ class SegSummarizer(Compose):
         do_ccp: bool = True,
         hist_bins: int = None,
         hist_range: list = None,
+        histogram_only: bool = False
     ) -> None:
 
         self.image_key = image_key
         self.label_key = label_key
-        self.hist_bins = hist_bins
-        self.hist_range = hist_range
-
         # set defaults
-        if self.hist_bins is None:
-            self.hist_bins: list = [100]
-        if self.hist_range is None:
-            self.hist_range: list = [-500, 500]
+        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_range: list = [-500, 500] if hist_range is None else hist_range
+        self.histogram_only = histogram_only
 
         self.summary_analyzers: List[Any] = []
         super().__init__()
 
-        self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
-        self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
-        self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
+        if not self.histogram_only:
+            self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
+            self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
+            self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
 
-        if label_key is None:
-            return
+            if label_key is None:
+                return
 
-        self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm(average=average))
+            self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm(average=average))
 
-        self.add_analyzer(
-            LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
-        )
-
-        if hist_bins != 0:
-            # check histogram configurations for each channel in list
-            if not isinstance(hist_bins, list):
-                hist_bins = [hist_bins]
-            if not all(isinstance(hr, list) for hr in hist_range):
-                hist_range = [hist_range]
-            if len(hist_bins) != len(hist_range):
-                raise ValueError(
-                    f"Number of histogram bins ({len(hist_bins)}) and histogram ranges ({len(hist_range)}) need to be the same!"
-                )
-            for i, hist_params in enumerate(zip(hist_bins, hist_range)):
-                _hist_bins, _hist_range = hist_params
-                if not isinstance(_hist_bins, int) or _hist_bins < 0:
-                    raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
-                if not isinstance(_hist_range, list) or len(_hist_range) != 2:
-                    raise ValueError(
-                        f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}"
-                    )
-
-            # compute histograms
             self.add_analyzer(
-                ImageHistogram(image_key=image_key, num_of_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
+                LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
             )
+
+        # compute histograms
+        self.add_analyzer(
+            ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
+        )
 
     def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
         """

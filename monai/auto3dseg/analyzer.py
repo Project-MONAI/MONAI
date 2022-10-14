@@ -807,7 +807,10 @@ class ImageHistogram(Analyzer):
 
     Args:
         image_key: the key to find image data in the callable function input (data)
-        label_key: the key to find label data in the callable function input (data)
+        hist_bins: list of positive integers (one for each channel) for setting the number of bins used to
+            compute the histogram. Defaults to [100].
+        hist_range: list of lists of two floats (one for each channel) setting the intensity range to
+            compute the histogram. Defaults to [-500, 500].
 
     Examples:
 
@@ -828,24 +831,41 @@ class ImageHistogram(Analyzer):
         self,
         image_key: str,
         stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
-        num_of_bins: list = None,
+        hist_bins: list = None,
         hist_range: list = None,
     ):
 
         self.image_key = image_key
-        self.num_of_bins = num_of_bins
+        self.hist_bins = hist_bins
         self.hist_range = hist_range
 
         # set defaults
-        if self.num_of_bins is None:
-            self.num_of_bins: list = [100]
-        if self.hist_range is None:
-            self.hist_range: list = [-500, 500]
+        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_range: list = [-500, 500] if hist_range is None else hist_range
 
         report_format = {"counts": None, "bin_edges": None}
 
         super().__init__(stats_name, report_format)
-        self.update_ops(ImageStatsKeys.HISTOGRAM, SummaryOperations())
+        self.update_ops(ImageStatsKeys.HISTOGRAM, SampleOperations())
+
+        if self.hist_bins != 0:
+            # check histogram configurations for each channel in list
+            if not isinstance(self.hist_bins, list):
+                self.hist_bins = [self.hist_bins]
+            if not all(isinstance(hr, list) for hr in self.hist_range):
+                self.hist_range = [self.hist_range]
+            if len(self.hist_bins) != len(self.hist_range):
+                raise ValueError(
+                    f"Number of histogram bins ({len(self.hist_bins)}) and histogram ranges ({len(self.hist_range)}) need to be the same!"
+                )
+            for i, hist_params in enumerate(zip(self.hist_bins, self.hist_range)):
+                _hist_bins, _hist_range = hist_params
+                if not isinstance(_hist_bins, int) or _hist_bins < 0:
+                    raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
+                if not isinstance(_hist_range, list) or len(_hist_range) != 2:
+                    raise ValueError(
+                        f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}"
+                    )
 
     def __call__(self, data) -> dict:
         """
@@ -869,12 +889,12 @@ class ImageHistogram(Analyzer):
         nr_channels = np.shape(ndas)[0]
 
         # adjust histogram params to match channels
-        if len(self.num_of_bins) == 1:
-            self.num_of_bins = nr_channels * self.num_of_bins
-        if len(self.num_of_bins) != nr_channels:
+        if len(self.hist_bins) == 1:
+            self.hist_bins = nr_channels * self.hist_bins
+        if len(self.hist_bins) != nr_channels:
             raise ValueError(
                 f"There is a mismatch between the number of channels ({nr_channels}) "
-                f"and number histogram bins ({len(self.num_of_bins)})."
+                f"and number histogram bins ({len(self.hist_bins)})."
             )
         if len(self.hist_range) == 1:
             self.hist_range = nr_channels * self.hist_range
@@ -889,7 +909,7 @@ class ImageHistogram(Analyzer):
         for channel in range(nr_channels):
             counts, bin_edges = np.histogram(
                 ndas[channel, ...],
-                bins=self.num_of_bins[channel],
+                bins=self.hist_bins[channel],
                 range=(self.hist_range[channel][0], self.hist_range[channel][1]),
             )
             _report = {"counts": counts.tolist(), "bin_edges": bin_edges.tolist()}
@@ -918,7 +938,7 @@ class ImageHistogramSumm(Analyzer):
         report_format = {ImageStatsKeys.HISTOGRAM: None}
         super().__init__(stats_name, report_format)
 
-        self.update_ops(ImageStatsKeys.HISTOGRAM, SampleOperations())
+        self.update_ops(ImageStatsKeys.HISTOGRAM, SummaryOperations())
 
     def __call__(self, data: List[Dict]):
         """

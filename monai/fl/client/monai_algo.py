@@ -100,6 +100,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
             defaults to "configs/train.json".
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        histogram_only: whether to only compute histograms. Defaults to False.
     """
 
     def __init__(
@@ -110,6 +111,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
         eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
         data_stats_transform_list: Optional[list] = None,
+        histogram_only: bool = False
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.bundle_root = bundle_root
@@ -118,6 +120,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         self.train_data_key = train_data_key
         self.eval_data_key = eval_data_key
         self.data_stats_transform_list = data_stats_transform_list
+        self.histogram_only = histogram_only
 
         self.client_name = None
         self.app_root = None
@@ -257,6 +260,7 @@ class MonaiAlgoStats(ClientAlgoStats):
             hist_bins=hist_bins,
             hist_range=hist_range,
             output_path=output_path,
+            histogram_only=self.histogram_only
         )
 
         self.logger.info(f"{self.client_name} compute data statistics on {data_key}...")
