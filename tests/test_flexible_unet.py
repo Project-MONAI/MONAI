@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import unittest
-from typing import Dict, List, Tuple
+from typing import Union
 
 import torch
 from parameterized import parameterized
@@ -54,13 +54,14 @@ class ResNetEncoder(ResNet, BasicEncoder):
         return [64, 128, 256, 512]
 
     @classmethod
-    def get_encoder_parameters(cls) -> List[Dict]:
+    def get_encoder_parameters(cls):
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
         and `pretrained` parameters.
         """
         parameter_list = []
+        res_type: Union[ResNetBlock, ResNetBottleneck]
         for backbone in range(len(cls.backbone_names)):
             if backbone < 3:
                 res_type = ResNetBlock
@@ -79,27 +80,27 @@ class ResNetEncoder(ResNet, BasicEncoder):
         return parameter_list
 
     @classmethod
-    def get_output_feature_channels(cls) -> List[Tuple[int, ...]]:
+    def get_output_feature_channels(cls):
         """
         Get number of output features' channel.
         """
         return cls.output_feature_channels
 
     @classmethod
-    def get_output_feature_numbers(cls) -> List[int]:
+    def get_output_feature_numbers(cls):
         """
         Get number of output feature.
         """
         return [4] * 7
 
     @classmethod
-    def get_encoder_names(cls) -> List[str]:
+    def get_encoder_names(cls):
         """
         Get the name string of backbones which will be used to initialize flexible unet.
         """
         return cls.backbone_names
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor):
         feature_list = []
         x = self.conv1(x)
         x = self.bn1(x)
