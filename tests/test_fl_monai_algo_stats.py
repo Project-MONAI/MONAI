@@ -23,7 +23,7 @@ from tests.utils import SkipIfNoModule
 TEST_GET_DATA_STATS_1 = [
     {
         "bundle_root": os.path.join(os.path.dirname(__file__)),
-        "config_train_filename": os.path.join("testing_data", "config_fl_train.json"),
+        "config_train_filename": os.path.join("testing_data", "config_fl_stats_1.json"),
         "config_filters_filename": os.path.join("testing_data", "config_fl_filters.json"),
     }
 ]
@@ -51,7 +51,7 @@ TEST_GET_DATA_STATS_3 = [
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
-    @parameterized.expand([TEST_GET_DATA_STATS_1])
+    @parameterized.expand([TEST_GET_DATA_STATS_1, TEST_GET_DATA_STATS_2, TEST_GET_DATA_STATS_3])
     def test_get_data_stats(self, input_params):
         # get testing data dir and update train config; using the first to define data dir
         if input_params["config_train_filename"]:
