@@ -71,10 +71,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
         algo = MonaiAlgoStats(**input_params)
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
 
-        requested_stats = {
-            FlStatistics.HIST_BINS: 100,
-            FlStatistics.HIST_RANGE: [-500, 500],
-        }
+        requested_stats = {FlStatistics.HIST_BINS: 100, FlStatistics.HIST_RANGE: [-500, 500]}
         # test train
         stats = algo.get_data_stats(extra=requested_stats)
         self.assertIsInstance(stats, ExchangeObject)

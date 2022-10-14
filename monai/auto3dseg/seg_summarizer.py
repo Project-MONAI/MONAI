@@ -85,7 +85,7 @@ class SegSummarizer(Compose):
         do_ccp: bool = True,
         hist_bins: int = None,
         hist_range: list = None,
-        histogram_only: bool = False
+        histogram_only: bool = False,
     ) -> None:
 
         self.image_key = image_key

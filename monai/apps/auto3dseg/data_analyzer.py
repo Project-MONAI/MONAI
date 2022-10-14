@@ -133,7 +133,7 @@ class DataAnalyzer:
         hist_bins: Optional[Union[list, int]] = 0,
         hist_range: Optional[list] = None,
         fmt: Optional[str] = "yaml",
-        histogram_only: bool = False
+        histogram_only: bool = False,
     ):
         if path.isfile(output_path):
             warnings.warn(f"File {output_path} already exists and will be overwritten.")
@@ -211,7 +211,7 @@ class DataAnalyzer:
             do_ccp=self.do_ccp,
             hist_bins=self.hist_bins,
             hist_range=self.hist_range,
-            histogram_only=self.histogram_only
+            histogram_only=self.histogram_only,
         )
         keys = list(filter(None, [self.image_key, self.label_key]))
         if transform_list is None:

@@ -111,7 +111,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
         eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
         data_stats_transform_list: Optional[list] = None,
-        histogram_only: bool = False
+        histogram_only: bool = False,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.bundle_root = bundle_root
@@ -260,7 +260,7 @@ class MonaiAlgoStats(ClientAlgoStats):
             hist_bins=hist_bins,
             hist_range=hist_range,
             output_path=output_path,
-            histogram_only=self.histogram_only
+            histogram_only=self.histogram_only,
         )
 
         self.logger.info(f"{self.client_name} compute data statistics on {data_key}...")
