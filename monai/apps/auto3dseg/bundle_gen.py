@@ -15,9 +15,10 @@ import shutil
 import subprocess
 import sys
 from copy import deepcopy
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
-from pathlib import Path
+
 import torch
 
 from monai.apps import download_and_extract
