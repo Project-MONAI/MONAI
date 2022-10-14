@@ -113,9 +113,10 @@ class SegSummarizer(Compose):
             )
 
         # compute histograms
-        self.add_analyzer(
-            ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
-        )
+        if self.hist_bins != 0:
+            self.add_analyzer(
+                ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
+            )
 
     def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
         """
