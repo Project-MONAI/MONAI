@@ -771,11 +771,9 @@ TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 
-
 TEST_DEVICES = [[torch.device("cpu")]]
 if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
-
 
 if __name__ == "__main__":
     print("\n", query_memory(), sep="\n")  # print to stdout

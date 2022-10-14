@@ -22,7 +22,6 @@ from monai.visualize.class_activation_maps import ModelWithHooks
 
 trange, has_trange = optional_import("tqdm", name="trange")
 
-
 __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmoothGrad"]
 
 

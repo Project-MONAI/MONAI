@@ -135,7 +135,6 @@ TEST_CASE_PRETRAINED_5 = [
     -0.010419349186122417,
 ]
 
-
 TEST_CASE_PRETRAINED_6 = [
     {
         "model_name": "inception_v3",
