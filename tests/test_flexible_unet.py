@@ -54,7 +54,7 @@ class ResNetEncoder(ResNet, BasicEncoder):
         return [64, 128, 256, 512]
 
     @classmethod
-    def get_backbone_parameter(cls) -> List[Dict]:
+    def get_encoder_parameters(cls) -> List[Dict]:
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
@@ -79,21 +79,21 @@ class ResNetEncoder(ResNet, BasicEncoder):
         return parameter_list
 
     @classmethod
-    def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
+    def get_output_feature_channels(cls) -> List[Tuple[int, ...]]:
         """
         Get number of output features' channel.
         """
         return cls.output_feature_channels
 
     @classmethod
-    def get_output_feature_number_list(cls) -> List[int]:
+    def get_output_feature_numbers(cls) -> List[int]:
         """
         Get number of output feature.
         """
         return [4] * 7
 
     @classmethod
-    def get_encoder_name_string_list(cls) -> List[str]:
+    def get_encoder_names(cls) -> List[str]:
         """
         Get the name string of backbones which will be used to initialize flexible unet.
         """
@@ -126,7 +126,7 @@ def get_model_names():
 
 
 def get_resnet_names():
-    return ResNetEncoder.get_encoder_name_string_list()
+    return ResNetEncoder.get_encoder_names()
 
 
 def make_shape_cases(

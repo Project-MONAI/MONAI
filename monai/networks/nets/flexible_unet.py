@@ -40,10 +40,10 @@ class Register:
         """
         if not issubclass(name, BasicEncoder):
             raise Exception("An encoder must derive from BasicEncoder class.")
-        name_string_list = name.get_encoder_name_string_list()
-        feature_number_list = name.get_output_feature_number_list()
-        feature_channel_list = name.get_output_feature_channel_list()
-        parameter_list = name.get_backbone_parameter()
+        name_string_list = name.get_encoder_names()
+        feature_number_list = name.get_output_feature_numbers()
+        feature_channel_list = name.get_output_feature_channels()
+        parameter_list = name.get_encoder_parameters()
 
         assert len(name_string_list) == len(feature_number_list) == len(feature_channel_list) == len(parameter_list)
         for cnt, name_string in enumerate(name_string_list):

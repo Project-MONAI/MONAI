@@ -659,7 +659,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
     ]
 
     @classmethod
-    def get_backbone_parameter(cls) -> List[Dict]:
+    def get_encoder_parameters(cls) -> List[Dict]:
         """
         Get the initialization parameter for efficientnet backbones.
         """
@@ -680,7 +680,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
         return parameter_list
 
     @classmethod
-    def get_output_feature_channel_list(cls) -> List[Tuple[int, ...]]:
+    def get_output_feature_channels(cls) -> List[Tuple[int, ...]]:
         """
         Get number of efficientnet backbone output feature maps' channel.
         """
@@ -698,7 +698,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
         ]
 
     @classmethod
-    def get_output_feature_number_list(cls) -> List[int]:
+    def get_output_feature_numbers(cls) -> List[int]:
         """
         Get number of efficientnet backbone output feature maps.
         Since every backbone contains the same 5 output feature maps,
@@ -707,7 +707,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
         return [5] * 10
 
     @classmethod
-    def get_encoder_name_string_list(cls) -> List[str]:
+    def get_encoder_names(cls) -> List[str]:
         """
         Get names of efficient backbone.
         """
