@@ -22,7 +22,7 @@ from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from tests.utils import DistCall, DistTestCase, SkipIfNoModule, skip_if_no_cuda
 
-_root_dir = pathjoin(os.path.dirname(__file__))
+_root_dir = os.path.abspath(pathjoin(os.path.dirname(__file__)))
 _data_dir = pathjoin(_root_dir, "testing_data")
 TEST_TRAIN_1 = [
     {
