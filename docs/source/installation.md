@@ -139,7 +139,7 @@ and the codebase is ready to use (without the additional features of MONAI C++/C
 ## Validating the install
 You can verify the installation by:
 ```bash
-python -c 'import monai; monai.config.print_config()'
+python -c "import monai; monai.config.print_config()"
 ```
 If the installation is successful, this command will print out the MONAI version information, and this confirms the core
 modules of MONAI are ready-to-use.

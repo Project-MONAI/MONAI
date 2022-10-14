@@ -28,7 +28,6 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 logger = logging.getLogger(__name__)
 
-
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
 
 

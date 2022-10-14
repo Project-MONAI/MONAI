@@ -58,7 +58,6 @@ PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
 cp, has_cp = optional_import("cupy")
 
-
 __all__ = [
     "Identity",
     "AsChannelFirst",
