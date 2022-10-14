@@ -42,7 +42,7 @@ class FlStatistics(StrEnum):
     STATISTICS = "statistics"
     HIST_BINS = "hist_bins"
     HIST_RANGE = "hist_range"
-    DATA_STATS = "train_data_stats"
+    DATA_STATS = "data_stats"
     DATA_COUNT = "data_count"
     FAIL_COUNT = "fail_count"
     TOTAL_DATA = "total_data"

@@ -856,7 +856,8 @@ class ImageHistogram(Analyzer):
                 self.hist_range = [self.hist_range]
             if len(self.hist_bins) != len(self.hist_range):
                 raise ValueError(
-                    f"Number of histogram bins ({len(self.hist_bins)}) and histogram ranges ({len(self.hist_range)}) need to be the same!"
+                    f"Number of histogram bins ({len(self.hist_bins)}) and "
+                    f"histogram ranges ({len(self.hist_range)}) need to be the same!"
                 )
             for i, hist_params in enumerate(zip(self.hist_bins, self.hist_range)):
                 _hist_bins, _hist_range = hist_params

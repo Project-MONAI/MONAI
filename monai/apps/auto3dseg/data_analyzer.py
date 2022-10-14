@@ -80,7 +80,7 @@ class DataAnalyzer:
             will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
-        fmt: format used to save the analysis results. Defaults to "yaml"
+        fmt: format used to save the analysis results. Defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
 
     Raises:
