@@ -26,7 +26,6 @@ TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 12
 
 TEST_CASE_2 = [None, (128, 128, 128)]
 
-
 TEST_DS = []
 for c in (0, 1, 2):
     for l in (0, 1, 2):

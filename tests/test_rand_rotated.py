@@ -28,7 +28,6 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", True))
     TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
 
-
 TEST_CASES_3D: List[Tuple] = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append(

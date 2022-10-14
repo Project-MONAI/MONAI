@@ -140,7 +140,6 @@ DATA_10 = {
 
 DATA_11 = {"image": IMAGE, "label": LABEL, "label_names": LABEL_NAMES, "pred": PRED}
 
-
 ADD_GUIDANCE_FROM_POINTS_TEST_CASE = [
     {"ref_image": "image", "guidance": "guidance", "label_names": LABEL_NAMES},  # arguments
     DATA_4,  # input_data

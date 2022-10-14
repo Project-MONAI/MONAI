@@ -23,7 +23,6 @@ models, _ = optional_import("torchvision.models")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
 TEST_CASE_MILMODEL = []
 for num_classes in [1, 5]:
     for mil_mode in ["mean", "max", "att", "att_trans", "att_trans_pyramid"]:
@@ -33,7 +32,6 @@ for num_classes in [1, 5]:
             (1, num_classes),
         ]
         TEST_CASE_MILMODEL.append(test_case)
-
 
 for trans_blocks in [1, 3]:
     test_case = [
