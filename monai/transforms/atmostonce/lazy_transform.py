@@ -2,6 +2,7 @@ from monai.config import NdarrayOrTensor
 from monai.data import MetaTensor
 from monai.transforms import Randomizable
 from monai.transforms.atmostonce.apply import Applyd
+from monai.transforms.atmostonce.utility import ILazyTransform
 from monai.utils.mapping_stack import MetaMatrix
 
 
@@ -63,9 +64,7 @@ def compile_cached_dataloading_transforms(transforms):
             flat.insert
 
 
-
-
-class LazyTransform:
+class LazyTransform(ILazyTransform):
 
     def __init__(self, lazy_evaluation):
         self.lazy_evaluation = lazy_evaluation

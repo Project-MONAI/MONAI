@@ -15,6 +15,29 @@ from monai.config import DtypeLike
 from monai.utils.mapping_stack import MatrixFactory
 
 
+def identity(
+    img: torch.Tensor,
+    mode: Optional[Union[InterpolateMode, str]] = None,
+    padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = None,
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+):
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+
+    mode_ = None if mode is None else look_up_option(mode, GridSampleMode)
+    padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
+    dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
+
+    transform = MatrixFactory.from_tensor(img_).identity().matrix.matrix
+
+    metadata = dict()
+    if mode_ is not None:
+        metadata["mode"] = mode_
+    if padding_mode_ is not None:
+        metadata["padding_mode"] = padding_mode_
+    metadata["dtype"] = dtype_
+    return img_, transform, metadata
+
+
 def spacing(
     img: torch.Tensor,
     pixdim: Union[Sequence[float], float],

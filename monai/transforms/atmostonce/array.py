@@ -10,17 +10,58 @@ from monai.data import MetaTensor
 from monai.transforms import InvertibleTransform, RandomizableTransform
 
 from monai.transforms.atmostonce.apply import apply
-from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate, rotate90, flip
+from monai.transforms.atmostonce.functional import resize, rotate, zoom, spacing, croppad, translate, rotate90, flip, \
+    identity
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
+from monai.transforms.atmostonce.utility import IMultiSampleTransform, ILazyTransform, IRandomizableTransform
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 
 from monai.utils import (GridSampleMode, GridSamplePadMode,
-                         InterpolateMode, NumpyPadMode, PytorchPadMode)
+                         InterpolateMode, NumpyPadMode, PytorchPadMode, look_up_option)
 from monai.utils.mapping_stack import MetaMatrix
-from monai.utils.misc import ensure_tuple
+from monai.utils.misc import ensure_tuple, ensure_tuple_rep
 
 
 # TODO: these transforms are intended to replace array transforms once development is done
+
+
+class Identity(LazyTransform, InvertibleTransform):
+
+    def __init__(
+            self,
+            mode: Optional[Union[GridSampleMode, str]] = None,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+            lazy_evaluation: Optional[bool] = False
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.mode = mode
+        self.padding_mode = padding_mode
+        self.dtype = dtype
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            mode: Optional[Union[GridSampleMode, str]] = None,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    ):
+        mode_ = mode or self.mode
+        padding_mode_ = padding_mode or self.mode
+        dtype_ = dtype or self.dtype
+
+        img_t, transform, metadata = identity(img, mode_, padding_mode_, dtype_)
+
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
+
+    def inverse(self, data):
+        return NotImplementedError()
+
 
 # spatial
 # =======
@@ -55,7 +96,7 @@ class Spacing(LazyTransform, InvertibleTransform):
         mode: Optional[Union[GridSampleMode, str]] = None,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: DtypeLike = None,
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
         shape_override: Optional[Sequence] = None
     ):
 
@@ -251,10 +292,10 @@ class Zoom(LazyTransform, InvertibleTransform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        factor: Optional[Union[Sequence[float], float]] = None,
         mode: Optional[Union[InterpolateMode, str]] = None,
         padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
+        factor: Optional[Union[Sequence[float], float]] = None,
         shape_override: Optional[Sequence] = None
     ) -> NdarrayOrTensor:
 
@@ -339,9 +380,8 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
-        if not self._do_transform:
-            return None
-        self.k = self.R.randint(self.max_k) + 1
+        if self._do_transform:
+            self.k = self.R.randint(self.max_k) + 1
 
     def __call__(
             self,
@@ -390,10 +430,9 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     def randomize(self, data: Optional[Any] = None) -> None:
         super().randomize(None)
+        if self._do_transform is True:
+            self.x, self.y, self.z = 0.0, 0.0, 0.0
 
-        self.x, self.y, self.z = 0.0, 0.0, 0.0
-
-        if self._do_transform:
             self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
             self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
             self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
@@ -435,100 +474,142 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             spatial_axis: Optional[Union[Sequence[int], int]] = None
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        self.prob = prob
         self.spatial_axis = spatial_axis
-
+        self.do_flip = False
         self.op = Flip(0, spatial_axis)
+        self.nop = Identity()
+
+    def randomize(self, data: Optional[Any] = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            self.do_flip = self._do_transform
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            randomize: Optional[bool] = True
+    ):
+        if randomize:
+            self.randomize()
+            if self.do_flip is True:
+                return self.op(img, self.spatial_axis)
+            else:
+                return self.nop(img)
+
+        return self.op(img, self.spatial_axis)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor,
+    ):
+        raise NotImplementedError()
 
 
-# class RandRotateOld(RandomizableTransform, InvertibleTransform, LazyTransform):
-#
-#     def __init__(
-#             self,
-#             range_x: Optional[Union[Tuple[float, float], float]] = 0.0,
-#             range_y: Optional[Union[Tuple[float, float], float]] = 0.0,
-#             range_z: Optional[Union[Tuple[float, float], float]] = 0.0,
-#             prob: Optional[float] = 0.1,
-#             keep_size: bool = True,
-#             mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-#             padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
-#             align_corners: bool = False,
-#             dtype: Union[DtypeLike, torch.dtype] = np.float32
-#     ):
-#         RandomizableTransform.__init__(self, prob)
-#         self.range_x = ensure_tuple(range_x)
-#         if len(self.range_x) == 1:
-#             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-#         self.range_y = ensure_tuple(range_y)
-#         if len(self.range_y) == 1:
-#             self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-#         self.range_z = ensure_tuple(range_z)
-#         if len(self.range_z) == 1:
-#             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
-#
-#         self.keep_size = keep_size
-#         self.mode = mode
-#         self.padding_mode = padding_mode
-#         self.align_corners = align_corners
-#         self.dtype = dtype
-#
-#         self.x = 0.0
-#         self.y = 0.0
-#         self.z = 0.0
-#
-#     def randomize(self, data: Optional[Any] = None) -> None:
-#         super().randomize(None)
-#         if not self._do_transform:
-#             return None
-#         self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-#         self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-#         self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
-#
-#     def __call__(
-#             self,
-#             img: NdarrayOrTensor,
-#             mode: Optional[Union[InterpolateMode, str]] = None,
-#             padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
-#             align_corners: Optional[bool] = None,
-#             dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-#             randomize: Optional[bool] = True,
-#             get_matrix: Optional[bool] = False,
-#             shape_override: Optional[Sequence] = None
-#     ) -> NdarrayOrTensor:
-#
-#         if randomize:
-#             self.randomize()
-#
-#         img_dims = len(img.shape) - 1
-#         if self._do_transform:
-#             angle = self.x if img_dims == 2 else (self.x, self.y, self.z)
-#         else:
-#             angle = 0 if img_dims == 2 else (0, 0, 0)
-#
-#         mode = self.mode or mode
-#         padding_mode = self.padding_mode or padding_mode
-#         align_corners = self.align_corners or align_corners
-#         keep_size = self.keep_size
-#         dtype = self.dtype
-#
-#         shape_override_ = shape_override
-#         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms():
-#             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
-#
-#         img_t, transform, metadata = rotate(img, angle, keep_size, mode, padding_mode,
-#                                             align_corners, dtype, shape_override_)
-#
-#         # TODO: candidate for refactoring into a LazyTransform method
-#         img_t.push_pending_transform(MetaMatrix(transform, metadata))
-#         if not self.lazy_evaluation:
-#             img_t = apply(img_t)
-#
-#         return img_t
-#
-#     def inverse(
-#             self,
-#             data: NdarrayOrTensor,
-#     ):
-#         raise NotImplementedError()
+class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            prob: float = 0.1
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.spatial_axis = None
+        self.op = Flip(self.spatial_axis)
+
+    def randomize(
+            self,
+            data: Optional[Any] = None
+    ) -> None:
+        super().randomize(None)
+        if self._do_transform:
+            self.spatial_axis = self.R.randint(0, data.ndim - 1)
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            randomize: Optional[bool] = True
+    ) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize()
+
+        if self._do_transform:
+            spatial_axis = self.spatial_axis
+        else:
+            spatial_axis = None
+
+        return self.op(img, spatial_axis)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor,
+    ):
+        raise NotImplementedError()
+
+
+class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            prob: float = 0.1,
+            min_zoom: Optional[Union[Sequence[float], float]] = 0.9,
+            max_zoom: Optional[Union[Sequence[float], float]] = 1.1,
+            mode: Optional[Union[GridSampleMode, str]] = InterpolateMode.AREA,
+            padding_mode: Optional[Union[GridSamplePadMode, NumpyPadMode, str]] = NumpyPadMode.EDGE,
+            align_corners: Optional[bool] = None,
+            keep_size: bool = True,
+            **kwargs
+    ) -> None:
+        RandomizableTransform.__init__(self, prob)
+        self.prob = prob
+        self.min_zoom = ensure_tuple(min_zoom)
+        self.max_zoom = ensure_tuple(max_zoom)
+        if len(self.min_zoom) != len(self.max_zoom):
+            raise AssertionError("min_zoom and max_zoom must have the same length ",
+                                 f"but are {min_zoom} and {max_zoom} respectively")
+        self.mode = look_up_option(mode, InterpolateMode)
+        self.padding_mode = padding_mode
+        self.align_corners = align_corners
+        self.keep_size = keep_size
+        self.factors = None
+
+        self.op = Zoom(1.0, self.mode, self.padding_mode, self.align_corners, self.keep_size)
+
+    def randomize(
+            self,
+            data: Optional[Any] = None
+    ) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            self.factors = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+            if len(self.factors) == 1:
+                # to keep the spatial shape ratio, use same random zoom factor for all dims
+                self.factors = ensure_tuple_rep(self.factors[0], data.ndim - 1)
+            elif len(self.factors) == 2 and data.ndim > 3:
+                # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+                self.factors =\
+                    ensure_tuple_rep(self.factors[0], data.ndim - 2) + ensure_tuple(self.factors[-1])
+
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            randomize: Optional[bool] = True
+    ) -> NdarrayOrTensor:
+        if randomize:
+            self.randomize(img)
+
+        if self._do_transform:
+            factors_ = self.factors
+        else:
+            factors_ = 1.0
+
+        return self.op(img, factor=factors_)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor,
+    ):
+        raise NotImplementedError()
 
 
 class Translate(LazyTransform, InvertibleTransform):
@@ -586,7 +667,7 @@ class CropPad(LazyTransform, InvertibleTransform):
             self,
             slices: Optional[Sequence[slice]] = None,
             padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
-            lazy_evaluation: Optional[bool] = True,
+            lazy_evaluation: Optional[bool] = True
     ):
         LazyTransform.__init__(self, lazy_evaluation)
         self.slices = slices
@@ -618,3 +699,97 @@ class CropPad(LazyTransform, InvertibleTransform):
             data: NdarrayOrTensor
     ):
         raise NotImplementedError()
+
+
+class RandomCropPad(InvertibleTransform, RandomizableTransform, ILazyTransform):
+
+    def __init__(
+            self,
+            sizes: Union[Sequence[int], int],
+            prob: Optional[float] = 0.1,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            lazy_evaluation: Optional[bool] = True
+    ):
+        RandomizableTransform.__init__(self, prob)
+        self.sizes = sizes
+        self.padding_mode = padding_mode
+        self.offsets = None
+
+        self.op = CropPad(padding_mode=padding_mode, lazy_evaluation=lazy_evaluation)
+
+    def randomize(
+            self,
+            img: torch.Tensor
+    ):
+        super().randomize(None)
+        if self._do_transform:
+            img_shape = img.shape[1:]
+            if isinstance(self.sizes, int):
+                crop_shape = tuple(self.sizes for _ in range(len(img_shape)))
+            else:
+                crop_shape = self.sizes
+
+            valid_ranges = tuple(i - c for i, c in zip(img_shape, crop_shape))
+            self.offsets = tuple(self.R.randint(0, r+1) if r > 0 else r for r in valid_ranges)
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: Optional[bool] = True
+    ):
+        if randomize:
+            self.randomize(img)
+
+        if self._do_transform:
+            offsets_ = self.offsets
+            slices = tuple(slice(o, o + s) for o, s in zip(offsets_, self.sizes))
+            return self.op(img, slices=slices)
+        else:
+            return self.op(img)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor
+    ):
+        raise NotImplementedError()
+
+    @property
+    def lazy_evaluation(self):
+        return self.op.lazy_evaluation
+
+
+class RandomCropPadMultiSample(
+    InvertibleTransform, ILazyTransform, IRandomizableTransform, IMultiSampleTransform
+):
+
+    def __init__(
+            self,
+            sizes: Union[Sequence[int], int],
+            sample_count: int,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            lazy_evaluation: Optional[bool] = True
+    ):
+        self.sample_count = sample_count
+        self.op = RandomCropPad(sizes, 1.0, padding_mode, lazy_evaluation)
+
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: Optional[bool] = True
+    ):
+        for i in range(self.sample_count):
+            yield self.op(img, randomize)
+
+    def inverse(
+            self,
+            data: NdarrayOrTensor
+    ):
+        raise NotImplementedError()
+
+    def set_random_state(self, seed=None, state=None):
+        self.op.set_random_state(seed, state)
+
+    @property
+    def lazy_evaluation(self):
+        return self.op.lazy_evaluation
+

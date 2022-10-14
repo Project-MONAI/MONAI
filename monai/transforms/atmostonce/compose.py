@@ -5,6 +5,7 @@ import numpy as np
 
 
 from monai.transforms.atmostonce.lazy_transform import LazyTransform, compile_lazy_transforms, flatten_sequences
+from monai.transforms.atmostonce.utility import CachedTransformCompose
 from monai.utils import GridSampleMode, GridSamplePadMode, ensure_tuple, get_seed, MAX_SEED
 
 from monai.transforms import Randomizable, InvertibleTransform, OneOf, apply_transform
@@ -78,6 +79,40 @@ class ComposeCompiler:
                     cur_lazy = []
                 dest_transforms.append(transforms[i_t])
         return dest_transforms
+
+
+class ComposeCompiler2:
+
+    def compile(self, transforms, cache_mechanism):
+
+        transforms_ = self.compile_caching(transforms, cache_mechanism)
+
+        transforms__ = self.compile_multisampling(transforms_)
+
+        transforms___ = self.compile_lazy_resampling(transforms__)
+
+        return transforms___
+
+    def compile_caching(self, transforms, cache_stategy):
+        # given a list of transforms, determine where to add a cached transform object
+        # and what transforms to put in it
+        return transforms
+
+    def compile_multisampling(self, transforms):
+        return transforms
+
+    def compile_lazy_resampling(self, transforms):
+        return transforms
+
+    def transform_is_container(self, t):
+        if isinstance(t, CachedTransform):
+            return True
+        return False
+
+    def transform_is_multisampling(self, t):
+        # if isinstance(t, MultiSamplingTransform):
+        #     return True
+        return False
 
 
 class Compose(Randomizable, InvertibleTransform):

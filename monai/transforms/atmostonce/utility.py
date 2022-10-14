@@ -1,8 +1,21 @@
 from typing import Callable, Sequence
 
+import abc
 from abc import ABC
 
 import torch
+
+
+class ILazyTransform(abc.ABC):
+    pass
+
+
+class IMultiSampleTransform(abc.ABC):
+    pass
+
+
+class IRandomizableTransform(abc.ABC):
+    pass
 
 
 class CacheMechanism(ABC):
@@ -27,10 +40,10 @@ class CacheMechanism(ABC):
         raise NotImplementedError()
 
 
-class CachedTransform:
+class CachedTransformCompose:
     """
-    CachedTransform provides the functionality to cache the output of one or more transforms such
-    that they only need to be run once. Each time that CachedTransform is run, it checks whether
+    CachedTransformCompose provides the functionality to cache the output of one or more transforms
+    such that they only need to be run once. Each time that CachedTransform is run, it checks whether
     a cached entity is present, and if that entity is present, it loads it and returns the
     resulting tensor / tensors as output. If that entity is not present in the cache, it executes
     the transforms in its internal pipeline and caches the result before returning it.
@@ -66,11 +79,11 @@ class CachedTransform:
         return result
 
 
-class MultiSampleTransform:
+class MultiSampleTransformCompose:
     """
-    Multi-sample takes the output of a transform that generates multiple samples and executes
-    each sample separately in a depth first fashion, gathering the results into an array that
-    is finally returned after all samples are processed
+    MultiSampleTransformCompose takes the output of a transform that generates multiple samples
+    and executes each sample separately in a depth first fashion, gathering the results into an
+    array that is finally returned after all samples are processed
     """
     def __init__(
             self,
@@ -88,8 +101,8 @@ class MultiSampleTransform:
     ):
         output = list()
         for mt in self.multi_sample(t):
-            mt_out = self.multi_sample(mt)
-            if isinstance(mt_out, torch.Tensor):
+            mt_out = self.transforms(mt)
+            if isinstance(mt_out, (torch.Tensor, dict)):
                 output.append(mt_out)
             elif isinstance(mt_out, list):
                 output += mt_out

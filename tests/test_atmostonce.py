@@ -13,15 +13,46 @@ from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import TransformBackends
 
+from monai.transforms.spatial import array as spatialarray
 from monai.transforms import Affined, Affine, Flip, RandSpatialCropSamplesd, RandRotated
 from monai.transforms.atmostonce.functional import croppad, resize, rotate, zoom, spacing, flip
 from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
 from monai.transforms.atmostonce.dictionary import Rotated
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
-from monai.utils.mapping_stack import MatrixFactory
+from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
 
-from monai.transforms.atmostonce.utility import CachedTransform, CacheMechanism
+from monai.transforms.atmostonce.utility import CachedTransformCompose, CacheMechanism, MultiSampleTransformCompose
+
+
+class FakeRand(np.random.RandomState):
+
+    def __init__(self,
+                 rands=tuple(),
+                 randints=tuple(),
+                 uniforms=tuple()
+    ):
+        self.rands = rands
+        self.randind = 0
+        self.randints = randints
+        self.randintind = 0
+        self.uniforms = uniforms
+        self.uniformind = 0
+
+    def rand(self, *_, **__):
+        value = self.rands[self.randind]
+        self.randind += 1
+        return value
+
+    def randint(self, *_, **__):
+        value = self.randints[self.randintind]
+        self.randintind += 1
+        return value
+
+    def uniform(self, *_, **__):
+        value = self.uniforms[self.uniformind]
+        self.uniformind += 1
+        return value
 
 
 def get_img(size, dtype=torch.float32, offset=0):
@@ -57,6 +88,35 @@ def matrices_nearly_equal(actual, expected):
     if actual.shape != expected.shape:
         raise ValueError("actual matrix does not match expected matrix size; "
                          f"{actual} vs {expected} respectively")
+
+
+def test_array_op_multi_sample(tester, op, img, expected):
+
+    s = 0
+    for actual in op(img):
+        e = expected[s]
+        s += 1
+        if op.lazy_evaluation is True:
+            actual = apply(actual)
+
+        if not torch.allclose(actual, e):
+            print("torch.allclose test returned False")
+            print(actual)
+            print(e)
+            tester.assertTrue(False)
+
+
+def test_array_op(tester, op, img, expected):
+    actual = op(img)
+
+    if op.lazy_evaluation is True:
+        actual = apply(actual)
+
+    if not torch.allclose(actual, expected):
+        print("torch.allclose test returned False")
+        print(actual)
+        print(expected)
+        tester.assertTrue(False)
 
 
 class TestLowLevel(unittest.TestCase):
@@ -374,20 +434,6 @@ class TestFunctional(unittest.TestCase):
 
 class TestArrayTransforms(unittest.TestCase):
 
-    # TODO: amo: add tests for matrix and result size
-    def test_croppad(self):
-        img = get_img((15, 15)).astype(int)
-        results = croppad(img, (slice(4, 8), slice(3, 9)))
-        enumerate_results_of_op(results)
-        m = results[1].matrix.matrix
-        # print(m)
-        result_size = results[2]['spatial_shape']
-        a = Affine(affine=m,
-                   padding_mode=GridSamplePadMode.ZEROS,
-                   spatial_size=result_size)
-        img_, _ = a(img)
-        # print(img_.numpy())
-
     def test_apply(self):
         img = get_img((16, 16))
         r = Rotate(torch.pi / 4,
@@ -416,6 +462,36 @@ class TestArrayTransforms(unittest.TestCase):
         results = r(img)
         enumerate_results_of_op(results)
         enumerate_results_of_op(results.pending_transforms[-1].metadata)
+
+    def test_rand_zoom(self):
+        r = amoa.RandZoom(prob=1.0,
+                          min_zoom=0.9,
+                          max_zoom=1.1,
+                          mode="nearest",
+                          padding_mode="zeros",
+                          keep_size=True)
+
+        r.set_random_state(state=FakeRand((0.5,), (1.05,)))
+        img = np.zeros((1, 32, 32))
+        results = r(img)
+        enumerate_results_of_op(results)
+        enumerate_results_of_op(results.pending_transforms[-1].metadata)
+
+
+    # TODO: amo: add tests for matrix and result size
+    def test_croppad(self):
+        img = get_img((15, 15)).astype(int)
+        results = croppad(img, (slice(4, 8), slice(3, 9)))
+        enumerate_results_of_op(results)
+        m = results[1].matrix.matrix
+        # print(m)
+        result_size = results[2]['spatial_shape']
+        a = Affine(affine=m,
+                   padding_mode=GridSamplePadMode.ZEROS,
+                   spatial_size=result_size)
+        img_, _ = a(img)
+        # print(img_.numpy())
+
 
     def test_rotate_apply_not_lazy(self):
         r = amoa.Rotate(-torch.pi / 4,
@@ -474,6 +550,20 @@ class TestArrayTransforms(unittest.TestCase):
         datas.append(data1)
         data2 = lr1(data1)
         datas.append(data2)
+
+
+class TestOldTransforms(unittest.TestCase):
+
+    def test_rand_zoom(self):
+
+        r = spatialarray.RandZoom(1.0, 0.9, 1.1)
+        t = torch.rand((1, 32, 32))
+        t_out = r(t)
+        print(t_out.shape)
+
+        r = spatialarray.RandZoom(1.0, (0.9, 0.9, 0.9), (1.1, 1.1, 1.1))
+        t_out = r(t)
+        print(t_out.shape)
 
 
 class TestDictionaryTransforms(unittest.TestCase):
@@ -556,6 +646,95 @@ class TestUtils(unittest.TestCase):
         self.assertTupleEqual(value_to_tuple_range((4.3, -2.1)), (-2.1, 4.3))
 
 
+class TestCropPad(unittest.TestCase):
+
+    def _test_functional(self, targs, img, expected):
+        result, tx, md = amoa.croppad(img, **targs)
+        result.push_pending_transform(MetaMatrix(tx, md))
+        actual = apply(result)
+        if not torch.allclose(actual, expected):
+            print("torch.allclose test returned False")
+            print(actual)
+            print(expected)
+            self.assertTrue(False)
+
+    def _test_rand(self, targs, rng_fac, img, expected):
+        targs['lazy_evaluation'] = False
+        r = amoa.RandomCropPad(**targs)
+        r.set_random_state(state=rng_fac())
+        actual = r(img)
+
+        if not torch.allclose(actual, expected):
+            print("torch.allclose test returned False")
+            print(actual)
+            print(expected)
+            self.assertTrue(False)
+
+        targs['lazy_evaluation'] = True
+        r = amoa.RandomCropPad(**targs)
+        # a = amoa.apply()
+        r.set_random_state(state=rng_fac())
+        actual = amoa.apply(r(img))
+
+        if not torch.allclose(actual, expected):
+            print("torch.allclose test returned False")
+            print(actual)
+            print(expected)
+            self.assertTrue(False)
+
+    def test_croppad_all_valid(self):
+        targs = {'slices': None, 'padding_mode': 'zeros'}
+        img = get_img((16, 16))
+        for j in range(8):
+            for i in range(8):
+                expected = torch.FloatTensor(
+                    [[(i + j * 16) + ii + jj * 16 for ii in range(8)] for jj in range(8)])
+                targs['slices'] = (slice(i, i+8), slice(j, j+8))
+                self._test_functional(targs, img, expected)
+
+    def test_randcroppad(self):
+        targs = {'sizes': (8, 8), 'prob': 1.0, 'padding_mode': 'zeros'}
+        rng_fac = lambda: FakeRand(rands=(0.5,), randints=(2, 6))
+        img = get_img((16, 16))
+        expected = torch.FloatTensor([[98 + i + j * 16 for i in range(8)] for j in range(8)])
+
+        self._test_rand(targs, rng_fac, img, expected)
+
+    def test_randcroppad_ysmall(self):
+        targs = {'sizes': (8, 8), 'prob': 1.0, 'padding_mode': 'zeros'}
+        rng_fac = lambda: FakeRand(rands=(0.5,), randints=(6,))
+        img = get_img((16, 6))
+        expected = torch.FloatTensor([[102 + i + j * 16 for i in range(8)] for j in range(8)])
+
+        self._test_rand(targs, rng_fac, img, expected)
+
+    def test_rand_croppad(self):
+        r = amoa.RandomCropPad((8, 8), 1.0, padding_mode="zeros", lazy_evaluation=False)
+        rng = FakeRand(rands=(0.5,), randints=(2, 6))
+        r.set_random_state(state=rng)
+
+        img = get_img((16, 16))
+
+        actual = r(img)
+        expected = torch.FloatTensor([[102 + i + j * 16 for i in range(8)] for j in range(8)])
+        print(actual)
+        print(expected)
+        self.assertTrue(torch.allclose(actual, expected))
+
+    def test_randcroppadmulti(self):
+        op = amoa.RandomCropPadMultiSample((8, 8), 4, padding_mode="zeros", lazy_evaluation=False)
+        rng = FakeRand(rands=(0.5, 0.5, 0.5, 0.5), randints=(2, 6, 3, 5, 4, 4, 5, 3))
+        op.set_random_state(state=rng)
+        img = get_img((16, 16))
+        expected = [
+            torch.FloatTensor([[38 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[53 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[68 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[83 + i + j * 16 for i in range(8)] for j in range(8)])
+        ]
+        test_array_op_multi_sample(self, op, img, expected)
+
+
 # Utility transforms for compose compiler
 # =================================================================================================
 
@@ -603,8 +782,8 @@ class TestUtilityTransforms(unittest.TestCase):
                 return np.random.normal(size=shape)
             return _inner
 
-        ct = CachedTransform(transforms=generate_noise((1, 16, 16)),
-                             cache=TestMemoryCacheMechanism(4))
+        ct = CachedTransformCompose(transforms=generate_noise((1, 16, 16)),
+                                    cache=TestMemoryCacheMechanism(4))
 
         first = ct("foo")
         second = ct("foo")
@@ -618,13 +797,14 @@ class TestUtilityTransforms(unittest.TestCase):
         def fake_multi_sample(keys, num_samples, roi_size):
             def _inner(t):
                 for i in range(num_samples):
-                    yield {'image': t[i:i+roi_size[0], i:i+roi_size[1]]}
+                    yield {'image': t['image'][i:i+roi_size[0], i:i+roi_size[1]]}
             return _inner
 
 #        t1 = RandSpatialCropSamplesd(keys=('image',), num_samples=4, roi_size=(32, 32))
         t1 = fake_multi_sample(keys=('image',), num_samples=4, roi_size=(32, 32))
         t2 = RandRotated(keys=('image',), range_z=(-torch.pi/2, torch.pi/2))
-        c = Compose([t1, t2])
+        mst = MultiSampleTransformCompose(t1, Compose([t2]))
+        c = Compose([mst])
 
         d = torch.rand((1, 64, 64))
 
