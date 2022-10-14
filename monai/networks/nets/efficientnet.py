@@ -530,11 +530,8 @@ class EfficientNetBN(EfficientNet):
 
         # check if model_name is valid model
         if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -590,11 +587,8 @@ class EfficientNetBNFeatures(EfficientNet):
 
         # check if model_name is valid model
         if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -727,9 +721,8 @@ def get_efficientnet_image_size(model_name: str) -> int:
     """
     # check if model_name is valid model
     if model_name not in efficientnet_params.keys():
-        raise ValueError(
-            "invalid model_name {} found, must be one of {} ".format(model_name, ", ".join(efficientnet_params.keys()))
-        )
+        model_name_string = ", ".join(efficientnet_params.keys())
+        raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
     # return input image size (all dims equal so only need to return for one dim)
     _, _, res, _, _ = efficientnet_params[model_name]
@@ -1003,16 +996,7 @@ class BlockArgs(NamedTuple):
             A string notation of BlockArgs object arguments.
                 Example: "r1_k3_s11_e1_i32_o16_se0.25_noskip".
         """
-        string = "r{}_k{}_s{}{}_e{}_i{}_o{}_se{}".format(
-            self.num_repeat,
-            self.kernel_size,
-            self.stride,
-            self.stride,
-            self.expand_ratio,
-            self.input_filters,
-            self.output_filters,
-            self.se_ratio,
-        )
+        string = f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}_se{self.se_ratio}"
 
         if not self.id_skip:
             string += "_noskip"
