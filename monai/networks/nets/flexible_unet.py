@@ -259,13 +259,15 @@ class FlexibleUNet(nn.Module):
         self.backbone = backbone
         self.spatial_dims = spatial_dims
         encoder_parameters = encoder["parameter"]
-        assert (
+        if not (
             ("spatial_dims" in encoder_parameters)
             and ("in_channels" in encoder_parameters)
             and ("pretrained" in encoder_parameters)
-        )
+        ):
+            raise ValueError("The backbone init method must have spatial_dims, in_channels and pretrained parameters.")
         encoder_feature_num = encoder["feature_number"]
-        assert encoder_feature_num < 6
+        if encoder_feature_num > 5:
+            raise ValueError("Flexible unet can only accept no more than 5 encoder feature maps.")
         decoder_channels = decoder_channels[:encoder_feature_num]
         self.skip_connect = encoder_feature_num - 1
         encoder_parameters.update({"spatial_dims": spatial_dims, "in_channels": in_channels, "pretrained": pretrained})
