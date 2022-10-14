@@ -267,19 +267,12 @@ class MonaiAlgoStats(ClientAlgoStats):
         all_stats = analyzer.get_all_case_stats(transform_list=self.data_stats_transform_list, key=data_key)
 
         case_stats = all_stats[DataStatsKeys.BY_CASE]
-        nr_histograms = len(all_stats[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_HISTOGRAM][ImageStatsKeys.HISTOGRAM])
-        if nr_histograms > 1:
-            feature_names = [f"Intensity-{i}" for i in range(nr_histograms)]
-        else:
-            feature_names = ["Intensity"]
 
         summary_stats = {
             FlStatistics.DATA_STATS: all_stats[DataStatsKeys.SUMMARY],
             FlStatistics.DATA_COUNT: len(data),
-            FlStatistics.FAIL_COUNT: len(data)
-            - len(case_stats),  # TODO: is this robust? Call a failure if any analyze fails?
+            FlStatistics.FAIL_COUNT: len(data) - len(case_stats),
             # TODO: add shapes, voxels sizes, etc.
-            FlStatistics.FEATURE_NAMES: feature_names,
         }
 
         return summary_stats, case_stats
@@ -296,17 +289,10 @@ class MonaiAlgoStats(ClientAlgoStats):
         )
         total_summary_stats = summarizer.summarize(total_case_stats)
 
-        nr_histograms = len(total_summary_stats[DataStatsKeys.IMAGE_HISTOGRAM][ImageStatsKeys.HISTOGRAM])
-        if nr_histograms > 1:
-            feature_names = [f"Intensity-{i}" for i in range(nr_histograms)]
-        else:
-            feature_names = ["Intensity"]
-
         summary_stats = {
             FlStatistics.DATA_STATS: total_summary_stats,
             FlStatistics.DATA_COUNT: len(total_case_stats),
             FlStatistics.FAIL_COUNT: 0,
-            FlStatistics.FEATURE_NAMES: feature_names,
         }
 
         return summary_stats
