@@ -34,7 +34,7 @@ class BasicEncoder(metaclass=ABCMeta):
         Each parameter dict must have `spatial_dims`, `in_channels`
         and `pretrained` parameters.
         """
-        pass
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
@@ -42,7 +42,7 @@ class BasicEncoder(metaclass=ABCMeta):
         """
         Get number of output features' channel.
         """
-        pass
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
@@ -50,7 +50,7 @@ class BasicEncoder(metaclass=ABCMeta):
         """
         Get number of output feature.
         """
-        pass
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
@@ -58,4 +58,4 @@ class BasicEncoder(metaclass=ABCMeta):
         """
         Get the name string of backbones which will be used to initialize flexible unet.
         """
-        pass
+        raise NotImplementedError
