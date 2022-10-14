@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 from copy import deepcopy
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping
 
@@ -28,7 +29,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.utils import ensure_tuple
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "004a63c")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "d7bf36c")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -152,7 +153,8 @@ class BundleAlgo(Algo):
                     base_cmd += f"{train_py} run --config_file="
                 else:
                     base_cmd += ","  # Python Fire does not accept space
-                config_yaml = os.path.join(config_dir, file)
+                # Python Fire may be confused by single-quoted WindowsPath
+                config_yaml = Path(os.path.join(config_dir, file)).as_posix()
                 base_cmd += f"'{config_yaml}'"
 
         if "CUDA_VISIBLE_DEVICES" in params:
