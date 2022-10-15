@@ -31,7 +31,6 @@ SENET2D = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
 SENET3D = SEResNet50(spatial_dims=3, in_channels=3, num_classes=4)
 DENSENET2DADJOINT = DenseNetAdjoint(spatial_dims=2, in_channels=1, out_channels=3)
 
-
 TESTS = []
 for type in (VanillaGrad, SmoothGrad, GuidedBackpropGrad, GuidedBackpropSmoothGrad):
     # 2D densenet

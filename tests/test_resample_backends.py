@@ -20,7 +20,7 @@ from monai.data import MetaTensor
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
 from monai.utils import GridSampleMode, GridSamplePadMode, NdimageMode, SplineMode, convert_to_numpy
-from tests.utils import assert_allclose, is_tf32_env
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 
@@ -40,6 +40,7 @@ for interp_s in SplineMode if not USE_COMPILED else []:  # type: ignore
                 TEST_IDENTITY.append([dict(device=device), p_s, interp_s, pad_s, (1, 21, 23, 24)])
 
 
+@SkipIfBeforePyTorchVersion((1, 9, 1))
 class TestResampleBackends(unittest.TestCase):
     @parameterized.expand(TEST_IDENTITY)
     def test_resample_identity(self, input_param, im_type, interp, padding, input_shape):

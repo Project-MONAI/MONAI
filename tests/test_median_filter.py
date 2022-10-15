@@ -18,22 +18,19 @@ from monai.networks.layers import MedianFilter
 
 
 class MedianFilterTestCase(unittest.TestCase):
+    def test_3d_big(self):
+        a = torch.ones(1, 1, 2, 3, 5)
+        g = MedianFilter([1, 2, 4]).to(torch.device("cpu:0"))
+
+        expected = a.numpy()
+        out = g(a).cpu().numpy()
+        np.testing.assert_allclose(out, expected, rtol=1e-5)
+
     def test_3d(self):
         a = torch.ones(1, 1, 4, 3, 4)
         g = MedianFilter(1).to(torch.device("cpu:0"))
 
-        expected = np.array(
-            [
-                [
-                    [
-                        [[0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                        [[0.0, 1.0, 1.0, 0.0], [1.0, 1.0, 1.0, 1.0], [0.0, 1.0, 1.0, 0.0]],
-                        [[0.0, 1.0, 1.0, 0.0], [1.0, 1.0, 1.0, 1.0], [0.0, 1.0, 1.0, 0.0]],
-                        [[0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]],
-                    ]
-                ]
-            ]
-        )
+        expected = a.numpy()
         out = g(a).cpu().numpy()
         np.testing.assert_allclose(out, expected, rtol=1e-5)
 
@@ -41,18 +38,7 @@ class MedianFilterTestCase(unittest.TestCase):
         a = torch.ones(1, 1, 4, 3, 2)
         g = MedianFilter([3, 2, 1]).to(torch.device("cpu:0"))
 
-        expected = np.array(
-            [
-                [
-                    [
-                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
-                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
-                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
-                        [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]],
-                    ]
-                ]
-            ]
-        )
+        expected = a.numpy()
         out = g(a).cpu().numpy()
         np.testing.assert_allclose(out, expected, rtol=1e-5)
         if torch.cuda.is_available():

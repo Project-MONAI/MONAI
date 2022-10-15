@@ -87,7 +87,6 @@ TEST_CASE_2 = [
     }
 ]
 
-
 TEST_CASE_3 = [
     {
         "A": 1,

@@ -19,7 +19,6 @@ from monai.utils import deprecated_arg
 
 
 class ContrastiveLoss(_Loss):
-
     """
     Compute the Contrastive loss defined in:
 

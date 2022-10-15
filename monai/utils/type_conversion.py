@@ -36,7 +36,6 @@ __all__ = [
     "convert_to_dst_type",
 ]
 
-
 # conversion map for types unsupported by torch.as_tensor
 UNSUPPORTED_TYPES = {np.dtype("uint16"): np.int32, np.dtype("uint32"): np.int64, np.dtype("uint64"): np.int64}
 
