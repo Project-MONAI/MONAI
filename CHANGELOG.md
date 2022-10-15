@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 ### Fixes
 * DiceCELoss for multichannel targets
 * Auto3DSeg DataAnalyzer out-of-memory error and other minor issues
-* An optional flag issue in the retinanet detector
+* An optional flag issue in the RetinaNet detector
 * An issue with output offset for Spacing
 * A `LoadImage` issue when `track_meta` is `False`
 * 1D data output error in `VarAutoEncoder`
@@ -20,11 +20,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Docstrings for gradient-based saliency maps
 * Occlusion sensitivity to use sliding window inference
 * Enhanced Gaussian window for sliding window inference
-* Multi-GPU support to MonaiAlgo
+* Multi-GPU support for MonaiAlgo
+* `ClientAlgoStats` and `MonaiAlgoStats` for federated summary statistics
 * MetaTensor support for `OneOf`
 * Add a file check for bundle logging config
 * Additional content and an authentication token option for bundle info API
 * An anti-aliasing option for `Resized`
+* `SlidingWindowInferer` adaptive device based on `cpu_thresh`
+* `SegResNetDS` with deep supervision and non-isotropic kernel support
 
 ### Changed
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.09-py3` from `nvcr.io/nvidia/pytorch:22.08-py3`
