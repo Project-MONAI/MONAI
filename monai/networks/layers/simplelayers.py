@@ -503,7 +503,8 @@ def median_filter(
     # even-sized kernels are not supported
     padding = [(k - 1) // 2 for k in reversed(kernel.shape[2:]) for _ in range(2)]
     padded_input: torch.Tensor = F.pad(reshaped_input, pad=padding, mode="replicate")
-    features: torch.Tensor = conv(padded_input, kernel, padding=0, stride=1, **kwargs)  # type: ignore
+    features: torch.Tensor = conv(padded_input, kernel, padding=0, stride=1, **kwargs)
+
     features = features.view(oprod, -1, *sshape)  # type: ignore
 
     # compute the median along the feature axis
