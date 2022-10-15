@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import os
 import unittest
 
@@ -20,30 +19,33 @@ from monai.fl.utils.constants import ExtraItems, FlStatistics
 from monai.fl.utils.exchange_object import ExchangeObject
 from tests.utils import SkipIfNoModule
 
+_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+_data_dir = os.path.join(_root_dir, "testing_data")
+
 TEST_GET_DATA_STATS_1 = [
     {
-        "bundle_root": os.path.join(os.path.dirname(__file__)),
-        "config_train_filename": os.path.join("testing_data", "config_fl_stats_1.json"),
-        "config_filters_filename": os.path.join("testing_data", "config_fl_filters.json"),
+        "bundle_root": _data_dir,
+        "config_train_filename": os.path.join(_data_dir, "config_fl_stats_1.json"),
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_DATA_STATS_2 = [
     {
-        "bundle_root": os.path.join(os.path.dirname(__file__)),
-        "config_train_filename": os.path.join("testing_data", "config_fl_stats_2.json"),
-        "config_filters_filename": os.path.join("testing_data", "config_fl_filters.json"),
+        "bundle_root": _data_dir,
+        "config_train_filename": os.path.join(_data_dir, "config_fl_stats_2.json"),
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 TEST_GET_DATA_STATS_3 = [
     {
-        "bundle_root": os.path.join(os.path.dirname(__file__)),
+        "bundle_root": _data_dir,
         "config_train_filename": [
-            os.path.join("testing_data", "config_fl_stats_1.json"),
-            os.path.join("testing_data", "config_fl_stats_2.json"),
+            os.path.join(_data_dir, "config_fl_stats_1.json"),
+            os.path.join(_data_dir, "config_fl_stats_2.json"),
         ],
         "config_filters_filename": [
-            os.path.join("testing_data", "config_fl_filters.json"),
-            os.path.join("testing_data", "config_fl_filters.json"),
+            os.path.join(_data_dir, "config_fl_filters.json"),
+            os.path.join(_data_dir, "config_fl_filters.json"),
         ],
     }
 ]
@@ -53,23 +55,9 @@ TEST_GET_DATA_STATS_3 = [
 class TestFLMonaiAlgo(unittest.TestCase):
     @parameterized.expand([TEST_GET_DATA_STATS_1, TEST_GET_DATA_STATS_2, TEST_GET_DATA_STATS_3])
     def test_get_data_stats(self, input_params):
-        # get testing data dir and update train config; using the first to define data dir
-        if input_params["config_train_filename"]:
-            if isinstance(input_params["config_train_filename"], list):
-                config_train_filename = input_params["config_train_filename"][0]
-            else:
-                config_train_filename = input_params["config_train_filename"]
-            with open(os.path.join(input_params["bundle_root"], config_train_filename)) as f:
-                config_train = json.load(f)
-
-            config_train["dataset_dir"] = os.path.join(os.path.dirname(__file__), "testing_data")
-
-            with open(os.path.join(input_params["bundle_root"], config_train_filename), "w") as f:
-                json.dump(config_train, f, indent=4)
-
         # initialize algo
         algo = MonaiAlgoStats(**input_params)
-        algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
+        algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl", ExtraItems.APP_ROOT: _data_dir})
 
         requested_stats = {FlStatistics.HIST_BINS: 100, FlStatistics.HIST_RANGE: [-500, 500]}
         # test train

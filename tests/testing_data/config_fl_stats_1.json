@@ -3,7 +3,7 @@
         "$import os"
     ],
     "bundle_root": "tests/testing_data",
-    "dataset_dir": "tests/testing_data",
+    "dataset_dir": "@bundle_root",
     "train": {
         "dataset": {
             "_target_": "Dataset",
