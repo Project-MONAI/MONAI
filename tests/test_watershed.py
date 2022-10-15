@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
-    GenerateMarkers,
+    GenerateWatershedMarkers,
     GenerateMask,
     GenerateProbabilityMap,
     Watershed,
@@ -46,7 +46,7 @@ class TestWatershed(unittest.TestCase):
         mask = GenerateMask()(image)
         prob_map = GenerateProbabilityMap()(mask, hover_map)
         distance_map = GenerateDistanceMap()(mask, prob_map)
-        markers = GenerateMarkers()(mask, prob_map)
+        markers = GenerateWatershedMarkers()(mask, prob_map)
 
         calculate_instance_seg = Watershed(**args)
         output = calculate_instance_seg(distance_map, mask, markers)

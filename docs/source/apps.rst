@@ -135,7 +135,7 @@ Applications
     :members:
 .. autoclass:: GenerateDistanceMap
     :members:
-.. autoclass:: GenerateMarkers
+.. autoclass:: GenerateWatershedMarkers
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
@@ -147,7 +147,7 @@ Applications
     :members:
 .. autoclass:: GenerateDistanceMapd
     :members:
-.. autoclass:: GenerateMarkersd
+.. autoclass:: GenerateWatershedMarkersd
     :members:
 
 `Detection`

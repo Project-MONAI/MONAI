@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import (
     GenerateDistanceMapd,
-    GenerateMarkersd,
+    GenerateWatershedMarkersd,
     GenerateMaskd,
     GenerateProbabilityMapd,
     Watershedd,
@@ -55,7 +55,7 @@ class TestWatershedd(unittest.TestCase):
                 GenerateMaskd(keys="output"),
                 GenerateProbabilityMapd(keys="mask", hover_map_key="hover_map"),
                 GenerateDistanceMapd(keys="mask", prob_key="mask_prob"),
-                GenerateMarkersd(keys="mask", prob_key="mask_prob"),
+                GenerateWatershedMarkersd(keys="mask", prob_key="mask_prob"),
                 Watershedd(**args),
             ]
         )

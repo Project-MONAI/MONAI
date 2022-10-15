@@ -25,7 +25,7 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = ["Watershed", "GenerateMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateMarkers"]
+__all__ = ["Watershed", "GenerateMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateWatershedMarkers"]
 
 
 class Watershed(Transform):
@@ -252,7 +252,7 @@ class GenerateDistanceMap(Transform):
         return convert_to_dst_type(-distance_map, mask, dtype=self.dtype)[0]
 
 
-class GenerateMarkers(Transform):
+class GenerateWatershedMarkers(Transform):
     """
     Generate markers to be used in `watershed`. The watershed algorithm treats pixels values as a local topography
     (elevation). The algorithm floods basins from the markers until basins attributed to different markers meet on

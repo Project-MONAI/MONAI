@@ -15,7 +15,7 @@ import numpy as np
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
-    GenerateMarkers,
+    GenerateWatershedMarkers,
     GenerateMask,
     GenerateProbabilityMap,
     Watershed,
@@ -36,9 +36,9 @@ __all__ = [
     "GenerateDistanceMapD",
     "GenerateDistanceMapDict",
     "GenerateDistanceMapd",
-    "GenerateMarkersD",
-    "GenerateMarkersDict",
-    "GenerateMarkersd",
+    "GenerateWatershedMarkersD",
+    "GenerateWatershedMarkersDict",
+    "GenerateWatershedMarkersd",
 ]
 
 
@@ -239,9 +239,9 @@ class GenerateDistanceMapd(MapTransform):
         return d
 
 
-class GenerateMarkersd(MapTransform):
+class GenerateWatershedMarkersd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateMarkers`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateWatershedMarkers`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -257,7 +257,7 @@ class GenerateMarkersd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
     """
 
-    backend = GenerateMarkers.backend
+    backend = GenerateWatershedMarkers.backend
 
     def __init__(
         self,
@@ -275,7 +275,7 @@ class GenerateMarkersd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.prob_key = prob_key
         self.markers_key = markers_key
-        self.transform = GenerateMarkers(
+        self.transform = GenerateWatershedMarkers(
             threshold=threshold,
             radius=radius,
             min_size=min_size,
@@ -299,4 +299,4 @@ WatershedD = WatershedDict = Watershedd
 GenerateMaskD = GenerateMaskDict = GenerateMaskd
 GenerateProbabilityMapD = GenerateProbabilityMapDict = GenerateProbabilityMapd
 GenerateDistanceMapD = GenerateDistanceMapDict = GenerateDistanceMapd
-GenerateMarkersD = GenerateMarkersDict = GenerateMarkersd
+GenerateWatershedMarkersD = GenerateWatershedMarkersDict = GenerateWatershedMarkersd

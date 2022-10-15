@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import GenerateMarkersd
+from monai.apps.pathology.transforms.post.array import GenerateWatershedMarkers
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -27,41 +27,26 @@ TESTS = []
 np.random.RandomState(123)
 
 for p in TEST_NDARRAYS:
-    EXCEPTION_TESTS.append(
-        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError]
-    )
+    EXCEPTION_TESTS.append([{}, p(np.random.rand(2, 5, 5)), p(np.random.rand(1, 5, 5)), ValueError])
 
-    EXCEPTION_TESTS.append(
-        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError]
-    )
-
-    EXCEPTION_TESTS.append(
-        [
-            {"keys": "mask", "prob_key": "prob", "markers_key": "old_markers"},
-            p(np.random.rand(1, 5, 5)),
-            p(np.random.rand(1, 5, 5)),
-            KeyError,
-        ]
-    )
+    EXCEPTION_TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(2, 5, 5)), ValueError])
 
 for p in TEST_NDARRAYS:
-    TESTS.append(
-        [{"keys": "mask", "prob_key": "prob"}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)]
-    )
+    TESTS.append([{}, p(np.random.rand(1, 5, 5)), p(np.random.rand(1, 5, 5)), (1, 5, 5)])
 
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
-class TestGenerateMarkersd(unittest.TestCase):
+class TestGenerateWatershedMarkers(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):
-            GenerateMarkersd(**argments)({"mask": mask, "prob": probmap, "old_markers": 1})
+            GenerateWatershedMarkers(**argments)(mask, probmap)
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, probmap, expected_shape):
-        result = GenerateMarkersd(**argments)({"mask": mask, "prob": probmap})
-        self.assertEqual(result["markers"].shape, expected_shape)
+        result = GenerateWatershedMarkers(**argments)(mask, probmap)
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
