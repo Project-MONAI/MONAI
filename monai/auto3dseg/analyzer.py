@@ -833,13 +833,11 @@ class ImageHistogram(Analyzer):
         self,
         image_key: str,
         stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
-        hist_bins: list = None,
-        hist_range: list = None,
+        hist_bins: Optional[list] = None,
+        hist_range: Optional[list] = None,
     ):
 
         self.image_key = image_key
-        self.hist_bins = hist_bins
-        self.hist_range = hist_range
 
         # set defaults
         self.hist_bins: list = [100] if hist_bins is None else hist_bins
@@ -901,7 +899,7 @@ class ImageHistogram(Analyzer):
         if len(self.hist_range) != nr_channels:
             raise ValueError(
                 f"There is a mismatch between the number of channels ({nr_channels}) "
-                f"and histogram ranges ({len(self.min_values)})."
+                f"and histogram ranges ({len(self.hist_range)})."
             )
 
         # perform calculation
@@ -975,7 +973,7 @@ class ImageHistogramSumm(Analyzer):
         if self.stats_name not in data[0]:
             return KeyError(f"{self.stats_name} is not in input data")
 
-        summ_histogram = {}
+        summ_histogram: Dict = {}
 
         for d in data:
             if not summ_histogram:

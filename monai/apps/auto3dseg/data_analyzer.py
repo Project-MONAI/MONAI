@@ -149,7 +149,6 @@ class DataAnalyzer:
         self.image_key = image_key
         self.label_key = label_key
         self.hist_bins = hist_bins
-        self.hist_range = hist_range
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.fmt = fmt
         self.histogram_only = histogram_only
