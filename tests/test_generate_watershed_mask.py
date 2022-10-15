@@ -15,7 +15,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import GenerateMaskd
+from monai.apps.pathology.transforms.post.array import GenerateWatershedMask
 from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS
 
@@ -30,7 +30,7 @@ np.random.RandomState(123)
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
         [
-            {"keys": "img", "softmax": False, "sigmoid": True, "remove_small_objects": True, "min_size": 10},
+            {"softmax": False, "sigmoid": True, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             ValueError,
         ]
@@ -39,15 +39,7 @@ for p in TEST_NDARRAYS:
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
-            {
-                "keys": "img",
-                "mask_key": "mask",
-                "softmax": True,
-                "sigmoid": False,
-                "threshold": None,
-                "remove_small_objects": False,
-                "min_size": 10,
-            },
+            {"softmax": True, "sigmoid": False, "threshold": None, "remove_small_objects": False, "min_size": 10},
             p(
                 [
                     [[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [0.6134, 0.6389, 0.0680]],
@@ -61,15 +53,7 @@ for p in TEST_NDARRAYS:
 
     TESTS.append(
         [
-            {
-                "keys": "img",
-                "mask_key": "mask",
-                "softmax": False,
-                "sigmoid": True,
-                "threshold": 0.5,
-                "remove_small_objects": False,
-                "min_size": 10,
-            },
+            {"softmax": False, "sigmoid": True, "threshold": 0.5, "remove_small_objects": False, "min_size": 10},
             p([[[0.5022, 0.3403, 0.9997], [0.8793, 0.5514, 0.2697], [-0.1134, -0.0389, -0.0680]]]),
             (1, 3, 3),
             [0, 1],
@@ -78,20 +62,20 @@ for p in TEST_NDARRAYS:
 
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
-class TestGenerateMask(unittest.TestCase):
+class TestGenerateWatershedMask(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, image, exception_type):
         with self.assertRaises(exception_type):
-            GenerateMaskd(**argments)({"img": image})
+            GenerateWatershedMask(**argments)(image)
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, image, expected_shape, expected_value):
-        result = GenerateMaskd(**argments)({"img": image})
-        self.assertEqual(result["mask"].shape, expected_shape)
+        result = GenerateWatershedMask(**argments)(image)
+        self.assertEqual(result.shape, expected_shape)
 
-        if isinstance(result["mask"], torch.Tensor):
-            result["mask"] = result["mask"].cpu().numpy()
-        self.assertEqual(np.unique(result["mask"]).tolist(), expected_value)
+        if isinstance(result, torch.Tensor):
+            result = result.cpu().numpy()
+        self.assertEqual(np.unique(result).tolist(), expected_value)
 
 
 if __name__ == "__main__":

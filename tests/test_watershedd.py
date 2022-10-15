@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.apps.pathology.transforms.post.dictionary import (
     GenerateDistanceMapd,
     GenerateWatershedMarkersd,
-    GenerateMaskd,
+    GenerateWatershedMaskd,
     GenerateProbabilityMapd,
     Watershedd,
 )
@@ -52,7 +52,7 @@ class TestWatershedd(unittest.TestCase):
 
         trans = Compose(
             [
-                GenerateMaskd(keys="output"),
+                GenerateWatershedMaskd(keys="output"),
                 GenerateProbabilityMapd(keys="mask", hover_map_key="hover_map"),
                 GenerateDistanceMapd(keys="mask", prob_key="mask_prob"),
                 GenerateWatershedMarkersd(keys="mask", prob_key="mask_prob"),

@@ -16,7 +16,7 @@ import numpy as np
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
     GenerateWatershedMarkers,
-    GenerateMask,
+    GenerateWatershedMask,
     GenerateProbabilityMap,
     Watershed,
 )
@@ -27,9 +27,9 @@ __all__ = [
     "WatershedD",
     "WatershedDict",
     "Watershedd",
-    "GenerateMaskD",
-    "GenerateMaskDict",
-    "GenerateMaskd",
+    "GenerateWatershedMaskD",
+    "GenerateWatershedMaskDict",
+    "GenerateWatershedMaskd",
     "GenerateProbabilityMapD",
     "GenerateProbabilityMapDict",
     "GenerateProbabilityMapd",
@@ -93,9 +93,9 @@ class Watershedd(MapTransform):
         return d
 
 
-class GenerateMaskd(MapTransform):
+class GenerateWatershedMaskd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateMask`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateWatershedMask`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -110,7 +110,7 @@ class GenerateMaskd(MapTransform):
 
     """
 
-    backend = GenerateMask.backend
+    backend = GenerateWatershedMask.backend
 
     def __init__(
         self,
@@ -126,7 +126,7 @@ class GenerateMaskd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mask_key = mask_key
-        self.transform = GenerateMask(
+        self.transform = GenerateWatershedMask(
             softmax=softmax,
             sigmoid=sigmoid,
             threshold=threshold,
@@ -296,7 +296,7 @@ class GenerateWatershedMarkersd(MapTransform):
 
 
 WatershedD = WatershedDict = Watershedd
-GenerateMaskD = GenerateMaskDict = GenerateMaskd
+GenerateWatershedMaskD = GenerateWatershedMaskDict = GenerateWatershedMaskd
 GenerateProbabilityMapD = GenerateProbabilityMapDict = GenerateProbabilityMapd
 GenerateDistanceMapD = GenerateDistanceMapDict = GenerateDistanceMapd
 GenerateWatershedMarkersD = GenerateWatershedMarkersDict = GenerateWatershedMarkersd

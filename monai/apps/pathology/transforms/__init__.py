@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import GenerateDistanceMap, GenerateWatershedMarkers, GenerateMask, GenerateProbabilityMap, Watershed
+from .post.array import GenerateDistanceMap, GenerateWatershedMarkers, GenerateWatershedMask, GenerateProbabilityMap, Watershed
 from .post.dictionary import (
     GenerateDistanceMapD,
     GenerateDistanceMapd,
@@ -17,9 +17,9 @@ from .post.dictionary import (
     GenerateWatershedMarkersD,
     GenerateWatershedMarkersd,
     GenerateWatershedMarkersDict,
-    GenerateMaskD,
-    GenerateMaskd,
-    GenerateMaskDict,
+    GenerateWatershedMaskD,
+    GenerateWatershedMaskd,
+    GenerateWatershedMaskDict,
     GenerateProbabilityMapD,
     GenerateProbabilityMapd,
     GenerateProbabilityMapDict,

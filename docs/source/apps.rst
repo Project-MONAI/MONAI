@@ -129,7 +129,7 @@ Applications
 .. automodule:: monai.apps.pathology.transforms.post.array
 .. autoclass:: Watershed
     :members:
-.. autoclass:: GenerateMask
+.. autoclass:: GenerateWatershedMask
     :members:
 .. autoclass:: GenerateProbabilityMap
     :members:
@@ -141,7 +141,7 @@ Applications
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: Watershedd
     :members:
-.. autoclass:: GenerateMaskd
+.. autoclass:: GenerateWatershedMaskd
     :members:
 .. autoclass:: GenerateProbabilityMapd
     :members:
