@@ -122,7 +122,9 @@ class ClientAlgo(ClientAlgoStats):
         Returns:
             ExchangeObject: current local weights or weight differences.
 
-        ExchangeObject example:
+        `ExchangeObject` example:
+
+        .. code-block:: python
 
             ExchangeObject(
                 weights = self.trainer.network.state_dict(),

@@ -32,6 +32,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
+from monai.utils import convert_to_numpy
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
@@ -819,12 +820,12 @@ class ImageHistogram(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import FgImageStats
+        from monai.auto3dseg.analyzer import ImageHistogram
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
-        analyzer = FgImageStats(image_key='image', label_key='label')
+        analyzer = ImageHistogram(image_key='image')
         print(analyzer(input))
 
     """
@@ -883,7 +884,7 @@ class ImageHistogram(Analyzer):
 
         d = dict(data)
 
-        ndas = d[self.image_key].cpu().numpy()  # (1,H,W,D) or (C,H,W,D)
+        ndas = convert_to_numpy(d[self.image_key], wrap_sequence=True)  # (1,H,W,D) or (C,H,W,D)
         nr_channels = np.shape(ndas)[0]
 
         # adjust histogram params to match channels
