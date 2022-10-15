@@ -14,47 +14,90 @@ from typing import Optional
 from monai.fl.utils.exchange_object import ExchangeObject
 
 
-class ClientAlgo:
+class BaseClient:
     """
-    objective: provide an abstract base class for defining algo to run on any platform.
+    Provide an abstract base class to allow the client to return summary statistics of the data.
+
+    To define a new stats script, subclass this class and implement the
+    following abstract methods:
+
+        - self.get_data_stats()
+
+    initialize(), abort(), and finalize() - inherited from `ClientAlgoStats` - can be optionally be implemented
+    to help with lifecycle management of the class object.
+    """
+
+    def initialize(self, extra: Optional[dict] = None):
+        """
+        Call to initialize the ClientAlgo class.
+
+        Args:
+            extra: optional extra information, e.g. dict of `ExtraItems.CLIENT_NAME` and/or `ExtraItems.APP_ROOT`.
+        """
+        pass
+
+    def finalize(self, extra: Optional[dict] = None):
+        """
+        Call to finalize the ClientAlgo class.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+        """
+        pass
+
+    def abort(self, extra: Optional[dict] = None):
+        """
+        Call to abort the ClientAlgo training or evaluation.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+        """
+
+        pass
+
+
+class ClientAlgoStats(BaseClient):
+    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+        """
+        Get summary statistics about the local data.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+                For example, requested statistics.
+
+        Returns:
+            ExchangeObject: summary statistics.
+
+        Extra dict example:
+            requested_stats = {
+                FlStatistics.STATISTICS: metrics,
+                FlStatistics.NUM_OF_BINS: num_of_bins,
+                FlStatistics.BIN_RANGES: bin_ranges
+            }
+
+        Returned ExchangeObject example:
+
+            ExchangeObject(
+                statistics = {...}
+            )
+        """
+        raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class ClientAlgo(ClientAlgoStats):
+    """
+    Provide an abstract base class for defining algo to run on any platform.
     To define a new algo script, subclass this class and implement the
     following abstract methods:
 
         - self.train()
         - self.get_weights()
         - self.evaluate()
+        - self.get_data_stats() (optional, inherited from `ClientAlgoStats`)
 
-    initialize(), abort(), and finalize() can be optionally be implemented to help with lifecycle management
-    of the class object.
+    initialize(), abort(), and finalize() - inherited from `ClientAlgoStats` - can be optionally be implemented
+    to help with lifecycle management of the class object.
     """
-
-    def initialize(self, extra: Optional[dict] = None):
-        """
-        Call to initialize the ClientAlgo class
-
-        Args:
-            extra: optional extra information, e.g. dict of `ExtraItems.CLIENT_NAME` and/or `ExtraItems.APP_ROOT`
-        """
-        pass
-
-    def finalize(self, extra: Optional[dict] = None):
-        """
-        Call to finalize the ClientAlgo class
-
-        Args:
-            extra: optional extra information
-        """
-        pass
-
-    def abort(self, extra: Optional[dict] = None):
-        """
-        Call to abort the ClientAlgo training or evaluation
-
-        Args:
-            extra: optional extra information
-        """
-
-        pass
 
     def train(self, data: ExchangeObject, extra: Optional[dict] = None) -> None:
         """
@@ -62,7 +105,7 @@ class ClientAlgo:
 
         Args:
             data: ExchangeObject containing current network weights to base training on.
-            extra: optional extra information
+            extra: Dict with additional information that can be provided by the FL system.
 
         Returns:
             None
@@ -71,15 +114,17 @@ class ClientAlgo:
 
     def get_weights(self, extra: Optional[dict] = None) -> ExchangeObject:
         """
-        Get current local weights or weight differences
+        Get current local weights or weight differences.
 
         Args:
-            extra: optional extra information
+            extra: Dict with additional information that can be provided by the FL system.
 
         Returns:
             ExchangeObject: current local weights or weight differences.
 
-        ExchangeObject example::
+        `ExchangeObject` example:
+
+        .. code-block:: python
 
             ExchangeObject(
                 weights = self.trainer.network.state_dict(),
@@ -95,8 +140,8 @@ class ClientAlgo:
         Get evaluation metrics on test data.
 
         Args:
-            data: ExchangeObject with network weights to use for evaluation
-            extra: optional extra information
+            data: ExchangeObject with network weights to use for evaluation.
+            extra: Dict with additional information that can be provided by the FL system.
 
         Returns:
             metrics: ExchangeObject with evaluation metrics.
