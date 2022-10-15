@@ -15,9 +15,9 @@ import numpy as np
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
+    GenerateProbabilityMap,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    GenerateProbabilityMap,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor

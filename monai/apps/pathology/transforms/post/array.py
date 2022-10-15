@@ -25,7 +25,13 @@ disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
 
-__all__ = ["Watershed", "GenerateWatershedMask", "GenerateProbabilityMap", "GenerateDistanceMap", "GenerateWatershedMarkers"]
+__all__ = [
+    "Watershed",
+    "GenerateWatershedMask",
+    "GenerateProbabilityMap",
+    "GenerateDistanceMap",
+    "GenerateWatershedMarkers",
+]
 
 
 class Watershed(Transform):

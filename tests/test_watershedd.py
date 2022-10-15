@@ -16,9 +16,9 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import (
     GenerateDistanceMapd,
+    GenerateProbabilityMapd,
     GenerateWatershedMarkersd,
     GenerateWatershedMaskd,
-    GenerateProbabilityMapd,
     Watershedd,
 )
 from monai.transforms import Compose

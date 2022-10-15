@@ -16,9 +16,9 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
+    GenerateProbabilityMap,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    GenerateProbabilityMap,
     Watershed,
 )
 from monai.utils import min_version, optional_import
