@@ -174,6 +174,7 @@ class TestDSLossDiceCE2(unittest.TestCase):
             loss = DeepSupervisionLoss(DiceCELoss(reduction="none"))
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_script(self):
         loss = DeepSupervisionLoss(DiceCELoss())
         test_input = torch.ones(2, 1, 8, 8)
