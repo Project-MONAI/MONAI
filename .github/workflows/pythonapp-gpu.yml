@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
     strategy:
       matrix:
         environment:
@@ -124,6 +124,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (GPU)
+      if: github.event.pull_request.merged != true
       run: |
         git clone --depth 1 \
           https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
