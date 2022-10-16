@@ -29,7 +29,7 @@ class DeepSupervisionLoss(_Loss):
         self.loss = loss
         self.weight_mode = weight_mode
         self.weights = weights
-        self.interp_mode = "nearest-exact" if pytorch_after(1, 10) else "nearest"
+        self.interp_mode = "nearest-exact" if pytorch_after(1, 12) else "nearest"
 
     """
     Args:
@@ -59,7 +59,7 @@ class DeepSupervisionLoss(_Loss):
 
         return weight
 
-    def get_loss(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def get_loss(self, input: torch.Tensor, target: torch.Tensor):
         """
         Calculates a loss output accounting for differences in shapes,
         and downsizing targets if necessary (using nearest neighbor interpolation)
@@ -69,7 +69,7 @@ class DeepSupervisionLoss(_Loss):
             target = F.interpolate(target, size=input.shape[2:], mode=self.interp_mode)
         return self.loss(input, target)
 
-    def forward(self, input: Union[torch.Tensor, List[torch.Tensor]], target: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: Union[torch.Tensor, List[torch.Tensor]], target: torch.Tensor):
 
         if isinstance(input, (list, tuple)):
             loss = torch.zeros(1, dtype=torch.float, device=target.device)
