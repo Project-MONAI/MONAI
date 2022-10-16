@@ -29,7 +29,7 @@ class DeepSupervisionLoss(_Loss):
         self.loss = loss
         self.weight_mode = weight_mode
         self.weights = weights
-        self.interp_mode = "nearest-exact" if pytorch_after(1, 12) else "nearest"
+        self.interp_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
 
     """
     Args:

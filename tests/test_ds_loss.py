@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DeepSupervisionLoss, DiceCELoss, DiceFocalLoss, DiceLoss
-from tests.utils import test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES_DICECE = [
     [
@@ -26,8 +26,11 @@ TEST_CASES_DICECE = [
             "input": torch.tensor([[[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]]),
             "target": torch.tensor([[[[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]]),
         },
-        0.606557,  # the result equals to -1 + np.log(1 + np.exp(1))
-    ],
+        0.606557,
+    ]
+]
+
+TEST_CASES_DICECE2 = [
     [
         {"to_onehot_y": True},
         {},
@@ -153,6 +156,31 @@ class TestDSLossDiceCE(unittest.TestCase):
         test_script_save(loss, test_input, test_input)
 
 
+@SkipIfBeforePyTorchVersion((1, 11))
+class TestDSLossDiceCE2(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_DICECE2)
+    def test_result(self, input_param, input_param2, input_data, expected_val):
+        diceceloss = DeepSupervisionLoss(DiceCELoss(**input_param), **input_param2)
+        result = diceceloss(**input_data)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
+
+    def test_ill_shape(self):
+        loss = DeepSupervisionLoss(DiceCELoss())
+        with self.assertRaisesRegex(ValueError, ""):
+            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    def test_ill_reduction(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            loss = DeepSupervisionLoss(DiceCELoss(reduction="none"))
+            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    def test_script(self):
+        loss = DeepSupervisionLoss(DiceCELoss())
+        test_input = torch.ones(2, 1, 8, 8)
+        test_script_save(loss, test_input, test_input)
+
+
+@SkipIfBeforePyTorchVersion((1, 11))
 class TestDSLossDice(unittest.TestCase):
     @parameterized.expand(TEST_CASES_DICE)
     def test_result(self, input_param, input_data, expected_val):
@@ -161,6 +189,7 @@ class TestDSLossDice(unittest.TestCase):
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
 
+@SkipIfBeforePyTorchVersion((1, 11))
 class TestDSLossDiceFocal(unittest.TestCase):
     @parameterized.expand(TEST_CASES_DICEFOCAL)
     def test_result(self, input_param, input_data, expected_val):
