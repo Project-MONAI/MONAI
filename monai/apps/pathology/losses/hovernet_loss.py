@@ -33,7 +33,7 @@ class HoVerNetLoss(_Loss):
         lambda_nuclei_dice: Weight factor to apply to the nuclei prediction DiceLoss part of overall loss
         lambda_type_ce: Weight factor to apply to the nuclei class prediction CrossEntropyLoss part
             of the overall loss
-        lambda_type_dice: Weight factor to apply to the nuclei class prediction DiceLoss part of the 
+        lambda_type_dice: Weight factor to apply to the nuclei class prediction DiceLoss part of the
             overall loss
     """
 
