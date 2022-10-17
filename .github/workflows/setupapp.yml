@@ -31,6 +31,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
+      if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
       uses: actions/cache@v3
       id: cache
       with:
@@ -49,6 +50,9 @@ jobs:
     - name: Run unit tests report coverage
       run: |
         python -m pip list
+        git clean -ffdx
+        df -h
+        python -m pip cache info
         export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
