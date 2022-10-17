@@ -244,8 +244,8 @@ class GenerateInstanceContour(Transform):
             print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
             return None  # type: ignore
         else:
-            inst_contour[:, 0] += offset[0]  # X  # type: igonre
-            inst_contour[:, 1] += offset[1]  # Y  # type: igonre
+            inst_contour[:, 0] += offset[0]  # type: igonre
+            inst_contour[:, 1] += offset[1]  # type: igonre
             return inst_contour
 
 
@@ -279,7 +279,7 @@ class GenerateInstanceCentroid(Transform):
         for i in range(ndim):
             inst_centroid[i] += offset[i]
 
-        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)[0]
+        return convert_to_dst_type(inst_centroid, image, dtype=self.dtype)[0]  # type: ignore
 
 
 class GenerateInstanceType(Transform):
@@ -292,7 +292,7 @@ class GenerateInstanceType(Transform):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(
+    def __call__(  # type: ignore
         self, type_pred: NdarrayOrTensor, seg_pred: NdarrayOrTensor, bbox: np.ndarray, instance_id: int
     ) -> Tuple[int, float]:
         """
