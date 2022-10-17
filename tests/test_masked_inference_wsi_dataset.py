@@ -10,6 +10,7 @@
 # limitations under the License.
 
 import os
+import tempfile
 import unittest
 from unittest import skipUnless
 
@@ -30,23 +31,21 @@ base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
 FILE_NAME = f"temp_{base_name}"
 FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", FILE_NAME + extension)
 
-MASK1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask1.npy")
-MASK2 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask2.npy")
-MASK4 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tissue_mask4.npy")
+MASK1, MASK2, MASK4 = "mask1.npy", "mask2.npy", "mask4.npy"
 
 HEIGHT = 32914
 WIDTH = 46000
 
 
-def prepare_data():
+def prepare_data(*masks):
 
     mask = np.zeros((HEIGHT // 2, WIDTH // 2))
     mask[100, 100] = 1
-    np.save(MASK1, mask)
+    np.save(masks[0], mask)
     mask[100, 101] = 1
-    np.save(MASK2, mask)
+    np.save(masks[1], mask)
     mask[100:102, 100:102] = 1
-    np.save(MASK4, mask)
+    np.save(masks[2], mask)
 
 
 TEST_CASE_0 = [
@@ -156,17 +155,24 @@ TEST_CASE_OPENSLIDE_1 = [
 ]
 
 
+@skip_if_quick
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def setUp(self):
-        prepare_data()
+        self.base_dir = tempfile.TemporaryDirectory()
+        prepare_data(*[os.path.join(self.base_dir.name, m) for m in [MASK1, MASK2, MASK4]])
         hash_type = testing_data_config("images", FILE_KEY, "hash_type")
         hash_val = testing_data_config("images", FILE_KEY, "hash_val")
         download_url_or_skip_test(FILE_URL, FILE_PATH, hash_type=hash_type, hash_val=hash_val)
+
+    def tearDown(self):
+        self.base_dir.cleanup()
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @skipUnless(has_cim, "Requires CuCIM")
     @skip_if_quick
     def test_read_patches_cucim(self, input_parameters, expected):
+        for m in input_parameters["data"]:
+            m["mask"] = os.path.join(self.base_dir.name, m["mask"])
         dataset = MaskedInferenceWSIDataset(**input_parameters)
         self.compare_samples_expected(dataset, expected)
 
@@ -174,6 +180,8 @@ class TestMaskedInferenceWSIDataset(unittest.TestCase):
     @skipUnless(has_osl, "Requires OpenSlide")
     @skip_if_quick
     def test_read_patches_openslide(self, input_parameters, expected):
+        for m in input_parameters["data"]:
+            m["mask"] = os.path.join(self.base_dir.name, m["mask"])
         dataset = MaskedInferenceWSIDataset(**input_parameters)
         self.compare_samples_expected(dataset, expected)
 
