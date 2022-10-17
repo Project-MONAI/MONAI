@@ -150,6 +150,7 @@ class TestDSLossDiceCE(unittest.TestCase):
             loss = DeepSupervisionLoss(DiceCELoss(reduction="none"))
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_script(self):
         loss = DeepSupervisionLoss(DiceCELoss())
         test_input = torch.ones(2, 1, 8, 8)
@@ -163,22 +164,6 @@ class TestDSLossDiceCE2(unittest.TestCase):
         diceceloss = DeepSupervisionLoss(DiceCELoss(**input_param), **input_param2)
         result = diceceloss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
-
-    def test_ill_shape(self):
-        loss = DeepSupervisionLoss(DiceCELoss())
-        with self.assertRaisesRegex(ValueError, ""):
-            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
-
-    def test_ill_reduction(self):
-        with self.assertRaisesRegex(ValueError, ""):
-            loss = DeepSupervisionLoss(DiceCELoss(reduction="none"))
-            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
-
-    @SkipIfBeforePyTorchVersion((1, 10))
-    def test_script(self):
-        loss = DeepSupervisionLoss(DiceCELoss())
-        test_input = torch.ones(2, 1, 8, 8)
-        test_script_save(loss, test_input, test_input)
 
 
 @SkipIfBeforePyTorchVersion((1, 11))
