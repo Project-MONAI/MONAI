@@ -312,7 +312,7 @@ class GenerateWatershedMarkers(Transform):
         foreground_prob_map = foreground_prob_map >= self.threshold  # uncertain area
 
         marker = mask - convert_to_dst_type(foreground_prob_map, mask, np.uint8)[0]  # certain foreground
-        marker[marker < 0] = 0
+        marker[marker < 0] = 0  # type: ignore
         if self.postprocess_fn:
             marker = self.postprocess_fn(marker)
 
