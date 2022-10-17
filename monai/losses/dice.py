@@ -711,6 +711,8 @@ class DiceCELoss(_Loss):
                 "Using argmax (as a workaround) to convert target to a single channel."
             )
             target = torch.argmax(target, dim=1)
+        elif not torch.is_floating_point(target):
+            target = target.to(dtype=input.dtype)
 
         return self.cross_entropy(input, target)
 

@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from multiprocessing.context import SpawnContext
 from queue import Empty, Full, Queue
 from threading import Thread

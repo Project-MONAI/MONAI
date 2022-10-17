@@ -52,7 +52,6 @@ pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
 
-
 __all__ = [
     "AFFINE_TOL",
     "SUPPORTED_PICKLE_MOD",
