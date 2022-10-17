@@ -244,8 +244,8 @@ class GenerateInstanceContour(Transform):
             print(f"{len(inst_contour.shape)} != 2, check for tricky shape")
             return None  # type: ignore
         else:
-            inst_contour[:, 0] += offset[0]  # type: igonre
-            inst_contour[:, 1] += offset[1]  # type: igonre
+            inst_contour[:, 0] += offset[0]  # type: ignore
+            inst_contour[:, 1] += offset[1]  # type: ignore
             return inst_contour
 
 
