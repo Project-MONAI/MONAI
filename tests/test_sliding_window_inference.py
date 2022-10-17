@@ -86,9 +86,7 @@ class TestSlidingWindowInference(unittest.TestCase):
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
-    @parameterized.expand(
-        [tuple(x) for x in itertools.product(TEST_TORCH_AND_META_TENSORS, ("cpu", "cuda"), ("cpu", "cuda", None))]
-    )
+    @parameterized.expand(list(itertools.product(TEST_TORCH_AND_META_TENSORS, ("cpu", "cuda"), ("cpu", "cuda", None))))
     @skip_if_no_cuda
     def test_sw_device(self, data_type, device, sw_device):
         inputs = data_type(torch.ones((3, 16, 15, 7))).to(device=device)
