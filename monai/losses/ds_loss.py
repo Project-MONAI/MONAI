@@ -25,23 +25,22 @@ class DeepSupervisionLoss(_Loss):
     """
 
     def __init__(self, loss: _Loss, weight_mode: str = "exp", weights: Optional[List[float]] = None) -> None:
+        """
+        Args:
+            loss: main loss instance, e.g DiceLoss().
+            weight_mode: {``"same"``, ``"exp"``, ``"two"``}
+                Specifies the weights calculation for each image level. Defaults to ``"exp"``.
+                - ``"same"``: all weights are equal to 1.
+                - ``"exp"``: exponentially decreasing weights by a power of 2: 0, 0.5, 0.25, 0.125, etc .
+                - ``"two"``: equal smaller weights for lower levels: 1, 0.5, 0.5, 0.5, 0.5, etc
+            weights: a list of weights to apply to each deeply supervised sub-loss, if provided, this will be used
+                regardless of the weight_mode
+        """
         super().__init__()
         self.loss = loss
         self.weight_mode = weight_mode
         self.weights = weights
         self.interp_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
-
-    """
-    Args:
-        loss: main loss instance, e.g DiceLoss().
-        weight_mode: {``"same"``, ``"exp"``, ``"two"``}
-            Specifies the weights calculation for each image level. Defaults to ``"exp"``.
-            - ``"same"``: all weights are equal to 1.
-            - ``"exp"``: exponentially decreasing weights by a power of 2: 0, 0.5, 0.25, 0.125, etc .
-            - ``"two"``: equal smaller weights for lower levels: 1, 0.5, 0.5, 0.5, 0.5, etc
-        weights: a list of weights to apply to each deeply supervised sub-loss, if provided, this will be used
-            regardless of the weight_mode
-    """
 
     def get_weight(self, level: int = 0) -> float:
         """
@@ -76,8 +75,7 @@ class DeepSupervisionLoss(_Loss):
             for l in range(len(input)):
                 loss += self.get_loss(input[l].float(), target) * self.get_weight(l)
             return loss
-        else:
-            return self.loss(input.float(), target)
+        return self.loss(input.float(), target)
 
 
 ds_loss = DeepSupervisionLoss
