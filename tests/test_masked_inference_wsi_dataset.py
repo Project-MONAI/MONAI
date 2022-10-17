@@ -155,6 +155,7 @@ TEST_CASE_OPENSLIDE_1 = [
 ]
 
 
+@skip_if_quick
 class TestMaskedInferenceWSIDataset(unittest.TestCase):
     def setUp(self):
         self.base_dir = tempfile.TemporaryDirectory()
