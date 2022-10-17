@@ -56,7 +56,7 @@ class TestLRSCHEDULER(unittest.TestCase):
         net = SchedulerTestNet()
         optimizer = torch.optim.Adam(net.parameters(), lr=1.0)
         with self.assertRaises(ValueError):
-            scheduler = WarmupCosineSchedule(optimizer, warmup_steps=2, t_total=10, warmup_multiplier=-1)
+            WarmupCosineSchedule(optimizer, warmup_steps=2, t_total=10, warmup_multiplier=-1)
 
 
 if __name__ == "__main__":
