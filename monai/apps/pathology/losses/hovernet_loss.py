@@ -26,7 +26,15 @@ class HoVerNetLoss(_Loss):
     Loss function for HoVerNet pipeline, which is combination of losses across three branches
 
     Args:
-
+        lambda_hv_mse: Weight factor to apply to the HV regression MSE part of the overall loss
+        lambda_hv_mse_grad: Weight factor to apply to the MSE of the HV gradient part of the overall loss
+        lambda_nuclei_ce: Weight factor to apply to the nuclei prediction CrossEntropyLoss part
+            of the overall loss
+        lambda_nuclei_dice: Weight factor to apply to the nuclei prediction DiceLoss part of overall loss
+        lambda_type_ce: Weight factor to apply to the nuclei class prediction CrossEntropyLoss part
+            of the overall loss
+        lambda_type_dice: Weight factor to apply to the nuclei class prediction DiceLoss part of the 
+            overall loss
     """
 
     def __init__(
@@ -77,9 +85,9 @@ class HoVerNetLoss(_Loss):
         """
         Args:
             prediction: dictionary of predicted outputs for three branches,
-                        each of which should have the shape of BNHW.
-            target:     dictionary of ground truths for three branches,
-                        each of which should have the shape of BNHW.
+                each of which should have the shape of BNHW.
+            target: dictionary of ground truths for three branches,
+                each of which should have the shape of BNHW.
         """
 
         if not (HoVerNetBranch.NP.value in prediction and HoVerNetBranch.HV.value in prediction):
