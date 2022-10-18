@@ -62,7 +62,13 @@ class WarmupCosineSchedule(LambdaLR):
     """
 
     def __init__(
-        self, optimizer: Optimizer, warmup_steps: int, t_total: int, cycles: float = 0.5, last_epoch: int = -1
+        self,
+        optimizer: Optimizer,
+        warmup_steps: int,
+        t_total: int,
+        cycles: float = 0.5,
+        last_epoch: int = -1,
+        warmup_multiplier: float = 0,
     ) -> None:
         """
         Args:
@@ -71,16 +77,22 @@ class WarmupCosineSchedule(LambdaLR):
             t_total: total number of training iterations.
             cycles: cosine cycles parameter.
             last_epoch: the index of last epoch.
+            warmup_multiplier: if provided, starts the linear warmup from this fraction of the intial lr.
+                Must be in 0..1 interval. Defaults to 0
         Returns:
             None
         """
-        self.warmup_steps = warmup_steps
+        self.warmup_steps = min(max(warmup_steps, 0), t_total)
+        self.warmup_multiplier = warmup_multiplier
         self.t_total = t_total
         self.cycles = cycles
+        if warmup_multiplier < 0 or warmup_multiplier > 1:
+            raise ValueError("warmup_multiplier must be in 0..1 range")
         super().__init__(optimizer, self.lr_lambda, last_epoch)
 
     def lr_lambda(self, step):
         if step < self.warmup_steps:
-            return float(step) / float(max(1.0, self.warmup_steps))
+            f = float(step) / float(max(1.0, self.warmup_steps))
+            return self.warmup_multiplier + (1 - self.warmup_multiplier) * f
         progress = float(step - self.warmup_steps) / float(max(1, self.t_total - self.warmup_steps))
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(self.cycles) * 2.0 * progress)))
