@@ -74,8 +74,11 @@ class DeepSupervisionLoss(_Loss):
 
         if isinstance(input, (list, tuple)):
             weights = self.get_weights(levels=len(input))
-            l = torch.stack([self.get_loss(input[l].float(), target) * weights[l] for l in range(len(input))])
-            return torch.sum(l)
+            loss = torch.zeros([], dtype=torch.float, device=target.device)
+            for l in range(len(input)):
+                loss += weights[l] * self.get_loss(input[l].float(), target)
+            return loss
+
         return self.loss(input.float(), target)
 
 
