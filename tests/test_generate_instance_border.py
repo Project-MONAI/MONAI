@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.dictionary import GenerateProbabilityMapd
+from monai.apps.pathology.transforms.post.array import GenerateInstanceBorder
 from tests.utils import TEST_NDARRAYS
 
 EXCEPTION_TESTS = []
@@ -26,7 +26,7 @@ np.random.RandomState(123)
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             ValueError,
@@ -35,7 +35,7 @@ for p in TEST_NDARRAYS:
 
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             ValueError,
@@ -44,7 +44,7 @@ for p in TEST_NDARRAYS:
 
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(2, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             ValueError,
@@ -54,7 +54,7 @@ for p in TEST_NDARRAYS:
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": False, "min_size": 10},
+            {"kernel_size": 21, "remove_small_objects": False, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             (1, 5, 5),
@@ -62,7 +62,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"kernel_size": 21, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             (1, 5, 5),
@@ -70,16 +70,16 @@ for p in TEST_NDARRAYS:
     )
 
 
-class TestGenerateProbabilityMap(unittest.TestCase):
+class TestGenerateInstanceBorder(unittest.TestCase):
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, argments, mask, hover_map, exception_type):
         with self.assertRaises(exception_type):
-            GenerateProbabilityMapd(**argments)({"mask": mask, "hover_map": hover_map})
+            GenerateInstanceBorder(**argments)(mask, hover_map)
 
     @parameterized.expand(TESTS)
     def test_value2(self, argments, mask, hover_map, expected_shape):
-        result = GenerateProbabilityMapd(**argments)({"mask": mask, "hover_map": hover_map})
-        self.assertEqual(result["mask_prob"].shape, expected_shape)
+        result = GenerateInstanceBorder(**argments)(mask, hover_map)
+        self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":

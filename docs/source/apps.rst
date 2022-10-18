@@ -131,7 +131,7 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMask
     :members:
-.. autoclass:: GenerateProbabilityMap
+.. autoclass:: GenerateInstanceBorder
     :members:
 .. autoclass:: GenerateDistanceMap
     :members:
@@ -143,7 +143,7 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMaskd
     :members:
-.. autoclass:: GenerateProbabilityMapd
+.. autoclass:: GenerateInstanceBorderd
     :members:
 .. autoclass:: GenerateDistanceMapd
     :members:

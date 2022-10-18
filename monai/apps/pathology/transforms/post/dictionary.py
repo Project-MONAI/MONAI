@@ -15,7 +15,7 @@ import numpy as np
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
-    GenerateProbabilityMap,
+    GenerateInstanceBorder,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
@@ -30,9 +30,9 @@ __all__ = [
     "GenerateWatershedMaskD",
     "GenerateWatershedMaskDict",
     "GenerateWatershedMaskd",
-    "GenerateProbabilityMapD",
-    "GenerateProbabilityMapDict",
-    "GenerateProbabilityMapd",
+    "GenerateInstanceBorderD",
+    "GenerateInstanceBorderDict",
+    "GenerateInstanceBorderd",
     "GenerateDistanceMapD",
     "GenerateDistanceMapDict",
     "GenerateDistanceMapd",
@@ -146,14 +146,14 @@ class GenerateWatershedMaskd(MapTransform):
         return d
 
 
-class GenerateProbabilityMapd(MapTransform):
+class GenerateInstanceBorderd(MapTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateProbabilityMap`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.array.GenerateInstanceBorder`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
         hover_map_key: keys of hover map used to generate probability map.
-        prob_key_postfix: the foreground probability map will be written to the value of `{key}_{prob_key_postfix}`.
+        border_key: the instance border map will be written to the value of `{border_key}`.
         kernel_size: the size of the Sobel kernel. Defaults to 21.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
         remove_small_objects: whether need to remove some objects in segmentation results. Defaults to True.
@@ -166,13 +166,13 @@ class GenerateProbabilityMapd(MapTransform):
 
     """
 
-    backend = GenerateProbabilityMap.backend
+    backend = GenerateInstanceBorder.backend
 
     def __init__(
         self,
         keys: KeysCollection,
         hover_map_key: str = "hover_map",
-        prob_key_postfix: str = "prob",
+        border_key: str = "border",
         kernel_size: int = 21,
         min_size: int = 10,
         remove_small_objects: bool = True,
@@ -181,19 +181,19 @@ class GenerateProbabilityMapd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.hover_map_key = hover_map_key
-        self.prob_key_postfix = prob_key_postfix
-        self.transform = GenerateProbabilityMap(
+        self.border_key = border_key
+        self.transform = GenerateInstanceBorder(
             kernel_size=kernel_size, remove_small_objects=remove_small_objects, min_size=min_size, dtype=dtype
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            prob_map = self.transform(d[key], d[self.hover_map_key])
-            key_to_add = f"{key}_{self.prob_key_postfix}"
+            instance_border = self.transform(d[key], d[self.hover_map_key])
+            key_to_add = f"{self.border_key}"
             if key_to_add in d:
-                raise KeyError(f"Probability map with key {key_to_add} already exists.")
-            d[key_to_add] = prob_map
+                raise KeyError(f"Instance border map with key {key_to_add} already exists.")
+            d[key_to_add] = instance_border
         return d
 
 
@@ -203,7 +203,7 @@ class GenerateDistanceMapd(MapTransform):
 
     Args:
         keys: keys of the corresponding items to be transformed.
-        prob_key: keys of the foreground probability map used to generate distance map.
+        border_key: keys of the instance border map used to generate distance map.
         dist_key: the distance map will be written to the value of `{dist_key}`.
         smooth_fn: execute smooth function on distance map. Defaults to None. You can specify
             callable functions for smoothing.
@@ -217,21 +217,21 @@ class GenerateDistanceMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        prob_key: str = "prob",
+        border_key: str = "border",
         dist_key: str = "dist",
         smooth_fn: Optional[Callable] = None,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.prob_key = prob_key
+        self.border_key = border_key
         self.dist_key = dist_key
         self.transform = GenerateDistanceMap(smooth_fn=smooth_fn, dtype=dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            distance_map = self.transform(d[key], d[self.prob_key])
+            distance_map = self.transform(d[key], d[self.border_key])
             key_to_add = f"{self.dist_key}"
             if key_to_add in d:
                 raise KeyError(f"Distance map with key {key_to_add} already exists.")
@@ -245,9 +245,9 @@ class GenerateWatershedMarkersd(MapTransform):
 
     Args:
         keys: keys of the corresponding items to be transformed.
-        prob_key: keys of the foreground probability map used to generate markers.
+        border_key: keys of the instance border map used to generate markers.
         markers_key: the markers will be written to the value of `{markers_key}`.
-        threshold: threshold the float values of foreground probability map to int 0 or 1 with specified theashold.
+        threshold: threshold the float values of instance border map to int 0 or 1 with specified theashold.
             It turns uncertain area to 1 and other area to 0. Defaults to 0.4.
         radius: the radius of the disk-shaped footprint used in `opening`. Defaults to 2.
         min_size: objects smaller than this size are removed if `remove_small_objects` is True. Defaults to 10.
@@ -262,7 +262,7 @@ class GenerateWatershedMarkersd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        prob_key: str = "prob",
+        border_key: str = "border",
         markers_key: str = "markers",
         threshold: float = 0.4,
         radius: int = 2,
@@ -273,7 +273,7 @@ class GenerateWatershedMarkersd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.prob_key = prob_key
+        self.border_key = border_key
         self.markers_key = markers_key
         self.transform = GenerateWatershedMarkers(
             threshold=threshold,
@@ -287,7 +287,7 @@ class GenerateWatershedMarkersd(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            markers = self.transform(d[key], d[self.prob_key])
+            markers = self.transform(d[key], d[self.border_key])
             key_to_add = f"{self.markers_key}"
             if key_to_add in d:
                 raise KeyError(f"Markers with key {key_to_add} already exists.")
@@ -297,6 +297,6 @@ class GenerateWatershedMarkersd(MapTransform):
 
 WatershedD = WatershedDict = Watershedd
 GenerateWatershedMaskD = GenerateWatershedMaskDict = GenerateWatershedMaskd
-GenerateProbabilityMapD = GenerateProbabilityMapDict = GenerateProbabilityMapd
+GenerateInstanceBorderD = GenerateInstanceBorderDict = GenerateInstanceBorderd
 GenerateDistanceMapD = GenerateDistanceMapDict = GenerateDistanceMapd
 GenerateWatershedMarkersD = GenerateWatershedMarkersDict = GenerateWatershedMarkersd

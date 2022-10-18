@@ -28,7 +28,7 @@ watershed, _ = optional_import("skimage.segmentation", name="watershed")
 __all__ = [
     "Watershed",
     "GenerateWatershedMask",
-    "GenerateProbabilityMap",
+    "GenerateInstanceBorder",
     "GenerateDistanceMap",
     "GenerateWatershedMarkers",
 ]
@@ -130,9 +130,9 @@ class GenerateWatershedMask(Transform):
         return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
 
 
-class GenerateProbabilityMap(Transform):
+class GenerateInstanceBorder(Transform):
     """
-    Generate foreground probability map by hover map. The more parts of the image that cannot be identified as foreground areas,
+    Generate instance border by hover map. The more parts of the image that cannot be identified as foreground areas,
     the larger the grey scale value. The grey value of the instance's border will be larger.
 
     Args:
@@ -175,7 +175,7 @@ class GenerateProbabilityMap(Transform):
                 to papers: https://arxiv.org/abs/1812.06499.
 
         Return:
-            Foreground probability map.
+            Instance border map.
 
         Raises:
             ValueError: when the `hover_map` has only one value.
@@ -221,7 +221,7 @@ class GenerateDistanceMap(Transform):
     """
     Generate distance map.
     In general, the instance map is calculated from the distance to the background.
-    Here, we use 1 - "foreground probability map" to generate the distance map.
+    Here, we use 1 - "instance border map" to generate the distance map.
     Nuclei values form mountains so inverse to get basins.
 
     Args:
@@ -237,20 +237,18 @@ class GenerateDistanceMap(Transform):
         self.smooth_fn = smooth_fn
         self.dtype = dtype
 
-    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             mask: binarized segmentation result. Shape must be [1, H, W].
-            foreground_prob_map: foreground probability map. Shape must be [1, H, W].
+            instance_border: foreground probability map. Shape must be [1, H, W].
         """
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
-        if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
-            raise ValueError(
-                f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}"
-            )
+        if instance_border.shape[0] != 1 or instance_border.ndim != 3:
+            raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
-        distance_map = (1.0 - foreground_prob_map) * mask
+        distance_map = (1.0 - instance_border) * mask
 
         if callable(self.smooth_fn):
             distance_map = self.smooth_fn(distance_map)
@@ -296,22 +294,20 @@ class GenerateWatershedMarkers(Transform):
         if remove_small_objects:
             self.remove_small_objects = RemoveSmallObjects(min_size=min_size)
 
-    def __call__(self, mask: NdarrayOrTensor, foreground_prob_map: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
+    def __call__(self, mask: NdarrayOrTensor, instance_border: NdarrayOrTensor) -> NdarrayOrTensor:  # type: ignore
         """
         Args:
             mask: binarized segmentation result. Shape must be [1, H, W].
-            foreground_prob_map: foreground probability map. Shape must be [1, H, W].
+            instance_border: instance border map. Shape must be [1, H, W].
         """
         if mask.shape[0] != 1 or mask.ndim != 3:
             raise ValueError(f"Input mask should be with size of [1, H, W], but got {mask.shape}")
-        if foreground_prob_map.shape[0] != 1 or foreground_prob_map.ndim != 3:
-            raise ValueError(
-                f"Input foreground_prob_map should be with size of [1, H, W], but got {foreground_prob_map.shape}"
-            )
+        if instance_border.shape[0] != 1 or instance_border.ndim != 3:
+            raise ValueError(f"Input instance_border should be with size of [1, H, W], but got {instance_border.shape}")
 
-        foreground_prob_map = foreground_prob_map >= self.threshold  # uncertain area
+        instance_border = instance_border >= self.threshold  # uncertain area
 
-        marker = mask - convert_to_dst_type(foreground_prob_map, mask, np.uint8)[0]  # certain foreground
+        marker = mask - convert_to_dst_type(instance_border, mask, np.uint8)[0]  # certain foreground
         marker[marker < 0] = 0  # type: ignore
         if self.postprocess_fn:
             marker = self.postprocess_fn(marker)

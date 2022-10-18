@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
-    GenerateProbabilityMap,
+    GenerateInstanceBorder,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
@@ -44,9 +44,9 @@ class TestWatershed(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, image, hover_map, expected_shape):
         mask = GenerateWatershedMask()(image)
-        prob_map = GenerateProbabilityMap()(mask, hover_map)
-        distance_map = GenerateDistanceMap()(mask, prob_map)
-        markers = GenerateWatershedMarkers()(mask, prob_map)
+        border_map = GenerateInstanceBorder()(mask, hover_map)
+        distance_map = GenerateDistanceMap()(mask, border_map)
+        markers = GenerateWatershedMarkers()(mask, border_map)
 
         calculate_instance_seg = Watershed(**args)
         output = calculate_instance_seg(distance_map, mask, markers)

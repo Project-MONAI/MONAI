@@ -11,7 +11,7 @@
 
 from .array import (
     GenerateDistanceMap,
-    GenerateProbabilityMap,
+    GenerateInstanceBorder,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
@@ -20,9 +20,9 @@ from .dictionary import (
     GenerateDistanceMapD,
     GenerateDistanceMapd,
     GenerateDistanceMapDict,
-    GenerateProbabilityMapD,
-    GenerateProbabilityMapd,
-    GenerateProbabilityMapDict,
+    GenerateInstanceBorderD,
+    GenerateInstanceBorderd,
+    GenerateInstanceBorderDict,
     GenerateWatershedMarkersD,
     GenerateWatershedMarkersd,
     GenerateWatershedMarkersDict,
