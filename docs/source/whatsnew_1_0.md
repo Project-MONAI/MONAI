@@ -37,8 +37,8 @@ for defining an algorithm to be run on any federated learning platform.
 has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/dev/integration/monai) with these new APIs.
 With [the new federated learning APIs](https://docs.monai.io/en/latest/fl.html), MONAI bundles can seamlessly be extended to a federated paradigm
 and executed using single- or multi-GPU training.
-The MONAI FL client also allows computing summary data statistics (e.g., intensity histograms) on the datasets defined in the bundle configs. 
-These can be shared and visualized on the FL server, for example, using NVIDIA FLARE's federated statistics operators, 
+The MONAI FL client also allows computing summary data statistics (e.g., intensity histograms) on the datasets defined in the bundle configs.
+These can be shared and visualized on the FL server, for example, using NVIDIA FLARE's federated statistics operators,
 see [here](https://github.com/NVIDIA/NVFlare/tree/dev/integration/monai/examples/spleen_ct_segmentation) for an example.
 
 We welcome other federated learning toolkits to integrate with MONAI FL APIs, building a common foundation for
