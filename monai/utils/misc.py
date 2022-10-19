@@ -368,16 +368,14 @@ def str2bool(value: Union[str, bool], default: bool = False, raise_exc: bool = T
     """
     Convert a string to a boolean. Case insensitive.
     True: yes, true, t, y, 1. False: no, false, f, n, 0.
-    Useful with argparse, e.g.
+    Useful with argparse:
         parser.add_argument("--convert", default=False, type=str2bool)
-        ...
         python mycode.py --convert=True
-
 
     Args:
         value: string to be converted to a boolean. If value is a bool already, simply return it.
         raise_exc: if value not in tuples of expected true or false inputs,
-            should we raise an exception? If not, return `None`.
+            should we raise an exception? If not, return `default`.
     Raises
         ValueError: value not in tuples of expected true or false inputs and
             `raise_exc` is `True`.
@@ -405,7 +403,6 @@ def str2list(value: Optional[Union[str, list]], raise_exc: bool = True) -> Optio
     """
     Convert a string to a list.  Useful with argparse commandline arguments:
         parser.add_argument("--blocks", default=[1,2,3], type=str2list)
-        ...
         python mycode.py --blocks=1,2,2,4
 
     Args:
@@ -425,7 +422,7 @@ def str2list(value: Optional[Union[str, list]], raise_exc: bool = True) -> Optio
             try:
                 a = literal_eval(v[i].strip())  # attempt to convert
                 v[i] = a
-            except:
+            except Exception:
                 pass
         return v
     elif raise_exc:
