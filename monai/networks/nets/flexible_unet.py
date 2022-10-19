@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+from pydoc import locate
 from typing import List, Optional, Sequence, Tuple, Type, Union
 
 import torch
@@ -19,9 +21,9 @@ from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
-from monai.utils import InterpolateMode
+from monai.utils import InterpolateMode, optional_import
 
-__all__ = ["FlexibleUNet", "BACKBONE"]
+__all__ = ["FlexibleUNet", "BACKBONE", "Register"]
 
 
 class Register:
@@ -33,13 +35,24 @@ class Register:
     def __init__(self):
         self.register_dict = {}
 
-    def regist_class(self, name: Type):
+    def regist_class(self, name: Union[Type, str]):
         """
         Regist a given class to the encoder dict. Please notice that input class must be a
         subclass of BaseEncoder.
         """
+        if isinstance(name, str):
+            tmp_name, has_built_in = optional_import("monai.networks.nets", name=f"{name}")  # search built-in
+            if not has_built_in:
+                tmp_name = locate(f"{name}")  # search dotted path
+            name = tmp_name
+            if not isinstance(name, type):
+                raise ValueError(f"Cannot find {name} class.")
+
         if not issubclass(name, BaseEncoder):
-            raise Exception("An encoder must derive from BaseEncoder class.")
+            warnings.warn(
+                f"{name} would better be derived from monai.networks.blocks.BaseEncoder or implement all interfaces specified by it."
+            )
+
         name_string_list = name.get_encoder_names()
         feature_number_list = name.get_output_feature_numbers()
         feature_channel_list = name.get_output_feature_channels()

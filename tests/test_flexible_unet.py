@@ -17,12 +17,46 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.encoder import BaseEncoder
-from monai.networks.nets import BACKBONE, EfficientNetBNFeatures, FlexibleUNet, ResNet, ResNetBlock, ResNetBottleneck
+from monai.networks.nets import (
+    BACKBONE,
+    EfficientNetBNFeatures,
+    FlexibleUNet,
+    Register,
+    ResNet,
+    ResNetBlock,
+    ResNetBottleneck,
+)
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
+
+
+class DummyEncoder(BaseEncoder):
+    @classmethod
+    def get_encoder_parameters(cls):
+        basic_dict = {"spatial_dims": 2, "in_channels": 3, "pretrained": False}
+        param_dict_list = [basic_dict]
+        for key in basic_dict:
+            cur_dict = basic_dict.copy()
+            del cur_dict[key]
+            param_dict_list.append(cur_dict)
+        return param_dict_list
+
+    @classmethod
+    def get_output_feature_channels(cls):
+
+        return [(32, 64, 128, 256, 512, 1024), (32, 64, 128, 256), (32, 64, 128, 256), (32, 64, 128, 256)]
+
+    @classmethod
+    def get_output_feature_numbers(cls):
+
+        return [6, 4, 4, 4]
+
+    @classmethod
+    def get_encoder_names(cls):
+        return ["encoder_wrong_channels", "encoder_no_param1", "encoder_no_param2", "encoder_no_param3"]
 
 
 class ResNetEncoder(ResNet, BaseEncoder):
@@ -120,6 +154,7 @@ class ResNetEncoder(ResNet, BaseEncoder):
 
 
 BACKBONE.regist_class(ResNetEncoder)
+BACKBONE.regist_class(DummyEncoder)
 
 
 def get_model_names():
@@ -163,6 +198,18 @@ def make_shape_cases(
                         ]
                     )
     return ret_tests
+
+
+def make_error_case():
+    error_dummy_backbones = DummyEncoder.get_encoder_names()
+    error_resnet_backbones = ResNetEncoder.get_encoder_names()
+    error_backbones = error_dummy_backbones + error_resnet_backbones
+    error_param_list = []
+    for backbone in error_backbones:
+        error_param_list.append(
+            [{"in_channels": 3, "out_channels": 2, "backbone": backbone, "pretrained": True, "spatial_dims": 3}]
+        )
+    return error_param_list
 
 
 # create list of selected models to speed up redundant tests
@@ -307,6 +354,11 @@ CASES_PRETRAIN = [
     )
 ]
 
+CASE_ERRORS = make_error_case()
+
+# Verify Register class with string type
+CASE_REGISTER_ENCODER = ["EfficientNetEncoder", "monai.networks.nets.EfficientNetEncoder"]
+
 
 @skip_if_quick
 class TestFLEXIBLEUNET(unittest.TestCase):
@@ -342,6 +394,28 @@ class TestFLEXIBLEUNET(unittest.TestCase):
                 diff_sum = torch.sum(weight_diff)
                 # check if a weight in weight_list equals to the downloaded weight.
                 self.assertLess(abs(diff_sum.item() - 0), 1e-8)
+
+    @parameterized.expand(CASE_ERRORS)
+    def test_error_raise(self, input_param):
+        with self.assertRaises((ValueError, NotImplementedError)):
+            FlexibleUNet(**input_param)
+
+
+class TestRegister(unittest.TestCase):
+    @parameterized.expand(CASE_REGISTER_ENCODER)
+    def test_regist(self, encoder):
+        tmp_backbone = Register()
+        tmp_backbone.regist_class(encoder)
+        for backbone in tmp_backbone.register_dict:
+            backbone_type = tmp_backbone.register_dict[backbone]["type"]
+            feature_number = backbone_type.get_output_feature_numbers()
+            feature_channel = backbone_type.get_output_feature_channels()
+            param_dict_list = backbone_type.get_encoder_parameters()
+            encoder_name_list = backbone_type.get_encoder_names()
+            encoder_cnt = encoder_name_list.index(backbone)
+            self.assertEqual(feature_number[encoder_cnt], tmp_backbone.register_dict[backbone]["feature_number"])
+            self.assertEqual(feature_channel[encoder_cnt], tmp_backbone.register_dict[backbone]["feature_channel"])
+            self.assertEqual(param_dict_list[encoder_cnt], tmp_backbone.register_dict[backbone]["parameter"])
 
 
 if __name__ == "__main__":
