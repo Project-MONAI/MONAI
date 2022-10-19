@@ -270,15 +270,21 @@ A step-by-step [get started](https://github.com/Project-MONAI/tutorials/blob/mas
 
 ![federated-learning](../images/federated.svg)
 
-Using the MONAI bundle configurations, we can use MONAI's [`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) class (an implementation of the abstract [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) class for federated learning)
+Using the MONAI bundle configurations, we can use MONAI's [`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) 
+class, an implementation of the abstract [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) class for federated learning (FL), 
 to execute bundles from the [MONAI model zoo](https://github.com/Project-MONAI/model-zoo).
-Note that [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) is provided as an abstract base class for defining an algorithm to be run on any federated learning platform.
-[`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) implements the main functionalities needed to run federated learning experiments, namely `train()`, `get_weights()`, and `evaluate()`.
+Note that [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) is provided as an abstract base class for 
+defining an algorithm to be run on any federated learning platform.
+[`MonaiAlgo`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgo) implements the main functionalities needed 
+to run federated learning experiments, namely `train()`, `get_weights()`, and `evaluate()`, that can be run using single- or multi-GPU training.
 On top, it provides implementations for life-cycle management of the component such as `initialize()`, `abort()`, and `finalize()`.
-
+The MONAI FL client also allows computing summary data statistics (e.g., intensity histograms) on the datasets defined in the bundle configs 
+using the [`MonaiAlgoStats`](https://docs.monai.io/en/latest/fl.html#monai.fl.client.MonaiAlgoStats) class. 
+These statistics can be shared and visualized on the FL server.
 [NVIDIA FLARE](https://github.com/NVIDIA/NVFlare), the federated learning platform developed by NVIDIA, has already built [the integration piece](https://github.com/NVIDIA/NVFlare/tree/2.2/integration/monai)
 with [`ClientAlgo`](https://docs.monai.io/en/latest/fl.html#clientalgo) to allow easy experimentation with MONAI bundles within their federated environment.
-[[Federated learning tutorial]](https://github.com/Project-MONAI/tutorials/tree/main/federated_learning/nvflare)
+Our [[federated learning tutorials]](https://github.com/Project-MONAI/tutorials/tree/main/federated_learning/nvflare) shows 
+examples of single- & multi-GPU training and federated statistics workflows. 
 
 ## Auto3dseg
 
