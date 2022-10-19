@@ -32,7 +32,8 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils.enums import ImageStatsKeys, LabelStatsKeys
+from monai.utils import convert_to_numpy
+from monai.utils.enums import DataStatsKeys, ImageStatsKeys, LabelStatsKeys
 from monai.utils.misc import ImageMetaKey, label_union
 
 logger = get_logger(module_name=__name__)
@@ -46,6 +47,8 @@ __all__ = [
     "FgImageStatsSumm",
     "LabelStatsSumm",
     "FilenameStats",
+    "ImageHistogram",
+    "ImageHistogramSumm",
 ]
 
 
@@ -799,3 +802,201 @@ class FilenameStats(Analyzer):
             d[self.stats_name] = "None"
 
         return d
+
+
+class ImageHistogram(Analyzer):
+    """
+    Analyzer to compute intensity histogram.
+
+    Args:
+        image_key: the key to find image data in the callable function input (data)
+        hist_bins: list of positive integers (one for each channel) for setting the number of bins used to
+            compute the histogram. Defaults to [100].
+        hist_range: list of lists of two floats (one for each channel) setting the intensity range to
+            compute the histogram. Defaults to [-500, 500].
+
+    Examples:
+
+    .. code-block:: python
+
+        import numpy as np
+        from monai.auto3dseg.analyzer import ImageHistogram
+
+        input = {}
+        input['image'] = np.random.rand(1,30,30,30)
+        input['label'] = np.ones([30,30,30])
+        analyzer = ImageHistogram(image_key='image')
+        print(analyzer(input))
+
+    """
+
+    def __init__(
+        self,
+        image_key: str,
+        stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM,
+        hist_bins: Optional[list] = None,
+        hist_range: Optional[list] = None,
+    ):
+
+        self.image_key = image_key
+
+        # set defaults
+        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_range: list = [-500, 500] if hist_range is None else hist_range
+
+        report_format = {"counts": None, "bin_edges": None}
+
+        super().__init__(stats_name, report_format)
+        self.update_ops(ImageStatsKeys.HISTOGRAM, SampleOperations())
+
+        # check histogram configurations for each channel in list
+        if not isinstance(self.hist_bins, list):
+            self.hist_bins = [self.hist_bins]
+        if not all(isinstance(hr, list) for hr in self.hist_range):
+            self.hist_range = [self.hist_range]
+        if len(self.hist_bins) != len(self.hist_range):
+            raise ValueError(
+                f"Number of histogram bins ({len(self.hist_bins)}) and "
+                f"histogram ranges ({len(self.hist_range)}) need to be the same!"
+            )
+        for i, hist_params in enumerate(zip(self.hist_bins, self.hist_range)):
+            _hist_bins, _hist_range = hist_params
+            if not isinstance(_hist_bins, int) or _hist_bins < 0:
+                raise ValueError(f"Expected {i+1}. hist_bins value to be positive integer but got {_hist_bins}")
+            if not isinstance(_hist_range, list) or len(_hist_range) != 2:
+                raise ValueError(f"Expected {i+1}. hist_range values to be list of length 2 but received {_hist_range}")
+
+    def __call__(self, data) -> dict:
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format and value
+
+        Raises:
+            RuntimeError if the stats report generated is not consistent with the pre-
+                defined report_format.
+
+        Note:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        """
+
+        d = dict(data)
+
+        ndas = convert_to_numpy(d[self.image_key], wrap_sequence=True)  # (1,H,W,D) or (C,H,W,D)
+        nr_channels = np.shape(ndas)[0]
+
+        # adjust histogram params to match channels
+        if len(self.hist_bins) == 1:
+            self.hist_bins = nr_channels * self.hist_bins
+        if len(self.hist_bins) != nr_channels:
+            raise ValueError(
+                f"There is a mismatch between the number of channels ({nr_channels}) "
+                f"and number histogram bins ({len(self.hist_bins)})."
+            )
+        if len(self.hist_range) == 1:
+            self.hist_range = nr_channels * self.hist_range
+        if len(self.hist_range) != nr_channels:
+            raise ValueError(
+                f"There is a mismatch between the number of channels ({nr_channels}) "
+                f"and histogram ranges ({len(self.hist_range)})."
+            )
+
+        # perform calculation
+        reports = []
+        for channel in range(nr_channels):
+            counts, bin_edges = np.histogram(
+                ndas[channel, ...],
+                bins=self.hist_bins[channel],
+                range=(self.hist_range[channel][0], self.hist_range[channel][1]),
+            )
+            _report = {"counts": counts.tolist(), "bin_edges": bin_edges.tolist()}
+            if not verify_report_format(_report, self.get_report_format()):
+                raise RuntimeError(f"report generated by {self.__class__} differs from the report format.")
+            reports.append(_report)
+
+        d[self.stats_name] = reports
+        return d
+
+
+class ImageHistogramSumm(Analyzer):
+    """
+    This summary analyzer processes the values of specific key `stats_name` in a list of dict.
+    Typically, the list of dict is the output of case analyzer under the same prefix
+    (ImageHistogram).
+
+    Args:
+        stats_name: the key of the to-process value in the dict.
+        average: whether to average the statistical value across different image modalities.
+
+    """
+
+    def __init__(self, stats_name: str = DataStatsKeys.IMAGE_HISTOGRAM, average: Optional[bool] = True):
+        self.summary_average = average
+        report_format = {ImageStatsKeys.HISTOGRAM: None}
+        super().__init__(stats_name, report_format)
+
+        self.update_ops(ImageStatsKeys.HISTOGRAM, SummaryOperations())
+
+    def __call__(self, data: List[Dict]):
+        """
+        Callable to execute the pre-defined functions
+
+        Returns:
+            A dictionary. The dict has the key in self.report_format and value
+            in a list format. Each element of the value list has stats pre-defined
+            by SampleOperations (max, min, ....).
+
+        Raises:
+            RuntimeError if the stats report generated is not consistent with the pre-
+                defined report_format.
+
+        Examples:
+            output dict contains a dictionary for all of the following keys{
+                ImageStatsKeys.SHAPE:{...}
+                ImageStatsKeys.CHANNELS: {...},
+                ImageStatsKeys.CROPPED_SHAPE: {...},
+                ImageStatsKeys.SPACING: {...},
+                ImageStatsKeys.INTENSITY: {...},
+                }
+
+        Notes:
+            The stats operation uses numpy and torch to compute max, min, and other
+            functions. If the input has nan/inf, the stats results will be nan/inf.
+        """
+        if not isinstance(data, list):
+            return ValueError(f"Callable {self.__class__} requires list inputs")
+
+        if len(data) == 0:
+            return ValueError(f"Callable {self.__class__} input list is empty")
+
+        if self.stats_name not in data[0]:
+            return KeyError(f"{self.stats_name} is not in input data")
+
+        summ_histogram: Dict = {}
+
+        for d in data:
+            if not summ_histogram:
+                summ_histogram = d[DataStatsKeys.IMAGE_HISTOGRAM]
+                # convert to numpy for computing total histogram
+                for k in range(len(summ_histogram)):
+                    summ_histogram[k]["counts"] = np.array(summ_histogram[k]["counts"])
+            else:
+                for k in range(len(summ_histogram)):
+                    summ_histogram[k]["counts"] += np.array(d[DataStatsKeys.IMAGE_HISTOGRAM][k]["counts"])
+                    if np.all(summ_histogram[k]["bin_edges"] != d[DataStatsKeys.IMAGE_HISTOGRAM][k]["bin_edges"]):
+                        raise ValueError(
+                            f"bin edges are not consistent! {summ_histogram[k]['bin_edges']} vs. "
+                            f"{d[DataStatsKeys.IMAGE_HISTOGRAM][k]['bin_edges']}"
+                        )
+
+        # convert back to list
+        for k in range(len(summ_histogram)):
+            summ_histogram[k]["counts"] = summ_histogram[k]["counts"].tolist()
+
+        report = {ImageStatsKeys.HISTOGRAM: summ_histogram}
+        if not verify_report_format(report, self.get_report_format()):
+            raise RuntimeError(f"report generated by {self.__class__} differs from the report format.")
+
+        return report
