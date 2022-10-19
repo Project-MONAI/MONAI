@@ -7,7 +7,7 @@ Federated Learning
 .. currentmodule:: monai.fl.client
 
 `Client Base Classes`
-------------
+---------------------
 
 .. autoclass:: BaseClient
     :members:
@@ -19,7 +19,7 @@ Federated Learning
     :members:
 
 `MONAI Bundle Reference Implementations`
-------------
+----------------------------------------
 
 .. autoclass:: MonaiAlgo
     :members:
