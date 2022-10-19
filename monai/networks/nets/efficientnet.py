@@ -19,7 +19,7 @@ import torch
 from torch import nn
 from torch.utils import model_zoo
 
-from monai.networks.blocks import BasicEncoder
+from monai.networks.blocks import BaseEncoder
 from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
@@ -634,7 +634,7 @@ class EfficientNetBNFeatures(EfficientNet):
         return features
 
 
-class EfficientNetEncoder(EfficientNetBNFeatures, BasicEncoder):
+class EfficientNetEncoder(EfficientNetBNFeatures, BaseEncoder):
     """
     Wrap the original efficientnet to an encoder for flexible-unet.
     """

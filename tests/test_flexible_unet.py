@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks.encoder import BasicEncoder
+from monai.networks.blocks.encoder import BaseEncoder
 from monai.networks.nets import BACKBONE, EfficientNetBNFeatures, FlexibleUNet, ResNet, ResNetBlock, ResNetBottleneck
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, skip_if_quick
@@ -25,7 +25,7 @@ torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
 
 
-class ResNetEncoder(ResNet, BasicEncoder):
+class ResNetEncoder(ResNet, BaseEncoder):
     backbone_names = ["resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
     output_feature_channels = [(64, 128, 256, 512)] * 3 + [(256, 512, 1024, 2048)] * 4
     parameter_layers = [

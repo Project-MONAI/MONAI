@@ -14,7 +14,7 @@ from typing import List, Optional, Sequence, Tuple, Type, Union
 import torch
 from torch import nn
 
-from monai.networks.blocks import BasicEncoder, UpSample
+from monai.networks.blocks import BaseEncoder, UpSample
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.nets import EfficientNetEncoder
@@ -36,10 +36,10 @@ class Register:
     def regist_class(self, name: Type):
         """
         Regist a given class to the encoder dict. Please notice that input class must be a
-        subclass of BasicEncoder.
+        subclass of BaseEncoder.
         """
-        if not issubclass(name, BasicEncoder):
-            raise Exception("An encoder must derive from BasicEncoder class.")
+        if not issubclass(name, BaseEncoder):
+            raise Exception("An encoder must derive from BaseEncoder class.")
         name_string_list = name.get_encoder_names()
         feature_number_list = name.get_output_feature_numbers()
         feature_channel_list = name.get_output_feature_channels()

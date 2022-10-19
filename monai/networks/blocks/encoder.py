@@ -12,12 +12,12 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, List, Tuple
 
-__all__ = ["BasicEncoder"]
+__all__ = ["BaseEncoder"]
 
 
-class BasicEncoder(metaclass=ABCMeta):
+class BaseEncoder(metaclass=ABCMeta):
     """
-    Abstract class defines inferface of encoders in flexible unet.
+    Abstract class defines interface of encoders in flexible unet.
     Encoders in flexible unet must derive from this class. Each interface method
     should return a list containing relative information about a series of newtworks
     defined by encoder. For example, the efficient-net encoder implement 10 basic
