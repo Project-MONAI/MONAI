@@ -110,6 +110,14 @@ def matrix_from_matrix_container(matrix):
 
 def apply(data: Union[torch.Tensor, MetaTensor],
           pending: Optional[dict] = None):
+
+    if isinstance(data, dict):
+        rd = dict()
+        for k, v in data.items():
+            result = apply(v)
+            rd[k] = result
+        return rd
+
     pending_ = pending
     pending_ = data.pending_transforms
 
@@ -188,16 +196,35 @@ def apply(data: Union[torch.Tensor, MetaTensor],
     return data
 
 
+# make Apply universal for arrays and dictionaries; it just calls through to functional apply
 class Apply(InvertibleTransform):
 
     def __init__(self):
         super().__init__()
+
+    def __call__(self, *args, **kwargs):
+        return apply(*args, **kwargs)
+
+    def inverse(self, data):
+        return NotImplementedError()
 
 
 class Applyd(MapTransform, InvertibleTransform):
 
     def __init__(self):
         super().__init__()
+
+    def __call__(
+            self,
+            d: dict
+    ):
+        rd = dict()
+        for k, v in d.items():
+            rd[k] = apply(v)
+
+    def inverse(self, data):
+        return NotImplementedError()
+
 
 # class Applyd(MapTransform, InvertibleTransform):
 #

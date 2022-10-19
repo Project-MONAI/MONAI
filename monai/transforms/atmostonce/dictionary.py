@@ -4,13 +4,14 @@ import numpy as np
 
 import torch
 
-from monai.transforms.atmostonce.array import Rotate, Resize, Spacing, Zoom
+from monai.transforms.atmostonce.array import Rotate, Resize, Spacing, Zoom, CropPad
+from monai.transforms.atmostonce.utility import ILazyTransform, IRandomizableTransform, IMultiSampleTransform
 from monai.utils import ensure_tuple_rep
 
 from monai.config import KeysCollection, DtypeLike, SequenceStr
 from monai.transforms.atmostonce.lazy_transform import LazyTransform
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils.enums import TransformBackends, GridSampleMode, GridSamplePadMode, InterpolateMode, NumpyPadMode, \
     PytorchPadMode
 from monai.utils.mapping_stack import MatrixFactory
@@ -36,11 +37,22 @@ def get_backend_from_data(data):
         msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
         raise ValueError(msg.format(type(data)))
 
+
 # TODO: reconcile multiple definitions to one in utils
 def expand_potential_tuple(keys, value):
     if not isinstance(value, (tuple, list)):
         return tuple(value for _ in keys)
     return value
+
+
+def keys_to_process(
+        keys: Sequence[str],
+        dictionary: dict,
+        allow_missing_keys: bool,
+):
+    if allow_missing_keys is True:
+        return {k for k in keys if k in dictionary}
+    return keys
 
 
 # class MappingStackTransformd(MapTransform, InvertibleTransform):
@@ -266,3 +278,139 @@ class Translated(MapTransform, InvertibleTransform):
             rd[k] = data
 
         return rd
+
+
+class CropPadd(MapTransform, InvertibleTransform, ILazyTransform):
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        slices: Optional[Sequence[slice]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+        lazy_evaluation: Optional[bool] = True
+    ):
+        self.keys = keys
+        self.slices = slices
+        self.padding_modes = padding_mode
+        self.lazy_evaluation = lazy_evaluation
+
+
+    def __call__(
+        self,
+        d: dict
+    ):
+        keys = keys_to_process(self.keys, d, self.allow_missing_keys)
+
+        rd = dict(d)
+        for ik, k in enumerate(keys):
+            tx = CropPad(slices=self.slices,
+                         padding_mode=self.padding_modes,
+                         lazy_evaluation=self.lazy_evaluation)
+
+            rd[k] = tx(d[k])
+
+        return rd
+
+
+class RandomCropPadd(MapTransform, InvertibleTransform, RandomizableTransform, ILazyTransform):
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            sizes: Union[Sequence[int], int],
+            prob: Optional[float] = 0.1,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            allow_missing_keys: bool=False,
+            lazy_evaluation: Optional[bool] = True
+    ):
+        RandomizableTransform.__init__(self, prob)
+        self.keys = keys
+        self.sizes = sizes
+        self.padding_mode = padding_mode
+        self.offsets = None
+        self.allow_missing_keys = allow_missing_keys
+
+        self.op = CropPad(None, padding_mode)
+
+    def randomize(
+            self,
+            img: torch.Tensor,
+    ):
+        super().randomize(None)
+        if self._do_transform:
+            img_shape = img.shape[1:]
+            if isinstance(self.sizes, int):
+                crop_shape = tuple(self.sizes for _ in range(len(img_shape)))
+            else:
+                crop_shape = self.sizes
+
+            valid_ranges = tuple(i - c for i, c in zip(img_shape, crop_shape))
+            self.offsets = tuple(self.R.randint(0, r+1) if r > 0 else r for r in valid_ranges)
+
+    def __call__(
+            self,
+            d: dict,
+            randomize: Optional[bool] = True
+    ):
+        keys = keys_to_process(self.keys, d, self.allow_missing_keys)
+
+        img = d[keys[0]]
+        img_shape = img.shape[:1]
+
+        if randomize:
+            self.randomize(img)
+
+        if self._do_transform:
+            offsets_ = self.offsets
+        else:
+            # center crop if this sample isn't random
+            offsets_ = tuple((i - s) // 2 for i, s in zip(img_shape, self.sizes))
+
+        slices = tuple(slice(o, o + s) for o, s in zip(offsets_, self.sizes))
+
+        rd = dict(d)
+        for k in keys:
+            rd[k] = self.op(img, slices=slices)
+
+        return rd
+
+    @property
+    def lazy_evaluation(self):
+        return self.op.lazy_evaluation
+
+
+class RandomCropPadMultiSampled(
+    InvertibleTransform, IRandomizableTransform, ILazyTransform, IMultiSampleTransform
+):
+
+    def __init__(
+            self,
+            keys: Sequence[str],
+            sizes: Union[Sequence[int], int],
+            sample_count: int,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            lazy_evaluation: Optional[bool] = True
+    ):
+        self.sample_count = sample_count
+        self.op = RandomCropPadd(keys, sizes, 1.0, padding_mode, lazy_evaluation)
+
+    def __call__(
+            self,
+            d: dict,
+            randomize: Optional[bool] = True
+    ):
+        for i in range(self.sample_count):
+            yield self.op(d, randomize)
+
+    def inverse(
+            self,
+            data: dict
+    ):
+        raise NotImplementedError()
+
+    def set_random_state(self, seed=None, state=None):
+        self.op.set_random_state(seed, state)
+
+    @property
+    def lazy_evaluation(self):
+        return self.op.lazy_evaluation

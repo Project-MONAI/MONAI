@@ -2,13 +2,16 @@ import unittest
 
 import math
 
+import astropy.samp.tests.test_errors
 import numpy as np
 
 
 import torch
 
 from monai.transforms.atmostonce import array as amoa
+from monai.transforms.atmostonce import dictionary as amod
 from monai.transforms.atmostonce.array import Rotate, CropPad
+from monai.transforms.atmostonce.compose import ComposeCompiler
 from monai.transforms.atmostonce.lazy_transform import compile_lazy_transforms
 from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import TransformBackends
@@ -16,13 +19,15 @@ from monai.utils import TransformBackends
 from monai.transforms.spatial import array as spatialarray
 from monai.transforms import Affined, Affine, Flip, RandSpatialCropSamplesd, RandRotated
 from monai.transforms.atmostonce.functional import croppad, resize, rotate, zoom, spacing, flip
-from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply
+from monai.transforms.atmostonce.apply import Applyd, extents_from_shape, shape_from_extents, apply, Apply
 from monai.transforms.atmostonce.dictionary import Rotated
+import monai.transforms.croppad.array as ocpa
 from monai.transforms.compose import Compose
 from monai.utils.enums import GridSampleMode, GridSamplePadMode
 from monai.utils.mapping_stack import MatrixFactory, MetaMatrix
 
-from monai.transforms.atmostonce.utility import CachedTransformCompose, CacheMechanism, MultiSampleTransformCompose
+from monai.transforms.atmostonce.utility import CachedTransformCompose, CacheMechanism, MultiSampleTransformCompose, \
+    IMultiSampleTransform, IRandomizableTransform, ILazyTransform
 
 
 class FakeRand(np.random.RandomState):
@@ -99,11 +104,19 @@ def test_array_op_multi_sample(tester, op, img, expected):
         if op.lazy_evaluation is True:
             actual = apply(actual)
 
-        if not torch.allclose(actual, e):
-            print("torch.allclose test returned False")
-            print(actual)
-            print(e)
-            tester.assertTrue(False)
+        if isinstance(e, dict):
+            for k, v in e.items():
+                if not torch.allclose(actual[k], v):
+                    print("torch.allclose test returned False")
+                    print(actual)
+                    print(e)
+                    tester.assertTrue(False)
+        else:
+            if not torch.allclose(actual, e):
+                print("torch.allclose test returned False")
+                print(actual)
+                print(e)
+                tester.assertTrue(False)
 
 
 def test_array_op(tester, op, img, expected):
@@ -434,7 +447,7 @@ class TestFunctional(unittest.TestCase):
 
 class TestArrayTransforms(unittest.TestCase):
 
-    def test_apply(self):
+    def test_apply_function(self):
         img = get_img((16, 16))
         r = Rotate(torch.pi / 4,
                    keep_size=False,
@@ -564,6 +577,16 @@ class TestOldTransforms(unittest.TestCase):
         r = spatialarray.RandZoom(1.0, (0.9, 0.9, 0.9), (1.1, 1.1, 1.1))
         t_out = r(t)
         print(t_out.shape)
+
+    def test_center_spatial_crop(self):
+        r = ocpa.CenterSpatialCrop(4)
+        img = get_img((8, 8))
+        result = r(img)
+        print(result)
+
+        img = get_img((9, 9))
+        result = r(img)
+        print(result)
 
 
 class TestDictionaryTransforms(unittest.TestCase):
@@ -734,6 +757,26 @@ class TestCropPad(unittest.TestCase):
         ]
         test_array_op_multi_sample(self, op, img, expected)
 
+    def test_randcropppadmultid(self):
+        op = amod.RandomCropPadMultiSampled(('img', 'lbl'),
+                                            (8, 8),
+                                            4,
+                                            padding_mode="zeros",
+                                            lazy_evaluation=False)
+        rng = FakeRand(rands=(0.5, 0.5, 0.5, 0.5), randints=(2, 6, 3, 5, 4, 4, 5, 3))
+        op.set_random_state(state=rng)
+        img = get_img((16, 16))
+        lbl = get_img((16, 16))
+        d = {'img': img, 'lbl': lbl}
+        expected_ts = [
+            torch.FloatTensor([[38 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[53 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[68 + i + j * 16 for i in range(8)] for j in range(8)]),
+            torch.FloatTensor([[83 + i + j * 16 for i in range(8)] for j in range(8)])
+        ]
+        expected = [{'img': e, 'lbl': e} for e in expected_ts]
+        test_array_op_multi_sample(self, op, d, expected)
+
 
 # Utility transforms for compose compiler
 # =================================================================================================
@@ -797,7 +840,7 @@ class TestUtilityTransforms(unittest.TestCase):
         def fake_multi_sample(keys, num_samples, roi_size):
             def _inner(t):
                 for i in range(num_samples):
-                    yield {'image': t['image'][i:i+roi_size[0], i:i+roi_size[1]]}
+                    yield {'image': t['image'][0:1, i:i+roi_size[0], i:i+roi_size[1]]}
             return _inner
 
 #        t1 = RandSpatialCropSamplesd(keys=('image',), num_samples=4, roi_size=(32, 32))
@@ -812,3 +855,109 @@ class TestUtilityTransforms(unittest.TestCase):
         _dd = d.data.clone()
         d.data = _dd
         r = c({'image': d})
+        print(r)
+
+    def test_compile_caching(self):
+        class NotRandomizable:
+            def __init__(self, name):
+                self.name = name
+
+            def __repr__(self):
+                return f"NR<{self.name}>"
+
+        class Randomizable(IRandomizableTransform):
+            def __init__(self, name):
+                self.name = name
+
+            def __repr__(self):
+                return f"R<{self.name}>"
+
+        a = NotRandomizable("a")
+        b = NotRandomizable("b")
+        c = Randomizable("c")
+        d = Randomizable("d")
+        e = NotRandomizable("e")
+
+        source_transforms = [a, b, c, d, e]
+
+        cc = ComposeCompiler()
+
+        actual = cc.compile_caching(source_transforms, CacheMechanism())
+
+        self.assertIsInstance(actual[0], CachedTransformCompose)
+        self.assertEqual(len(actual[0].transforms), 2)
+        self.assertTrue(actual[0].transforms[0], a)
+        self.assertTrue(actual[0].transforms[1], b)
+        self.assertTrue(actual[1], c)
+        self.assertTrue(actual[2], d)
+        self.assertTrue(actual[3], e)
+
+
+    def test_compile_multisampling(self):
+        class NotMultiSampling:
+            def __init__(self, name):
+               self.name = name
+
+            def __repr__(self):
+                return f"NMS<{self.name}>"
+
+        class MultiSampling(IMultiSampleTransform):
+            def __init__(self, name):
+                self.name = name
+
+            def __repr__(self):
+                return f"MS<{self.name}>"
+
+        a = NotMultiSampling("a")
+        b = NotMultiSampling("b")
+        c = MultiSampling("c")
+        d = NotMultiSampling("d")
+        e = MultiSampling("e")
+        f = NotMultiSampling("f")
+
+        source_transforms = [a, b, c, d, e, f]
+
+        cc = ComposeCompiler()
+
+        actual = cc.compile_multisampling(source_transforms)
+
+        self.assertEqual(actual[0], a)
+        self.assertEqual(actual[1], b)
+        self.assertIsInstance(actual[2], MultiSampleTransformCompose)
+        self.assertEqual(actual[2].multi_sample, c)
+        self.assertEqual(len(actual[2].transforms), 2)
+        self.assertEqual(actual[2].transforms[0], d)
+        self.assertIsInstance(actual[2].transforms[1], MultiSampleTransformCompose)
+        self.assertEqual(actual[2].transforms[1].multi_sample, e)
+        self.assertEqual(len(actual[2].transforms[1].transforms), 1)
+        self.assertEqual(actual[2].transforms[1].transforms[0], f)
+
+    def test_compile_lazy_resampling(self):
+        class NotLazy:
+            def __init__(self, name):
+               self.name = name
+
+            def __repr__(self):
+                return f"NL<{self.name}>"
+
+        class Lazy(ILazyTransform):
+            def __init__(self, name):
+                self.name = name
+
+            def __repr__(self):
+                return f"L<{self.name}>"
+
+        a = NotLazy("a")
+        b = Lazy("b")
+        c = Lazy("c")
+        d = NotLazy("d")
+        e = Lazy("e")
+        f = Lazy("f")
+
+        source_transforms = [a, b, c, d, e, f]
+
+        cc = ComposeCompiler()
+
+        actual = cc.compile_lazy_resampling(source_transforms)
+
+        print(actual)
