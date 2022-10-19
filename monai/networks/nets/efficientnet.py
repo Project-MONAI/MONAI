@@ -997,9 +997,9 @@ class BlockArgs(NamedTuple):
                 Example: "r1_k3_s11_e1_i32_o16_se0.25_noskip".
         """
         string = (
-            f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}"
-            f"{self.stride}_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
-            f"s_se{self.se_ratio}"
+            f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}"
+            f"_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
+            f"_se{self.se_ratio}"
         )
 
         if not self.id_skip:
