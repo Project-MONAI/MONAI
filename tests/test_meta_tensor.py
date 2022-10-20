@@ -499,7 +499,7 @@ class TestMetaTensor(unittest.TestCase):
     def test_multiprocessing(self, device=None, dtype=None):
         """multiprocessing sharing with 'device' and 'dtype'"""
         buf = io.BytesIO()
-        t = MetaTensor([0.0, 0.0] if dtype in (torch.int32, torch.int64) else [0, 0], device=device, dtype=dtype)
+        t = MetaTensor([0, 0] if dtype in (torch.int32, torch.int64) else [0.0, 0.0], device=device, dtype=dtype)
         t.is_batch = True
         if t.is_cuda:
             with self.assertRaises(NotImplementedError):
@@ -519,7 +519,7 @@ class TestMetaTensor(unittest.TestCase):
         assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
         assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
         c = MetaTensor(
-            [1.0, 2.0, 3.0] if dtype in (torch.int32, torch.int64) else [1, 2, 3], device=device, dtype=dtype
+            [1, 2, 3] if dtype in (torch.int32, torch.int64) else [1.0, 2.0, 3.0], device=device, dtype=dtype
         )
         assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
         assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
@@ -532,7 +532,7 @@ class TestMetaTensor(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_numpy(self, device=None, dtype=None):
         """device, dtype"""
-        t = MetaTensor([0.0 if dtype in (torch.int32, torch.int64) else 0], device=device, dtype=dtype)
+        t = MetaTensor([0 if dtype in (torch.int32, torch.int64) else 0.0], device=device, dtype=dtype)
         self.assertIsInstance(t, MetaTensor)
         assert_allclose(t.array, np.asarray([0.0]))
         t.array = np.asarray([1.0])
