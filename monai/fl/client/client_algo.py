@@ -24,6 +24,7 @@ class BaseClient:
         - self.get_data_stats()
 
     initialize(), abort(), and finalize() - inherited from `ClientAlgoStats` - can be optionally be implemented
+
     to help with lifecycle management of the class object.
     """
 
