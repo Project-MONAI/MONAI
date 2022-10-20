@@ -25,6 +25,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 
 import numpy as np
 import torch
+from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
@@ -811,11 +812,11 @@ class CacheDataset(Dataset):
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
             cache_ = _compute_cache()
-            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
+            self._cache = Manager().dict(zip(list(mapping)[: self.cache_num], cache_))
             self.data = data
         else:
             self.data = data
-            self._cache = _compute_cache()
+            self._cache = Manager().list(_compute_cache())
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
