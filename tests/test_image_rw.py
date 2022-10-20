@@ -85,6 +85,7 @@ class TestLoadSaveNifti(unittest.TestCase):
         self.nifti_rw(test_data, reader, writer, np.float16)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSavePNG(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()

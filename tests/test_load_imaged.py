@@ -90,6 +90,7 @@ class TestLoadImaged(unittest.TestCase):
             LoadImaged(keys="img", reader="nibabelreader", image_only=True)({"img": "unknown"})
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestConsistency(unittest.TestCase):
     def _cmp(self, filename, ch_shape, reader_1, reader_2, outname, ext):
         data_dict = {"img": filename}
@@ -150,6 +151,7 @@ class TestConsistency(unittest.TestCase):
             self._cmp(filename, (3, 224, 256), "itkreader", "nibabelreader", output_name, ".png")
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImagedMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

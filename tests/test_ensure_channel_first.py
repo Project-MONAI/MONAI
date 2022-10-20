@@ -41,6 +41,7 @@ TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz", "test_image2.nii.g
 
 class TestEnsureChannelFirst(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @unittest.skipUnless(has_itk, "itk not installed")
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
         if original_channel_dim is None:
             test_image = np.random.rand(8, 8, 8)
