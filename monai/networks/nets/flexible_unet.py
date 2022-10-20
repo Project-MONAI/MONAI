@@ -29,7 +29,10 @@ __all__ = ["FlexibleUNet", "BACKBONE", "Register"]
 class Register:
     """
     A register to regist backbones for the flexible unet. All backbones can be found in
-    register_dict.
+    register_dict. Please notice each output of backbone must be 2x downsample in spatial
+    dimension of last output. For example, if given a 512x256 2D image and a backbone with
+    4 outputs. Then spatial size of each encoder output should be 256x128, 128x64, 64x32
+    and 32x16.
     """
 
     def __init__(self):
@@ -234,8 +237,11 @@ class FlexibleUNet(nn.Module):
         """
         A flexible implement of UNet, in which the backbone/encoder can be replaced with
         any efficient network. Currently the input must have a 2 or 3 spatial dimension
-        and the spatial size of each dimension must be a multiple of 32 if is pad parameter
-        is False
+        and the spatial size of each dimension must be a multiple of 32 if is_pad parameter
+        is False.
+        Please notice each output of backbone must be 2x downsample in spatial dimension
+        of last output. For example, if given a 512x256 2D image and a backbone with 4 outputs.
+        Spatial size of each encoder output should be 256x128, 128x64, 64x32 and 32x16.
 
         Args:
             in_channels: number of input channels.
