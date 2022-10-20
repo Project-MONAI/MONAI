@@ -190,7 +190,8 @@ class ImageStats(Analyzer):
         print(analyzer(input)["image_stats"])
 
     Notes:
-        if the image data is NumPy array, the spacing stats will be [1.0] * ndims of the array, where ndims is the lesser of image dimensions and 3.
+        if the image data is NumPy array, the spacing stats will be [1.0] * `ndims` of the array,
+        where the `ndims` is the lesser value between the image dimension and 3.
 
     """
 
