@@ -25,7 +25,7 @@ jobs:
           ref: dev
           fetch-depth: 0
       - name: Set up Python 3.8
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - shell: bash
@@ -91,7 +91,7 @@ jobs:
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai

@@ -35,6 +35,14 @@ TEST_CASES = [
         },
         0.3133,
     ],
+    [  # shape: (2, 2, 3), (2, 2, 3), one-hot target
+        {"to_onehot_y": False},
+        {
+            "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[1, 1, 0], [0, 0, 1]], [[1, 0, 1], [0, 1, 0]]], dtype=torch.uint8),
+        },
+        0.3133,
+    ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "ce_weight": torch.tensor([1.0, 1.0])},
         {

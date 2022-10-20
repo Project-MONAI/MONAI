@@ -6,8 +6,8 @@ title: "MONAI: Medical Open Network for AI"
 abstract: "AI Toolkit for Healthcare Imaging"
 authors:
   - name: "MONAI Consortium"
-date-released: 2022-06-13
-version: "0.9.0"
+date-released: 2022-09-16
+version: "1.0.0"
 identifiers:
   - description: "This DOI represents all versions of MONAI, and will always resolve to the latest one."
     type: doi

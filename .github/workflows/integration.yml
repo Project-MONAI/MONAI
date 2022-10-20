@@ -20,7 +20,7 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v3
       id: cache
@@ -34,14 +34,14 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.12.0+cu116 torchvision==0.13.0+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
       run: |
         python -m pip list
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
         trap 'if pgrep python; then pkill python; fi;' ERR
         python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &

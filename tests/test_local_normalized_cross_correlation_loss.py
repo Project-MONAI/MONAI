@@ -21,7 +21,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASES = [
     [
-        {"ndim": 1, "kernel_type": "rectangular", "reduction": "sum"},
+        {"spatial_dims": 1, "kernel_type": "rectangular", "reduction": "sum"},
         {
             "pred": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
             "target": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
@@ -29,7 +29,7 @@ TEST_CASES = [
         -1.0 * 3,
     ],
     [
-        {"ndim": 1, "kernel_type": "rectangular"},
+        {"spatial_dims": 1, "kernel_type": "rectangular"},
         {
             "pred": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
             "target": torch.arange(0, 3).reshape(1, 1, -1).to(dtype=torch.float, device=device),
@@ -37,7 +37,7 @@ TEST_CASES = [
         -1.0,
     ],
     [
-        {"ndim": 2, "kernel_type": "rectangular"},
+        {"spatial_dims": 2, "kernel_type": "rectangular"},
         {
             "pred": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(dtype=torch.float, device=device),
             "target": torch.arange(0, 3).reshape(1, 1, -1, 1).expand(1, 1, 3, 3).to(dtype=torch.float, device=device),
@@ -45,7 +45,7 @@ TEST_CASES = [
         -1.0,
     ],
     [
-        {"ndim": 3, "kernel_type": "rectangular"},
+        {"spatial_dims": 3, "kernel_type": "rectangular"},
         {
             "pred": torch.arange(0, 3)
             .reshape(1, 1, -1, 1, 1)
@@ -59,7 +59,7 @@ TEST_CASES = [
         -1.0,
     ],
     [
-        {"ndim": 3, "kernel_type": "rectangular"},
+        {"spatial_dims": 3, "kernel_type": "rectangular"},
         {
             "pred": torch.arange(0, 3)
             .reshape(1, 1, -1, 1, 1)
@@ -74,7 +74,7 @@ TEST_CASES = [
         -0.95801723,
     ],
     [
-        {"ndim": 3, "kernel_type": "triangular", "kernel_size": 5},
+        {"spatial_dims": 3, "kernel_type": "triangular", "kernel_size": 5},
         {
             "pred": torch.arange(0, 5)
             .reshape(1, 1, -1, 1, 1)
@@ -89,7 +89,7 @@ TEST_CASES = [
         -0.918672,
     ],
     [
-        {"ndim": 3, "kernel_type": "gaussian"},
+        {"spatial_dims": 3, "kernel_type": "gaussian"},
         {
             "pred": torch.arange(0, 3)
             .reshape(1, 1, -1, 1, 1)
@@ -113,8 +113,8 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
     def test_ill_shape(self):
-        loss = LocalNormalizedCrossCorrelationLoss(ndim=3)
-        # ndim unmatch
+        loss = LocalNormalizedCrossCorrelationLoss(spatial_dims=3)
+        # spatial_dims unmatch
         with self.assertRaisesRegex(ValueError, ""):
             loss.forward(
                 torch.ones((1, 3, 3, 3), dtype=torch.float, device=device),
@@ -146,7 +146,6 @@ class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
 #         input_param, input_data, _ = TEST_CASES[0]
 #         loss = LocalNormalizedCrossCorrelationLoss(**input_param)
 #         test_script_save(loss, input_data["pred"], input_data["target"])
-
 
 if __name__ == "__main__":
     unittest.main()

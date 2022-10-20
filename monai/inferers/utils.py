@@ -276,9 +276,10 @@ def sliding_window_inference(
         final_output = dict(zip(dict_key, output_image_list))
     else:
         final_output = tuple(output_image_list)  # type: ignore
-    final_output = final_output[0] if is_tensor_output else final_output  # type: ignore
+    final_output = final_output[0] if is_tensor_output else final_output
+
     if isinstance(inputs, MetaTensor):
-        final_output = convert_to_dst_type(final_output, inputs)[0]  # type: ignore
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     return final_output
 
 

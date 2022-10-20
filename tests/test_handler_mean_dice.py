@@ -16,6 +16,7 @@ from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import MeanDice, from_engine
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [{"include_background": True, "output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
 TEST_CASE_2 = [{"include_background": False, "output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
@@ -32,6 +33,7 @@ class TestHandlerMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg, details_shape):
         dice_metric = MeanDice(**input_params)
+
         # set up engine
 
         def _val_func(engine, batch):
@@ -51,7 +53,7 @@ class TestHandlerMeanDice(unittest.TestCase):
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
-        torch.testing.assert_allclose(engine.state.metrics["mean_dice"], expected_avg)
+        assert_allclose(engine.state.metrics["mean_dice"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
         self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), details_shape)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])

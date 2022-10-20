@@ -30,7 +30,6 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-
 FILE_KEY = "wsi_img"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
 base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
@@ -143,7 +142,6 @@ TEST_CASE_SMALL_6 = [
     ],
 ]
 
-
 TEST_CASE_SMALL_7 = [
     {"data": [{"image": FILE_PATH_SMALL_0, WSIPatchKeys.LEVEL: 0, WSIPatchKeys.SIZE: (2, 2)}], "offset": (1, 0)},
     [{"image": ARRAY_SMALL_0[:, 1:3, :2]}, {"image": ARRAY_SMALL_0[:, 1:3, 2:]}],
@@ -244,11 +242,11 @@ class SlidingPatchWSIDatasetTests:
             dataset = SlidingPatchWSIDataset(reader=self.backend, **input_parameters)
             self.assertEqual(len(dataset), len(expected))
             for i, sample in enumerate(dataset):
-                self.assertEqual(sample["metadata"][WSIPatchKeys.LEVEL], expected[i]["patch_level"])
-                assert_array_equal(sample["metadata"][WSIPatchKeys.SIZE], expected[i]["patch_size"])
+                self.assertEqual(sample["image"].meta[WSIPatchKeys.LEVEL], expected[i]["patch_level"])
+                assert_array_equal(sample["image"].meta[WSIPatchKeys.SIZE], expected[i]["patch_size"])
                 steps = [round(expected[i]["ratio"] * s) for s in expected[i]["patch_size"]]
                 expected_location = tuple(expected[i]["step_loc"][j] * steps[j] for j in range(len(steps)))
-                assert_array_equal(sample["metadata"][WSIPatchKeys.LOCATION], expected_location)
+                assert_array_equal(sample["image"].meta[WSIPatchKeys.LOCATION], expected_location)
 
 
 @skipUnless(has_cucim, "Requires cucim")

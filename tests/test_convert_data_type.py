@@ -39,6 +39,8 @@ for in_type in TEST_NDARRAYS_ALL + (int, float):
             )
         )
 
+UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.int64, np.dtype("uint64"): torch.int64}
+
 
 class TestTensor(torch.Tensor):
     pass
@@ -60,6 +62,13 @@ class TestConvertDataType(unittest.TestCase):
 
     def test_neg_stride(self):
         _ = convert_data_type(np.array((1, 2))[::-1], torch.Tensor)
+
+    @parameterized.expand(list(UNSUPPORTED_TYPES.items()))
+    def test_unsupported_np_types(self, np_type, pt_type):
+        in_image = np.ones(13, dtype=np_type)  # choose a prime size so as to be indivisible by the size of any dtype
+        converted_im, orig_type, orig_device = convert_data_type(in_image, torch.Tensor)
+
+        self.assertEqual(converted_im.dtype, pt_type)
 
     @parameterized.expand(TESTS_LIST)
     def test_convert_list(self, in_image, im_out, wrap):

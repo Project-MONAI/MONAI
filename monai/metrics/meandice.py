@@ -31,6 +31,8 @@ class DiceMetric(CumulativeIterationMetric):
     background.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
@@ -82,7 +84,7 @@ class DiceMetric(CumulativeIterationMetric):
             y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
         )
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):  # type: ignore
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_meandice`.
 

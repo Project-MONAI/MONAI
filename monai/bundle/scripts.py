@@ -153,6 +153,7 @@ def _process_bundle_dir(bundle_dir: Optional[PathLike] = None):
 
 def download(
     name: Optional[str] = None,
+    version: Optional[str] = None,
     bundle_dir: Optional[PathLike] = None,
     source: str = "github",
     repo: str = "Project-MONAI/model-zoo/hosting_storage_v1",
@@ -170,11 +171,14 @@ def download(
 
     .. code-block:: bash
 
+        # Execute this module as a CLI entry, and download bundle from the model-zoo repo:
+        python -m monai.bundle download --name <bundle_name> --version "0.1.0" --bundle_dir "./"
+
         # Execute this module as a CLI entry, and download bundle:
-        python -m monai.bundle download --name "bundle_name" --source "github" --repo "repo_owner/repo_name/release_tag"
+        python -m monai.bundle download --name <bundle_name> --source "github" --repo "repo_owner/repo_name/release_tag"
 
         # Execute this module as a CLI entry, and download bundle via URL:
-        python -m monai.bundle download --name "bundle_name" --url <url>
+        python -m monai.bundle download --name <bundle_name> --url <url>
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
@@ -185,6 +189,9 @@ def download(
 
     Args:
         name: bundle name. If `None` and `url` is `None`, it must be provided in `args_file`.
+            for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+        version: version name of the target bundle to download, like: "0.1.0".
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
@@ -200,19 +207,28 @@ def download(
 
     """
     _args = _update_args(
-        args=args_file, name=name, bundle_dir=bundle_dir, source=source, repo=repo, url=url, progress=progress
+        args=args_file,
+        name=name,
+        version=version,
+        bundle_dir=bundle_dir,
+        source=source,
+        repo=repo,
+        url=url,
+        progress=progress,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, repo_, progress_, name_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "repo", "progress", name=None, bundle_dir=None, url=None
+    source_, repo_, progress_, name_, version_, bundle_dir_, url_ = _pop_args(
+        _args, "source", "repo", "progress", name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
+    if name_ is not None and version_ is not None:
+        name_ = "_v".join([name_, version_])
 
     if url_ is not None:
-        if name is not None:
-            filepath = bundle_dir_ / f"{name}.zip"
+        if name_ is not None:
+            filepath = bundle_dir_ / f"{name_}.zip"
         else:
             filepath = bundle_dir_ / f"{_basename(url_)}"
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
@@ -229,6 +245,7 @@ def download(
 
 def load(
     name: str,
+    version: Optional[str] = None,
     model_file: Optional[str] = None,
     load_ts_module: bool = False,
     bundle_dir: Optional[PathLike] = None,
@@ -245,7 +262,9 @@ def load(
     Load model weights or TorchScript module of a bundle.
 
     Args:
-        name: bundle name.
+        name: bundle name, for example: "spleen_ct_segmentation", "prostate_mri_anatomy" in the model-zoo:
+            https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
+        version: version name of the target bundle to download, like: "0.1.0".
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -280,7 +299,7 @@ def load(
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
     full_path = os.path.join(bundle_dir_, name, model_file)
     if not os.path.exists(full_path):
-        download(name=name, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
+        download(name=name, version=version, bundle_dir=bundle_dir_, source=source, repo=repo, progress=progress)
 
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
@@ -301,6 +320,153 @@ def load(
     model.to(device)  # type: ignore
     copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
     return model
+
+
+def _get_all_bundles_info(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
+    if has_requests:
+        request_url = f"https://api.github.com/repos/{repo}/releases"
+        if auth_token is not None:
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            resp = requests_get(request_url, headers=headers)
+        else:
+            resp = requests_get(request_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("requests package is required, please install it.")
+    releases_list = json.loads(resp.text)
+    bundle_name_pattern = re.compile(r"_v\d*.")
+    bundles_info: Dict = {}
+
+    for release in releases_list:
+        if release["tag_name"] == tag:
+            for asset in release["assets"]:
+                asset_name = bundle_name_pattern.split(asset["name"])[0]
+                if asset_name not in bundles_info:
+                    bundles_info[asset_name] = {}
+                asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
+                bundles_info[asset_name][asset_version] = {
+                    "id": asset["id"],
+                    "name": asset["name"],
+                    "size": asset["size"],
+                    "download_count": asset["download_count"],
+                    "browser_download_url": asset["browser_download_url"],
+                    "created_at": asset["created_at"],
+                    "updated_at": asset["updated_at"],
+                }
+            return bundles_info
+    return bundles_info
+
+
+def get_all_bundles_list(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
+    """
+    Get all bundles names (and the latest versions) that are stored in the release of specified repository
+    with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a list of tuple in the form of (bundle name, latest version).
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    bundles_list = []
+    for bundle_name in bundles_info.keys():
+        latest_version = sorted(bundles_info[bundle_name].keys())[-1]
+        bundles_list.append((bundle_name, latest_version))
+
+    return bundles_list
+
+
+def get_bundle_versions(
+    bundle_name: str,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
+):
+    """
+    Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
+    repository with the provided tag.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        bundle_name: bundle name.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a dictionary that contains the latest version and all versions of a bundle.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing.")
+    bundle_info = bundles_info[bundle_name]
+    all_versions = sorted(bundle_info.keys())
+
+    return {"latest_version": all_versions[-1], "all_versions": all_versions}
+
+
+def get_bundle_info(
+    bundle_name: str,
+    version: Optional[str] = None,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
+):
+    """
+    Get all information
+    (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
+    with the specified bundle name and version.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
+
+    Args:
+        bundle_name: bundle name.
+        version: version name of the target bundle, if None, the latest version will be used.
+        repo: it should be in the form of "repo_owner/repo_name/".
+        tag: the tag name of the release.
+        auth_token: github personal access token.
+
+    Returns:
+        a dictionary that contains the bundle's information.
+
+    """
+
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
+    if bundle_name not in bundles_info:
+        raise ValueError(f"bundle: {bundle_name} is not existing.")
+    bundle_info = bundles_info[bundle_name]
+    if version is None:
+        version = sorted(bundle_info.keys())[-1]
+    if version not in bundle_info:
+        raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
+
+    return bundle_info[version]
 
 
 def run(
@@ -363,6 +529,8 @@ def run(
         _args, "config_file", meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
+        if not os.path.exists(logging_file_):
+            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
         logger.info(f"set logging properties based on config: {logging_file_}.")
         fileConfig(logging_file_, disable_existing_loggers=False)
 
@@ -372,8 +540,7 @@ def run(
         parser.read_meta(f=meta_file_)
 
     # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
+    parser.update(pairs=_args)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
@@ -434,8 +601,9 @@ def verify_metadata(
         validate(instance=metadata, schema=schema, **_args)
     except ValidationError as e:  # pylint: disable=E0712
         # as the error message is very long, only extract the key information
-        logger.info(re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`.")
-        return
+        raise ValueError(
+            re.compile(r".*Failed validating", re.S).findall(str(e))[0] + f" against schema `{url}`."
+        ) from e
     logger.info("metadata is verified with no error.")
 
 

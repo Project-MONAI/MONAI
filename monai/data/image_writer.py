@@ -23,7 +23,9 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    MetaKeys,
     OptionalImportError,
+    SpaceKeys,
     convert_data_type,
     convert_to_tensor,
     look_up_option,
@@ -43,7 +45,6 @@ else:
     itk, _ = optional_import("itk", allow_namespace_pkg=True)
     nib, _ = optional_import("nibabel")
     PILImage, _ = optional_import("PIL.Image")
-
 
 __all__ = [
     "ImageWriter",
@@ -326,13 +327,13 @@ class ImageWriter:
     def get_meta_info(cls, metadata: Optional[Mapping] = None):
         """
         Extracts relevant meta information from the metadata object (using ``.get``).
-        Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
+        Optional keys are ``"spatial_shape"``, ``MetaKeys.AFFINE``, ``"original_affine"``.
         """
         if not metadata:
-            metadata = {"original_affine": None, "affine": None, "spatial_shape": None}
+            metadata = {"original_affine": None, MetaKeys.AFFINE: None, MetaKeys.SPATIAL_SHAPE: None}
         original_affine = metadata.get("original_affine")
-        affine = metadata.get("affine")
-        spatial_shape = metadata.get("spatial_shape")
+        affine = metadata.get(MetaKeys.AFFINE)
+        spatial_shape = metadata.get(MetaKeys.SPATIAL_SHAPE)
         return original_affine, affine, spatial_shape
 
 
@@ -484,6 +485,8 @@ class ITKWriter(ImageWriter):
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
         """
+        if isinstance(data_array, MetaTensor) and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS:
+            affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
@@ -740,7 +743,7 @@ class PILWriter(ImageWriter):
 
     @classmethod
     def get_meta_info(cls, metadata: Optional[Mapping] = None):
-        return None if not metadata else metadata.get("spatial_shape")
+        return None if not metadata else metadata.get(MetaKeys.SPATIAL_SHAPE)
 
     @classmethod
     def resample_and_clip(
