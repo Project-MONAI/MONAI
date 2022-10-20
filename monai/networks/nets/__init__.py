@@ -42,7 +42,7 @@ from .efficientnet import (
     drop_connect,
     get_efficientnet_image_size,
 )
-from .flexible_unet import FLEXUNETBACKBONE, FlexibleUNet, FlexUNetEncoderRegister
+from .flexible_unet import FLEXUNETBACKBONE, FlexibleUNet, FlexUNet, FlexUNetEncoderRegister
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet

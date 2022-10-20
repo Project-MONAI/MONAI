@@ -23,7 +23,7 @@ from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
 from monai.utils import InterpolateMode, optional_import
 
-__all__ = ["FlexibleUNet", "FLEXUNETBACKBONE", "FlexUNetEncoderRegister"]
+__all__ = ["FlexibleUNet", "FlexUNet", "FLEXUNETBACKBONE", "FlexUNetEncoderRegister"]
 
 
 class FlexUNetEncoderRegister:
@@ -338,3 +338,6 @@ class FlexibleUNet(nn.Module):
         x_seg = self.segmentation_head(decoder_out)
 
         return x_seg
+
+
+FlexUNet = FlexibleUNet
