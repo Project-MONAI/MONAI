@@ -7,7 +7,6 @@ on:
       - dev
       - main
       - releasing/*
-      - test-py-3-10
   pull_request:
 
 concurrency:
