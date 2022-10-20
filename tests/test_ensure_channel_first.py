@@ -13,7 +13,6 @@ import os
 import tempfile
 import unittest
 
-import itk
 import nibabel as nib
 import numpy as np
 import torch
@@ -23,6 +22,9 @@ from PIL import Image
 from monai.data import ITKReader
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst, LoadImage
+from monai.utils import optional_import
+
+itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 TEST_CASE_1 = [{}, ["test_image.nii.gz"], None]
 
@@ -35,10 +37,6 @@ TEST_CASE_4 = [{"reader": ITKReader()}, ["test_image.nii.gz"], None]
 TEST_CASE_5 = [{"reader": ITKReader()}, ["test_image.nii.gz"], -1]
 
 TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
-
-TEST_CASE_7 = [{"reader": ITKReader(pixel_type=itk.UC)}, "tests/testing_data/CT_DICOM", None]
-
-itk.ProcessObject.SetGlobalWarningDisplay(False)
 
 
 class TestEnsureChannelFirst(unittest.TestCase):
@@ -58,9 +56,11 @@ class TestEnsureChannelFirst(unittest.TestCase):
             result = EnsureChannelFirst()(result)
             self.assertEqual(result.shape[0], len(filenames))
 
-    @parameterized.expand([TEST_CASE_7])
-    def test_itk_dicom_series_reader(self, input_param, filenames, _):
-        result = LoadImage(image_only=True, **input_param)(filenames)
+    @unittest.skipUnless(has_itk, "itk not installed")
+    def test_itk_dicom_series_reader(self):
+        filenames = "tests/testing_data/CT_DICOM"
+        itk.ProcessObject.SetGlobalWarningDisplay(False)
+        result = LoadImage(image_only=True, reader=ITKReader(pixel_type=itk.UC))(filenames)
         result = EnsureChannelFirst()(result)
         self.assertEqual(result.shape[0], 1)
 
