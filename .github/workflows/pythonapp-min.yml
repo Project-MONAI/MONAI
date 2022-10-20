@@ -7,6 +7,7 @@ on:
       - dev
       - main
       - releasing/*
+      - test-py-3-10
   pull_request:
 
 concurrency:
@@ -74,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, '3.10']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
