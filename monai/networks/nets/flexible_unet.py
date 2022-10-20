@@ -50,10 +50,8 @@ class Register:
 
         if not issubclass(name, BaseEncoder):
             warnings.warn(
-                (
                     f"{name} would better be derived from monai.networks.blocks.BaseEncoder "
                     "or implement all interfaces specified by it."
-                )
             )
 
         name_string_list = name.get_encoder_names()
