@@ -20,7 +20,18 @@ from monai.networks.layers.utils import get_pool_layer
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-__all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
+__all__ = [
+    "ResNet",
+    "ResNetBlock",
+    "ResNetBottleneck",
+    "resnet10",
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+    "resnet200",
+]
 
 
 def get_inplanes():
