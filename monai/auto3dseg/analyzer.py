@@ -29,7 +29,7 @@ from monai.auto3dseg.utils import (
 )
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
-from monai.data.meta_tensor import MetaTensor
+from monai.data import MetaTensor, affine_to_spacing
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils_pytorch_numpy_unification import sum, unique
 from monai.utils import convert_to_numpy
@@ -174,32 +174,32 @@ class ImageStats(Analyzer):
 
     Args:
         image_key: the key to find image data in the callable function input (data)
-        meta_key_postfix: the postfix to append for meta_dict ("image_meta_dict").
 
     Examples:
 
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import ImageStats
+        from monai.auto3dseg import ImageStats
+        from monai.data import MetaTensor
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
-        input['image_meta_dict'] = {'affine': np.eye(4)}
+        input['image'] = MetaTensor(np.random.rand(1,30,30,30))  # MetaTensor
         analyzer = ImageStats(image_key="image")
-        print(analyzer(input))
+        print(analyzer(input)["image_stats"])
+
+    Notes:
+        if the image data is NumPy array, the spacing stats will be [1.0] * ndims of the array, where ndims is the lesser of image dimensions and 3.
 
     """
 
-    def __init__(
-        self, image_key: str, stats_name: str = "image_stats", meta_key_postfix: Optional[str] = "meta_dict"
-    ) -> None:
+    def __init__(self, image_key: str, stats_name: str = "image_stats") -> None:
 
         if not isinstance(image_key, str):
             raise ValueError("image_key input must be str")
 
         self.image_key = image_key
-        self.image_meta_key = f"{self.image_key}_{meta_key_postfix}"
 
         report_format = {
             ImageStatsKeys.SHAPE: None,
@@ -245,9 +245,11 @@ class ImageStats(Analyzer):
         report[ImageStatsKeys.SHAPE] = [list(nda.shape) for nda in ndas]
         report[ImageStatsKeys.CHANNELS] = len(ndas)
         report[ImageStatsKeys.CROPPED_SHAPE] = [list(nda_c.shape) for nda_c in nda_croppeds]
-        report[ImageStatsKeys.SPACING] = np.tile(
-            np.diag(data[self.image_meta_key]["affine"])[:3], [len(ndas), 1]
-        ).tolist()
+        report[ImageStatsKeys.SPACING] = (
+            affine_to_spacing(data[self.image_key].affine).tolist()
+            if isinstance(data[self.image_key], MetaTensor)
+            else [1.0] * min(3, data[self.image_key].ndim)
+        )
         report[ImageStatsKeys.INTENSITY] = [
             self.ops[ImageStatsKeys.INTENSITY].evaluate(nda_c) for nda_c in nda_croppeds
         ]
@@ -275,13 +277,13 @@ class FgImageStats(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import FgImageStats
+        from monai.auto3dseg import FgImageStats
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
         analyzer = FgImageStats(image_key='image', label_key='label')
-        print(analyzer(input))
+        print(analyzer(input)["image_foreground_stats"])
 
     """
 
@@ -353,13 +355,13 @@ class LabelStats(Analyzer):
     .. code-block:: python
 
         import numpy as np
-        from monai.auto3dseg.analyzer import LabelStats
+        from monai.auto3dseg import LabelStats
 
         input = {}
         input['image'] = np.random.rand(1,30,30,30)
         input['label'] = np.ones([30,30,30])
         analyzer = LabelStats(image_key='image', label_key='label')
-        print(analyzer(input))
+        print(analyzer(input)["label_stats"])
 
     """
 
@@ -436,7 +438,10 @@ class LabelStats(Analyzer):
         """
         d = dict(data)
         start = time.time()
-        using_cuda = True if d[self.image_key].device.type == "cuda" else False
+        if isinstance(d[self.image_key], (torch.Tensor, MetaTensor)) and d[self.image_key].device.type == "cuda":
+            using_cuda = True
+        else:
+            using_cuda = False
         restore_grad_state = torch.is_grad_enabled()
         torch.set_grad_enabled(False)
 
@@ -784,20 +789,21 @@ class FilenameStats(Analyzer):
 
     """
 
-    def __init__(self, key: str, stats_name: str, meta_key_postfix: Optional[str] = "meta_dict") -> None:
+    def __init__(self, key: str, stats_name: str) -> None:
         self.key = key
-        self.meta_key = None if key is None else f"{key}_{meta_key_postfix}"
         super().__init__(stats_name, {})
 
     def __call__(self, data):
         d = dict(data)
 
-        if self.meta_key:
+        if self.key:  # when there is no (label) file, key can be None
             if self.key not in d:  # check whether image/label is in the data
-                raise ValueError(f"Data with key {self.key} is missing ")
-            if self.meta_key not in d:
-                raise ValueError(f"Meta data with key {self.meta_key} is missing")
-            d[self.stats_name] = d[self.meta_key][ImageMetaKey.FILENAME_OR_OBJ]
+                raise ValueError(f"Data with key {self.key} is missing.")
+            if not isinstance(d[self.key], MetaTensor):
+                raise ValueError(f"Value type of {self.key} is not MetaTensor.")
+            if ImageMetaKey.FILENAME_OR_OBJ not in d[self.key].meta:
+                raise ValueError(f"{ImageMetaKey.FILENAME_OR_OBJ} not found in MetaTensor {d[self.key]}.")
+            d[self.stats_name] = d[self.key].meta[ImageMetaKey.FILENAME_OR_OBJ]
         else:
             d[self.stats_name] = "None"
 
