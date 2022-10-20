@@ -749,6 +749,7 @@ class CacheDataset(Dataset):
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
+        runtime_cache: bool = False,
     ) -> None:
         """
         Args:
@@ -817,6 +818,9 @@ class CacheDataset(Dataset):
         else:
             self.data = data
             self._cache = Manager().list(_compute_cache())
+
+    def set_multiprocessing_cache(self, mp_cache: bool = True):
+        self.mp_cache = mp_cache
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
