@@ -577,7 +577,7 @@ class LabelStatsKeys(StrEnum):
     """
 
     LABEL_UID = "labels"
-    PIXEL_PCT = "pixel_percentage"
+    PIXEL_PCT = "foreground_percentage"
     IMAGE_INTST = "image_intensity"
     LABEL = "label"
     LABEL_SHAPE = "shape"
