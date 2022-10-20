@@ -42,7 +42,7 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def get_output_feature_channels(cls) -> List[Tuple[int, ...]]:
+    def num_channels_per_output(cls) -> List[Tuple[int, ...]]:
         """
         Get number of output features' channels.
         The reason that this function should return a list is that a
@@ -56,9 +56,9 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def get_output_feature_numbers(cls) -> List[int]:
+    def num_outputs(cls) -> List[int]:
         """
-        Get number of output feature.
+        Get number of outputs of encoder.
         The reason that this function should return a list is that a
         series of encoders can be implemented by one encoder class
         given different initialization parameters. And it is possible

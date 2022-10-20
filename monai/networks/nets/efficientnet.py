@@ -674,7 +674,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BaseEncoder):
         return parameter_list
 
     @classmethod
-    def get_output_feature_channels(cls) -> List[Tuple[int, ...]]:
+    def num_channels_per_output(cls) -> List[Tuple[int, ...]]:
         """
         Get number of efficientnet backbone output feature maps' channel.
         """
@@ -692,7 +692,7 @@ class EfficientNetEncoder(EfficientNetBNFeatures, BaseEncoder):
         ]
 
     @classmethod
-    def get_output_feature_numbers(cls) -> List[int]:
+    def num_outputs(cls) -> List[int]:
         """
         Get number of efficientnet backbone output feature maps.
         Since every backbone contains the same 5 output feature maps,

@@ -23,10 +23,10 @@ from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
 from monai.utils import InterpolateMode, optional_import
 
-__all__ = ["FlexibleUNet", "BACKBONE", "Register"]
+__all__ = ["FlexibleUNet", "FLEXUNETBACKBONE", "FlexUNetEncoderRegister"]
 
 
-class Register:
+class FlexUNetEncoderRegister:
     """
     A register to regist backbones for the flexible unet. All backbones can be found in
     register_dict. Please notice each output of backbone must be 2x downsample in spatial
@@ -58,8 +58,8 @@ class Register:
             )
 
         name_string_list = name.get_encoder_names()
-        feature_number_list = name.get_output_feature_numbers()
-        feature_channel_list = name.get_output_feature_channels()
+        feature_number_list = name.num_outputs()
+        feature_channel_list = name.num_channels_per_output()
         parameter_list = name.get_encoder_parameters()
 
         assert len(name_string_list) == len(feature_number_list) == len(feature_channel_list) == len(parameter_list)
@@ -73,8 +73,8 @@ class Register:
             self.register_dict[name_string] = cur_dict
 
 
-BACKBONE = Register()
-BACKBONE.regist_class(EfficientNetEncoder)
+FLEXUNETBACKBONE = FlexUNetEncoderRegister()
+FLEXUNETBACKBONE.regist_class(EfficientNetEncoder)
 
 
 class UNetDecoder(nn.Module):
@@ -269,13 +269,15 @@ class FlexibleUNet(nn.Module):
         """
         super().__init__()
 
-        if backbone not in BACKBONE.register_dict:
-            raise ValueError(f"invalid model_name {backbone} found, must be one of {BACKBONE.register_dict.keys()}.")
+        if backbone not in FLEXUNETBACKBONE.register_dict:
+            raise ValueError(
+                f"invalid model_name {backbone} found, must be one of {FLEXUNETBACKBONE.register_dict.keys()}."
+            )
 
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
 
-        encoder = BACKBONE.register_dict[backbone]
+        encoder = FLEXUNETBACKBONE.register_dict[backbone]
         self.backbone = backbone
         self.spatial_dims = spatial_dims
         encoder_parameters = encoder["parameter"]
@@ -288,6 +290,7 @@ class FlexibleUNet(nn.Module):
         encoder_feature_num = encoder["feature_number"]
         if encoder_feature_num > 5:
             raise ValueError("Flexible unet can only accept no more than 5 encoder feature maps.")
+
         decoder_channels = decoder_channels[:encoder_feature_num]
         self.skip_connect = encoder_feature_num - 1
         encoder_parameters.update({"spatial_dims": spatial_dims, "in_channels": in_channels, "pretrained": pretrained})

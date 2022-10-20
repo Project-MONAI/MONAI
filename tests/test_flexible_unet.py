@@ -18,10 +18,10 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.encoder import BaseEncoder
 from monai.networks.nets import (
-    BACKBONE,
+    FLEXUNETBACKBONE,
     EfficientNetBNFeatures,
     FlexibleUNet,
-    Register,
+    FlexUNetEncoderRegister,
     ResNet,
     ResNetBlock,
     ResNetBottleneck,
@@ -45,12 +45,12 @@ class DummyEncoder(BaseEncoder):
         return param_dict_list
 
     @classmethod
-    def get_output_feature_channels(cls):
+    def num_channels_per_output(cls):
 
         return [(32, 64, 128, 256, 512, 1024), (32, 64, 128, 256), (32, 64, 128, 256), (32, 64, 128, 256)]
 
     @classmethod
-    def get_output_feature_numbers(cls):
+    def num_outputs(cls):
 
         return [6, 4, 4, 4]
 
@@ -114,14 +114,14 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return parameter_list
 
     @classmethod
-    def get_output_feature_channels(cls):
+    def num_channels_per_output(cls):
         """
         Get number of output features' channel.
         """
         return cls.output_feature_channels
 
     @classmethod
-    def get_output_feature_numbers(cls):
+    def num_outputs(cls):
         """
         Get number of output feature.
         """
@@ -153,8 +153,8 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return feature_list
 
 
-BACKBONE.regist_class(ResNetEncoder)
-BACKBONE.regist_class(DummyEncoder)
+FLEXUNETBACKBONE.regist_class(ResNetEncoder)
+FLEXUNETBACKBONE.regist_class(DummyEncoder)
 
 
 def get_model_names():
@@ -213,7 +213,7 @@ def make_error_case():
 
 
 # create list of selected models to speed up redundant tests
-# only test the models B0, B3
+# only test efficient net B0, B3 and resnet 10, 18, 34
 SEL_MODELS = [get_model_names()[i] for i in [0, 3]]
 SEL_MODELS += [get_resnet_names()[i] for i in [0, 1, 2]]
 
@@ -401,15 +401,15 @@ class TestFLEXIBLEUNET(unittest.TestCase):
             FlexibleUNet(**input_param)
 
 
-class TestRegister(unittest.TestCase):
+class TestFlexUNetEncoderRegister(unittest.TestCase):
     @parameterized.expand(CASE_REGISTER_ENCODER)
     def test_regist(self, encoder):
-        tmp_backbone = Register()
+        tmp_backbone = FlexUNetEncoderRegister()
         tmp_backbone.regist_class(encoder)
         for backbone in tmp_backbone.register_dict:
             backbone_type = tmp_backbone.register_dict[backbone]["type"]
-            feature_number = backbone_type.get_output_feature_numbers()
-            feature_channel = backbone_type.get_output_feature_channels()
+            feature_number = backbone_type.num_outputs()
+            feature_channel = backbone_type.num_channels_per_output()
             param_dict_list = backbone_type.get_encoder_parameters()
             encoder_name_list = backbone_type.get_encoder_names()
             encoder_cnt = encoder_name_list.index(backbone)
