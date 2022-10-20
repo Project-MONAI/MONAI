@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.0.1] - 2022-10-19
+## [1.0.1] - 2022-10-24
 ### Fixes
 * DiceCELoss for multichannel targets
 * Auto3DSeg DataAnalyzer out-of-memory error and other minor issues
@@ -13,13 +13,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * An issue with output offset for Spacing
 * A `LoadImage` issue when `track_meta` is `False`
 * 1D data output error in `VarAutoEncoder`
-
+* An issue with resolution computing in `ImageStats`
 ### Added
 * Flexible min/max pixdim options for Spacing
 * Upsample mode `deconvgroup` and optional kernel sizes
 * Docstrings for gradient-based saliency maps
 * Occlusion sensitivity to use sliding window inference
-* Enhanced Gaussian window for sliding window inference
+* Enhanced Gaussian window and device assignments for sliding window inference
 * Multi-GPU support for MonaiAlgo
 * `ClientAlgoStats` and `MonaiAlgoStats` for federated summary statistics
 * MetaTensor support for `OneOf`
@@ -28,7 +28,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * An anti-aliasing option for `Resized`
 * `SlidingWindowInferer` adaptive device based on `cpu_thresh`
 * `SegResNetDS` with deep supervision and non-isotropic kernel support
-
+* Premerge tests for Python 3.10
 ### Changed
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:22.09-py3` from `nvcr.io/nvidia/pytorch:22.08-py3`
 * Replace `None` type metadata content with `"none"` for `collate_fn` compatibility
