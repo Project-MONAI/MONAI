@@ -542,7 +542,7 @@ class TestMetaTensor(unittest.TestCase):
         self.check_meta(t, MetaTensor([2.0]))
         assert_allclose(t.as_tensor(), torch.as_tensor([2.0]))
         if not t.is_cuda:
-            t.array[0] = torch.as_tensor(3.0, device=device, dtype=dtype)
+            t.array[0] = torch.as_tensor(3 if dtype in (torch.int32, torch.int64) else 3.0, device=device, dtype=dtype)
             self.check_meta(t, MetaTensor([3.0]))
             assert_allclose(t.as_tensor(), torch.as_tensor([3.0]))
 
