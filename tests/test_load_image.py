@@ -71,29 +71,34 @@ TEST_CASE_4_1 = [  # additional parameter
 
 TEST_CASE_5 = [{"reader": NibabelReader(mmap=False)}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [{"reader": ITKReader()}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_8 = [
-    {"reader": ITKReader()},
+    {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
 TEST_CASE_8_1 = [
-    {"reader": ITKReader(channel_dim=0)},
+    {"reader": ITKReader(channel_dim=0) if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (384, 128, 128),
 ]
 
 TEST_CASE_9 = [
-    {"reader": ITKReader()},
+    {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_10 = [{"reader": ITKReader(pixel_type=itk_uc)}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+TEST_CASE_10 = [
+    {"reader": ITKReader(pixel_type=itk_uc) if has_itek else "itkreader"},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (16, 16, 4),
+]
 
 TEST_CASE_11 = [{"reader": "ITKReader", "pixel_type": itk_uc}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 

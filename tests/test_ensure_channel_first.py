@@ -32,11 +32,15 @@ TEST_CASE_2 = [{}, ["test_image.nii.gz"], -1]
 
 TEST_CASE_3 = [{}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
 
-TEST_CASE_4 = [{"reader": ITKReader()}, ["test_image.nii.gz"], None]
+TEST_CASE_4 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], None]
 
-TEST_CASE_5 = [{"reader": ITKReader()}, ["test_image.nii.gz"], -1]
+TEST_CASE_5 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], -1]
 
-TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"], None]
+TEST_CASE_6 = [
+    {"reader": ITKReader() if has_itk else "itkreader"},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    None,
+]
 
 
 class TestEnsureChannelFirst(unittest.TestCase):
