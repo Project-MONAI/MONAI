@@ -15,18 +15,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import itk
 import nibabel as nib
 import numpy as np
 import torch
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import ITKReader, NibabelReader, PydicomReader
+from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
+from monai.utils import optional_import
 from tests.utils import assert_allclose
+
+itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
+ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
+itk_uc, _ = optional_import("itk", name="UC", allow_namespace_pkg=True)
 
 
 class _MiniReader:
@@ -89,12 +93,12 @@ TEST_CASE_9 = [
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_10 = [{"reader": ITKReader(pixel_type=itk.UC)}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+TEST_CASE_10 = [{"reader": ITKReader(pixel_type=itk_uc)}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 
-TEST_CASE_11 = [{"reader": "ITKReader", "pixel_type": itk.UC}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+TEST_CASE_11 = [{"reader": "ITKReader", "pixel_type": itk_uc}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 
 TEST_CASE_12 = [
-    {"reader": "ITKReader", "pixel_type": itk.UC, "reverse_indexing": True},
+    {"reader": "ITKReader", "pixel_type": itk_uc, "reverse_indexing": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (4, 16, 16),
@@ -124,14 +128,14 @@ TEST_CASE_18 = [
 TEST_CASE_19 = [{"reader": PydicomReader()}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 
 TEST_CASE_20 = [
-    {"reader": "PydicomReader", "ensure_channel_first": True},
+    {"reader": "PydicomReader", "ensure_channel_first": True, "force": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (1, 16, 16, 4),
 ]
 
 TEST_CASE_21 = [
-    {"reader": "PydicomReader", "affine_lps_to_ras": True, "defer_size": "2 MB"},
+    {"reader": "PydicomReader", "affine_lps_to_ras": True, "defer_size": "2 MB", "force": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (16, 16, 4),
@@ -146,6 +150,7 @@ for track_meta in (False, True):
     TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImage(unittest.TestCase):
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
@@ -290,7 +295,7 @@ class TestLoadImage(unittest.TestCase):
 
     def test_itk_meta(self):
         """test metadata from a directory"""
-        out = LoadImage(image_only=True, reader="ITKReader", pixel_type=itk.UC, series_meta=True)(
+        out = LoadImage(image_only=True, reader="ITKReader", pixel_type=itk_uc, series_meta=True)(
             "tests/testing_data/CT_DICOM"
         )
         idx = "0008|103e"

@@ -19,12 +19,12 @@ import torch
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import ITKReader
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import EnsureChannelFirst, LoadImage
 from monai.utils import optional_import
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
+ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
 
 TEST_CASE_1 = [{}, ["test_image.nii.gz"], None]
 
