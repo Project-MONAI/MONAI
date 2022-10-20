@@ -9,49 +9,72 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+import warnings
+from pydoc import locate
+from typing import List, Optional, Sequence, Tuple, Type, Union
 
 import torch
 from torch import nn
 
-from monai.networks.blocks import UpSample
+from monai.networks.blocks import BaseEncoder, UpSample
 from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
-from monai.networks.nets import EfficientNetBNFeatures
+from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
-from monai.utils import InterpolateMode
+from monai.utils import InterpolateMode, optional_import
 
-__all__ = ["FlexibleUNet"]
-
-encoder_feature_channel = {
-    "efficientnet-b0": (16, 24, 40, 112, 320),
-    "efficientnet-b1": (16, 24, 40, 112, 320),
-    "efficientnet-b2": (16, 24, 48, 120, 352),
-    "efficientnet-b3": (24, 32, 48, 136, 384),
-    "efficientnet-b4": (24, 32, 56, 160, 448),
-    "efficientnet-b5": (24, 40, 64, 176, 512),
-    "efficientnet-b6": (32, 40, 72, 200, 576),
-    "efficientnet-b7": (32, 48, 80, 224, 640),
-    "efficientnet-b8": (32, 56, 88, 248, 704),
-    "efficientnet-l2": (72, 104, 176, 480, 1376),
-}
+__all__ = ["FlexibleUNet", "FlexUNet", "FLEXUNET_BACKBONE", "FlexUNetEncoderRegister"]
 
 
-def _get_encoder_channels_by_backbone(backbone: str, in_channels: int = 3) -> tuple:
+class FlexUNetEncoderRegister:
     """
-    Get the encoder output channels by given backbone name.
-
-    Args:
-        backbone: name of backbone to generate features, can be from [efficientnet-b0, ..., efficientnet-b7].
-        in_channels: channel of input tensor, default to 3.
-
-    Returns:
-        A tuple of output feature map channels' length .
+    A register to regist backbones for the flexible unet. All backbones can be found in
+    register_dict. Please notice each output of backbone must be 2x downsample in spatial
+    dimension of last output. For example, if given a 512x256 2D image and a backbone with
+    4 outputs. Then spatial size of each encoder output should be 256x128, 128x64, 64x32
+    and 32x16.
     """
-    encoder_channel_tuple = encoder_feature_channel[backbone]
-    encoder_channel_list = [in_channels] + list(encoder_channel_tuple)
-    encoder_channel = tuple(encoder_channel_list)
-    return encoder_channel
+
+    def __init__(self):
+        self.register_dict = {}
+
+    def regist_class(self, name: Union[Type, str]):
+        """
+        Regist a given class to the encoder dict. Please notice that input class must be a
+        subclass of BaseEncoder.
+        """
+        if isinstance(name, str):
+            tmp_name, has_built_in = optional_import("monai.networks.nets", name=f"{name}")  # search built-in
+            if not has_built_in:
+                tmp_name = locate(f"{name}")  # search dotted path
+            name = tmp_name
+            if not isinstance(name, type):
+                raise ValueError(f"Cannot find {name} class.")
+
+        if not issubclass(name, BaseEncoder):
+            warnings.warn(
+                f"{name} would better be derived from monai.networks.blocks.BaseEncoder "
+                "or implement all interfaces specified by it."
+            )
+
+        name_string_list = name.get_encoder_names()
+        feature_number_list = name.num_outputs()
+        feature_channel_list = name.num_channels_per_output()
+        parameter_list = name.get_encoder_parameters()
+
+        assert len(name_string_list) == len(feature_number_list) == len(feature_channel_list) == len(parameter_list)
+        for cnt, name_string in enumerate(name_string_list):
+            cur_dict = {
+                "type": name,
+                "feature_number": feature_number_list[cnt],
+                "feature_channel": feature_channel_list[cnt],
+                "parameter": parameter_list[cnt],
+            }
+            self.register_dict[name_string] = cur_dict
+
+
+FLEXUNET_BACKBONE = FlexUNetEncoderRegister()
+FLEXUNET_BACKBONE.regist_class(EfficientNetEncoder)
 
 
 class UNetDecoder(nn.Module):
@@ -214,8 +237,11 @@ class FlexibleUNet(nn.Module):
         """
         A flexible implement of UNet, in which the backbone/encoder can be replaced with
         any efficient network. Currently the input must have a 2 or 3 spatial dimension
-        and the spatial size of each dimension must be a multiple of 32 if is pad parameter
-        is False
+        and the spatial size of each dimension must be a multiple of 32 if is_pad parameter
+        is False.
+        Please notice each output of backbone must be 2x downsample in spatial dimension
+        of last output. For example, if given a 512x256 2D image and a backbone with 4 outputs.
+        Spatial size of each encoder output should be 256x128, 128x64, 64x32 and 32x16.
 
         Args:
             in_channels: number of input channels.
@@ -243,26 +269,35 @@ class FlexibleUNet(nn.Module):
         """
         super().__init__()
 
-        if backbone not in encoder_feature_channel:
-            raise ValueError(f"invalid model_name {backbone} found, must be one of {encoder_feature_channel.keys()}.")
+        if backbone not in FLEXUNET_BACKBONE.register_dict:
+            raise ValueError(
+                f"invalid model_name {backbone} found, must be one of {FLEXUNET_BACKBONE.register_dict.keys()}."
+            )
 
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
 
-        adv_prop = "ap" in backbone
-
+        encoder = FLEXUNET_BACKBONE.register_dict[backbone]
         self.backbone = backbone
         self.spatial_dims = spatial_dims
-        model_name = backbone
-        encoder_channels = _get_encoder_channels_by_backbone(backbone, in_channels)
-        self.encoder = EfficientNetBNFeatures(
-            model_name=model_name,
-            pretrained=pretrained,
-            in_channels=in_channels,
-            spatial_dims=spatial_dims,
-            norm=norm,
-            adv_prop=adv_prop,
-        )
+        encoder_parameters = encoder["parameter"]
+        if not (
+            ("spatial_dims" in encoder_parameters)
+            and ("in_channels" in encoder_parameters)
+            and ("pretrained" in encoder_parameters)
+        ):
+            raise ValueError("The backbone init method must have spatial_dims, in_channels and pretrained parameters.")
+        encoder_feature_num = encoder["feature_number"]
+        if encoder_feature_num > 5:
+            raise ValueError("Flexible unet can only accept no more than 5 encoder feature maps.")
+
+        decoder_channels = decoder_channels[:encoder_feature_num]
+        self.skip_connect = encoder_feature_num - 1
+        encoder_parameters.update({"spatial_dims": spatial_dims, "in_channels": in_channels, "pretrained": pretrained})
+        encoder_channels = tuple([in_channels] + list(encoder["feature_channel"]))
+        encoder_type = encoder["type"]
+        self.encoder = encoder_type(**encoder_parameters)
+
         self.decoder = UNetDecoder(
             spatial_dims=spatial_dims,
             encoder_channels=encoder_channels,
@@ -299,7 +334,10 @@ class FlexibleUNet(nn.Module):
         """
         x = inputs
         enc_out = self.encoder(x)
-        decoder_out = self.decoder(enc_out)
+        decoder_out = self.decoder(enc_out, self.skip_connect)
         x_seg = self.segmentation_head(decoder_out)
 
         return x_seg
+
+
+FlexUNet = FlexibleUNet
