@@ -18,7 +18,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.encoder import BaseEncoder
 from monai.networks.nets import (
-    FLEXUNETBACKBONE,
+    FLEXUNET_BACKBONE,
     EfficientNetBNFeatures,
     FlexibleUNet,
     FlexUNetEncoderRegister,
@@ -153,8 +153,8 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return feature_list
 
 
-FLEXUNETBACKBONE.regist_class(ResNetEncoder)
-FLEXUNETBACKBONE.regist_class(DummyEncoder)
+FLEXUNET_BACKBONE.regist_class(ResNetEncoder)
+FLEXUNET_BACKBONE.regist_class(DummyEncoder)
 
 
 def get_model_names():

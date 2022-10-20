@@ -23,7 +23,7 @@ from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
 from monai.utils import InterpolateMode, optional_import
 
-__all__ = ["FlexibleUNet", "FlexUNet", "FLEXUNETBACKBONE", "FlexUNetEncoderRegister"]
+__all__ = ["FlexibleUNet", "FlexUNet", "FLEXUNET_BACKBONE", "FlexUNetEncoderRegister"]
 
 
 class FlexUNetEncoderRegister:
@@ -73,8 +73,8 @@ class FlexUNetEncoderRegister:
             self.register_dict[name_string] = cur_dict
 
 
-FLEXUNETBACKBONE = FlexUNetEncoderRegister()
-FLEXUNETBACKBONE.regist_class(EfficientNetEncoder)
+FLEXUNET_BACKBONE = FlexUNetEncoderRegister()
+FLEXUNET_BACKBONE.regist_class(EfficientNetEncoder)
 
 
 class UNetDecoder(nn.Module):
@@ -269,15 +269,15 @@ class FlexibleUNet(nn.Module):
         """
         super().__init__()
 
-        if backbone not in FLEXUNETBACKBONE.register_dict:
+        if backbone not in FLEXUNET_BACKBONE.register_dict:
             raise ValueError(
-                f"invalid model_name {backbone} found, must be one of {FLEXUNETBACKBONE.register_dict.keys()}."
+                f"invalid model_name {backbone} found, must be one of {FLEXUNET_BACKBONE.register_dict.keys()}."
             )
 
         if spatial_dims not in (2, 3):
             raise ValueError("spatial_dims can only be 2 or 3.")
 
-        encoder = FLEXUNETBACKBONE.register_dict[backbone]
+        encoder = FLEXUNET_BACKBONE.register_dict[backbone]
         self.backbone = backbone
         self.spatial_dims = spatial_dims
         encoder_parameters = encoder["parameter"]
