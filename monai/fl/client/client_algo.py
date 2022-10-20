@@ -19,12 +19,11 @@ class BaseClient:
     Provide an abstract base class to allow the client to return summary statistics of the data.
 
     To define a new stats script, subclass this class and implement the
-    following abstract methods:
+    following abstract methods::
 
         - self.get_data_stats()
 
-    initialize(), abort(), and finalize() - inherited from `ClientAlgoStats` - can be optionally be implemented
-
+    initialize(), abort(), and finalize() -- inherited from `ClientAlgoStats`; can be optionally be implemented
     to help with lifecycle management of the class object.
     """
 
@@ -67,20 +66,23 @@ class ClientAlgoStats(BaseClient):
                 For example, requested statistics.
 
         Returns:
+
             ExchangeObject: summary statistics.
 
-        Extra dict example:
+        Extra dict example::
+
             requested_stats = {
                 FlStatistics.STATISTICS: metrics,
                 FlStatistics.NUM_OF_BINS: num_of_bins,
                 FlStatistics.BIN_RANGES: bin_ranges
             }
 
-        Returned ExchangeObject example:
+        Returned ExchangeObject example::
 
             ExchangeObject(
                 statistics = {...}
             )
+
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
