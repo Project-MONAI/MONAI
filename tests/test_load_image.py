@@ -94,7 +94,7 @@ TEST_CASE_9 = [
 ]
 
 TEST_CASE_10 = [
-    {"reader": ITKReader(pixel_type=itk_uc) if has_itek else "itkreader"},
+    {"reader": ITKReader(pixel_type=itk_uc) if has_itk else "itkreader"},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (16, 16, 4),
@@ -323,6 +323,7 @@ class TestLoadImage(unittest.TestCase):
         self.assertEqual(result.meta["original_channel_dim"], input_param["channel_dim"])
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImageMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
