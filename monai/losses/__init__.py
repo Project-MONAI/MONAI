@@ -26,6 +26,7 @@ from .dice import (
     generalized_dice_focal,
     generalized_wasserstein_dice,
 )
+from .ds_loss import DeepSupervisionLoss
 from .focal_loss import FocalLoss
 from .giou_loss import BoxGIoULoss, giou
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss

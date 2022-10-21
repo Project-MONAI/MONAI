@@ -9,5 +9,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .client_algo import ClientAlgo
-from .monai_algo import MonaiAlgo
+from .client_algo import BaseClient, ClientAlgo, ClientAlgoStats
+from .monai_algo import MonaiAlgo, MonaiAlgoStats

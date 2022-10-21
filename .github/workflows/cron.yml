@@ -53,16 +53,16 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pt-image:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.08"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.09"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -96,17 +96,17 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-pip:
     # pip install monai[all] and use it to run unit tests
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.08"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.09"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -195,16 +195,16 @@ jobs:
         coverage xml --ignore-errors
         if pgrep python; then pkill python; fi
     - name: Upload coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: false
-        file: ./coverage.xml
+        files: ./coverage.xml
 
   cron-tutorial-notebooks:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: cron-gpu  # so that monai itself is verified first
     container:
-      image: nvcr.io/nvidia/pytorch:22.08-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:22.09-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, common]
     steps:
@@ -219,7 +219,7 @@ jobs:
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
-        echo "::set-output name=devices::$CUDA_VISIBLE_DEVICES"
+        echo "devices=$CUDA_VISIBLE_DEVICES" >> $GITHUB_OUTPUT
     - name: Checkout tutorials and install their requirements
       run: |
         cd /opt

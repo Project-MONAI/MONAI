@@ -21,7 +21,6 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.0", min_version)
 
-
 INSTANCE_MASK = np.zeros((1, 16, 16), dtype="int16")
 INSTANCE_MASK[:, 5:8, 4:11] = 1
 INSTANCE_MASK[:, 3:5, 6:9] = 1

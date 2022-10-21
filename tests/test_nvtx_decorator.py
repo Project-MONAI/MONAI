@@ -39,7 +39,6 @@ _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installe
 _, has_tvt = optional_import("torchvision.transforms")
 _, has_cut = optional_import("cucim.core.operations.expose.transform")
 
-
 TEST_CASE_ARRAY_0 = [np.random.randn(3, 3)]
 TEST_CASE_ARRAY_1 = [np.random.randn(3, 10, 10)]
 

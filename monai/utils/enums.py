@@ -52,7 +52,8 @@ __all__ = [
     "ImageStatsKeys",
     "LabelStatsKeys",
     "AlgoEnsembleKeys",
-    "Direction",
+    "HoVerNetMode",
+    "HoVerNetBranch",
 ]
 
 
@@ -168,6 +169,7 @@ class UpsampleMode(StrEnum):
     """
 
     DECONV = "deconv"
+    DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
 
@@ -551,6 +553,7 @@ class DataStatsKeys(StrEnum):
     IMAGE_STATS = "image_stats"
     FG_IMAGE_STATS = "image_foreground_stats"
     LABEL_STATS = "label_stats"
+    IMAGE_HISTOGRAM = "image_histogram"
 
 
 class ImageStatsKeys(StrEnum):
@@ -564,6 +567,7 @@ class ImageStatsKeys(StrEnum):
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
     INTENSITY = "intensity"
+    HISTOGRAM = "histogram"
 
 
 class LabelStatsKeys(StrEnum):
@@ -573,7 +577,7 @@ class LabelStatsKeys(StrEnum):
     """
 
     LABEL_UID = "labels"
-    PIXEL_PCT = "pixel_percentage"
+    PIXEL_PCT = "foreground_percentage"
     IMAGE_INTST = "image_intensity"
     LABEL = "label"
     LABEL_SHAPE = "shape"
@@ -590,10 +594,26 @@ class AlgoEnsembleKeys(StrEnum):
     SCORE = "best_metric"
 
 
-class Direction(StrEnum):
+class HoVerNetMode(StrEnum):
     """
-    Default keys for axis directions of an image
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
     """
 
-    HORIZONTAL = "horizontal"
-    VERTICAL = "vertical"
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"

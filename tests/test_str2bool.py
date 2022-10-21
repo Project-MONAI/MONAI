@@ -16,9 +16,9 @@ from monai.utils.misc import str2bool
 
 class TestStr2Bool(unittest.TestCase):
     def test_str_2_bool(self):
-        for i in ("yes", "true", "t", "y", "1"):
+        for i in ("yes", "true", "t", "y", "1", True):
             self.assertTrue(str2bool(i))
-        for i in ("no", "false", "f", "n", "0"):
+        for i in ("no", "false", "f", "n", "0", False):
             self.assertFalse(str2bool(i))
         for bad_value in ("test", 0, 1, 2, None):
             self.assertFalse(str2bool(bad_value, default=False, raise_exc=False))

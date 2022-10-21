@@ -30,6 +30,8 @@ from .enums import (
     GridPatchSort,
     GridSampleMode,
     GridSamplePadMode,
+    HoVerNetBranch,
+    HoVerNetMode,
     InterpolateMode,
     InverseKeys,
     JITMetadataKeys,
@@ -77,6 +79,7 @@ from .misc import (
     set_determinism,
     star_zip_with,
     str2bool,
+    str2list,
     zip_with,
 )
 from .module import (

@@ -322,10 +322,16 @@ def load(
     return model
 
 
-def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
+def _get_all_bundles_info(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
     if has_requests:
         request_url = f"https://api.github.com/repos/{repo}/releases"
-        resp = requests_get(request_url)
+        if auth_token is not None:
+            headers = {"Authorization": f"Bearer {auth_token}"}
+            resp = requests_get(request_url, headers=headers)
+        else:
+            resp = requests_get(request_url)
         resp.raise_for_status()
     else:
         raise ValueError("requests package is required, please install it.")
@@ -353,21 +359,30 @@ def _get_all_bundles_info(repo: str = "Project-MONAI/model-zoo", tag: str = "hos
     return bundles_info
 
 
-def get_all_bundles_list(repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
+def get_all_bundles_list(
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: Optional[str] = None
+):
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
     with the provided tag. The default values of arguments correspond to the release of MONAI model zoo.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 
     Args:
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
+        auth_token: github personal access token.
 
     Returns:
         a list of tuple in the form of (bundle name, latest version).
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
     for bundle_name in bundles_info.keys():
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
@@ -376,22 +391,34 @@ def get_all_bundles_list(repo: str = "Project-MONAI/model-zoo", tag: str = "host
     return bundles_list
 
 
-def get_bundle_versions(bundle_name: str, repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1"):
+def get_bundle_versions(
+    bundle_name: str,
+    repo: str = "Project-MONAI/model-zoo",
+    tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
+):
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
     repository with the provided tag.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 
     Args:
         bundle_name: bundle name.
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
+        auth_token: github personal access token.
 
     Returns:
         a dictionary that contains the latest version and all versions of a bundle.
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     if bundle_name not in bundles_info:
         raise ValueError(f"bundle: {bundle_name} is not existing.")
     bundle_info = bundles_info[bundle_name]
@@ -405,24 +432,32 @@ def get_bundle_info(
     version: Optional[str] = None,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
+    auth_token: Optional[str] = None,
 ):
     """
     Get all information
     (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
     with the specified bundle name and version.
+    In order to increase the rate limits of calling GIthub APIs, you can input your personal access token.
+    Please check the following link for more details about rate limiting:
+    https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
+
+    The following link shows how to create your personal access token:
+    https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token
 
     Args:
         bundle_name: bundle name.
         version: version name of the target bundle, if None, the latest version will be used.
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
+        auth_token: github personal access token.
 
     Returns:
         a dictionary that contains the bundle's information.
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     if bundle_name not in bundles_info:
         raise ValueError(f"bundle: {bundle_name} is not existing.")
     bundle_info = bundles_info[bundle_name]
@@ -494,6 +529,8 @@ def run(
         _args, "config_file", meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
+        if not os.path.exists(logging_file_):
+            raise FileNotFoundError(f"can't find the logging config file: {logging_file_}.")
         logger.info(f"set logging properties based on config: {logging_file_}.")
         fileConfig(logging_file_, disable_existing_loggers=False)
 

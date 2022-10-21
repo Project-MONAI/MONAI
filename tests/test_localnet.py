@@ -20,7 +20,6 @@ from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
 TEST_CASE_LOCALNET_2D = [
     [
         {

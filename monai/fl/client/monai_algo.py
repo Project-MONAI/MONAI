@@ -15,11 +15,14 @@ import sys
 from typing import Optional, Union
 
 import torch
+import torch.distributed as dist
 
 import monai
+from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.auto3dseg import SegSummarizer
 from monai.bundle import ConfigParser
 from monai.bundle.config_item import ConfigComponent, ConfigItem
-from monai.fl.client.client_algo import ClientAlgo
+from monai.fl.client import ClientAlgo, ClientAlgoStats
 from monai.fl.utils.constants import (
     BundleKeys,
     ExtraItems,
@@ -33,6 +36,7 @@ from monai.fl.utils.constants import (
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
+from monai.utils.enums import DataStatsKeys
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
 
@@ -87,8 +91,232 @@ def disable_ckpt_loaders(parser):
                     h["_disabled_"] = True
 
 
+class MonaiAlgoStats(ClientAlgoStats):
+    """
+    Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
+
+    Args:
+        bundle_root: path of bundle.
+        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
+            defaults to "configs/train.json".
+        config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        histogram_only: whether to only compute histograms. Defaults to False.
+    """
+
+    def __init__(
+        self,
+        bundle_root: str,
+        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
+        config_filters_filename: Optional[Union[str, list]] = None,
+        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
+        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
+        data_stats_transform_list: Optional[list] = None,
+        histogram_only: bool = False,
+    ):
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.bundle_root = bundle_root
+        self.config_train_filename = config_train_filename
+        self.config_filters_filename = config_filters_filename
+        self.train_data_key = train_data_key
+        self.eval_data_key = eval_data_key
+        self.data_stats_transform_list = data_stats_transform_list
+        self.histogram_only = histogram_only
+
+        self.client_name = None
+        self.app_root = None
+        self.train_parser = None
+        self.filter_parser = None
+        self.post_statistics_filters = None
+        self.phase = FlPhase.IDLE
+        self.dataset_root = None
+
+    def initialize(self, extra=None):
+        """
+        Initialize routine to parse configuration files and extract main components such as trainer, evaluator, and filters.
+
+        Args:
+            extra: Dict with additional information that should be provided by FL system,
+                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+
+        """
+        if extra is None:
+            extra = {}
+        self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        self.logger.info(f"Initializing {self.client_name} ...")
+
+        # FL platform needs to provide filepath to configuration files
+        self.app_root = extra.get(ExtraItems.APP_ROOT, "")
+
+        # Read bundle config files
+        self.bundle_root = os.path.join(self.app_root, self.bundle_root)
+
+        config_train_files = self._add_config_files(self.config_train_filename)
+        config_filter_files = self._add_config_files(self.config_filters_filename)
+
+        # Parse
+        self.train_parser = ConfigParser()
+        self.filter_parser = ConfigParser()
+        if len(config_train_files) > 0:
+            self.train_parser.read_config(config_train_files)
+            check_bundle_config(self.train_parser)
+        if len(config_filter_files) > 0:
+            self.filter_parser.read_config(config_filter_files)
+
+        # override some config items
+        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
+
+        # Get data location
+        self.dataset_root = self.train_parser.get_parsed_content(
+            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
+        )
+
+        # Get filters
+        self.post_statistics_filters = self.filter_parser.get_parsed_content(
+            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+        )
+
+        self.logger.info(f"Initialized {self.client_name}.")
+
+    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+        """
+        Returns summary statistics about the local data.
+
+        Args:
+            extra: Dict with additional information that can be provided by the FL system.
+
+        Returns:
+            stats: ExchangeObject with summary statistics.
+
+        """
+
+        if self.dataset_root:
+            self.phase = FlPhase.GET_DATA_STATS
+            self.logger.info(f"Computing statistics on {self.dataset_root}")
+
+            if FlStatistics.HIST_BINS not in extra:
+                raise ValueError("FlStatistics.NUM_OF_BINS not specified in `extra`")
+            else:
+                hist_bins = extra[FlStatistics.HIST_BINS]
+            if FlStatistics.HIST_RANGE not in extra:
+                raise ValueError("FlStatistics.HIST_RANGE not specified in `extra`")
+            else:
+                hist_range = extra[FlStatistics.HIST_RANGE]
+
+            stats_dict = {}
+
+            # train data stats
+            train_summary_stats, train_case_stats = self._get_data_key_stats(
+                parser=self.train_parser,
+                data_key=self.train_data_key,
+                hist_bins=hist_bins,
+                hist_range=hist_range,
+                output_path=os.path.join(self.app_root, "train_data_stats.yaml"),
+            )
+            if train_case_stats:
+                # Only return summary statistics to FL server
+                stats_dict.update({self.train_data_key: train_summary_stats})
+
+            # eval data stats
+            eval_summary_stats, eval_case_stats = self._get_data_key_stats(
+                parser=self.train_parser,
+                data_key=self.eval_data_key,
+                hist_bins=hist_bins,
+                hist_range=hist_range,
+                output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
+            )
+            if eval_summary_stats:
+                # Only return summary statistics to FL server
+                stats_dict.update({self.eval_data_key: eval_summary_stats})
+
+            # total stats
+            if train_case_stats and eval_case_stats:
+                # Compute total summary
+                total_summary_stats = self._compute_total_stats(
+                    [train_case_stats, eval_case_stats], hist_bins, hist_range
+                )
+                stats_dict.update({FlStatistics.TOTAL_DATA: total_summary_stats})
+
+            # optional filter of data stats
+            stats = ExchangeObject(statistics=stats_dict)
+            if self.post_statistics_filters is not None:
+                for _filter in self.post_statistics_filters:
+                    stats = _filter(stats, extra)
+
+            return stats
+        else:
+            raise ValueError("data_root not set!")
+
+    def _get_data_key_stats(self, parser, data_key, hist_bins, hist_range, output_path=None):
+        if data_key not in parser:
+            self.logger.warning(f"Data key {data_key} not available in bundle configs.")
+            return None, None
+        data = parser.get_parsed_content(data_key)
+
+        datalist = {data_key: data}
+
+        analyzer = DataAnalyzer(
+            datalist=datalist,
+            dataroot=self.dataset_root,
+            hist_bins=hist_bins,
+            hist_range=hist_range,
+            output_path=output_path,
+            histogram_only=self.histogram_only,
+        )
+
+        self.logger.info(f"{self.client_name} compute data statistics on {data_key}...")
+        all_stats = analyzer.get_all_case_stats(transform_list=self.data_stats_transform_list, key=data_key)
+
+        case_stats = all_stats[DataStatsKeys.BY_CASE]
+
+        summary_stats = {
+            FlStatistics.DATA_STATS: all_stats[DataStatsKeys.SUMMARY],
+            FlStatistics.DATA_COUNT: len(data),
+            FlStatistics.FAIL_COUNT: len(data) - len(case_stats),
+            # TODO: add shapes, voxels sizes, etc.
+        }
+
+        return summary_stats, case_stats
+
+    @staticmethod
+    def _compute_total_stats(case_stats_lists, hist_bins, hist_range):
+        # Compute total summary
+        total_case_stats = []
+        for case_stats_list in case_stats_lists:
+            total_case_stats += case_stats_list
+
+        summarizer = SegSummarizer(
+            "image", "label", average=True, do_ccp=True, hist_bins=hist_bins, hist_range=hist_range
+        )
+        total_summary_stats = summarizer.summarize(total_case_stats)
+
+        summary_stats = {
+            FlStatistics.DATA_STATS: total_summary_stats,
+            FlStatistics.DATA_COUNT: len(total_case_stats),
+            FlStatistics.FAIL_COUNT: 0,
+        }
+
+        return summary_stats
+
+    def _add_config_files(self, config_files):
+        files = []
+        if config_files:
+            if isinstance(config_files, str):
+                files.append(os.path.join(self.bundle_root, config_files))
+            elif isinstance(config_files, list):
+                for file in config_files:
+                    if isinstance(file, str):
+                        files.append(os.path.join(self.bundle_root, file))
+                    else:
+                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
+            else:
+                raise ValueError(
+                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
+                )
+        return files
+
+
 @require_pkg(pkg_name="ignite", version="0.4.10", version_checker=min_version)
-class MonaiAlgo(ClientAlgo):
+class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     """
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
 
@@ -112,6 +340,9 @@ class MonaiAlgo(ClientAlgo):
         benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
             Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
             e.g., the aggregator, which is not controlled by this class.
+        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
+        backend: backend to use for torch.distributed; defaults to "nccl".
+        init_method: init_method for torch.distributed; defaults to "env://".
     """
 
     def __init__(
@@ -128,6 +359,12 @@ class MonaiAlgo(ClientAlgo):
         save_dict_key: Optional[str] = "model",
         seed: Optional[int] = None,
         benchmark: bool = True,
+        multi_gpu: bool = False,
+        backend: str = "nccl",
+        init_method: str = "env://",
+        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
+        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
+        data_stats_transform_list: Optional[list] = None,
     ):
         self.logger = logging.getLogger(self.__class__.__name__)
         if config_evaluate_filename == "default":
@@ -144,6 +381,12 @@ class MonaiAlgo(ClientAlgo):
         self.save_dict_key = save_dict_key
         self.seed = seed
         self.benchmark = benchmark
+        self.multi_gpu = multi_gpu
+        self.backend = backend
+        self.init_method = init_method
+        self.train_data_key = train_data_key
+        self.eval_data_key = eval_data_key
+        self.data_stats_transform_list = data_stats_transform_list
 
         self.app_root = None
         self.train_parser = None
@@ -156,9 +399,11 @@ class MonaiAlgo(ClientAlgo):
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
         self.global_weights = None
+        self.rank = 0
 
         self.phase = FlPhase.IDLE
         self.client_name = None
+        self.dataset_root = None
 
     def initialize(self, extra=None):
         """
@@ -173,6 +418,15 @@ class MonaiAlgo(ClientAlgo):
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
         self.logger.info(f"Initializing {self.client_name} ...")
+
+        if self.multi_gpu:
+            dist.init_process_group(backend=self.backend, init_method=self.init_method)
+            self._set_cuda_device()
+            self.logger.info(
+                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
+            )
+            if self.rank > 0:
+                self.logger.setLevel(logging.WARNING)
 
         if self.seed:
             monai.utils.set_determinism(seed=self.seed)
@@ -231,7 +485,20 @@ class MonaiAlgo(ClientAlgo):
         self.post_evaluate_filters = self.filter_parser.get_parsed_content(
             FiltersType.POST_EVALUATE_FILTERS, default=ConfigItem(None, FiltersType.POST_EVALUATE_FILTERS)
         )
+        self.post_statistics_filters = self.filter_parser.get_parsed_content(
+            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+        )
 
+        # Get data location
+        self.dataset_root = self.train_parser.get_parsed_content(
+            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
+        )
+
+        if self.multi_gpu:
+            if self.rank > 0 and self.trainer:
+                self.trainer.logger.setLevel(logging.WARNING)
+            if self.rank > 0 and self.evaluator:
+                self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra=None):
@@ -240,9 +507,11 @@ class MonaiAlgo(ClientAlgo):
 
         Args:
             data: `ExchangeObject` containing the current global model weights.
-            extra: Dict with additional information that can be provided by FL system.
+            extra: Dict with additional information that can be provided by the FL system.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -277,13 +546,15 @@ class MonaiAlgo(ClientAlgo):
         Returns the current weights of the model.
 
         Args:
-            extra: Dict with additional information that can be provided by FL system.
+            extra: Dict with additional information that can be provided by the FL system.
 
         Returns:
             return_weights: `ExchangeObject` containing current weights (default)
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
 
@@ -355,12 +626,14 @@ class MonaiAlgo(ClientAlgo):
 
         Args:
             data: `ExchangeObject` containing the current global model weights.
-            extra: Dict with additional information that can be provided by FL system.
+            extra: Dict with additional information that can be provided by the FL system.
 
         Returns:
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
+        self._set_cuda_device()
+
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -397,7 +670,7 @@ class MonaiAlgo(ClientAlgo):
         """
         Abort the training or evaluation.
         Args:
-            extra: Dict with additional information that can be provided by FL system.
+            extra: Dict with additional information that can be provided by the FL system.
         """
         self.logger.info(f"Aborting {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
@@ -411,7 +684,7 @@ class MonaiAlgo(ClientAlgo):
         """
         Finalize the training or evaluation.
         Args:
-            extra: Dict with additional information that can be provided by FL system.
+            extra: Dict with additional information that can be provided by the FL system.
         """
         self.logger.info(f"Terminating {self.client_name} during {self.phase} phase.")
         if isinstance(self.trainer, monai.engines.Trainer):
@@ -420,6 +693,9 @@ class MonaiAlgo(ClientAlgo):
         if isinstance(self.evaluator, monai.engines.Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
+
+        if self.multi_gpu:
+            dist.destroy_process_group()
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
@@ -431,19 +707,7 @@ class MonaiAlgo(ClientAlgo):
                 f"Converted {n_converted} global variables to match {len(local_var_dict)} local variables."
             )
 
-    def _add_config_files(self, config_files):
-        files = []
-        if config_files:
-            if isinstance(config_files, str):
-                files.append(os.path.join(self.bundle_root, config_files))
-            elif isinstance(config_files, list):
-                for file in config_files:
-                    if isinstance(file, str):
-                        files.append(os.path.join(self.bundle_root, file))
-                    else:
-                        raise ValueError(f"Expected config file to be of type str but got {type(file)}: {file}")
-            else:
-                raise ValueError(
-                    f"Expected config files to be of type str or list but got {type(config_files)}: {config_files}"
-                )
-        return files
+    def _set_cuda_device(self):
+        if self.multi_gpu:
+            self.rank = int(os.environ["LOCAL_RANK"])
+            torch.cuda.set_device(self.rank)

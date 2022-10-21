@@ -9,7 +9,7 @@ dependencies:
   - coverage>=5.5
   - parameterized
   - setuptools>=50.3.0,!=60.0.0
-  - ignite==0.4.8
+  - ignite==0.4.10
   - gdown>=4.4.0
   - scipy
   - nibabel

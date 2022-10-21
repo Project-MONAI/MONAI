@@ -29,7 +29,6 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
-        "test_auto3dseg_autorunner",
         "test_auto3dseg_ensemble",
         "test_auto3dseg_hpo",
         "test_auto3dseg",
@@ -63,6 +62,7 @@ def run_testsuit():
         "test_foreground_maskd",
         "test_global_mutual_information_loss",
         "test_grid_patch",
+        "test_gmm",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -106,6 +106,7 @@ def run_testsuit():
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
+        "test_integration_autorunner",
         "test_invert",
         "test_invertd",
         "test_iterable_dataset",

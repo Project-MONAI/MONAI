@@ -48,6 +48,7 @@ class VarAutoEncoder(AutoEncoder):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
+        use_sigmoid: whether to use the sigmoid function on final output. Defaults to True.
 
     Examples::
 
@@ -86,9 +87,11 @@ class VarAutoEncoder(AutoEncoder):
         norm: Union[Tuple, str] = Norm.INSTANCE,
         dropout: Optional[Union[Tuple, str, float]] = None,
         bias: bool = True,
+        use_sigmoid: bool = True,
     ) -> None:
 
         self.in_channels, *self.in_shape = in_shape
+        self.use_sigmoid = use_sigmoid
 
         self.latent_size = latent_size
         self.final_size = np.asarray(self.in_shape, dtype=int)
@@ -148,4 +151,4 @@ class VarAutoEncoder(AutoEncoder):
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
         z = self.reparameterize(mu, logvar)
-        return self.decode_forward(z), mu, logvar, z
+        return self.decode_forward(z, self.use_sigmoid), mu, logvar, z
