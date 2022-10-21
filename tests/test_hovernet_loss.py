@@ -27,6 +27,10 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 s = 10e-8
 t = 1.0 - s
+H = 40
+W = 40
+N = 5
+B = 2
 
 
 class PrepareTestInputs:
@@ -111,22 +115,12 @@ def test_shape_generator(num_classes=1, num_objects=3, batch_size=1, height=5, w
         return n_g, n_p.log(), hv_g, hv_p
 
 
-H = 40
-W = 40
-N = 5
-B = 2
-inputs_test = [PrepareTestInputs(test_shape_generator(height=H, width=W))]
-inputs_test.append(PrepareTestInputs(test_shape_generator(num_classes=N, height=H, width=W)))
-inputs_test.append(PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W)))
-inputs_test.append(
-    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.15))
-)
-inputs_test.append(
-    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.2))
-)
-inputs_test.append(
-    PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.25))
-)
+inputs_test = [PrepareTestInputs(test_shape_generator(height=H, width=W)),
+               PrepareTestInputs(test_shape_generator(num_classes=N, height=H, width=W)),
+               PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W)),
+               PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.15)),
+               PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.2)),
+               PrepareTestInputs(test_shape_generator(num_classes=N, batch_size=B, height=H, width=W, rotation=0.25))]
 
 TEST_CASE_0 = [  # batch size of 1, no type prediction
     {"prediction": inputs_test[0].inputs, "target": inputs_test[0].targets},
