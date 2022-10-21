@@ -19,6 +19,7 @@ import threading
 import time
 import warnings
 from copy import copy, deepcopy
+from multiprocessing.managers import DictProxy, ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
@@ -759,7 +760,7 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker threads to use.
+            num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
                 If a value less than 1 is speficied, 1 will be used instead.
             progress: whether to display a progress bar.
@@ -775,6 +776,8 @@ class CacheDataset(Dataset):
                 the dataset has duplicated items or augmented dataset.
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+                the cache content at initializaiton.
 
         """
         if not isinstance(transform, Compose):
@@ -791,7 +794,7 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self.cache_num = 0
-        self._cache: Union[List, Dict] = []
+        self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self._mp_cache = False
         self._mp_mgr = Manager()
         self.runtime_cache = runtime_cache
@@ -818,7 +821,7 @@ class CacheDataset(Dataset):
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
             cache_ = _compute_cache()
-            self._cache = zip(list(mapping)[: self.cache_num], cache_)
+            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
             self.data = data
         else:
             self.data = data
@@ -831,7 +834,7 @@ class CacheDataset(Dataset):
         if self.hash_as_key:
             self._cache = self._mp_mgr.dict(self._cache) if mp_cache else dict(self._cache)
         else:
-            self._cache = self._mp_mgr.list(self._cache) if mp_cache else list(self._cache)
+            self._cache = self._mp_mgr.list(self._cache) if mp_cache else list(self._cache)  # type:ignore
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -985,6 +988,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
