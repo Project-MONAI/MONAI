@@ -18,7 +18,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.error import ContentTooShortError, HTTPError, URLError
+from urllib.error import HTTPError
 
 import torch
 
