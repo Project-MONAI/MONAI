@@ -77,12 +77,12 @@ jobs:
         rm dist/monai*.tar.gz
         ls -al dist/
 
-    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
-      name: Publish to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.TEST_PYPI }}
-        repository_url: https://test.pypi.org/legacy/
+    # - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+    #   name: Publish to Test PyPI
+    #   uses: pypa/gh-action-pypi-publish@release/v1
+    #   with:
+    #     password: ${{ secrets.TEST_PYPI }}
+    #     repository_url: https://test.pypi.org/legacy/
 
   versioning:
     # compute versioning file from python setup.py
