@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.data.dataset import CacheDataset
 import torch
 from torch.utils.data import DataLoader as _TorchDataLoader
 from torch.utils.data import Dataset
@@ -81,7 +80,8 @@ class DataLoader(_TorchDataLoader):
             init_seed = _g.initial_seed()
             _seed = torch.empty((), dtype=torch.int64).random_(generator=_g).item()
             set_rnd(dataset, int(_seed))
-            # disable multiprocessing caching
+            # disable unnecessary multiprocessing caching
+            from monai.data.dataset import CacheDataset  # avoid circular import
             if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
                 dataset.set_multiprocessing_cache(False)
             _g.manual_seed(init_seed)

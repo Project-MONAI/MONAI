@@ -792,7 +792,11 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self.cache_num = 0
         self._cache: Union[List, Dict] = []
+        self._mp_cache = False
+        self._mp_mgr = Manager()
+        self.runtime_cache = runtime_cache
         self.set_data(data)
+        self.set_multiprocessing_cache(runtime_cache)
 
     def set_data(self, data: Sequence):
         """
@@ -813,14 +817,20 @@ class CacheDataset(Dataset):
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
             cache_ = _compute_cache()
-            self._cache = Manager().dict(zip(list(mapping)[: self.cache_num], cache_))
+            self._cache = zip(list(mapping)[: self.cache_num], cache_)
             self.data = data
         else:
             self.data = data
-            self._cache = Manager().list(_compute_cache())
+            self._cache = _compute_cache()
 
     def set_multiprocessing_cache(self, mp_cache: bool = True):
-        self.mp_cache = mp_cache
+        if self._mp_cache == mp_cache:
+            return
+        self._mp_cache = mp_cache
+        if self.hash_as_key:
+            self._cache = self._mp_mgr.dict(self._cache) if mp_cache else dict(self._cache)
+        else:
+            self._cache = self._mp_mgr.list(self._cache) if mp_cache else list(self._cache)
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
