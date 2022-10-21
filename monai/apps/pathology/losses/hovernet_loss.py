@@ -28,7 +28,7 @@ class HoVerNetLoss(_Loss):
     The HV (Horizontal and Vertical) distance from centroid branch uses MSE + MSE of the gradient.
     The NC (Nuclear Class prediction) branch uses Dice + CrossEntropy
     The result is a weighted sum of these losses.
-    
+
     """
 
     def __init__(
@@ -74,12 +74,12 @@ class HoVerNetLoss(_Loss):
 
     def _mse_gradient_loss(self, prediction: torch.Tensor, target: torch.Tensor, focus: torch.Tensor) -> torch.Tensor:
         # Compute the MSE loss of the gradients of the horizontal and vertical centroid distance maps
-        
+
         pred_grad = self._compute_sobel(prediction)
         true_grad = self._compute_sobel(target)
 
         loss = pred_grad - true_grad
-        
+
         # The focus constrains the loss computation to the detected nuclear regions
         # (i.e. background is excluded)
         focus = focus[:, None, ...]
