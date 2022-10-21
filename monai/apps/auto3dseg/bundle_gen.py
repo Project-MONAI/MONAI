@@ -17,21 +17,65 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from urllib.error import ContentTooShortError, HTTPError, URLError
 
 import torch
 
-from monai.apps import download_and_extract
-from monai.apps.utils import get_logger
+from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
-from monai.utils import ensure_tuple
+from monai.config.type_definitions import PathLike
+from monai.utils import AlgoRetrieval, ensure_tuple
 
 logger = get_logger(module_name=__name__)
 ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "d7bf36c")
 
 __all__ = ["BundleAlgo", "BundleGen"]
+
+
+def _copy_algorithm_templates(source_template_path: PathLike, target_template_path: PathLike) -> None:
+    if not os.path.isdir(source_template_path):
+        raise ValueError(f"{source_template_path} is not a directory.")
+
+    if not os.path.isdir(target_template_path):
+        os.makedirs(target_template_path)
+
+    for algo_name in os.listdir(source_template_path):
+        bundle_root = Path(target_template_path, algo_name).resolve()
+        if os.path.isdir(bundle_root):
+            logger.info(f"cleaning old {bundle_root} folder and creating new copy")
+            shutil.rmtree(bundle_root)
+        shutil.copytree(Path(source_template_path, algo_name).resolve(), bundle_root)
+
+
+def _download_release_templates(url: str, template_path: PathLike) -> None:
+    tmp_dir = Path(torch.hub.get_dir(), "monai_auto3dseg").resolve()
+    if not os.path.isdir(tmp_dir):
+        os.makedirs(tmp_dir)
+    filename = Path(tmp_dir, _basename(url)).resolve()  # the releases filename has a unique hash
+    if not os.path.isfile(filename):
+        download_url(url=url, filepath=filename)
+    algo_dir = Path(tmp_dir, "algorithm_templates").resolve()
+    shutil.rmtree(algo_dir)
+    extractall(filepath=filename, output_dir=tmp_dir)
+    _copy_algorithm_templates(algo_dir, template_path)
+
+
+def _download_dev_templates(url: str, template_path: PathLike) -> None:
+    with TemporaryDirectory() as tmp_dir:
+        filename = Path(tmp_dir, "source_code.zip").resolve()
+        src_dir = Path(tmp_dir, "source_code").resolve()
+        try:
+            download_url(url=url, filepath=filename)
+        except (URLError, HTTPError, ContentTooShortError, OSError) as e:
+            logger.error(f"Download failed from {url} to {template_path}.")
+            raise e
+        extractall(filepath=filename, output_dir=src_dir)
+        repo_version = [name for name in os.listdir(src_dir)][0]
+        algo_dir = Path(src_dir, repo_version, "auto3dseg", "algorithm_templates")
+        _copy_algorithm_templates(algo_dir, template_path)
 
 
 class BundleAlgo(Algo):
@@ -56,7 +100,7 @@ class BundleAlgo(Algo):
 
     """
 
-    def __init__(self, template_path: str):
+    def __init__(self, template_path: PathLike):
         """
         Create an Algo instance based on the predefined Algo template.
 
@@ -65,7 +109,7 @@ class BundleAlgo(Algo):
 
         """
 
-        self.template_path = template_path
+        self.template_path = str(Path(template_path).expanduser())
         self.data_stats_files = ""
         self.data_list_file = ""
         self.output_path = ""
@@ -128,7 +172,8 @@ class BundleAlgo(Algo):
             os.makedirs(self.output_path, exist_ok=True)
             if os.path.isdir(self.output_path):
                 shutil.rmtree(self.output_path)
-            shutil.copytree(self.template_path, self.output_path)
+            template_bundle_root = Path(self.template_path, self.name)
+            shutil.copytree(template_bundle_root, self.output_path)
         else:
             self.output_path = self.template_path
         if kwargs.pop("fill_template", True):
@@ -277,17 +322,9 @@ class BundleAlgo(Algo):
 
 
 # path to download the algo_templates
-default_algo_zip = (
+RELEASE_ALGO = (
     f"https://github.com/Project-MONAI/research-contributions/releases/download/algo_templates/{ALGO_HASH}.tar.gz"
 )
-
-# default algorithms
-default_algos = {
-    "segresnet2d": dict(_target_="segresnet2d.scripts.algo.Segresnet2dAlgo", template_path="segresnet2d"),
-    "dints": dict(_target_="dints.scripts.algo.DintsAlgo", template_path="dints"),
-    "swinunetr": dict(_target_="swinunetr.scripts.algo.SwinunetrAlgo", template_path="swinunetr"),
-    "segresnet": dict(_target_="segresnet.scripts.algo.SegresnetAlgo", template_path="segresnet"),
-}
 
 
 class BundleGen(AlgoGen):
@@ -296,10 +333,18 @@ class BundleGen(AlgoGen):
 
     Args:
         algo_path: the directory path to save the algorithm templates. Default is the current working dir.
-        algos: if dictionary, it outlines the algorithm to use. if None, automatically download the zip file
-            from the default link. if string, it represents the download link.
-            The current default options are released at:
-            https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg
+        algos: a dictionary containing the algorithm to use. if None, the released algorith templates will be
+            automatically retrieved remotely or locally.
+        algo_retrival_methods: the method to retrieve the algorithm templates. There are three methods:
+            AlgoRetrieval.REL will use the released templates from the site:
+            https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg.
+            AlgoRetrieval.DEV is will use automatically download algorithm templates from a given Github repo.
+            AlgoRetrieval.LOCAL will copy algorithm templates from local directory.
+            User can also provide multiple methods, e.g. [AlgoRetrieval.REL, AlgoRetrieval.LOCAL] to download the
+            released templates and local customized code. If the folder names are the same, the latter methods in
+            the list will override the folder contents generated by the former ones.
+        algo_urls_or_dirs: the url to download zip file from Github repository or the folder path to copy from
+            local system. It also supports multiple value e.g. a list object.
         data_stats_filename: the path to the data stats file (generated by DataAnalyzer)
         data_src_cfg_name: the path to the data source config YAML file. The config will be in a form of
             {"modality": "ct", "datalist": "path_to_json_datalist", "dataroot": "path_dir_data"}
@@ -309,20 +354,40 @@ class BundleGen(AlgoGen):
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/data_stats.yaml"
     """
 
-    def __init__(self, algo_path: str = ".", algos=None, data_stats_filename=None, data_src_cfg_name=None):
+    def __init__(
+        self,
+        algo_path: str = ".",
+        algos: Optional[dict] = None,
+        algo_retrival_methods: Union[Sequence[AlgoRetrieval], AlgoRetrieval] = AlgoRetrieval.REL,
+        algo_urls_or_dirs: Optional[Union[Sequence[str], str]] = AlgoRetrieval.REPO_URL,
+        data_stats_filename=None,
+        data_src_cfg_name=None,
+    ):
         self.algos: Any = []
 
-        if algos is None or isinstance(algos, str):
-            # trigger the download process
-            zip_download_dir = TemporaryDirectory()
-            algo_compressed_file = os.path.join(zip_download_dir.name, "algo_templates.tar.gz")
-            download_and_extract(default_algo_zip if algos is None else algos, algo_compressed_file, algo_path)
-            zip_download_dir.cleanup()
-            sys.path.insert(0, os.path.join(algo_path, "algorithm_templates"))
-            algos = deepcopy(default_algos)
-            for name in algos:
-                algos[name]["template_path"] = os.path.join(
-                    algo_path, "algorithm_templates", algos[name]["template_path"]
+        if not algos:
+            # trigger the download or copy process
+            algos = {}
+            template_path = os.path.join(algo_path, "algorithm_templates")
+            for (method, url_or_dir) in zip(ensure_tuple(algo_retrival_methods), ensure_tuple(algo_urls_or_dirs)):
+                if method is AlgoRetrieval.REL:
+                    _download_release_templates(RELEASE_ALGO, template_path)
+                elif method is AlgoRetrieval.DEV:
+                    _download_dev_templates(url_or_dir, template_path)
+                elif method is AlgoRetrieval.LOCAL:
+                    _copy_algorithm_templates(url_or_dir, template_path)
+                else:
+                    raise ValueError(f"{self.__class__} receives invalid algo_retrival_methods arguments")
+
+            sys.path.insert(0, template_path)
+            for name in os.listdir(template_path):
+                algos.update(
+                    {
+                        name: dict(
+                            _target_=name + ".scripts.algo." + name[0].upper() + name[1:] + "Algo",
+                            template_path=template_path,
+                        )
+                    }
                 )
 
         if isinstance(algos, dict):
@@ -401,5 +466,5 @@ class BundleGen(AlgoGen):
                 gen_algo.set_data_source(data_src_cfg)
                 name = f"{gen_algo.name}_{f_id}"
                 gen_algo.export_to_disk(output_folder, name, fold=f_id)
-                algo_to_pickle(gen_algo, template_path=algo.template_path)
+                algo_to_pickle(gen_algo, template_path=str(Path(algo.template_path).as_posix()))  # unix and win32
                 self.history.append({name: gen_algo})  # track the previous, may create a persistent history

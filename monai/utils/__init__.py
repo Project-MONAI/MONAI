@@ -15,12 +15,15 @@ from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg
 from .dist import evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
+    AlgoEnsembleKeys,
+    AlgoRetrieval,
     Average,
     BlendMode,
     BoxModeName,
     ChannelMatching,
     ColorOrder,
     CommonKeys,
+    DataStatsKeys,
     DiceCEReduction,
     EngineStatsKeys,
     FastMRIKeys,
@@ -31,9 +34,11 @@ from .enums import (
     GridSamplePadMode,
     HoVerNetBranch,
     HoVerNetMode,
+    ImageStatsKeys,
     InterpolateMode,
     InverseKeys,
     JITMetadataKeys,
+    LabelStatsKeys,
     LossReduction,
     MetaKeys,
     Method,

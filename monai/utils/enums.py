@@ -54,6 +54,7 @@ __all__ = [
     "AlgoEnsembleKeys",
     "HoVerNetMode",
     "HoVerNetBranch",
+    "AlgoRetrieval",
 ]
 
 
@@ -617,3 +618,14 @@ class HoVerNetBranch(StrEnum):
     HV = "horizontal_vertical"
     NP = "nucleus_prediction"
     NC = "type_prediction"
+
+
+class AlgoRetrieval(StrEnum):
+    """
+    Method to retrieve the algorithms templates
+    """
+
+    REL = "release"
+    DEV = "dev"
+    LOCAL = "local"
+    REPO_URL = "https://github.com/Project-MONAI/research-contributions/zipball/main"

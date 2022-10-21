@@ -23,6 +23,7 @@ import torch
 from monai.auto3dseg import Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import ID_SEP_KEY
+from monai.config.type_definitions import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
 from monai.utils import min_version, optional_import
@@ -294,7 +295,7 @@ def algo_to_pickle(algo: Algo, **algo_meta_data) -> str:
     return pkl_filename
 
 
-def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
+def algo_from_pickle(pkl_filename: PathLike, **kwargs) -> Any:
     """
     Import the Algo object from a pickle file
 
@@ -333,17 +334,26 @@ def algo_from_pickle(pkl_filename: str, **kwargs) -> Any:
 
         if not os.path.isdir(template_path):
             raise ValueError(f"Algorithm templates {template_path} is not a directory")
-        # Example of template path: "algorithm_templates/dints".
-        sys.path.insert(0, os.path.abspath(os.path.join(template_path, "..")))
-        algo_meta_data.update({"template_path": template_path})
 
-    algo = pickle.loads(algo_bytes)
+        try:
+            sys.path.append(template_path)
+            algo = pickle.loads(algo_bytes)
+        except ModuleNotFoundError:
+            sys.path.pop()  # undo
+            template_path_old = template_path
+            template_path = os.path.abspath(os.path.join(template_path, ".."))
+            sys.path.append(template_path)  # older version support
+            warnings.warn(
+                f"The template_path {template_path_old} was automatically fixed and replaced by {template_path}"
+            )
+            algo = pickle.loads(algo_bytes)
+
+        algo_meta_data.update({"template_path": template_path})
+    else:
+        algo = pickle.loads(algo_bytes)
+
     pkl_dir = os.path.dirname(pkl_filename)
     if pkl_dir != algo.get_output_path():
-        warnings.warn(
-            f"{algo.get_output_path()} does not contain {pkl_filename}."
-            f"Now override the Algo output_path with: {pkl_dir}"
-        )
         algo.output_path = pkl_dir
 
     for k, v in data.items():
