@@ -64,7 +64,8 @@ def _download_release_templates(url: str, template_path: PathLike) -> None:
     if not os.path.isfile(filename):
         download_url(url=url, filepath=filename)
     algo_dir = Path(tmp_dir, "algorithm_templates").resolve()
-    shutil.rmtree(algo_dir)
+    if os.path.isdir(algo_dir):
+        shutil.rmtree(algo_dir)
     extractall(filepath=filename, output_dir=tmp_dir)
     _copy_algorithm_templates(algo_dir, template_path)
     if not has_home:
