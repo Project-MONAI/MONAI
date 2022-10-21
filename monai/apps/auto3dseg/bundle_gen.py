@@ -27,12 +27,14 @@ from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle.config_parser import ConfigParser
 from monai.config.type_definitions import PathLike
-from monai.utils import AlgoRetrieval, ensure_tuple
+from monai.utils import AlgoRetrieval, ensure_tuple, optional_import
 
 logger = get_logger(module_name=__name__)
 ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "d7bf36c")
 
 __all__ = ["BundleAlgo", "BundleGen"]
+
+get_dir, has_home = optional_import("torch.hub", name="get_dir")
 
 
 def _copy_algorithm_templates(source_template_path: PathLike, target_template_path: PathLike) -> None:
@@ -51,7 +53,11 @@ def _copy_algorithm_templates(source_template_path: PathLike, target_template_pa
 
 
 def _download_release_templates(url: str, template_path: PathLike) -> None:
-    tmp_dir = Path(torch.hub.get_dir(), "monai_auto3dseg").resolve()
+    if has_home:
+        tmp_dir = Path(torch.hub.get_dir(), "monai_auto3dseg").resolve()
+    else:
+        tmp_dir_handler = TemporaryDirectory()
+        tmp_dir = tmp_dir_handler.name
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir)
     filename = Path(tmp_dir, _basename(url)).resolve()  # the releases filename has a unique hash
@@ -61,6 +67,8 @@ def _download_release_templates(url: str, template_path: PathLike) -> None:
     shutil.rmtree(algo_dir)
     extractall(filepath=filename, output_dir=tmp_dir)
     _copy_algorithm_templates(algo_dir, template_path)
+    if not has_home:
+        tmp_dir_handler.cleanup()
 
 
 def _download_dev_templates(url: str, template_path: PathLike) -> None:
