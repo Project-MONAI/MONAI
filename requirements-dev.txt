@@ -3,7 +3,7 @@
 pytorch-ignite==0.4.10
 gdown>=4.4.0
 scipy
-itk>=5.2
+itk>=5.2; python_version < "3.10"
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
 tensorboard
