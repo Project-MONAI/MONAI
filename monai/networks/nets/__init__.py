@@ -38,10 +38,11 @@ from .efficientnet import (
     EfficientNet,
     EfficientNetBN,
     EfficientNetBNFeatures,
+    EfficientNetEncoder,
     drop_connect,
     get_efficientnet_image_size,
 )
-from .flexible_unet import FlexibleUNet
+from .flexible_unet import FLEXUNET_BACKBONE, FlexibleUNet, FlexUNet, FlexUNetEncoderRegister
 from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
@@ -50,7 +51,18 @@ from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
-from .resnet import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from .resnet import (
+    ResNet,
+    ResNetBlock,
+    ResNetBottleneck,
+    resnet10,
+    resnet18,
+    resnet34,
+    resnet50,
+    resnet101,
+    resnet152,
+    resnet200,
+)
 from .segresnet import SegResNet, SegResNetVAE
 from .segresnet_ds import SegResNetDS
 from .senet import (
