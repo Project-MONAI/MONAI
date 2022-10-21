@@ -29,6 +29,17 @@ class HoVerNetLoss(_Loss):
     The NC (Nuclear Class prediction) branch uses Dice + CrossEntropy
     The result is a weighted sum of these losses.
 
+    Args:
+        lambda_hv_mse: Weight factor to apply to the HV regression MSE part of the overall loss
+        lambda_hv_mse_grad: Weight factor to apply to the MSE of the HV gradient part of the overall loss
+        lambda_np_ce: Weight factor to apply to the nuclei prediction CrossEntropyLoss part
+            of the overall loss
+        lambda_np_dice: Weight factor to apply to the nuclei prediction DiceLoss part of overall loss
+        lambda_nc_ce: Weight factor to apply to the nuclei class prediction CrossEntropyLoss part
+            of the overall loss
+        lambda_nc_dice: Weight factor to apply to the nuclei class prediction DiceLoss part of the
+            overall loss
+
     """
 
     def __init__(
@@ -40,18 +51,6 @@ class HoVerNetLoss(_Loss):
         lambda_nc_ce: float = 1.0,
         lambda_nc_dice: float = 1.0,
     ) -> None:
-        """
-        Args:
-            lambda_hv_mse: Weight factor to apply to the HV regression MSE part of the overall loss
-            lambda_hv_mse_grad: Weight factor to apply to the MSE of the HV gradient part of the overall loss
-            lambda_np_ce: Weight factor to apply to the nuclei prediction CrossEntropyLoss part
-                of the overall loss
-            lambda_np_dice: Weight factor to apply to the nuclei prediction DiceLoss part of overall loss
-            lambda_nc_ce: Weight factor to apply to the nuclei class prediction CrossEntropyLoss part
-                of the overall loss
-            lambda_nc_dice: Weight factor to apply to the nuclei class prediction DiceLoss part of the
-                overall loss
-        """
         self.lambda_hv_mse = lambda_hv_mse
         self.lambda_hv_mse_grad = lambda_hv_mse_grad
         self.lambda_np_ce = lambda_np_ce
