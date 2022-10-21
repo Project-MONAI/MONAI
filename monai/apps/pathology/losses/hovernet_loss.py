@@ -72,7 +72,7 @@ class HoVerNetLoss(_Loss):
         return torch.cat([result_h[:, None, ...], result_v[:, None, ...]], dim=1)
 
     def _mse_gradient_loss(self, prediction: torch.Tensor, target: torch.Tensor, focus: torch.Tensor) -> torch.Tensor:
-        # Compute the MSE loss of the gradients of the horizontal and vertical centroid distance maps
+        """Compute the MSE loss of the gradients of the horizontal and vertical centroid distance maps"""
 
         pred_grad = self._compute_sobel(prediction)
         true_grad = self._compute_sobel(target)
