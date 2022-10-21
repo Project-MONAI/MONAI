@@ -82,6 +82,7 @@ class DataLoader(_TorchDataLoader):
             set_rnd(dataset, int(_seed))
             # disable unnecessary multiprocessing caching
             from monai.data.dataset import CacheDataset  # avoid circular import
+
             if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
                 dataset.set_multiprocessing_cache(False)
             _g.manual_seed(init_seed)

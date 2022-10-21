@@ -258,9 +258,7 @@ class IntegrationSegmentation3D(DistTestCase):
             _readers = ("itkreader", "itkreader")
         elif idx == 2:
             _readers = ("itkreader", "nibabelreader")
-        losses, best_metric = run_training_test(
-            self.data_dir, device=self.device, cachedataset=idx, readers=_readers
-        )
+        losses, best_metric = run_training_test(self.data_dir, device=self.device, cachedataset=idx, readers=_readers)
         infer_metric = run_inference_test(self.data_dir, device=self.device)
 
         # check training properties
