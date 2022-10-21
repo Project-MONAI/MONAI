@@ -122,9 +122,7 @@ class HoVerNetLoss(_Loss):
         dice_loss_np = (
             self.dice(prediction[HoVerNetBranch.NP.value], target[HoVerNetBranch.NP.value]) * self.lambda_np_dice
         )
-        ce_loss_np = (
-            self.ce(prediction[HoVerNetBranch.NP.value], target[HoVerNetBranch.NP.value]) * self.lambda_np_ce
-        )
+        ce_loss_np = self.ce(prediction[HoVerNetBranch.NP.value], target[HoVerNetBranch.NP.value]) * self.lambda_np_ce
         loss_np = dice_loss_np + ce_loss_np
 
         # Compute the HV branch loss
