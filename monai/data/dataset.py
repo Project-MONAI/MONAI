@@ -810,7 +810,8 @@ class CacheDataset(Dataset):
 
         def _compute_cache():
             self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
-            return self._fill_cache()
+            # if runtime cache, lazy to compute
+            return [None for i in range(self.cache_num)] if self.runtime_cache else self._fill_cache()
 
         if self.hash_as_key:
             # only compute cache for the unique items of dataset
@@ -880,6 +881,10 @@ class CacheDataset(Dataset):
         if self._cache is None:
             self._cache = self._fill_cache()
         data = self._cache[index_]
+        # runtime cache computation
+        if data is None:
+            data = self._cache[index_] = self._load_cache_item(index)
+
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
