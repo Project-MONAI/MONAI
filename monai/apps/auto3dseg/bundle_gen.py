@@ -67,11 +67,12 @@ def _download_dev_templates(url: str, template_path: PathLike) -> None:
     with TemporaryDirectory() as tmp_dir:
         filename = Path(tmp_dir, "source_code.zip").resolve()
         src_dir = Path(tmp_dir, "source_code").resolve()
+        # try a second time in case Github blocks concurrent downloading from the same IP
         try:
             download_url(url=url, filepath=filename)
-        except (URLError, HTTPError, ContentTooShortError, OSError) as e:
-            logger.error(f"Download failed from {url} to {template_path}.")
-            raise e
+        except HTTPError:
+            logger.info(f"Download failed from {url}. Attempting to download again")
+            download_url(url=url, filepath=filename)
         extractall(filepath=filename, output_dir=src_dir)
         repo_version = [name for name in os.listdir(src_dir)][0]
         algo_dir = Path(src_dir, repo_version, "auto3dseg", "algorithm_templates")
