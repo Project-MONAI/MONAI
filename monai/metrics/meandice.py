@@ -13,7 +13,9 @@ from typing import Union
 
 import torch
 
+from monai.config import TensorOrList
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.networks.utils import one_hot
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -36,6 +38,13 @@ class DiceMetric(CumulativeIterationMetric):
     Args:
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        sigmoid: if True, assumes the y_pred matches the output of DiceLoss function (with sigmoid=True),
+                in which case the torch.sigmoid will be used to compute class membership followed by thresholding.
+                Defaults to False.
+        softmax: if True, assumes the y_pred matches the output of DiceLoss function (with softmax=True),
+                in which case the torch.argmax will be used to compute class membership followed by one hot encoding.
+                Defaults to False.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
@@ -50,15 +59,51 @@ class DiceMetric(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
+        simple: bool = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.to_onehot_y = to_onehot_y
+        self.sigmoid = sigmoid
+        self.softmax = softmax
+        self.simple = simple
+
+    def __call__(self, y_pred: TensorOrList, y: TensorOrList):
+        """
+        Calculates the value of Dice, if self.simple==True, simply computes the
+        Dice value after reduction and returns is.
+
+        Otherwise, follows the historical variant that accumulates metric into buffers,
+        and does not return the reduced representation. One would need to call .aggregate()
+        separately to return the reduced representation. Furthermore if calling this method several
+        times, one need to call .reset() before .aggregate().
+        .aggregate() creates syncronization between buffers (in multi gpu), which can be slow or lead to deadlock
+        if each process have different logic.
+
+        """
+
+        if self.simple:
+
+            if isinstance(y_pred, (list, tuple)):
+                y_pred = y_pred[0]
+            if isinstance(y, (list, tuple)):
+                y = y[0]
+
+            data = self._compute_tensor(y_pred=y_pred, y=y)
+
+            f, not_nans = do_metric_reduction(data, self.reduction)
+            return (f, not_nans) if self.get_not_nans else f
+
+        return super().__call__(y_pred=y_pred, y=y)
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
@@ -70,18 +115,25 @@ class DiceMetric(CumulativeIterationMetric):
                 The values should be binarized.
 
         Raises:
-            ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
 
-        dims = y_pred.ndimension()
-        if dims < 3:
-            raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
+        if not self.softmax and not self.sigmoid:
+            is_binary_tensor(y_pred, "y_pred")
+            is_binary_tensor(y, "y")
+
+        if y_pred.dim() < 3:
+            raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {y_pred.dim()}.")
+
         # compute dice (BxC) for each channel for each batch
         return compute_meandice(
-            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            to_onehot_y=self.to_onehot_y,
+            sigmoid=self.sigmoid,
+            softmax=self.softmax,
+            ignore_empty=self.ignore_empty,
         )
 
     def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
@@ -104,7 +156,13 @@ class DiceMetric(CumulativeIterationMetric):
 
 
 def compute_meandice(
-    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    to_onehot_y: bool = False,
+    sigmoid: bool = False,
+    softmax: bool = False,
+    ignore_empty: bool = True,
 ) -> torch.Tensor:
     """Computes Dice score metric from full size Tensor and collects average.
 
@@ -116,6 +174,13 @@ def compute_meandice(
             The values should be binarized.
         include_background: whether to skip Dice computation on the first channel of
             the predicted output. Defaults to True.
+        to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+        sigmoid: if True, assumes the y_pred matches the output of DiceLoss function (with sigmoid=True),
+                in which case the torch.sigmoid will be used to compute class membership followed by thresholding.
+                Defaults to False.
+        softmax: if True, assumes the y_pred matches the output of DiceLoss function (with softmax=True),
+                in which case the torch.argmax will be used to compute class membership followed by one hot encoding.
+                Defaults to False.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
@@ -127,6 +192,18 @@ def compute_meandice(
         ValueError: when `y_pred` and `y` have different shapes.
 
     """
+
+    n_pred_ch = y_pred.shape[1]
+
+    if softmax:
+        if n_pred_ch > 1:
+            y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
+            y_pred = one_hot(y_pred, num_classes=n_pred_ch, dim=1)
+    elif sigmoid:
+        y_pred = (torch.sigmoid(y_pred) > 0.5).float()
+
+    if to_onehot_y and n_pred_ch > 1 and y.shape[1] == 1:
+        y = one_hot(y, num_classes=n_pred_ch, dim=1)
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
@@ -149,3 +226,43 @@ def compute_meandice(
     if ignore_empty is True:
         return torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
     return torch.where(denominator > 0, (2.0 * intersection) / denominator, torch.tensor(1.0, device=y_o.device))
+
+
+class DiceMetricSimple:
+    """
+    An example of Dice value calculation is simple way (without convoluted logic)
+    """
+
+    def __init__(
+        self,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+        ignore_empty: bool = True,
+    ) -> None:
+        super().__init__()
+        self.include_background = include_background
+        self.reduction = reduction
+        self.get_not_nans = get_not_nans
+        self.ignore_empty = ignore_empty
+        self.to_onehot_y = to_onehot_y
+        self.sigmoid = sigmoid
+        self.softmax = softmax
+
+    def __call__(self, y_pred: torch.Tensor, y: torch.Tensor):
+
+        data = compute_meandice(
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            to_onehot_y=self.to_onehot_y,
+            sigmoid=self.sigmoid,
+            softmax=self.softmax,
+            ignore_empty=self.ignore_empty,
+        )
+
+        f, not_nans = do_metric_reduction(data, self.reduction)
+        return (f, not_nans) if self.get_not_nans else f
