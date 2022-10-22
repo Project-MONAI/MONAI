@@ -54,7 +54,7 @@ def _copy_algorithm_templates(source_template_path: PathLike, target_template_pa
 
 def _download_release_templates(url: str, template_path: PathLike) -> None:
     if has_home:
-        tmp_dir = Path(torch.hub.get_dir(), "monai_auto3dseg").resolve()
+        tmp_dir = Path(get_dir(), "monai_auto3dseg").resolve()
     else:
         tmp_dir_handler = TemporaryDirectory()
         tmp_dir = Path(tmp_dir_handler.name)
