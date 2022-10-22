@@ -796,7 +796,6 @@ class CacheDataset(Dataset):
         self.cache_num = 0
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self._mp_cache = False
-        self._mp_mgr = Manager()
         self.runtime_cache = runtime_cache
         self.set_data(data)
         self.set_multiprocessing_cache(runtime_cache)
@@ -832,9 +831,9 @@ class CacheDataset(Dataset):
             return
         self._mp_cache = mp_cache
         if self.hash_as_key:
-            self._cache = self._mp_mgr.dict(self._cache) if mp_cache else dict(self._cache)
+            self._cache = Manager().dict(self._cache) if mp_cache else dict(self._cache)
         else:
-            self._cache = self._mp_mgr.list(self._cache) if mp_cache else list(self._cache)  # type:ignore
+            self._cache = Manager().list(self._cache) if mp_cache else list(self._cache)  # type:ignore
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
