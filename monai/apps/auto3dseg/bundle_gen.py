@@ -57,7 +57,7 @@ def _download_release_templates(url: str, template_path: PathLike) -> None:
         tmp_dir = Path(torch.hub.get_dir(), "monai_auto3dseg").resolve()
     else:
         tmp_dir_handler = TemporaryDirectory()
-        tmp_dir = tmp_dir_handler.name
+        tmp_dir = Path(tmp_dir_handler.name)
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir)
     filename = Path(tmp_dir, _basename(url)).resolve()  # the releases filename has a unique hash
