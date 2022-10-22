@@ -795,7 +795,6 @@ class CacheDataset(Dataset):
             self.num_workers = max(int(self.num_workers), 1)
         self.cache_num = 0
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
-        self._mp_cache = False
         self.runtime_cache = runtime_cache
         self.set_data(data)
         self.set_multiprocessing_cache(runtime_cache)
@@ -827,9 +826,6 @@ class CacheDataset(Dataset):
             self._cache = _compute_cache()
 
     def set_multiprocessing_cache(self, mp_cache: bool = True):
-        if self._mp_cache == mp_cache:
-            return
-        self._mp_cache = mp_cache
         if self.hash_as_key:
             self._cache = Manager().dict(self._cache) if mp_cache else dict(self._cache)
         else:
