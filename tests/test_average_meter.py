@@ -87,6 +87,7 @@ def main_worker(rank, nprocs):
     if dist.is_initialized():
         dist.destroy_process_group()
 
+
 @SkipIfBeforePyTorchVersion((1, 8))
 class TestDDP(unittest.TestCase):
     def test_ddp_ops(self):
