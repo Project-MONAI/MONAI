@@ -17,8 +17,7 @@ import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.metrics import AverageMeter
-
-# from tests.utils import assert_allclose
+from tests.utils import SkipIfBeforePyTorchVersion
 
 # single class value
 TEST_CASE_1 = []
@@ -88,7 +87,7 @@ def main_worker(rank, nprocs):
     if dist.is_initialized():
         dist.destroy_process_group()
 
-
+@SkipIfBeforePyTorchVersion((1, 8))
 class TestDDP(unittest.TestCase):
     def test_ddp_ops(self):
         if torch.cuda.is_available() and torch.cuda.device_count() > 1:
