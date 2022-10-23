@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any, Union
+
 import torch
 import torch.distributed as dist
+from numpy.typing import NDArray
 
 
 class CumulativeAverage:
@@ -57,7 +60,7 @@ class CumulativeAverage:
 
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset all the running status
 
@@ -66,14 +69,11 @@ class CumulativeAverage:
         self.sum: torch.Tensor = 0
         self.count: torch.Tensor = 0
 
-    def proper_tensor(self, x) -> torch.Tensor:
+    def proper_tensor(self, a: Any) -> torch.Tensor:
         """
         Ensure torch.Tensor float format and optionally copy to the proper gpu device
         """
-        if isinstance(x, torch.Tensor):
-            x = x.detach()
-        else:
-            x = torch.tensor(x)
+        x: torch.Tensor = a.detach() if isinstance(a, torch.Tensor) else torch.tensor(a)
 
         if self.device is not None:
             x = x.to(device=self.device, dtype=torch.float)
@@ -95,7 +95,7 @@ class CumulativeAverage:
 
         return x
 
-    def get_current(self, np: bool = True):
+    def get_current(self, np: bool = True) -> Union[NDArray, torch.Tensor]:
         """
         return most recent value (averaged across processes)
         """
@@ -104,7 +104,7 @@ class CumulativeAverage:
             x = x.cpu().numpy()
         return x
 
-    def aggregate(self, np: bool = True):
+    def aggregate(self, np: bool = True) -> Union[NDArray, torch.Tensor]:
         """
         return total average value (averaged across processes)
 
@@ -117,7 +117,7 @@ class CumulativeAverage:
             x = x.cpu().numpy()
         return x
 
-    def append(self, val, count=1) -> None:
+    def append(self, val: Any, count: Any = 1) -> None:
         """
         Append with a new value, and an optional count
 
@@ -127,28 +127,28 @@ class CumulativeAverage:
 
         For example:
             # a simple constant tracking
-            avg_meter= AverageMeter()
-            avg_meter.append(0.6)
-            avg_meter.append(0.8)
-            print(avg_meter.aggregate()) #prints 0.7
+            avg = CumulativeAverage()
+            avg.append(0.6)
+            avg.append(0.8)
+            print(avg.aggregate()) #prints 0.7
 
             # an array tracking, e.g. metrics from 3 classes
-            avg_meter= AverageMeter()
-            avg_meter.append([0.2, 0.4, 0.4])
-            avg_meter.append([0.4, 0.6, 0.4])
-            print(avg_meter.aggregate()) #prints [0.3, 0.5. 0.4]
+            avg= CumulativeAverage()
+            avg.append([0.2, 0.4, 0.4])
+            avg.append([0.4, 0.6, 0.4])
+            print(avg.aggregate()) #prints [0.3, 0.5. 0.4]
 
             # different contributions / counts
-            avg_meter= AverageMeter()
-            avg_meter.append(1, count=4) #avg metric 1 coming from a batch of 4
-            avg_meter.append(2, count=6) #avg metric 2 coming from a batch of 6
-            print(avg_meter.aggregate()) #prints 1.6 == (1*4 +2*6)/(4+6)
+            avg= CumulativeAverage()
+            avg.append(1, count=4) #avg metric 1 coming from a batch of 4
+            avg.append(2, count=6) #avg metric 2 coming from a batch of 6
+            print(avg.aggregate()) #prints 1.6 == (1*4 +2*6)/(4+6)
 
             # different contributions / counts
-            avg_meter= AverageMeter()
-            avg_meter.append([0.5, 0.5, 0], count=[1, 1, 0]) # last elements count is zero to ignore it
-            avg_meter.append([0.5, 0.5, 0.5], count=[1, 1, 1]) #
-            print(avg_meter.aggregate()) #prints [0.5, 0.5, 0,5] == ([0.5, 0.5, 0] + [0.5, 0.5, 0.5]) / ([1, 1, 0] + [1, 1, 1])
+            avg= CumulativeAverage()
+            avg.append([0.5, 0.5, 0], count=[1, 1, 0]) # last elements count is zero to ignore it
+            avg.append([0.5, 0.5, 0.5], count=[1, 1, 1]) #
+            print(avg.aggregate()) #prints [0.5, 0.5, 0,5] == ([0.5, 0.5, 0] + [0.5, 0.5, 0.5]) / ([1, 1, 0] + [1, 1, 1])
 
         """
 
