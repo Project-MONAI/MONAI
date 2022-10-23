@@ -22,8 +22,6 @@ from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["RegressionMetric", "MAEMetric", "MSEMetric", "PSNRMetric", "RMSEMetric", "SSIMMetric"]
-
 
 class RegressionMetric(CumulativeIterationMetric):
     """

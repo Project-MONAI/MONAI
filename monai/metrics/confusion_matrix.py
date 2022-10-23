@@ -19,8 +19,6 @@ from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["ConfusionMatrixMetric", "compute_confusion_matrix_metric", "get_confusion_matrix"]
-
 
 class ConfusionMatrixMetric(CumulativeIterationMetric):
     """

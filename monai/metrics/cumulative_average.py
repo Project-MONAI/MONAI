@@ -16,8 +16,6 @@ from monai.utils import convert_data_type
 
 from .metric import Cumulative
 
-__all__ = ["CumulativeAverage"]
-
 
 class CumulativeAverage(Cumulative):
     """

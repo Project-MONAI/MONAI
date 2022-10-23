@@ -18,8 +18,6 @@ from monai.utils import MetricReduction, deprecated
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["MeanIoU", "compute_meaniou", "compute_iou"]
-
 
 class MeanIoU(CumulativeIterationMetric):
     """

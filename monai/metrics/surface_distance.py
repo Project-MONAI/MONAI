@@ -26,8 +26,6 @@ from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["SurfaceDistanceMetric", "compute_average_surface_distance"]
-
 
 class SurfaceDistanceMetric(CumulativeIterationMetric):
     """

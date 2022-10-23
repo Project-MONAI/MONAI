@@ -18,8 +18,6 @@ from monai.utils import MetricReduction, deprecated
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["DiceMetric", "compute_meandice", "compute_dice"]
-
 
 class DiceMetric(CumulativeIterationMetric):
     """

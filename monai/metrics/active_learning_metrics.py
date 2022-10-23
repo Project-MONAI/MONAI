@@ -19,8 +19,6 @@ from monai.utils import MetricReduction
 
 from .metric import Metric
 
-__all__ = ["VarianceMetric", "LabelQualityScore", "compute_variance", "label_quality_score"]
-
 
 class VarianceMetric(Metric):
     """

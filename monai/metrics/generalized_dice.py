@@ -19,8 +19,6 @@ from monai.utils import MetricReduction, Weight, look_up_option
 from .metric import CumulativeIterationMetric
 from .utils import is_binary_tensor
 
-__all__ = ["GeneralizedDiceScore", "compute_generalized_dice"]
-
 
 class GeneralizedDiceScore(CumulativeIterationMetric):
     """Compute the Generalized Dice Score metric between tensors, as the complement of the Generalized Dice Loss defined in:

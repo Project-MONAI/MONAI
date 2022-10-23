@@ -19,8 +19,6 @@ from monai.utils import Average, look_up_option
 
 from .metric import CumulativeIterationMetric
 
-__all__ = ["ROCAUCMetric", "compute_roc_auc"]
-
 
 class ROCAUCMetric(CumulativeIterationMetric):
     """
