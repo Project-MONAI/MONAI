@@ -65,9 +65,9 @@ class CumulativeAverage:
         Reset all the running status
 
         """
-        self.val: torch.Tensor = 0
-        self.sum: torch.Tensor = 0
-        self.count: torch.Tensor = 0
+        self.val: torch.Tensor = 0  # type: ignore
+        self.sum: torch.Tensor = 0  # type: ignore
+        self.count: torch.Tensor = 0  # type: ignore
 
     def proper_tensor(self, a: Any) -> torch.Tensor:
         """
