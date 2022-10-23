@@ -151,9 +151,10 @@ class AverageMeter:
         if torch.any(nfin):
             # non-finite numbers may indicate some errors in the user code
             print("non-finite numbers received", val, count)
-            val = torch.where(nfin, 0, val)
-            count = torch.where(nfin, 0, count)
-            val_count = torch.where(nfin, 0, val_count)
+            zero = torch.tensor(0).to(val)
+            val = torch.where(nfin, zero, val)
+            count = torch.where(nfin, zero, count)
+            val_count = torch.where(nfin, zero, val_count)
 
         self.val = val
         self.count += count
