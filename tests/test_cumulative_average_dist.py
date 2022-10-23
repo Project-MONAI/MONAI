@@ -11,36 +11,30 @@
 
 import unittest
 
-import torch
+import numpy as np
 import torch.distributed as dist
 
 from monai.metrics import CumulativeAverage
-from tests.utils import DistCall, DistTestCase, assert_allclose
+from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
 
+@SkipIfBeforePyTorchVersion((1, 8))
 class DistributedCumulativeAverage(DistTestCase):
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_value(self):
-        rank = dist.get_rank()
-        input_data = [
-            [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[0.3]])],
-            [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[float("nan")]])],
-            [torch.as_tensor([[0.1, 0.2]]), torch.as_tensor([[0.2, 0.3]]), torch.as_tensor([[0.3, 0.4]])],
-            [torch.as_tensor(0.1), torch.as_tensor(0.2), torch.as_tensor(0.3)],
-        ]
-        expected = [torch.as_tensor([0.2]), torch.as_tensor([0.15]), torch.as_tensor([0.2, 0.3]), torch.as_tensor(0.2)]
-        average = CumulativeAverage()
 
-        for i, e in zip(input_data, expected):
-            func = average.append if i[0].ndim < 2 else average.extend
-            if rank == 0:
-                func(i[0])
-                func(i[1])
-            else:
-                func(i[2])
-            result = average.aggregate()
-            assert_allclose(result, e)
-            average.reset()
+        rank = dist.get_rank()
+        nprocs = dist.get_world_size()
+
+        avg_meter = CumulativeAverage()  # each process rank has it's own AverageMeter
+        n_iter = 10
+        for i in range(n_iter):
+            val = rank + i
+            avg_meter.append(val=val)
+
+        avg_val = avg_meter.aggregate()  # average across all processes
+        expected_val = sum(sum(list(range(rank_i, rank_i + n_iter))) for rank_i in range(nprocs)) / (n_iter * nprocs)
+        np.testing.assert_equal(avg_val, expected_val)
 
 
 if __name__ == "__main__":

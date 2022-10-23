@@ -17,9 +17,7 @@ import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.metrics import CumulativeAverage
-from tests.utils import SkipIfBeforePyTorchVersion
 
-# single class value
 TEST_CASE_1 = []
 TEST_CASE_1.append([{"vals": [1, 2, 3], "avg": 2}])
 TEST_CASE_1.append([{"vals": [[1, 1, 1], [2, 2, 2], [3, 6, 9]], "avg": [2, 3, 4]}])
@@ -65,38 +63,6 @@ class TestAverageMeter(unittest.TestCase):
                 avg_meter.append(vals[i])
 
         np.testing.assert_equal(avg_meter.aggregate(), avg)
-
-
-def main_worker(rank, nprocs):
-
-    has_cuda = torch.cuda.is_available() and torch.cuda.device_count() > 1
-    backend = "nccl" if has_cuda else "gloo"
-
-    dist.init_process_group(backend=backend, init_method="tcp://127.0.0.1:12345", world_size=nprocs, rank=rank)
-
-    avg_meter = CumulativeAverage()  # each process rank has it's own AverageMeter
-    n_iter = 10
-    for i in range(n_iter):
-        val = rank + i
-        avg_meter.append(val=val)
-
-    avg_val = avg_meter.aggregate()  # average across all processes
-    expected_val = sum(sum(list(range(rank_i, rank_i + n_iter))) for rank_i in range(nprocs)) / (n_iter * nprocs)
-    np.testing.assert_equal(avg_val, expected_val)
-
-    if dist.is_initialized():
-        dist.destroy_process_group()
-
-
-@SkipIfBeforePyTorchVersion((1, 8))
-class TestDDP(unittest.TestCase):
-    def test_ddp_ops(self):
-        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-            nprocs = torch.cuda.device_count()
-        else:
-            nprocs = 2
-
-        torch.multiprocessing.spawn(main_worker, nprocs=nprocs, args=(nprocs,))
 
 
 if __name__ == "__main__":
