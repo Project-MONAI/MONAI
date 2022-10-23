@@ -13,51 +13,90 @@ import unittest
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.metrics import CumulativeAverage
-from tests.utils import assert_allclose
+from tests.utils import SkipIfBeforePyTorchVersion
 
 # single class value
-TEST_CASE_1 = [[torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[0.3]])], torch.as_tensor([0.2])]
+TEST_CASE_1 = []
+TEST_CASE_1.append([{"vals": [1, 2, 3], "avg": 2}])
+TEST_CASE_1.append([{"vals": [[1, 1, 1], [2, 2, 2], [3, 6, 9]], "avg": [2, 3, 4]}])
 
-# multi-class value
-TEST_CASE_2 = [
-    [torch.as_tensor([[0.1, 0.2]]), torch.as_tensor([[0.2, 0.3]]), torch.as_tensor([[0.3, 0.4]])],
-    torch.as_tensor([0.2, 0.3]),
-]
+TEST_CASE_1.append([{"vals": [2, 4, 6], "counts": [2, 1, 2], "avg": 4}])
+TEST_CASE_1.append(
+    [{"vals": [[3, 2, 1], [2, 3, 2], [0, 0, 9]], "counts": [[4, 4, 4], [4, 4, 4], [2, 2, 2]], "avg": [2, 2, 3]}]
+)
 
-# Nan value
-TEST_CASE_3 = [
-    [torch.as_tensor([[0.1]]), torch.as_tensor([[0.2]]), torch.as_tensor([[float("nan")]])],
-    torch.as_tensor([0.15]),
-]
-
-# different input shape
-TEST_CASE_4 = [[torch.as_tensor(0.1), torch.as_tensor(0.2), torch.as_tensor(0.3)], torch.as_tensor(0.2)]
+TEST_CASE_1.append([{"vals": [1, 2, float("nan")], "avg": 1.5}])
 
 
-class TestCumulativeAverage(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
-    def test_value(self, input_data, expected_value):
-        average = CumulativeAverage()
-        func = average.append if input_data[0].ndim < 2 else average.extend
-        func(input_data[0])
-        func(input_data[1])
-        result = average.aggregate()
-        # continue to update new data
-        func(input_data[2])
-        result = average.aggregate()
-        assert_allclose(result, expected_value)
+class TestAverageMeter(unittest.TestCase):
+    @parameterized.expand(TEST_CASE_1)
+    def test_value_all(self, data):
 
-    def test_numpy_array(self):
-        class TestCumulativeAverage(CumulativeAverage):
-            def get_buffer(self):
-                return np.array([[1, 2], [3, np.nan]])
+        # test orig
+        self.run_test(data)
 
-        average = TestCumulativeAverage()
-        result = average.aggregate()
-        np.testing.assert_allclose(result, np.array([2.0, 2.0]))
+        # test in numpy
+        data["vals"] = np.array(data["vals"])
+        data["avg"] = np.array(data["avg"])
+        self.run_test(data)
+
+        # test as Tensors
+        data["vals"] = torch.tensor(data["vals"])
+        data["avg"] = torch.tensor(data["avg"], dtype=torch.float)
+        self.run_test(data)
+
+    def run_test(self, data):
+        vals = data["vals"]
+        avg = data["avg"]
+
+        counts = data.get("counts", None)
+        if counts is not None and not isinstance(counts, list) and isinstance(vals, list):
+            counts = [counts] * len(vals)
+
+        avg_meter = CumulativeAverage()
+        for i in range(len(vals)):
+            if counts is not None:
+                avg_meter.append(vals[i], counts[i])
+            else:
+                avg_meter.append(vals[i])
+
+        np.testing.assert_equal(avg_meter.aggregate(), avg)
+
+
+def main_worker(rank, nprocs):
+
+    has_cuda = torch.cuda.is_available() and torch.cuda.device_count() > 1
+    backend = "nccl" if has_cuda else "gloo"
+
+    dist.init_process_group(backend=backend, init_method="tcp://127.0.0.1:12345", world_size=nprocs, rank=rank)
+
+    avg_meter = CumulativeAverage()  # each process rank has it's own AverageMeter
+    n_iter = 10
+    for i in range(n_iter):
+        val = rank + i
+        avg_meter.append(val=val)
+
+    avg_val = avg_meter.aggregate()  # average across all processes
+    expected_val = sum(sum(list(range(rank_i, rank_i + n_iter))) for rank_i in range(nprocs)) / (n_iter * nprocs)
+    np.testing.assert_equal(avg_val, expected_val)
+
+    if dist.is_initialized():
+        dist.destroy_process_group()
+
+
+@SkipIfBeforePyTorchVersion((1, 8))
+class TestDDP(unittest.TestCase):
+    def test_ddp_ops(self):
+        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+            nprocs = torch.cuda.device_count()
+        else:
+            nprocs = 2
+
+        torch.multiprocessing.spawn(main_worker, nprocs=nprocs, args=(nprocs,))
 
 
 if __name__ == "__main__":

@@ -10,63 +10,161 @@
 # limitations under the License.
 
 import torch
-
-from monai.transforms import isnan
-from monai.utils import convert_data_type
-
-from .metric import Cumulative
+import torch.distributed as dist
 
 
-class CumulativeAverage(Cumulative):
+class CumulativeAverage:
     """
-    Cumulatively record data value and aggregate for the average value.
-    It supports single class or multi-class data, for example,
-    value can be 0.44 (a loss value) or [0.3, 0.4] (metrics of two classes).
-    It also supports distributed data parallel, sync data when aggregating.
-    For example, recording loss values and compute the overall average value in every 5 iterations:
+    A utility class to keep track of average values. For example during training/validation loop,
+    we need to accumulate the per-batch metrics and calculate the final average value for the whole dataset.
+    When training in multi-gpu environment, with DistributedDataParallel, it will average across the processes.
+
+    Example:
 
     .. code-block:: python
 
-        average = CumulativeAverage()
-        for i, d in enumerate(dataloader):
-            loss = ...
-            average.append(loss)
-            if i % 5 == 0:
-                print(f"cumulative average of loss: {average.aggregate()}")
-        average.reset()
+        from monai.metrics import CumulativeAverage
+
+        run_avg = CumulativeAverage()
+        for i in range(len(train_set)):
+            ...
+            val = calc_metric(x,y) #some metric value
+            run_avg.append(val)
+
+        val_avg = run_avg.aggregate() #average value
 
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.sum = None
-        self.not_nans = None
+    def __init__(self, ensure_cpu_group: bool = False) -> None:
+        """
+        Args:
+            ensure_cpu_group: applies only to multi-gpu distributed setup. Optionally request to operate on CPU,
+                even if the default DistributedDataParallel group is on GPU. This will create an additional
+                CPU group with GLOO backend to reduce across processes on CPU (and maintain all intermediate data on CPU).
+                Defaults to False: use the default process group created during DistributedDataParallel initialization.
+        """
+
+        self.is_distributed = dist.is_available() and dist.is_initialized()
+        self.group = None
+        self.device = None
+
+        if self.is_distributed:
+            dist_cuda = dist.get_backend() == dist.Backend.NCCL
+            if ensure_cpu_group and dist_cuda:
+                self.group = dist.new_group(backend="gloo")  # create a new cpu group
+            elif dist_cuda:
+                self.device = torch.device("cuda", dist.get_rank())
+
+        self.reset()
 
     def reset(self):
         """
-        Reset all the running status, including buffers, sum, not nans count, etc.
+        Reset all the running status
 
         """
-        super().reset()
-        self.sum = None
-        self.not_nans = None
+        self.val: torch.Tensor = 0
+        self.sum: torch.Tensor = 0
+        self.count: torch.Tensor = 0
 
-    def aggregate(self):
+    def proper_tensor(self, x) -> torch.Tensor:
         """
-        Sync data from all the ranks and compute the average value with previous sum value.
+        Ensure torch.Tensor float format and optionally copy to the proper gpu device
+        """
+        if isinstance(x, torch.Tensor):
+            x = x.detach()
+        else:
+            x = torch.tensor(x)
+
+        if self.device is not None:
+            x = x.to(device=self.device, dtype=torch.float)
+        else:
+            x = x.cpu().float()
+
+        return x
+
+    def reduce(self, x: torch.Tensor, avg: bool = False) -> torch.Tensor:
+        """
+        Reduce across processes if in DDP
+        """
+        if self.is_distributed:
+            if avg:
+                x = x / dist.get_world_size()
+            else:
+                x = x.clone()
+            dist.all_reduce(x, group=self.group)
+
+        return x
+
+    def get_current(self, np: bool = True):
+        """
+        return most recent value (averaged across processes)
+        """
+        x = self.reduce(self.val, avg=True)
+        if np:
+            x = x.cpu().numpy()
+        return x
+
+    def aggregate(self, np: bool = True):
+        """
+        return total average value (averaged across processes)
 
         """
-        data = self.get_buffer()
+        sum = self.reduce(self.sum)
+        count = self.reduce(self.count)
 
-        # compute SUM across the batch dimension
-        nans = isnan(data)
-        not_nans = convert_data_type((~nans), dtype=torch.float32)[0].sum(0)
-        data[nans] = 0
-        f = data.sum(0)
+        x = torch.where(count > 0, sum / count, sum)
+        if np:
+            x = x.cpu().numpy()
+        return x
 
-        # clear the buffer for next update
-        super().reset()
-        self.sum = f if self.sum is None else (self.sum + f)
-        self.not_nans = not_nans if self.not_nans is None else (self.not_nans + not_nans)
+    def append(self, val, count=1) -> None:
+        """
+        Append with a new value, and an optional count
 
-        return self.sum / self.not_nans
+        Args:
+            val: new value (e.g. constant, list, numpy array or Tensor) to keep track of.
+            count: new count (e.g. constant, list, numpy array or Tensor), to update the contribution count
+
+        For example:
+            # a simple constant tracking
+            avg_meter= AverageMeter()
+            avg_meter.append(0.6)
+            avg_meter.append(0.8)
+            print(avg_meter.aggregate()) #prints 0.7
+
+            # an array tracking, e.g. metrics from 3 classes
+            avg_meter= AverageMeter()
+            avg_meter.append([0.2, 0.4, 0.4])
+            avg_meter.append([0.4, 0.6, 0.4])
+            print(avg_meter.aggregate()) #prints [0.3, 0.5. 0.4]
+
+            # different contributions / counts
+            avg_meter= AverageMeter()
+            avg_meter.append(1, count=4) #avg metric 1 coming from a batch of 4
+            avg_meter.append(2, count=6) #avg metric 2 coming from a batch of 6
+            print(avg_meter.aggregate()) #prints 1.6 == (1*4 +2*6)/(4+6)
+
+            # different contributions / counts
+            avg_meter= AverageMeter()
+            avg_meter.append([0.5, 0.5, 0], count=[1, 1, 0]) # last elements count is zero to ignore it
+            avg_meter.append([0.5, 0.5, 0.5], count=[1, 1, 1]) #
+            print(avg_meter.aggregate()) #prints [0.5, 0.5, 0,5] == ([0.5, 0.5, 0] + [0.5, 0.5, 0.5]) / ([1, 1, 0] + [1, 1, 1])
+
+        """
+
+        val = self.proper_tensor(val)
+        count = self.proper_tensor(count)
+
+        val_count = val * count
+        nfin = ~torch.isfinite(val_count)
+        if torch.any(nfin):
+            # non-finite numbers may indicate some errors in the user code
+            print("non-finite numbers received", val, count)
+            zero = torch.tensor(0).to(val)
+            val = torch.where(nfin, zero, val)
+            count = torch.where(nfin, zero, count)
+            val_count = torch.where(nfin, zero, val_count)
+
+        self.val = val
+        self.count += count
+        self.sum += val_count
