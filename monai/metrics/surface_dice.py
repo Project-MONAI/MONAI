@@ -20,6 +20,8 @@ from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 
+__all__ = ["SurfaceDiceMetric", "compute_surface_dice"]
+
 
 class SurfaceDiceMetric(CumulativeIterationMetric):
     """

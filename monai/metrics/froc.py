@@ -14,6 +14,8 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+__all__ = ["compute_fp_tp_probs", "compute_froc_curve_data", "compute_froc_score"]
+
 
 def compute_fp_tp_probs(
     probs: Union[np.ndarray, torch.Tensor],
