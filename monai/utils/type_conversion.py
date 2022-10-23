@@ -243,7 +243,7 @@ def convert_to_cupy(data, dtype: Optional[np.dtype] = None, wrap_sequence: bool 
 def convert_data_type(
     data: Any,
     output_type: Optional[Type[NdarrayTensor]] = None,
-    device: Optional[torch.device] = None,
+    device: Union[None, str, torch.device] = None,
     dtype: Union[DtypeLike, torch.dtype] = None,
     wrap_sequence: bool = False,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
@@ -307,7 +307,11 @@ def convert_data_type(
 
 
 def convert_to_dst_type(
-    src: Any, dst: NdarrayTensor, dtype: Union[DtypeLike, torch.dtype, None] = None, wrap_sequence: bool = False
+    src: Any,
+    dst: NdarrayTensor,
+    dtype: Union[DtypeLike, torch.dtype, None] = None,
+    wrap_sequence: bool = False,
+    device: Union[None, str, torch.device] = None,
 ) -> Tuple[NdarrayTensor, type, Optional[torch.device]]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -321,12 +325,13 @@ def convert_to_dst_type(
         dtype: an optional argument if the target `dtype` is different from the original `dst`'s data type.
         wrap_sequence: if `False`, then lists will recursively call this function. E.g., `[1, 2]` -> `[array(1), array(2)]`.
             If `True`, then `[1, 2]` -> `array([1, 2])`.
+        device: target device to put the converted Tensor data. If unspecified, `dst.device` will be used if possible.
 
     See Also:
         :func:`convert_data_type`
     """
 
-    device = dst.device if isinstance(dst, torch.Tensor) else None
+    device = dst.device if device is None and isinstance(dst, torch.Tensor) else device
     if dtype is None:
         dtype = dst.dtype
 

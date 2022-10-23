@@ -7,6 +7,7 @@ on:
       - main
       - releasing/*
   pull_request:
+    types: [opened, synchronize, closed]
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -15,7 +16,7 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
     strategy:
       matrix:
         environment:
@@ -63,6 +64,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: apt install
+      if: github.event.pull_request.merged != true
       run: |
         # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
         apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
@@ -112,6 +114,7 @@ jobs:
       name: Optional Cupy dependency (cuda114)
       run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
+      if: github.event.pull_request.merged != true
       run: |
         which python
         python -m pip install --upgrade pip wheel
@@ -121,6 +124,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run quick tests (GPU)
+      if: github.event.pull_request.merged != true
       run: |
         git clone --depth 1 \
           https://github.com/Project-MONAI/MONAI-extra-test-data.git /MONAI-extra-test-data
@@ -137,7 +141,8 @@ jobs:
         python -c 'import torch; print(torch.rand(5, 3, device=torch.device("cuda:0")))'
         python -c "import monai; monai.config.print_config()"
         # build for the current self-hosted CI Tesla V100
-        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --quick --unittests --disttests
+        BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --disttests
+        ./runtests.sh --quick --unittests
         if [ ${{ matrix.environment }} = "PT110+CUDA102" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
@@ -146,6 +151,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
+      if: github.event.pull_request.merged != true
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage.xml

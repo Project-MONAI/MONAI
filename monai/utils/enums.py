@@ -553,6 +553,7 @@ class DataStatsKeys(StrEnum):
     IMAGE_STATS = "image_stats"
     FG_IMAGE_STATS = "image_foreground_stats"
     LABEL_STATS = "label_stats"
+    IMAGE_HISTOGRAM = "image_histogram"
 
 
 class ImageStatsKeys(StrEnum):
@@ -566,6 +567,7 @@ class ImageStatsKeys(StrEnum):
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
     INTENSITY = "intensity"
+    HISTOGRAM = "histogram"
 
 
 class LabelStatsKeys(StrEnum):
@@ -575,7 +577,7 @@ class LabelStatsKeys(StrEnum):
     """
 
     LABEL_UID = "labels"
-    PIXEL_PCT = "pixel_percentage"
+    PIXEL_PCT = "foreground_percentage"
     IMAGE_INTST = "image_intensity"
     LABEL = "label"
     LABEL_SHAPE = "shape"

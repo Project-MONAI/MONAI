@@ -22,7 +22,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
 from monai.utils.enums import AlgoEnsembleKeys
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -110,9 +110,10 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
-        bundle_generator = BundleGen(
-            algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
-        )
+        with skip_if_downloading_fails():
+            bundle_generator = BundleGen(
+                algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
+            )
         bundle_generator.generate(work_dir, num_fold=2)
         history = bundle_generator.get_history()
 

@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import itertools
 import unittest
 
 import numpy as np
@@ -85,20 +86,20 @@ class TestSlidingWindowInference(unittest.TestCase):
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 
-    @parameterized.expand([[x] for x in TEST_TORCH_AND_META_TENSORS])
+    @parameterized.expand(list(itertools.product(TEST_TORCH_AND_META_TENSORS, ("cpu", "cuda"), ("cpu", "cuda", None))))
     @skip_if_no_cuda
-    def test_sw_device(self, data_type):
-        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device="cpu")
+    def test_sw_device(self, data_type, device, sw_device):
+        inputs = data_type(torch.ones((3, 16, 15, 7))).to(device=device)
         inputs = list_data_collate([inputs])  # make a proper batch
         roi_shape = (4, 10, 7)
         sw_batch_size = 10
 
         def compute(data):
-            self.assertEqual(data.device.type, "cuda")
-            return data + torch.tensor(1, device="cuda")
+            self.assertEqual(data.device.type, sw_device or device)
+            return data + torch.tensor(1, device=sw_device or device)
 
-        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, sw_device="cuda")
-        np.testing.assert_string_equal(inputs.device.type, result.device.type)
+        result = sliding_window_inference(inputs, roi_shape, sw_batch_size, compute, sw_device=sw_device, device="cpu")
+        np.testing.assert_string_equal("cpu", result.device.type)
         expected_val = np.ones((1, 3, 16, 15, 7), dtype=np.float32) + 1
         np.testing.assert_allclose(result.cpu().numpy(), expected_val)
 

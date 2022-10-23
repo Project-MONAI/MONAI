@@ -133,6 +133,8 @@ tests/testing_data/*.tiff
 tests/testing_data/schema.json
 tests/testing_data/endo.mp4
 tests/testing_data/ultrasound.avi
+tests/testing_data/train_data_stats.yaml
+tests/testing_data/eval_data_stats.yaml
 
 # clang format tool
 .clang-format-bin/
