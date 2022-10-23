@@ -777,7 +777,8 @@ class CacheDataset(Dataset):
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
-                the cache content at initializaiton.
+                the cache content at initializaiton. to execute runtime cache on GPU memory, may need to
+                call `set_multiprocessing_cache(False)` if encountering CUDA multiprocessing issue.
 
         """
         if not isinstance(transform, Compose):
@@ -796,8 +797,8 @@ class CacheDataset(Dataset):
         self.cache_num = 0
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self.runtime_cache = runtime_cache
-        self.set_data(data)
         self.set_multiprocessing_cache(runtime_cache)
+        self.set_data(data)
 
     def set_data(self, data: Sequence):
         """
