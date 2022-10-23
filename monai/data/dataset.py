@@ -935,7 +935,7 @@ class SharedCacheDataset(Dataset):
             as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
                 it may help improve the performance of following logic.
             cache_list: ListProxy instance created by a master process, to hold the shared memory list
-                It must be crated on the master process e.g. as cache_list = multiprocessing.Manager().list()
+                It must be created on the master process e.g. as cache_list = multiprocessing.Manager().list()
                 before spawning/forking the subprocesses. If no cache_list is provided, a local (per process)
                 non-shared cache list will be created (could be sufficient in single gpu environment)
             use_cache: whether to use cache mechanism. Defaults to True.  When False, the logic becomes equivalent
