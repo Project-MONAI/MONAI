@@ -13,7 +13,6 @@ import unittest
 
 import numpy as np
 import torch
-import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.metrics import CumulativeAverage
