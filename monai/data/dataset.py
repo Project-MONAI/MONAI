@@ -798,7 +798,7 @@ class CacheDataset(Dataset):
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self.runtime_cache = runtime_cache
         self.set_data(data)
-        self.set_multiprocessing_cache(runtime_cache)
+        self.set_multiprocessing_cache(self.runtime_cache)
 
     def set_data(self, data: Sequence):
         """
