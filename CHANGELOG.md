@@ -36,6 +36,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Automatically infer device from the first item in random elastic deformation dict
 * Add channel dim in `ComputeHoVerMaps` and `ComputeHoVerMapsd`
 * Remove batch dim in `SobelGradients` and `SobelGradientsd`
+### Deprecated
+* Deprecating `compute_meandice`, `compute_meaniou` in `monai.metrics`, in favor of
+`compute_dice` and `compute_iou` respectively.
 
 ## [1.0.0] - 2022-09-16
 ### Added
