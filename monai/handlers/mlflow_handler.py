@@ -86,6 +86,8 @@ class MLFlowHandler:
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Optional[Sequence[str]] = None,
         tag_name: str = DEFAULT_TAG,
+        experiment_name: str = "default_experiment",
+        run_name: str = "test_run",
     ) -> None:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
@@ -98,6 +100,8 @@ class MLFlowHandler:
         self.global_epoch_transform = global_epoch_transform
         self.state_attributes = state_attributes
         self.tag_name = tag_name
+        self.experiment_name = experiment_name
+        self.run_name = run_name
 
     def attach(self, engine: Engine) -> None:
         """
@@ -119,8 +123,9 @@ class MLFlowHandler:
         Check MLFlow status and start if not active.
 
         """
+        mlflow.set_experiment(self.experiment_name)
         if mlflow.active_run() is None:
-            mlflow.start_run()
+            mlflow.start_run(run_name=self.run_name)
 
     def close(self) -> None:
         """
