@@ -85,7 +85,6 @@ TEST_CASES_DICECE2 = [
     ],
 ]
 
-
 TEST_CASES_DICE = [
     [
         {"to_onehot_y": True},
