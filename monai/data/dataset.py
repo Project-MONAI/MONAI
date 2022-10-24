@@ -779,8 +779,7 @@ class CacheDataset(Dataset):
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
                 the cache content at initializaiton, if `True`, it will cache during the first epoch
                 of model training, so it can start the first mini-batch earlier.
-                to execute runtime cache on GPU memory, may need to call `set_multiprocessing_cache(False)`
-                if encountering CUDA multiprocessing issue.
+                to execute runtime cache on GPU memory, must co-work with `monai.data.DataLoader`.
 
         """
         if not isinstance(transform, Compose):
@@ -800,7 +799,6 @@ class CacheDataset(Dataset):
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self.runtime_cache = runtime_cache
         self.set_data(data)
-        self.set_multiprocessing_cache(self.runtime_cache)
 
     def set_data(self, data: Sequence):
         """
@@ -821,18 +819,19 @@ class CacheDataset(Dataset):
             # only compute cache for the unique items of dataset
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
-            cache_ = _compute_cache()
-            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
+            cache = _compute_cache()
+            cache = dict(zip(list(mapping)[: self.cache_num], cache))
             self.data = data
         else:
             self.data = data
-            self._cache = _compute_cache()
+            cache = _compute_cache()
+        self._cache = self._set_multiprocessing_cache(cache, mp_cache=True) if self.runtime_cache else cache
 
-    def set_multiprocessing_cache(self, mp_cache: bool = True):
+    def _set_multiprocessing_cache(self, cache: Union[List, Dict, DictProxy, ListProxy], mp_cache: bool):
         if self.hash_as_key:
-            self._cache = Manager().dict(self._cache) if mp_cache else dict(self._cache)
+            return Manager().dict(cache) if mp_cache else dict(cache)
         else:
-            self._cache = Manager().list(self._cache) if mp_cache else list(self._cache)  # type:ignore
+            return Manager().list(cache) if mp_cache else list(cache)  # type:ignore
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
