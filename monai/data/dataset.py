@@ -797,8 +797,8 @@ class CacheDataset(Dataset):
         self.cache_num = 0
         self._cache: Union[List, Dict, DictProxy, ListProxy] = []
         self.runtime_cache = runtime_cache
-        self.set_multiprocessing_cache(runtime_cache)
         self.set_data(data)
+        self.set_multiprocessing_cache(runtime_cache)
 
     def set_data(self, data: Sequence):
         """
@@ -878,7 +878,7 @@ class CacheDataset(Dataset):
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
-            self._cache = self._fill_cache()
+            raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
         data = self._cache[index_]
         # runtime cache computation
         if data is None:
