@@ -689,7 +689,7 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-            if isinstance(inverted_data, np.ndarray) and device != "cpu":
+            if isinstance(inverted_data, np.ndarray) and torch.device(device).type != "cpu":
                 raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
             elif isinstance(inverted_data, torch.Tensor):
                 d[key] = post_func(inverted_data.to(device))
