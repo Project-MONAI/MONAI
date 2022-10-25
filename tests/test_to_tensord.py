@@ -11,8 +11,8 @@
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ToTensord
@@ -31,39 +31,39 @@ TESTS_SINGLE = [[5]]
 for p in TEST_NDARRAYS:
     TESTS_SINGLE.append([p(5)])
 
+
 class TestToTensord(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_array_input(self, test_data, expected_shape):
-        test_data = {'img': test_data}
+        test_data = {"img": test_data}
         to_tensord = ToTensord(keys="img", dtype=torch.float32, device="cpu", wrap_sequence=True)
         result = to_tensord(test_data)
-        out_img = result['img']
+        out_img = result["img"]
         self.assertTrue(isinstance(out_img, torch.Tensor))
-        assert_allclose(out_img, test_data['img'], type_test=False)
+        assert_allclose(out_img, test_data["img"], type_test=False)
         self.assertTupleEqual(out_img.shape, expected_shape)
 
         # test inverse
         inv_data = to_tensord.inverse(result)
-        self.assertTrue(isinstance(inv_data['img'], np.ndarray))
-        assert_allclose(test_data['img'], inv_data['img'], type_test=False)
+        self.assertTrue(isinstance(inv_data["img"], np.ndarray))
+        assert_allclose(test_data["img"], inv_data["img"], type_test=False)
 
     @parameterized.expand(TESTS_SINGLE)
     def test_single_input(self, test_data):
-        test_data = {'img': test_data}
+        test_data = {"img": test_data}
         result = ToTensord(keys="img", track_meta=True)(test_data)
-        out_img = result['img']
+        out_img = result["img"]
         self.assertTrue(isinstance(out_img, torch.Tensor))
-        assert_allclose(out_img, test_data['img'], type_test=False)
+        assert_allclose(out_img, test_data["img"], type_test=False)
         self.assertEqual(out_img.ndim, 0)
 
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     def test_cupy(self):
         test_data = [[1, 2], [3, 4]]
         cupy_array = cp.ascontiguousarray(cp.asarray(test_data))
-        result = ToTensord(keys="img")({'img': cupy_array})
-        self.assertTrue(isinstance(result['img'], torch.Tensor))
-        assert_allclose(result['img'], test_data, type_test=False)
-    
+        result = ToTensord(keys="img")({"img": cupy_array})
+        self.assertTrue(isinstance(result["img"], torch.Tensor))
+        assert_allclose(result["img"], test_data, type_test=False)
 
 
 if __name__ == "__main__":

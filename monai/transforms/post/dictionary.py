@@ -19,8 +19,8 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
-import torch
 import numpy as np
+import torch
 
 from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
@@ -690,7 +690,7 @@ class Invertd(MapTransform):
             else:
                 inverted_data = inverted[orig_key]
             if isinstance(inverted_data, np.ndarray) and device != "cpu":
-                raise ValueError(f"Inverted data with type of 'numpy.ndarray' do not support GPU.")
+                raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
             elif isinstance(inverted_data, torch.Tensor):
                 d[key] = post_func(inverted_data.to(device))
             else:
