@@ -132,7 +132,7 @@ class AsDiscrete(Transform):
 
         -  `argmax`.
         -  threshold input value to binary values.
-        -  convert input value to One-Hot format.
+        -  convert input value to One-Hot format (set ``to_one_hot=N``, `N` is the number of classes).
         -  round the value to the closest integer.
 
     Args:
