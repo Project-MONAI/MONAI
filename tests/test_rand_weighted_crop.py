@@ -28,7 +28,6 @@ def get_data(ndim):
 IMT_2D, SEG1_2D, SEGN_2D = get_data(ndim=2)
 IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
 
-
 TESTS = []
 for p in TEST_NDARRAYS_ALL:
     for q in TEST_NDARRAYS_ALL:

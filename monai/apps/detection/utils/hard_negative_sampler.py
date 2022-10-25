@@ -24,21 +24,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 The functions in this script are adapted from nnDetection,
 https://github.com/MIC-DKFZ/nnDetection/blob/main/nndet/core/boxes/sampler.py
 """
 
 import logging
-from abc import ABC
 from typing import List, Tuple
 
 import torch
 from torch import Tensor
 
 
-class HardNegativeSamplerBase(ABC):
+class HardNegativeSamplerBase:
     """
     Base class of hard negative sampler.
 
@@ -70,11 +68,11 @@ class HardNegativeSamplerBase(ABC):
                 where P is the number of negative samples
             num_neg: number of negative samples to sample
             fg_probs: maximum foreground prediction scores (probability) across all the classes
-                for each sample, sized (A,), where A is the the number of samples.
+                for each sample, sized (A,), where A is the number of samples.
 
         Returns:
             binary mask of negative samples to choose, sized (A,),
-                where A is the the number of samples in one image
+                where A is the number of samples in one image
         """
         if negative.numel() > fg_probs.numel():
             raise ValueError("The number of negative samples should not be larger than the number of all samples.")

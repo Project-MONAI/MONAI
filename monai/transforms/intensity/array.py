@@ -26,11 +26,10 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.utils import get_random_patch, get_valid_patch_size
-from monai.networks.layers import GaussianFilter, HilbertTransform, SavitzkyGolayFilter
+from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
 from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
 from monai.utils.module import min_version, optional_import
@@ -57,6 +56,7 @@ __all__ = [
     "MaskIntensity",
     "DetectEnvelope",
     "SavitzkyGolaySmooth",
+    "MedianSmooth",
     "GaussianSmooth",
     "RandGaussianSmooth",
     "GaussianSharpen",
@@ -73,6 +73,7 @@ __all__ = [
     "IntensityRemap",
     "RandIntensityRemap",
     "ForegroundMask",
+    "ComputeHoVerMaps",
 ]
 
 
@@ -189,14 +190,13 @@ class RandRicianNoise(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             super().randomize(None)
 
         if not self._do_transform:
             return img
 
-        img, *_ = convert_data_type(img, dtype=self.dtype)
         if self.channel_wise:
             _mean = ensure_tuple_rep(self.mean, len(img))
             _std = ensure_tuple_rep(self.std, len(img))
@@ -335,9 +335,7 @@ class StdShiftIntensity(Transform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        if self.dtype is not None:
-            img, *_ = convert_data_type(img, dtype=self.dtype)
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if self.channel_wise:
             for i, d in enumerate(img):
                 img[i] = self._stdshift(d)  # type: ignore
@@ -394,7 +392,7 @@ class RandStdShiftIntensity(RandomizableTransform):
         """
         Apply the transform to `img`.
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img = convert_to_tensor(img, track_meta=get_track_meta(), dtype=self.dtype)
         if randomize:
             self.randomize()
 
@@ -506,7 +504,7 @@ class RandScaleIntensity(RandomizableTransform):
             self.randomize()
 
         if not self._do_transform:
-            return img
+            return convert_data_type(img, dtype=self.dtype)[0]
 
         return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
 
@@ -1139,6 +1137,35 @@ class DetectEnvelope(Transform):
         return out
 
 
+class MedianSmooth(Transform):
+    """
+    Apply median filter to the input data based on specified `radius` parameter.
+    A default value `radius=1` is provided for reference.
+
+    See also: :py:func:`monai.networks.layers.median_filter`
+
+    Args:
+        radius: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, radius: Union[Sequence[int], int] = 1) -> None:
+        self.radius = radius
+
+    def __call__(self, img: NdarrayTensor) -> NdarrayTensor:
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
+        spatial_dims = img_t.ndim - 1
+        r = ensure_tuple_rep(self.radius, spatial_dims)
+        median_filter_instance = MedianFilter(r, spatial_dims=spatial_dims)
+        out_t: torch.Tensor = median_filter_instance(img_t)
+        out, *_ = convert_to_dst_type(out_t, dst=img, dtype=out_t.dtype)
+        return out
+
+
 class GaussianSmooth(Transform):
     """
     Apply Gaussian smooth to the input data based on specified `sigma` parameter.
@@ -1467,8 +1494,7 @@ class GibbsNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, alpha: float = 0.1, as_tensor_output: bool = True) -> None:
+    def __init__(self, alpha: float = 0.1) -> None:
 
         if alpha > 1 or alpha < 0:
             raise ValueError("alpha must take values in the interval [0, 1].")
@@ -1546,8 +1572,7 @@ class RandGibbsNoise(RandomizableTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0), as_tensor_output: bool = True) -> None:
+    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
@@ -1619,13 +1644,7 @@ class KSpaceSpikeNoise(Transform, Fourier):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self,
-        loc: Union[Tuple, Sequence[Tuple]],
-        k_intensity: Optional[Union[Sequence[float], float]] = None,
-        as_tensor_output: bool = True,
-    ):
+    def __init__(self, loc: Union[Tuple, Sequence[Tuple]], k_intensity: Optional[Union[Sequence[float], float]] = None):
 
         self.loc = ensure_tuple(loc)
         self.k_intensity = k_intensity
@@ -1754,13 +1773,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        as_tensor_output: bool = True,
     ):
 
         self.intensity_range = intensity_range
@@ -2301,3 +2318,44 @@ class ForegroundMask(Transform):
 
         mask = np.stack(foregrounds).all(axis=0)
         return convert_to_dst_type(src=mask, dst=image)[0]
+
+
+class ComputeHoVerMaps(Transform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+    Input data with the size of [1xHxW[xD]], which channel dim will temporarily removed for calculating coordinates.
+
+    Args:
+        dtype: the data type of output Tensor. Defaults to `"float32"`.
+
+    Return:
+        A torch.Tensor with the size of [2xHxW[xD]], which is stack horizontal and vertical maps
+
+    """
+
+    def __init__(self, dtype: DtypeLike = "float32") -> None:
+        super().__init__()
+        self.dtype = dtype
+
+    def __call__(self, mask: NdarrayOrTensor):
+        instance_mask = convert_data_type(mask, np.ndarray)[0]
+
+        h_map = instance_mask.astype(self.dtype, copy=True)
+        v_map = instance_mask.astype(self.dtype, copy=True)
+        instance_mask = instance_mask.squeeze(0)  # remove channel dim
+
+        for region in skimage.measure.regionprops(instance_mask):
+            v_dist = region.coords[:, 0] - region.centroid[0]
+            h_dist = region.coords[:, 1] - region.centroid[1]
+
+            h_dist[h_dist < 0] /= -np.amin(h_dist)
+            h_dist[h_dist > 0] /= np.amax(h_dist)
+
+            v_dist[v_dist < 0] /= -np.amin(v_dist)
+            v_dist[v_dist > 0] /= np.amax(v_dist)
+
+            h_map[h_map == region.label] = h_dist
+            v_map[v_map == region.label] = v_dist
+
+        hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
+        return hv_maps

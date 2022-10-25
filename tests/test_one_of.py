@@ -15,11 +15,15 @@ from copy import deepcopy
 import numpy as np
 from parameterized import parameterized
 
+from monai.data import MetaTensor
 from monai.transforms import (
     InvertibleTransform,
     OneOf,
+    RandScaleIntensity,
     RandScaleIntensityd,
+    RandShiftIntensity,
     RandShiftIntensityd,
+    Resize,
     Resized,
     TraceableTransform,
     Transform,
@@ -106,10 +110,10 @@ TESTS = [((X(), Y(), X()), (1, 2, 1), (0.25, 0.5, 0.25))]
 
 KEYS = ["x", "y"]
 TEST_INVERSES = [
-    (OneOf((InvA(KEYS), InvB(KEYS))), True),
-    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True),
-    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True),
-    (OneOf((NonInv(KEYS), NonInv(KEYS))), False),
+    (OneOf((InvA(KEYS), InvB(KEYS))), True, True),
+    (OneOf((OneOf((InvA(KEYS), InvB(KEYS))), OneOf((InvB(KEYS), InvA(KEYS))))), True, False),
+    (OneOf((Compose((InvA(KEYS), InvB(KEYS))), Compose((InvB(KEYS), InvA(KEYS))))), True, False),
+    (OneOf((NonInv(KEYS), NonInv(KEYS))), False, False),
 ]
 
 
@@ -136,6 +140,7 @@ class TestOneOf(unittest.TestCase):
     def test_compose_flatten_does_not_affect_one_of(self):
         p = Compose([A(), B(), OneOf([C(), Inv(KEYS), Compose([X(), Y()])])])
         f = p.flatten()
+
         # in this case the flattened transform should be the same.
 
         def _match(a, b):
@@ -148,13 +153,17 @@ class TestOneOf(unittest.TestCase):
         _match(p, f)
 
     @parameterized.expand(TEST_INVERSES)
-    def test_inverse(self, transform, invertible):
-        data = {k: (i + 1) * 10.0 for i, k in enumerate(KEYS)}
+    def test_inverse(self, transform, invertible, use_metatensor):
+        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data = transform(data)
 
         if invertible:
             for k in KEYS:
-                t = fwd_data[TraceableTransform.trace_key(k)][-1]
+                t = (
+                    fwd_data[TraceableTransform.trace_key(k)][-1]
+                    if not use_metatensor
+                    else fwd_data[k].applied_operations[-1]
+                )
                 # make sure the OneOf index was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
                 # make sure index exists and is in bounds
@@ -166,9 +175,11 @@ class TestOneOf(unittest.TestCase):
         if invertible:
             for k in KEYS:
                 # check transform was removed
-                self.assertTrue(
-                    len(fwd_inv_data[TraceableTransform.trace_key(k)]) < len(fwd_data[TraceableTransform.trace_key(k)])
-                )
+                if not use_metatensor:
+                    self.assertTrue(
+                        len(fwd_inv_data[TraceableTransform.trace_key(k)])
+                        < len(fwd_data[TraceableTransform.trace_key(k)])
+                    )
                 # check data is same as original (and different from forward)
                 self.assertEqual(fwd_inv_data[k], data[k])
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
@@ -186,14 +197,33 @@ class TestOneOf(unittest.TestCase):
                         RandShiftIntensityd(keys="img", offsets=0.5, prob=1.0),
                     ]
                 ),
+                OneOf(
+                    [
+                        RandScaleIntensityd(keys="img", factors=0.5, prob=1.0),
+                        RandShiftIntensityd(keys="img", offsets=0.5, prob=1.0),
+                    ]
+                ),
             ]
         )
         transform.set_random_state(seed=0)
         result = transform({"img": np.ones((1, 101, 102, 103))})
-
         result = transform.inverse(result)
         # invert to the original spatial shape
         self.assertTupleEqual(result["img"].shape, (1, 101, 102, 103))
+
+    def test_inverse_metatensor(self):
+        transform = Compose(
+            [
+                Resize(spatial_size=[100, 100, 100]),
+                OneOf([RandScaleIntensity(factors=0.5, prob=1.0), RandShiftIntensity(offsets=0.5, prob=1.0)]),
+                OneOf([RandScaleIntensity(factors=0.5, prob=1.0), RandShiftIntensity(offsets=0.5, prob=1.0)]),
+            ]
+        )
+        transform.set_random_state(seed=0)
+        result = transform(np.ones((1, 101, 102, 103)))
+        self.assertTupleEqual(result.shape, (1, 100, 100, 100))
+        result = transform.inverse(result)
+        self.assertTupleEqual(result.shape, (1, 101, 102, 103))
 
     def test_one_of(self):
         p = OneOf((A(), B(), C()), (1, 2, 1))

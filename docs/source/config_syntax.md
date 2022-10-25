@@ -15,7 +15,7 @@ Content:
   - [`@` to reference Python objects in configurations](#to-reference-python-objects-in-configurations)
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
-  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
+  - [`_target_` (`_disabled_`, `_desc_`, and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -67,7 +67,7 @@ or additionally, tune the input parameters then instantiate the component:
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
 
-For more details on the `ConfigParser` API, please see https://docs.monai.io/en/latest/bundle.html#config-parser.
+For more details on the `ConfigParser` API, please see [`monai.bundle.ConfigParser`](https://docs.monai.io/en/latest/bundle.html#config-parser).
 
 ## Syntax examples explained
 
@@ -141,17 +141,19 @@ This dictionary will be instantiated as a Pytorch object at runtime.
 {
   "component_name": {
     "_target_": "my.module.Class",
+    "_desc_": "this is a customized class which also triggers 'cudnn_opt' reference",
     "_requires_": "@cudnn_opt",
     "_disabled_": "true"}
 }
 ```
 
-_Description:_ `_requires_` and `_disabled_` are optional keys.
-`_requires_` specifies references (string starts with `@`) or
-Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
-It is useful when the component does not explicitly depend on the other ConfigItems via
-its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
-`_disabled_` specifies a flag to indicate whether to skip the instantiation.
+_Description:_ `_requires_`, `_disabled_`, and `_desc_` are optional keys.
+- `_requires_` specifies references (string starts with `@`) or
+  Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
+  It is useful when the component does not explicitly depend on the other ConfigItems via
+  its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
+- `_disabled_` specifies a flag to indicate whether to skip the instantiation.
+- `_desc_` can be used for providing free text descriptions.
 
 ## The command line interface
 

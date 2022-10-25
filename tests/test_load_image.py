@@ -15,18 +15,22 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import itk
 import nibabel as nib
 import numpy as np
 import torch
 from parameterized import parameterized
 from PIL import Image
 
-from monai.data import ITKReader, NibabelReader, PydicomReader
+from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
+from monai.utils import optional_import
 from tests.utils import assert_allclose
+
+itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
+ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
+itk_uc, _ = optional_import("itk", name="UC", allow_namespace_pkg=True)
 
 
 class _MiniReader:
@@ -67,35 +71,39 @@ TEST_CASE_4_1 = [  # additional parameter
 
 TEST_CASE_5 = [{"reader": NibabelReader(mmap=False)}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_6 = [{"reader": ITKReader()}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
-TEST_CASE_7 = [{"reader": ITKReader()}, ["test_image.nii.gz"], (128, 128, 128)]
+TEST_CASE_7 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
 TEST_CASE_8 = [
-    {"reader": ITKReader()},
+    {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
 TEST_CASE_8_1 = [
-    {"reader": ITKReader(channel_dim=0)},
+    {"reader": ITKReader(channel_dim=0) if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (384, 128, 128),
 ]
 
-
 TEST_CASE_9 = [
-    {"reader": ITKReader()},
+    {"reader": ITKReader() if has_itk else "itkreader"},
     ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
     (3, 128, 128, 128),
 ]
 
-TEST_CASE_10 = [{"reader": ITKReader(pixel_type=itk.UC)}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+TEST_CASE_10 = [
+    {"reader": ITKReader(pixel_type=itk_uc) if has_itk else "itkreader"},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (16, 16, 4),
+]
 
-TEST_CASE_11 = [{"reader": "ITKReader", "pixel_type": itk.UC}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+TEST_CASE_11 = [{"reader": "ITKReader", "pixel_type": itk_uc}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 
 TEST_CASE_12 = [
-    {"reader": "ITKReader", "pixel_type": itk.UC, "reverse_indexing": True},
+    {"reader": "ITKReader", "pixel_type": itk_uc, "reverse_indexing": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (4, 16, 16),
@@ -125,14 +133,14 @@ TEST_CASE_18 = [
 TEST_CASE_19 = [{"reader": PydicomReader()}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
 
 TEST_CASE_20 = [
-    {"reader": "PydicomReader", "ensure_channel_first": True},
+    {"reader": "PydicomReader", "ensure_channel_first": True, "force": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (1, 16, 16, 4),
 ]
 
 TEST_CASE_21 = [
-    {"reader": "PydicomReader", "affine_lps_to_ras": True, "defer_size": "2 MB"},
+    {"reader": "PydicomReader", "affine_lps_to_ras": True, "defer_size": "2 MB", "force": True},
     "tests/testing_data/CT_DICOM",
     (16, 16, 4),
     (16, 16, 4),
@@ -141,13 +149,13 @@ TEST_CASE_21 = [
 # test reader consistency between PydicomReader and ITKReader on dicom data
 TEST_CASE_22 = ["tests/testing_data/CT_DICOM"]
 
-
 TESTS_META = []
 for track_meta in (False, True):
     TESTS_META.append([{}, (128, 128, 128), track_meta])
     TESTS_META.append([{"reader": "ITKReader", "fallback_only": False}, (128, 128, 128), track_meta])
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImage(unittest.TestCase):
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
@@ -161,6 +169,7 @@ class TestLoadImage(unittest.TestCase):
             result = LoadImage(image_only=True, **input_param)(filenames)
             ext = "".join(Path(name).suffixes)
             self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image" + ext))
+            self.assertEqual(result.meta["space"], "RAS")
             assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
@@ -291,7 +300,7 @@ class TestLoadImage(unittest.TestCase):
 
     def test_itk_meta(self):
         """test metadata from a directory"""
-        out = LoadImage(image_only=True, reader="ITKReader", pixel_type=itk.UC, series_meta=True)(
+        out = LoadImage(image_only=True, reader="ITKReader", pixel_type=itk_uc, series_meta=True)(
             "tests/testing_data/CT_DICOM"
         )
         idx = "0008|103e"
@@ -314,6 +323,7 @@ class TestLoadImage(unittest.TestCase):
         self.assertEqual(result.meta["original_channel_dim"], input_param["channel_dim"])
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImageMeta(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -331,12 +341,13 @@ class TestLoadImageMeta(unittest.TestCase):
     @parameterized.expand(TESTS_META)
     def test_correct(self, input_param, expected_shape, track_meta):
         set_track_meta(track_meta)
-        r = LoadImage(image_only=True, **input_param)(self.test_data)
+        r = LoadImage(image_only=True, prune_meta_pattern="glmax", prune_meta_sep="%", **input_param)(self.test_data)
         self.assertTupleEqual(r.shape, expected_shape)
         if track_meta:
             self.assertIsInstance(r, MetaTensor)
             self.assertTrue(hasattr(r, "affine"))
             self.assertIsInstance(r.affine, torch.Tensor)
+            self.assertTrue("glmax" not in r.meta)
         else:
             self.assertIsInstance(r, torch.Tensor)
             self.assertNotIsInstance(r, MetaTensor)

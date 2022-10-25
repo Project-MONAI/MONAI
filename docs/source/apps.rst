@@ -15,6 +15,9 @@ Applications
 .. autoclass:: DecathlonDataset
     :members:
 
+.. autoclass:: TciaDataset
+    :members:
+
 .. autoclass:: CrossValidation
     :members:
 
@@ -87,6 +90,10 @@ Applications
 
 .. automodule:: monai.apps.pathology.handlers
 .. autoclass:: ProbMapProducer
+    :members:
+
+.. automodule:: monai.apps.pathology.losses.hovernet_loss
+.. autoclass:: HoVerNetLoss
     :members:
 
 .. automodule:: monai.apps.pathology.metrics
@@ -184,3 +191,38 @@ Applications
     :members:
 .. automodule:: monai.apps.detection.metrics.matching
     :members:
+
+`Reconstruction`
+----------------
+
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
+`ConvertToTensorComplex`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.convert_to_tensor_complex
+
+`ComplexAbs`
+~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_abs
+
+`RootSumOfSquares`
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.mri_utils.root_sum_of_squares
+
+`ComplexMul`
+~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_mul
+
+`ComplexConj`
+~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
+
+`auto3dseg`
+-----------
+
+.. automodule:: monai.apps.auto3dseg
+  :members:
+  :imported-members:

@@ -21,19 +21,20 @@ import torch
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
-from monai.transforms.utils import fill_holes, get_largest_connected_component_mask, get_unique_labels
-from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import (
-    TransformBackends,
-    convert_data_type,
-    convert_to_tensor,
-    deprecated_arg,
-    ensure_tuple,
-    look_up_option,
+from monai.transforms.utils import (
+    convert_applied_interp_mode,
+    fill_holes,
+    get_largest_connected_component_mask,
+    get_unique_labels,
+    remove_small_objects,
 )
+from monai.transforms.utils_pytorch_numpy_unification import unravel_index
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -41,11 +42,14 @@ __all__ = [
     "AsDiscrete",
     "FillHoles",
     "KeepLargestConnectedComponent",
+    "RemoveSmallObjects",
     "LabelFilter",
     "LabelToContour",
     "MeanEnsemble",
     "ProbNMS",
+    "SobelGradients",
     "VoteEnsemble",
+    "Invert",
 ]
 
 
@@ -151,54 +155,24 @@ class AsDiscrete(Transform):
         >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
         # [[[0.0, 0.0]], [[1.0, 1.0]]]
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-    .. deprecated:: 0.7.0
-        ``num_classes`` is deprecated, use ``to_onehot`` instead.
-        ``logit_thresh`` is deprecated, use ``threshold`` instead.
-        ``threshold_values`` is deprecated, use ``threshold`` instead.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         argmax: bool = False,
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: float = 0.5,  # deprecated
-        threshold_values: Optional[bool] = False,  # deprecated
     ) -> None:
         self.argmax = argmax
         if isinstance(to_onehot, bool):  # for backward compatibility
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
-
-        if isinstance(threshold, bool):  # for backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
         self.threshold = threshold
-
         self.rounding = rounding
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __call__(
         self,
         img: NdarrayOrTensor,
@@ -206,10 +180,6 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: Optional[float] = None,  # deprecated
-        threshold_values: Optional[bool] = None,  # deprecated
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -224,21 +194,9 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
-
         """
         if isinstance(to_onehot, bool):
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
-        if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
@@ -307,7 +265,7 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,
@@ -315,6 +273,7 @@ class KeepLargestConnectedComponent(Transform):
         is_onehot: Optional[bool] = None,
         independent: bool = True,
         connectivity: Optional[int] = None,
+        num_components: int = 1,
     ) -> None:
         """
         Args:
@@ -332,6 +291,7 @@ class KeepLargestConnectedComponent(Transform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
 
         """
         super().__init__()
@@ -339,6 +299,7 @@ class KeepLargestConnectedComponent(Transform):
         self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
+        self.num_components = num_components
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -358,7 +319,7 @@ class KeepLargestConnectedComponent(Transform):
         if self.independent:
             for i in applied_labels:
                 foreground = img_[i] > 0 if is_onehot else img_[0] == i
-                mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
                 if is_onehot:
                     img_[i][foreground != mask] = 0
                 else:
@@ -367,18 +328,55 @@ class KeepLargestConnectedComponent(Transform):
         if not is_onehot:  # not one-hot, union of labels
             labels, *_ = convert_to_dst_type(applied_labels, dst=img_, wrap_sequence=True)
             foreground = (img_[..., None] == labels).any(-1)[0]
-            mask = get_largest_connected_component_mask(foreground, self.connectivity)
+            mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
             img_[0][foreground != mask] = 0
             return convert_to_dst_type(img_, dst=img)[0]
         # one-hot, union of labels
         foreground = (img_[applied_labels, ...] == 1).any(0)
-        mask = get_largest_connected_component_mask(foreground, self.connectivity)
+        mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
         for i in applied_labels:
             img_[i][foreground != mask] = 0
         return convert_to_dst_type(img_, dst=img)[0]
 
 
-class LabelFilter:
+class RemoveSmallObjects(Transform):
+    """
+    Use `skimage.morphology.remove_small_objects` to remove small objects from images.
+    See: https://scikit-image.org/docs/dev/api/skimage.morphology.html#remove-small-objects.
+
+    Data should be one-hotted.
+
+    Args:
+        min_size: objects smaller than this size are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
+        self.min_size = min_size
+        self.connectivity = connectivity
+        self.independent_channels = independent_channels
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (C, spatial_dim1[, spatial_dim2, ...]). Data
+                should be one-hotted.
+
+        Returns:
+            An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
+        """
+        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels)
+
+
+class LabelFilter(Transform):
     """
     This transform filters out labels and can be used as a processing step to view only certain labels.
 
@@ -695,7 +693,7 @@ class ProbNMS(Transform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
@@ -710,7 +708,7 @@ class ProbNMS(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
@@ -765,3 +763,98 @@ class ProbNMS(Transform):
             prob_map[slices] = 0
 
         return outputs
+
+
+class Invert(Transform):
+    """
+    Utility transform to automatically invert the previously applied transforms.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        transform: Optional[InvertibleTransform] = None,
+        nearest_interp: Union[bool, Sequence[bool]] = True,
+        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]]] = "cpu",
+        post_func: Union[Callable, Sequence[Callable]] = lambda x: x,
+    ) -> None:
+        """
+        Args:
+            transform: the previously applied transform.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
+            device: move the inverted results to a target device before `post_func`, default to "cpu".
+            post_func: postprocessing for the inverted MetaTensor, should be a callable function.
+        """
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
+        self.transform = transform
+        self.nearest_interp = nearest_interp
+        self.device = device
+        self.post_func = post_func
+
+    def __call__(self, data):
+        if not isinstance(data, MetaTensor):
+            return data
+
+        if self.nearest_interp:
+            data.applied_operations = convert_applied_interp_mode(
+                trans_info=data.applied_operations, mode="nearest", align_corners=None
+            )
+
+        data = data.detach()
+        inverted = self.transform.inverse(data)
+        inverted = self.post_func(inverted.to(self.device))
+        return inverted
+
+
+class SobelGradients(Transform):
+    """Calculate Sobel horizontal and vertical gradients
+
+    Args:
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+        device: the device to create the kernel on. Defaults to `"cpu"`.
+
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        kernel_size: int = 3,
+        padding: Union[int, str] = "same",
+        dtype: torch.dtype = torch.float32,
+        device: Union[torch.device, int, str] = "cpu",
+    ) -> None:
+        super().__init__()
+        self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
+        self.padding = padding
+
+    def _get_kernel(self, size, dtype, device) -> torch.Tensor:
+        if size % 2 == 0:
+            raise ValueError(f"Sobel kernel size should be an odd number. {size} was given.")
+        if not dtype.is_floating_point:
+            raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
+
+        numerator: torch.Tensor = torch.arange(
+            -size // 2 + 1, size // 2 + 1, dtype=dtype, device=device, requires_grad=False
+        ).expand(size, size)
+        denominator = numerator * numerator
+        denominator = denominator + denominator.T
+        denominator[:, size // 2] = 1.0  # to avoid division by zero
+        kernel = numerator / denominator
+        return kernel
+
+    def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
+        image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
+        kernel_v = self.kernel.to(image_tensor.device)
+        kernel_h = kernel_v.T
+        image_tensor = image_tensor.unsqueeze(0)  # adds a batch dim
+        grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
+        grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
+        grad = torch.cat([grad_h, grad_v], dim=1)
+        grad, *_ = convert_to_dst_type(grad.squeeze(0), image_tensor)
+        return grad

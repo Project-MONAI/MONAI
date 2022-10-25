@@ -15,7 +15,7 @@
 # https://github.com/vqdang/hover_net/blob/master/LICENSE
 # MIT License
 
-# Origial publication:
+# Original publication:
 #  @article{graham2019hover,
 #    title={Hover-net: Simultaneous segmentation and classification of nuclei in multi-tissue histology images},
 #    author={Graham, Simon and Vu, Quoc Dang and Raza, Shan E Ahmed and Azam, Ayesha and Tsang, Yee Wah and Kwak,
@@ -25,12 +25,10 @@
 #    year={2019},
 #    publisher={Elsevier}
 # }
-
 # =========================================================================
 
 from collections import OrderedDict
-from enum import Enum
-from typing import Callable, Dict, List, Sequence, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
@@ -38,9 +36,10 @@ import torch.nn as nn
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
-from monai.utils import InterpolateMode, UpsampleMode, export
+from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
+from monai.utils.module import export, look_up_option
 
-__all__ = ["HoverNet", "Hovernet", "HoVernet", "HoVerNet"]
+__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
 
 class _DenseLayerDecoder(nn.Module):
@@ -56,7 +55,6 @@ class _DenseLayerDecoder(nn.Module):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             num_features: number of internal channels used for the layer
             in_channels: number of the input channels.
             out_channels: number of the output channels.
@@ -110,7 +108,6 @@ class _DecoderBlock(nn.Sequential):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             layers: number of layers in the block.
             num_features: number of internal features used.
             in_channels: number of the input channel.
@@ -253,11 +250,11 @@ class _ResidualBlock(nn.Module):
         layer = _DenseLayer(
             num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
         )
-        self.layers.add_module("prim_denselayer%d" % (1), layer)
+        self.layers.add_module("prim_denselayer_1", layer)
 
         for i in range(1, layers):
             layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
-            self.layers.add_module("main_denselayer%d" % (i + 1), layer)
+            self.layers.add_module(f"main_dense_layer_{i + 1}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
@@ -297,7 +294,6 @@ class _DecoderBranch(nn.ModuleList):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
             dropout_prob: dropout rate after each dense layer.
-            num_features: number of internal features used.
             out_channels: number of the output channel.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
         """
@@ -371,8 +367,8 @@ class _DecoderBranch(nn.ModuleList):
 
 
 @export("monai.networks.nets")
-class HoverNet(nn.Module):
-    """HoVerNet
+class HoVerNet(nn.Module):
+    """HoVerNet model
 
     References:
       Graham, Simon et al. Hover-net: Simultaneous segmentation
@@ -380,6 +376,8 @@ class HoverNet(nn.Module):
       Medical Image Analysis 2019
 
     Args:
+        mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
+          a faster implementation (`HoVerNetMODE.FAST` or "fast"). Defaults to `HoVerNetMODE.FAST`.
         in_channels: number of the input channel.
         out_classes: number of the nuclear type classes.
         act: activation type and arguments. Defaults to relu.
@@ -387,20 +385,12 @@ class HoverNet(nn.Module):
         dropout_prob: dropout rate after each dense layer.
     """
 
-    class Mode(Enum):
-        FAST: int = 0
-        ORIGINAL: int = 1
-
-    def _mode_to_int(self, mode) -> int:
-
-        if mode == self.Mode.FAST:
-            return 0
-        else:
-            return 1
+    Mode = HoVerNetMode
+    Branch = HoVerNetBranch
 
     def __init__(
         self,
-        mode: Mode = Mode.FAST,
+        mode: Union[HoVerNetMode, str] = HoVerNetMode.FAST,
         in_channels: int = 3,
         out_classes: int = 0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
@@ -410,10 +400,9 @@ class HoverNet(nn.Module):
 
         super().__init__()
 
-        self.mode: int = self._mode_to_int(mode)
-
-        if mode not in [self.Mode.ORIGINAL, self.Mode.FAST]:
-            raise ValueError("Input size should be 270 x 270 when using Mode.ORIGINAL")
+        if isinstance(mode, str):
+            mode = mode.upper()
+        self.mode = look_up_option(mode, HoVerNetMode)
 
         if out_classes > 128:
             raise ValueError("Number of nuclear types classes exceeds maximum (128)")
@@ -428,7 +417,7 @@ class HoverNet(nn.Module):
         # number of layers in each pooling block.
         _block_config: Sequence[int] = (3, 4, 6, 3)
 
-        if mode == self.Mode.FAST:
+        if self.mode == HoVerNetMode.FAST:
             _ksize = 3
             _pad = 3
         else:
@@ -484,10 +473,9 @@ class HoverNet(nn.Module):
         # decode branches
         self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize)
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
-        self.type_prediction: _DecoderBranch = None  # type: ignore
-
-        if out_classes > 0:
-            self.type_prediction = _DecoderBranch(out_channels=out_classes, kernel_size=_ksize)
+        self.type_prediction: Optional[_DecoderBranch] = (
+            _DecoderBranch(out_channels=out_classes, kernel_size=_ksize) if out_classes > 0 else None
+        )
 
         for m in self.modules():
             if isinstance(m, conv_type):
@@ -498,12 +486,12 @@ class HoverNet(nn.Module):
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
-        if self.mode == 1:
+        if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
-                raise ValueError("Input size should be 270 x 270 when using Mode.ORIGINAL")
+                raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
         else:
             if x.shape[-1] != 256 or x.shape[-2] != 256:
-                raise ValueError("Input size should be 256 x 256 when using Mode.FAST")
+                raise ValueError("Input size should be 256 x 256 when using HoVerNetMode.FAST")
 
         x = x / 255.0  # to 0-1 range to match XY
         x = self.input_features(x)
@@ -518,15 +506,14 @@ class HoverNet(nn.Module):
         x = self.bottleneck(x)
         x = self.upsample(x)
 
-        x_np = self.nucleus_prediction(x, short_cuts)
-        x_hv = self.horizontal_vertical(x, short_cuts)
-        tp = self.type_prediction
+        output = {
+            HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
+            HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
+        }
+        if self.type_prediction is not None:
+            output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
 
-        if tp is not None:
-            x_tp = self.type_prediction(x, short_cuts)
-            return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv, "type_prediction": x_tp}
-
-        return {"nucleus_prediction": x_np, "horizonal_vertical": x_hv}
+        return output
 
 
-Hovernet = HoVernet = HoVerNet = HoverNet
+Hovernet = HoVernet = HoverNet = HoVerNet

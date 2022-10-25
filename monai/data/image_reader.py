@@ -15,7 +15,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
@@ -28,7 +28,16 @@ from monai.data.utils import (
     orientation_ras_lps,
 )
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import ensure_tuple, ensure_tuple_rep, optional_import, require_pkg
+from monai.utils import (
+    MetaKeys,
+    SpaceKeys,
+    TraceKeys,
+    deprecated,
+    ensure_tuple,
+    ensure_tuple_rep,
+    optional_import,
+    require_pkg,
+)
 
 if TYPE_CHECKING:
     import itk
@@ -131,9 +140,9 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
             datum = from_dict[key]
             if isinstance(datum, np.ndarray) and np_str_obj_array_pattern.search(datum.dtype.str) is not None:
                 continue
-            to_dict[key] = datum
+            to_dict[key] = str(TraceKeys.NONE) if datum is None else datum  # NoneType to string for default_collate
     else:
-        affine_key, shape_key = "affine", "spatial_shape"
+        affine_key, shape_key = MetaKeys.AFFINE, MetaKeys.SPATIAL_SHAPE
         if affine_key in from_dict and not np.allclose(from_dict[affine_key], to_dict[affine_key]):
             raise RuntimeError(
                 "affine matrix of all images should be the same for channel-wise concatenation. "
@@ -149,11 +158,11 @@ def _copy_compatible_dict(from_dict: Dict, to_dict: Dict):
 def _stack_images(image_list: List, meta_dict: Dict):
     if len(image_list) <= 1:
         return image_list[0]
-    if meta_dict.get("original_channel_dim", None) not in ("no_channel", None):
-        channel_dim = int(meta_dict["original_channel_dim"])
+    if meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None) not in ("no_channel", None):
+        channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
-    meta_dict["original_channel_dim"] = 0
+    meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
 
 
@@ -286,13 +295,16 @@ class ITKReader(ImageReader):
             data = self._get_array_data(i)
             img_array.append(data)
             header = self._get_meta_dict(i)
-            header["original_affine"] = self._get_affine(i, self.affine_lps_to_ras)
-            header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = self._get_spatial_shape(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i, self.affine_lps_to_ras)
+            header[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS
+            header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -379,9 +391,15 @@ class PydicomReader(ImageReader):
     All the supported image formats can be found at:
     https://dicom.nema.org/medical/dicom/current/output/chtml/part10/chapter_7.html
 
+    PydicomReader is also able to load segmentations, if a dicom file contains tag: `SegmentSequence`, the reader
+    will consider it as segmentation data, and to load it successfully, `PerFrameFunctionalGroupsSequence` is required
+    for dicom file, and for each frame of dicom file, `SegmentIdentificationSequence` is required.
+    This method refers to the Highdicom library.
+
     This class refers to:
     https://nipy.org/nibabel/dicom/dicom_orientation.html#dicom-affine-formula
     https://github.com/pydicom/contrib-pydicom/blob/master/input-output/pydicom_series.py
+    https://highdicom.readthedocs.io/en/latest/usage.html#parsing-segmentation-seg-images
 
     Args:
         channel_dim: the channel dimension of the input image, default is None.
@@ -392,6 +410,12 @@ class PydicomReader(ImageReader):
             otherwise the affine matrix remains in the Dicom convention.
         swap_ij: whether to swap the first two spatial axes. Default to ``True``, so that the outputs
             are consistent with the other readers.
+        prune_metadata: whether to prune the saved information in metadata. This argument is used for
+            `get_data` function. If True, only items that are related to the affine matrix will be saved.
+            Default to ``True``.
+        label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
+            Keys of the dict are the classes, and values are the corresponding class number. For example:
+            for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
@@ -401,13 +425,21 @@ class PydicomReader(ImageReader):
     """
 
     def __init__(
-        self, channel_dim: Optional[int] = None, affine_lps_to_ras: bool = True, swap_ij: bool = True, **kwargs
+        self,
+        channel_dim: Optional[int] = None,
+        affine_lps_to_ras: bool = True,
+        swap_ij: bool = True,
+        prune_metadata: bool = True,
+        label_dict: Optional[Dict] = None,
+        **kwargs,
     ):
         super().__init__()
         self.kwargs = kwargs
         self.channel_dim = channel_dim
         self.affine_lps_to_ras = affine_lps_to_ras
         self.swap_ij = swap_ij
+        self.prune_metadata = prune_metadata
+        self.label_dict = label_dict
 
     def verify_suffix(self, filename: Union[Sequence[PathLike], PathLike]) -> bool:
         """
@@ -448,9 +480,12 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in glob.glob(os.path.join(name, "**"))]
+                series_slcs = glob.glob(os.path.join(name, "*"))
+                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
+                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
                 img_.append(slices if len(slices) > 1 else slices[0])
-                self.has_series = True
+                if len(slices) > 1:
+                    self.has_series = True
             else:
                 ds = pydicom.dcmread(fp=name, **kwargs_)
                 img_.append(ds)
@@ -514,12 +549,12 @@ class PydicomReader(ImageReader):
             stack_metadata["spacing"] = np.asarray(spacing)
             if hasattr(slices[-1], "ImagePositionPatient"):
                 stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
-            stack_metadata["spatial_shape"] = shape + (len(slices),)
+            stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
             stack_array = stack_array[0]
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
-            stack_metadata["spatial_shape"] = shape
+            stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape
 
         return stack_array, stack_metadata
 
@@ -532,8 +567,13 @@ class PydicomReader(ImageReader):
         When loading a list of files (dicom file, or stacked dicom series), they are stacked together at a new
         dimension as the first dimension, and the metadata of the first image is used to represent the output metadata.
 
-        To use this function, all pydicom dataset objects should contain: `pixel_array`, `PixelSpacing`,
-        `ImagePositionPatient` and `ImageOrientationPatient`.
+        To use this function, all pydicom dataset objects (if not segmentation data) should contain:
+        `pixel_array`, `PixelSpacing`, `ImagePositionPatient` and `ImageOrientationPatient`.
+
+        For segmentation data, we assume that the input is not a dicom series, and the object should contain
+        `SegmentSequence` in order to identify it.
+        In addition, tags (5200, 9229) and (5200, 9230) are required to achieve
+        `PixelSpacing`, `ImageOrientationPatient` and `ImagePositionPatient`.
 
         Args:
             data: a pydicom dataset object, or a list of pydicom dataset objects, or a list of list of
@@ -556,10 +596,12 @@ class PydicomReader(ImageReader):
             if not isinstance(data, List):
                 data = [data]
             for d in data:
-                data_array = self._get_array_data(d)
-                metadata = self._get_meta_dict(d)
-                metadata["spatial_shape"] = data_array.shape
-                metadata["spacing"] = np.asarray(metadata.get("00280030", {}).get("Value", (1.0, 1.0, 1.0)))
+                if hasattr(d, "SegmentSequence"):
+                    data_array, metadata = self._get_seg_data(d)
+                else:
+                    data_array = self._get_array_data(d)
+                    metadata = self._get_meta_dict(d)
+                    metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
         img_array: List[np.ndarray] = []
@@ -568,20 +610,24 @@ class PydicomReader(ImageReader):
         for (data_array, metadata) in ensure_tuple(dicom_data):
             img_array.append(np.ascontiguousarray(np.swapaxes(data_array, 0, 1) if self.swap_ij else data_array))
             affine = self._get_affine(metadata, self.affine_lps_to_ras)
+            metadata[MetaKeys.SPACE] = SpaceKeys.RAS if self.affine_lps_to_ras else SpaceKeys.LPS
             if self.swap_ij:
                 affine = affine @ np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-                sp_size = list(metadata["spatial_shape"])
+                sp_size = list(metadata[MetaKeys.SPATIAL_SHAPE])
                 sp_size[0], sp_size[1] = sp_size[1], sp_size[0]
-                metadata["spatial_shape"] = ensure_tuple(sp_size)
-            metadata["original_affine"] = affine
-            metadata["affine"] = affine.copy()
+                metadata[MetaKeys.SPATIAL_SHAPE] = ensure_tuple(sp_size)
+            metadata[MetaKeys.ORIGINAL_AFFINE] = affine
+            metadata[MetaKeys.AFFINE] = affine.copy()
             if self.channel_dim is None:  # default to "no_channel" or -1
-                metadata["original_channel_dim"] = (
-                    "no_channel" if len(data_array.shape) == len(metadata["spatial_shape"]) else -1
+                metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data_array.shape) == len(metadata[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
-                metadata["original_channel_dim"] = self.channel_dim
-            metadata["spacing"] = affine_to_spacing(metadata["original_affine"], r=len(metadata["spatial_shape"]))
+                metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
+            metadata["spacing"] = affine_to_spacing(
+                metadata[MetaKeys.ORIGINAL_AFFINE], r=len(metadata[MetaKeys.SPATIAL_SHAPE])
+            )
+
             _copy_compatible_dict(metadata, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -594,19 +640,23 @@ class PydicomReader(ImageReader):
             img: a Pydicom dataset object.
 
         """
-        if not hasattr(img, "ImagePositionPatient"):
-            raise ValueError(f"dicom data: {img.filename} does not have ImagePositionPatient.")
-        if not hasattr(img, "ImageOrientationPatient"):
-            raise ValueError(f"dicom data: {img.filename} does not have ImageOrientationPatient.")
 
-        meta_dict = img.to_json_dict()
-        # remove Pixel Data "7FE00008" or "7FE00009" or "7FE00010"
-        # remove Data Set Trailing Padding "FFFCFFFC"
+        metadata = img.to_json_dict()
+
+        if self.prune_metadata:
+            prune_metadata = {}
+            for key in ["00200037", "00200032", "52009229", "52009230"]:
+                if key in metadata.keys():
+                    prune_metadata[key] = metadata[key]
+            return prune_metadata
+
+        # always remove Pixel Data "7FE00008" or "7FE00009" or "7FE00010"
+        # always remove Data Set Trailing Padding "FFFCFFFC"
         for key in ["7FE00008", "7FE00009", "7FE00010", "FFFCFFFC"]:
-            if key in meta_dict.keys():
-                meta_dict.pop(key)
+            if key in metadata.keys():
+                metadata.pop(key)
 
-        return meta_dict  # type: ignore
+        return metadata  # type: ignore
 
     def _get_affine(self, metadata: Dict, lps_to_ras: bool = True):
         """
@@ -640,7 +690,7 @@ class PydicomReader(ImageReader):
         # 3d
         if "lastImagePositionPatient" in metadata:
             t1n, t2n, t3n = metadata["lastImagePositionPatient"]
-            n = metadata["spatial_shape"][-1]
+            n = metadata[MetaKeys.SPATIAL_SHAPE][-1]
             k1, k2, k3 = (t1n - sx) / (n - 1), (t2n - sy) / (n - 1), (t3n - sz) / (n - 1)
             affine[0, 2] = k1
             affine[1, 2] = k2
@@ -649,6 +699,132 @@ class PydicomReader(ImageReader):
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
         return affine
+
+    def _get_frame_data(self, img) -> Iterator:
+        """
+        yield frames and description from the segmentation image.
+        This function is adapted from Highdicom:
+        https://github.com/herrmannlab/highdicom/blob/v0.18.2/src/highdicom/seg/utils.py
+
+        which has the following license...
+
+        # =========================================================================
+        # https://github.com/herrmannlab/highdicom/blob/v0.18.2/LICENSE
+        #
+        # Copyright 2020 MGH Computational Pathology
+        # Permission is hereby granted, free of charge, to any person obtaining a
+        # copy of this software and associated documentation files (the
+        # "Software"), to deal in the Software without restriction, including
+        # without limitation the rights to use, copy, modify, merge, publish,
+        # distribute, sublicense, and/or sell copies of the Software, and to
+        # permit persons to whom the Software is furnished to do so, subject to
+        # the following conditions:
+        # The above copyright notice and this permission notice shall be included
+        # in all copies or substantial portions of the Software.
+        # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+        # OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+        # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+        # IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+        # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+        # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+        # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+        # =========================================================================
+
+        (https://github.com/herrmannlab/highdicom/issues/188)
+
+        Args:
+            img: a Pydicom dataset object that has attribute "SegmentSequence".
+
+        """
+
+        if not hasattr(img, "PerFrameFunctionalGroupsSequence"):
+            raise NotImplementedError(
+                f"To read dicom seg: {img.filename}, 'PerFrameFunctionalGroupsSequence' is required."
+            )
+
+        frame_seg_nums = []
+        for f in img.PerFrameFunctionalGroupsSequence:
+            if not hasattr(f, "SegmentIdentificationSequence"):
+                raise NotImplementedError(
+                    f"To read dicom seg: {img.filename}, 'SegmentIdentificationSequence' is required for each frame."
+                )
+            frame_seg_nums.append(int(f.SegmentIdentificationSequence[0].ReferencedSegmentNumber))
+
+        frame_seg_nums_arr = np.array(frame_seg_nums)
+
+        seg_descriptions = {int(f.SegmentNumber): f for f in img.SegmentSequence}
+
+        for i in np.unique(frame_seg_nums_arr):
+            indices = np.where(frame_seg_nums_arr == i)[0]
+            yield (img.pixel_array[indices, ...], seg_descriptions[i])
+
+    def _get_seg_data(self, img):
+        """
+        Get the array data and metadata of the segmentation image.
+
+        Aegs:
+            img: a Pydicom dataset object that has attribute "SegmentSequence".
+
+        """
+
+        metadata = self._get_meta_dict(img)
+        n_classes = len(img.SegmentSequence)
+        spatial_shape = list(img.pixel_array.shape)
+        spatial_shape[0] = spatial_shape[0] // n_classes
+
+        if self.label_dict is not None:
+            metadata["labels"] = self.label_dict
+            all_segs = np.zeros([*spatial_shape, len(self.label_dict)])
+        else:
+            metadata["labels"] = {}
+            all_segs = np.zeros([*spatial_shape, n_classes])
+
+        for i, (frames, description) in enumerate(self._get_frame_data(img)):
+            class_name = description.SegmentDescription
+            if class_name not in metadata["labels"].keys():
+                metadata["labels"][class_name] = i
+            class_num = metadata["labels"][class_name]
+            all_segs[..., class_num] = frames
+
+        all_segs = all_segs.transpose([1, 2, 0, 3])
+        metadata[MetaKeys.SPATIAL_SHAPE] = all_segs.shape[:-1]
+
+        if "52009229" in metadata.keys():
+            shared_func_group_seq = metadata["52009229"]["Value"][0]
+
+            # get `ImageOrientationPatient`
+            if "00209116" in shared_func_group_seq.keys():
+                plane_orient_seq = shared_func_group_seq["00209116"]["Value"][0]
+                if "00200037" in plane_orient_seq.keys():
+                    metadata["00200037"] = plane_orient_seq["00200037"]
+
+            # get `PixelSpacing`
+            if "00289110" in shared_func_group_seq.keys():
+                pixel_measure_seq = shared_func_group_seq["00289110"]["Value"][0]
+
+                if "00280030" in pixel_measure_seq.keys():
+                    pixel_spacing = pixel_measure_seq["00280030"]["Value"]
+                    metadata["spacing"] = pixel_spacing
+                    if "00180050" in pixel_measure_seq.keys():
+                        metadata["spacing"] += pixel_measure_seq["00180050"]["Value"]
+
+            if self.prune_metadata:
+                metadata.pop("52009229")
+
+        # get `ImagePositionPatient`
+        if "52009230" in metadata.keys():
+            first_frame_func_group_seq = metadata["52009230"]["Value"][0]
+            if "00209113" in first_frame_func_group_seq.keys():
+                plane_position_seq = first_frame_func_group_seq["00209113"]["Value"][0]
+                if "00200032" in plane_position_seq.keys():
+                    metadata["00200032"] = plane_position_seq["00200032"]
+                    metadata["lastImagePositionPatient"] = metadata["52009230"]["Value"][-1]["00209113"]["Value"][0][
+                        "00200032"
+                    ]["Value"]
+            if self.prune_metadata:
+                metadata.pop("52009230")
+
+        return all_segs, metadata
 
     def _get_array_data(self, img):
         """
@@ -764,23 +940,26 @@ class NibabelReader(ImageReader):
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
-            header["affine"] = self._get_affine(i)
-            header["original_affine"] = self._get_affine(i)
+            header[MetaKeys.AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header["as_closest_canonical"] = self.as_closest_canonical
             if self.as_closest_canonical:
                 i = nib.as_closest_canonical(i)
-                header["affine"] = self._get_affine(i)
-            header["spatial_shape"] = self._get_spatial_shape(i)
+                header[MetaKeys.AFFINE] = self._get_affine(i)
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
+            header[MetaKeys.SPACE] = SpaceKeys.RAS
             data = self._get_array_data(i)
             if self.squeeze_non_spatial_dims:
-                for d in range(len(data.shape), len(header["spatial_shape"]), -1):
+                for d in range(len(data.shape), len(header[MetaKeys.SPATIAL_SHAPE]), -1):
                     if data.shape[d - 1] == 1:
                         data = data.squeeze(axis=d - 1)
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -936,9 +1115,12 @@ class NumpyReader(ImageReader):
                 spatial_shape = np.asarray(i.shape)
                 if isinstance(self.channel_dim, int):
                     spatial_shape = np.delete(spatial_shape, self.channel_dim)
-                header["spatial_shape"] = spatial_shape
+                header[MetaKeys.SPATIAL_SHAPE] = spatial_shape
+                header[MetaKeys.SPACE] = SpaceKeys.RAS
             img_array.append(i)
-            header["original_channel_dim"] = self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+            header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                self.channel_dim if isinstance(self.channel_dim, int) else "no_channel"
+            )
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1017,10 +1199,12 @@ class PILReader(ImageReader):
 
         for i in ensure_tuple(img):
             header = self._get_meta_dict(i)
-            header["spatial_shape"] = self._get_spatial_shape(i)
+            header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             data = np.moveaxis(np.asarray(i), 0, 1)
             img_array.append(data)
-            header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else -1
+            header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+            )
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1043,6 +1227,7 @@ class PILReader(ImageReader):
         return np.asarray((img.width, img.height))
 
 
+@deprecated(since="0.8", msg_suffix="use `monai.wsi_reader.WSIReader` instead.")
 class WSIReader(ImageReader):
     """
     Read whole slide images and extract patches.
@@ -1157,8 +1342,8 @@ class WSIReader(ImageReader):
 
         # Add necessary metadata
         metadata: Dict = {}
-        metadata["spatial_shape"] = np.asarray(region.shape[:-1])
-        metadata["original_channel_dim"] = -1
+        metadata[MetaKeys.SPATIAL_SHAPE] = np.asarray(region.shape[:-1])
+        metadata[MetaKeys.ORIGINAL_CHANNEL_DIM] = -1
 
         # Make it channel first
         region = EnsureChannelFirst()(region, metadata)
@@ -1393,16 +1578,18 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header["original_affine"] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
             header = self._switch_lps_ras(header)
-            header["affine"] = header["original_affine"].copy()
-            header["spatial_shape"] = header["sizes"]
+            header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
+            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header["original_channel_dim"] = "no_channel" if len(data.shape) == len(header["spatial_shape"]) else 0
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    "no_channel" if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else 0
+                )
             else:
-                header["original_channel_dim"] = self.channel_dim
+                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
         return _stack_images(img_array, compatible_meta), compatible_meta
@@ -1438,8 +1625,8 @@ class NrrdReader(ImageReader):
 
         """
         if "space" not in header or header["space"] == "left-posterior-superior":
-            header["space"] = "right-anterior-superior"
-            header["original_affine"] = orientation_ras_lps(header["original_affine"])
+            header[MetaKeys.ORIGINAL_AFFINE] = orientation_ras_lps(header[MetaKeys.ORIGINAL_AFFINE])
+            header[MetaKeys.SPACE] = SpaceKeys.RAS
         return header
 
     def _convert_f_to_c_order(self, header: dict) -> dict:

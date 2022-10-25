@@ -21,12 +21,10 @@ yaml, _ = optional_import("yaml")
 
 __all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY"]
 
-
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
-
 
 _conf_values = get_config_values()
 
@@ -56,7 +54,7 @@ DEFAULT_INFERENCE = {
         "_target_": "Compose",
         "transforms": [
             {"_target_": "LoadImaged", "keys": "image"},
-            {"_target_": "AddChanneld", "keys": "image"},
+            {"_target_": "EnsureChannelFirstd", "keys": "image"},
             {"_target_": "ScaleIntensityd", "keys": "image"},
             {"_target_": "EnsureTyped", "keys": "image", "device": "@device"},
         ],

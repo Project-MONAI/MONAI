@@ -18,8 +18,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai._extensions import load_module
 from monai.networks.layers import GaussianMixtureModel
-from tests.utils import skip_if_no_cuda
+from tests.utils import skip_if_darwin, skip_if_no_cuda, skip_if_windows
 
 TEST_CASES = [
     [
@@ -256,10 +257,9 @@ TEST_CASES = [
 ]
 
 
-@skip_if_no_cuda
 class GMMTestCase(unittest.TestCase):
     def setUp(self):
-        self._var = os.environ.get("TORCH_EXTENSIONS_DIR", None)
+        self._var = os.environ.get("TORCH_EXTENSIONS_DIR")
         self.tempdir = tempfile.mkdtemp()
         os.environ["TORCH_EXTENSIONS_DIR"] = self.tempdir
 
@@ -271,6 +271,7 @@ class GMMTestCase(unittest.TestCase):
         shutil.rmtree(self.tempdir)
 
     @parameterized.expand(TEST_CASES)
+    @skip_if_no_cuda
     def test_cuda(self, test_case_description, mixture_count, class_count, features, labels, expected):
 
         # Device to run on
@@ -296,6 +297,15 @@ class GMMTestCase(unittest.TestCase):
 
         # Ensure result are as expected
         np.testing.assert_allclose(results, expected, atol=1e-3)
+
+    @skip_if_darwin
+    @skip_if_windows
+    def test_load(self):
+        if not torch.cuda.is_available():
+            with self.assertRaisesRegex(ImportError, ".*symbol.*"):  # expecting import error if no cuda
+                load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
+        else:
+            load_module("gmm", {"CHANNEL_COUNT": 2, "MIXTURE_COUNT": 2, "MIXTURE_SIZE": 3}, verbose_build=True)
 
 
 if __name__ == "__main__":
