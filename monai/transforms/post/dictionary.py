@@ -19,6 +19,7 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
+import numpy as np
 import torch
 
 from monai import config
@@ -104,6 +105,7 @@ class Activationsd(MapTransform):
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -117,6 +119,8 @@ class Activationsd(MapTransform):
                 for example: `other = torch.tanh`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+                Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -124,6 +128,7 @@ class Activationsd(MapTransform):
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -147,6 +152,7 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -162,6 +168,9 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to ``AsDiscrete``.
+                ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+                These default to ``0``, ``True``, ``torch.float`` respectively.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -180,6 +189,7 @@ class AsDiscreted(MapTransform):
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -688,7 +698,12 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-            d[key] = post_func(inverted_data.to(device))
+            if isinstance(inverted_data, np.ndarray) and torch.device(device).type != "cpu":
+                raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
+            elif isinstance(inverted_data, torch.Tensor):
+                d[key] = post_func(inverted_data.to(device))
+            else:
+                d[key] = post_func(inverted_data)
             # save the invertd applied_operations if it's in the source dict
             if InvertibleTransform.trace_key(orig_key) in d:
                 d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
