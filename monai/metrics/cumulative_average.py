@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import torch
 import torch.distributed as dist
 from numpy.typing import NDArray
+from torch.distributed import ProcessGroup
 
 
 class CumulativeAverage:
@@ -38,25 +39,22 @@ class CumulativeAverage:
 
     """
 
-    def __init__(self, ensure_cpu_group: bool = False) -> None:
+    def __init__(self, group: Optional[ProcessGroup] = None) -> None:
         """
         Args:
-            ensure_cpu_group: applies only to multi-gpu distributed setup. Optionally request to operate on CPU,
-                even if the default DistributedDataParallel group is on GPU. This will create an additional
-                CPU group with GLOO backend to reduce across processes on CPU (and maintain all intermediate data on CPU).
-                Defaults to False: use the default process group created during DistributedDataParallel initialization.
+            group: Optional process group to use in multi-gpu distributed setup. Defaults to None
+            to use the default process group created during DistributedDataParallel initialization.
         """
 
         self.is_distributed = dist.is_available() and dist.is_initialized()
-        self.group = None
         self.device = None
 
         if self.is_distributed:
-            dist_cuda = dist.get_backend() == dist.Backend.NCCL
-            if ensure_cpu_group and dist_cuda:
-                self.group = dist.new_group(backend="gloo")  # create a new cpu group
-            elif dist_cuda:
-                self.device = torch.device("cuda", dist.get_rank())
+            self.group = group
+            if dist.get_backend(group=group) == dist.Backend.NCCL:
+                self.device = torch.device("cuda", dist.get_rank(group=group))
+        else:
+            self.group = None
 
         self.reset()
 
@@ -88,7 +86,7 @@ class CumulativeAverage:
         """
         if self.is_distributed:
             if avg:
-                x = x / dist.get_world_size()
+                x = x / dist.get_world_size(group=self.group)
             else:
                 x = x.clone()
             dist.all_reduce(x, group=self.group)
