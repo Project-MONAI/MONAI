@@ -105,6 +105,7 @@ class Activationsd(MapTransform):
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -118,6 +119,8 @@ class Activationsd(MapTransform):
                 for example: `other = torch.tanh`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+                Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -125,6 +128,7 @@ class Activationsd(MapTransform):
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -148,6 +152,7 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -163,6 +168,9 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to ``AsDiscrete``.
+                ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+                These default to ``0``, ``True``, ``torch.float`` respectively.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -181,6 +189,7 @@ class AsDiscreted(MapTransform):
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
