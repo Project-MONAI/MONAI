@@ -40,6 +40,15 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
+            {"sigmoid": False, "softmax": True, "other": None, "unused": True, "dim": 1},
+            p([[[0.0, 1.0]], [[2.0, 3.0]]]),
+            p([[[1.0, 1.0]], [[1.0, 1.0]]]),
+            (2, 1, 2),
+        ]
+    )
+
+    TEST_CASES.append(
+        [
             {"sigmoid": False, "softmax": False, "other": torch.tanh},
             p([[[0.0, 1.0], [2.0, 3.0]]]),
             p([[[0.0000, 0.7616], [0.9640, 0.9951]]]),
