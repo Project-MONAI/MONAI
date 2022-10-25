@@ -789,7 +789,8 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self.cache_num = 0
-        self._cache: Union[List, Dict] = []
+        self._cache: List = []
+        self._hash_keys: List = []
         self.set_data(data)
 
     def set_data(self, data: Sequence):
@@ -810,12 +811,11 @@ class CacheDataset(Dataset):
             # only compute cache for the unique items of dataset
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
-            cache_ = _compute_cache()
-            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
-            self.data = data
+            self._hash_keys = list(mapping)[: self.cache_num]
         else:
             self.data = data
-            self._cache = _compute_cache()
+        self._cache = _compute_cache()
+        self.data = data
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
@@ -850,21 +850,20 @@ class CacheDataset(Dataset):
         return item
 
     def _transform(self, index: int):
-        index_: Any = index
         if self.hash_as_key:
             key = self.hash_func(self.data[index])
-            if key in self._cache:
+            if key in self._hash_keys:
                 # if existing in cache, get the index
-                index_ = key  # if using hash as cache keys, set the key
+                index = self._hash_keys.index(key)
 
-        if isinstance(index_, int) and index_ % len(self) >= self.cache_num:  # support negative index
+        if index % len(self) >= self.cache_num:  # support negative index
             # no cache for this index, execute all the transforms directly
-            return super()._transform(index_)
+            return super()._transform(index)
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
             self._cache = self._fill_cache()
-        data = self._cache[index_]
+        data = self._cache[index]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
