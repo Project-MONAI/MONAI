@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 
 import torch
 
@@ -70,6 +70,13 @@ class MLFlowHandler:
         state_attributes: expected attributes from `engine.state`, if provided, will extract them
             when epoch completed.
         tag_name: when iteration output is a scalar, `tag_name` is used to track, defaults to `'Loss'`.
+        experiment_name: name for an experiment, defaults to `default_experiment`.
+        run_name: name for run in an experiment, defaults to `test_run`.
+        experiment_param: a dict recording parameters which will not change through whole experiment,
+            like torch version, cuda version and so on.
+        artifacts: paths to images that need to be recorded after a whole run.
+        optimizer_param_names: parameters' name in optimizer that need to be record during runing,
+            defaults to `["lr"]`.
 
     For more details of MLFlow usage, please refer to: https://mlflow.org/docs/latest/index.html.
 
@@ -88,6 +95,9 @@ class MLFlowHandler:
         tag_name: str = DEFAULT_TAG,
         experiment_name: str = "default_experiment",
         run_name: str = "test_run",
+        experiment_param: Optional[Dict] = None,
+        artifacts: Optional[Sequence[str]] = None,
+        optimizer_param_names: Sequence[str] = ["lr"],
     ) -> None:
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
@@ -102,6 +112,9 @@ class MLFlowHandler:
         self.tag_name = tag_name
         self.experiment_name = experiment_name
         self.run_name = run_name
+        self.experiment_param = experiment_param
+        self.artifacts = artifacts
+        self.optimizer_param_names = optimizer_param_names
 
     def attach(self, engine: Engine) -> None:
         """
@@ -117,6 +130,8 @@ class MLFlowHandler:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.epoch_completed)
+        if not engine.has_event_handler(self.complete, Events.COMPLETED):
+            engine.add_event_handler(Events.EPOCH_COMPLETED, self.complete)
 
     def start(self) -> None:
         """
@@ -126,6 +141,16 @@ class MLFlowHandler:
         mlflow.set_experiment(self.experiment_name)
         if mlflow.active_run() is None:
             mlflow.start_run(run_name=self.run_name)
+
+        if self.experiment_param:
+            mlflow.log_params(self.experiment_param)
+
+    def complete(self) -> None:
+        """
+        Handler for train or validation/evaluation completed Event.
+        """
+        if self.artifacts:
+            mlflow.log_artifacts(self.artifacts)
 
     def close(self) -> None:
         """
@@ -202,3 +227,16 @@ class MLFlowHandler:
             loss = {self.tag_name: loss.item() if isinstance(loss, torch.Tensor) else loss}
 
         mlflow.log_metrics(loss, step=engine.state.iteration)
+
+        # If there is optimizer attr in engine, then record parameters specified in init function.
+        try:
+            cur_optimizer = engine.optimizer
+            for param_name in self.optimizer_param_names:
+                params = {
+                    f"{param_name} group_{i}": float(param_group[param_name])
+                    for i, param_group in enumerate(cur_optimizer.param_groups)
+                }
+                mlflow.log_metrics(params, step=engine.state.iteration)
+
+        except AttributeError:
+            pass
