@@ -45,7 +45,7 @@ from monai.utils.module import export, look_up_option
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet", "HOVERNET_MODELS"]
 
 HOVERNET_MODELS = {
-    "preact-resnet50": "https://drive.google.com/u/1/uc?id=1KntZge40tAHgyXmHYVqZZ5d2p_4Qr2l5&export=download",
+    "preact-resnet50": "https://drive.google.com/u/1/uc?id=1KntZge40tAHgyXmHYVqZZ5d2p_4Qr2l5&export=download"
 }
 
 
@@ -440,10 +440,7 @@ class HoVerNet(nn.Module):
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
-                    (
-                        "conv",
-                        conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
-                    ),
+                    ("conv", conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False)),
                     ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
                     ("relu", get_act_layer(name=act)),
                 ]
