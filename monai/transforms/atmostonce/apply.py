@@ -141,10 +141,8 @@ def apply(data: Union[torch.Tensor, MetaTensor],
 
     for meta_matrix in pending_:
         next_matrix = meta_matrix.matrix
-        print("intermediate matrix\n", matrix_from_matrix_container(cumulative_matrix))
-        # cumulative_matrix = matmul(next_matrix, cumulative_matrix)
+        # print("intermediate matrix\n", matrix_from_matrix_container(cumulative_matrix))
         cumulative_matrix = matmul(cumulative_matrix, next_matrix)
-        # cumulative_extents = [e @ translate_to_centre.matrix.matrix for e in cumulative_extents]
         cumulative_extents = [matmul(e, cumulative_matrix) for e in cumulative_extents]
 
         new_mode = meta_matrix.metadata.get('mode', None)
@@ -160,12 +158,10 @@ def apply(data: Union[torch.Tensor, MetaTensor],
 
         if (mode_compat is False or padding_mode_compat is False or
             device_compat is False or dtype_compat is False):
-            print("intermediate apply required")
             # carry out an intermediate resample here due to incompatibility between arguments
             kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
 
             cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
-            print(f"intermediate applying with cumulative matrix\n {cumulative_matrix_}")
             a = Affine(norm_coords=False,
                        affine=cumulative_matrix_,
                        **kwargs)
@@ -184,7 +180,7 @@ def apply(data: Union[torch.Tensor, MetaTensor],
 
     cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
 
-    print(f"applying with cumulative matrix\n {cumulative_matrix_}")
+    # print(f"applying with cumulative matrix\n {cumulative_matrix_}")
     a = Affine(norm_coords=False,
                affine=cumulative_matrix_,
                spatial_size=cur_shape[1:],
@@ -224,66 +220,3 @@ class Applyd(MapTransform, InvertibleTransform):
 
     def inverse(self, data):
         return NotImplementedError()
-
-
-# class Applyd(MapTransform, InvertibleTransform):
-#
-#     def __init__(self,
-#                  keys: KeysCollection,
-#                  modes: GridSampleModeSequence,
-#                  padding_modes: GridSamplePadModeSequence,
-#                  normalized: bool = False,
-#                  device: Optional[torch.device] = None,
-#                  dtypes: Optional[DtypeSequence] = np.float32):
-#         self.keys = keys
-#         self.modes = modes
-#         self.padding_modes = padding_modes
-#         self.device = device
-#         self.dtypes = dtypes
-#         self.resamplers = dict()
-#
-#         if isinstance(dtypes, (list, tuple)):
-#             if len(keys) != len(dtypes):
-#                 raise ValueError("'keys' and 'dtypes' must be the same length if 'dtypes' is a sequence")
-#
-#             # create a resampler for each output data type
-#             unique_resamplers = dict()
-#             for d in dtypes:
-#                 if d not in unique_resamplers:
-#                     unique_resamplers[d] = Resample(norm_coords=not normalized, device=device, dtype=d)
-#
-#             # assign each named data input the appropriate resampler for that data type
-#             for k, d in zip(keys, dtypes):
-#                 if k not in self.resamplers:
-#                     self.resamplers[k] = unique_resamplers[d]
-#
-#         else:
-#             # share the resampler across all named data inputs
-#             resampler = Resample(norm_coords=not normalized, device=device, dtype=dtypes)
-#             for k in keys:
-#                 self.resamplers[k] = resampler
-#
-#     def __call__(self,
-#                  data: Mapping[Hashable, NdarrayOrTensor],
-#                  allow_missing_keys: bool = False) -> Dict[Hashable, NdarrayOrTensor]:
-#         d = dict(data)
-#         mapping_stack = d["mappings"]
-#         keys = d.keys()
-#         for key_tuple in self.key_iterator(d,
-#                                            expand_scalar_to_tuple(self.modes, len(keys)),
-#                                            expand_scalar_to_tuple(self.padding_modes, len(keys)),
-#                                            expand_scalar_to_tuple(self.dtypes, len(keys))):
-#             key, mode, padding_mode, dtype = key_tuple
-#             affine = mapping_stack[key].transform()
-#             data = d[key]
-#             spatial_size = data.shape[1:]
-#             grid = create_grid(spatial_size, device=self.device, backend="torch", dtype=dtype)
-#             _device = grid.device
-#
-#             _b = TransformBackends.TORCH if isinstance(grid, torch.Tensor) else TransformBackends.NUMPY
-#
-#             grid, *_ = convert_data_type(grid, torch.Tensor, device=_device, dtype=grid.dtype)
-#             affine, *_ = convert_to_dst_type(affine, grid)
-#             d[key] = self.resamplers[key](data, grid=grid, mode=mode, padding_mode=padding_mode)
-#
-#         return d

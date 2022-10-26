@@ -3,8 +3,11 @@ from typing import Optional, Sequence, Tuple, Union
 import numpy as np
 
 import torch
+from monai.networks.layers import GaussianFilter
 
-from monai.transforms import create_rotate, create_translate, map_spatial_axes
+from monai.networks.utils import meshgrid_ij
+
+from monai.transforms import create_rotate, create_translate, map_spatial_axes, create_grid
 
 from monai.data import get_track_meta
 from monai.transforms.atmostonce.apply import extents_from_shape, shape_from_extents
@@ -368,6 +371,81 @@ def rotate90(
         "shape_override": shape_override
     }
     return img_, transform, metadata
+
+
+def grid_distortion(
+        img: torch.Tensor,
+        num_cells: Union[Tuple[int], int],
+        distort_steps: Sequence[Sequence[float]],
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
+        shape_override: Optional[Tuple[int]] = None
+):
+    all_ranges = []
+    num_cells = ensure_tuple_rep(num_cells, len(img.shape) - 1)
+    for dim_idx, dim_size in enumerate(img.shape[1:]):
+        dim_distort_steps = distort_steps[dim_idx]
+        ranges = torch.zeros(dim_size, dtype=torch.float32)
+        cell_size = dim_size // num_cells[dim_idx]
+        prev = 0
+        for idx in range(num_cells[dim_idx] + 1):
+            start = int(idx * cell_size)
+            end = start + cell_size
+            if end > dim_size:
+                end = dim_size
+                cur = dim_size
+            else:
+                cur = prev + cell_size * dim_distort_steps[idx]
+            prev = cur
+        ranges = range - (dim_size - 1.0) / 2.0
+        all_ranges.append()
+    coords = meshgrid_ij(*all_ranges)
+    grid = torch.stack([*coords, torch.ones_like(coords[0])])
+
+    metadata = {
+        "num_cells": num_cells,
+        "distort_steps": distort_steps,
+        "mode": mode,
+        "padding_mode": padding_mode
+    }
+
+    return img, grid, metadata
+
+
+def elastic_3d(
+        img: torch.Tensor,
+        sigma: float,
+        magnitude: float,
+        offsets: torch.Tensor,
+        spatial_size: Optional[Union[Tuple[int, int, int], int]] = None,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.REFLECTION,
+        device: Optional[torch.device] = None,
+        shape_override: Optional[Tuple[float]] = None
+):
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+
+    sp_size = fall_back_tuple(spatial_size, img.shape[1:])
+    device_ = img.device if isinstance(img, torch.Tensor) else device
+    grid = create_grid(spatial_size=sp_size, device=device_, backend="torch")
+    gaussian = GaussianFilter(3, sigma, 3.0).to(device=device_)
+    grid[:3] += gaussian(offsets)[0] * magnitude
+
+    metadata = {
+        "sigma": sigma,
+        "magnitude": magnitude,
+        "offsets": offsets,
+    }
+    if spatial_size is not None:
+        metadata["spatial_size"] = spatial_size
+    if mode is not None:
+        metadata["mode"] = mode
+    if padding_mode is not None:
+        metadata["padding_mode"] = padding_mode
+    if shape_override is not None:
+        metadata["shape_override"] = shape_override
+
+    return img_, grid, metadata
 
 
 def translate(

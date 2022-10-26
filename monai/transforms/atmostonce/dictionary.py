@@ -1,11 +1,12 @@
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 import torch
 
-from monai.transforms.atmostonce.array import Rotate, Resize, Spacing, Zoom, CropPad
+from monai.transforms.atmostonce.array import Rotate, Resize, Spacing, Zoom, CropPad, RotateRandomizer
 from monai.transforms.atmostonce.utility import ILazyTransform, IRandomizableTransform, IMultiSampleTransform
+from monai.transforms.atmostonce.utils import value_to_tuple_range
 from monai.utils import ensure_tuple_rep
 
 from monai.config import KeysCollection, DtypeLike, SequenceStr
@@ -46,8 +47,8 @@ def expand_potential_tuple(keys, value):
 
 
 def keys_to_process(
-        keys: Sequence[str],
-        dictionary: dict,
+        keys: KeysCollection,
+        dictionary: Mapping[Hashable, torch.Tensor],
         allow_missing_keys: bool,
 ):
     if allow_missing_keys is True:
@@ -155,13 +156,10 @@ class Rotated(LazyTransform, MapTransform, InvertibleTransform):
         self.allow_missing_keys = allow_missing_keys
 
     def __call__(self, d: Mapping):
+        keys = keys_to_process(self.keys, d, self.allow_missing_keys)
         rd = dict(d)
-        if self.allow_missing_keys is True:
-            keys_present = {k for k in self.keys if k in d}
-        else:
-            keys_present = self.keys
 
-        for ik, k in enumerate(keys_present):
+        for ik, k in enumerate(keys):
             tx = Rotate(self.angle, self.keep_size,
                         self.modes[ik], self.padding_modes[ik],
                         self.align_corners, self.dtypes[ik])
@@ -170,6 +168,49 @@ class Rotated(LazyTransform, MapTransform, InvertibleTransform):
         return rd
 
     def inverse(self, data: Any):
+        raise NotImplementedError()
+
+
+class RandRotated(MapTransform, InvertibleTransform, LazyTransform, IRandomizableTransform):
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            range_x: Union[Tuple[float, float], float] = 0.0,
+            range_y: Union[Tuple[float, float], float] = 0.0,
+            range_z: Union[Tuple[float, float], float] = 0.0,
+            prob: float = 0.1,
+            keep_size: bool = True,
+            mode: SequenceStr = GridSampleMode.BILINEAR,
+            padding_mode: SequenceStr = GridSamplePadMode.BORDER,
+            align_corners: Union[Sequence[bool], bool] = False,
+            dtype: Union[Sequence[Union[DtypeLike, torch.dtype]], DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = True,
+            allow_missing_keys: Optional[bool] = False,
+    ):
+        self.keys = keys
+        self.allow_missing_keys = allow_missing_keys
+        self.randomizer = RotateRandomizer(value_to_tuple_range(range_x),
+                                           value_to_tuple_range(range_y),
+                                           value_to_tuple_range(range_z),
+                                           prob)
+        self.op = Rotate(0, keep_size, mode, padding_mode, align_corners, dtype, lazy_evaluation)
+
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor]
+    ):
+        keys = keys_to_process(self.keys, data, self.allow_missing_keys)
+        rd = dict(data)
+
+        angles = self.randomizer.sample(data[keys[0]])
+
+        for ik, k in enumerate(keys):
+            rd[k] = self.op(data[k], angles)
+
+        return rd
+
+    def inverse(self, data):
         raise NotImplementedError()
 
 
@@ -399,7 +440,7 @@ class RandomCropPadMultiSampled(
             d: dict,
             randomize: Optional[bool] = True
     ):
-        for i in range(self.sample_count):
+        for _ in range(self.sample_count):
             yield self.op(d, randomize)
 
     def inverse(

@@ -7,7 +7,14 @@ import torch
 
 
 class ILazyTransform(abc.ABC):
-    pass
+
+    @property
+    def lazy_evaluation(self):
+        raise NotImplementedError()
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, lazy_evaluation):
+        raise NotImplementedError()
 
 
 class IMultiSampleTransform(abc.ABC):

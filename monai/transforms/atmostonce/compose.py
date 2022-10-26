@@ -14,85 +14,18 @@ from monai.transforms import Randomizable, InvertibleTransform, OneOf, apply_tra
 
 # TODO: this is intended to replace Compose once development is done
 
-# class ComposeCompiler:
-#     """
-#     Args:
-#         transforms: A sequence of callable transforms
-#         lazy_resampling: Whether to resample the data after each transform or accumulate
-#             changes and then resample according to the accumulated changes as few times as
-#             possible. Defaults to True as this nearly always improves speed and quality
-#         caching_policy: Whether to cache deterministic transforms before the first
-#             randomised transforms. This can be one of "off", "drive", "memory"
-#         caching_favor: Whether to cache primarily for "speed" or for "quality". "speed" will
-#             favor doing more work before caching, whereas "quality" will favour delaying
-#             resampling until after caching
-#     """
-#     def __init__(
-#             self,
-#             transforms: Union[Sequence[Callable], Callable],
-#             lazy_resampling: Optional[bool] = True,
-#             caching_policy: Optional[str] = "off",
-#             caching_favor: Optional[str] = "quality"
-#     ):
-#         valid_caching_policies = ("off", "drive", "memory")
-#         if caching_policy not in valid_caching_policies:
-#             raise ValueError("parameter 'caching_policy' must be one of "
-#                              f"{valid_caching_policies} but is '{caching_policy}'")
-#
-#         dest_transforms = None
-#
-#         if caching_policy == "off":
-#             if lazy_resampling is False:
-#                 dest_transforms = [t for t in transforms]
-#             else:
-#                 dest_transforms = ComposeCompiler.lazy_no_cache()
-#         else:
-#             if caching_policy == "drive":
-#                 raise NotImplementedError()
-#             elif caching_policy == "memory":
-#                 raise NotImplementedError()
-#
-#         self.src_transforms = [t for t in transforms]
-#         self.dest_transforms = dest_transforms
-#
-#     def __getitem__(
-#             self,
-#             index
-#     ):
-#         return self.dest_transforms[index]
-#
-#     def __len__(self):
-#         return len(self.dest_transforms)
-#
-#     @staticmethod
-#     def lazy_no_cache(transforms):
-#         dest_transforms = []
-#         # TODO: replace with lazy transform
-#         cur_lazy = []
-#         for i_t in range(1, len(transforms)):
-#             if isinstance(transforms[i_t], LazyTransform):
-#                 # add this to the stack of transforms to be handled lazily
-#                     cur_lazy.append(transforms[i_t])
-#             else:
-#                 if len(cur_lazy) > 0:
-#                     dest_transforms.append(cur_lazy)
-#                     # TODO: replace with lazy transform
-#                     cur_lazy = []
-#                 dest_transforms.append(transforms[i_t])
-#         return dest_transforms
-
 
 class ComposeCompiler:
 
     def compile(self, transforms, cache_mechanism):
 
-        transforms_ = self.compile_caching(transforms, cache_mechanism)
+        transforms1 = self.compile_caching(transforms, cache_mechanism)
 
-        transforms__ = self.compile_multisampling(transforms_)
+        transforms2 = self.compile_multisampling(transforms1)
 
-        transforms___ = self.compile_lazy_resampling(transforms__)
+        transforms3 = self.compile_lazy_resampling(transforms2)
 
-        return transforms___
+        return transforms3
 
     def compile_caching(self, transforms, cache_mechanism):
         # TODO: handle being passed a transform list with containers
@@ -114,7 +47,7 @@ class ComposeCompiler:
         for i in reversed(range(len(transforms))):
             if self.transform_is_multisampling(transforms[i]) is True:
                 transforms_ = transforms[:i] + [MultiSampleTransformCompose(transforms[i],
-                                                                           transforms[i+1:])]
+                                                                            transforms[i+1:])]
                 return self.compile_multisampling(transforms_)
 
         return list(transforms)
@@ -140,7 +73,7 @@ class ComposeCompiler:
         return isinstance(t, IRandomizableTransform)
 
     def transform_is_container(self, t):
-        return isinstance(t, CachedTransformCompose, MultiSampleTransformCompose)
+        return isinstance(t, (CachedTransformCompose, MultiSampleTransformCompose))
 
     def transform_is_multisampling(self, t):
         return isinstance(t, IMultiSampleTransform)

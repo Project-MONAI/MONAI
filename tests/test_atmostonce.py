@@ -578,6 +578,14 @@ class TestOldTransforms(unittest.TestCase):
         t_out = r(t)
         print(t_out.shape)
 
+    def test_deform_grid(self):
+        r = spatialarray.Rand2DElastic((1, 1),
+                                       (0.1, 0.2),
+                                       1.0)
+        img = get_img((16, 16))
+        result = r(img)
+        print(result)
+
     def test_center_spatial_crop(self):
         r = ocpa.CenterSpatialCrop(4)
         img = get_img((8, 8))
@@ -667,6 +675,75 @@ class TestUtils(unittest.TestCase):
         self.assertTupleEqual(value_to_tuple_range((-2.1, 4.3)), (-2.1, 4.3))
         self.assertTupleEqual(value_to_tuple_range([4.3, -2.1]), (-2.1, 4.3))
         self.assertTupleEqual(value_to_tuple_range((4.3, -2.1)), (-2.1, 4.3))
+
+
+class TestRotate(unittest.TestCase):
+
+    def _test_rotate_array_nonlazy(self, r, t, expected):
+        t_out = r(t)
+        self.assertTrue(torch.allclose(t_out.affine, expected))
+        self.assertFalse(t_out.has_pending_transforms)
+
+    def _test_rotate_array_lazy(self, r, t, expected):
+        t_out = r(t)
+        self.assertTrue(torch.allclose(t_out.affine, torch.eye(4, 4, dtype=torch.double)))
+        self.assertTrue(t_out.has_pending_transforms)
+        self.assertTrue(torch.allclose(t_out.peek_pending_transform().matrix.matrix, expected))
+
+    def test_rotate(self):
+        r = amoa.Rotate(torch.pi,
+                        keep_size=True,
+                        mode="nearest",
+                        padding_mode="zeros",
+                        lazy_evaluation=False)
+        t = get_img((16, 16))
+
+        expected = torch.eye(4, 4, dtype=torch.double)
+        expected[0, :] = torch.DoubleTensor([-1, 0, 0, 15])
+        expected[1, :] = torch.DoubleTensor([0, -1, 0, 15])
+        self._test_rotate_array_nonlazy(r, t, expected)
+
+    def test_rand_rotate(self):
+        r = amoa.RandRotate((0, torch.pi * 2),
+                            (0, torch.pi * 2),
+                            (0, torch.pi * 2),
+                            prob=0.5,
+                            keep_size=True,
+                            mode="nearest",
+                            padding_mode="zeros",
+                            lazy_evaluation=False)
+        t = get_img((16, 16))
+
+        expected = torch.eye(4, 4, dtype=torch.double)
+        expected[0, :] = torch.DoubleTensor([-1, 0, 0, 15])
+        expected[1, :] = torch.DoubleTensor([0, -1, 0, 15])
+        r.randomizer.set_random_state(state=FakeRand(uniforms=(0.25, torch.pi)))
+        self._test_rotate_array_nonlazy(r, t, expected)
+
+        expected = torch.eye(4, 4, dtype=torch.double)
+        r.randomizer.set_random_state(state=FakeRand(uniforms=(0.75, torch.pi)))
+        self._test_rotate_array_nonlazy(r, t, expected)
+
+        r.lazy_evaluation = True
+
+        expected = torch.eye(3, 3, dtype=torch.double)
+        expected[0, :] = torch.DoubleTensor([-1, 0, 0])
+        expected[1, :] = torch.DoubleTensor([0, -1, 0])
+        r.randomizer.set_random_state(state=FakeRand(uniforms=(0.25, torch.pi)))
+        self._test_rotate_array_lazy(r, t, expected)
+
+        expected = torch.eye(3, 3, dtype=torch.double)
+        r.randomizer.set_random_state(state=FakeRand(uniforms=(0.75, torch.pi)))
+        self._test_rotate_array_lazy(r, t, expected)
+
+
+class TestRand3DElastic(unittest.TestCase):
+
+    def test_array(self):
+        img = get_img((16, 16, 8))
+        r = amoa.Rand3DElastic((0.5, 1.5), (0, 1), 1.0, mode="nearest", padding_mode="zeros")
+        result = r(img)
+        print(result.shape)
 
 
 class TestCropPad(unittest.TestCase):
@@ -920,6 +997,7 @@ class TestUtilityTransforms(unittest.TestCase):
         cc = ComposeCompiler()
 
         actual = cc.compile_multisampling(source_transforms)
+        print(actual)
 
         self.assertEqual(actual[0], a)
         self.assertEqual(actual[1], b)
