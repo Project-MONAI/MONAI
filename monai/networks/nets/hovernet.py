@@ -495,6 +495,9 @@ class HoVerNet(nn.Module):
         if pretrained:
             _load_pretrained_encoder(self, "preact-resnet50")
 
+    def freeze_encoder(self):
+        self.res_blocks.requires_grad_(False)
+
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
         if self.mode == HoVerNetMode.ORIGINAL.value:
