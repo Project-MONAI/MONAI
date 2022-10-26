@@ -26,7 +26,17 @@ from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "LazyTransformType",
+    "RandomizableTransformType",
+    "MultiSampleTransformType",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -116,6 +126,74 @@ def apply_transform(
             else:
                 _log_stats(data=data)
         raise RuntimeError(f"applying transform {transform}") from e
+
+
+class LazyTransformType:
+    """
+    An interface to indicate that the transform has the capability to describe
+    its operation as an affine matrix or grid with accompanying metadata. This
+    interface can be extended from by people adapting transforms to the MONAI framework as well as
+    by implementors of MONAI transforms.
+    """
+
+    @property
+    def lazy_evaluation(self):
+        """
+        Get whether lazy_evaluation is enabled for this transform instance.
+
+        Returns:
+            True if the transform is operating in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, enabled: bool):
+        """
+        Set whether lazy_evaluation is enabled for this transform instance.
+
+        Args:
+            enabled: True if the transform should operate in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+
+class RandomizableTransformType:
+    """
+    An interface to indicate that the transform has the capability to perform
+    randomized transforms to the data that it is called upon. This interface
+    can be extended from by people adapting transforms to the MONAI framework as well as by
+    implementors of MONAI transforms.
+    """
+
+    def set_random_state(
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
+    ) -> "RandomizableTransformType":
+        """
+        Set either the seed for an inbuilt random generator (assumed to be np.random.RandomState)
+        or set a random generator for this transform to use (again, assumed to be
+        np.random.RandomState). One one of these parameters should be set. If your random transform
+        that implements this interface doesn't support setting or reseeding of its random
+        generator, this method does not need to be implemented.
+
+        Args:
+            seed: set the random state with an integer seed.
+            state: set the random state with a `np.random.RandomState` object.
+
+        Returns:
+            self as a convenience for assignment
+        """
+        raise TypeError(f"{self.__class__.__name__} does not support setting of random state via set_random_state.")
+
+
+class MultiSampleTransformType:
+    """
+    An interface to indicate that the transform has the capability to return multiple samples
+    given an input, such as when performing random crops of a sample. This interface can be
+    extended from by people adapting transforms to the MONAI framework as well as by implementors
+    of MONAI transforms.
+    """
+
+    pass
 
 
 class ThreadUnsafe:
@@ -251,7 +329,7 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class RandomizableTransform(Randomizable, Transform):
+class RandomizableTransform(Randomizable, Transform, RandomizableTransformType):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
