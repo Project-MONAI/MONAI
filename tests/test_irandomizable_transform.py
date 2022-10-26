@@ -11,8 +11,6 @@
 
 import unittest
 
-import numpy as np
-
 from monai.transforms.transform import IRandomizableTransform, RandomizableTransform
 
 
