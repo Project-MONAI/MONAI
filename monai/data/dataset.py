@@ -862,7 +862,7 @@ class CacheDataset(Dataset):
         # load data from cache and execute from the first random transform
         start_run = False
         if self._cache is None:
-            self._cache = self._fill_cache()
+            raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
         data = self._cache[index]
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
