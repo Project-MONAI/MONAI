@@ -19,6 +19,7 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
+import numpy as np
 import torch
 
 from monai import config
@@ -697,7 +698,12 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-            d[key] = post_func(inverted_data.to(device))
+            if isinstance(inverted_data, np.ndarray) and torch.device(device).type != "cpu":
+                raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
+            elif isinstance(inverted_data, torch.Tensor):
+                d[key] = post_func(inverted_data.to(device))
+            else:
+                d[key] = post_func(inverted_data)
             # save the invertd applied_operations if it's in the source dict
             if InvertibleTransform.trace_key(orig_key) in d:
                 d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
