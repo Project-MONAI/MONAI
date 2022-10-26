@@ -38,7 +38,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold": 0.5},
+            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold": 0.5, "dim": 0, "keepdim": True},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]])},
             (2, 1, 2),

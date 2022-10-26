@@ -55,7 +55,7 @@ __all__ = [
 
 class Activations(Transform):
     """
-    Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
+    Activation operations, typically `Sigmoid` or `Softmax`.
 
     Args:
         sigmoid: whether to execute sigmoid function on model output before transform.
@@ -64,6 +64,8 @@ class Activations(Transform):
             Defaults to ``False``.
         other: callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
+        kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+            Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
     Raises:
         TypeError: When ``other`` is not an ``Optional[Callable]``.
@@ -72,9 +74,12 @@ class Activations(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
+    def __init__(
+        self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None, **kwargs
+    ) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.kwargs = kwargs
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
         self.other = other
@@ -112,7 +117,7 @@ class Activations(Transform):
         if sigmoid or self.sigmoid:
             img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
-            img_t = torch.softmax(img_t, dim=0)
+            img_t = torch.softmax(img_t, dim=self.kwargs.get("dim", 0))
 
         act_func = self.other if other is None else other
         if act_func is not None:
@@ -123,12 +128,11 @@ class Activations(Transform):
 
 class AsDiscrete(Transform):
     """
-    Execute after model forward to transform model output to discrete values.
-    It can complete below operations:
+    Convert the input tensor/array into discrete values, possible operations are:
 
-        -  execute `argmax` for input logits values.
-        -  threshold input value to 0.0 or 1.0.
-        -  convert input value to One-Hot format.
+        -  `argmax`.
+        -  threshold input value to binary values.
+        -  convert input value to One-Hot format (set ``to_one_hot=N``, `N` is the number of classes).
         -  round the value to the closest integer.
 
     Args:
@@ -140,6 +144,9 @@ class AsDiscrete(Transform):
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
+        kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
+            currently ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+            These default to ``0``, ``True``, ``torch.float`` respectively.
 
     Example:
 
@@ -165,6 +172,7 @@ class AsDiscrete(Transform):
         to_onehot: Optional[int] = None,
         threshold: Optional[float] = None,
         rounding: Optional[str] = None,
+        **kwargs,
     ) -> None:
         self.argmax = argmax
         if isinstance(to_onehot, bool):  # for backward compatibility
@@ -172,6 +180,7 @@ class AsDiscrete(Transform):
         self.to_onehot = to_onehot
         self.threshold = threshold
         self.rounding = rounding
+        self.kwargs = kwargs
 
     def __call__(
         self,
@@ -200,13 +209,15 @@ class AsDiscrete(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
-            img_t = torch.argmax(img_t, dim=0, keepdim=True)
+            img_t = torch.argmax(img_t, dim=self.kwargs.get("dim", 0), keepdim=self.kwargs.get("keepdim", True))
 
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
-                raise AssertionError("the number of classes for One-Hot must be an integer.")
-            img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
+                raise ValueError("the number of classes for One-Hot must be an integer.")
+            img_t = one_hot(
+                img_t, num_classes=to_onehot, dim=self.kwargs.get("dim", 0), dtype=self.kwargs.get("dtype", torch.float)
+            )
 
         threshold = self.threshold if threshold is None else threshold
         if threshold is not None:
@@ -217,7 +228,7 @@ class AsDiscrete(Transform):
             look_up_option(rounding, ["torchrounding"])
             img_t = torch.round(img_t)
 
-        img, *_ = convert_to_dst_type(img_t, img, dtype=torch.float)
+        img, *_ = convert_to_dst_type(img_t, img, dtype=self.kwargs.get("dtype", torch.float))
         return img
 
 
