@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from typing import Any, Optional, Union
 
 import torch
@@ -56,6 +57,9 @@ class CumulativeAverage:
         else:
             self.group = None
 
+        if self.device is None:
+            self.device = torch.device("cpu")
+
         self.reset()
 
     def reset(self) -> None:
@@ -73,12 +77,7 @@ class CumulativeAverage:
         """
         x: torch.Tensor = a.detach() if isinstance(a, torch.Tensor) else torch.tensor(a)
 
-        if self.device is not None:
-            x = x.to(device=self.device, dtype=torch.float)
-        else:
-            x = x.cpu().float()
-
-        return x
+        return x.to(device=self.device, dtype=torch.float)
 
     def reduce(self, x: torch.Tensor, avg: bool = False) -> torch.Tensor:
         """
@@ -166,8 +165,7 @@ class CumulativeAverage:
         val_count = val * count
         nfin = ~torch.isfinite(val_count)
         if torch.any(nfin):
-            # non-finite numbers may indicate some errors in the user code
-            print("non-finite numbers received", val, count)
+            warnings.warn(f"non-finite inputs received: val: {val}, count: {count}")
             zero = torch.tensor(0).to(val)
             val = torch.where(nfin, zero, val)
             count = torch.where(nfin, zero, count)
