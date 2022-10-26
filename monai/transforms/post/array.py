@@ -823,14 +823,16 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel horizontal and vertical gradients of a grayscale image.
+    """Calculate Sobel gradients of a grayscale image with the shape of (CxH[xWxDx...]).
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
-        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
-        axis: the axis on which the gradient to be calculated. By default it calculate the gradient for all axes.
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
-        device: the device to create the kernel on. Defaults to `"cpu"`.
 
     """
 
@@ -839,17 +841,16 @@ class SobelGradients(Transform):
     def __init__(
         self,
         kernel_size: int = 3,
-        padding: str = "reflect",
         spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
-        device: Union[torch.device, int, str] = "cpu",
     ) -> None:
         super().__init__()
-        self.padding = padding
+        self.padding = padding_mode
         self.spatial_axes = spatial_axes
-        self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype, device)
+        self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype)
 
-    def _get_kernel(self, size, dtype, device) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_kernel(self, size, dtype) -> Tuple[torch.Tensor, torch.Tensor]:
         if size < 3:
             raise ValueError(f"Sobel kernel size should be at least three. {size} was given.")
         if size % 2 == 0:
@@ -857,9 +858,9 @@ class SobelGradients(Transform):
         if not dtype.is_floating_point:
             raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
 
-        expand_kernel = torch.tensor([[[1, 2, 1]]], dtype=dtype, device=device)
-        kernel_diff = torch.tensor([[[1, 0, -1]]], dtype=dtype, device=device)
-        kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype, device=device)
+        expand_kernel = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+        kernel_diff = torch.tensor([[[1, 0, -1]]], dtype=dtype)
+        kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype)
 
         # Expand the kernel to larger size than 3
         expand = (size - 3) // 2

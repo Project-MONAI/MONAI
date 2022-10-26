@@ -825,7 +825,7 @@ class SobelGradientsd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.transform = SobelGradients(
-            kernel_size=kernel_size, padding=padding, spatial_axes=direction, dtype=dtype, device=device
+            kernel_size=kernel_size, padding_mode=padding, spatial_axes=direction, dtype=dtype, device=device
         )
         self.new_key_prefix = new_key_prefix
 

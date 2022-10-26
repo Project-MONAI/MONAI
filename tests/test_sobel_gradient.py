@@ -20,9 +20,20 @@ from tests.utils import assert_allclose
 
 IMAGE = torch.zeros(1, 16, 16, dtype=torch.float32)
 IMAGE[0, 8, :] = 1
+
+# Output with reflect padding
 OUTPUT_3x3 = torch.zeros(2, 16, 16, dtype=torch.float32)
 OUTPUT_3x3[1, 7, :] = -4.0
 OUTPUT_3x3[1, 9, :] = 4.0
+
+# Output with zero padding
+OUTPUT_3x3_ZERO_PAD = OUTPUT_3x3.clone()
+OUTPUT_3x3_ZERO_PAD[0, 7, 0] = OUTPUT_3x3_ZERO_PAD[0, 9, 0] = -1.0
+OUTPUT_3x3_ZERO_PAD[0, 8, 0] = -2.0
+OUTPUT_3x3_ZERO_PAD[0, 7, -1] = OUTPUT_3x3_ZERO_PAD[0, 9, -1] = 1.0
+OUTPUT_3x3_ZERO_PAD[0, 8, -1] = 2.0
+OUTPUT_3x3_ZERO_PAD[1, 7, 0] = OUTPUT_3x3_ZERO_PAD[1, 7, -1] = -3.0
+OUTPUT_3x3_ZERO_PAD[1, 9, 0] = OUTPUT_3x3_ZERO_PAD[1, 9, -1] = 3.0
 
 TEST_CASE_0 = [IMAGE, {"kernel_size": 3, "dtype": torch.float32}, OUTPUT_3x3]
 TEST_CASE_1 = [IMAGE, {"kernel_size": 3, "dtype": torch.float64}, OUTPUT_3x3]
@@ -30,7 +41,16 @@ TEST_CASE_2 = [IMAGE, {"kernel_size": 3, "spatial_axes": 0, "dtype": torch.float
 TEST_CASE_3 = [IMAGE, {"kernel_size": 3, "spatial_axes": 1, "dtype": torch.float64}, OUTPUT_3x3[1][None, ...]]
 TEST_CASE_4 = [IMAGE, {"kernel_size": 3, "spatial_axes": [1], "dtype": torch.float64}, OUTPUT_3x3[1][None, ...]]
 TEST_CASE_5 = [IMAGE, {"kernel_size": 3, "spatial_axes": [0, 1], "dtype": torch.float64}, OUTPUT_3x3]
-TEST_CASE_6 = [IMAGE, {"kernel_size": 3, "spatial_axes": (0, 1), "dtype": torch.float64}, OUTPUT_3x3]
+TEST_CASE_6 = [
+    IMAGE,
+    {"kernel_size": 3, "spatial_axes": (0, 1), "padding_mode": "reflect", "dtype": torch.float64},
+    OUTPUT_3x3,
+]
+TEST_CASE_7 = [
+    IMAGE,
+    {"kernel_size": 3, "spatial_axes": (0, 1), "padding_mode": "zeros", "dtype": torch.float64},
+    OUTPUT_3x3_ZERO_PAD,
+]
 
 TEST_CASE_KERNEL_0 = [
     {"kernel_size": 3, "dtype": torch.float64},
@@ -70,6 +90,7 @@ class SobelGradientTests(unittest.TestCase):
             TEST_CASE_4,
             TEST_CASE_5,
             TEST_CASE_6,
+            TEST_CASE_7,
         ]
     )
     def test_sobel_gradients(self, image, arguments, expected_grad):
