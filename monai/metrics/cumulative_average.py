@@ -82,7 +82,12 @@ class CumulativeAverage:
 
     def reduce(self, x: torch.Tensor, avg: bool = False) -> torch.Tensor:
         """
-        Reduce across processes if in DDP
+        Reduce the tensor across processes if in DDP (using summation reduction)
+
+        Args:
+            x: tensor to reduce.
+            avg: use average reduction instead of summation. Defaults to False
+
         """
         if self.is_distributed:
             if avg:
@@ -93,25 +98,30 @@ class CumulativeAverage:
 
         return x
 
-    def get_current(self, np: bool = True) -> Union[NDArray, torch.Tensor]:
+    def get_current(self, to_numpy: bool = True) -> Union[NDArray, torch.Tensor]:
         """
-        return most recent value (averaged across processes)
+        returns the most recent value (averaged across processes)
+
+        Args:
+            to_numpy: whether to convert to numpy array. Defaults to True
         """
         x = self.reduce(self.val, avg=True)
-        if np:
+        if to_numpy:
             x = x.cpu().numpy()
         return x
 
-    def aggregate(self, np: bool = True) -> Union[NDArray, torch.Tensor]:
+    def aggregate(self, to_numpy: bool = True) -> Union[NDArray, torch.Tensor]:
         """
-        return total average value (averaged across processes)
+        returns the total average value (averaged across processes)
 
+        Args:
+            to_numpy: whether to convert to numpy array. Defaults to True
         """
         sum = self.reduce(self.sum)
         count = self.reduce(self.count)
 
         x = torch.where(count > 0, sum / count, sum)
-        if np:
+        if to_numpy:
             x = x.cpu().numpy()
         return x
 
