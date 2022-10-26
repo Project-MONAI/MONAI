@@ -27,19 +27,26 @@
 # }
 # =========================================================================
 
+import os
+import re
 from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import download_url
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
 from monai.utils.module import export, look_up_option
 
-__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
+__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet", "HOVERNET_MODELS"]
+
+HOVERNET_MODELS = {
+    "preact-resnet50": "https://drive.google.com/u/1/uc?id=1KntZge40tAHgyXmHYVqZZ5d2p_4Qr2l5&export=download",
+}
 
 
 class _DenseLayerDecoder(nn.Module):
@@ -172,22 +179,24 @@ class _DenseLayer(nn.Sequential):
         dropout_type: Callable = Dropout[Dropout.DROPOUT, 2]
 
         if not drop_first_norm_relu:
-            self.layers.add_module("preact_norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
-            self.layers.add_module("preact_relu", get_act_layer(name=act))
+            self.layers.add_module("preact/bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
+            self.layers.add_module("preact/relu", get_act_layer(name=act))
 
         self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False))
-        self.layers.add_module("norm2", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
-        self.layers.add_module("relu2", get_act_layer(name=act))
+        self.layers.add_module("conv1/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module("conv1/relu", get_act_layer(name=act))
 
         if in_channels != 64 and drop_first_norm_relu:
             self.layers.add_module(
                 "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, stride=2, padding=2, bias=False)
             )
         else:
-            self.layers.add_module("conv2", conv_type(num_features, num_features, kernel_size=1, padding=0, bias=False))
+            self.layers.add_module(
+                "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, padding=1, bias=False)
+            )
 
-        self.layers.add_module("norm3", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
-        self.layers.add_module("relu3", get_act_layer(name=act))
+        self.layers.add_module("conv2/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module("conv2/relu", get_act_layer(name=act))
         self.layers.add_module("conv3", conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False))
 
         if dropout_prob > 0:
@@ -206,7 +215,7 @@ class _Transition(nn.Sequential):
         """
         super().__init__()
 
-        self.add_module("norm", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
+        self.add_module("bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
         self.add_module("relu", get_act_layer(name=act))
 
 
@@ -250,11 +259,11 @@ class _ResidualBlock(nn.Module):
         layer = _DenseLayer(
             num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
         )
-        self.layers.add_module("prim_denselayer_1", layer)
+        self.layers.add_module("denselayer_0", layer)
 
         for i in range(1, layers):
             layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
-            self.layers.add_module(f"main_dense_layer_{i + 1}", layer)
+            self.layers.add_module(f"denselayer_{i}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
@@ -335,7 +344,7 @@ class _DecoderBranch(nn.ModuleList):
         _seq_block = nn.Sequential(
             OrderedDict(
                 [
-                    ("norm", get_norm_layer(name=norm, spatial_dims=2, channels=64)),
+                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=64)),
                     ("relu", get_act_layer(name=act)),
                     ("conv", conv_type(64, out_channels, kernel_size=1, stride=1)),
                 ]
@@ -383,6 +392,7 @@ class HoVerNet(nn.Module):
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
         dropout_prob: dropout rate after each dense layer.
+        pretrained: whether to load pretrained weights for encoder.
     """
 
     Mode = HoVerNetMode
@@ -396,6 +406,7 @@ class HoVerNet(nn.Module):
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         dropout_prob: float = 0.0,
+        pretrained: bool = False,
     ) -> None:
 
         super().__init__()
@@ -426,15 +437,15 @@ class HoVerNet(nn.Module):
 
         conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
-        self.input_features = nn.Sequential(
+        self.conv0 = nn.Sequential(
             OrderedDict(
                 [
                     (
-                        "conv0",
+                        "conv",
                         conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False),
                     ),
-                    ("norm0", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
-                    ("relu0", get_act_layer(name=act)),
+                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
+                    ("relu", get_act_layer(name=act)),
                 ]
             )
         )
@@ -455,7 +466,7 @@ class HoVerNet(nn.Module):
                 act=act,
                 norm=norm,
             )
-            self.res_blocks.add_module(f"residualblock{i + 1}", block)
+            self.res_blocks.add_module(f"d{i}", block)
 
             _in_channels = _out_channels
             _out_channels *= 2
@@ -484,6 +495,9 @@ class HoVerNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.weight), 1)
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
+        if pretrained:
+            _load_pretrained_encoder(self, "preact-resnet50")
+
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
 
         if self.mode == HoVerNetMode.ORIGINAL.value:
@@ -494,7 +508,7 @@ class HoVerNet(nn.Module):
                 raise ValueError("Input size should be 256 x 256 when using HoVerNetMode.FAST")
 
         x = x / 255.0  # to 0-1 range to match XY
-        x = self.input_features(x)
+        x = self.conv0(x)
         short_cuts = []
 
         for i, block in enumerate(self.res_blocks):
@@ -514,6 +528,42 @@ class HoVerNet(nn.Module):
             output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
 
         return output
+
+
+def _load_pretrained_encoder(model: nn.Module, arch: str):
+    model_url = look_up_option(arch, HOVERNET_MODELS, None)
+    if model_url is None:
+        raise ValueError(f"only arch in HOVERNET_MODELS are supported to load pretrained weights, got {arch}.")
+    pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
+    pattern_block = re.compile(r"^(d\d+)\.(.+)$")
+    pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
+    pattern_bna = re.compile(r"^(.+\.d\d+)\.blk_bna\.(.+)")
+    # download the pretrained weights into torch hub's default dir
+    weights_dir = os.path.join(torch.hub.get_dir(), f"{arch}.pth")
+    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
+    state_dict = torch.load(weights_dir, map_location=None)["desc"]
+    for key in list(state_dict.keys()):
+        new_key = None
+        if pattern_conv0.match(key):
+            new_key = re.sub(pattern_conv0, r"conv0.conv\2", key)
+        elif pattern_block.match(key):
+            new_key = re.sub(pattern_block, r"res_blocks.\1.\2", key)
+            if pattern_layer.match(new_key):
+                new_key = re.sub(pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key)
+            elif pattern_bna.match(new_key):
+                new_key = re.sub(pattern_bna, r"\1.bna_block.\2", new_key)
+        if new_key:
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
+        if "upsample2x" in key:
+            del state_dict[key]
+
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
 
 
 Hovernet = HoVernet = HoverNet = HoVerNet
