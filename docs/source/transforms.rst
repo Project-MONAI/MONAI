@@ -63,6 +63,11 @@ Generic Interfaces
 .. autoclass:: OneOf
     :members:
 
+`LazyTransform`
+^^^^^^^^^^^^^^^
+.. autoclass:: LazyTransform
+    :members:
+
 Vanilla Transforms
 ------------------
 

@@ -449,7 +449,15 @@ from .spatial.dictionary import (
     ZoomD,
     ZoomDict,
 )
-from .transform import MapTransform, Randomizable, RandomizableTransform, ThreadUnsafe, Transform, apply_transform
+from .transform import (
+    LazyTransform,
+    MapTransform,
+    Randomizable,
+    RandomizableTransform,
+    ThreadUnsafe,
+    Transform,
+    apply_transform,
+)
 from .utility.array import (
     AddChannel,
     AddCoordinateChannels,

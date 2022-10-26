@@ -26,7 +26,15 @@ from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "LazyTransform",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -129,6 +137,26 @@ class ThreadUnsafe:
     """
 
     pass
+
+
+class LazyTransform:
+    """
+    An interface to denote whether a transform can be applied lazily. It is designed as part of lazy resampling of
+    multiple transforms. Classes inheriting this interface should be able to operate in two modes:
+
+        - ``set_lazy_eval(False)`` (eagerly evaluating), the transform should output the finalized transform
+          results without any pending operations. Both primary data and metadata of the outputs should be up-to-date.
+        - ``set_lazy_eval(True)`` (lazily evaluating), the transform should only execute necessary/lightweight/lossless
+          metadata updates to track any pending operations. The goal is that, in a later stage, the pending operations
+          can be grouped together and evaluated more efficiently and accurately -- each transforms when evaluated
+          independently may cause some information losses.
+
+    """
+
+    lazy_evaluation: bool = False
+
+    def set_lazy_eval(self, value: bool):
+        self.lazy_evaluation = value
 
 
 class Randomizable(ThreadUnsafe):
