@@ -24,7 +24,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
-from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering, spatial_transforms
+from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
 from monai.transforms.utils import (
@@ -32,7 +32,6 @@ from monai.transforms.utils import (
     fill_holes,
     get_largest_connected_component_mask,
     get_unique_labels,
-    map_spatial_axes,
     remove_small_objects,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
