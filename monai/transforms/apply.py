@@ -8,7 +8,7 @@ import torch
 
 from monai.config import DtypeLike
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import Affine
+from monai.transforms.spatial.array import Affine
 from monai.transforms.inverse import InvertibleTransform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.transforms.utils import get_backend_from_tensor_like, get_device_from_tensor_like, dtypes_to_str_or_identity
