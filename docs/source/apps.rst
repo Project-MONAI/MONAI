@@ -92,6 +92,10 @@ Applications
 .. autoclass:: ProbMapProducer
     :members:
 
+.. automodule:: monai.apps.pathology.losses.hovernet_loss
+.. autoclass:: HoVerNetLoss
+    :members:
+
 .. automodule:: monai.apps.pathology.metrics
 .. autoclass:: LesionFROC
     :members:

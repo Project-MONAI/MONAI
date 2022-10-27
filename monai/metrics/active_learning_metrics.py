@@ -22,7 +22,7 @@ from .metric import Metric
 
 class VarianceMetric(Metric):
     """
-    Compute the Variance of a given T-repeats N-dimensional array/tensor. The primary usage is as a uncertainty based
+    Compute the Variance of a given T-repeats N-dimensional array/tensor. The primary usage is as an uncertainty based
     metric for Active Learning.
 
     It can return the spatial variance/uncertainty map based on user choice or a single scalar value via mean/sum of the
