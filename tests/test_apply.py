@@ -11,13 +11,11 @@
 
 import unittest
 
-
 import torch
 from monai.utils import convert_to_tensor
 
 from monai.transforms.lazy.functional import apply
 from monai.transforms.meta_matrix import MetaMatrix
-
 
 
 def rotate_45_2d():
