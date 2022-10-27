@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from monai.config import DtypeLike
-from monai.data import MetaTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Affine
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform
