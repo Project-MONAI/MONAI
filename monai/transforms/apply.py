@@ -122,10 +122,17 @@ def matrix_from_matrix_container(matrix):
         return matrix
 
 
-def apply(data: Union[torch.Tensor, MetaTensor],
+def apply(data: Union[torch.Tensor, MetaTensor, dict],
           pending: Optional[Union[dict, list]] = None):
+    """
+    This method applies pending transforms to tensors.
 
-    # TODO: if data is a dict, then pending must also be a dict
+    Args:
+        data: A torch Tensor, monai MetaTensor, or a dictionary containing Tensors / MetaTensors
+        pending: Optional arg containing pending transforms. This must be set if data is a Tensor
+        or dictionary of Tensors, but is optional if data is a MetaTensor / dictionary of
+        MetaTensors.
+    """
     if isinstance(data, dict):
         rd = dict()
         for k, v in data.items():
@@ -211,7 +218,10 @@ def apply(data: Union[torch.Tensor, MetaTensor],
 
 # make Apply universal for arrays and dictionaries; it just calls through to functional apply
 class Apply(InvertibleTransform):
-
+    """
+    Apply wraps the apply method and can function as a Transform in either array or dictionary
+    mode.
+    """
     def __init__(self):
         super().__init__()
 
