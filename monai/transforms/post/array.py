@@ -858,7 +858,7 @@ class SobelGradients(Transform):
             raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
 
         kernel_expansion = torch.tensor([[[1, 2, 1]]], dtype=dtype)
-        kernel_diff = torch.tensor([[[1, 0, -1]]], dtype=dtype)
+        kernel_diff = torch.tensor([[[-1, 0, 1]]], dtype=dtype)
         kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype)
 
         # Expand the kernel to larger size than 3
