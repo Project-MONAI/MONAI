@@ -85,6 +85,8 @@ __all__ = [
     "generate_label_classes_crop_centers",
     "generate_pos_neg_label_crop_centers",
     "generate_spatial_bounding_box",
+    "get_backend_from_tensor_like",
+    "get_device_from_tensor_like",
     "get_extreme_points",
     "get_largest_connected_component_mask",
     "remove_small_objects",
@@ -1788,6 +1790,101 @@ def squarepulse(sig, duty: float = 0.5):
     mask3 = (~mask1) & (~mask2)
     y[mask3] = -1
     return y
+
+
+def get_device_from_tensor_like(
+        data: NdarrayOrTensor
+):
+    """
+    This function returns the device of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+
+    Args:
+        data: the ndarray/tensor to return the device of
+
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return None
+    elif isinstance(data, torch.Tensor):
+        return data.device
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def get_backend_from_tensor_like(
+        data: NdarrayOrTensor
+):
+    """
+    This function returns the backend of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+
+    Args:
+        data: the ndarray/tensor to return the device of
+
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return TransformBackends.NUMPY
+    elif isinstance(data, torch.Tensor):
+        return TransformBackends.TORCH
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def dtype_torch_to_numpy(dtype: torch.dtype) -> np.dtype:
+    """Convert a torch dtype to its numpy equivalent."""
+    return torch.empty([], dtype=dtype).numpy().dtype  # type: ignore
+
+
+def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
+    """Convert a numpy dtype to its torch equivalent."""
+    return torch.from_numpy(np.empty([], dtype=dtype)).dtype
+
+
+__dtype_dict = {
+    np.int8: 'int8',
+    torch.int8: 'int8',
+    np.int16: 'int16',
+    torch.int16: 'int16',
+    int: 'int32',
+    np.int32: 'int32',
+    torch.int32: 'int32',
+    np.int64: 'int64',
+    torch.int64: 'int64',
+    np.uint8: 'uint8',
+    torch.uint8: 'uint8',
+    np.uint16: 'uint16',
+    np.uint32: 'uint32',
+    np.uint64: 'uint64',
+    float: 'float32',
+    np.float16: 'float16',
+    np.float: 'float32',
+    np.float32: 'float32',
+    np.float64: 'float64',
+    torch.float16: 'float16',
+    torch.float: 'float32',
+    torch.float32: 'float32',
+    torch.double: 'float64',
+    torch.float64: 'float64'
+}
+
+def dtypes_to_str_or_identity(dtype: Any) -> Any:
+    return __dtype_dict.get(dtype, dtype)
+
+
+def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
+    """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
+    return np.empty([], dtype=dtype).dtype
+
+
+def get_torch_dtype_from_string(dtype: str) -> torch.dtype:
+    """Get a torch dtype (e.g., `torch.float32`) from its string (e.g., `"float32"`)."""
+    return dtype_numpy_to_torch(get_numpy_dtype_from_string(dtype))
 
 
 if __name__ == "__main__":

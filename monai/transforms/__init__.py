@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
+from .apply import Apply, apply
 from .compose import Compose, OneOf
 from .croppad.array import (
     BorderPad,
@@ -632,6 +633,8 @@ from .utils import (
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
+    get_backend_from_tensor_like,
+    get_device_from_tensor_like,
     get_extreme_points,
     get_largest_connected_component_mask,
     get_number_image_type_conversions,
