@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from monai.transforms.inverse import InvertibleTransform
-
 from monai.transforms.lazy.functional import apply
 
 
@@ -19,6 +18,7 @@ class Apply(InvertibleTransform):
     Apply wraps the apply method and can function as a Transform in either array or dictionary
     mode.
     """
+
     def __init__(self):
         super().__init__()
 

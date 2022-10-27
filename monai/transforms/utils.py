@@ -1792,9 +1792,7 @@ def squarepulse(sig, duty: float = 0.5):
     return y
 
 
-def get_device_from_tensor_like(
-        data: NdarrayOrTensor
-):
+def get_device_from_tensor_like(data: NdarrayOrTensor):
     """
     This function returns the device of `data`, which must either be a numpy ndarray or a
     pytorch Tensor.
@@ -1814,9 +1812,7 @@ def get_device_from_tensor_like(
         raise ValueError(msg.format(type(data)))
 
 
-def get_backend_from_tensor_like(
-        data: NdarrayOrTensor
-):
+def get_backend_from_tensor_like(data: NdarrayOrTensor):
     """
     This function returns the backend of `data`, which must either be a numpy ndarray or a
     pytorch Tensor.
@@ -1847,31 +1843,32 @@ def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
 
 
 __dtype_dict = {
-    np.int8: 'int8',
-    torch.int8: 'int8',
-    np.int16: 'int16',
-    torch.int16: 'int16',
-    int: 'int32',
-    np.int32: 'int32',
-    torch.int32: 'int32',
-    np.int64: 'int64',
-    torch.int64: 'int64',
-    np.uint8: 'uint8',
-    torch.uint8: 'uint8',
-    np.uint16: 'uint16',
-    np.uint32: 'uint32',
-    np.uint64: 'uint64',
-    float: 'float32',
-    np.float16: 'float16',
-    np.float: 'float32',
-    np.float32: 'float32',
-    np.float64: 'float64',
-    torch.float16: 'float16',
-    torch.float: 'float32',
-    torch.float32: 'float32',
-    torch.double: 'float64',
-    torch.float64: 'float64'
+    np.int8: "int8",
+    torch.int8: "int8",
+    np.int16: "int16",
+    torch.int16: "int16",
+    int: "int32",
+    np.int32: "int32",
+    torch.int32: "int32",
+    np.int64: "int64",
+    torch.int64: "int64",
+    np.uint8: "uint8",
+    torch.uint8: "uint8",
+    np.uint16: "uint16",
+    np.uint32: "uint32",
+    np.uint64: "uint64",
+    float: "float32",
+    np.float16: "float16",
+    np.float: "float32",
+    np.float32: "float32",
+    np.float64: "float64",
+    torch.float16: "float16",
+    torch.float: "float32",
+    torch.float32: "float32",
+    torch.double: "float64",
+    torch.float64: "float64",
 }
+
 
 def dtypes_to_str_or_identity(dtype: Any) -> Any:
     return __dtype_dict.get(dtype, dtype)
