@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
-from .apply import Apply, apply
 from .compose import Compose, OneOf
 from .croppad.array import (
     BorderPad,
@@ -228,6 +227,8 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .lazy.array import Apply
+from .lazy.functional import apply
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,

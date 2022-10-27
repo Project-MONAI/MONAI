@@ -20,14 +20,12 @@ import torch
 from monai.config import DtypeLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.spatial.array import Affine
-from monai.transforms.inverse import InvertibleTransform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.transforms.utils import get_backend_from_tensor_like, get_device_from_tensor_like, dtypes_to_str_or_identity
 from monai.transforms.meta_matrix import MatrixFactory, MetaMatrix, Matrix, matmul
 
 __all__ = [
-    "apply",
-    "Apply"
+    "apply"
 ]
 
 # TODO: This should move to a common place to be shared with dictionary
@@ -214,36 +212,3 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict],
     data.clear_pending_transforms()
 
     return data
-
-
-# make Apply universal for arrays and dictionaries; it just calls through to functional apply
-class Apply(InvertibleTransform):
-    """
-    Apply wraps the apply method and can function as a Transform in either array or dictionary
-    mode.
-    """
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, *args, **kwargs):
-        return apply(*args, **kwargs)
-
-    def inverse(self, data):
-        return NotImplementedError()
-
-
-# class Applyd(MapTransform, InvertibleTransform):
-#
-#     def __init__(self):
-#         super().__init__()
-#
-#     def __call__(
-#             self,
-#             d: dict
-#     ):
-#         rd = dict()
-#         for k, v in d.items():
-#             rd[k] = apply(v)
-#
-#     def inverse(self, data):
-#         return NotImplementedError()
