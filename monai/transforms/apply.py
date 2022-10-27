@@ -112,7 +112,7 @@ def matrix_from_matrix_container(matrix):
 
 
 def apply(data: Union[torch.Tensor, MetaTensor],
-          pending: Optional[dict, list] = None):
+          pending: Optional[Union[dict, list]] = None):
 
     # TODO: if data is a dict, then pending must also be a dict
     if isinstance(data, dict):
