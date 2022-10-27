@@ -20,6 +20,7 @@ class Apply(InvertibleTransform):
     Apply wraps the apply method and can function as a Transform in either array or dictionary
     mode.
     """
+
     def __init__(self):
         super().__init__()
 
