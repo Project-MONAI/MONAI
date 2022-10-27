@@ -811,11 +811,12 @@ class CacheDataset(Dataset):
             # only compute cache for the unique items of dataset
             mapping = {self.hash_func(v): v for v in data}
             self.data = list(mapping.values())
+            self._cache = _compute_cache()
             self._hash_keys = list(mapping)[: self.cache_num]
+            self.data = data
         else:
             self.data = data
-        self._cache = _compute_cache()
-        self.data = data
+            self._cache = _compute_cache()
 
     def _fill_cache(self) -> List:
         if self.cache_num <= 0:
