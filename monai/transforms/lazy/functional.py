@@ -37,7 +37,7 @@ def extents_from_shape(shape, dtype=np.float64):
     extents = [[0, shape[i]] for i in range(1, len(shape))]
 
     extents = it.product(*extents)
-    return list(np.asarray(e + (1,), dtype=dtype) for e in extents)
+    return [np.asarray(e + (1,), dtype=dtype) for e in extents]
 
 
 # TODO: move to mapping_stack.py

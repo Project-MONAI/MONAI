@@ -184,7 +184,7 @@ def matmul_grid_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
 
     # invert the matrix and swap the arguments, taking advantage of
     # matrix @ vector == vector_transposed @ matrix_inverse
-    return matmul_matrix_grid(torch.inverse(right), left)
+    return matmul_matrix_grid(inv_matrix, left)
 
 
 def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
