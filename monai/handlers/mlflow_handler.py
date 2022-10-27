@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 
 import torch
 
 from monai.config import IgniteInfo
+from monai.handlers.validation_handler import ValidationHandler
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -94,9 +97,9 @@ class MLFlowHandler:
         state_attributes: Optional[Sequence[str]] = None,
         tag_name: str = DEFAULT_TAG,
         experiment_name: str = "default_experiment",
-        run_name: str = "test_run",
+        run_name: Optional[str] = None,
         experiment_param: Optional[Dict] = None,
-        artifacts: Optional[Sequence[str]] = None,
+        artifacts: Optional[Sequence[Path]] = None,
         optimizer_param_names: Sequence[str] = ["lr"],
     ) -> None:
         if tracking_uri is not None:
@@ -116,6 +119,12 @@ class MLFlowHandler:
         self.artifacts = artifacts
         self.optimizer_param_names = optimizer_param_names
         self.default_attr_name = ["seed", "max_epochs", "epoch_length"]
+
+    def _try_log_param(self, engine: Engine, attr: str):
+        engine_attr = getattr(engine, attr, None)
+        if engine_attr:
+            attr_type_string = str(type(engine_attr))
+            mlflow.log_param(key=attr, value=attr_type_string)
 
     def attach(self, engine: Engine) -> None:
         """
@@ -141,7 +150,12 @@ class MLFlowHandler:
         """
         mlflow.set_experiment(self.experiment_name)
         if mlflow.active_run() is None:
-            mlflow.start_run(run_name=self.run_name)
+            if self.run_name:
+                mlflow.start_run(run_name=self.run_name)
+            else:
+                cur_time = time.strftime("%Y%m%d_%H%M%S")
+                run_name = "run_" + cur_time
+                mlflow.start_run(run_name=run_name)
 
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
@@ -149,23 +163,10 @@ class MLFlowHandler:
         attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
         mlflow.log_params(attrs)
 
-        try:
-            network_string = str(type(engine.network))
-            mlflow.log_param(key="network", value=network_string)
-        except AttributeError:
-            pass
-
-        try:
-            optimizer_string = str(type(engine.optimizer))
-            loss_string = str(type(engine.loss_function))
-            mlflow.log_params(
-                {
-                    "optimizer": optimizer_string,
-                    "loss_function": loss_string,
-                }
-            )
-        except AttributeError:
-            pass
+        self._try_log_param(engine, "network")
+        self._try_log_param(engine, "device")
+        self._try_log_param(engine, "optimizer")
+        self._try_log_param(engine, "loss_function")
 
     def complete(self) -> None:
         """
@@ -226,6 +227,16 @@ class MLFlowHandler:
         current_epoch = self.global_epoch_transform(engine.state.epoch)
         mlflow.log_metrics(log_dict, step=current_epoch)
 
+        events = engine._event_handlers
+
+        for e in events:
+            for handler, _, _ in engine._event_handlers[e]:
+                if isinstance(handler, ValidationHandler):
+                    evaluator_state = getattr(handler.validator, "state", None)
+                    if evaluator_state:
+                        handler_metrics_dict = evaluator_state.metrics
+                        mlflow.log_metrics(handler_metrics_dict, step=current_epoch)
+
         if self.state_attributes is not None:
             attrs = {attr: getattr(engine.state, attr, None) for attr in self.state_attributes}
             mlflow.log_metrics(attrs, step=current_epoch)
@@ -252,7 +263,7 @@ class MLFlowHandler:
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
         try:
-            cur_optimizer = engine.optimizer
+            cur_optimizer = engine.optimizer  # type: ignore
             for param_name in self.optimizer_param_names:
                 params = {
                     f"{param_name} group_{i}": float(param_group[param_name])
