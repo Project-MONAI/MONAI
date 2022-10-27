@@ -10,7 +10,6 @@ from monai.config import DtypeLike
 from monai.data import MetaTensor
 from monai.transforms import Affine
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import MapTransform
 from monai.utils import GridSampleMode, GridSamplePadMode
 from monai.transforms.utils import get_backend_from_tensor_like, get_device_from_tensor_like, dtypes_to_str_or_identity
 from monai.transforms.meta_matrix import MatrixFactory, MetaMatrix, Matrix, matmul
