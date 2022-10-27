@@ -163,22 +163,7 @@ class RandomizableTransformType:
     implementors of MONAI transforms.
     """
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandomizableTransformType":
-        """
-        Set either the seed for an inbuilt random generator (assumed to be np.random.RandomState)
-        or set a random generator for this transform to use (again, assumed to be
-        np.random.RandomState). One one of these parameters should be set. If your random transform
-        that implements this interface doesn't support setting or reseeding of its random
-        generator, this method does not need to be implemented.
-        Args:
-            seed: set the random state with an integer seed.
-            state: set the random state with a `np.random.RandomState` object.
-        Returns:
-            self as a convenience for assignment
-        """
-        raise TypeError(f"{self.__class__.__name__} does not support setting of random state via set_random_state.")
+    pass
 
 
 class MultiSampleTransformType:
