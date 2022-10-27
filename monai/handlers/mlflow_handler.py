@@ -115,6 +115,7 @@ class MLFlowHandler:
         self.experiment_param = experiment_param
         self.artifacts = artifacts
         self.optimizer_param_names = optimizer_param_names
+        self.default_attr_name = ["seed", "max_epochs", "epoch_length"]
 
     def attach(self, engine: Engine) -> None:
         """
@@ -133,7 +134,7 @@ class MLFlowHandler:
         if not engine.has_event_handler(self.complete, Events.COMPLETED):
             engine.add_event_handler(Events.EPOCH_COMPLETED, self.complete)
 
-    def start(self) -> None:
+    def start(self, engine: Engine) -> None:
         """
         Check MLFlow status and start if not active.
 
@@ -144,6 +145,27 @@ class MLFlowHandler:
 
         if self.experiment_param:
             mlflow.log_params(self.experiment_param)
+
+        attrs = {attr: getattr(engine.state, attr, None) for attr in self.default_attr_name}
+        mlflow.log_params(attrs)
+
+        try:
+            network_string = str(type(engine.network))
+            mlflow.log_param(key="network", value=network_string)
+        except AttributeError:
+            pass
+
+        try:
+            optimizer_string = str(type(engine.optimizer))
+            loss_string = str(type(engine.loss_function))
+            mlflow.log_params(
+                {
+                    "optimizer": optimizer_string,
+                    "loss_function": loss_string,
+                }
+            )
+        except AttributeError:
+            pass
 
     def complete(self) -> None:
         """
