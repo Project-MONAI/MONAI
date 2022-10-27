@@ -828,6 +828,8 @@ class SobelGradients(Transform):
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
             along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
         padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
             Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
             See ``torch.nn.Conv1d()`` for more information.
@@ -841,12 +843,16 @@ class SobelGradients(Transform):
         self,
         kernel_size: int = 3,
         spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
         padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
     ) -> None:
         super().__init__()
         self.padding = padding_mode
         self.spatial_axes = spatial_axes
+        self.normalize_kernels = normalize_kernels
+        self.normalize_gradients = normalize_gradients
         self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype)
 
     def _get_kernel(self, size, dtype) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -854,12 +860,19 @@ class SobelGradients(Transform):
             raise ValueError(f"Sobel kernel size should be at least three. {size} was given.")
         if size % 2 == 0:
             raise ValueError(f"Sobel kernel size should be an odd number. {size} was given.")
-        if not dtype.is_floating_point:
-            raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
 
-        kernel_expansion = torch.tensor([[[1, 2, 1]]], dtype=dtype)
         kernel_diff = torch.tensor([[[-1, 0, 1]]], dtype=dtype)
         kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+        kernel_expansion = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+
+        if self.normalize_kernels:
+            if not dtype.is_floating_point:
+                raise ValueError(
+                    f"`dtype` for Sobel kernel should be floating point when `normalize_kernel==True`. {dtype} was given."
+                )
+            kernel_diff /= 2.0
+            kernel_smooth /= 4.0
+            kernel_expansion /= 4.0
 
         # Expand the kernel to larger size than 3
         expand = (size - 3) // 2
@@ -901,6 +914,11 @@ class SobelGradients(Transform):
             kernels = [kernel_smooth] * n_spatial_dims
             kernels[ax - 1] = kernel_diff
             grad = separable_filtering(image_tensor, kernels, mode=self.padding)
+            if self.normalize_gradients:
+                if grad.min() != grad.max():
+                    grad -= grad.min()
+                if grad.max() > 0:
+                    grad /= grad.max()
             grad_list.append(grad)
 
         grads = torch.cat(grad_list, dim=1)

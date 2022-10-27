@@ -801,6 +801,8 @@ class SobelGradientsd(MapTransform):
         kernel_size: the size of the Sobel kernel. Defaults to 3.
         spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
             along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
         padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
             Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
             See ``torch.nn.Conv1d()`` for more information.
@@ -818,6 +820,8 @@ class SobelGradientsd(MapTransform):
         keys: KeysCollection,
         kernel_size: int = 3,
         spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
         padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
         new_key_prefix: Optional[str] = None,
@@ -825,7 +829,12 @@ class SobelGradientsd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.transform = SobelGradients(
-            kernel_size=kernel_size, spatial_axes=spatial_axes, padding_mode=padding_mode, dtype=dtype
+            kernel_size=kernel_size,
+            spatial_axes=spatial_axes,
+            normalize_kernels=normalize_kernels,
+            normalize_gradients=normalize_gradients,
+            padding_mode=padding_mode,
+            dtype=dtype,
         )
         self.new_key_prefix = new_key_prefix
         self.kernel_diff = self.transform.kernel_diff
