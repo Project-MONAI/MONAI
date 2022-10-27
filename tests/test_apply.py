@@ -11,7 +11,6 @@
 
 import unittest
 
-from monai.transforms import apply
 
 
 class TestApply(unittest.TestCase):
