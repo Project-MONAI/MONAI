@@ -10,19 +10,19 @@ Generic Interfaces
 .. automodule:: monai.transforms
 .. currentmodule:: monai.transforms
 
-`IRandomizableTransform`
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: IRandomizableTransform
+`RandomizableTransformType`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: RandomizableTransformType
     :members:
 
-`ILazyTransform`
-^^^^^^^^^^^^^^^^
-.. autoclass:: ILazyTransform
+`LazyTransformType`
+^^^^^^^^^^^^^^^^^^^
+.. autoclass:: LazyTransformType
     :members:
 
-`IMultiSampleTransform`
-^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: IMultiSampleTransform
+`MultiSampleTransformType`
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. autoclass:: MultiSampleTransformType
     :members:
 
 `Transform`
