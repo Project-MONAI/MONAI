@@ -60,12 +60,12 @@ class DiceLoss(_Loss):
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction.
             softmax: if True, apply a softmax function to the prediction.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example:
-                `other_act = torch.tanh`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -247,12 +247,12 @@ class GeneralizedDiceLoss(_Loss):
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example:
-                `other_act = torch.tanh`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``.
             w_type: {``"square"``, ``"simple"``, ``"uniform"``}
                 Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -639,14 +639,14 @@ class DiceCELoss(_Loss):
             ``reduction`` is used for both losses and other parameters are only used for dice loss.
 
             include_background: if False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `CrossEntropyLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `CrossEntropyLoss`.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, don't need to specify activation function for `CrossEntropyLoss`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``. only used by the `DiceLoss`, not for the `CrossEntropyLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"mean"``, ``"sum"``}
@@ -746,6 +746,10 @@ class DiceFocalLoss(_Loss):
     The details of Dice loss is shown in ``monai.losses.DiceLoss``.
     The details of Focal Loss is shown in ``monai.losses.FocalLoss``.
 
+    ``gamma``, ``focal_weight`` and ``lambda_focal`` are only used for the focal loss.
+    ``include_background`` and ``reduction`` are used for both losses
+    and other parameters are only used for dice loss.
+
     """
 
     def __init__(
@@ -768,18 +772,15 @@ class DiceFocalLoss(_Loss):
     ) -> None:
         """
         Args:
-            ``gamma``, ``focal_weight`` and ``lambda_focal`` are only used for focal loss.
-            ``include_background``, ``to_onehot_y``and ``reduction`` are used for both losses
-            and other parameters are only used for dice loss.
             include_background: if False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `FocalLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `FocalLoss`.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, don't need to specify activation function for `FocalLoss`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``.
+                for example: `other_act = torch.tanh`. only used by the `DiceLoss`, not for `FocalLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -869,11 +870,13 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
     Args:
         include_background (bool, optional): if False channel index 0 (background category) is excluded from the calculation.
             Defaults to True.
-        to_onehot_y (bool, optional): whether to convert `y` into the one-hot format. Defaults to False.
+        to_onehot_y: whether to convert the ``target`` into the one-hot format,
+            using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
         sigmoid (bool, optional): if True, apply a sigmoid function to the prediction. Defaults to False.
         softmax (bool, optional): if True, apply a softmax function to the prediction. Defaults to False.
-        other_act (Optional[Callable], optional): if don't want to use sigmoid or softmax, use other callable
-            function to execute other activation layers. Defaults to None.
+        other_act (Optional[Callable], optional): callable function to execute other activation layers,
+            Defaults to ``None``. for example: `other_act = torch.tanh`.
+            only used by the `GeneralizedDiceLoss`, not for the `FocalLoss`.
         w_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground-truth volume to a weight factor. Defaults to ``"square"``.
         reduction (Union[LossReduction, str], optional): {``"none"``, ``"mean"``, ``"sum"``}. Specified the reduction to
