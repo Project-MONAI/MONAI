@@ -450,15 +450,15 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .transform import (
-    RandomizableTransformType,
     LazyTransformType,
-    MultiSampleTransformType,
     MapTransform,
+    MultiSampleTransformType,
     Randomizable,
     RandomizableTransform,
+    RandomizableTransformType,
     ThreadUnsafe,
     Transform,
-    apply_transform
+    apply_transform,
 )
 from .utility.array import (
     AddChannel,

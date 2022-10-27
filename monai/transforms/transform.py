@@ -26,9 +26,17 @@ from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
-__all__ = ["ThreadUnsafe", "apply_transform",
-           "LazyTransformType", "RandomizableTransformType", "MultiSampleTransformType",
-           "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "LazyTransformType",
+    "RandomizableTransformType",
+    "MultiSampleTransformType",
+    "Randomizable",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -129,9 +137,7 @@ class LazyTransformType:
     """
 
     @property
-    def lazy_evaluation(
-            self,
-    ):
+    def lazy_evaluation(self):
         """
         Get whether lazy_evaluation is enabled for this transform instance.
 
@@ -141,10 +147,7 @@ class LazyTransformType:
         raise NotImplementedError()
 
     @lazy_evaluation.setter
-    def lazy_evaluation(
-            self,
-            enabled: bool
-    ):
+    def lazy_evaluation(self, enabled: bool):
         """
         Set whether lazy_evaluation is enabled for this transform instance.
 
@@ -163,9 +166,7 @@ class RandomizableTransformType:
     """
 
     def set_random_state(
-            self,
-            seed: Optional[int] = None,
-            state: Optional[np.random.RandomState] = None
+        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
     ) -> "RandomizableTransformType":
         """
         Set either the seed for an inbuilt random generator (assumed to be np.random.RandomState)

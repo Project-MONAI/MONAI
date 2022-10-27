@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms.transform import RandomizableTransformType, RandomizableTransform
+from monai.transforms.transform import RandomizableTransform, RandomizableTransformType
 
 
 class InheritsInterface(RandomizableTransformType):
@@ -19,13 +19,11 @@ class InheritsInterface(RandomizableTransformType):
 
 
 class InheritsImplementation(RandomizableTransform):
-
     def __call__(self, data):
         return data
 
 
 class TestRandomizableTransformType(unittest.TestCase):
-
     def test_is_randomizable_transform_type(self):
         inst = InheritsInterface()
         self.assertIsInstance(inst, RandomizableTransformType)
