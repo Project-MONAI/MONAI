@@ -59,6 +59,7 @@ class _DenseLayerDecoder(nn.Module):
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         kernel_size: int = 3,
+        padding: int = 0,
     ) -> None:
         """
         Args:
@@ -69,6 +70,8 @@ class _DenseLayerDecoder(nn.Module):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
+            same_padding: whether to do padding for >1 convolutions to ensure
+                the output size is the same as the input size.
         """
         super().__init__()
 
@@ -83,7 +86,8 @@ class _DenseLayerDecoder(nn.Module):
         self.layers.add_module("conv1/norm", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
         self.layers.add_module("conv1/relu2", get_act_layer(name=act))
         self.layers.add_module(
-            "conv2", conv_type(num_features, out_channels, kernel_size=kernel_size, padding=0, groups=4, bias=False)
+            "conv2",
+            conv_type(num_features, out_channels, kernel_size=kernel_size, padding=padding, groups=4, bias=False),
         )
 
         if dropout_prob > 0:
@@ -92,7 +96,7 @@ class _DenseLayerDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
         x1 = self.layers(x)
-        if x1.shape != x.shape:
+        if x1.shape[-1] != x.shape[-1]:
             trim = (x.shape[-1] - x1.shape[-1]) // 2
             x = x[:, :, trim:-trim, trim:-trim]
 
@@ -112,6 +116,7 @@ class _DecoderBlock(nn.Sequential):
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
         kernel_size: int = 3,
+        same_padding: bool = False,
     ) -> None:
         """
         Args:
@@ -123,17 +128,30 @@ class _DecoderBlock(nn.Sequential):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
+            same_padding: whether to do padding for >1 convolutions to ensure
+                the output size is the same as the input size.
         """
         super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, 2]
 
-        self.add_module("conva", conv_type(in_channels, in_channels // 4, kernel_size=kernel_size, bias=False))
+        padding: int = kernel_size // 2 if same_padding else 0
+
+        self.add_module(
+            "conva", conv_type(in_channels, in_channels // 4, kernel_size=kernel_size, padding=padding, bias=False)
+        )
 
         _in_channels = in_channels // 4
         for i in range(layers):
             layer = _DenseLayerDecoder(
-                num_features, _in_channels, out_channels, dropout_prob, act=act, norm=norm, kernel_size=kernel_size
+                num_features,
+                _in_channels,
+                out_channels,
+                dropout_prob,
+                act=act,
+                norm=norm,
+                kernel_size=kernel_size,
+                padding=padding,
             )
             _in_channels += out_channels
             self.add_module("denselayerdecoder%d" % (i + 1), layer)
@@ -296,6 +314,7 @@ class _DecoderBranch(nn.ModuleList):
         dropout_prob: float = 0.0,
         out_channels: int = 2,
         kernel_size: int = 3,
+        same_padding: bool = False,
     ) -> None:
         """
         Args:
@@ -305,6 +324,8 @@ class _DecoderBranch(nn.ModuleList):
             dropout_prob: dropout rate after each dense layer.
             out_channels: number of the output channel.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
+            same_padding: whether to do padding for >1 convolutions to ensure
+                the output size is the same as the input size.
         """
         super().__init__()
         conv_type: Callable = Conv[Conv.CONV, 2]
@@ -325,6 +346,7 @@ class _DecoderBranch(nn.ModuleList):
                 act=act,
                 norm=norm,
                 kernel_size=kernel_size,
+                same_padding=same_padding,
             )
             self.decoder_blocks.add_module(f"decoderblock{i + 1}", block)
             _in_channels = 512
@@ -340,6 +362,7 @@ class _DecoderBranch(nn.ModuleList):
         )
 
         self.output_features.add_module(f"decoderblock{_i + 1}", _seq_block)
+        self.same_padding = same_padding
 
         _seq_block = nn.Sequential(
             OrderedDict(
@@ -367,7 +390,8 @@ class _DecoderBranch(nn.ModuleList):
             x = self.upsample(x)
             block_number -= 1
             trim = (short_cuts[block_number].shape[-1] - x.shape[-1]) // 2
-            x += short_cuts[block_number][:, :, trim:-trim, trim:-trim]
+            if trim > 0:
+                x += short_cuts[block_number][:, :, trim:-trim, trim:-trim]
 
         for block in self.output_features:
             x = block(x)
@@ -384,6 +408,8 @@ class HoVerNet(nn.Module):
       and classification of nuclei in multi-tissue histology images,
       Medical Image Analysis 2019
 
+      https://github.com/vqdang/hover_net
+
     Args:
         mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
           a faster implementation (`HoVerNetMODE.FAST` or "fast"). Defaults to `HoVerNetMODE.FAST`.
@@ -391,6 +417,9 @@ class HoVerNet(nn.Module):
         out_classes: number of the nuclear type classes.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
+        decoder_padding: whether to do padding on convolution layers in the decoders. In the referred repository,
+            the architecture is changed to do padding on convolution layers in order to get the same output size
+            as the input. This changed version is used on CoNIC challenge.
         dropout_prob: dropout rate after each dense layer.
         pretrained: whether to load pretrained weights for encoder.
     """
@@ -405,6 +434,7 @@ class HoVerNet(nn.Module):
         out_classes: int = 0,
         act: Union[str, tuple] = ("relu", {"inplace": True}),
         norm: Union[str, tuple] = "batch",
+        decoder_padding: bool = False,
         dropout_prob: float = 0.0,
         pretrained: bool = False,
     ) -> None:
@@ -479,10 +509,12 @@ class HoVerNet(nn.Module):
         )
 
         # decode branches
-        self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize)
-        self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize)
+        self.nucleus_prediction = _DecoderBranch(kernel_size=_ksize, same_padding=decoder_padding)
+        self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize, same_padding=decoder_padding)
         self.type_prediction: Optional[_DecoderBranch] = (
-            _DecoderBranch(out_channels=out_classes, kernel_size=_ksize) if out_classes > 0 else None
+            _DecoderBranch(out_channels=out_classes, kernel_size=_ksize, same_padding=decoder_padding)
+            if out_classes > 0
+            else None
         )
 
         for m in self.modules():
