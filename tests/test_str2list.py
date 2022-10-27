@@ -11,20 +11,19 @@
 
 import unittest
 
-from monai.utils.misc import str2bool
+from monai.utils.misc import str2list
 
 
-class TestStr2Bool(unittest.TestCase):
-    def test_str_2_bool(self):
-        for i in ("yes", "true", "t", "y", "1", True):
-            self.assertTrue(str2bool(i))
-        for i in ("no", "false", "f", "n", "0", False):
-            self.assertFalse(str2bool(i))
-        for bad_value in ("test", 0, 1, 2, None):
-            self.assertFalse(str2bool(bad_value, default=False, raise_exc=False))
-            self.assertTrue(str2bool(bad_value, default=True, raise_exc=False))
+class TestStr2List(unittest.TestCase):
+    def test_str_2_list(self):
+        for i in ("1,2,3", "1, 2, 3", "1,2e-0,3.0", [1, 2, 3]):
+            self.assertEqual(str2list(i), [1, 2, 3])
+        for i in ("1,2,3", "1,2,3,4.3", [1, 2, 3, 4.001]):
+            self.assertNotEqual(str2list(i), [1, 2, 3, 4])
+        for bad_value in ((1, 3), int):
+            self.assertIsNone(str2list(bad_value, raise_exc=False))
             with self.assertRaises(ValueError):
-                self.assertTrue(str2bool(bad_value))
+                self.assertIsNone(str2list(bad_value))
 
 
 if __name__ == "__main__":

@@ -494,6 +494,11 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
         )
 
+        if self.multi_gpu:
+            if self.rank > 0 and self.trainer:
+                self.trainer.logger.setLevel(logging.WARNING)
+            if self.rank > 0 and self.evaluator:
+                self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
     def train(self, data: ExchangeObject, extra=None):
