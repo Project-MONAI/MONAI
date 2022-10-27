@@ -10,20 +10,24 @@
 # limitations under the License.
 
 import unittest
-from parameterized import parameterized
 
 import numpy as np
-
 import torch
+from parameterized import parameterized
 
 from monai.transforms.meta_matrix import (
-    Grid, is_grid_shaped, is_matrix_shaped, matmul, matmul_matrix_grid, matmul_grid_matrix_slow,
-    matmul_grid_matrix, Matrix
+    Grid,
+    Matrix,
+    is_grid_shaped,
+    is_matrix_shaped,
+    matmul,
+    matmul_grid_matrix,
+    matmul_grid_matrix_slow,
+    matmul_matrix_grid,
 )
 
 
 class TestMatmulFunctions(unittest.TestCase):
-
     def test_matrix_grid_and_grid_inv_matrix_are_equivalent(self):
         grid = torch.randn((3, 32, 32))
 
@@ -96,7 +100,7 @@ class TestMatmulFunctions(unittest.TestCase):
         (torch.randn(5), False),
         (torch.randn(3, 3, 3), False),
         (torch.randn(4, 4, 4), False),
-        (torch.randn(5, 5, 5), False)
+        (torch.randn(5, 5, 5), False),
     ]
 
     def _test_is_matrix_shaped_impl(self, matrix, expected):
@@ -111,7 +115,6 @@ class TestMatmulFunctions(unittest.TestCase):
     #         with self.subTest(f"{case[0].shape}"):
     #             self._test_is_matrix_shaped_impl(*case)
 
-
     GRID_SHAPE_TESTCASES = [
         (torch.randn(1, 16, 32), False),
         (torch.randn(2, 16, 32), False),
@@ -120,7 +123,7 @@ class TestMatmulFunctions(unittest.TestCase):
         (torch.randn(5, 16, 32), False),
         (torch.randn(3, 16, 32, 64), False),
         (torch.randn(4, 16, 32, 64), True),
-        (torch.randn(5, 16, 32, 64), False)
+        (torch.randn(5, 16, 32, 64), False),
     ]
 
     def _test_is_grid_shaped_impl(self, grid, expected):

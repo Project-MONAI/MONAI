@@ -12,7 +12,6 @@
 from typing import Optional, Union
 
 import numpy as np
-
 import torch
 
 from monai.config import NdarrayOrTensor
@@ -20,14 +19,14 @@ from monai.config import NdarrayOrTensor
 
 def is_matrix_shaped(data):
 
-    return (len(data.shape) == 2 and data.shape[0] in (3, 4) and
-            data.shape[1] in (3, 4) and data.shape[0] == data.shape[1])
+    return (
+        len(data.shape) == 2 and data.shape[0] in (3, 4) and data.shape[1] in (3, 4) and data.shape[0] == data.shape[1]
+    )
 
 
 def is_grid_shaped(data):
 
-    return (len(data.shape) == 3 and data.shape[0] == 3 or
-            len(data.shape) == 4 and data.shape[0] == 4)
+    return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
 
 
 class MatrixFactory:
@@ -42,7 +41,6 @@ def ensure_tensor(data: NdarrayOrTensor):
 
 
 class Matrix:
-
     def __init__(self, matrix: NdarrayOrTensor):
         self.data = ensure_tensor(matrix)
 
@@ -66,17 +64,15 @@ class Grid:
 
 
 class MetaMatrix:
-
-    def __init__(
-            self,
-            matrix: Union[NdarrayOrTensor, Matrix, Grid],
-            metadata: Optional[dict] = None):
+    def __init__(self, matrix: Union[NdarrayOrTensor, Matrix, Grid], metadata: Optional[dict] = None):
 
         if not isinstance(matrix, (Matrix, Grid)):
             if matrix.shape == 2:
                 if matrix.shape[0] != matrix.shape[1] or matrix.shape[0] not in (3, 4):
-                    raise ValueError("If 'matrix' is passed a numpy ndarray/torch Tensor, it must"
-                                     f" be 3x3 or 4x4 ('matrix' has has shape {matrix.shape})")
+                    raise ValueError(
+                        "If 'matrix' is passed a numpy ndarray/torch Tensor, it must"
+                        f" be 3x3 or 4x4 ('matrix' has has shape {matrix.shape})"
+                    )
             matrix_ = Matrix(matrix)
         else:
             matrix_ = matrix
@@ -100,8 +96,7 @@ class MetaMatrix:
 
 
 def matmul(
-        left: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor],
-        right: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor]
+    left: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor], right: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor]
 ):
     matrix_types = (MetaMatrix, Grid, Matrix, torch.Tensor, np.ndarray)
 
@@ -153,16 +148,15 @@ def matmul(
     return result
 
 
-def matmul_matrix_grid(
-        left: NdarrayOrTensor,
-        right: NdarrayOrTensor
-):
+def matmul_matrix_grid(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_matrix_shaped(left):
         raise ValueError(f"'left' should be a 2D or 3D homogenous matrix but has shape {left.shape}")
 
     if not is_grid_shaped(right):
-        raise ValueError("'right' should be a 3D array with shape[0] == 2 or a "
-                         f"4D array with shape[0] == 3 but has shape {right.shape}")
+        raise ValueError(
+            "'right' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {right.shape}"
+        )
 
     # flatten the grid to take advantage of torch batch matrix multiply
     right_flat = right.reshape(right.shape[0], -1)
@@ -172,13 +166,12 @@ def matmul_matrix_grid(
     return result
 
 
-def matmul_grid_matrix(
-        left: NdarrayOrTensor,
-        right: NdarrayOrTensor
-):
+def matmul_grid_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_grid_shaped(left):
-        raise ValueError("'left' should be a 3D array with shape[0] == 2 or a "
-                         f"4D array with shape[0] == 3 but has shape {left.shape}")
+        raise ValueError(
+            "'left' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {left.shape}"
+        )
 
     if not is_matrix_shaped(right):
         raise ValueError(f"'right' should be a 2D or 3D homogenous matrix but has shape {right.shape}")
@@ -194,13 +187,12 @@ def matmul_grid_matrix(
     return matmul_matrix_grid(torch.inverse(right), left)
 
 
-def matmul_grid_matrix_slow(
-        left: NdarrayOrTensor,
-        right: NdarrayOrTensor
-):
+def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_grid_shaped(left):
-        raise ValueError("'left' should be a 3D array with shape[0] == 2 or a "
-                         f"4D array with shape[0] == 3 but has shape {left.shape}")
+        raise ValueError(
+            "'left' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {left.shape}"
+        )
 
     if not is_matrix_shaped(right):
         raise ValueError(f"'right' should be a 2D or 3D homogenous matrix but has shape {right.shape}")
@@ -217,8 +209,5 @@ def matmul_grid_matrix_slow(
     return result
 
 
-def matmul_matrix_matrix(
-        left: NdarrayOrTensor,
-        right: NdarrayOrTensor,
-):
+def matmul_matrix_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return left @ right
