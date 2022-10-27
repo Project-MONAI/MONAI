@@ -450,9 +450,9 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .transform import (
-    IRandomizableTransform,
-    ILazyTransform,
-    IMultiSampleTransform,
+    RandomizableTransformType,
+    LazyTransformType,
+    MultiSampleTransformType,
     MapTransform,
     Randomizable,
     RandomizableTransform,

@@ -27,7 +27,7 @@ from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
 
 __all__ = ["ThreadUnsafe", "apply_transform",
-           "ILazyTransform", "IRandomizableTransform", "IMultiSampleTransform",
+           "LazyTransformType", "RandomizableTransformType", "MultiSampleTransformType",
            "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
 
 ReturnType = TypeVar("ReturnType")
@@ -120,7 +120,7 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
-class ILazyTransform:
+class LazyTransformType:
     """
     An interface to indicate that the transform has the capability to describe
     its operation as an affine matrix or grid with accompanying metadata. This
@@ -154,7 +154,7 @@ class ILazyTransform:
         raise NotImplementedError()
 
 
-class IRandomizableTransform:
+class RandomizableTransformType:
     """
     An interface to indicate that the transform has the capability to perform
     randomized transforms to the data that it is called upon. This interface
@@ -166,7 +166,7 @@ class IRandomizableTransform:
             self,
             seed: Optional[int] = None,
             state: Optional[np.random.RandomState] = None
-    ) -> "IRandomizableTransform":
+    ) -> "RandomizableTransformType":
         """
         Set either the seed for an inbuilt random generator (assumed to be np.random.RandomState)
         or set a random generator for this transform to use (again, assumed to be
@@ -184,13 +184,15 @@ class IRandomizableTransform:
         raise TypeError(f"{self.__class__.__name__} does not support setting of random state via set_random_state.")
 
 
-class IMultiSampleTransform:
+class MultiSampleTransformType:
     """
     An interface to indicate that the transform has the capability to return multiple samples
     given an input, such as when performing random crops of a sample. This interface can be
     extended from by people adapting transforms to the MONAI framework as well as by implementors
     of MONAI transforms.
     """
+
+    pass
 
 
 class ThreadUnsafe:
@@ -326,7 +328,7 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class RandomizableTransform(Randomizable, Transform, IRandomizableTransform):
+class RandomizableTransform(Randomizable, Transform, RandomizableTransformType):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
