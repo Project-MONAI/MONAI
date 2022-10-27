@@ -24,9 +24,9 @@ class InheritsImplementation(RandomizableTransform):
         return data
 
 
-class TestIRandomizableTransform(unittest.TestCase):
+class TestRandomizableTransformType(unittest.TestCase):
 
-    def test_is_irandomizable(self):
+    def test_is_randomizable_transform_type(self):
         inst = InheritsInterface()
         self.assertIsInstance(inst, RandomizableTransformType)
 
