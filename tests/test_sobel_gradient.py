@@ -22,17 +22,17 @@ IMAGE[0, 8, :] = 1
 
 # Output with reflect padding
 OUTPUT_3x3 = torch.zeros(2, 16, 16, dtype=torch.float32)
-OUTPUT_3x3[1, 7, :] = -4.0
-OUTPUT_3x3[1, 9, :] = 4.0
+OUTPUT_3x3[1, 7, :] = 4.0
+OUTPUT_3x3[1, 9, :] = -4.0
 
 # Output with zero padding
 OUTPUT_3x3_ZERO_PAD = OUTPUT_3x3.clone()
-OUTPUT_3x3_ZERO_PAD[0, 7, 0] = OUTPUT_3x3_ZERO_PAD[0, 9, 0] = -1.0
-OUTPUT_3x3_ZERO_PAD[0, 8, 0] = -2.0
-OUTPUT_3x3_ZERO_PAD[0, 7, -1] = OUTPUT_3x3_ZERO_PAD[0, 9, -1] = 1.0
-OUTPUT_3x3_ZERO_PAD[0, 8, -1] = 2.0
-OUTPUT_3x3_ZERO_PAD[1, 7, 0] = OUTPUT_3x3_ZERO_PAD[1, 7, -1] = -3.0
-OUTPUT_3x3_ZERO_PAD[1, 9, 0] = OUTPUT_3x3_ZERO_PAD[1, 9, -1] = 3.0
+OUTPUT_3x3_ZERO_PAD[0, 7, 0] = OUTPUT_3x3_ZERO_PAD[0, 9, 0] = 1.0
+OUTPUT_3x3_ZERO_PAD[0, 8, 0] = 2.0
+OUTPUT_3x3_ZERO_PAD[0, 7, -1] = OUTPUT_3x3_ZERO_PAD[0, 9, -1] = -1.0
+OUTPUT_3x3_ZERO_PAD[0, 8, -1] = -2.0
+OUTPUT_3x3_ZERO_PAD[1, 7, 0] = OUTPUT_3x3_ZERO_PAD[1, 7, -1] = 3.0
+OUTPUT_3x3_ZERO_PAD[1, 9, 0] = OUTPUT_3x3_ZERO_PAD[1, 9, -1] = -3.0
 
 TEST_CASE_0 = [IMAGE, {"kernel_size": 3, "dtype": torch.float32}, OUTPUT_3x3]
 TEST_CASE_1 = [IMAGE, {"kernel_size": 3, "dtype": torch.float64}, OUTPUT_3x3]
@@ -53,19 +53,19 @@ TEST_CASE_7 = [
 
 TEST_CASE_KERNEL_0 = [
     {"kernel_size": 3, "dtype": torch.float64},
-    (torch.tensor([1.0, 0.0, -1.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 1.0], dtype=torch.float64)),
+    (torch.tensor([-1.0, 0.0, 1.0], dtype=torch.float64), torch.tensor([1.0, 2.0, 1.0], dtype=torch.float64)),
 ]
 TEST_CASE_KERNEL_1 = [
     {"kernel_size": 5, "dtype": torch.float64},
     (
-        torch.tensor([1.0, 2.0, 0.0, -2.0, -1.0], dtype=torch.float64),
+        torch.tensor([-1.0, -2.0, 0.0, 2.0, 1.0], dtype=torch.float64),
         torch.tensor([1.0, 4.0, 6.0, 4.0, 1.0], dtype=torch.float64),
     ),
 ]
 TEST_CASE_KERNEL_2 = [
     {"kernel_size": 7, "dtype": torch.float64},
     (
-        torch.tensor([1.0, 4.0, 5.0, 0.0, -5.0, -4.0, -1.0], dtype=torch.float64),
+        torch.tensor([-1.0, -4.0, -5.0, 0.0, 5.0, 4.0, 1.0], dtype=torch.float64),
         torch.tensor([1.0, 6.0, 15.0, 20.0, 15.0, 6.0, 1.0], dtype=torch.float64),
     ),
 ]
