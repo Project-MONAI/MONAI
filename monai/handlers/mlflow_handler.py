@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
 import torch
 
 from monai.config import IgniteInfo
+from monai.engines import Trainer
 from monai.handlers.validation_handler import ValidationHandler
 from monai.utils import min_version, optional_import
 
@@ -259,7 +260,8 @@ class MLFlowHandler:
         if not isinstance(loss, dict):
             loss = {self.tag_name: loss.item() if isinstance(loss, torch.Tensor) else loss}
 
-        mlflow.log_metrics(loss, step=engine.state.iteration)
+        if isinstance(engine, Trainer):
+            mlflow.log_metrics(loss, step=engine.state.iteration)
 
         # If there is optimizer attr in engine, then record parameters specified in init function.
         try:
