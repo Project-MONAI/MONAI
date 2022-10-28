@@ -802,44 +802,36 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
+        self.data = data
 
-        def _compute_cache():
-            self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
-            return self._fill_cache()
+        def _compute_cache(to_cache):
+            self.cache_num = min(int(self.set_num), int(len(to_cache) * self.set_rate), len(to_cache))
+            return self._fill_cache(to_cache[: self.cache_num])
 
         if self.hash_as_key:
-            # only compute cache for the unique items of dataset
             mapping = {self.hash_func(v): v for v in data}
-            self.data = list(mapping.values())
-            self._cache = _compute_cache()
+            # squeeze the data to only unique items
+            data = list(mapping.values())
+            self._cache = _compute_cache(data)
             self._hash_keys = list(mapping)[: self.cache_num]
-            self.data = data
         else:
-            self.data = data
-            self._cache = _compute_cache()
+            self._cache = _compute_cache(data)
 
-    def _fill_cache(self) -> List:
+    def _fill_cache(self, data: Sequence) -> List:
         if self.cache_num <= 0:
             return []
         if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
             if self.progress and has_tqdm:
-                return list(
-                    tqdm(
-                        p.imap(self._load_cache_item, range(self.cache_num)),
-                        total=self.cache_num,
-                        desc="Loading dataset",
-                    )
-                )
-            return list(p.imap(self._load_cache_item, range(self.cache_num)))
+                return list(tqdm(p.imap(self._load_cache_item, data), total=len(data), desc="Loading dataset"))
+            return list(p.imap(self._load_cache_item, data))
 
-    def _load_cache_item(self, idx: int):
+    def _load_cache_item(self, item):
         """
         Args:
             idx: the index of the input data sequence.
         """
-        item = self.data[idx]
         for _transform in self.transform.transforms:  # type:ignore
             # execute all the deterministic transforms
             if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
@@ -981,8 +973,6 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._replace_mgr: Optional[threading.Thread] = None
 
         super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
-        if self._cache is None:
-            self._cache = self._fill_cache()
         if self.cache_num >= len(data):
             warnings.warn(
                 "cache_num is greater or equal than dataset length, fall back to regular monai.data.CacheDataset."
@@ -1128,7 +1118,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
 
         """
         pos: int = self._replace_data_idx[index]
-        self._replacements[index] = self._load_cache_item(pos)
+        self._replacements[index] = self._load_cache_item(self.data[pos])
 
     def _compute_replacements(self):
         """
