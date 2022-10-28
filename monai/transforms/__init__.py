@@ -237,6 +237,13 @@ from .meta_utility.dictionary import (
     ToMetaTensorD,
     ToMetaTensorDict,
 )
+from .meta_matrix import (
+    Grid,
+    matmul,
+    Matrix,
+    MatrixFactory,
+    MetaMatrix,
+)
 from .nvtx import (
     Mark,
     Markd,
