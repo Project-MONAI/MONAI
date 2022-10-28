@@ -42,6 +42,16 @@ class TestApply(unittest.TestCase):
                 # tensor_.push_pending(p)
                 raise NotImplementedError()
 
+    def _test_apply_metatensor_impl(self, tensor, pending_transforms, pending_as_parameter):
+        tensor_ = convert_to_tensor(tensor)
+        if pending_as_parameter:
+            result = apply(tensor_, pending_transforms)
+        else:
+            for p in pending_transforms:
+                # TODO: cannot do the next part until the MetaTensor PR #5107 is in
+                # tensor_.push_pending(p)
+                raise NotImplementedError()
+
     SINGLE_TRANSFORM_CASES = [
         (torch.randn((1, 16, 16)), [MetaMatrix(rotate_45_2d(), {"id": "rotate"})])
     ]
