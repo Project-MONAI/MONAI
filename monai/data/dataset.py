@@ -851,20 +851,24 @@ class CacheDataset(Dataset):
         return item
 
     def _transform(self, index: int):
+        cache_index = None
         if self.hash_as_key:
             key = self.hash_func(self.data[index])
             if key in self._hash_keys:
-                # if existing in cache, get the index
-                index = self._hash_keys.index(key)
+                # if existing in cache, try to get the index in cache
+                cache_index = self._hash_keys.index(key)
+        elif index % len(self) < self.cache_num:  # support negative index
+            cache_index = index
 
-        if index % len(self) >= self.cache_num:  # support negative index
+        if cache_index is None:
             # no cache for this index, execute all the transforms directly
             return super()._transform(index)
-        # load data from cache and execute from the first random transform
-        start_run = False
+
         if self._cache is None:
             raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
-        data = self._cache[index]
+        data = self._cache[cache_index]
+        # load data from cache and execute from the first random transform
+        start_run = False
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
         for _transform in self.transform.transforms:
