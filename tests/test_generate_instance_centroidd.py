@@ -16,7 +16,10 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateInstanceCentroidd
 from monai.transforms import BoundingRect
+from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
+
+_, has_skimage = optional_import("skimage", "0.19.3", min_version)
 
 y, x = np.ogrid[0:30, 0:30]
 get_bbox = BoundingRect()
@@ -24,7 +27,6 @@ get_bbox = BoundingRect()
 TEST_CASE_1 = [(x - 2) ** 2 + (y - 2) ** 2 <= 2**2, [0, 0], [2, 2]]
 
 TEST_CASE_2 = [(x - 8) ** 2 + (y - 8) ** 2 <= 2**2, [6, 6], [8, 8]]
-
 
 TEST_CASE_3 = [(x - 5) ** 2 / 3**2 + (y - 5) ** 2 / 2**2 <= 1, [2, 3], [4, 6]]
 
@@ -35,6 +37,7 @@ for p in TEST_NDARRAYS:
     TEST_CASE.append([p, *TEST_CASE_3])
 
 
+@unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestGenerateInstanceCentroidd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_shape(self, in_type, test_data, offset, expected):

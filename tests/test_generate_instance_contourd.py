@@ -16,7 +16,10 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateInstanceContourd
 from monai.transforms import BoundingRect
+from monai.utils import min_version, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
+
+_, has_skimage = optional_import("skimage", "0.19.3", min_version)
 
 y, x = np.ogrid[0:30, 0:30]
 get_bbox = BoundingRect()
@@ -40,6 +43,7 @@ for p in TEST_NDARRAYS:
     TEST_CASE.append([p, *TEST_CASE_3])
 
 
+@unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestGenerateInstanceContourd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_shape(self, in_type, test_data, points_num, offset, expected):
