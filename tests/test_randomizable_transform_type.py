@@ -11,7 +11,7 @@
 
 import unittest
 
-from monai.transforms.transform import RandomizableTransform, RandomizableTrait
+from monai.transforms.transform import RandomizableTrait, RandomizableTransform
 
 
 class InheritsInterface(RandomizableTrait):

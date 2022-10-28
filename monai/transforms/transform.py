@@ -163,6 +163,7 @@ class RandomizableTrait:
     can be extended from by people adapting transforms to the MONAI framework as well as by
     implementors of MONAI transforms.
     """
+
     pass
 
 
@@ -326,8 +327,7 @@ class LazyTransform(Transform, LazyTrait):
     @lazy_evaluation.setter
     def lazy_evaluation(self, lazy_evaluation: bool):
         if not isinstance(lazy_evaluation, bool):
-            raise TypeError("'lazy_evaluation must be a bool but is of "
-                            f"type {type(lazy_evaluation)}'")
+            raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
         self.lazy_evaluation = lazy_evaluation
 
 
