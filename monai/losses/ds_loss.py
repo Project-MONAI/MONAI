@@ -42,21 +42,23 @@ class DeepSupervisionLoss(_Loss):
         self.weights = weights
         self.interp_mode = "nearest-exact" if pytorch_after(1, 11) else "nearest"
 
-    def get_weight(self, level: int = 0) -> float:
+    def get_weights(self, levels: int = 1) -> List[float]:
         """
-        Calculates a weight constant for a given image scale level
+        Calculates weights for a given number of scale levels
         """
-        weight = 1.0
-        if self.weights is not None and len(self.weights) > level:
-            weight = self.weights[level]
+        levels = max(1, levels)
+        if self.weights is not None and len(self.weights) >= levels:
+            weights = self.weights[:levels]
         elif self.weight_mode == "same":
-            weight = 1.0
+            weights = [1.0] * levels
         elif self.weight_mode == "exp":
-            weight = max(0.5**level, 0.0625)
+            weights = [max(0.5**l, 0.0625) for l in range(levels)]
         elif self.weight_mode == "two":
-            weight = 1.0 if level == 0 else 0.5
+            weights = [1.0 if l == 0 else 0.5 for l in range(levels)]
+        else:
+            weights = [1.0] * levels
 
-        return weight
+        return weights
 
     def get_loss(self, input: torch.Tensor, target: torch.Tensor):
         """
@@ -71,10 +73,12 @@ class DeepSupervisionLoss(_Loss):
     def forward(self, input: Union[torch.Tensor, List[torch.Tensor]], target: torch.Tensor):
 
         if isinstance(input, (list, tuple)):
-            loss = torch.zeros(1, dtype=torch.float, device=target.device)
+            weights = self.get_weights(levels=len(input))
+            loss = torch.tensor(0, dtype=torch.float, device=target.device)
             for l in range(len(input)):
-                loss += self.get_loss(input[l].float(), target) * self.get_weight(l)
+                loss += weights[l] * self.get_loss(input[l].float(), target)
             return loss
+
         return self.loss(input.float(), target)
 
 
