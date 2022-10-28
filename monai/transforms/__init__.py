@@ -450,12 +450,12 @@ from .spatial.dictionary import (
     ZoomDict,
 )
 from .transform import (
-    LazyTransformType,
+    LazyTrait,
     MapTransform,
-    MultiSampleTransformType,
+    MultiSampleTrait,
     Randomizable,
     RandomizableTransform,
-    RandomizableTransformType,
+    RandomizableTrait,
     ThreadUnsafe,
     Transform,
     apply_transform,

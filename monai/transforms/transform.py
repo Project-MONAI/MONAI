@@ -29,9 +29,9 @@ from monai.utils.misc import MONAIEnvVars
 __all__ = [
     "ThreadUnsafe",
     "apply_transform",
-    "LazyTransformType",
-    "RandomizableTransformType",
-    "MultiSampleTransformType",
+    "LazyTrait",
+    "RandomizableTrait",
+    "MultiSampleTrait",
     "Randomizable",
     "RandomizableTransform",
     "Transform",
@@ -128,12 +128,13 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
-class LazyTransformType:
+class LazyTrait:
     """
-    An interface to indicate that the transform has the capability to describe
-    its operation as an affine matrix or grid with accompanying metadata. This
-    interface can be extended from by people adapting transforms to the MONAI framework as well as
-    by implementors of MONAI transforms.
+    An interface to indicate that the transform has the capability to execute using
+    MONAI's lazy resampling feature. In order to do this, the implementing class needs
+    to be able to describe its operation as an affine matrix or grid with accompanying metadata.
+    This interface can be extended from by people adapting transforms to the MONAI framework as
+    well as by implementors of MONAI transforms.
     """
 
     @property
@@ -155,18 +156,17 @@ class LazyTransformType:
         raise NotImplementedError()
 
 
-class RandomizableTransformType:
+class RandomizableTrait:
     """
     An interface to indicate that the transform has the capability to perform
     randomized transforms to the data that it is called upon. This interface
     can be extended from by people adapting transforms to the MONAI framework as well as by
     implementors of MONAI transforms.
     """
-
     pass
 
 
-class MultiSampleTransformType:
+class MultiSampleTrait:
     """
     An interface to indicate that the transform has the capability to return multiple samples
     given an input, such as when performing random crops of a sample. This interface can be
@@ -310,7 +310,28 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class RandomizableTransform(Randomizable, Transform, RandomizableTransformType):
+class LazyTransform(Transform, LazyTrait):
+    """
+    An implementation of functionality for lazy transforms that can be subclassed by array and
+    dictionary transforms to simplify implementation of new lazy transforms.
+    """
+
+    def __init__(self, lazy_evaluation: Optional[bool] = True):
+        self.lazy_evaluation = lazy_evaluation
+
+    @property
+    def lazy_evaluation(self):
+        return self.lazy_evaluation
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, lazy_evaluation: bool):
+        if not isinstance(lazy_evaluation, bool):
+            raise TypeError("'lazy_evaluation must be a bool but is of "
+                            f"type {type(lazy_evaluation)}'")
+        self.lazy_evaluation = lazy_evaluation
+
+
+class RandomizableTransform(Randomizable, Transform, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.

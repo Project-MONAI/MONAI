@@ -11,10 +11,10 @@
 
 import unittest
 
-from monai.transforms.transform import RandomizableTransform, RandomizableTransformType
+from monai.transforms.transform import RandomizableTransform, RandomizableTrait
 
 
-class InheritsInterface(RandomizableTransformType):
+class InheritsInterface(RandomizableTrait):
     pass
 
 
@@ -26,7 +26,7 @@ class InheritsImplementation(RandomizableTransform):
 class TestRandomizableTransformType(unittest.TestCase):
     def test_is_randomizable_transform_type(self):
         inst = InheritsInterface()
-        self.assertIsInstance(inst, RandomizableTransformType)
+        self.assertIsInstance(inst, RandomizableTrait)
 
     def test_set_random_state_randomizable_transform(self):
         inst = InheritsImplementation()
