@@ -455,6 +455,7 @@ from .transform import (
     MultiSampleTrait,
     Randomizable,
     RandomizableTrait,
+    LazyTransform,
     RandomizableTransform,
     ThreadUnsafe,
     Transform,

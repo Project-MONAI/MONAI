@@ -33,6 +33,7 @@ __all__ = [
     "RandomizableTrait",
     "MultiSampleTrait",
     "Randomizable",
+    "LazyTransform",
     "RandomizableTransform",
     "Transform",
     "MapTransform",
