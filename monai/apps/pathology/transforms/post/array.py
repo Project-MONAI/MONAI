@@ -15,6 +15,7 @@ import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.transform import Transform
+from monai.transforms.utils_pytorch_numpy_unification import sum, unique
 from monai.utils import convert_to_numpy, optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple_rep
@@ -230,6 +231,8 @@ class GenerateInstanceContour(Transform):
             image: instance-level segmentation result. Shape should be [C, H, W]
             offset: optional, offset of starting position of the instance in the array, default is (0, 0).
         """
+        image = image.squeeze()  # squeeze channel dim
+        image = convert_to_numpy(image)
         inst_contour_cv = find_contours(image, level=self.level)
         generate_contour = GenerateSuccinctContour(image.shape[0], image.shape[1])
         inst_contour = generate_contour(inst_contour_cv)
@@ -260,7 +263,7 @@ class GenerateInstanceCentroid(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, dtype: Optional[DtypeLike] = None) -> None:
+    def __init__(self, dtype: Optional[DtypeLike] = int) -> None:
         self.dtype = dtype
 
     def __call__(self, image: NdarrayOrTensor, offset: Union[Sequence[int], int] = 0) -> np.ndarray:
@@ -307,9 +310,10 @@ class GenerateInstanceType(Transform):
         seg_map_crop = seg_pred[0, rmin:rmax, cmin:cmax]
         type_map_crop = type_pred[0, rmin:rmax, cmin:cmax]
 
-        seg_map_crop = seg_map_crop == instance_id
+        seg_map_crop = convert_to_dst_type(seg_map_crop == instance_id, type_map_crop, dtype=bool)[0]
+
         inst_type = type_map_crop[seg_map_crop]  # type: ignore
-        type_list, type_pixels = np.unique(inst_type, return_counts=True)
+        type_list, type_pixels = unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
         type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
         inst_type = type_list[0][0]

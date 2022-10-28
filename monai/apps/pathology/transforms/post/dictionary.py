@@ -134,7 +134,7 @@ class GenerateInstanceCentroidd(MapTransform):
         keys: KeysCollection,
         centroid_key_postfix: str = "centroid",
         offset_key: Optional[str] = None,
-        dtype: Optional[DtypeLike] = None,
+        dtype: Optional[DtypeLike] = int,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)

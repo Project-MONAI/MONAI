@@ -387,13 +387,13 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
     return o
 
 
-def unique(x: NdarrayTensor) -> NdarrayTensor:
+def unique(x: NdarrayTensor, **kwargs) -> NdarrayTensor:
     """`torch.unique` with equivalent implementation for numpy.
 
     Args:
         x: array/tensor.
     """
-    return np.unique(x) if isinstance(x, (np.ndarray, list)) else torch.unique(x)  # type: ignore
+    return np.unique(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.unique(x, **kwargs)  # type: ignore
 
 
 def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
