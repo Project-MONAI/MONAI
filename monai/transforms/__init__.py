@@ -451,11 +451,11 @@ from .spatial.dictionary import (
 )
 from .transform import (
     LazyTrait,
+    LazyTransform,
     MapTransform,
     MultiSampleTrait,
     Randomizable,
     RandomizableTrait,
-    LazyTransform,
     RandomizableTransform,
     ThreadUnsafe,
     Transform,
