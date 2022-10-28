@@ -57,4 +57,3 @@ class TestApply(unittest.TestCase):
     def test_apply_single_transform(self):
         for case in self.SINGLE_TRANSFORM_CASES:
             self._test_apply_impl(*case)
-
