@@ -154,14 +154,7 @@ TEST_CASE_5 = [  # batch size of 2, 3 classes with medium rotation of nuclear pr
     5.4663,
 ]
 
-CASES = [
-    TEST_CASE_0,
-    TEST_CASE_1,
-    TEST_CASE_2,
-    TEST_CASE_3,
-    TEST_CASE_4,
-    TEST_CASE_5,
-]
+CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5]
 
 ILL_CASES = [
     [
