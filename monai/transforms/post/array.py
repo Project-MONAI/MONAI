@@ -915,10 +915,12 @@ class SobelGradients(Transform):
             kernels[ax - 1] = kernel_diff
             grad = separable_filtering(image_tensor, kernels, mode=self.padding)
             if self.normalize_gradients:
-                if grad.min() != grad.max():
-                    grad -= grad.min()
-                if grad.max() > 0:
-                    grad /= grad.max()
+                grad_min = grad.min()
+                if grad_min != grad.max():
+                    grad -= grad_min
+                grad_max = grad.max()
+                if grad_max > 0:
+                    grad /= grad_max
             grad_list.append(grad)
 
         grads = torch.cat(grad_list, dim=1)
