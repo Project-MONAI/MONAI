@@ -11,7 +11,6 @@
 
 import unittest
 
-import numpy as np
 
 import torch
 from monai.utils import convert_to_tensor
@@ -19,7 +18,6 @@ from monai.utils import convert_to_tensor
 from monai.transforms.lazy.functional import apply
 from monai.transforms.meta_matrix import MetaMatrix
 
-from tests.utils import get_arange_img
 
 
 def rotate_45_2d():
