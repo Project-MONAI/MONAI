@@ -76,8 +76,8 @@ class DataAnalyzer:
         image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
             datalist to locate the image files of the dataset.
         label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
-            datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
-            will skip looking for labels and all label-related operations.
+            datalist to locate the label files of the dataset. If label_key is NoneType or "None",
+            the DataAnalyzer will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
         fmt: format used to save the analysis results. Defaults to "yaml".
@@ -147,7 +147,7 @@ class DataAnalyzer:
         self.device = torch.device(device)
         self.worker = 0 if (self.device.type == "cuda") else worker
         self.image_key = image_key
-        self.label_key = label_key
+        self.label_key = None if label_key == "None" else label_key
         self.hist_bins = hist_bins
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.fmt = fmt

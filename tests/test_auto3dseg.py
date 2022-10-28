@@ -71,6 +71,7 @@ SIM_CPU_TEST_CASES = [
     [{"sim_dim": (32, 32, 32), "label_key": "label"}],
     [{"sim_dim": (32, 32, 32, 2), "label_key": "label"}],
     [{"sim_dim": (32, 32, 32), "label_key": None}],
+    [{"sim_dim": (32, 32, 32), "label_key": "None"}],
 ]
 
 SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32)}]]
