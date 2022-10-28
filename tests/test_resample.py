@@ -11,12 +11,11 @@
 
 import unittest
 
-
 import torch
 
 from monai.transforms.utility.functional import resample
-from monai.utils import convert_to_tensor
 
+from monai.utils import convert_to_tensor
 
 from tests.utils import get_arange_img
 
