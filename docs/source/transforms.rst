@@ -22,24 +22,29 @@ Generic Interfaces
     :members:
     :special-members: __call__
 
-`RandomizableTransformType`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: RandomizableTransformType
-    :members:
-
-`LazyTransformType`
+`RandomizableTrait`
 ^^^^^^^^^^^^^^^^^^^
-.. autoclass:: LazyTransformType
+.. autoclass:: RandomizableTrait
     :members:
 
-`MultiSampleTransformType`
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. autoclass:: MultiSampleTransformType
+`LazyTrait`
+^^^^^^^^^^^
+.. autoclass:: LazyTrait
+    :members:
+
+`MultiSampleTrait`
+^^^^^^^^^^^^^^^^^^
+.. autoclass:: MultiSampleTrait
     :members:
 
 `Randomizable`
 ^^^^^^^^^^^^^^
 .. autoclass:: Randomizable
+    :members:
+
+`LazyTransform`
+^^^^^^^^^^^^^^^
+.. autoclass:: LazyTransform
     :members:
 
 `RandomizableTransform`
