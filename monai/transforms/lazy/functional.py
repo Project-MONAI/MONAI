@@ -33,7 +33,7 @@ DtypeSequence = Union[Sequence[DtypeLike], DtypeLike]
 
 
 # TODO: move to mapping_stack.py
-def extents_from_shape(shape, dtype=np.float64):
+def extents_from_shape(shape, dtype=np.float32):
     extents = [[0, shape[i]] for i in range(1, len(shape))]
 
     extents = it.product(*extents)
@@ -132,10 +132,10 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
             rd[k] = result
         return rd
 
-    if isinstance(data, MetaTensor) or pending is not None:
-        pending_ = [] if pending is None else pending
-    else:
+    if isinstance(data, MetaTensor) and pending is None:
         pending_ = data.pending_transforms
+    else:
+        pending_ = [] if pending is None else pending
 
     if len(pending_) == 0:
         return data
@@ -154,7 +154,7 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
     cur_shape = data.shape
 
     for meta_matrix in pending_:
-        next_matrix = meta_matrix.data
+        next_matrix = meta_matrix.matrix
         # print("intermediate matrix\n", matrix_from_matrix_container(cumulative_matrix))
         cumulative_matrix = matmul(cumulative_matrix, next_matrix)
         cumulative_extents = [matmul(e, cumulative_matrix) for e in cumulative_extents]
@@ -193,6 +193,10 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
     # print(f"applying with cumulative matrix\n {cumulative_matrix_}")
     a = Affine(norm_coords=False, affine=cumulative_matrix_, spatial_size=cur_shape[1:], normalized=False, **kwargs)
     data, tx = a(img=data)
-    data.clear_pending_transforms()
+    if isinstance(data, MetaTensor):
+        data.clear_pending_transforms()
+        for p in pending_:
+            data.affine = p.matrix.data
+            data.push_applied_operation(p)
 
-    return data
+    return data, pending_
