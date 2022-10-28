@@ -42,9 +42,12 @@ from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
 from monai.utils.module import export, look_up_option
 
-__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet", "HOVERNET_MODELS"]
+__all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
 HOVERNET_MODELS = {
+    # ImageNet pretrained preact-resnet50 weights. The weights come from the referred hover_net repository, and
+    # please check the following link for more details:
+    # https://github.com/vqdang/hover_net#data-format
     "preact-resnet50": "https://drive.google.com/u/1/uc?id=1KntZge40tAHgyXmHYVqZZ5d2p_4Qr2l5&export=download"
 }
 
