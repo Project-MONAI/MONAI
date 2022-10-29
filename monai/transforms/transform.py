@@ -29,8 +29,11 @@ from monai.utils.misc import MONAIEnvVars
 __all__ = [
     "ThreadUnsafe",
     "apply_transform",
-    "LazyTransform",
+    "LazyTrait",
+    "RandomizableTrait",
+    "MultiSampleTrait",
     "Randomizable",
+    "LazyTransform",
     "RandomizableTransform",
     "Transform",
     "MapTransform",
@@ -126,6 +129,56 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
+class LazyTrait:
+    """
+    An interface to indicate that the transform has the capability to execute using
+    MONAI's lazy resampling feature. In order to do this, the implementing class needs
+    to be able to describe its operation as an affine matrix or grid with accompanying metadata.
+    This interface can be extended from by people adapting transforms to the MONAI framework as
+    well as by implementors of MONAI transforms.
+    """
+
+    @property
+    def lazy_evaluation(self):
+        """
+        Get whether lazy_evaluation is enabled for this transform instance.
+        Returns:
+            True if the transform is operating in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, enabled: bool):
+        """
+        Set whether lazy_evaluation is enabled for this transform instance.
+        Args:
+            enabled: True if the transform should operate in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+
+class RandomizableTrait:
+    """
+    An interface to indicate that the transform has the capability to perform
+    randomized transforms to the data that it is called upon. This interface
+    can be extended from by people adapting transforms to the MONAI framework as well as by
+    implementors of MONAI transforms.
+    """
+
+    pass
+
+
+class MultiSampleTrait:
+    """
+    An interface to indicate that the transform has the capability to return multiple samples
+    given an input, such as when performing random crops of a sample. This interface can be
+    extended from by people adapting transforms to the MONAI framework as well as by implementors
+    of MONAI transforms.
+    """
+
+    pass
+
+
 class ThreadUnsafe:
     """
     A class to denote that the transform will mutate its member variables,
@@ -137,26 +190,6 @@ class ThreadUnsafe:
     """
 
     pass
-
-
-class LazyTransform:
-    """
-    An interface to denote whether a transform can be applied lazily. It is designed as part of lazy resampling of
-    multiple transforms. Classes inheriting this interface should be able to operate in two modes:
-
-        - ``set_lazy_eval(False)`` (eagerly evaluating), the transform should output the finalized transform
-          results without any pending operations. Both primary data and metadata of the outputs should be up-to-date.
-        - ``set_lazy_eval(True)`` (lazily evaluating), the transform should only execute necessary/lightweight/lossless
-          metadata updates to track any pending operations. The goal is that, in a later stage, the pending operations
-          can be grouped together and evaluated more efficiently and accurately -- each transforms when evaluated
-          independently may cause some information losses.
-
-    """
-
-    lazy_evaluation: bool = False
-
-    def set_lazy_eval(self, value: bool):
-        self.lazy_evaluation = value
 
 
 class Randomizable(ThreadUnsafe):
@@ -279,7 +312,27 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class RandomizableTransform(Randomizable, Transform):
+class LazyTransform(Transform, LazyTrait):
+    """
+    An implementation of functionality for lazy transforms that can be subclassed by array and
+    dictionary transforms to simplify implementation of new lazy transforms.
+    """
+
+    def __init__(self, lazy_evaluation: Optional[bool] = True):
+        self.lazy_evaluation = lazy_evaluation
+
+    @property
+    def lazy_evaluation(self):
+        return self.lazy_evaluation
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, lazy_evaluation: bool):
+        if not isinstance(lazy_evaluation, bool):
+            raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
+        self.lazy_evaluation = lazy_evaluation
+
+
+class RandomizableTransform(Randomizable, Transform, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.

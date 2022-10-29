@@ -31,7 +31,7 @@ from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
+from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
     convert_pad_mode,
     create_control_grid,
@@ -48,7 +48,6 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
-    LazyAttr,
     NdimageMode,
     NumpyPadMode,
     SplineMode,
@@ -752,7 +751,7 @@ class Orientation(InvertibleTransform):
         return data
 
 
-class Flip(InvertibleTransform, LazyTransform):
+class Flip(InvertibleTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
     See `torch.flip` documentation for additional details:
@@ -772,13 +771,14 @@ class Flip(InvertibleTransform, LazyTransform):
     def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
         self.spatial_axis = spatial_axis
 
-    def update_meta(self, affine, shape, axes):
+    def update_meta(self, img, shape, axes):
         # shape and axes include the channel dim
+        affine = img.affine
         mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
         for axis in axes:
             sp = axis - 1
             mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        return affine @ mat
+        img.affine = affine @ mat
 
     def forward_image(self, img, axes) -> torch.Tensor:
         return torch.flip(img, axes)
@@ -790,16 +790,9 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axis)
-        if self.lazy_evaluation and isinstance(img, MetaTensor):
-            spatial_chn_shape = [1, *convert_to_numpy(img.peek_pending_shape()).tolist()]
-            affine = img.peek_pending_affine()
-            lazy_affine = self.update_meta(affine, spatial_chn_shape, axes)
-            img.push_pending_operation({LazyAttr.SHAPE: img.peek_pending_shape(), LazyAttr.AFFINE: lazy_affine})
-            self.push_transform(img)
-            return img
         out = self.forward_image(img, axes)
         if get_track_meta():
-            out.affine = self.update_meta(out.affine, out.shape, axes)  # type: ignore
+            self.update_meta(out, out.shape, axes)
             self.push_transform(out)
         return out
 
