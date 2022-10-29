@@ -495,6 +495,15 @@ class TestMetaTensor(unittest.TestCase):
         m = MetaTensor(im, applied_operations=data["im"].applied_operations)
         self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
+    def test_pending_ops(self):
+        m, _ = self.get_im()
+        self.assertEqual(m.pending_operations, [])
+        self.assertEqual(m.peek_pending_shape(), (10, 8))
+        self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        m.push_pending_operation({})
+        self.assertEqual(m.peek_pending_shape(), (10, 8))
+        self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+
     @parameterized.expand(TESTS)
     def test_multiprocessing(self, device=None, dtype=None):
         """multiprocessing sharing with 'device' and 'dtype'"""
