@@ -889,6 +889,124 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
+def _create_rotate_90(
+        spatial_dims: int,
+        axis: Tuple[int, int],
+        steps: Optional[int] = 1,
+        eye_func: Callable = np.eye
+) -> NdarrayOrTensor:
+
+    values = [(1, 0, 0, 1),
+              (0, -1, 1, 0),
+              (-1, 0, 0, -1),
+              (0, 1, -1, 0)]
+
+    if spatial_dims == 2:
+        if axis != (0, 1):
+            raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be (0, 1) but is {axis}")
+    elif spatial_dims == 3:
+        if axis not in ((0, 1), (0, 2), (1, 2)):
+            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) "
+                             f"but is {axis}")
+    else:
+        raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
+
+    steps_ = steps % 4
+
+    affine = eye_func(spatial_dims + 1)
+
+    if spatial_dims == 2:
+        a, b = 0, 1
+    else:
+        a, b = axis
+
+    affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps]
+    return affine
+
+
+def create_rotate_90(
+    spatial_dims: int,
+    axis: int,
+    steps: Optional[int] = 1,
+    device: Optional[torch.device] = None,
+    backend: str = TransformBackends.NUMPY,
+) -> NdarrayOrTensor:
+    """
+    create a 2D or 3D rotation matrix
+    Args:
+        spatial_dims: {``2``, ``3``} spatial rank
+        radians: rotation radians
+            when spatial_dims == 3, the `radians` sequence corresponds to
+            rotation in the 1st, 2nd, and 3rd dim respectively.
+        device: device to compute and store the output (when the backend is "torch").
+        backend: APIs to use, ``numpy`` or ``torch``.
+    Raises:
+        ValueError: When ``radians`` is empty.
+        ValueError: When ``spatial_dims`` is not one of [2, 3].
+    """
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
+        return _create_rotate_90(
+            spatial_dims=spatial_dims,
+            axis=axis,
+            steps=steps,
+            eye_func=np.eye)
+    if _backend == TransformBackends.TORCH:
+        return _create_rotate_90(
+            spatial_dims=spatial_dims,
+            axis=axis,
+            steps=steps,
+            eye_func=lambda rank: torch.eye(rank, device=device),
+        )
+    raise ValueError(f"backend {backend} is not supported")
+
+
+def _create_flip(
+        spatial_dims: int,
+        spatial_axis: Union[Sequence[int], int],
+        eye_func: Callable = np.eye
+):
+    affine = eye_func(spatial_dims + 1)
+    if isinstance(spatial_axis, int):
+        if spatial_axis < -spatial_dims or spatial_axis >= spatial_dims:
+            raise ValueError("'spatial_axis' values must be between "
+                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                             f"('spatial_axis' is {spatial_axis})")
+        affine[spatial_axis, spatial_axis] = -1
+    else:
+        if any((s < -spatial_dims or s >= spatial_dims) for s in spatial_axis):
+            raise ValueError("'spatial_axis' values must be between "
+                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                             f"('spatial_axis' is {spatial_axis})")
+
+        for i in range(spatial_dims):
+            if i in spatial_axis:
+                affine[i, i] = -1
+
+    return affine
+
+
+def create_flip(
+        spatial_dims: int,
+        spatial_axis: Union[Sequence[int], int],
+        device: Optional[torch.device] = None,
+        backend: str = TransformBackends.NUMPY,
+) -> NdarrayOrTensor:
+    _backend = look_up_option(backend, TransformBackends)
+    if _backend == TransformBackends.NUMPY:
+        return _create_flip(
+            spatial_dims=spatial_dims,
+            spatial_axis=spatial_axis,
+            eye_func=np.eye)
+    if _backend == TransformBackends.TORCH:
+        return _create_flip(
+            spatial_dims=spatial_dims,
+            spatial_axis=spatial_axis,
+            eye_func=lambda rank: torch.eye(rank, device=device),
+        )
+    raise ValueError(f"backend {backend} is not supported")
+
+
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
@@ -1788,6 +1906,94 @@ def squarepulse(sig, duty: float = 0.5):
     mask3 = (~mask1) & (~mask2)
     y[mask3] = -1
     return y
+
+
+def get_device_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the device of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return None
+    elif isinstance(data, torch.Tensor):
+        return data.device
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def get_backend_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the backend of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return TransformBackends.NUMPY
+    elif isinstance(data, torch.Tensor):
+        return TransformBackends.TORCH
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+def dtype_torch_to_numpy(dtype: torch.dtype) -> np.dtype:
+    """Convert a torch dtype to its numpy equivalent."""
+    return torch.empty([], dtype=dtype).numpy().dtype  # type: ignore
+
+
+def dtype_numpy_to_torch(dtype: np.dtype) -> torch.dtype:
+    """Convert a numpy dtype to its torch equivalent."""
+    return torch.from_numpy(np.empty([], dtype=dtype)).dtype
+
+
+__dtype_dict = {
+    np.int8: "int8",
+    torch.int8: "int8",
+    np.int16: "int16",
+    torch.int16: "int16",
+    int: "int32",
+    np.int32: "int32",
+    torch.int32: "int32",
+    np.int64: "int64",
+    torch.int64: "int64",
+    np.uint8: "uint8",
+    torch.uint8: "uint8",
+    np.uint16: "uint16",
+    np.uint32: "uint32",
+    np.uint64: "uint64",
+    float: "float32",
+    np.float16: "float16",
+    np.float: "float32",
+    np.float32: "float32",
+    np.float64: "float64",
+    torch.float16: "float16",
+    torch.float: "float32",
+    torch.float32: "float32",
+    torch.double: "float64",
+    torch.float64: "float64",
+}
+
+
+def dtypes_to_str_or_identity(dtype: Any) -> Any:
+    return __dtype_dict.get(dtype, dtype)
+
+
+def get_numpy_dtype_from_string(dtype: str) -> np.dtype:
+    """Get a numpy dtype (e.g., `np.float32`) from its string (e.g., `"float32"`)."""
+    return np.empty([], dtype=dtype).dtype
+
+
+def get_torch_dtype_from_string(dtype: str) -> torch.dtype:
+    """Get a torch dtype (e.g., `torch.float32`) from its string (e.g., `"float32"`)."""
+    return dtype_numpy_to_torch(get_numpy_dtype_from_string(dtype))
 
 
 if __name__ == "__main__":
