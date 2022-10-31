@@ -79,11 +79,12 @@ class TestMilModel(unittest.TestCase):
                 mil_mode="att_trans_pyramid",
             )
 
-    def test_script(self):
-        input_param, input_shape, expected_shape = TEST_CASE_MILMODEL[0]
-        net = MILModel(**input_param)
-        test_data = torch.randn(input_shape, dtype=torch.float)
-        test_script_save(net, test_data)
+    @parameterized.expand(TEST_CASE_MILMODEL)
+    def test_script(self, input_param, input_shape, expected_shape):
+        if "mil_mode" in input_param.keys():
+            net = MILModel(**input_param)
+            test_data = torch.randn(input_shape, dtype=torch.float)
+            test_script_save(net, test_data)
 
 
 if __name__ == "__main__":

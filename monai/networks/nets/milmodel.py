@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union, cast
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -78,20 +78,15 @@ class MILModel(nn.Module):
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
-            self.extra_outputs = {}  # type: Dict[str, torch.Tensor]
-
             if mil_mode == "att_trans_pyramid":
-                # register hooks to capture outputs of intermediate layers
-                def forward_hook(layer_name):
-                    def hook(module, input, output):
-                        self.extra_outputs[layer_name] = output
-
-                    return hook
-
-                net.layer1.register_forward_hook(forward_hook("layer1"))
-                net.layer2.register_forward_hook(forward_hook("layer2"))
-                net.layer3.register_forward_hook(forward_hook("layer3"))
-                net.layer4.register_forward_hook(forward_hook("layer4"))
+                nfc = nfc + 256
+                self.trans_pyramid_module = TransPyramidModule(
+                    num_classes=num_classes,
+                    backbone=net,
+                    trans_blocks=trans_blocks,
+                    trans_dropout=trans_dropout,
+                    nfc=nfc,
+                )
 
         elif isinstance(backbone, str):
 
@@ -124,7 +119,7 @@ class MILModel(nn.Module):
         if backbone is not None and mil_mode not in ["mean", "max", "att", "att_trans"]:
             raise ValueError("Custom backbone is not supported for the mode:" + str(mil_mode))
 
-        if self.mil_mode in ["mean", "max"]:
+        if self.mil_mode in ["mean", "max", "att_trans_pyramid"]:
             pass
         elif self.mil_mode == "att":
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
@@ -134,46 +129,14 @@ class MILModel(nn.Module):
             self.transformer = nn.TransformerEncoder(transformer, num_layers=trans_blocks)
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
-        elif self.mil_mode == "att_trans_pyramid":
-
-            transformer_list = nn.ModuleList(
-                [
-                    nn.TransformerEncoder(
-                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
-                    ),
-                    nn.Sequential(
-                        nn.Linear(768, 256),
-                        nn.TransformerEncoder(
-                            nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout),
-                            num_layers=trans_blocks,
-                        ),
-                    ),
-                    nn.Sequential(
-                        nn.Linear(1280, 256),
-                        nn.TransformerEncoder(
-                            nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout),
-                            num_layers=trans_blocks,
-                        ),
-                    ),
-                    nn.TransformerEncoder(
-                        nn.TransformerEncoderLayer(d_model=2304, nhead=8, dropout=trans_dropout),
-                        num_layers=trans_blocks,
-                    ),
-                ]
-            )
-            self.transformer = transformer_list
-            nfc = nfc + 256
-            self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
-
         else:
             raise ValueError("Unsupported mil_mode: " + str(mil_mode))
 
-        self.myfc = nn.Linear(nfc, num_classes)
+        if not hasattr(self, "myfc"):
+            self.myfc = nn.Linear(nfc, num_classes)
         self.net = net
 
     def calc_head(self, x: torch.Tensor) -> torch.Tensor:
-
-        sh = x.shape
 
         if self.mil_mode == "mean":
             x = self.myfc(x)
@@ -203,28 +166,6 @@ class MILModel(nn.Module):
 
             x = self.myfc(x)
 
-        elif self.mil_mode == "att_trans_pyramid" and self.transformer is not None:
-
-            l1 = torch.mean(self.extra_outputs["layer1"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
-            l2 = torch.mean(self.extra_outputs["layer2"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
-            l3 = torch.mean(self.extra_outputs["layer3"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
-            l4 = torch.mean(self.extra_outputs["layer4"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
-
-            transformer_list = cast(nn.ModuleList, self.transformer)
-
-            x = transformer_list[0](l1)
-            x = transformer_list[1](torch.cat((x, l2), dim=2))
-            x = transformer_list[2](torch.cat((x, l3), dim=2))
-            x = transformer_list[3](torch.cat((x, l4), dim=2))
-
-            x = x.permute(1, 0, 2)
-
-            a = self.attention(x)
-            a = torch.softmax(a, dim=1)
-            x = torch.sum(x * a, dim=1)
-
-            x = self.myfc(x)
-
         else:
             raise ValueError("Wrong model mode" + str(self.mil_mode))
 
@@ -234,11 +175,88 @@ class MILModel(nn.Module):
 
         sh = x.shape
         x = x.reshape(sh[0] * sh[1], sh[2], sh[3], sh[4])
+        if hasattr(self, "trans_pyramid_module"):
+            batch, channel = sh[0], sh[1]
+            x = self.trans_pyramid_module(x, batch=batch, channel=channel, no_head=no_head)
+        else:
+            x = self.net(x)
+            x = x.reshape(sh[0], sh[1], -1)
 
-        x = self.net(x)
-        x = x.reshape(sh[0], sh[1], -1)
+            if not no_head:
+                x = self.calc_head(x)
+
+        return x
+
+
+class TransPyramidModule(nn.Module):
+    def __init__(
+        self, num_classes: int, backbone: nn.Module, trans_blocks: int, trans_dropout: float, nfc: int
+    ) -> None:
+
+        super().__init__()
+
+        self.backbone: models.ResNet = backbone  # type: ignore
+        transformer_list = nn.ModuleList(
+            [
+                nn.TransformerEncoder(
+                    nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
+                ),
+                nn.Sequential(
+                    nn.Linear(768, 256),
+                    nn.TransformerEncoder(
+                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
+                    ),
+                ),
+                nn.Sequential(
+                    nn.Linear(1280, 256),
+                    nn.TransformerEncoder(
+                        nn.TransformerEncoderLayer(d_model=256, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
+                    ),
+                ),
+                nn.TransformerEncoder(
+                    nn.TransformerEncoderLayer(d_model=2304, nhead=8, dropout=trans_dropout), num_layers=trans_blocks
+                ),
+            ]
+        )
+        self.transformer = transformer_list
+        self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
+        self.myfc = nn.Linear(nfc, num_classes)
+
+    def forward(self, x: torch.Tensor, batch: int, channel: int, no_head: bool = False):
+
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        x_l1 = self.backbone.layer1(x)
+        x_l2 = self.backbone.layer2(x_l1)
+        x_l3 = self.backbone.layer3(x_l2)
+        x_l4 = self.backbone.layer4(x_l3)
+
+        x = self.backbone.avgpool(x_l4)
+        x = torch.flatten(x, 1)
+        x = self.backbone.fc(x)
+
+        x = x.reshape(batch, channel, -1)
 
         if not no_head:
-            x = self.calc_head(x)
+            l1 = torch.mean(x_l1, dim=(2, 3)).reshape(batch, channel, -1).permute(1, 0, 2)
+            l2 = torch.mean(x_l2, dim=(2, 3)).reshape(batch, channel, -1).permute(1, 0, 2)
+            l3 = torch.mean(x_l3, dim=(2, 3)).reshape(batch, channel, -1).permute(1, 0, 2)
+            l4 = torch.mean(x_l4, dim=(2, 3)).reshape(batch, channel, -1).permute(1, 0, 2)
+
+            x = self.transformer[0](l1)
+            x = self.transformer[1](torch.cat((x, l2), dim=2))
+            x = self.transformer[2](torch.cat((x, l3), dim=2))
+            x = self.transformer[3](torch.cat((x, l4), dim=2))
+
+            x = x.permute(1, 0, 2)
+
+            a = self.attention(x)
+            a = torch.softmax(a, dim=1)
+            x = torch.sum(x * a, dim=1)
+
+            x = self.myfc(x)
 
         return x
