@@ -202,6 +202,7 @@ class TestCacheThread(unittest.TestCase):
             self.assertEqual(len(dataset), 5)
             # ensure no duplicated cache content
             self.assertEqual(len(dataset._cache), 3)
+            self.assertEqual(len(dataset._hash_keys), 3)
             self.assertEqual(dataset.cache_num, 3)
             data1 = dataset[0]
             data2 = dataset[1]
