@@ -76,8 +76,8 @@ class DataAnalyzer:
         image_key: a string that user specify for the image. The DataAnalyzer will look it up in the
             datalist to locate the image files of the dataset.
         label_key: a string that user specify for the label. The DataAnalyzer will look it up in the
-            datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
-            will skip looking for labels and all label-related operations.
+            datalist to locate the label files of the dataset. If label_key is NoneType or "None",
+            the DataAnalyzer will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
         fmt: format used to save the analysis results. Defaults to "yaml".
@@ -147,7 +147,7 @@ class DataAnalyzer:
         self.device = torch.device(device)
         self.worker = 0 if (self.device.type == "cuda") else worker
         self.image_key = image_key
-        self.label_key = label_key
+        self.label_key = None if label_key == "None" else label_key
         self.hist_bins = hist_bins
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.fmt = fmt
@@ -220,7 +220,7 @@ class DataAnalyzer:
                 Orientationd(keys=keys, axcodes="RAS"),
                 EnsureTyped(keys=keys, data_type="tensor"),
                 Lambdad(keys=self.label_key, func=_argmax_if_multichannel) if self.label_key else None,
-                SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
+                SqueezeDimd(keys=self.label_key, dim=0) if self.label_key else None,
                 ToDeviced(keys=keys, device=self.device),
             ]
         transform_list.append(summarizer)
@@ -262,7 +262,11 @@ class DataAnalyzer:
         if self.output_path:
             ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None)
 
-        del d["image"], d["label"]
+        # manually release the variable from cuda memory
+        del d[self.image_key]
+        if self.label_key and self.label_key in d:
+            del d[self.label_key]
+
         if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
