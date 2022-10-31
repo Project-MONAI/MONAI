@@ -20,7 +20,6 @@ from tests.utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_impor
 
 cp, _ = optional_import("cupy")
 
-
 im = [[1, 2], [3, 4]]
 
 TESTS = [(im, (2, 2))]
