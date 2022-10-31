@@ -802,37 +802,47 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
+        self.data = data
 
-        def _compute_cache():
-            self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
-            return self._fill_cache()
+        def _compute_cache_num(data_len: int):
+            self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
         if self.hash_as_key:
-            # only compute cache for the unique items of dataset
-            mapping = {self.hash_func(v): v for v in data}
-            self.data = list(mapping.values())
-            self._cache = _compute_cache()
+            # only compute cache for the unique items of dataset, and record the last index for duplicated items
+            mapping = {self.hash_func(v): i for i, v in enumerate(data)}
+            _compute_cache_num(len(mapping))
             self._hash_keys = list(mapping)[: self.cache_num]
-            self.data = data
+            indices = list(mapping.values())[: self.cache_num]
         else:
-            self.data = data
-            self._cache = _compute_cache()
+            _compute_cache_num(len(self.data))
+            indices = list(range(self.cache_num))
+        self._fill_cache(indices)
 
-    def _fill_cache(self) -> List:
+    def _fill_cache(self, indices: Optional[slice] = None) -> List:
+        """
+        Compute and fill the cache content from data source.
+        
+        Args:
+            indices: target indices in the `self.data` source to compute cache.
+            if None, use the first `cache_num` items.
+
+        """
         if self.cache_num <= 0:
             return []
+        if indices is None:
+            indices = list(range(self.cache_num))
         if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
             if self.progress and has_tqdm:
                 return list(
                     tqdm(
-                        p.imap(self._load_cache_item, range(self.cache_num)),
+                        p.imap(self._load_cache_item, indices),
                         total=self.cache_num,
                         desc="Loading dataset",
                     )
                 )
-            return list(p.imap(self._load_cache_item, range(self.cache_num)))
+            return list(p.imap(self._load_cache_item, indices))
 
     def _load_cache_item(self, idx: int):
         """
