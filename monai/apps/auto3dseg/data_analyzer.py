@@ -220,7 +220,7 @@ class DataAnalyzer:
                 Orientationd(keys=keys, axcodes="RAS"),
                 EnsureTyped(keys=keys, data_type="tensor"),
                 Lambdad(keys=self.label_key, func=_argmax_if_multichannel) if self.label_key else None,
-                SqueezeDimd(keys=["label"], dim=0) if self.label_key else None,
+                SqueezeDimd(keys=self.label_key, dim=0) if self.label_key else None,
                 ToDeviced(keys=keys, device=self.device),
             ]
         transform_list.append(summarizer)
@@ -262,7 +262,11 @@ class DataAnalyzer:
         if self.output_path:
             ConfigParser.export_config_file(result, self.output_path, fmt=self.fmt, default_flow_style=None)
 
-        del d["image"], d["label"]
+        # manually release the variable from cuda memory
+        del d[self.image_key]
+        if self.label_key and self.label_key in d:
+            del d[self.label_key]
+
         if self.device.type == "cuda":
             # release unreferenced tensors to mitigate OOM
             # limitation: https://github.com/pytorch/pytorch/issues/12873#issuecomment-482916237
