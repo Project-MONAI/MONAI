@@ -821,7 +821,7 @@ class CacheDataset(Dataset):
     def _fill_cache(self, indices: Optional[slice] = None) -> List:
         """
         Compute and fill the cache content from data source.
-        
+
         Args:
             indices: target indices in the `self.data` source to compute cache.
             if None, use the first `cache_num` items.
