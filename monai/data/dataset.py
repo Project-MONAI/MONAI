@@ -816,9 +816,9 @@ class CacheDataset(Dataset):
         else:
             _compute_cache_num(len(self.data))
             indices = list(range(self.cache_num))
-        self._fill_cache(indices)
+        self._cache = self._fill_cache(indices)
 
-    def _fill_cache(self, indices: Optional[slice] = None) -> List:
+    def _fill_cache(self, indices=None) -> List:
         """
         Compute and fill the cache content from data source.
 
@@ -835,7 +835,7 @@ class CacheDataset(Dataset):
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
             if self.progress and has_tqdm:
-                return list(tqdm(p.imap(self._load_cache_item, indices), total=self.cache_num, desc="Loading dataset"))
+                return list(tqdm(p.imap(self._load_cache_item, indices), total=len(indices), desc="Loading dataset"))
             return list(p.imap(self._load_cache_item, indices))
 
     def _load_cache_item(self, idx: int):
