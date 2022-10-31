@@ -23,8 +23,8 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import MetaKeys, PostFix, SpaceKeys
-from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
+from monai.utils.type_conversion import convert_data_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
 
@@ -444,6 +444,20 @@ class MetaTensor(MetaObj, torch.Tensor):
         if self.is_batch:
             return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
+
+    def peek_pending_shape(self):
+        """Get the currently expected spatial shape as if all the pending operations are executed."""
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.SHAPE, None)
+        # default to spatial shape (assuming channel-first input)
+        return tuple(convert_to_numpy(self.shape, wrap_sequence=True).tolist()[1:]) if res is None else res
+
+    def peek_pending_affine(self):
+        res = None
+        if self.pending_operations:
+            res = self.pending_operations[-1].get(LazyAttr.AFFINE, None)
+        return self.affine if res is None else res
 
     def new_empty(self, size, dtype=None, device=None, requires_grad=False):
         """
