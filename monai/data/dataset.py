@@ -835,13 +835,7 @@ class CacheDataset(Dataset):
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
             if self.progress and has_tqdm:
-                return list(
-                    tqdm(
-                        p.imap(self._load_cache_item, indices),
-                        total=self.cache_num,
-                        desc="Loading dataset",
-                    )
-                )
+                return list(tqdm(p.imap(self._load_cache_item, indices), total=self.cache_num, desc="Loading dataset"))
             return list(p.imap(self._load_cache_item, indices))
 
     def _load_cache_item(self, idx: int):
