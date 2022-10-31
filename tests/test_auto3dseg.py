@@ -74,10 +74,7 @@ SIM_CPU_TEST_CASES = [
     [{"sim_dim": (32, 32, 32), "label_key": "None"}],
 ]
 
-SIM_GPU_TEST_CASES = [
-    [{"sim_dim": (32, 32, 32), "label_key": "label"}],
-    [{"sim_dim": (32, 32, 32), "label_key": None}],
-]
+SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32), "label_key": "label"}], [{"sim_dim": (32, 32, 32), "label_key": None}]]
 
 
 def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, image_only: bool = False, **kwargs) -> None:
