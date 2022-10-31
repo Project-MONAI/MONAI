@@ -71,12 +71,13 @@ SIM_CPU_TEST_CASES = [
     [{"sim_dim": (32, 32, 32), "label_key": "label"}],
     [{"sim_dim": (32, 32, 32, 2), "label_key": "label"}],
     [{"sim_dim": (32, 32, 32), "label_key": None}],
+    [{"sim_dim": (32, 32, 32), "label_key": "None"}],
 ]
 
-SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32)}]]
+SIM_GPU_TEST_CASES = [[{"sim_dim": (32, 32, 32), "label_key": "label"}], [{"sim_dim": (32, 32, 32), "label_key": None}]]
 
 
-def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, **kwargs) -> None:
+def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, image_only: bool = False, **kwargs) -> None:
     """
     Create simulated data using create_test_image_3d.
 
@@ -109,7 +110,7 @@ def create_sim_data(dataroot: str, sim_datalist: dict, sim_dim: tuple, **kwargs)
         image_fpath = os.path.join(dataroot, d["image"])
         nib.save(nib_image, image_fpath)
 
-        if "label" in d:
+        if not image_only and "label" in d:
             nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
             label_fpath = os.path.join(dataroot, d["label"])
             nib.save(nib_image, label_fpath)
@@ -175,12 +176,15 @@ class TestDataAnalyzer(unittest.TestCase):
     def test_data_analyzer_cpu(self, input_params):
 
         sim_dim = input_params["sim_dim"]
+        label_key = input_params["label_key"]
+        image_only = not bool(label_key)
+        rmax = max(int(sim_dim[0] / 4), 1)
         create_sim_data(
-            self.dataroot_dir, sim_datalist, sim_dim, rad_max=max(int(sim_dim[0] / 4), 1), rad_min=1, num_seg_classes=1
+            self.dataroot_dir, sim_datalist, sim_dim, image_only=image_only, rad_max=rmax, rad_min=1, num_seg_classes=1
         )
 
         analyser = DataAnalyzer(
-            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=input_params["label_key"]
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key
         )
         datastat = analyser.get_all_case_stats()
 
@@ -190,10 +194,15 @@ class TestDataAnalyzer(unittest.TestCase):
     @skip_if_no_cuda
     def test_data_analyzer_gpu(self, input_params):
         sim_dim = input_params["sim_dim"]
+        label_key = input_params["label_key"]
+        image_only = not bool(label_key)
+        rmax = max(int(sim_dim[0] / 4), 1)
         create_sim_data(
-            self.dataroot_dir, sim_datalist, sim_dim, rad_max=max(int(sim_dim[0] / 4), 1), rad_min=1, num_seg_classes=1
+            self.dataroot_dir, sim_datalist, sim_dim, image_only=image_only, rad_max=rmax, rad_min=1, num_seg_classes=1
         )
-        analyser = DataAnalyzer(self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, device="cuda")
+        analyser = DataAnalyzer(
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key, device="cuda"
+        )
         datastat = analyser.get_all_case_stats()
 
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
