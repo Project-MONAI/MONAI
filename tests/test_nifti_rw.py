@@ -181,8 +181,8 @@ class TestNiftiLoadRead(unittest.TestCase):
                 writer_obj.set_metadata({"affine": np.diag([1, 1, 1, 1]), "original_affine": np.diag([1.4, 1, 1, 1])})
                 writer_obj.write(image_name, verbose=True)
                 out = nib.load(image_name)
-                np.testing.assert_allclose(out.get_fdata(), [[[0, 1, 2], [3, 4, 5]]])
-                np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]))
+                np.testing.assert_allclose(out.get_fdata(), [[[0, 1, 2], [3, 4, 5]]], atol=1e-4, rtol=1e-4)
+                np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]), atol=1e-4, rtol=1e-4)
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(5).reshape((1, 1, 5)))
@@ -205,8 +205,8 @@ class TestNiftiLoadRead(unittest.TestCase):
                 writer_obj.set_metadata({"affine": np.diag([1.4, 1, 1, 1]), "original_affine": np.diag([1, 1.4, 1, 1])})
                 writer_obj.write(image_name, verbose=True)
                 out = nib.load(image_name)
-                np.testing.assert_allclose(out.get_fdata(), [[[[0, 1], [2, 3], [4, 5]]]])
-                np.testing.assert_allclose(out.affine, np.diag([1, 1.4, 1, 1]))
+                np.testing.assert_allclose(out.get_fdata(), [[[[0, 1], [2, 3], [4, 5]]]], atol=1e-4, rtol=1e-4)
+                np.testing.assert_allclose(out.affine, np.diag([1, 1.4, 1, 1]), atol=1e-4, rtol=1e-4)
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(5).reshape((1, 1, 5, 1)))
@@ -232,8 +232,10 @@ class TestNiftiLoadRead(unittest.TestCase):
                 np.testing.assert_allclose(
                     out.get_fdata(),
                     np.array([[[[[0.0, 1.0], [2.0, 3.0]], [[4.0, 5.0], [6.0, 7.0]], [[8.0, 9.0], [10.0, 11.0]]]]]),
+                    atol=1e-4,
+                    rtol=1e-4,
                 )
-                np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]))
+                np.testing.assert_allclose(out.affine, np.diag([1.4, 1, 1, 1]), atol=1e-4, rtol=1e-4)
 
                 image_name = os.path.join(out_dir, "test1.nii.gz")
                 img = p(np.arange(10).reshape((1, 1, 5, 1, 2)))
