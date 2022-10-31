@@ -315,7 +315,7 @@ class TestLoadImage(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, filename)
             nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
-            result = LoadImage(image_only=True, **input_param)(filename)
+            result = LoadImage(image_only=True, **input_param)(filename)  # with itk, meta has 'qto_xyz': itkMatrixF44
 
         self.assertTupleEqual(
             result.shape, (3, 128, 128, 128) if input_param.get("ensure_channel_first", False) else expected_shape
