@@ -46,6 +46,10 @@ class TestAverageMeter(unittest.TestCase):
         data["avg"] = torch.tensor(data["avg"], dtype=torch.float)
         self.run_test(data)
 
+        if torch.cuda.is_available():
+            data["vals"] = data["vals"].cuda()
+            self.run_test(data)
+
     def run_test(self, data):
         vals = data["vals"]
         avg = data["avg"]

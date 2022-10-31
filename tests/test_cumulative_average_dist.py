@@ -12,6 +12,7 @@
 import unittest
 
 import numpy as np
+import torch
 import torch.distributed as dist
 
 from monai.metrics import CumulativeAverage
@@ -25,11 +26,16 @@ class DistributedCumulativeAverage(DistTestCase):
 
         rank = dist.get_rank()
         nprocs = dist.get_world_size()
+        is_cuda = dist.get_backend() == dist.Backend.NCCL
+        if is_cuda:
+            torch.cuda.set_device(rank)
+
+        device = torch.device(rank) if is_cuda else torch.device("cpu")
 
         avg_meter = CumulativeAverage()  # each process rank has it's own AverageMeter
         n_iter = 10
         for i in range(n_iter):
-            val = rank + i
+            val = torch.as_tensor(rank + i, device=device)
             avg_meter.append(val=val)
 
         avg_val = avg_meter.aggregate()  # average across all processes
