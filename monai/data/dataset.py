@@ -824,7 +824,7 @@ class CacheDataset(Dataset):
 
         Args:
             indices: target indices in the `self.data` source to compute cache.
-            if None, use the first `cache_num` items.
+                if None, use the first `cache_num` items.
 
         """
         if self.cache_num <= 0:
