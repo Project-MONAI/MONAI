@@ -26,7 +26,7 @@ np.random.RandomState(123)
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             ValueError,
@@ -35,7 +35,7 @@ for p in TEST_NDARRAYS:
 
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(1, 5, 5)),
             ValueError,
@@ -44,7 +44,7 @@ for p in TEST_NDARRAYS:
 
     EXCEPTION_TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(2, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             ValueError,
@@ -54,7 +54,7 @@ for p in TEST_NDARRAYS:
 for p in TEST_NDARRAYS:
     TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": False, "min_size": 10},
+            {"keys": "mask", "kernel_size": 3, "remove_small_objects": False, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             (1, 5, 5),
@@ -62,7 +62,7 @@ for p in TEST_NDARRAYS:
     )
     TESTS.append(
         [
-            {"keys": "mask", "kernel_size": 21, "remove_small_objects": True, "min_size": 10},
+            {"keys": "mask", "kernel_size": 3, "remove_small_objects": True, "min_size": 10},
             p(np.random.rand(1, 5, 5)),
             p(np.random.rand(2, 5, 5)),
             (1, 5, 5),
