@@ -10,11 +10,12 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import torch
 import torch.distributed as dist
-from numpy.typing import NDArray
+
+from monai.config import NdarrayOrTensor
 
 
 class CumulativeAverage:
@@ -52,7 +53,7 @@ class CumulativeAverage:
         self.count = torch.tensor(0, dtype=torch.float)
         self.is_distributed = dist.is_available() and dist.is_initialized()
 
-    def get_current(self, to_numpy: bool = True) -> Union[NDArray, torch.Tensor]:
+    def get_current(self, to_numpy: bool = True) -> NdarrayOrTensor:
         """
         returns the most recent value (averaged across processes)
 
@@ -74,7 +75,7 @@ class CumulativeAverage:
 
         return val
 
-    def aggregate(self, to_numpy: bool = True) -> Union[NDArray, torch.Tensor]:
+    def aggregate(self, to_numpy: bool = True) -> NdarrayOrTensor:
         """
         returns the total average value (averaged across processes)
 
