@@ -63,7 +63,7 @@ class CumulativeAverage:
             return 0
 
         val = self.val.clone()
-        val[~torch.is_finite(val)] = 0
+        val[~torch.isfinite(val)] = 0
 
         if self.is_distributed:
             val = val / dist.get_world_size()
