@@ -12,44 +12,36 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import CenterScaleCropd
+from tests.croppers import CropTest
 
-TEST_CASE_0 = [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 1, 3)]
-
-TEST_CASE_1 = [{"keys": "img", "roi_scale": 0.6}, np.random.randint(0, 2, size=[3, 3, 3, 3]), (3, 2, 2, 2)]
-
-TEST_CASE_2 = [
-    {"keys": "img", "roi_scale": [0.4, 0.4]},
-    np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
-    np.array([[[1, 2], [2, 3]]]),
+TESTS = [
+    [{"keys": "img", "roi_scale": [0.6, 0.3, -1]}, (3, 3, 3, 3), (3, 2, 1, 3)],
+    [{"keys": "img", "roi_scale": 0.6}, (3, 3, 3, 3), (3, 2, 2, 2)],
+    [{"keys": "img", "roi_scale": 0.5}, (3, 3, 3, 3), (3, 2, 2, 2)],
 ]
 
-TEST_CASE_3 = [
-    {"keys": "img", "roi_scale": 0.5},
-    torch.randint(0, 2, size=[3, 3, 3, 3], device="cuda" if torch.cuda.is_available() else "cpu"),
-    (3, 2, 2, 2),
-]
-
-TEST_CASE_4 = [
-    {"keys": "test", "roi_scale": 0.6, "allow_missing_keys": True},
-    np.random.randint(0, 2, size=[3, 3, 3, 3]),
-    (3, 3, 3, 3),
+TEST_VALUES = [
+    [
+        {"keys": "img", "roi_scale": [0.4, 0.4]},
+        np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+        np.array([[[1, 2], [2, 3]]]),
+    ]
 ]
 
 
-class TestCenterScaleCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_3, TEST_CASE_4])
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = CenterScaleCropd(**input_param)({"img": input_data})
-        np.testing.assert_allclose(result["img"].shape, expected_shape)
+class TestCenterScaleCropd(CropTest):
+    Cropper = CenterScaleCropd
 
-    @parameterized.expand([TEST_CASE_2])
-    def test_value(self, input_param, input_data, expected_value):
-        result = CenterScaleCropd(**input_param)({"img": input_data})
-        np.testing.assert_allclose(result["img"], expected_value)
+    @parameterized.expand(TESTS)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        self.crop_test(input_param, input_shape, expected_shape)
+
+    @parameterized.expand(TEST_VALUES)
+    def test_value(self, input_param, input_arr, expected_arr):
+        self.crop_test_value(input_param, input_arr, expected_arr)
 
 
 if __name__ == "__main__":

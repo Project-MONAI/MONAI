@@ -29,7 +29,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"argmax": True, "to_onehot": 2, "threshold": 0.5},
+            {"argmax": True, "to_onehot": 2, "threshold": 0.5, "dim": 0},
             p([[[0.0, 1.0]], [[2.0, 3.0]]]),
             p([[[0.0, 0.0]], [[1.0, 1.0]]]),
             (2, 1, 2),
@@ -66,8 +66,13 @@ class TestAsDiscrete(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)
-        assert_allclose(result, out, rtol=1e-3)
+        assert_allclose(result, out, rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result.shape, expected_shape)
+
+    def test_additional(self):
+        for p in TEST_NDARRAYS:
+            out = AsDiscrete(argmax=True, dim=1, keepdim=False)(p([[[0.0, 1.0]], [[2.0, 3.0]]]))
+            assert_allclose(out, p([[0.0, 0.0], [0.0, 0.0]]), type_test=False)
 
 
 if __name__ == "__main__":

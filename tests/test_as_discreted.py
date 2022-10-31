@@ -38,7 +38,7 @@ for p in TEST_NDARRAYS:
 
     TEST_CASES.append(
         [
-            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold": 0.5},
+            {"keys": ["pred"], "argmax": True, "to_onehot": 2, "threshold": 0.5, "dim": 0, "keepdim": True},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.0, 0.0]], [[1.0, 1.0]]])},
             (2, 1, 2),
@@ -50,22 +50,6 @@ for p in TEST_NDARRAYS:
             {"keys": "pred", "rounding": "torchrounding"},
             {"pred": p([[[0.123, 1.345], [2.567, 3.789]]])},
             {"pred": p([[[0.0, 1.0], [3.0, 4.0]]])},
-            (1, 2, 2),
-        ]
-    )
-
-    # test compatible with previous versions
-    TEST_CASES.append(
-        [
-            {
-                "keys": ["pred", "label"],
-                "argmax": False,
-                "to_onehot": None,
-                "threshold": [True, None],
-                "logit_thresh": 0.6,
-            },
-            {"pred": p([[[0.0, 1.0], [2.0, 3.0]]]), "label": p([[[0, 1], [1, 1]]])},
-            {"pred": p([[[0.0, 1.0], [1.0, 1.0]]]), "label": p([[[0.0, 1.0], [1.0, 1.0]]])},
             (1, 2, 2),
         ]
     )
@@ -85,10 +69,10 @@ class TestAsDiscreted(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = AsDiscreted(**input_param)(test_input)
-        assert_allclose(result["pred"], output["pred"], rtol=1e-3)
+        assert_allclose(result["pred"], output["pred"], rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result["pred"].shape, expected_shape)
         if "label" in result:
-            assert_allclose(result["label"], output["label"], rtol=1e-3)
+            assert_allclose(result["label"], output["label"], rtol=1e-3, type_test="tensor")
             self.assertTupleEqual(result["label"].shape, expected_shape)
 
 

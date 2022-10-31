@@ -16,15 +16,20 @@ import tempfile
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
-from monai.data.image_reader import ITKReader, NibabelReader, PILReader
+from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILReader
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
-from monai.utils import OptionalImportError
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
+_, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
+
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNifti(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -41,18 +46,19 @@ class TestLoadSaveNifti(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(
-                p(test_data),
-                {
-                    "filename_or_obj": f"{filepath}.png",
-                    "affine": np.eye(4),
-                    "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
-                },
-            )
+            meta_dict = {
+                "filename_or_obj": f"{filepath}.png",
+                "affine": np.eye(4),
+                "original_affine": np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+            }
+            test_data = MetaTensor(p(test_data), meta=meta_dict)
+            self.assertEqual(test_data.meta[MetaKeys.SPACE], "RAS")
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
-            loader = LoadImage(reader=reader, squeeze_non_spatial_dims=True)
-            data, meta = loader(saved_path)
+            loader = LoadImage(image_only=True, reader=reader, squeeze_non_spatial_dims=True)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
@@ -61,7 +67,7 @@ class TestLoadSaveNifti(unittest.TestCase):
                 _test_data = moveaxis(_test_data, 0, 1)
             assert_allclose(meta["qform_code"], 1, type_test=False)
             assert_allclose(meta["sform_code"], 1, type_test=False)
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
     def test_2d(self, reader, writer):
@@ -81,6 +87,7 @@ class TestLoadSaveNifti(unittest.TestCase):
         self.nifti_rw(test_data, reader, writer, np.float16)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSavePNG(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -97,16 +104,18 @@ class TestLoadSavePNG(unittest.TestCase):
             saver = SaveImage(
                 output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
             )
-            saver(p(test_data), {"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            test_data = MetaTensor(p(test_data), meta={"filename_or_obj": f"{filepath}.png", "spatial_shape": (6, 8)})
+            saver(test_data)
             saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
             self.assertTrue(os.path.exists(saved_path))
-            loader = LoadImage(reader=reader)
-            data, meta = loader(saved_path)
+            loader = LoadImage(image_only=True, reader=reader)
+            data = loader(saved_path)
+            meta = data.meta
             if meta["original_channel_dim"] == -1:
                 _test_data = moveaxis(test_data, 0, -1)
             else:
                 _test_data = test_data[0]
-            assert_allclose(data, _test_data)
+            assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([PILReader, ITKReader], [PILWriter, ITKWriter]))
     def test_2d(self, reader, writer):
@@ -132,6 +141,43 @@ class TestRegRes(unittest.TestCase):
         register_writer("new", lambda x: x + 1)
         register_writer("new2", lambda x: x + 1)
         self.assertEqual(resolve_writer("new")[0](0), 1)
+
+
+@unittest.skipUnless(has_itk, "itk not installed")
+class TestLoadSaveNrrd(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
+    def nrrd_rw(self, test_data, reader, writer, dtype, resample=True):
+        test_data = test_data.astype(dtype)
+        ndim = len(test_data.shape)
+        for p in TEST_NDARRAYS:
+            output_ext = ".nrrd"
+            filepath = f"testfile_{ndim}d"
+            saver = SaveImage(
+                output_dir=self.test_dir, output_ext=output_ext, resample=resample, separate_folder=False, writer=writer
+            )
+            test_data = MetaTensor(
+                p(test_data), meta={"filename_or_obj": f"{filepath}{output_ext}", "spatial_shape": test_data.shape}
+            )
+            saver(test_data)
+            saved_path = os.path.join(self.test_dir, filepath + "_trans" + output_ext)
+            loader = LoadImage(image_only=True, reader=reader)
+            data = loader(saved_path)
+            assert_allclose(data, torch.as_tensor(test_data))
+
+    @parameterized.expand(itertools.product([NrrdReader, ITKReader], [ITKWriter, ITKWriter]))
+    def test_2d(self, reader, writer):
+        test_data = np.random.randn(8, 8).astype(np.float32)
+        self.nrrd_rw(test_data, reader, writer, np.float32)
+
+    @parameterized.expand(itertools.product([NrrdReader, ITKReader], [ITKWriter, ITKWriter]))
+    def test_3d(self, reader, writer):
+        test_data = np.random.randn(8, 8, 8).astype(np.float32)
+        self.nrrd_rw(test_data, reader, writer, np.float32)
 
 
 if __name__ == "__main__":

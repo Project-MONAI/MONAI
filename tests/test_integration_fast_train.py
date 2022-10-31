@@ -34,8 +34,6 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     EnsureChannelFirstd,
-    EnsureType,
-    EnsureTyped,
     FgBgToIndicesd,
     LoadImaged,
     RandAffined,
@@ -52,12 +50,11 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.utils import DistTestCase, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 @skip_if_no_cuda
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 7))
 class IntegrationFastTrain(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
@@ -95,8 +92,6 @@ class IntegrationFastTrain(DistTestCase):
                 # pre-compute foreground and background indexes
                 # and cache them to accelerate training
                 FgBgToIndicesd(keys="label", fg_postfix="_fg", bg_postfix="_bg"),
-                # change to execute transforms with Tensor data
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
                 ToDeviced(keys=["image", "label"], device=device),
                 # randomly crop out patch samples from big
@@ -138,7 +133,6 @@ class IntegrationFastTrain(DistTestCase):
                 Spacingd(keys=["image", "label"], pixdim=(1.0, 1.0, 1.0), mode=("bilinear", "nearest")),
                 ScaleIntensityd(keys="image"),
                 CropForegroundd(keys=["image", "label"], source_key="image"),
-                EnsureTyped(keys=["image", "label"]),
                 # move the data to GPU and cache to avoid CPU -> GPU sync in every epoch
                 ToDeviced(keys=["image", "label"], device=device),
             ]
@@ -171,8 +165,8 @@ class IntegrationFastTrain(DistTestCase):
         optimizer = Novograd(model.parameters(), learning_rate * 10)
         scaler = torch.cuda.amp.GradScaler()
 
-        post_pred = Compose([EnsureType(), AsDiscrete(argmax=True, to_onehot=2)])
-        post_label = Compose([EnsureType(), AsDiscrete(to_onehot=2)])
+        post_pred = AsDiscrete(argmax=True, to_onehot=2)
+        post_label = AsDiscrete(to_onehot=2)
 
         dice_metric = DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
 

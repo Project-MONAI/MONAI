@@ -12,15 +12,15 @@
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground
-from tests.utils import TEST_NDARRAYS
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_COORDS, TESTS = [], []
 
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_COORDS.append(
         [
             {"select_fn": lambda x: x > 0, "channel_indices": None, "margin": 0},
@@ -89,8 +89,15 @@ for p in TEST_NDARRAYS:
 class TestCropForeground(unittest.TestCase):
     @parameterized.expand(TEST_COORDS + TESTS)
     def test_value(self, argments, image, expected_data):
-        result = CropForeground(**argments)(image)
-        torch.testing.assert_allclose(result, expected_data, rtol=1e-7, atol=0)
+        cropper = CropForeground(**argments)
+        result = cropper(image)
+        assert_allclose(result, expected_data, type_test=False)
+        self.assertIsInstance(result, MetaTensor)
+        self.assertEqual(len(result.applied_operations), 1)
+        inv = cropper.inverse(result)
+        self.assertIsInstance(inv, MetaTensor)
+        self.assertEqual(inv.applied_operations, [])
+        self.assertTupleEqual(inv.shape, image.shape)
 
     @parameterized.expand(TEST_COORDS)
     def test_return_coords(self, argments, image, _):

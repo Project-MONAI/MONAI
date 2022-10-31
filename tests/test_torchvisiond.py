@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchVisiond
 from monai.utils import set_determinism
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "name": "ColorJitter"},
@@ -49,13 +49,12 @@ TEST_CASE_3 = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class TestTorchVisiond(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)
         result = TorchVisiond(**input_param)(input_data)
-        torch.testing.assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, atol=1e-4, rtol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

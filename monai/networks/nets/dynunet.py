@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import List, Optional, Sequence, Tuple, Union
 
 import torch
@@ -74,10 +73,14 @@ class DynUNet(nn.Module):
     is no less than 3 in order to have at least one downsample and upsample blocks.
 
     To meet the requirements of the structure, the input size for each spatial dimension should be divisible
-    by `2 * the product of all strides in the corresponding dimension`. The output size for each spatial dimension
-    equals to the input size of the corresponding dimension divided by the stride in strides[0].
-    For example, if `strides=((1, 2, 4), 2, 1, 1)`, the minimal spatial size of the input is `(8, 16, 32)`, and
-    the spatial size of the output is `(8, 8, 8)`.
+    by the product of all strides in the corresponding dimension. In addition, the minimal spatial size should have
+    at least one dimension that has twice the size of the product of all strides.
+    For example, if `strides=((1, 2, 4), 2, 2, 1)`, the spatial size should be divisible by `(4, 8, 16)`,
+    and the minimal spatial size is `(8, 8, 16)` or `(4, 16, 16)` or `(4, 8, 32)`.
+
+    The output size for each spatial dimension equals to the input size of the corresponding dimension divided by the
+    stride in strides[0].
+    For example, if `strides=((1, 2, 4), 2, 2, 1)` and the input size is `(64, 32, 32)`, the output size is `(64, 16, 8)`.
 
     For backwards compatibility with old weights, please set `strict=False` when calling `load_state_dict`.
 
@@ -100,6 +103,8 @@ class DynUNet(nn.Module):
             If not specified, the way which nnUNet used will be employed. Defaults to ``None``.
         dropout: dropout ratio. Defaults to no dropout.
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+            `INSTANCE_NVFUSER` is a faster version of the instance norm layer, it can be used when:
+            1) `spatial_dims=3`, 2) CUDA device is available, 3) `apex` is installed and 4) non-Windows OS is used.
         act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the final feature map

@@ -29,8 +29,8 @@ class NiftiSaver:
     Typically, the data can be segmentation predictions, call `save` for single data
     or call `save_batch` to save a batch of data together.
     The name of saved file will be `{input_image_name}_{output_postfix}{output_ext}`,
-    where the input image name is extracted from the provided meta data dictionary.
-    If no meta data provided, use index from 0 as the filename prefix.
+    where the input image name is extracted from the provided metadata dictionary.
+    If no metadata provided, use index from 0 as the filename prefix.
 
     Note: image should include channel dimension: [B],C,H,W,[D].
 
@@ -45,8 +45,8 @@ class NiftiSaver:
         output_postfix: str = "seg",
         output_ext: str = ".nii.gz",
         resample: bool = True,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
         output_dtype: DtypeLike = np.float32,
@@ -99,8 +99,8 @@ class NiftiSaver:
         self.output_postfix = output_postfix
         self.output_ext = output_ext
         self.resample = resample
-        self.mode: GridSampleMode = GridSampleMode(mode)
-        self.padding_mode: GridSamplePadMode = GridSamplePadMode(padding_mode)
+        self.mode: str = GridSampleMode(mode)
+        self.padding_mode: str = GridSamplePadMode(padding_mode)
         self.align_corners = align_corners
         self.dtype = dtype
         self.output_dtype = output_dtype
@@ -129,7 +129,7 @@ class NiftiSaver:
         Args:
             data: target data content that to be saved as a NIfTI format file.
                 Assuming the data shape starts with a channel dimension and followed by spatial dimensions.
-            meta_data: the meta data information corresponding to the data.
+            meta_data: the metadata information corresponding to the data.
 
         See Also
             :py:meth:`monai.data.nifti_writer.write_nifti`

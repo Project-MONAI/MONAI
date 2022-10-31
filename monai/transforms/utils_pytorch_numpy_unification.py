@@ -9,13 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
-from monai.utils.misc import ensure_tuple, is_module_ver_at_least
+from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
@@ -42,6 +42,11 @@ __all__ = [
     "stack",
     "mode",
     "unique",
+    "max",
+    "min",
+    "median",
+    "mean",
+    "std",
 ]
 
 
@@ -54,29 +59,10 @@ def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_n
 
 
 def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
-    """`moveaxis` for pytorch and numpy, using `permute` for pytorch version < 1.7"""
+    """`moveaxis` for pytorch and numpy"""
     if isinstance(x, torch.Tensor):
-        if hasattr(torch, "movedim"):  # `movedim` is new in torch 1.7.0
-            # torch.moveaxis is a recent alias since torch 1.8.0
-            return torch.movedim(x, src, dst)  # type: ignore
-        return _moveaxis_with_permute(x, src, dst)
+        return torch.movedim(x, src, dst)  # type: ignore
     return np.moveaxis(x, src, dst)
-
-
-def _moveaxis_with_permute(
-    x: torch.Tensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]
-) -> torch.Tensor:
-    # get original indices
-    indices = list(range(x.ndim))
-    len_indices = len(indices)
-    for s, d in zip(ensure_tuple(src), ensure_tuple(dst)):
-        # make src and dst positive
-        # remove desired index and insert it in new position
-        pos_s = len_indices + s if s < 0 else s
-        pos_d = len_indices + d if d < 0 else d
-        indices.pop(pos_s)
-        indices.insert(pos_d, pos_s)
-    return x.permute(indices)
 
 
 def in1d(x, y):
@@ -101,18 +87,15 @@ def percentile(
 ) -> Union[NdarrayOrTensor, float, int]:
     """`np.percentile` with equivalent implementation for torch.
 
-    Pytorch uses `quantile`, but this functionality is only available from v1.7.
-    For earlier methods, we calculate it ourselves. This doesn't do interpolation,
-    so is the equivalent of ``numpy.percentile(..., interpolation="nearest")``.
-    For more details, please refer to:
+    Pytorch uses `quantile`. For more details please refer to:
     https://pytorch.org/docs/stable/generated/torch.quantile.html.
     https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
 
     Args:
-        x: input data
-        q: percentile to compute (should in range 0 <= q <= 100)
+        x: input data.
+        q: percentile to compute (should in range 0 <= q <= 100).
         dim: the dim along which the percentiles are computed. default is to compute the percentile
-            along a flattened version of the array. only work for numpy array or Tensor with PyTorch >= 1.7.0.
+            along a flattened version of the array.
         keepdim: whether the output data has dim retained or not.
         kwargs: if `x` is numpy array, additional args for `np.percentile`, more details:
             https://numpy.org/doc/stable/reference/generated/numpy.percentile.html.
@@ -120,28 +103,17 @@ def percentile(
     Returns:
         Resulting value (scalar)
     """
-    if np.isscalar(q):
-        if not 0 <= q <= 100:  # type: ignore
-            raise ValueError
-    elif any(q < 0) or any(q > 100):
-        raise ValueError
+    q_np = convert_data_type(q, output_type=np.ndarray, wrap_sequence=True)[0]
+    if ((q_np < 0) | (q_np > 100)).any():
+        raise ValueError(f"q values must be in [0, 100], got values: {q}.")
     result: Union[NdarrayOrTensor, float, int]
-    if isinstance(x, np.ndarray):
-        result = np.percentile(x, q, axis=dim, keepdims=keepdim, **kwargs)
+    if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
+        _x = convert_data_type(x, output_type=np.ndarray)[0]
+        result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
+        result = convert_to_dst_type(result, x)[0]
     else:
-        q = torch.tensor(q, device=x.device)
-        if hasattr(torch, "quantile"):  # `quantile` is new in torch 1.7.0
-            result = torch.quantile(x, q / 100.0, dim=dim, keepdim=keepdim)
-        else:
-            # Note that ``kthvalue()`` works one-based, i.e., the first sorted value
-            # corresponds to k=1, not k=0. Thus, we need the `1 +`.
-            k = 1 + (0.01 * q * (x.numel() - 1)).round().int()
-            if k.numel() > 1:
-                r = [x.view(-1).kthvalue(int(_k)).values.item() for _k in k]
-                result = torch.tensor(r, device=x.device)
-            else:
-                result = x.view(-1).kthvalue(int(k)).values.item()
-
+        q = convert_to_dst_type(q_np / 100.0, x)[0]
+        result = torch.quantile(x, q, dim=dim, keepdim=keepdim)
     return result
 
 
@@ -169,7 +141,7 @@ def nonzero(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.nonzero` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
 
     Returns:
         Index unravelled for given shape
@@ -203,8 +175,8 @@ def unravel_index(idx, shape) -> NdarrayOrTensor:
     """`np.unravel_index` with equivalent implementation for torch.
 
     Args:
-        idx: index to unravel
-        shape: shape of array/tensor
+        idx: index to unravel.
+        shape: shape of array/tensor.
 
     Returns:
         Index unravelled for given shape
@@ -222,8 +194,8 @@ def unravel_indices(idx, shape) -> NdarrayOrTensor:
     """Computing unravel coordinates from indices.
 
     Args:
-        idx: a sequence of indices to unravel
-        shape: shape of array/tensor
+        idx: a sequence of indices to unravel.
+        shape: shape of array/tensor.
 
     Returns:
         Stacked indices unravelled for given shape
@@ -236,7 +208,7 @@ def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.ravel` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor to ravel
+        x: array/tensor to ravel.
 
     Returns:
         Return a contiguous flattened array/tensor.
@@ -254,8 +226,8 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrT
     For pytorch, convert to boolean for compatibility with older versions.
 
     Args:
-        x: input array/tensor
-        axis: axis to perform `any` over
+        x: input array/tensor.
+        axis: axis to perform `any` over.
 
     Returns:
         Return a contiguous flattened array/tensor.
@@ -277,20 +249,15 @@ def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrT
 def maximum(a: NdarrayOrTensor, b: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.maximum` with equivalent implementation for torch.
 
-    `torch.maximum` only available from pt>1.6, else use `torch.stack` and `torch.max`.
-
     Args:
-        a: first array/tensor
-        b: second array/tensor
+        a: first array/tensor.
+        b: second array/tensor.
 
     Returns:
         Element-wise maximum between two arrays/tensors.
     """
     if isinstance(a, torch.Tensor) and isinstance(b, torch.Tensor):
-        # is torch and has torch.maximum (pt>1.6)
-        if hasattr(torch, "maximum"):  # `maximum` is new in torch 1.7.0
-            return torch.maximum(a, b)
-        return torch.stack((a, b)).max(dim=0)[0]
+        return torch.maximum(a, b)
     return np.maximum(a, b)
 
 
@@ -314,7 +281,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
     """
 
     if isinstance(a, np.ndarray):
-        return np.cumsum(a, axis)
+        return np.cumsum(a, axis)  # type: ignore
     if axis is None:
         return torch.cumsum(a[:], 0, **kwargs)
     return torch.cumsum(a, dim=axis, **kwargs)
@@ -323,7 +290,7 @@ def cumsum(a: NdarrayOrTensor, axis=None, **kwargs) -> NdarrayOrTensor:
 def isfinite(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isfinite` with equivalent implementation for torch."""
     if not isinstance(x, torch.Tensor):
-        return np.isfinite(x)
+        return np.isfinite(x)  # type: ignore
     return torch.isfinite(x)
 
 
@@ -352,7 +319,7 @@ def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None, **kwarg
 
     Args:
         a: input data to repeat.
-        repeats: number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis.
+        repeats: number of repetitions for each element, repeats is broadcast to fit the shape of the given axis.
         axis: axis along which to repeat values.
         kwargs: if `a` is PyTorch Tensor, additional args for `torch.repeat_interleave`, more details:
             https://pytorch.org/docs/stable/generated/torch.repeat_interleave.html.
@@ -367,11 +334,11 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
     """`np.isnan` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
 
     """
     if isinstance(x, np.ndarray):
-        return np.isnan(x)
+        return np.isnan(x)  # type: ignore
     return torch.isnan(x)
 
 
@@ -379,7 +346,7 @@ def ascontiguousarray(x: NdarrayTensor, **kwargs) -> NdarrayOrTensor:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:
-        x: array/tensor
+        x: array/tensor.
         kwargs: if `x` is PyTorch Tensor, additional args for `torch.contiguous`, more details:
             https://pytorch.org/docs/stable/generated/torch.Tensor.contiguous.html.
 
@@ -397,8 +364,8 @@ def stack(x: Sequence[NdarrayTensor], dim: int) -> NdarrayTensor:
     """`np.stack` with equivalent implementation for torch.
 
     Args:
-        x: array/tensor
-        dim: dimension along which to perform the stack (referred to as `axis` by numpy)
+        x: array/tensor.
+        dim: dimension along which to perform the stack (referred to as `axis` by numpy).
     """
     if isinstance(x[0], np.ndarray):
         return np.stack(x, dim)  # type: ignore
@@ -409,8 +376,8 @@ def mode(x: NdarrayTensor, dim: int = -1, to_long: bool = True) -> NdarrayTensor
     """`torch.mode` with equivalent implementation for numpy.
 
     Args:
-        x: array/tensor
-        dim: dimension along which to perform `mode` (referred to as `axis` by numpy)
+        x: array/tensor.
+        dim: dimension along which to perform `mode` (referred to as `axis` by numpy).
         to_long: convert input to long before performing mode.
     """
     dtype = torch.int64 if to_long else None
@@ -424,6 +391,150 @@ def unique(x: NdarrayTensor) -> NdarrayTensor:
     """`torch.unique` with equivalent implementation for numpy.
 
     Args:
-        x: array/tensor
+        x: array/tensor.
     """
-    return torch.unique(x) if isinstance(x, torch.Tensor) else np.unique(x)  # type: ignore
+    return np.unique(x) if isinstance(x, (np.ndarray, list)) else torch.unique(x)  # type: ignore
+
+
+def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
+    """`torch.linalg.inv` with equivalent implementation for numpy.
+
+    Args:
+        x: array/tensor.
+    """
+    if isinstance(x, torch.Tensor) and hasattr(torch, "inverse"):  # pytorch 1.7.0
+        return torch.inverse(x)  # type: ignore
+    return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
+
+
+def max(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+    """`torch.max` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        the maximum of x.
+
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.max(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.max(x, **kwargs)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.max(x, axis=dim, **kwargs)
+        else:
+            ret = torch.max(x, int(dim), **kwargs)  # type: ignore
+
+    return ret
+
+
+def mean(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+    """`torch.mean` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        the mean of x
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.mean(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.mean(x, **kwargs)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.mean(x, axis=dim, **kwargs)
+        else:
+            ret = torch.mean(x, int(dim), **kwargs)  # type: ignore
+
+    return ret
+
+
+def median(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+    """`torch.median` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns
+        the median of x.
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.median(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.median(x, **kwargs)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.median(x, axis=dim, **kwargs)
+        else:
+            ret = torch.median(x, int(dim), **kwargs)  # type: ignore
+
+    return ret
+
+
+def min(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+    """`torch.min` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        the minimum of x.
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.min(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.min(x, **kwargs)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.min(x, axis=dim, **kwargs)
+        else:
+            ret = torch.min(x, int(dim), **kwargs)  # type: ignore
+
+    return ret
+
+
+def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbiased: bool = False) -> NdarrayTensor:
+    """`torch.std` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        the standard deviation of x.
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.std(x) if isinstance(x, (np.ndarray, list)) else torch.std(x, unbiased)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.std(x, axis=dim)
+        else:
+            ret = torch.std(x, int(dim), unbiased)  # type: ignore
+
+    return ret
+
+
+def sum(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+    """`torch.sum` with equivalent implementation for numpy
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        the sum of x.
+    """
+
+    ret: NdarrayTensor
+    if dim is None:
+        ret = np.sum(x, **kwargs) if isinstance(x, (np.ndarray, list)) else torch.sum(x, **kwargs)  # type: ignore
+    else:
+        if isinstance(x, (np.ndarray, list)):
+            ret = np.sum(x, axis=dim, **kwargs)
+        else:
+            ret = torch.sum(x, int(dim), **kwargs)  # type: ignore
+
+    return ret

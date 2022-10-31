@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.transforms import KeepLargestConnectedComponent
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.type_conversion import convert_to_dst_type
-from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 
 def to_onehot(x):
@@ -77,6 +77,8 @@ grid_4 = [
     ],
 ]
 grid_5 = [[[0, 0, 1, 0, 0], [0, 1, 1, 1, 1], [1, 1, 1, 0, 0], [1, 1, 0, 1, 0], [1, 1, 0, 0, 1]]]
+
+grid_6 = [[[0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 1, 0, 0, 1], [1, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1]]]
 
 TESTS = []
 for p in TEST_NDARRAYS:
@@ -343,6 +345,37 @@ for p in TEST_NDARRAYS:
             torch.tensor([[[0, 0, 1, 0, 0], [0, 2, 1, 1, 1], [0, 2, 1, 0, 0], [0, 2, 0, 1, 0], [2, 2, 0, 0, 0]]]),
         ]
     )
+    # no connected regions
+    TESTS.append(["0 regions", {"num_components": 0}, p(grid_6), p(torch.zeros(1, 4, 7))])
+    # 1 connected region
+    TESTS.append(
+        [
+            "1 region",
+            {"num_components": 1},
+            p(grid_6),
+            p(
+                torch.tensor(
+                    [[[0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 1, 0, 0, 0]]]
+                )
+            ),
+        ]
+    )
+    # 2 connected regions
+    TESTS.append(
+        [
+            "2 regions",
+            {"num_components": 2},
+            p(grid_6),
+            p(
+                torch.tensor(
+                    [[[0, 0, 1, 1, 0, 0, 1], [0, 0, 0, 1, 0, 0, 1], [0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 1, 0, 0, 1]]]
+                )
+            ),
+        ]
+    )
+    # 3+ connected regions unchanged (as input has 3)
+    for num_connected in (3, 4):
+        TESTS.append([f"{num_connected} regions", {"num_components": num_connected}, p(grid_6), p(grid_6)])
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
@@ -350,10 +383,9 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)
         result = converter(input_image)
-        assert_allclose(result, expected, type_test=False)
+        assert_allclose(result, expected, type_test="tensor")
 
     @parameterized.expand(TESTS)
-    @SkipIfBeforePyTorchVersion((1, 7))
     def test_correct_results_before_after_onehot(self, _, args, input_image, expected):
         """
         From torch==1.7, torch.argmax changes its mechanism that if there are multiple maximal values then the
@@ -373,12 +405,12 @@ class TestKeepLargestConnectedComponent(unittest.TestCase):
             img = to_onehot(input_image)
             result2 = KeepLargestConnectedComponent(**args)(img)
             result2 = result2.argmax(0)[None]
-            assert_allclose(result, result2)
+            assert_allclose(result, result2, type_test="tensor")
         # if onehotted, un-onehot and check result stays the same
         else:
             img = input_image.argmax(0)[None]
             result2 = KeepLargestConnectedComponent(**args)(img)
-            assert_allclose(result.argmax(0)[None], result2)
+            assert_allclose(result.argmax(0)[None], result2, type_test="tensor")
 
 
 if __name__ == "__main__":

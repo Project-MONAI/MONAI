@@ -17,18 +17,25 @@ import scipy.ndimage
 import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D
+from tests.utils import (
+    TEST_NDARRAYS_ALL,
+    NumpyImageTestCase2D,
+    NumpyImageTestCase3D,
+    assert_allclose,
+    test_local_inversion,
+)
 
 TEST_CASES_2D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, np.pi / 2, True, "bilinear", "border", False))
     TEST_CASES_2D.append((p, np.pi / 4, True, "nearest", "border", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", True))
     TEST_CASES_2D.append((p, (-np.pi / 4, 0), False, "nearest", "zeros", True))
 
 TEST_CASES_3D: List[Tuple] = []
-for p in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append(
         (p, np.pi / 2, -np.pi / 6, (0.0, np.pi), False, "bilinear", "border", False, (1, 87, 104, 109))
     )
@@ -108,8 +115,33 @@ class TestRandRotate3D(NumpyImageTestCase3D):
             dtype=np.float64,
         )
         rotate_fn.set_random_state(243)
-        rotated = rotate_fn(im_type(self.imt[0]))
-        torch.testing.assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im)
+        assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
+        test_local_inversion(rotate_fn, rotated, im)
+
+        set_track_meta(False)
+        rotated = rotate_fn(im)
+        self.assertNotIsInstance(rotated, MetaTensor)
+        self.assertIsInstance(rotated, torch.Tensor)
+        set_track_meta(True)
+
+
+class TestRandRotateDtype(NumpyImageTestCase2D):
+    @parameterized.expand(TEST_CASES_2D)
+    def test_correct_results(self, im_type, degrees, keep_size, mode, padding_mode, align_corners):
+        rotate_fn = RandRotate(
+            range_x=1.0,
+            prob=0.5,
+            keep_size=keep_size,
+            mode=mode,
+            padding_mode=padding_mode,
+            align_corners=align_corners,
+            dtype=np.float64,
+        )
+        im = im_type(self.imt[0])
+        rotated = rotate_fn(im)
+        self.assertEqual(rotated.dtype, torch.float32)
 
 
 if __name__ == "__main__":

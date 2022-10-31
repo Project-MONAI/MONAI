@@ -15,13 +15,14 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import DiceMetric, compute_meandice
+from monai.metrics import DiceMetric, compute_dice, compute_meandice
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # keep background
 TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
     {
-        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]]),
-        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]]),
+        "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]], device=_device),
+        "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=_device),
         "include_background": True,
     },
     [[0.8]],
@@ -172,11 +173,21 @@ TEST_CASE_10 = [
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
+TEST_CASE_11 = [
+    {"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3)), "ignore_empty": False},
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
+
+TEST_CASE_12 = [
+    {"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3)), "ignore_empty": False},
+    [[0.0000, 0.0000], [0.0000, 0.0000]],
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
     def test_value(self, input_data, expected_value):
-        result = compute_meandice(**input_data)
+        result = compute_dice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_3])
@@ -192,9 +203,9 @@ class TestComputeMeanDice(unittest.TestCase):
         vals = {}
         vals["y_pred"] = input_data.pop("y_pred")
         vals["y"] = input_data.pop("y")
-        dice_metric = DiceMetric(**input_data, reduction="none")
+        dice_metric = DiceMetric(**input_data)
         dice_metric(**vals)
-        result = dice_metric.aggregate()
+        result = dice_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])

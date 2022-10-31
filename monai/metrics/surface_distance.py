@@ -15,7 +15,13 @@ from typing import Union
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    is_binary_tensor,
+)
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -30,6 +36,8 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
     You can use suitable transforms in ``monai.transforms.post`` first to achieve binarized values.
     `y_preds` and `y` can be a list of channel-first Tensor (CHW[D]) or a batch-first Tensor (BCHW[D]).
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         include_background: whether to skip distance computation on the first channel of
             the predicted output. Defaults to ``False``.
@@ -37,7 +45,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
@@ -73,14 +81,9 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than three dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            warnings.warn("y should be a binarized tensor.")
-        dims = y_pred.ndimension()
-        if dims < 3:
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
+        if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
@@ -91,9 +94,14 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             distance_metric=self.distance_metric,
         )
 
-    def aggregate(self):
+    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction logic for the output of `compute_average_surface_distance`.
+
+        Args:
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         """
         data = self.get_buffer()
@@ -101,7 +109,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
         # do metric reduction
-        f, not_nans = do_metric_reduction(data, self.reduction)
+        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
 

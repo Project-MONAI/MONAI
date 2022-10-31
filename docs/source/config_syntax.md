@@ -12,10 +12,10 @@ Content:
 
 - [A basic example](#a-basic-example)
 - [Syntax examples explained](#syntax-examples-explained)
-  - [`@` to interpolate with Python objects](#1--to-interpolate-with-python-objects)
-  - [`$` to evaluate as Python expressions](#2--to-evaluate-as-python-expressions)
-  - [`%` to textually replace configuration elements](#3--to-textually-replace-configuration-elements)
-  - [`_target_` (`_disabled_` and `_requires_`) to instantiate a Python object](#4-instantiate-a-python-object)
+  - [`@` to reference Python objects in configurations](#to-reference-python-objects-in-configurations)
+  - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
+  - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
+  - [`_target_` (`_disabled_`, `_desc_`, and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -67,28 +67,28 @@ or additionally, tune the input parameters then instantiate the component:
 BasicUNet features: (32, 32, 32, 64, 64, 64).
 ```
 
-For more details on the `ConfigParser` API, please see https://docs.monai.io/en/latest/bundle.html#config-parser.
+For more details on the `ConfigParser` API, please see [`monai.bundle.ConfigParser`](https://docs.monai.io/en/latest/bundle.html#config-parser).
 
 ## Syntax examples explained
 
 A few characters and keywords are interpreted beyond the plain texts, here are examples of the syntax:
 
-### 1. `@` to interpolate with Python objects
+### To reference Python objects in configurations
 
 ```json
 "@preprocessing#transforms#keys"
 ```
 
-_Description:_ A reference to another configuration value defined at `preprocessing#transforms#keys`.
+_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing#transforms#keys`.
 where `#` indicates a sub-structure of this configuration file.
 
 ```json
 "@preprocessing#1"
 ```
 
-_Description:_ `1` is interpreted as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
+_Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
 
-### 2. `$` to evaluate as Python expressions
+### To evaluate as Python expressions
 
 ```json
 "$print(42)"
@@ -110,16 +110,16 @@ _Description:_ `$` followed by an import statement is handled slightly different
 Python expressions. The imported module `resnet18` will be available as a global variable
 to the other configuration sections. This is to simplify the use of external modules in the configuration.
 
-### 3. `%` to textually replace configuration elements
+### To textually replace configuration elements
 
 ```json
 "%demo_config.json#demo_net#in_channels"
 ```
 
-_Description:_ A macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
+_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
 `demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
-### 4. instantiate a Python object
+### Instantiate a Python object
 
 ```json
 {
@@ -141,17 +141,19 @@ This dictionary will be instantiated as a Pytorch object at runtime.
 {
   "component_name": {
     "_target_": "my.module.Class",
+    "_desc_": "this is a customized class which also triggers 'cudnn_opt' reference",
     "_requires_": "@cudnn_opt",
     "_disabled_": "true"}
 }
 ```
 
-_Description:_ `_requires_` and `_disabled_` are optional keys.
-`_requires_` specifies references (string starts with `@`) or
-Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
-It is useful when the component does not explicitly depend on the other ConfigItems via
-its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
-`_disabled_` specifies a flag to indicate whether to skip the instantiation.
+_Description:_ `_requires_`, `_disabled_`, and `_desc_` are optional keys.
+- `_requires_` specifies references (string starts with `@`) or
+  Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
+  It is useful when the component does not explicitly depend on the other ConfigItems via
+  its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
+- `_disabled_` specifies a flag to indicate whether to skip the instantiation.
+- `_desc_` can be used for providing free text descriptions.
 
 ## The command line interface
 
@@ -164,6 +166,7 @@ python -m monai.bundle COMMANDS
 where `COMMANDS` is one of the following: `run`, `verify_metadata`, `ckpt_export`, ...
 (please see `python -m monai.bundle --help` for a list of available options).
 
+The CLI supports flexible use cases, such as overriding configs at runtime and predefining arguments in a file.
 To display a usage page for a command, for example `run`:
 ```bash
 python -m monai.bundle run -- --help
@@ -182,3 +185,5 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
+- As "#" and "$" might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
+  or quotes for them in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.

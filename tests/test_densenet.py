@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 else:
     torchvision, has_torchvision = optional_import("torchvision")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 TEST_CASE_1 = [  # 4-channel 3D, batch 2
@@ -54,9 +53,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
     for model in [DenseNet121, Densenet169, densenet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
-
 TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
-
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
     DenseNet121,

@@ -15,6 +15,7 @@ import numpy as np
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing, ensure_tuple, ensure_tuple_rep, orientation_ras_lps, to_affine_nd
 from monai.transforms.spatial.array import Resize, SpatialResample
 from monai.transforms.utils_pytorch_numpy_unification import ascontiguousarray, moveaxis
@@ -22,8 +23,11 @@ from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
+    MetaKeys,
     OptionalImportError,
+    SpaceKeys,
     convert_data_type,
+    convert_to_tensor,
     look_up_option,
     optional_import,
     require_pkg,
@@ -41,7 +45,6 @@ else:
     itk, _ = optional_import("itk", allow_namespace_pkg=True)
     nib, _ = optional_import("nibabel")
     PILImage, _ = optional_import("PIL.Image")
-
 
 __all__ = [
     "ImageWriter",
@@ -204,8 +207,8 @@ class ImageWriter:
         affine: Optional[NdarrayOrTensor] = None,
         target_affine: Optional[NdarrayOrTensor] = None,
         output_spatial_shape: Union[Sequence[int], int, None] = None,
-        mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
-        padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        mode: str = GridSampleMode.BILINEAR,
+        padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
     ):
@@ -258,11 +261,18 @@ class ImageWriter:
                 ``np.float64`` for best precision. If ``None``, use the data type of input data.
                 The output data type of this method is always ``np.float32``.
         """
+        orig_type = type(data_array)
+        data_array = convert_to_tensor(data_array, track_meta=True)
+        if affine is not None:
+            data_array.affine = convert_to_tensor(affine, track_meta=False)  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
-        output_array, target_affine = resampler(
-            data_array[None], src_affine=affine, dst_affine=target_affine, spatial_size=output_spatial_shape
-        )
-        return output_array[0], target_affine
+        output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
+        # convert back at the end
+        if isinstance(output_array, MetaTensor):
+            output_array.applied_operations = []
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
+        return data_array[0], affine
 
     @classmethod
     def convert_to_channel_last(
@@ -317,13 +327,13 @@ class ImageWriter:
     def get_meta_info(cls, metadata: Optional[Mapping] = None):
         """
         Extracts relevant meta information from the metadata object (using ``.get``).
-        Optional keys are ``"spatial_shape"``, ``"affine"``, ``"original_affine"``.
+        Optional keys are ``"spatial_shape"``, ``MetaKeys.AFFINE``, ``"original_affine"``.
         """
         if not metadata:
-            metadata = {"original_affine": None, "affine": None, "spatial_shape": None}
+            metadata = {"original_affine": None, MetaKeys.AFFINE: None, MetaKeys.SPATIAL_SHAPE: None}
         original_affine = metadata.get("original_affine")
-        affine = metadata.get("affine")
-        spatial_shape = metadata.get("spatial_shape")
+        affine = metadata.get(MetaKeys.AFFINE)
+        spatial_shape = metadata.get(MetaKeys.SPATIAL_SHAPE)
         return original_affine, affine, spatial_shape
 
 
@@ -475,6 +485,8 @@ class ITKWriter(ImageWriter):
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
         """
+        if isinstance(data_array, MetaTensor) and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS:
+            affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
@@ -617,6 +629,8 @@ class NibabelWriter(ImageWriter):
         if dtype is not None:
             data_array = data_array.astype(dtype, copy=False)
         affine = convert_data_type(affine, np.ndarray)[0]
+        if affine is None:
+            affine = np.eye(4)
         affine = to_affine_nd(r=3, affine=affine)
         return nib.nifti1.Nifti1Image(
             data_array,
@@ -733,14 +747,14 @@ class PILWriter(ImageWriter):
 
     @classmethod
     def get_meta_info(cls, metadata: Optional[Mapping] = None):
-        return None if not metadata else metadata.get("spatial_shape")
+        return None if not metadata else metadata.get(MetaKeys.SPATIAL_SHAPE)
 
     @classmethod
     def resample_and_clip(
         cls,
         data_array: NdarrayOrTensor,
         output_spatial_shape: Optional[Sequence[int]] = None,
-        mode: Union[InterpolateMode, str] = InterpolateMode.BICUBIC,
+        mode: str = InterpolateMode.BICUBIC,
     ):
         """
         Resample ``data_array`` to ``output_spatial_shape`` if needed.
@@ -759,11 +773,11 @@ class PILWriter(ImageWriter):
             _min, _max = np.min(data), np.max(data)
             if len(data.shape) == 3:
                 data = np.moveaxis(data, -1, 0)  # to channel first
-                data = xform(data)  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0]  # type: ignore
                 data = np.moveaxis(data, 0, -1)
             else:  # (H, W)
                 data = np.expand_dims(data, 0)  # make a channel
-                data = xform(data)[0]  # type: ignore
+                data = convert_data_type(xform(data), np.ndarray)[0][0]  # type: ignore
             if mode != InterpolateMode.NEAREST:
                 data = np.clip(data, _min, _max)
         return data
@@ -796,7 +810,8 @@ class PILWriter(ImageWriter):
         data: np.ndarray = super().create_backend_obj(data_array)
         if scale:
             # scale the data to be in an integer range
-            data = np.clip(data, 0.0, 1.0)  # type: ignore # png writer only can scale data in range [0, 1]
+            data = np.clip(data, 0.0, 1.0)  # png writer only can scale data in range [0, 1]
+
             if scale == np.iinfo(np.uint8).max:
                 data = (scale * data).astype(np.uint8, copy=False)
             elif scale == np.iinfo(np.uint16).max:

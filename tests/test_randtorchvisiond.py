@@ -16,7 +16,7 @@ from parameterized import parameterized
 
 from monai.transforms import Randomizable, RandTorchVisiond
 from monai.utils import set_determinism
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "name": "ColorJitter"},
@@ -49,7 +49,6 @@ TEST_CASE_3 = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class TestRandTorchVisiond(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_param, input_data, expected_value):
@@ -57,7 +56,7 @@ class TestRandTorchVisiond(unittest.TestCase):
         transform = RandTorchVisiond(**input_param)
         result = transform(input_data)
         self.assertTrue(isinstance(transform, Randomizable))
-        torch.testing.assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":

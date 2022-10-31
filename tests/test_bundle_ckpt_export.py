@@ -9,16 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
-import subprocess
 import tempfile
 import unittest
 
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from monai.data import load_net_with_metadata
 from monai.networks import save_state
-from tests.utils import skip_if_windows
+from tests.utils import command_line_tests, skip_if_windows
 
 TEST_CASE_1 = [""]
 
@@ -33,7 +34,8 @@ class TestCKPTExport(unittest.TestCase):
         config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
-            def_args_file = os.path.join(tempdir, "def_args.json")
+            def_args_file = os.path.join(tempdir, "def_args.yaml")
+
             ckpt_file = os.path.join(tempdir, "model.pt")
             ts_file = os.path.join(tempdir, "model.ts")
 
@@ -44,10 +46,17 @@ class TestCKPTExport(unittest.TestCase):
             save_state(src=net if key_in_ckpt == "" else {key_in_ckpt: net}, path=ckpt_file)
 
             cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
-            cmd += ["--meta_file", meta_file, "--config_file", config_file, "--ckpt_file", ckpt_file]
-            cmd += ["--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
-            subprocess.check_call(cmd)
+            cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']", "--ckpt_file"]
+            cmd += [ckpt_file, "--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
+            command_line_tests(cmd)
             self.assertTrue(os.path.exists(ts_file))
+
+            _, metadata, extra_files = load_net_with_metadata(
+                ts_file, more_extra_files=["inference.json", "def_args.json"]
+            )
+            self.assertTrue("schema" in metadata)
+            self.assertTrue("meta_file" in json.loads(extra_files["def_args.json"]))
+            self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
 
 
 if __name__ == "__main__":

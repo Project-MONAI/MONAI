@@ -9,22 +9,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Any, Hashable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import torch
 
-from monai.config import KeysCollection
+from monai.config import KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.transforms.smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
     RandSmoothFieldAdjustIntensity,
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
-from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, ensure_tuple_rep
-from monai.utils.enums import TransformBackends
+from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, convert_to_tensor, ensure_tuple_rep
 
 __all__ = [
     "RandSmoothFieldAdjustContrastd",
@@ -37,10 +36,6 @@ __all__ = [
     "RandSmoothFieldAdjustIntensityDict",
     "RandSmoothDeformDict",
 ]
-
-
-InterpolateModeType = Union[InterpolateMode, str]
-GridSampleModeType = Union[GridSampleMode, str]
 
 
 class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
@@ -63,7 +58,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothFieldAdjustContrast.backend
 
     def __init__(
         self,
@@ -71,7 +66,7 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.5, 4.5),
@@ -108,11 +103,11 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
-
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_mode(self.mode[idx % len(self.mode)])
@@ -141,7 +136,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothFieldAdjustIntensity.backend
 
     def __init__(
         self,
@@ -149,7 +144,7 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         gamma: Union[Sequence[float], float] = (0.1, 1.0),
@@ -185,10 +180,11 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_mode(self.mode[idx % len(self.mode)])
@@ -221,7 +217,7 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         device: Pytorch device to define field on
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = RandSmoothDeform.backend
 
     def __init__(
         self,
@@ -229,13 +225,13 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
         spatial_size: Sequence[int],
         rand_size: Sequence[int],
         pad: int = 0,
-        field_mode: Union[InterpolateModeType, Sequence[InterpolateModeType]] = InterpolateMode.AREA,
+        field_mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Optional[bool] = None,
         prob: float = 0.1,
         def_range: Union[Sequence[float], float] = 1.0,
         grid_dtype=torch.float32,
-        grid_mode: Union[GridSampleModeType, Sequence[GridSampleModeType]] = GridSampleMode.NEAREST,
-        grid_padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+        grid_mode: SequenceStr = GridSampleMode.NEAREST,
+        grid_padding_mode: str = GridSamplePadMode.BORDER,
         grid_align_corners: Optional[bool] = False,
         device: Optional[torch.device] = None,
     ):
@@ -274,10 +270,11 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         self.randomize()
 
-        if not self._do_transform:
-            return data
-
         d = dict(data)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
 
         for idx, key in enumerate(self.key_iterator(d)):
             self.trans.set_field_mode(self.field_mode[idx % len(self.field_mode)])

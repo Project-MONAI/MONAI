@@ -26,7 +26,6 @@ TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 12
 
 TEST_CASE_2 = [None, (128, 128, 128)]
 
-
 TEST_DS = []
 for c in (0, 1, 2):
     for l in (0, 1, 2):
@@ -55,6 +54,12 @@ class TestCacheDataset(unittest.TestCase):
             data4 = dataset[-1]
             self.assertEqual(len(data3), 1)
 
+            if transform is None:
+                # Check without providing transfrom
+                dataset2 = CacheDataset(data=test_data, cache_rate=0.5, as_contiguous=True)
+                for k in ["image", "label", "extra"]:
+                    self.assertEqual(dataset[0][k], dataset2[0][k])
+
         if transform is None:
             self.assertEqual(data1["image"], os.path.join(tempdir, "image1.nii.gz"))
             self.assertEqual(data2["label"], os.path.join(tempdir, "label2.nii.gz"))
@@ -80,7 +85,7 @@ class TestCacheDataset(unittest.TestCase):
             cache_rate=1.0,
             num_workers=4,
             progress=True,
-            copy_cache=False if sys.platform == "linux" else True,
+            copy_cache=not sys.platform == "linux",
         )
 
         num_workers = 2 if sys.platform == "linux" else 0
@@ -197,6 +202,7 @@ class TestCacheThread(unittest.TestCase):
             self.assertEqual(len(dataset), 5)
             # ensure no duplicated cache content
             self.assertEqual(len(dataset._cache), 3)
+            self.assertEqual(len(dataset._hash_keys), 3)
             self.assertEqual(dataset.cache_num, 3)
             data1 = dataset[0]
             data2 = dataset[1]

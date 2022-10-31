@@ -15,20 +15,24 @@ defined in :py:class:`monai.transforms.intensity.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Hashable, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ComputeHoVerMaps,
+    ForegroundMask,
     GaussianSharpen,
     GaussianSmooth,
     GibbsNoise,
     HistogramNormalize,
     KSpaceSpikeNoise,
     MaskIntensity,
+    MedianSmooth,
     NormalizeIntensity,
     RandAdjustContrast,
     RandBiasField,
@@ -54,8 +58,7 @@ from monai.transforms.intensity.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
-from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
 __all__ = [
@@ -76,6 +79,7 @@ __all__ = [
     "ScaleIntensityRangePercentilesd",
     "MaskIntensityd",
     "SavitzkyGolaySmoothd",
+    "MedianSmoothd",
     "GaussianSmoothd",
     "RandGaussianSmoothd",
     "GaussianSharpend",
@@ -88,6 +92,8 @@ __all__ = [
     "RandCoarseDropoutd",
     "RandCoarseShuffled",
     "HistogramNormalized",
+    "ForegroundMaskd",
+    "ComputeHoVerMapsd",
     "RandGaussianNoiseD",
     "RandGaussianNoiseDict",
     "ShiftIntensityD",
@@ -120,6 +126,8 @@ __all__ = [
     "MaskIntensityDict",
     "SavitzkyGolaySmoothD",
     "SavitzkyGolaySmoothDict",
+    "MedianSmoothD",
+    "MedianSmoothDict",
     "GaussianSmoothD",
     "GaussianSmoothDict",
     "RandGaussianSmoothD",
@@ -146,6 +154,10 @@ __all__ = [
     "HistogramNormalizeDict",
     "RandKSpaceSpikeNoiseD",
     "RandKSpaceSpikeNoiseDict",
+    "ForegroundMaskD",
+    "ForegroundMaskDict",
+    "ComputeHoVerMapsD",
+    "ComputeHoVerMapsDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -193,14 +205,19 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random noise
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_gaussian_noise.randomize(d[first_key])  # type: ignore
+        self.rand_gaussian_noise.randomize(d[first_key])
+
         for key in self.key_iterator(d):
             d[key] = self.rand_gaussian_noise(img=d[key], randomize=False)
         return d
@@ -232,7 +249,6 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
 
     backend = RandRicianNoise.backend
 
-    @deprecated_arg("global_prob", since="0.7")
     def __init__(
         self,
         keys: KeysCollection,
@@ -268,6 +284,8 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         for key in self.key_iterator(d):
@@ -297,18 +315,18 @@ class ShiftIntensityd(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             offset: offset value to shift the intensity of image.
             factor_key: if not None, use it as the key to extract a value from the corresponding
-                meta data dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
+                metadata dictionary of `key` at runtime, and multiply the `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
-                and store in the meta data.
+                and store in the metadata.
                 it also can be a sequence of strings, map to `keys`.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 used to extract the factor value is `factor_key` is not None.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
             allow_missing_keys: don't raise exception if key is missing.
         """
@@ -356,21 +374,21 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             factor_key: if not None, use it as the key to extract a value from the corresponding
-                meta data dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
+                metadata dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
-                and store in the meta data.
+                and store in the metadata.
                 it also can be a sequence of strings, map to `keys`.
-            meta_keys: explicitly indicate the key of the corresponding meta data dictionary.
+            meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
                 used to extract the factor value is `factor_key` is not None.
                 for example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-                the meta data is a dictionary object which contains: filename, original_shape, etc.
+                the metadata is a dictionary object which contains: filename, original_shape, etc.
                 it can be a sequence of string, map to the `keys`.
                 if None, will try to construct meta_keys by `key_{meta_key_postfix}`.
-            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the meta data according
-                to the key data, default is `meta_dict`, the meta data is a dictionary object.
+            meta_key_postfix: if meta_keys is None, use `key_{postfix}` to fetch the metadata according
+                to the key data, default is `meta_dict`, the metadata is a dictionary object.
                 used to extract the factor value is `factor_key` is not None.
-            prob: probability of rotating.
-                (Default 0.1, with 10% probability it returns a rotated array.)
+            prob: probability of shift.
+                (Default 0.1, with 10% probability it returns an array shifted intensity.)
             allow_missing_keys: don't raise exception if key is missing.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -394,6 +412,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift factor
@@ -490,6 +510,8 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift factor
@@ -563,8 +585,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
-            prob: probability of rotating.
-                (Default 0.1, with 10% probability it returns a rotated array.)
+            prob: probability of scale.
+                (Default 0.1, with 10% probability it returns a scaled array.)
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
@@ -584,6 +606,8 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random scale factor
@@ -637,14 +661,19 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random bias factor
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
-        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])  # type: ignore
+        self.rand_bias_field.randomize(img_size=d[first_key].shape[1:])
+
         for key in self.key_iterator(d):
             d[key] = self.rand_bias_field(d[key], randomize=False)
         return d
@@ -829,6 +858,8 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random gamma value
@@ -961,6 +992,35 @@ class SavitzkyGolaySmoothd(MapTransform):
         return d
 
 
+class MedianSmoothd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.MedianSmooth`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: :py:class:`monai.transforms.compose.MapTransform`
+        radius: if a list of values, must match the count of spatial dimensions of input data,
+            and apply every value in the list to 1 spatial dimension. if only 1 value provided,
+            use it for all spatial dimensions.
+        allow_missing_keys: don't raise exception if key is missing.
+
+    """
+
+    backend = MedianSmooth.backend
+
+    def __init__(
+        self, keys: KeysCollection, radius: Union[Sequence[int], int], allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.converter = MedianSmooth(radius)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+
+
 class GaussianSmoothd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.GaussianSmooth`.
@@ -1042,6 +1102,8 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random sigma
@@ -1157,6 +1219,8 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random sigma1, sigma2, etc.
@@ -1169,7 +1233,7 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
 class RandHistogramShiftd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandHistogramShift`.
-    Apply random nonlinear transform the the image's intensity histogram.
+    Apply random nonlinear transform the image's intensity histogram.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1205,6 +1269,8 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random shift params
@@ -1241,14 +1307,12 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
 
     backend = RandGibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         prob: float = 0.1,
         alpha: Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1266,6 +1330,8 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # all the keys share the same random noise params
@@ -1296,10 +1362,7 @@ class GibbsNoised(MapTransform):
 
     backend = GibbsNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    def __init__(
-        self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False, as_tensor_output: bool = True
-    ) -> None:
+    def __init__(self, keys: KeysCollection, alpha: float = 0.5, allow_missing_keys: bool = False) -> None:
 
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.transform = GibbsNoise(alpha)
@@ -1355,14 +1418,12 @@ class KSpaceSpikeNoised(MapTransform):
 
     backend = KSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
         loc: Union[Tuple, Sequence[Tuple]],
         k_intensity: Optional[Union[Sequence[float], float]] = None,
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ) -> None:
 
         super().__init__(keys, allow_missing_keys)
@@ -1419,21 +1480,13 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
 
     backend = RandKSpaceSpikeNoise.backend
 
-    @deprecated_arg(name="as_tensor_output", since="0.6")
-    @deprecated_arg(name="common_sampling", since="0.6")
-    @deprecated_arg(name="common_seed", since="0.6")
-    @deprecated_arg(name="global_prob", since="0.6")
     def __init__(
         self,
         keys: KeysCollection,
-        global_prob: float = 1.0,
         prob: float = 0.1,
         intensity_range: Optional[Sequence[Union[Sequence[float], float]]] = None,
         channel_wise: bool = True,
-        common_sampling: bool = False,
-        common_seed: int = 42,
         allow_missing_keys: bool = False,
-        as_tensor_output: bool = True,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob=prob)
@@ -1450,6 +1503,8 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         for key in self.key_iterator(d):
@@ -1526,11 +1581,15 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.dropper.randomize(d[first_key].shape[1:])
@@ -1595,11 +1654,15 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
         d = dict(data)
         self.randomize(None)
         if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         # expect all the specified keys have same spatial shape and share same random holes
-        first_key: Union[Hashable, List] = self.first_key(d)
-        if first_key == []:
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
         self.shuffle.randomize(d[first_key].shape[1:])
@@ -1654,6 +1717,85 @@ class HistogramNormalized(MapTransform):
         return d
 
 
+class ForegroundMaskd(MapTransform):
+    """
+    Creates a binary mask that defines the foreground based on thresholds in RGB or HSV color space.
+    This transform receives an RGB (or grayscale) image where by default it is assumed that the foreground has
+    low values (dark) while the background is white.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        threshold: an int or a float number that defines the threshold that values less than that are foreground.
+            It also can be a callable that receives each dimension of the image and calculate the threshold,
+            or a string that defines such callable from `skimage.filter.threshold_...`. For the list of available
+            threshold functions, please refer to https://scikit-image.org/docs/stable/api/skimage.filters.html
+            Moreover, a dictionary can be passed that defines such thresholds for each channel, like
+            {"R": 100, "G": "otsu", "B": skimage.filter.threshold_mean}
+        hsv_threshold: similar to threshold but HSV color space ("H", "S", and "V").
+            Unlike RBG, in HSV, value greater than `hsv_threshold` are considered foreground.
+        invert: invert the intensity range of the input image, so that the dtype maximum is now the dtype minimum,
+            and vice-versa.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. By default not prefix is set and the corresponding array to the key will be replaced.
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        threshold: Union[Dict, Callable, str, float] = "otsu",
+        hsv_threshold: Optional[Union[Dict, Callable, str, float, int]] = None,
+        invert: bool = False,
+        new_key_prefix: Optional[str] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ForegroundMask(threshold=threshold, hsv_threshold=hsv_threshold, invert=invert)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
+class ComputeHoVerMapsd(MapTransform):
+    """Compute horizontal and vertical maps from an instance mask
+    It generates normalized horizontal and vertical distances to the center of mass of each region.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        dtype: the type of output Tensor. Defaults to `"float32"`.
+        new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
+            key intact. Defaults to '"_hover", so if the input key is "mask" the output will be "hover_mask".
+        allow_missing_keys: do not raise exception if key is missing.
+
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: DtypeLike = "float32",
+        new_key_prefix: str = "hover_",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.transform = ComputeHoVerMaps(dtype=dtype)
+        self.new_key_prefix = new_key_prefix
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
+            d[new_key] = self.transform(d[key])
+
+        return d
+
+
 RandGaussianNoiseD = RandGaussianNoiseDict = RandGaussianNoised
 RandRicianNoiseD = RandRicianNoiseDict = RandRicianNoised
 ShiftIntensityD = ShiftIntensityDict = ShiftIntensityd
@@ -1671,6 +1813,7 @@ RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
 MaskIntensityD = MaskIntensityDict = MaskIntensityd
 SavitzkyGolaySmoothD = SavitzkyGolaySmoothDict = SavitzkyGolaySmoothd
+MedianSmoothD = MedianSmoothDict = MedianSmoothd
 GaussianSmoothD = GaussianSmoothDict = GaussianSmoothd
 RandGaussianSmoothD = RandGaussianSmoothDict = RandGaussianSmoothd
 GaussianSharpenD = GaussianSharpenDict = GaussianSharpend
@@ -1683,3 +1826,5 @@ RandKSpaceSpikeNoiseD = RandKSpaceSpikeNoiseDict = RandKSpaceSpikeNoised
 RandCoarseDropoutD = RandCoarseDropoutDict = RandCoarseDropoutd
 HistogramNormalizeD = HistogramNormalizeDict = HistogramNormalized
 RandCoarseShuffleD = RandCoarseShuffleDict = RandCoarseShuffled
+ForegroundMaskD = ForegroundMaskDict = ForegroundMaskd
+ComputeHoVerMapsD = ComputeHoVerMapsDict = ComputeHoVerMapsd

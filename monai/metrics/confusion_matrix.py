@@ -14,7 +14,7 @@ from typing import Sequence, Union
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background
+from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
 from monai.utils import MetricReduction, ensure_tuple
 
 from .metric import CumulativeIterationMetric
@@ -30,7 +30,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     The `include_background` parameter can be set to ``False`` for an instance to exclude
     the first category (channel index 0) which is by convention assumed to be background. If the non-background
     segmentations are small compared to the total image size they can get overwhelmed by the signal from the
-    background so excluding it in such cases helps convergence.
+    background.
+
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
         include_background: whether to skip metric computation on the first channel of
@@ -47,7 +49,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             returned with the same order as input names when calling the class.
         compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
             if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
-        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+        reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns [(metric, not_nans), ...]. If False,
@@ -84,13 +86,9 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
             ValueError: when `y` is not a binarized tensor.
             ValueError: when `y_pred` has less than two dimensions.
         """
-        if not isinstance(y_pred, torch.Tensor) or not isinstance(y, torch.Tensor):
-            raise ValueError("y_pred and y must be PyTorch Tensor.")
-        # check binarized input
-        if not torch.all(y_pred.byte() == y_pred):
-            warnings.warn("y_pred should be a binarized tensor.")
-        if not torch.all(y.byte() == y):
-            raise ValueError("y should be a binarized tensor.")
+        is_binary_tensor(y_pred, "y_pred")
+        is_binary_tensor(y, "y")
+
         # check dimension
         dims = y_pred.ndimension()
         if dims < 2:
@@ -102,9 +100,16 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         return get_confusion_matrix(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self):
+    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
         """
         Execute reduction for the confusion matrix values.
+
+        Args:
+            compute_sample: when reducing, if ``True``, each sample's metric will be computed based on each confusion matrix first.
+                if ``False``, compute reduction on the confusion matrices first, defaults to ``False``.
+            reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
+                available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+                ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         """
         data = self.get_buffer()
@@ -113,11 +118,11 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
 
         results = []
         for metric_name in self.metric_name:
-            if self.compute_sample:
+            if compute_sample or self.compute_sample:
                 sub_confusion_matrix = compute_confusion_matrix_metric(metric_name, data)
-                f, not_nans = do_metric_reduction(sub_confusion_matrix, self.reduction)
+                f, not_nans = do_metric_reduction(sub_confusion_matrix, reduction or self.reduction)
             else:
-                f, not_nans = do_metric_reduction(data, self.reduction)
+                f, not_nans = do_metric_reduction(data, reduction or self.reduction)
                 f = compute_confusion_matrix_metric(metric_name, f)
             if self.get_not_nans:
                 results.append((f, not_nans))
@@ -313,7 +318,7 @@ def check_confusion_matrix_metric_name(metric_name: str):
         return "mcc"
     if metric_name in ["fowlkes_mallows_index", "fm"]:
         return "fm"
-    if metric_name in ["informedness", "bookmaker_informedness", "bm"]:
+    if metric_name in ["informedness", "bookmaker_informedness", "bm", "youden_index", "youden"]:
         return "bm"
     if metric_name in ["markedness", "deltap", "mk"]:
         return "mk"

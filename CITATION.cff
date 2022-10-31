@@ -6,11 +6,15 @@ title: "MONAI: Medical Open Network for AI"
 abstract: "AI Toolkit for Healthcare Imaging"
 authors:
   - name: "MONAI Consortium"
-date-released: 2020-03-28
-version: "0.6.0"
-doi: "10.5281/zenodo.4323058"
+date-released: 2022-09-16
+version: "1.0.0"
+identifiers:
+  - description: "This DOI represents all versions of MONAI, and will always resolve to the latest one."
+    type: doi
+    value: "10.5281/zenodo.4323058"
 license: "Apache-2.0"
 repository-code: "https://github.com/Project-MONAI/MONAI"
-cff-version: "1.1.0"
+url: "https://monai.io"
+cff-version: "1.2.0"
 message: "If you use this software, please cite it using these metadata."
 ...

@@ -18,8 +18,7 @@ from monai.transforms import generate_pos_neg_label_crop_centers
 from monai.utils.misc import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-TESTS = []
-TESTS.append(
+TESTS = [
     [
         {
             "spatial_size": [2, 2, 2],
@@ -32,8 +31,21 @@ TESTS.append(
         list,
         2,
         3,
-    ]
-)
+    ],
+    [
+        {
+            "spatial_size": [2, 2, 2],
+            "num_samples": 2,
+            "pos_ratio": 0.0,
+            "label_spatial_shape": [3, 3, 3],
+            "fg_indices": [],
+            "bg_indices": [3, 12, 21],
+        },
+        list,
+        2,
+        3,
+    ],
+]
 
 
 class TestGeneratePosNegLabelCropCenters(unittest.TestCase):

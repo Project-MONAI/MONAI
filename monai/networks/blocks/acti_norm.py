@@ -18,8 +18,8 @@ from monai.networks.layers.utils import get_act_layer, get_dropout_layer, get_no
 
 class ADN(nn.Sequential):
     """
-    Constructs a sequential module of optional activation, dropout, and normalization layers
-    (with an arbitrary order)::
+    Constructs a sequential module of optional activation (A), dropout (D), and normalization (N) layers
+    with an arbitrary order::
 
         -- (Norm) -- (Dropout) -- (Acti) --
 

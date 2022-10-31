@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceCELoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
@@ -32,6 +32,14 @@ TEST_CASES = [
         {
             "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+        },
+        0.3133,
+    ],
+    [  # shape: (2, 2, 3), (2, 2, 3), one-hot target
+        {"to_onehot_y": False},
+        {
+            "input": torch.tensor([[[1.0, 1.0, 0.0], [0.0, 0.0, 1.0]], [[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]]),
+            "target": torch.tensor([[[1, 1, 0], [0, 0, 1]], [[1, 0, 1], [0, 1, 0]]], dtype=torch.uint8),
         },
         0.3133,
     ],
@@ -85,7 +93,6 @@ class TestDiceCELoss(unittest.TestCase):
             loss = DiceCELoss(reduction="none")
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
-    @SkipIfBeforePyTorchVersion((1, 7, 0))
     def test_script(self):
         loss = DiceCELoss()
         test_input = torch.ones(2, 1, 8, 8)

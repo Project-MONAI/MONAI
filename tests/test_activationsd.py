@@ -21,7 +21,7 @@ TEST_CASES = []
 for p in TEST_NDARRAYS:
     TEST_CASES.append(
         [
-            {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None},
+            {"keys": ["pred", "label"], "sigmoid": False, "softmax": [True, False], "other": None, "dim": 0},
             {"pred": p([[[0.0, 1.0]], [[2.0, 3.0]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             {"pred": p([[[0.1192, 0.1192]], [[0.8808, 0.8808]]]), "label": p([[[0.0, 1.0]], [[2.0, 3.0]]])},
             (2, 1, 2),
@@ -51,10 +51,10 @@ class TestActivationsd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = Activationsd(**input_param)(test_input)
-        assert_allclose(result["pred"], output["pred"], rtol=1e-3)
+        assert_allclose(result["pred"], output["pred"], rtol=1e-3, type_test="tensor")
         self.assertTupleEqual(result["pred"].shape, expected_shape)
         if "label" in result:
-            assert_allclose(result["label"], output["label"], rtol=1e-3)
+            assert_allclose(result["label"], output["label"], rtol=1e-3, type_test="tensor")
             self.assertTupleEqual(result["label"].shape, expected_shape)
 
 

@@ -21,7 +21,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option
+from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after
 
 
 class DiceLoss(_Loss):
@@ -60,12 +60,12 @@ class DiceLoss(_Loss):
             include_background: if False, channel index 0 (background category) is excluded from the calculation.
                 if the non-background segmentations are small compared to the total image size they can get overwhelmed
                 by the signal from the background so excluding it in such cases helps convergence.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction.
             softmax: if True, apply a softmax function to the prediction.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example:
-                `other_act = torch.tanh`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -247,12 +247,12 @@ class GeneralizedDiceLoss(_Loss):
         """
         Args:
             include_background: If False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: If True, apply a sigmoid function to the prediction.
             softmax: If True, apply a softmax function to the prediction.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example:
-                `other_act = torch.tanh`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``.
             w_type: {``"square"``, ``"simple"``, ``"uniform"``}
                 Type of function to transform ground truth volume to a weight factor. Defaults to ``"square"``.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -291,9 +291,9 @@ class GeneralizedDiceLoss(_Loss):
         self.batch = batch
 
     def w_func(self, grnd):
-        if self.w_type == Weight.SIMPLE:
+        if self.w_type == str(Weight.SIMPLE):
             return torch.reciprocal(grnd)
-        if self.w_type == Weight.SQUARE:
+        if self.w_type == str(Weight.SQUARE):
             return torch.reciprocal(grnd * grnd)
         return torch.ones_like(grnd)
 
@@ -639,14 +639,14 @@ class DiceCELoss(_Loss):
             ``reduction`` is used for both losses and other parameters are only used for dice loss.
 
             include_background: if False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `CrossEntropyLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `CrossEntropyLoss`.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, don't need to specify activation function for `CrossEntropyLoss`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
+                ``other_act = torch.tanh``. only used by the `DiceLoss`, not for the `CrossEntropyLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"mean"``, ``"sum"``}
@@ -692,6 +692,7 @@ class DiceCELoss(_Loss):
             raise ValueError("lambda_ce should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
+        self.old_pt_ver = not pytorch_after(1, 10)
 
     def ce(self, input: torch.Tensor, target: torch.Tensor):
         """
@@ -701,12 +702,18 @@ class DiceCELoss(_Loss):
 
         """
         n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
-        if n_pred_ch == n_target_ch:
-            # target is in the one-hot format, convert to BH[WD] format to calculate ce loss
-            target = torch.argmax(target, dim=1)
-        else:
+        if n_pred_ch != n_target_ch and n_target_ch == 1:
             target = torch.squeeze(target, dim=1)
-        target = target.long()
+            target = target.long()
+        elif self.old_pt_ver:
+            warnings.warn(
+                f"Multichannel targets are not supported in this older Pytorch version {torch.__version__}. "
+                "Using argmax (as a workaround) to convert target to a single channel."
+            )
+            target = torch.argmax(target, dim=1)
+        elif not torch.is_floating_point(target):
+            target = target.to(dtype=input.dtype)
+
         return self.cross_entropy(input, target)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -721,7 +728,10 @@ class DiceCELoss(_Loss):
 
         """
         if len(input.shape) != len(target.shape):
-            raise ValueError("the number of dimensions for input and target should be the same.")
+            raise ValueError(
+                "the number of dimensions for input and target should be the same, "
+                f"got shape {input.shape} and {target.shape}."
+            )
 
         dice_loss = self.dice(input, target)
         ce_loss = self.ce(input, target)
@@ -735,6 +745,10 @@ class DiceFocalLoss(_Loss):
     Compute both Dice loss and Focal Loss, and return the weighted sum of these two losses.
     The details of Dice loss is shown in ``monai.losses.DiceLoss``.
     The details of Focal Loss is shown in ``monai.losses.FocalLoss``.
+
+    ``gamma``, ``focal_weight`` and ``lambda_focal`` are only used for the focal loss.
+    ``include_background`` and ``reduction`` are used for both losses
+    and other parameters are only used for dice loss.
 
     """
 
@@ -758,18 +772,15 @@ class DiceFocalLoss(_Loss):
     ) -> None:
         """
         Args:
-            ``gamma``, ``focal_weight`` and ``lambda_focal`` are only used for focal loss.
-            ``include_background``, ``to_onehot_y``and ``reduction`` are used for both losses
-            and other parameters are only used for dice loss.
             include_background: if False channel index 0 (background category) is excluded from the calculation.
-            to_onehot_y: whether to convert `y` into the one-hot format. Defaults to False.
+            to_onehot_y: whether to convert the ``target`` into the one-hot format,
+                using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `FocalLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
                 don't need to specify activation function for `FocalLoss`.
-            other_act: if don't want to use `sigmoid` or `softmax`, use other callable function to execute
-                other activation layers, Defaults to ``None``. for example: `other_act = torch.tanh`.
-                only used by the `DiceLoss`, don't need to specify activation function for `FocalLoss`.
+            other_act: callable function to execute other activation layers, Defaults to ``None``.
+                for example: `other_act = torch.tanh`. only used by the `DiceLoss`, not for `FocalLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
@@ -797,7 +808,7 @@ class DiceFocalLoss(_Loss):
         super().__init__()
         self.dice = DiceLoss(
             include_background=include_background,
-            to_onehot_y=to_onehot_y,
+            to_onehot_y=False,
             sigmoid=sigmoid,
             softmax=softmax,
             other_act=other_act,
@@ -810,7 +821,7 @@ class DiceFocalLoss(_Loss):
         )
         self.focal = FocalLoss(
             include_background=include_background,
-            to_onehot_y=to_onehot_y,
+            to_onehot_y=False,
             gamma=gamma,
             weight=focal_weight,
             reduction=reduction,
@@ -821,6 +832,7 @@ class DiceFocalLoss(_Loss):
             raise ValueError("lambda_focal should be no less than 0.0.")
         self.lambda_dice = lambda_dice
         self.lambda_focal = lambda_focal
+        self.to_onehot_y = to_onehot_y
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -835,11 +847,127 @@ class DiceFocalLoss(_Loss):
 
         """
         if len(input.shape) != len(target.shape):
-            raise ValueError("the number of dimensions for input and target should be the same.")
-
+            raise ValueError(
+                "the number of dimensions for input and target should be the same, "
+                f"got shape {input.shape} and {target.shape}."
+            )
+        if self.to_onehot_y:
+            n_pred_ch = input.shape[1]
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `to_onehot_y=True` ignored.")
+            else:
+                target = one_hot(target, num_classes=n_pred_ch)
         dice_loss = self.dice(input, target)
         focal_loss = self.focal(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_focal * focal_loss
+        return total_loss
+
+
+class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
+    """Compute both Generalized Dice Loss and Focal Loss, and return their weighted average. The details of Generalized Dice Loss
+    and Focal Loss are available at ``monai.losses.GeneralizedDiceLoss`` and ``monai.losses.FocalLoss``.
+
+    Args:
+        include_background (bool, optional): if False channel index 0 (background category) is excluded from the calculation.
+            Defaults to True.
+        to_onehot_y: whether to convert the ``target`` into the one-hot format,
+            using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
+        sigmoid (bool, optional): if True, apply a sigmoid function to the prediction. Defaults to False.
+        softmax (bool, optional): if True, apply a softmax function to the prediction. Defaults to False.
+        other_act (Optional[Callable], optional): callable function to execute other activation layers,
+            Defaults to ``None``. for example: `other_act = torch.tanh`.
+            only used by the `GeneralizedDiceLoss`, not for the `FocalLoss`.
+        w_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
+            ground-truth volume to a weight factor. Defaults to ``"square"``.
+        reduction (Union[LossReduction, str], optional): {``"none"``, ``"mean"``, ``"sum"``}. Specified the reduction to
+            apply to the output. Defaults to ``"mean"``.
+            - ``"none"``: no reduction will be applied.
+            - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+            - ``"sum"``: the output will be summed.
+        smooth_nr (float, optional): a small constant added to the numerator to avoid zero. Defaults to 1e-5.
+        smooth_dr (float, optional): a small constant added to the denominator to avoid nan. Defaults to 1e-5.
+        batch (bool, optional): whether to sum the intersection and union areas over the batch dimension before the dividing.
+            Defaults to False, i.e., the areas are computed for each item in the batch.
+        gamma (float, optional): value of the exponent gamma in the definition of the Focal loss. Defaults to 2.0.
+        focal_weight (Optional[Union[Sequence[float], float, int, torch.Tensor]], optional): weights to apply to
+            the voxels of each class. If None no weights are applied. The input can be a single value
+            (same weight for all classes), a sequence of values (the length of the sequence hould be the same as
+            the number of classes). Defaults to None.
+        lambda_gdl (float, optional): the trade-off weight value for Generalized Dice Loss. The value should be
+            no less than 0.0. Defaults to 1.0.
+        lambda_focal (float, optional): the trade-off weight value for Focal Loss. The value should be no less
+            than 0.0. Defaults to 1.0.
+
+    Raises:
+        ValueError: if either `lambda_gdl` or `lambda_focal` is less than 0.
+    """
+
+    def __init__(
+        self,
+        include_background: bool = True,
+        to_onehot_y: bool = False,
+        sigmoid: bool = False,
+        softmax: bool = False,
+        other_act: Optional[Callable] = None,
+        w_type: Union[Weight, str] = Weight.SQUARE,
+        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        smooth_nr: float = 1e-5,
+        smooth_dr: float = 1e-5,
+        batch: bool = False,
+        gamma: float = 2.0,
+        focal_weight: Optional[Union[Sequence[float], float, int, torch.Tensor]] = None,
+        lambda_gdl: float = 1.0,
+        lambda_focal: float = 1.0,
+    ) -> None:
+        super().__init__()
+        self.generalized_dice = GeneralizedDiceLoss(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            sigmoid=sigmoid,
+            softmax=softmax,
+            other_act=other_act,
+            w_type=w_type,
+            reduction=reduction,
+            smooth_nr=smooth_nr,
+            smooth_dr=smooth_dr,
+            batch=batch,
+        )
+        self.focal = FocalLoss(
+            include_background=include_background,
+            to_onehot_y=to_onehot_y,
+            gamma=gamma,
+            weight=focal_weight,
+            reduction=reduction,
+        )
+        if lambda_gdl < 0.0:
+            raise ValueError("lambda_gdl should be no less than 0.0.")
+        if lambda_focal < 0.0:
+            raise ValueError("lambda_focal should be no less than 0.0.")
+        self.lambda_gdl = lambda_gdl
+        self.lambda_focal = lambda_focal
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input (torch.Tensor): the shape should be BNH[WD]. The input should be the original logits
+                due to the restriction of ``monai.losses.FocalLoss``.
+            target (torch.Tensor): the shape should be BNH[WD] or B1H[WD].
+
+        Raises:
+            ValueError: When the input and target tensors have different numbers of dimensions, or the target
+                channel isn't either one-hot encoded or categorical with the same shape of the input.
+
+        Returns:
+            torch.Tensor: value of the loss.
+        """
+        if input.dim() != target.dim():
+            raise ValueError(
+                f"Input - {input.shape} - and target - {target.shape} - must have the same number of dimensions."
+            )
+
+        gdl_loss = self.generalized_dice(input, target)
+        focal_loss = self.focal(input, target)
+        total_loss: torch.Tensor = self.lambda_gdl * gdl_loss + self.lambda_focal * focal_loss
         return total_loss
 
 
@@ -847,4 +975,5 @@ Dice = DiceLoss
 dice_ce = DiceCELoss
 dice_focal = DiceFocalLoss
 generalized_dice = GeneralizedDiceLoss
+generalized_dice_focal = GeneralizedDiceFocalLoss
 generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss

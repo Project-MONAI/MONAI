@@ -13,10 +13,8 @@ import unittest
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
 from monai.transforms import Compose, RandAffined, Spacingd
-from tests.utils import SkipIfBeforePyTorchVersion
 
 
-@SkipIfBeforePyTorchVersion((1, 7))
 class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
     def test_duplicate_transforms(self):
         data = [{"img": create_test_image_2d(128, 128, num_seg_classes=1, channel_dim=0)[0]} for _ in range(2)]
@@ -33,7 +31,7 @@ class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
         b1 = next(iter(train_loader))
         b2 = next(iter(train_loader))
 
-        self.assertEqual(len(b1["img_transforms"]), len(b2["img_transforms"]))
+        self.assertEqual(len(b1["img"].applied_operations), len(b2["img"].applied_operations))
 
 
 if __name__ == "__main__":

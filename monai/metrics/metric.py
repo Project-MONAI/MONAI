@@ -45,7 +45,7 @@ class IterationMetric(Metric):
     Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
         It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
@@ -274,7 +274,10 @@ class Cumulative:
 
         """
         self._sync()
-        return self._synced_tensors[0] if len(self._synced_tensors) == 1 else self._synced_tensors
+        if self._synced_tensors is None:
+            return self._synced_tensors
+        buffers = [x.detach().clone() if isinstance(x, torch.Tensor) else x for x in self._synced_tensors]
+        return buffers[0] if len(buffers) == 1 else buffers
 
 
 class CumulativeIterationMetric(Cumulative, IterationMetric):
@@ -307,7 +310,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.

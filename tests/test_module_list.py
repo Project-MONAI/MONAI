@@ -38,8 +38,9 @@ class TestAllImport(unittest.TestCase):
     def test_transform_api(self):
         """monai subclasses of MapTransforms must have alias names ending with 'd', 'D', 'Dict'"""
         to_exclude = {"MapTransform"}  # except for these transforms
-        to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision"}
+        to_exclude_docs = {"Decollate", "Ensemble", "Invert", "SaveClassification", "RandTorchVision", "RandCrop"}
         to_exclude_docs.update({"DeleteItems", "SelectItems", "CopyItems", "ConcatItems"})
+        to_exclude_docs.update({"ToMetaTensor", "FromMetaTensor"})
         xforms = {
             name: obj
             for name, obj in monai.transforms.__dict__.items()

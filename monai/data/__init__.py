@@ -9,6 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+
+from .box_utils import (
+    box_area,
+    box_centers,
+    box_giou,
+    box_iou,
+    box_pair_giou,
+    boxes_center_distance,
+    centers_in_boxes,
+    convert_box_mode,
+    convert_box_to_standard_mode,
+)
 from .csv_saver import CSVSaver
 from .dataloader import DataLoader
 from .dataset import (
@@ -32,9 +45,9 @@ from .decathlon_datalist import (
     load_decathlon_properties,
 )
 from .folder_layout import FolderLayout
-from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter
+from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NumpyReader, PILReader, WSIReader
+from .image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from .image_writer import (
     SUPPORTED_WRITERS,
     ImageWriter,
@@ -46,6 +59,8 @@ from .image_writer import (
     resolve_writer,
 )
 from .iterable_dataset import CSVIterableDataset, IterableDataset, ShuffleBuffer
+from .meta_obj import MetaObj, get_track_meta, set_track_meta
+from .meta_tensor import MetaTensor
 from .nifti_saver import NiftiSaver
 from .nifti_writer import write_nifti
 from .png_saver import PNGSaver
@@ -56,6 +71,8 @@ from .test_time_augmentation import TestTimeAugmentation
 from .thread_buffer import ThreadBuffer, ThreadDataLoader
 from .torchscript_utils import load_net_with_metadata, save_net_with_metadata
 from .utils import (
+    PICKLE_KEY_SUFFIX,
+    affine_to_spacing,
     compute_importance_map,
     compute_shape_offset,
     convert_tables_to_dicts,
@@ -63,10 +80,12 @@ from .utils import (
     create_file_basename,
     decollate_batch,
     dense_patch_slices,
+    get_extra_metadata_keys,
     get_random_patch,
     get_valid_patch_size,
     is_supported_format,
     iter_patch,
+    iter_patch_position,
     iter_patch_slices,
     json_hashing,
     list_data_collate,
@@ -76,6 +95,8 @@ from .utils import (
     partition_dataset_classes,
     pickle_hashing,
     rectify_header_sform_qform,
+    remove_extra_metadata,
+    remove_keys,
     reorient_spatial_axes,
     resample_datalist,
     select_cross_validation_folds,
@@ -85,3 +106,27 @@ from .utils import (
     worker_init_fn,
     zoom_affine,
 )
+
+# FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/5291
+# from .video_dataset import CameraDataset, VideoDataset, VideoFileDataset
+from .wsi_datasets import MaskedPatchWSIDataset, PatchWSIDataset, SlidingPatchWSIDataset
+from .wsi_reader import BaseWSIReader, CuCIMWSIReader, OpenSlideWSIReader, TiffFileWSIReader, WSIReader
+
+with contextlib.suppress(BaseException):
+    from multiprocessing.reduction import ForkingPickler
+
+    def _rebuild_meta(cls, storage, metadata):
+        storage_offset, size, stride, meta_dict = metadata
+        t = cls([], dtype=storage.dtype, device=storage.device)
+        t.set_(storage._untyped() if hasattr(storage, "_untyped") else storage, storage_offset, size, stride)
+        t.__dict__ = meta_dict
+        return t
+
+    def reduce_meta_tensor(meta_tensor):
+        storage = meta_tensor.storage()
+        if storage.is_cuda:
+            raise NotImplementedError("sharing CUDA metatensor across processes not implemented")
+        metadata = (meta_tensor.storage_offset(), meta_tensor.size(), meta_tensor.stride(), meta_tensor.__dict__)
+        return _rebuild_meta, (type(meta_tensor), storage, metadata)
+
+    ForkingPickler.register(MetaTensor, reduce_meta_tensor)

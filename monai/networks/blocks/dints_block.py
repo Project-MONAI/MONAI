@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Tuple, Union
 
 import torch
@@ -31,7 +30,7 @@ class FactorizedIncreaseBlock(torch.nn.Sequential):
         out_channel: int,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -82,7 +81,7 @@ class FactorizedReduceBlock(torch.nn.Module):
         out_channel: int,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -150,7 +149,7 @@ class P3DActiConvNormBlock(torch.nn.Sequential):
         padding: int,
         mode: int = 0,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:
@@ -235,7 +234,7 @@ class ActiConvNormBlock(torch.nn.Sequential):
         padding: int = 1,
         spatial_dims: int = 3,
         act_name: Union[Tuple, str] = "RELU",
-        norm_name: Union[Tuple, str] = "INSTANCE",
+        norm_name: Union[Tuple, str] = ("INSTANCE", {"affine": True}),
     ):
         """
         Args:

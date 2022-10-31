@@ -16,32 +16,49 @@ import numpy as np
 import torch
 from ignite.engine import Engine
 from parameterized import parameterized
-from torch.utils.data import DataLoader
 
-from monai.apps.pathology.handlers import ProbMapProducer
-from monai.data.dataset import Dataset
+from monai.data import DataLoader, Dataset, MetaTensor
 from monai.engines import Evaluator
-from monai.handlers import ValidationHandler
+from monai.handlers import ProbMapProducer, ValidationHandler
+from monai.utils.enums import ProbMapKeys
 
-TEST_CASE_0 = ["temp_image_inference_output_1", 2]
+TEST_CASE_0 = ["temp_image_inference_output_1", 1]
 TEST_CASE_1 = ["temp_image_inference_output_2", 9]
-TEST_CASE_2 = ["temp_image_inference_output_3", 1000]
+TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
     def __init__(self, name, size):
         super().__init__(
             data=[
-                {"name": name, "mask_shape": (size, size), "mask_locations": [[i, i] for i in range(size)], "level": 0}
+                {
+                    "image": name,
+                    ProbMapKeys.COUNT.value: size,
+                    ProbMapKeys.SIZE.value: np.array([size + 1, size + 1]),
+                    ProbMapKeys.LOCATION.value: np.array([i, i + 1]),
+                }
+                for i in range(size)
             ]
         )
-        self.len = size
-
-    def __len__(self):
-        return self.len
+        self.image_data = [
+            {
+                ProbMapKeys.NAME.value: name,
+                ProbMapKeys.COUNT.value: size,
+                ProbMapKeys.SIZE.value: np.array([size + 1, size + 1]),
+            }
+        ]
 
     def __getitem__(self, index):
-        return {"name": self.data[0]["name"], "mask_location": self.data[0]["mask_locations"][index], "pred": index + 1}
+
+        image = np.ones((3, 2, 2)) * index
+        metadata = {
+            ProbMapKeys.COUNT.value: self.data[index][ProbMapKeys.COUNT.value],
+            ProbMapKeys.NAME.value: self.data[index]["image"],
+            ProbMapKeys.SIZE.value: self.data[index][ProbMapKeys.SIZE.value],
+            ProbMapKeys.LOCATION.value: self.data[index][ProbMapKeys.LOCATION.value],
+        }
+
+        return {"image": MetaTensor(x=image, meta=metadata), "pred": index + 1}
 
 
 class TestEvaluator(Evaluator):
@@ -54,10 +71,11 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
     def test_prob_map_generator(self, name, size):
         # set up dataset
         dataset = TestDataset(name, size)
-        data_loader = DataLoader(dataset, batch_size=1)
+        batch_size = 2
+        data_loader = DataLoader(dataset, batch_size=batch_size)
 
         # set up engine
-        def inference(enging, batch):
+        def inference(engine, batch):
             pass
 
         engine = Engine(inference)
@@ -66,7 +84,9 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         output_dir = os.path.join(os.path.dirname(__file__), "testing_data")
         prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
-        evaluator = TestEvaluator(torch.device("cpu:0"), data_loader, size, val_handlers=[prob_map_gen])
+        evaluator = TestEvaluator(
+            torch.device("cpu:0"), data_loader, np.ceil(size / batch_size), val_handlers=[prob_map_gen]
+        )
 
         # set up validation handler
         validation = ValidationHandler(interval=1, validator=None)
@@ -76,7 +96,8 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         engine.run(data_loader)
 
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
-        self.assertListEqual(np.diag(prob_map).astype(int).tolist(), list(range(1, size + 1)))
+        self.assertListEqual(np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)])
+        self.assertListEqual(prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)])
 
 
 if __name__ == "__main__":
