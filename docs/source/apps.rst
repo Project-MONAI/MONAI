@@ -130,6 +130,30 @@ Applications
 .. autoclass:: TileOnGridd
     :members:
 
+.. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: Watershed
+    :members:
+.. autoclass:: GenerateWatershedMask
+    :members:
+.. autoclass:: GenerateInstanceBorder
+    :members:
+.. autoclass:: GenerateDistanceMap
+    :members:
+.. autoclass:: GenerateWatershedMarkers
+    :members:
+
+.. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: Watershedd
+    :members:
+.. autoclass:: GenerateWatershedMaskd
+    :members:
+.. autoclass:: GenerateInstanceBorderd
+    :members:
+.. autoclass:: GenerateDistanceMapd
+    :members:
+.. autoclass:: GenerateWatershedMarkersd
+    :members:
+
 `Detection`
 -----------
 
