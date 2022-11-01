@@ -24,7 +24,7 @@ __all__ = ["PanopticQualityMetric", "compute_panoptic_quality"]
 
 class PanopticQualityMetric(CumulativeIterationMetric):
     """
-    Compute Panoptic Quality between two tensors, except Panoptic Quality, two related metrics Segmentation Quality (SQ)
+    Compute Panoptic Quality between two tensors. Two related metrics Segmentation Quality (SQ)
     and Recognition Quality (RQ) will also be calculated and returned.
     Panoptic Quality is a metric used in panoptic segmentation tasks. This task unifies the typically distinct tasks
     of semantic segmentation (assign a class label to each pixel) and
