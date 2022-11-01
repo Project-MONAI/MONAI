@@ -53,7 +53,7 @@ class TestWatershedd(unittest.TestCase):
         trans = Compose(
             [
                 GenerateWatershedMaskd(keys="output"),
-                GenerateInstanceBorderd(keys="mask", hover_map_key="hover_map"),
+                GenerateInstanceBorderd(keys="mask", hover_map_key="hover_map", kernel_size=3),
                 GenerateDistanceMapd(keys="mask", border_key="border"),
                 GenerateWatershedMarkersd(keys="mask", border_key="border"),
                 Watershedd(**args),

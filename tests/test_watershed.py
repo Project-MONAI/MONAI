@@ -44,7 +44,7 @@ class TestWatershed(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_output(self, args, image, hover_map, expected_shape):
         mask = GenerateWatershedMask()(image)
-        border_map = GenerateInstanceBorder()(mask, hover_map)
+        border_map = GenerateInstanceBorder(kernel_size=3)(mask, hover_map)
         distance_map = GenerateDistanceMap()(mask, border_map)
         markers = GenerateWatershedMarkers()(mask, border_map)
 
