@@ -321,7 +321,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         Return the `MetaTensor` as a `torch.Tensor`.
         It is OS dependent as to whether this will be a deep copy or not.
         """
-        return self.as_subclass(torch.Tensor)  # type: ignore
+        return self.as_subclass(torch.Tensor)
 
     def get_array(self, output_type=np.ndarray, dtype=None, device=None, *_args, **_kwargs):
         """

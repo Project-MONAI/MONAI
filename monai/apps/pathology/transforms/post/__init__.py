@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .post.array import (
+from .array import (
     GenerateDistanceMap,
     GenerateInstanceBorder,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
 )
-from .post.dictionary import (
+from .dictionary import (
     GenerateDistanceMapD,
     GenerateDistanceMapd,
     GenerateDistanceMapDict,
@@ -32,15 +32,4 @@ from .post.dictionary import (
     WatershedD,
     Watershedd,
     WatershedDict,
-)
-from .spatial.array import SplitOnGrid, TileOnGrid
-from .spatial.dictionary import SplitOnGridd, SplitOnGridD, SplitOnGridDict, TileOnGridd, TileOnGridD, TileOnGridDict
-from .stain.array import ExtractHEStains, NormalizeHEStains
-from .stain.dictionary import (
-    ExtractHEStainsd,
-    ExtractHEStainsD,
-    ExtractHEStainsDict,
-    NormalizeHEStainsd,
-    NormalizeHEStainsD,
-    NormalizeHEStainsDict,
 )
