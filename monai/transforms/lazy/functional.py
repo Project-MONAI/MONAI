@@ -47,19 +47,19 @@ def shape_from_extents(
     if isinstance(extents, (list, tuple)):
         if isinstance(extents[0], np.ndarray):
             aextents = np.asarray(extents)
-            aextents = torch.from_numpy(aextents)
         else:
             aextents = torch.stack(extents)
+            aextents = aextents.numpy()
     else:
         if isinstance(extents, np.ndarray):
-            aextents = torch.from_numpy(extents)
-        else:
             aextents = extents
+        else:
+            aextents = extents.numpy()
 
-    mins = aextents.min(axis=0)[0]
-    maxes = aextents.max(axis=0)[0]
-    values = torch.round(maxes - mins).type(torch.IntTensor)[:-1]
-    return torch.cat((torch.IntTensor([src_shape[0]]), values))
+    mins = aextents.min(axis=0)
+    maxes = aextents.max(axis=0)
+    values = np.round(maxes - mins).astype(int)[:-1].tolist()
+    return (src_shape[0],) + tuple(values)
 
 
 def metadata_is_compatible(value_1, value_2):

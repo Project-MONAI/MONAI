@@ -22,7 +22,7 @@ from monai.transforms import create_grid, create_rotate, create_translate, map_s
 from monai.config import DtypeLike
 from monai.data import get_track_meta
 from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents
-from monai.transforms.meta_matrix import MatrixFactory
+from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners
 from monai.utils import (
     convert_to_tensor,
     ensure_tuple,
@@ -289,22 +289,28 @@ def rotate(
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
 
     angle_ = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
-    rotate_tx = torch.from_numpy(create_rotate(input_ndim, angle_))
+    rotate_tx = torch.from_numpy(create_rotate(input_ndim, angle_).astype(np.float32))
     im_extents = extents_from_shape(input_shape)
     if not keep_size:
         im_extents = [rotate_tx @ e for e in im_extents]
         spatial_shape = shape_from_extents(input_shape, im_extents)
     else:
         spatial_shape = input_shape
-    transform = rotate_tx
+
+    if align_corners is True:
+        transform = apply_align_corners(rotate_tx, spatial_shape[1:],
+                                        MatrixFactory.from_tensor(img_)).matrix.data
+    else:
+        transform = rotate_tx
+
     metadata = {
-        "angle": angle_,
+        "angle": angle,
         "keep_size": keep_size,
         "mode": mode_,
         "padding_mode": padding_mode_,
         "align_corners": align_corners,
         "dtype": dtype_,
-        "im_extents": im_extents,
+        # "im_extents": im_extents,
         "shape_override": spatial_shape
     }
     return img_, transform, metadata
@@ -362,9 +368,11 @@ def zoom(
         "align_corners": align_corners,
         "keep_size": keep_size,
         "dtype": dtype_,
-        "im_extents": im_extents,
-        "shape_override": shape_override_
+        "im_extents": im_extents
     }
+    if keep_size is False or align_corners is True:
+        metadata["shape_override"] = shape_override_
+
     return img_, transform, metadata
 
 

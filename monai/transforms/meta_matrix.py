@@ -112,6 +112,13 @@ def ensure_tensor(data: NdarrayOrTensor):
     return torch.as_tensor(data)
 
 
+def apply_align_corners(matrix, spatial_size, factory):
+    inflated_spatial_size = tuple(s + 1 for s in spatial_size)
+    scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
+    scale_mat = factory.scale(scale_factors)
+    return matmul(scale_mat, matrix)
+
+
 class Matrix:
     def __init__(self, matrix: NdarrayOrTensor):
         self.data = ensure_tensor(matrix)

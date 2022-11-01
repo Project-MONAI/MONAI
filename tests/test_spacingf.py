@@ -52,109 +52,109 @@ class TestFunctionalSpacing(unittest.TestCase):
             get_arange_img((32, 32)),
             affine_scale_2d(0.5),
             get_metadata(False, {"pixdim": (2.0, 2.0)}),
-            get_metadata(False, {"pixdim": (2.0, 2.0), "shape_override": torch.IntTensor([1, 16, 16])})
+            get_metadata(False, {"pixdim": (2.0, 2.0), "shape_override": (1, 16, 16)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(0.5),
             get_metadata(False, {"src_pixdim": (0.5, 0.5)}),
-            get_metadata(False, {"src_pixdim": (0.5, 0.5), "shape_override": torch.IntTensor([1, 16, 16])})
+            get_metadata(False, {"src_pixdim": (0.5, 0.5), "shape_override": (1, 16, 16)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(0.25),
             get_metadata(False, {"pixdim": (2.0, 2.0), "src_pixdim": (0.5, 0.5)}),
             get_metadata(False, {"pixdim": (2.0, 2.0), "src_pixdim": (0.5, 0.5),
-                                 "shape_override": torch.IntTensor([1, 8, 8])})
+                                 "shape_override": (1, 8, 8)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(2.0),
             get_metadata(False, {"src_pixdim": (2.0, 2.0)}),
-            get_metadata(False, {"src_pixdim": (2.0, 2.0), "shape_override": torch.IntTensor([1, 64, 64])})
+            get_metadata(False, {"src_pixdim": (2.0, 2.0), "shape_override": (1, 64, 64)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(2.0),
             get_metadata(False, {"pixdim": (0.5, 0.5)}),
-            get_metadata(False, {"pixdim": (0.5, 0.5), "shape_override": torch.IntTensor([1, 64, 64])})
+            get_metadata(False, {"pixdim": (0.5, 0.5), "shape_override": (1, 64, 64)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(4.0),
             get_metadata(False, {"pixdim": (0.5, 0.5), "src_pixdim": (2.0, 2.0)}),
             get_metadata(False, {"pixdim": (0.5, 0.5), "src_pixdim": (2.0, 2.0),
-                                 "shape_override": torch.IntTensor([1, 128, 128])})
+                                 "shape_override": (1, 128, 128)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d((0.5, 2.0)),
             get_metadata(False, {"pixdim": (2.0, 1.0), "src_pixdim": (1.0, 2.0)}),
             get_metadata(False, {"pixdim": (2.0, 1.0), "src_pixdim": (1.0, 2.0),
-                                 "shape_override": torch.IntTensor([1, 16, 64])})
+                                 "shape_override": (1, 16, 64)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d((2.0, 0.5)),
             get_metadata(False, {"pixdim": (1.0, 2.0), "src_pixdim": (2.0, 1.0)}),
             get_metadata(False, {"pixdim": (1.0, 2.0), "src_pixdim": (2.0, 1.0),
-                                 "shape_override": torch.IntTensor([1, 64, 16])})
+                                 "shape_override": (1, 64, 16)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(0.5),
             get_metadata(True, {"pixdim": (2.0, 2.0, 2.0)}),
             get_metadata(True, {"pixdim": (2.0, 2.0, 2.0),
-                                "shape_override": torch.IntTensor([1, 16, 16, 12])})
+                                "shape_override": (1, 16, 16, 12)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(0.5),
             get_metadata(True, {"src_pixdim": (0.5, 0.5, 0.5)}),
             get_metadata(True, {"src_pixdim": (0.5, 0.5, 0.5),
-                                "shape_override": torch.IntTensor([1, 16, 16, 12])})
+                                "shape_override": (1, 16, 16, 12)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(0.25),
             get_metadata(True, {"pixdim": (2.0, 2.0, 2.0), "src_pixdim": (0.5, 0.5, 0.5)}),
             get_metadata(True, {"pixdim": (2.0, 2.0, 2.0), "src_pixdim": (0.5, 0.5, 0.5),
-                                "shape_override": torch.IntTensor([1, 8, 8, 6])})
+                                "shape_override": (1, 8, 8, 6)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(2.0),
             get_metadata(True, {"src_pixdim": (2.0, 2.0, 2.0)}),
             get_metadata(True, {"src_pixdim": (2.0, 2.0, 2.0),
-                                "shape_override": torch.IntTensor([1, 64, 64, 48])})
+                                "shape_override": (1, 64, 64, 48)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(2.0),
             get_metadata(True, {"pixdim": (0.5, 0.5, 0.5)}),
             get_metadata(True, {"pixdim": (0.5, 0.5, 0.5),
-                                "shape_override": torch.IntTensor([1, 64, 64, 48])})
+                                "shape_override": (1, 64, 64, 48)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d(4.0),
             get_metadata(True, {"pixdim": (0.5, 0.5, 0.5), "src_pixdim": (2.0, 2.0, 2.0)}),
             get_metadata(True, {"pixdim": (0.5, 0.5, 0.5), "src_pixdim": (2.0, 2.0, 2.0),
-                                "shape_override": torch.IntTensor([1, 128, 128, 96])})
+                                "shape_override": (1, 128, 128, 96)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d((0.5, 2.0, 1/3.0)),
             get_metadata(True, {"pixdim": (2.0, 1.0, 4.5), "src_pixdim": (1.0, 2.0, 1.5)}),
             get_metadata(True, {"pixdim": (2.0, 1.0, 4.5), "src_pixdim": (1.0, 2.0, 1.5),
-                                "shape_override": torch.IntTensor([1, 16, 64, 8])})
+                                "shape_override": (1, 16, 64, 8)})
         ),
         (
             get_arange_img((32, 32, 24)),
             affine_scale_3d((2.0, 0.5, 3.0)),
             get_metadata(True, {"pixdim": (1.0, 2.0, 1.5), "src_pixdim": (2.0, 1.0, 4.5)}),
             get_metadata(True, {"pixdim": (1.0, 2.0, 1.5), "src_pixdim": (2.0, 1.0, 4.5),
-                                "shape_override": torch.IntTensor([1, 64, 16, 72])})
+                                "shape_override": (1, 64, 16, 72)})
         ),
     ]
 

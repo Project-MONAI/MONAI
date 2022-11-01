@@ -52,19 +52,19 @@ class TestFunctionalSpacing(unittest.TestCase):
             get_arange_img((32, 32)),
             affine_scale_2d(0.5),
             get_metadata(False, {"spatial_size": (16, 16)}),
-            get_metadata(False, {"spatial_size": (16, 16), "shape_override": torch.IntTensor([1, 16, 16])})
+            get_metadata(False, {"spatial_size": (16, 16), "shape_override": (1, 16, 16)})
         ),
         (
             get_arange_img((32, 32)),
             affine_scale_2d(2.0),
             get_metadata(False, {"spatial_size": (64, 64)}),
-            get_metadata(False, {"spatial_size": (64, 64), "shape_override": torch.IntTensor([1, 64, 64])})
+            get_metadata(False, {"spatial_size": (64, 64), "shape_override": (1, 64, 64)})
         ),
         (
             get_arange_img((32, 16)),
             affine_scale_2d((0.5, 1.0)),
             get_metadata(False, {"spatial_size": (16, 16)}),
-            get_metadata(False, {"spatial_size": (16, 16), "shape_override": torch.IntTensor([1, 16, 16])})
+            get_metadata(False, {"spatial_size": (16, 16), "shape_override": (1, 16, 16)})
         ),
         # 2d - "longest"
         (
@@ -72,28 +72,28 @@ class TestFunctionalSpacing(unittest.TestCase):
             affine_scale_2d((0.5)),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 16, 8])})
+                                 "shape_override": (1, 16, 8)})
         ),
         (
             get_arange_img((16, 32)),
             affine_scale_2d((0.5)),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 8, 16])})
+                                 "shape_override": (1, 8, 16)})
         ),
         (
             get_arange_img((32, 16)),
             affine_scale_2d((2.0)),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 64, 32])})
+                                 "shape_override": (1, 64, 32)})
         ),
         (
             get_arange_img((16, 32)),
             affine_scale_2d((2.0)),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 32, 64])})
+                                 "shape_override": (1, 32, 64)})
         ),
         # 3d - "all"
         (
@@ -101,14 +101,14 @@ class TestFunctionalSpacing(unittest.TestCase):
             affine_scale_3d(0.5),
             get_metadata(False, {"spatial_size": (16, 16, 8)}),
             get_metadata(False, {"spatial_size": (16, 16, 8),
-                                 "shape_override": torch.IntTensor([1, 16, 16, 8])})
+                                 "shape_override": (1, 16, 16, 8)})
         ),
         (
             get_arange_img((32, 32, 16)),
             affine_scale_3d(2.0),
             get_metadata(False, {"spatial_size": (64, 64, 32)}),
             get_metadata(False, {"spatial_size": (64, 64, 32),
-                                 "shape_override": torch.IntTensor([1, 64, 64, 32])})
+                                 "shape_override": (1, 64, 64, 32)})
         ),
         # 3d - "longest"
         (
@@ -116,42 +116,42 @@ class TestFunctionalSpacing(unittest.TestCase):
             affine_scale_3d((0.5)),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 16, 8, 4])})
+                                 "shape_override": (1, 16, 8, 4)})
         ),
         (
             get_arange_img((16, 32, 8)),
             affine_scale_3d((0.5)),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 8, 16, 4])})
+                                 "shape_override": (1, 8, 16, 4)})
         ),
         (
             get_arange_img((8, 16, 32)),
             affine_scale_3d((0.5)),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 4, 8, 16])})
+                                 "shape_override": (1, 4, 8, 16)})
         ),
         (
             get_arange_img((32, 16, 8)),
             affine_scale_3d((2.0)),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 64, 32, 16])})
+                                 "shape_override": (1, 64, 32, 16)})
         ),
         (
             get_arange_img((16, 32, 8)),
             affine_scale_3d((2.0)),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 32, 64, 16])})
+                                 "shape_override": (1, 32, 64, 16)})
         ),
         (
             get_arange_img((8, 16, 32)),
             affine_scale_3d((2.0)),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
-                                 "shape_override": torch.IntTensor([1, 16, 32, 64])})
+                                 "shape_override": (1, 16, 32, 64)})
         ),
     ]
 
