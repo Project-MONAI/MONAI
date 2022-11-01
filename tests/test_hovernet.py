@@ -155,19 +155,31 @@ def check_kernels(net, mode):
 class TestHoverNet(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shapes):
+        input_param["decoder_padding"] = False
         net = HoVerNet(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             for item in result:
                 self.assertEqual(result[item].shape, expected_shapes[item])
 
-    def test_script(self):
-        net = HoVerNet(mode=HoVerNet.Mode.FAST)
-        test_data = torch.randn(1, 3, 256, 256)
-        test_script_save(net, test_data)
+    @parameterized.expand(CASES)
+    def test_decoder_padding_shape(self, input_param, input_shape, expected_shapes):
+        if input_param["mode"] == HoVerNet.Mode.FAST:
+            input_param["decoder_padding"] = True
+            net = HoVerNet(**input_param).to(device)
+            with eval_mode(net):
+                result = net.forward(torch.randn(input_shape).to(device))
+                for item in result:
+                    expected_shape = expected_shapes[item]
+                    padding_expected_shape = list(expected_shape)
+                    padding_expected_shape[2:] = input_shape[2:]
+                    self.assertEqual(result[item].shape, tuple(padding_expected_shape))
+        else:
+            pass
 
-    def test_script_without_running_stats(self):
-        net = HoVerNet(mode=HoVerNet.Mode.FAST)
+    def test_script(self):
+        for padding_flag in [True, False]:
+            net = HoVerNet(mode=HoVerNet.Mode.FAST, decoder_padding=padding_flag)
         test_data = torch.randn(1, 3, 256, 256)
         test_script_save(net, test_data)
 

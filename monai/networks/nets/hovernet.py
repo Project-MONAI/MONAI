@@ -29,6 +29,7 @@
 
 import os
 import re
+import warnings
 from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 
@@ -418,9 +419,10 @@ class HoVerNet(nn.Module):
         out_classes: number of the nuclear type classes.
         act: activation type and arguments. Defaults to relu.
         norm: feature normalization type and arguments. Defaults to batch norm.
-        decoder_padding: whether to do padding on convolution layers in the decoders. In the referred repository,
-            the architecture is changed to do padding on convolution layers in order to get the same output size
-            as the input. This changed version is used on CoNIC challenge.
+        decoder_padding: whether to do padding on convolution layers in the decoders. In the conic branch
+            of the referred repository, the architecture is changed to do padding on convolution layers in order to
+            get the same output size as the input, and this changed version is used on CoNIC challenge.
+            Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
         dropout_prob: dropout rate after each dense layer.
         pretrained: whether to load pretrained weights for encoder.
     """
@@ -445,6 +447,11 @@ class HoVerNet(nn.Module):
         if isinstance(mode, str):
             mode = mode.upper()
         self.mode = look_up_option(mode, HoVerNetMode)
+
+        if self.mode == "ORIGINAL" and decoder_padding is True:
+            warnings.warn(
+                "'decoder_padding=True' only works when mode is 'FAST', otherwise the output size may not equal to the input."
+            )
 
         if out_classes > 128:
             raise ValueError("Number of nuclear types classes exceeds maximum (128)")
