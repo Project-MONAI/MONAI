@@ -11,13 +11,15 @@
 
 import unittest
 
+from parameterized import parameterized
+
 import numpy as np
 import torch
-from parameterized import parameterized
 
 from monai.transforms.meta_matrix import (
     Grid,
     Matrix,
+    MatrixFactory,
     is_grid_shaped,
     is_matrix_shaped,
     matmul,
@@ -25,6 +27,20 @@ from monai.transforms.meta_matrix import (
     matmul_grid_matrix_slow,
     matmul_matrix_grid,
 )
+from monai.utils import TransformBackends
+
+
+def get_matmul_2d_test_cases():
+    f = MatrixFactory(2, TransformBackends.TORCH, "cpu")
+    cases = [
+        (
+            f.rotate_euler(torch.pi / 4),
+            f.scale((0.5, 0.5)),
+            torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]])
+        )
+    ]
+
+    return cases
 
 
 class TestMatmulFunctions(unittest.TestCase):
@@ -137,6 +153,18 @@ class TestMatmulFunctions(unittest.TestCase):
     #     for case in self.GRID_SHAPE_TESTCASES:
     #         with self.subTest(f"{case[0].shape}"):
     #             self._test_is_grid_shaped_impl(*case)
+
+
+    def _test_matmul_outputs_impl(self, left, right, expected):
+        actual = matmul(left, right)
+        self.assertTrue(torch.allclose(actual.matrix.data, expected),
+                        msg=f"{actual.matrix.data} is not close to {expected}")
+
+    def test_matmul_outputs(self):
+        cases = get_matmul_2d_test_cases()
+        for case in cases:
+            self._test_matmul_outputs_impl(*case)
+
 
 
 if __name__ == "__main__":

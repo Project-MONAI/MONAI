@@ -12,17 +12,30 @@
 import unittest
 
 import torch
-from monai.utils import convert_to_tensor
+from monai.utils import convert_to_tensor, TransformBackends
 
 from monai.transforms.lazy.functional import apply
-from monai.transforms.meta_matrix import MetaMatrix
+from monai.transforms.meta_matrix import MetaMatrix, MatrixFactory
 
 
-def rotate_45_2d():
-    t = torch.eye(3)
-    t[:, 0] = torch.FloatTensor([0, -1, 0])
-    t[:, 1] = torch.FloatTensor([1, 0, 0])
-    return t
+def single_2d_transform_cases():
+    f = MatrixFactory(2, TransformBackends.TORCH, "cpu")
+
+    cases = [
+        (
+            torch.randn((1, 32, 32)),
+            [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix, {"id": "rotate"})],
+            (1, 32, 32)
+        ),
+        (
+            torch.randn((1, 16, 16)),
+            [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix,
+                        {"id": "rotate", "shape_override": (1, 45, 45)})],
+            (1, 45, 45)
+        )
+    ]
+
+    return cases
 
 
 class TestApply(unittest.TestCase):
@@ -32,29 +45,19 @@ class TestApply(unittest.TestCase):
         result = apply(tensor, pending_transforms)
         self.assertListEqual(result[1], pending_transforms)
 
-    def _test_apply_metatensor_impl(self, tensor, pending_transforms, pending_as_parameter):
-        tensor_ = convert_to_tensor(tensor)
+    def _test_apply_metatensor_impl(self, tensor, pending_transforms, expected_shape, pending_as_parameter):
+        tensor_ = convert_to_tensor(tensor, track_meta=True)
         if pending_as_parameter:
-            result = apply(tensor_, pending_transforms)
+            result, transforms = apply(tensor_, pending_transforms)
         else:
             for p in pending_transforms:
-                # TODO: cannot do the next part until the MetaTensor PR #5107 is in
-                # tensor_.push_pending(p)
-                raise NotImplementedError()
+                tensor_.push_pending_operation(p)
+            result, transforms = apply(tensor_)
 
-    def _test_apply_metatensor_impl(self, tensor, pending_transforms, pending_as_parameter):
-        tensor_ = convert_to_tensor(tensor)
-        if pending_as_parameter:
-            result = apply(tensor_, pending_transforms)
-        else:
-            for p in pending_transforms:
-                # TODO: cannot do the next part until the MetaTensor PR #5107 is in
-                # tensor_.push_pending(p)
-                raise NotImplementedError()
+        self.assertEqual(result.shape, expected_shape)
 
-    SINGLE_TRANSFORM_CASES = [
-        (torch.randn((1, 16, 16)), [MetaMatrix(rotate_45_2d(), {"id": "rotate"})])
-    ]
+
+    SINGLE_TRANSFORM_CASES = single_2d_transform_cases()
 
     def test_apply_single_transform(self):
         for case in self.SINGLE_TRANSFORM_CASES:

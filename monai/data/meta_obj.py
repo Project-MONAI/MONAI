@@ -213,6 +213,9 @@ class MetaObj:
     def pop_pending_operation(self) -> Any:
         return self._pending_operations.pop()
 
+    def clear_pending_operations(self) -> Any:
+        self._pending_operations = list()
+
     @property
     def is_batch(self) -> bool:
         """Return whether object is part of batch or not."""

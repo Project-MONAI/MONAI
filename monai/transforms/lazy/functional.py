@@ -132,7 +132,7 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
         return rd
 
     if isinstance(data, MetaTensor) and pending is None:
-        pending_ = data.pending_transforms
+        pending_ = data.pending_operations
     else:
         pending_ = [] if pending is None else pending
 
@@ -174,7 +174,7 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
             kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
 
             cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
-            a = Affine(norm_coords=False, affine=cumulative_matrix_, **kwargs)
+            a = Affine(affine=cumulative_matrix_, **kwargs)
             data, _ = a(img=data)
 
             cumulative_matrix, cumulative_extents = starting_matrix_and_extents(matrix_factory, data)
@@ -190,12 +190,12 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
     cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
 
     # print(f"applying with cumulative matrix\n {cumulative_matrix_}")
-    a = Affine(norm_coords=False, affine=cumulative_matrix_, spatial_size=cur_shape[1:], normalized=False, **kwargs)
+    a = Affine(affine=cumulative_matrix_, spatial_size=cur_shape[1:], normalized=False, **kwargs)
     data, tx = a(img=data)
     if isinstance(data, MetaTensor):
-        data.clear_pending_transforms()
+        data.clear_pending_operations()
         for p in pending_:
             data.affine = p.matrix.data
             data.push_applied_operation(p)
 
-    return data, pending_
+    return data, None if pending is None else pending_
