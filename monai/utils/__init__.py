@@ -34,6 +34,7 @@ from .enums import (
     InterpolateMode,
     InverseKeys,
     JITMetadataKeys,
+    LazyAttr,
     LossReduction,
     MetaKeys,
     Method,

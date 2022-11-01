@@ -9,7 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .array import GenerateInstanceCentroid, GenerateInstanceContour, GenerateInstanceType, GenerateSuccinctContour
+from .array import (
+    GenerateInstanceCentroid, 
+    GenerateInstanceContour, 
+    GenerateInstanceType, 
+    GenerateSuccinctContour,
+    GenerateDistanceMap,
+    GenerateInstanceBorder,
+    GenerateWatershedMarkers,
+    GenerateWatershedMask,
+    Watershed,
+)
 from .dictionary import (
     GenerateInstanceCentroidD,
     GenerateInstanceCentroidd,
@@ -23,4 +33,19 @@ from .dictionary import (
     GenerateSuccinctContourD,
     GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
+    GenerateDistanceMapD,
+    GenerateDistanceMapd,
+    GenerateDistanceMapDict,
+    GenerateInstanceBorderD,
+    GenerateInstanceBorderd,
+    GenerateInstanceBorderDict,
+    GenerateWatershedMarkersD,
+    GenerateWatershedMarkersd,
+    GenerateWatershedMarkersDict,
+    GenerateWatershedMaskD,
+    GenerateWatershedMaskd,
+    GenerateWatershedMaskDict,
+    WatershedD,
+    Watershedd,
+    WatershedDict,
 )

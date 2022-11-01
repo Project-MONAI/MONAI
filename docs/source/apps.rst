@@ -139,6 +139,16 @@ Applications
     :members:
 .. autoclass:: GenerateInstanceType
     :members:
+.. autoclass:: Watershed
+    :members:
+.. autoclass:: GenerateWatershedMask
+    :members:
+.. autoclass:: GenerateInstanceBorder
+    :members:
+.. autoclass:: GenerateDistanceMap
+    :members:
+.. autoclass:: GenerateWatershedMarkers
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: GenerateSuccinctContourd
@@ -148,6 +158,16 @@ Applications
 .. autoclass:: GenerateInstanceCentroidd
     :members:
 .. autoclass:: GenerateInstanceTyped
+    :members:
+.. autoclass:: Watershedd
+    :members:
+.. autoclass:: GenerateWatershedMaskd
+    :members:
+.. autoclass:: GenerateInstanceBorderd
+    :members:
+.. autoclass:: GenerateDistanceMapd
+    :members:
+.. autoclass:: GenerateWatershedMarkersd
     :members:
 
 `Detection`

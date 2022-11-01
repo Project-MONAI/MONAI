@@ -65,6 +65,8 @@ class TestLoadSaveNifti(unittest.TestCase):
                 _test_data = test_data[0]
             if resample:
                 _test_data = moveaxis(_test_data, 0, 1)
+            assert_allclose(meta["qform_code"], 1, type_test=False)
+            assert_allclose(meta["sform_code"], 1, type_test=False)
             assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
