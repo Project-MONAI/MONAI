@@ -18,7 +18,7 @@ from monai.networks.layers import GaussianFilter
 
 from monai.networks.utils import meshgrid_ij
 
-from monai.transforms import create_grid, create_rotate, create_translate, map_spatial_axes
+from monai.transforms import create_grid, create_rotate
 from monai.config import DtypeLike
 from monai.data import get_track_meta
 from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents

@@ -69,28 +69,28 @@ class TestFunctionalSpacing(unittest.TestCase):
         # 2d - "longest"
         (
             get_arange_img((32, 16)),
-            affine_scale_2d((0.5)),
+            affine_scale_2d(0.5),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
                                  "shape_override": (1, 16, 8)})
         ),
         (
             get_arange_img((16, 32)),
-            affine_scale_2d((0.5)),
+            affine_scale_2d(0.5),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
                                  "shape_override": (1, 8, 16)})
         ),
         (
             get_arange_img((32, 16)),
-            affine_scale_2d((2.0)),
+            affine_scale_2d(2.0),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
                                  "shape_override": (1, 64, 32)})
         ),
         (
             get_arange_img((16, 32)),
-            affine_scale_2d((2.0)),
+            affine_scale_2d(2.0),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
                                  "shape_override": (1, 32, 64)})
@@ -113,42 +113,42 @@ class TestFunctionalSpacing(unittest.TestCase):
         # 3d - "longest"
         (
             get_arange_img((32, 16, 8)),
-            affine_scale_3d((0.5)),
+            affine_scale_3d(0.5),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
                                  "shape_override": (1, 16, 8, 4)})
         ),
         (
             get_arange_img((16, 32, 8)),
-            affine_scale_3d((0.5)),
+            affine_scale_3d(0.5),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
                                  "shape_override": (1, 8, 16, 4)})
         ),
         (
             get_arange_img((8, 16, 32)),
-            affine_scale_3d((0.5)),
+            affine_scale_3d(0.5),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 16, "size_mode": "longest",
                                  "shape_override": (1, 4, 8, 16)})
         ),
         (
             get_arange_img((32, 16, 8)),
-            affine_scale_3d((2.0)),
+            affine_scale_3d(2.0),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
                                  "shape_override": (1, 64, 32, 16)})
         ),
         (
             get_arange_img((16, 32, 8)),
-            affine_scale_3d((2.0)),
+            affine_scale_3d(2.0),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
                                  "shape_override": (1, 32, 64, 16)})
         ),
         (
             get_arange_img((8, 16, 32)),
-            affine_scale_3d((2.0)),
+            affine_scale_3d(2.0),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest"}),
             get_metadata(False, {"spatial_size": 64, "size_mode": "longest",
                                  "shape_override": (1, 16, 32, 64)})
