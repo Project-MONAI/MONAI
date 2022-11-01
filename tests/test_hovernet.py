@@ -61,6 +61,97 @@ ILL_CASES = [
 ]
 
 
+def check_branch(branch, mode):
+    if mode == HoVerNet.Mode.ORIGINAL:
+        ksize = 5
+    else:
+        ksize = 3
+
+    if branch.decoderblock1.conva.kernel_size != (ksize, ksize):
+        return True
+    if branch.decoderblock1.convf.kernel_size != (1, 1):
+        return True
+    for block in branch.decoderblock1:
+        if type(block) is HoVerNet._DenseLayerDecoder:
+            if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
+                return True
+
+    if branch.decoderblock2.conva.kernel_size != (ksize, ksize):
+        return True
+    if branch.decoderblock2.convf.kernel_size != (1, 1):
+        return True
+
+    for block in branch.decoderblock2:
+        if type(block) is HoVerNet._DenseLayerDecoder:
+            if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
+                return True
+
+    return False
+
+
+def check_output(out_block, mode):
+    if mode == HoVerNet.Mode.ORIGINAL:
+        ksize = 5
+    else:
+        ksize = 3
+
+    if out_block.decoderblock3.conva.kernel_size != (ksize, ksize) or out_block.decoderblock3.conva.stride != (1, 1):
+        return True
+    if out_block.decoderblock4.conv.kernel_size != (1, 1) or out_block.decoderblock4.conv.stride != (1, 1):
+        return True
+
+
+def check_kernels(net, mode):
+    # Check the Encoder blocks
+    for layer_num, res_block in enumerate(net.res_blocks):
+        for inner_num, layer in enumerate(res_block.layers):
+            if layer_num > 0 and inner_num == 0:
+                sz = 2
+            else:
+                sz = 1
+
+            if (
+                layer.layers.conv1.kernel_size != (1, 1)
+                or layer.layers.conv2.kernel_size != (3, 3)
+                or layer.layers.conv3.kernel_size != (1, 1)
+            ):
+                return True
+
+            if (
+                layer.layers.conv1.stride != (1, 1)
+                or layer.layers.conv2.stride != (sz, sz)
+                or layer.layers.conv3.stride != (1, 1)
+            ):
+                return True
+
+        sz2 = 1
+        if layer_num > 0:
+            sz2 = 2
+        if res_block.shortcut.kernel_size != (1, 1) or res_block.shortcut.stride != (sz2, sz2):
+            return True
+
+    if net.bottleneck.conv_bottleneck.kernel_size != (1, 1) or net.bottleneck.conv_bottleneck.stride != (1, 1):
+        return True
+
+    # Check HV Branch
+    if check_branch(net.horizontal_vertical.decoder_blocks, mode):
+        return True
+    if check_output(net.horizontal_vertical.output_features, mode):
+        return True
+
+    # Check NP Branch
+    if check_branch(net.nucleus_prediction.decoder_blocks, mode):
+        return True
+    if check_output(net.nucleus_prediction.output_features, mode):
+        return True
+
+    # Check NC Branch
+    if check_branch(net.type_prediction.decoder_blocks, mode):
+        return True
+    if check_output(net.type_prediction.output_features, mode):
+        return True
+
+
 class TestHoverNet(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shapes):
@@ -85,6 +176,15 @@ class TestHoverNet(unittest.TestCase):
         with eval_mode(net):
             with self.assertRaises(ValueError):
                 net.forward(torch.randn(1, 3, 270, 260))
+
+    def check_kernels_strides(self):
+        net = HoVerNet(mode=HoVerNet.Mode.FAST)
+        with eval_mode(net):
+            self.assertEqual(check_kernels(net, HoVerNet.Mode.FAST), False)
+
+        net = HoVerNet(mode=HoVerNet.Mode.ORIGINAL)
+        with eval_mode(net):
+            self.assertEqual(check_kernels(net, HoVerNet.Mode.ORIGINAL), False)
 
     @parameterized.expand(ILL_CASES)
     def test_ill_input_hyper_params(self, input_param):
