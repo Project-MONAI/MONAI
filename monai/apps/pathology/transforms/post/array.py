@@ -9,21 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union, Callable
+from typing import Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
-from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import sum, unique
-from monai.utils import convert_to_numpy, optional_import
-from monai.utils.enums import TransformBackends
-from monai.utils.misc import ensure_tuple_rep
-from monai.utils.type_conversion import convert_to_dst_type
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min
+from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
+from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
@@ -347,6 +342,7 @@ class GenerateSuccinctContour(Transform):
         the pixels that need to be joined by straight lines to describe the outmost pixels of the foreground similar to
             OpenCV's cv.CHAIN_APPROX_SIMPLE (anti-clockwise)
     """
+
     def __init__(self, height: int, width: int) -> None:
         self.height = height
         self.width = width

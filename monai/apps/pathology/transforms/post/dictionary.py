@@ -16,13 +16,13 @@ import numpy as np
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
     GenerateInstanceBorder,
-    GenerateWatershedMarkers,
-    GenerateWatershedMask,
-    Watershed,
     GenerateInstanceCentroid,
     GenerateInstanceContour,
     GenerateInstanceType,
     GenerateSuccinctContour,
+    GenerateWatershedMarkers,
+    GenerateWatershedMask,
+    Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.transforms.transform import MapTransform
@@ -478,7 +478,6 @@ class GenerateInstanceTyped(MapTransform):
                 raise KeyError(f"Type information with key {key_to_add} already exists.")
             d[key_to_add] = {"inst_type": instance_type, "type_prob": type_prob}
         return d
-
 
 
 WatershedD = WatershedDict = Watershedd

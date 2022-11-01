@@ -10,17 +10,23 @@
 # limitations under the License.
 
 from .array import (
+    GenerateDistanceMap,
+    GenerateInstanceBorder,
     GenerateInstanceCentroid,
     GenerateInstanceContour,
     GenerateInstanceType,
     GenerateSuccinctContour,
-    GenerateDistanceMap,
-    GenerateInstanceBorder,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
 )
 from .dictionary import (
+    GenerateDistanceMapD,
+    GenerateDistanceMapd,
+    GenerateDistanceMapDict,
+    GenerateInstanceBorderD,
+    GenerateInstanceBorderd,
+    GenerateInstanceBorderDict,
     GenerateInstanceCentroidD,
     GenerateInstanceCentroidd,
     GenerateInstanceCentroidDict,
@@ -33,12 +39,6 @@ from .dictionary import (
     GenerateSuccinctContourD,
     GenerateSuccinctContourd,
     GenerateSuccinctContourDict,
-    GenerateDistanceMapD,
-    GenerateDistanceMapd,
-    GenerateDistanceMapDict,
-    GenerateInstanceBorderD,
-    GenerateInstanceBorderd,
-    GenerateInstanceBorderDict,
     GenerateWatershedMarkersD,
     GenerateWatershedMarkersd,
     GenerateWatershedMarkersDict,
