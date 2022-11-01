@@ -105,7 +105,7 @@ Metrics
     :members:
 
 `PanopticQualityMetric`
---------------
+-----------------------
 .. autofunction:: compute_panoptic_quality
 
 .. autoclass:: PanopticQualityMetric
