@@ -490,4 +490,3 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
-

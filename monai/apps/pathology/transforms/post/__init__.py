@@ -10,9 +10,9 @@
 # limitations under the License.
 
 from .array import (
-    GenerateInstanceCentroid, 
-    GenerateInstanceContour, 
-    GenerateInstanceType, 
+    GenerateInstanceCentroid,
+    GenerateInstanceContour,
+    GenerateInstanceType,
     GenerateSuccinctContour,
     GenerateDistanceMap,
     GenerateInstanceBorder,
