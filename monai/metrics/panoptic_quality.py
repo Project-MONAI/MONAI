@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Union
+from typing import List, Union
 
 import torch
 
@@ -184,21 +184,23 @@ def compute_panoptic_quality(
 
     pairwise_iou, true_id_list, pred_id_list = _get_pairwise_iou(pred, gt)
     paired_iou, paired_true, paired_pred = _get_paired_iou(pairwise_iou, match_iou)
+    return paired_pred
 
-    unpaired_true = [idx for idx in true_id_list[1:] if idx not in paired_true]
-    unpaired_pred = [idx for idx in pred_id_list[1:] if idx not in paired_pred]
 
-    tp, fp, fn = len(paired_true), len(unpaired_pred), len(unpaired_true)
-    iou_sum = paired_iou.sum()
+#     unpaired_true = [idx for idx in true_id_list[1:] if idx not in paired_true]
+#     unpaired_pred = [idx for idx in pred_id_list[1:] if idx not in paired_pred]
 
-    if output_confusion_matrix:
-        return torch.as_tensor([tp, fp, fn, iou_sum])
+#     tp, fp, fn = len(paired_true), len(unpaired_pred), len(unpaired_true)
+#     iou_sum = paired_iou.sum()
 
-    rq = tp / (tp + 0.5 * fp + 0.5 * fn + smooth_nr)
-    sq = iou_sum / (tp + smooth_nr)
-    pq = sq * rq
+#     if output_confusion_matrix:
+#         return torch.as_tensor([tp, fp, fn, iou_sum])
 
-    return torch.as_tensor([pq, sq, rq])
+#     rq = tp / (tp + 0.5 * fp + 0.5 * fn + smooth_nr)
+#     sq = iou_sum / (tp + smooth_nr)
+#     pq = sq * rq
+
+#     return torch.as_tensor([pq, sq, rq])
 
 
 def _get_id_list(gt: torch.Tensor):
@@ -215,8 +217,8 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor):
     true_id_list = _get_id_list(gt)
 
     pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float)
-    true_masks: List[Optional[torch.Tensor]] = [None]
-    pred_masks: List[Optional[torch.Tensor]] = [None]
+    true_masks: List[torch.Tensor] = []
+    pred_masks: List[torch.Tensor] = []
 
     for t in true_id_list[1:]:
         t_mask = torch.as_tensor(gt == t).int()
@@ -227,13 +229,13 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor):
         pred_masks.append(p_mask)
 
     for true_id in range(1, len(true_id_list)):
-        t_mask = true_masks[true_id]
+        t_mask = true_masks[true_id - 1]
         pred_true_overlap = pred[t_mask > 0]
         pred_true_overlap_id = list(pred_true_overlap.unique())
         for pred_id in pred_true_overlap_id:
             if pred_id == 0:
                 continue
-            p_mask = pred_masks[pred_id]
+            p_mask = pred_masks[pred_id - 1]
             total = (t_mask + p_mask).sum()
             inter = (t_mask * p_mask).sum()
             iou = inter / (total - inter)
@@ -256,8 +258,8 @@ def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou: float = 0.5):
     pairwise_iou = pairwise_iou.numpy()
     paired_true, paired_pred = linear_sum_assignment(-pairwise_iou)
     paired_iou = pairwise_iou[paired_true, paired_pred]
-    paired_true = list(paired_true[paired_iou > match_iou] + 1)
-    paired_pred = list(paired_pred[paired_iou > match_iou] + 1)
+    paired_true = torch.as_tensor(list(paired_true[paired_iou > match_iou] + 1))
+    paired_pred = torch.as_tensor(list(paired_pred[paired_iou > match_iou] + 1))
     paired_iou = paired_iou[paired_iou > match_iou]
 
     return paired_iou, paired_true, paired_pred
