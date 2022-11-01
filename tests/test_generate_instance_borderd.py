@@ -22,7 +22,6 @@ TESTS = []
 
 np.random.RandomState(123)
 
-
 for p in TEST_NDARRAYS:
     EXCEPTION_TESTS.append(
         [

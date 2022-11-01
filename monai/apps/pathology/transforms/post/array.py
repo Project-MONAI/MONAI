@@ -60,7 +60,7 @@ class Watershed(Transform):
         self.connectivity = connectivity
         self.dtype = dtype
 
-    def __call__(  # type: ignore
+    def __call__(
         self, image: NdarrayOrTensor, mask: Optional[NdarrayOrTensor] = None, markers: Optional[NdarrayOrTensor] = None
     ) -> NdarrayOrTensor:
         """
