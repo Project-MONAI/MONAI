@@ -73,8 +73,7 @@ class _DenseLayerDecoder(nn.Module):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
-            same_padding: whether to do padding for >1 convolutions to ensure
-                the output size is the same as the input size.
+            padding: padding value for >1 convolutions.
         """
         super().__init__()
 
@@ -365,7 +364,6 @@ class _DecoderBranch(nn.ModuleList):
         )
 
         self.output_features.add_module(f"decoderblock{_i + 1}", _seq_block)
-        self.same_padding = same_padding
 
         _seq_block = nn.Sequential(
             OrderedDict(
