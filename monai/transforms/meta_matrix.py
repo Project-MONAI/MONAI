@@ -49,7 +49,7 @@ class MatrixFactory:
             self._sin = lambda th: np.sin(th, dtype=np.float32)
             self._cos = lambda th: np.cos(th, dtype=np.float32)
             self._eye = lambda th: np.eye(th, dtype=np.float32)
-            self._diag = lambda th: np.diag(th, dtype=np.float32)
+            self._diag = lambda th: np.diag(th).astype(np.float32)
         else:
             if device is None:
                 raise ValueError("'device' must be set with TransformBackends.TORCH")

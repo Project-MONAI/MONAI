@@ -59,7 +59,7 @@ def shape_from_extents(
     mins = aextents.min(axis=0)[0]
     maxes = aextents.max(axis=0)[0]
     values = torch.round(maxes - mins).type(torch.IntTensor)[:-1]
-    return torch.cat((torch.as_tensor([src_shape[0]]), values))
+    return torch.cat((torch.IntTensor([src_shape[0]]), values))
 
 
 def metadata_is_compatible(value_1, value_2):
