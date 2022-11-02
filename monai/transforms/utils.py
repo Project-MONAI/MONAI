@@ -763,6 +763,7 @@ def _create_rotate(
     raise ValueError(f"Unsupported spatial_dims: {spatial_dims}, available options are [2, 3].")
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def _create_rotate_90(
         spatial_dims: int,
         axis: Tuple[int, int],
@@ -798,6 +799,7 @@ def _create_rotate_90(
     return affine
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def _create_flip(
         spatial_dims: int,
         spatial_axis: Union[Sequence[int], int],
