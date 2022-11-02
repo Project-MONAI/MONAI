@@ -54,7 +54,7 @@ jobs:
         git config --global --add safe.directory /__w/MONAI/MONAI
         git clean -ffdx
         df -h
-        python -m pip cache info
+        # python -m pip cache info
         export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
         echo "Sleep $LAUNCH_DELAY"
         sleep $LAUNCH_DELAY
