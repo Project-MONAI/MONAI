@@ -9,6 +9,44 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# placeholder to be replaced by apply in Apply And Resample PR #5436
+from typing import Sequence, Union
+
+import itertools as it
+
+import numpy as np
+
+import torch
+
+
+# placeholder that will conflict with PR Replacement Apply and Resample #5436
 def apply(*args, **kwargs):
     raise NotImplementedError()
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+def extents_from_shape(shape, dtype=np.float32):
+    extents = [[0, shape[i]] for i in range(1, len(shape))]
+
+    extents = it.product(*extents)
+    return [np.asarray(e + (1,), dtype=dtype) for e in extents]
+
+
+def shape_from_extents(
+    src_shape: Sequence, extents: Union[Sequence[np.ndarray], Sequence[torch.Tensor], np.ndarray, torch.Tensor]
+):
+    if isinstance(extents, (list, tuple)):
+        if isinstance(extents[0], np.ndarray):
+            aextents = np.asarray(extents)
+        else:
+            aextents = torch.stack(extents)
+            aextents = aextents.numpy()
+    else:
+        if isinstance(extents, np.ndarray):
+            aextents = extents
+        else:
+            aextents = extents.numpy()
+
+    mins = aextents.min(axis=0)
+    maxes = aextents.max(axis=0)
+    values = np.round(maxes - mins).astype(int)[:-1].tolist()
+    return (src_shape[0],) + tuple(values)
