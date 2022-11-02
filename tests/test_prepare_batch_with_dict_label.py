@@ -30,7 +30,7 @@ class TestNet(torch.nn.Module):
         return {HoVerNetBranch.NP: torch.tensor([1, 2]), HoVerNetBranch.NC: torch.tensor([4, 4]), HoVerNetBranch.HV: 16}
 
 
-class TestPrepareBatchExtraInput(unittest.TestCase):
+class TestPrepareBatchWithDictLabel(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
