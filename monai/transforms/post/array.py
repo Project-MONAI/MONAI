@@ -14,16 +14,17 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 """
 
 import warnings
-from typing import Callable, Iterable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
-from monai.networks.layers import GaussianFilter, apply_filter
+from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
 from monai.transforms.utils import (
@@ -821,13 +822,18 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel horizontal and vertical gradients
+    """Calculate Sobel gradients of a grayscale image with the shape of (CxH[xWxDx...]).
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
-        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
-        device: the device to create the kernel on. Defaults to `"cpu"`.
 
     """
 
@@ -836,36 +842,90 @@ class SobelGradients(Transform):
     def __init__(
         self,
         kernel_size: int = 3,
-        padding: Union[int, str] = "same",
+        spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
+        padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
-        device: Union[torch.device, int, str] = "cpu",
     ) -> None:
         super().__init__()
-        self.kernel: torch.Tensor = self._get_kernel(kernel_size, dtype, device)
-        self.padding = padding
+        self.padding = padding_mode
+        self.spatial_axes = spatial_axes
+        self.normalize_kernels = normalize_kernels
+        self.normalize_gradients = normalize_gradients
+        self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype)
 
-    def _get_kernel(self, size, dtype, device) -> torch.Tensor:
+    def _get_kernel(self, size, dtype) -> Tuple[torch.Tensor, torch.Tensor]:
+        if size < 3:
+            raise ValueError(f"Sobel kernel size should be at least three. {size} was given.")
         if size % 2 == 0:
             raise ValueError(f"Sobel kernel size should be an odd number. {size} was given.")
-        if not dtype.is_floating_point:
-            raise ValueError(f"`dtype` for Sobel kernel should be floating point. {dtype} was given.")
 
-        numerator: torch.Tensor = torch.arange(
-            -size // 2 + 1, size // 2 + 1, dtype=dtype, device=device, requires_grad=False
-        ).expand(size, size)
-        denominator = numerator * numerator
-        denominator = denominator + denominator.T
-        denominator[:, size // 2] = 1.0  # to avoid division by zero
-        kernel = numerator / denominator
-        return kernel
+        kernel_diff = torch.tensor([[[-1, 0, 1]]], dtype=dtype)
+        kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+        kernel_expansion = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+
+        if self.normalize_kernels:
+            if not dtype.is_floating_point:
+                raise ValueError(
+                    f"`dtype` for Sobel kernel should be floating point when `normalize_kernel==True`. {dtype} was given."
+                )
+            kernel_diff /= 2.0
+            kernel_smooth /= 4.0
+            kernel_expansion /= 4.0
+
+        # Expand the kernel to larger size than 3
+        expand = (size - 3) // 2
+        for _ in range(expand):
+            kernel_diff = F.conv1d(kernel_diff, kernel_expansion, padding=2)
+            kernel_smooth = F.conv1d(kernel_smooth, kernel_expansion, padding=2)
+
+        return kernel_diff.squeeze(), kernel_smooth.squeeze()
 
     def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
         image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
-        kernel_v = self.kernel.to(image_tensor.device)
-        kernel_h = kernel_v.T
-        image_tensor = image_tensor.unsqueeze(0)  # adds a batch dim
-        grad_v = apply_filter(image_tensor, kernel_v, padding=self.padding)
-        grad_h = apply_filter(image_tensor, kernel_h, padding=self.padding)
-        grad = torch.cat([grad_h, grad_v], dim=1)
-        grad, *_ = convert_to_dst_type(grad.squeeze(0), image_tensor)
-        return grad
+
+        # Check/set spatial axes
+        n_spatial_dims = image_tensor.ndim - 1  # excluding the channel dimension
+        valid_spatial_axes = list(range(n_spatial_dims)) + list(range(-n_spatial_dims, 0))
+
+        # Check gradient axes to be valid
+        if self.spatial_axes is None:
+            spatial_axes = list(range(n_spatial_dims))
+        else:
+            invalid_axis = set(ensure_tuple(self.spatial_axes)) - set(valid_spatial_axes)
+            if invalid_axis:
+                raise ValueError(
+                    f"The provide axes to calculate gradient is not valid: {invalid_axis}. "
+                    f"The image has {n_spatial_dims} spatial dimensions so it should be: {valid_spatial_axes}."
+                )
+            spatial_axes = [ax % n_spatial_dims if ax < 0 else ax for ax in ensure_tuple(self.spatial_axes)]
+
+        # Add batch dimension for separable_filtering
+        image_tensor = image_tensor.unsqueeze(0)
+
+        # Get the Sobel kernels
+        kernel_diff = self.kernel_diff.to(image_tensor.device)
+        kernel_smooth = self.kernel_smooth.to(image_tensor.device)
+
+        # Calculate gradient
+        grad_list = []
+        for ax in spatial_axes:
+            kernels = [kernel_smooth] * n_spatial_dims
+            kernels[ax - 1] = kernel_diff
+            grad = separable_filtering(image_tensor, kernels, mode=self.padding)
+            if self.normalize_gradients:
+                grad_min = grad.min()
+                if grad_min != grad.max():
+                    grad -= grad_min
+                grad_max = grad.max()
+                if grad_max > 0:
+                    grad /= grad_max
+            grad_list.append(grad)
+
+        grads = torch.cat(grad_list, dim=1)
+
+        # Remove batch dimension and convert the gradient type to be the same as input image
+        grads = convert_to_dst_type(grads.squeeze(0), image_tensor)[0]
+
+        return grads
