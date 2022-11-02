@@ -8,6 +8,7 @@ on:
       - main
       - releasing/*
       - feature/*
+      - dev
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -17,7 +18,7 @@ concurrency:
 jobs:
   # caching of these jobs:
   #   - docker-py3-pip- (shared)
-  #   - ubuntu 37 38 39-pip-
+  #   - ubuntu 37 38 39 310-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
     if: github.repository == 'Project-MONAI/MONAI'
@@ -55,9 +56,6 @@ jobs:
         git clean -ffdx
         df -h
         # python -m pip cache info
-        export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
-        echo "Sleep $LAUNCH_DELAY"
-        sleep $LAUNCH_DELAY
         nvidia-smi
         export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
