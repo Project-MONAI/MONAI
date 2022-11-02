@@ -16,7 +16,6 @@ import numpy as np
 import torch
 from monai.networks.layers import GaussianFilter
 
-from monai.networks.utils import meshgrid_ij
 
 from monai.transforms import create_grid, create_rotate
 from monai.config import DtypeLike
