@@ -20,9 +20,9 @@ from monai.networks.utils import meshgrid_ij
 
 from monai.transforms import create_grid, create_rotate
 from monai.config import DtypeLike
-from monai.data import get_track_meta
-from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents
-from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners
+from monai.data import get_track_meta, MetaTensor
+from monai.transforms.lazy.functional import extents_from_shape, shape_from_extents, apply
+from monai.transforms.meta_matrix import MatrixFactory, apply_align_corners, MetaMatrix
 from monai.utils import (
     convert_to_tensor,
     ensure_tuple,
@@ -38,11 +38,49 @@ from monai.utils import (
 )
 
 
+def lazily_apply_op(
+        tensor, op, lazy_evaluation
+) -> Union[MetaTensor, Tuple[torch.Tensor, Optional[MetaMatrix]]]:
+    """
+    This function is intended for use only by developers of spatial functional transforms that
+    can be lazily executed.
+
+    This function will immediately apply the op to the given tensor if `lazy_evaluation` is set to
+    False. Its precise behaviour depends on whether it is passed a Tensor or MetaTensor:
+
+
+    If passed a Tensor, it returns a tuple of Tensor, MetaMatrix:
+     - if the operation was applied, Tensor, None is returned
+     - if the operation was not applied, Tensor, MetaMatrix is returned
+
+    If passed a MetaTensor, only the tensor itself is returned
+
+    Args:
+          tensor: the tensor to have the operation lazily applied to
+          op: the MetaMatrix containing the transform and metadata
+          lazy_evaluation: a boolean flag indicating whether to apply the operation lazily
+    """
+    if isinstance(tensor, MetaTensor):
+        tensor.push_pending_operation(op)
+        if lazy_evaluation is False:
+            result = apply(tensor)
+            return result
+        else:
+            return tensor
+    else:
+        if lazy_evaluation is False:
+            result = apply(tensor, [op])
+            return result, None
+        else:
+            return tensor, op
+
+
 def identity(
     img: torch.Tensor,
     mode: Optional[Union[InterpolateMode, str]] = None,
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = None,
-    dtype: Optional[Union[DtypeLike, torch.dtype]] = None
+    dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+    lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -58,7 +96,8 @@ def identity(
     if padding_mode_ is not None:
         metadata["padding_mode"] = padding_mode_
     metadata["dtype"] = dtype_
-    return img_, transform, metadata
+
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def spacing(
@@ -70,7 +109,8 @@ def spacing(
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
     align_corners: Optional[bool] = False,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-    shape_override: Optional[Sequence] = None
+    shape_override: Optional[Sequence[int]] = None,
+    lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
@@ -129,7 +169,8 @@ def spacing(
         # "im_extents": im_extents,
         "shape_override": shape_override_
     }
-    return img_, transform, metadata
+
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def orientation(
@@ -141,7 +182,8 @@ def orientation(
 def flip(
         img: torch.Tensor,
         spatial_axis: Union[Sequence[int], int],
-        shape_override: Optional[Sequence] = None
+        shape_override: Optional[Sequence] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
     input_shape = img_.shape if shape_override is None else shape_override
@@ -160,7 +202,7 @@ def flip(
         # "im_extents": im_extents,
         "shape_override": shape_override
     }
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def resize(
@@ -172,7 +214,8 @@ def resize(
     anti_aliasing: Optional[bool] = None,
     anti_aliasing_sigma: Optional[Union[Sequence[float], float]] = None,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-    shape_override: Optional[Sequence] = None
+    shape_override: Optional[Sequence[int]] = None,
+    lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
@@ -240,7 +283,7 @@ def resize(
         # "im_extents": im_extents,
         "shape_override": shape_override_
     }
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def rotate(
@@ -251,7 +294,8 @@ def rotate(
     padding_mode: Optional[Union[NumpyPadMode, GridSamplePadMode, str]] = NumpyPadMode.EDGE,
     align_corners: Optional[bool] = False,
     dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-    shape_override: Optional[Sequence] = None
+    shape_override: Optional[Sequence[int]] = None,
+    lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
@@ -313,7 +357,7 @@ def rotate(
         # "im_extents": im_extents,
         "shape_override": spatial_shape
     }
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def zoom(
@@ -324,7 +368,8 @@ def zoom(
         align_corners: Optional[bool] = False,
         keep_size: Optional[bool] = True,
         dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
-        shape_override: Optional[Sequence] = None
+        shape_override: Optional[Sequence[int]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     """
     Args:
@@ -361,6 +406,12 @@ def zoom(
     else:
         shape_override_ = input_shape
 
+    if align_corners is True:
+        transform_ = apply_align_corners(transform, shape_override_[1:],
+                                        MatrixFactory.from_tensor(img_)).matrix.data
+    else:
+        transform_ = transform
+
     metadata = {
         "factor": zoom_factors,
         "mode": mode_,
@@ -370,17 +421,18 @@ def zoom(
         "dtype": dtype_,
         "im_extents": im_extents
     }
-    if keep_size is False or align_corners is True:
+    if keep_size is False:
         metadata["shape_override"] = shape_override_
 
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def rotate90(
         img: torch.Tensor,
         k: Optional[int] = 1,
         spatial_axes: Optional[Tuple[int, int]] = (0, 1),
-        shape_override: Optional[bool] = None
+        shape_override: Optional[Sequence[int]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     if len(spatial_axes) != 2:
         raise ValueError("'spatial_axes' must be a tuple of two integers indicating")
@@ -398,46 +450,48 @@ def rotate90(
         "spatial_axes": spatial_axes,
         "shape_override": shape_override
     }
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
-def grid_distortion(
-        img: torch.Tensor,
-        num_cells: Union[Tuple[int], int],
-        distort_steps: Sequence[Sequence[float]],
-        mode: str = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        shape_override: Optional[Tuple[int]] = None
-):
-    all_ranges = []
-    num_cells = ensure_tuple_rep(num_cells, len(img.shape) - 1)
-    for dim_idx, dim_size in enumerate(img.shape[1:]):
-        dim_distort_steps = distort_steps[dim_idx]
-        ranges = torch.zeros(dim_size, dtype=torch.float32)
-        cell_size = dim_size // num_cells[dim_idx]
-        prev = 0
-        for idx in range(num_cells[dim_idx] + 1):
-            start = int(idx * cell_size)
-            end = start + cell_size
-            if end > dim_size:
-                end = dim_size
-                cur = dim_size
-            else:
-                cur = prev + cell_size * dim_distort_steps[idx]
-            prev = cur
-        ranges = range - (dim_size - 1.0) / 2.0
-        all_ranges.append()
-    coords = meshgrid_ij(*all_ranges)
-    grid = torch.stack([*coords, torch.ones_like(coords[0])])
-
-    metadata = {
-        "num_cells": num_cells,
-        "distort_steps": distort_steps,
-        "mode": mode,
-        "padding_mode": padding_mode
-    }
-
-    return img, grid, metadata
+# TODO: Needs a second look
+# def grid_distortion(
+#         img: torch.Tensor,
+#         num_cells: Union[Tuple[int], int],
+#         distort_steps: Sequence[Sequence[float]],
+#         mode: str = GridSampleMode.BILINEAR,
+#         padding_mode: str = GridSamplePadMode.BORDER,
+#         shape_override: Optional[Sequence[int]] = None,
+#         lazy_evaluation: Optional[bool] = True
+# ):
+#     all_ranges = []
+#     num_cells = ensure_tuple_rep(num_cells, len(img.shape) - 1)
+#     for dim_idx, dim_size in enumerate(img.shape[1:]):
+#         dim_distort_steps = distort_steps[dim_idx]
+#         ranges = torch.zeros(dim_size, dtype=torch.float32)
+#         cell_size = dim_size // num_cells[dim_idx]
+#         prev = 0
+#         for idx in range(num_cells[dim_idx] + 1):
+#             start = int(idx * cell_size)
+#             end = start + cell_size
+#             if end > dim_size:
+#                 end = dim_size
+#                 cur = dim_size
+#             else:
+#                 cur = prev + cell_size * dim_distort_steps[idx]
+#             prev = cur
+#         ranges = range - (dim_size - 1.0) / 2.0
+#         all_ranges.append()
+#     coords = meshgrid_ij(*all_ranges)
+#     grid = torch.stack([*coords, torch.ones_like(coords[0])])
+#
+#     metadata = {
+#         "num_cells": num_cells,
+#         "distort_steps": distort_steps,
+#         "mode": mode,
+#         "padding_mode": padding_mode
+#     }
+#
+#     return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)
 
 
 def elastic_3d(
@@ -449,7 +503,8 @@ def elastic_3d(
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.REFLECTION,
         device: Optional[torch.device] = None,
-        shape_override: Optional[Tuple[float]] = None
+        shape_override: Optional[Tuple[float]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -473,7 +528,7 @@ def elastic_3d(
     if shape_override is not None:
         metadata["shape_override"] = shape_override
 
-    return img_, grid, metadata
+    return lazily_apply_op(img_, MetaMatrix(grid, metadata), lazy_evaluation)
 
 
 def translate(
@@ -482,7 +537,8 @@ def translate(
         mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
         padding_mode: Optional[Union[GridSamplePadMode, str]] = NumpyPadMode.EDGE,
         dtype: Union[DtypeLike, torch.dtype] = np.float32,
-        shape_override: Optional[Sequence] = None
+        shape_override: Optional[Sequence[int]] = None,
+        lazy_evaluation: Optional[bool] = True
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
     input_shape = img_.shape if shape_override is None else shape_override
@@ -503,4 +559,4 @@ def translate(
         "im_extents": im_extents,
         # "shape_override": shape_override_
     }
-    return img_, transform, metadata
+    return lazily_apply_op(img_, MetaMatrix(transform, metadata), lazy_evaluation)

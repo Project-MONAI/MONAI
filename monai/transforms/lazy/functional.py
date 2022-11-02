@@ -31,6 +31,7 @@ def extents_from_shape(shape, dtype=np.float32):
     return [np.asarray(e + (1,), dtype=dtype) for e in extents]
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def shape_from_extents(
     src_shape: Sequence, extents: Union[Sequence[np.ndarray], Sequence[torch.Tensor], np.ndarray, torch.Tensor]
 ):
