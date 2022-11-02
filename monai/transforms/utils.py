@@ -1850,6 +1850,44 @@ def squarepulse(sig, duty: float = 0.5):
     return y
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
+def get_device_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the device of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return None
+    elif isinstance(data, torch.Tensor):
+        return data.device
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+def get_backend_from_tensor_like(data: NdarrayOrTensor):
+    """
+    This function returns the backend of `data`, which must either be a numpy ndarray or a
+    pytorch Tensor.
+    Args:
+        data: the ndarray/tensor to return the device of
+    Returns:
+        None if `data` is a numpy array, or the device of the pytorch Tensor
+    """
+    if isinstance(data, np.ndarray):
+        return TransformBackends.NUMPY
+    elif isinstance(data, torch.Tensor):
+        return TransformBackends.TORCH
+    else:
+        msg = "'data' must be one of numpy ndarray or torch Tensor but is {}"
+        raise ValueError(msg.format(type(data)))
+
+
 def value_to_tuple_range(value):
     """
     Takes a value or a tuple of values.

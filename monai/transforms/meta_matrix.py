@@ -18,12 +18,24 @@ import torch
 from monai.config import NdarrayOrTensor
 
 from monai.transforms.utils import _create_rotate, _create_shear, _create_scale, _create_translate, _create_rotate_90, \
-    _create_flip
+    _create_flip, get_backend_from_tensor_like, get_device_from_tensor_like
 
 from monai.utils import TransformBackends
 
 
-# this will conflict with PR Replacement Apply and Resample #5436
+def is_matrix_shaped(data):
+
+    return (
+        len(data.shape) == 2 and data.shape[0] in (3, 4) and data.shape[1] in (3, 4) and data.shape[0] == data.shape[1]
+    )
+
+
+def is_grid_shaped(data):
+
+    return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
+
+
+# placeholder that will conflict with PR Replacement Apply and Resample #5436
 class MetaMatrix:
 
     def __init__(self):
@@ -101,6 +113,23 @@ class MatrixFactory:
         return MetaMatrix(matrix, extra_args)
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
+def ensure_tensor(data: NdarrayOrTensor):
+    if isinstance(data, torch.Tensor):
+        return data
+
+    return torch.as_tensor(data)
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
+def apply_align_corners(matrix, spatial_size, factory):
+    inflated_spatial_size = tuple(s + 1 for s in spatial_size)
+    scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
+    scale_mat = factory.scale(scale_factors)
+    return matmul(scale_mat, matrix)
+
+
+# this will conflict with PR Replacement Apply and Resample #5436
 class Matrix:
     def __init__(self, matrix: NdarrayOrTensor):
         self.data = ensure_tensor(matrix)
@@ -116,6 +145,7 @@ class Matrix:
     #     return other.__matmul__(self.data)
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 class Grid:
     def __init__(self, grid):
         self.data = ensure_tensor(grid)
@@ -124,6 +154,7 @@ class Grid:
     #     raise NotImplementedError()
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 class MetaMatrix:
     def __init__(self, matrix: Union[NdarrayOrTensor, Matrix, Grid], metadata: Optional[dict] = None):
 
@@ -156,6 +187,7 @@ class MetaMatrix:
         return MetaMatrix(other_ @ self.matrix)
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def matmul(
     left: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor], right: Union[MetaMatrix, Grid, Matrix, NdarrayOrTensor]
 ):
@@ -209,6 +241,7 @@ def matmul(
     return result
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def matmul_matrix_grid(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_matrix_shaped(left):
         raise ValueError(f"'left' should be a 2D or 3D homogenous matrix but has shape {left.shape}")
@@ -227,6 +260,7 @@ def matmul_matrix_grid(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return result
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def matmul_grid_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_grid_shaped(left):
         raise ValueError(
@@ -248,6 +282,7 @@ def matmul_grid_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return matmul_matrix_grid(inv_matrix, left)
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
     if not is_grid_shaped(left):
         raise ValueError(
@@ -270,13 +305,6 @@ def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return result
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def matmul_matrix_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
     return left @ right
-
-
-# this will conflict with PR Replacement Apply and Resample #5436
-def apply_align_corners(matrix, spatial_size, factory):
-    inflated_spatial_size = tuple(s + 1 for s in spatial_size)
-    scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
-    scale_mat = factory.scale(scale_factors)
-    return matmul(scale_mat, matrix)
