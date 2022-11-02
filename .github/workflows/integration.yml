@@ -54,6 +54,7 @@ jobs:
       shell: bash
     - name: Add reaction
       uses: peter-evans/create-or-update-comment@v1
+      if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
