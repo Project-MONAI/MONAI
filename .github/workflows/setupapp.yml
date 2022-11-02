@@ -51,6 +51,7 @@ jobs:
     - name: Run unit tests report coverage
       run: |
         python -m pip list
+        git config --global --add safe.directory /__w/MONAI/MONAI
         git clean -ffdx
         df -h
         python -m pip cache info
