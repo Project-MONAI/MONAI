@@ -30,8 +30,18 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
+from monai.transforms.lazy.functional import apply
+from monai.transforms.spatial.functional import (
+    rotate,
+)
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.transform import Randomizable, RandomizableTransform, Transform
+from monai.transforms.meta_matrix import MetaMatrix
+from monai.transforms.transform import (
+    LazyTransform,
+    Randomizable,
+    RandomizableTransform,
+    Transform,
+)
 from monai.transforms.utils import (
     convert_pad_mode,
     create_control_grid,
@@ -972,9 +982,9 @@ class Resize(InvertibleTransform):
         return data
 
 
-class Rotate(InvertibleTransform):
+class Rotate(InvertibleTransform, LazyTransform):
     """
-    Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
+    Rotates an input image by given angle / set of angles
 
     Args:
         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
@@ -997,29 +1007,23 @@ class Rotate(InvertibleTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-        self,
-        angle: Union[Sequence[float], float],
-        keep_size: bool = True,
-        mode: str = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: Union[DtypeLike, torch.dtype] = torch.float32,
-    ) -> None:
+            self,
+            angle: Union[Sequence[float], float],
+            keep_size: bool = True,
+            mode: Union[GridSampleMode, str] = GridSampleMode.BILINEAR,
+            padding_mode: Union[GridSamplePadMode, str] = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = False
+    ):
+        LazyTransform.__init__(self, lazy_evaluation)
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode = mode
+        self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
 
-    def __call__(
-        self,
-        img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
-        align_corners: Optional[bool] = None,
-        dtype: Union[DtypeLike, torch.dtype] = None,
-    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: [chns, H, W] or [chns, H, W, D].
@@ -1041,88 +1045,40 @@ class Rotate(InvertibleTransform):
             ValueError: When ``img`` spatially is not one of [2D, 3D].
 
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
 
-        im_shape = np.asarray(img.shape[1:])  # spatial dimensions
-        input_ndim = len(im_shape)
-        if input_ndim not in (2, 3):
-            raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
-        _angle = ensure_tuple_rep(self.angle, 1 if input_ndim == 2 else 3)
-        transform = create_rotate(input_ndim, _angle)
-        shift = create_translate(input_ndim, ((im_shape - 1) / 2).tolist())
-        if self.keep_size:
-            output_shape = im_shape
-        else:
-            corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape(
-                (len(im_shape), -1)
-            )
-            corners = transform[:-1, :-1] @ corners  # type: ignore
-            output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
-        shift_1 = create_translate(input_ndim, (-(output_shape - 1) / 2).tolist())
-        transform = shift @ transform @ shift_1
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            angle: Optional[Union[Sequence[float], float]] = None,
+            mode: Optional[Union[InterpolateMode, str]] = None,
+            padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
+            align_corners: Optional[bool] = None,
+            shape_override: Optional[Sequence] = None
+    ) -> NdarrayOrTensor:
+        angle_ = self.angle or angle
+        mode_ = mode or self.mode or mode
+        padding_mode_ = padding_mode or self.padding_mode
+        align_corners_ = align_corners or self.align_corners
+        keep_size = self.keep_size
+        dtype_ = self.dtype
 
-        img_t = img.to(_dtype)
-        transform_t, *_ = convert_to_dst_type(transform, img_t)
-        _mode = look_up_option(mode or self.mode, GridSampleMode)
-        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
-        _align_corners = self.align_corners if align_corners is None else align_corners
-        xform = AffineTransform(
-            normalized=False,
-            mode=_mode,
-            padding_mode=_padding_mode,
-            align_corners=_align_corners,
-            reverse_indexing=True,
-        )
-        output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=output_shape).float().squeeze(0)
-        out, *_ = convert_to_dst_type(output, dst=img, dtype=output.dtype)
-        if get_track_meta():
-            self.update_meta(out, transform_t)
-            self.push_transform(
-                out,
-                orig_size=img_t.shape[1:],
-                extra_info={
-                    "rot_mat": transform,
-                    "mode": _mode,
-                    "padding_mode": _padding_mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "dtype": str(_dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-                },
-            )
-        return out
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-    def update_meta(self, img, rotate_mat):
-        affine = convert_to_tensor(img.affine, track_meta=False)
-        mat = to_affine_nd(len(affine) - 1, rotate_mat)
-        img.affine = affine @ convert_to_dst_type(mat, affine)[0]
+        # TODO: We should be tracking random rotate rather than just rotate
+        img_t, transform, metadata = rotate(img, angle_, keep_size, mode_, padding_mode_,
+                                            align_corners_, dtype_, shape_override_)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        return self.inverse_transform(data, transform)
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
 
-    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
-        fwd_rot_mat = transform[TraceKeys.EXTRA_INFO]["rot_mat"]
-        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-        padding_mode = transform[TraceKeys.EXTRA_INFO]["padding_mode"]
-        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        inv_rot_mat = linalg_inv(fwd_rot_mat)
+        return img_t
 
-        xform = AffineTransform(
-            normalized=False,
-            mode=mode,
-            padding_mode=padding_mode,
-            align_corners=False if align_corners == TraceKeys.NONE else align_corners,
-            reverse_indexing=True,
-        )
-        img_t: torch.Tensor = convert_data_type(data, MetaTensor, dtype=dtype)[0]
-        transform_t, *_ = convert_to_dst_type(inv_rot_mat, img_t)
-        sp_size = transform[TraceKeys.ORIG_SIZE]
-        out: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=sp_size).float().squeeze(0)
-        out = convert_to_dst_type(out, dst=data, dtype=out.dtype)[0]
-        if isinstance(data, MetaTensor):
-            self.update_meta(out, transform_t)
-        return out
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
 class Zoom(InvertibleTransform):
