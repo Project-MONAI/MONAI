@@ -2,7 +2,6 @@ import unittest
 
 import numpy as np
 
-import torch
 
 from monai.transforms import LazyTrait, MultiSampleTrait, RandomizableTrait
 from monai.transforms.lazy.array import Apply
