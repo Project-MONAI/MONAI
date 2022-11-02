@@ -10,7 +10,34 @@
 # limitations under the License.
 
 
+# placeholder to be replaced by spacing in Apply And Resample PR #5436
+def spacing(*_, **__):
+    raise NotImplementedError()
+
+
+# placeholder to be replaced by rotate in Apply And Resample PR #5436
+def flip(*_, **__):
+    raise NotImplementedError()
+
+
+# placeholder to be replaced by resize in Apply And Resample PR #5436
+def resize(*_, **__):
+    raise NotImplementedError()
+
+
 # placeholder to be replaced by rotate in Apply And Resample PR #5436
 def rotate(*_, **__):
     raise NotImplementedError()
+
+
+# placeholder to be replaced by zoom in Apply And Resample PR #5436
+def zoom(*_, **__):
+    raise NotImplementedError()
+
+
+# placeholder to be replaced by rotate in Apply And Resample PR #5436
+def rotate90(*_, **__):
+    raise NotImplementedError()
+
+
 

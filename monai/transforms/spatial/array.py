@@ -32,7 +32,12 @@ from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCro
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.lazy.functional import apply
 from monai.transforms.spatial.functional import (
+    flip,
+    resize,
     rotate,
+    rotate90,
+    spacing,
+    zoom
 )
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.meta_matrix import MetaMatrix
@@ -429,29 +434,23 @@ class ResampleToMatch(SpatialResample):
         self.update_meta(img, dst_affine=dst_affine, img_dst=img_dst)
         return img
 
-
-class Spacing(InvertibleTransform):
+class Spacing(LazyTransform, InvertibleTransform):
     """
     Resample input image into the specified `pixdim`.
     """
 
-    backend = SpatialResample.backend
-
-    @deprecated_arg(name="image_only", since="0.9")
     def __init__(
-        self,
-        pixdim: Union[Sequence[float], float, np.ndarray],
-        diagonal: bool = False,
-        mode: Union[str, int] = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: DtypeLike = np.float64,
-        scale_extent: bool = False,
-        recompute_affine: bool = False,
-        min_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
-        max_pixdim: Union[Sequence[float], float, np.ndarray, None] = None,
-        image_only: bool = False,
-    ) -> None:
+            self,
+            pixdim: Union[Sequence[float], float, np.ndarray],
+            src_pixdim: Optional[Union[Sequence[float], float, np.ndarray]],
+            diagonal: Optional[bool] = False,
+            mode: Optional[Union[GridSampleMode, str]] = GridSampleMode.BILINEAR,
+            padding_mode: Optional[Union[GridSamplePadMode, str]] = GridSamplePadMode.BORDER,
+            align_corners: Optional[bool] = False,
+            dtype: Optional[DtypeLike] = np.float64,
+            lazy_evaluation: Optional[bool] = False,
+            shape_override: Optional[Sequence] = None
+    ):
         """
         Args:
             pixdim: output voxel spacing. if providing a single number, will use it for the first dimension.
@@ -503,35 +502,25 @@ class Spacing(InvertibleTransform):
             max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
-
         """
-        self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
-        self.min_pixdim = np.array(ensure_tuple(min_pixdim), dtype=np.float64)
-        self.max_pixdim = np.array(ensure_tuple(max_pixdim), dtype=np.float64)
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.pixdim = pixdim
+        self.src_pixdim = src_pixdim
         self.diagonal = diagonal
-        self.scale_extent = scale_extent
-        self.recompute_affine = recompute_affine
+        self.mode = mode
+        self.padding_mode = padding_mode
+        self.align_corners = align_corners
+        self.dtype = dtype
 
-        for mn, mx in zip(self.min_pixdim, self.max_pixdim):
-            if (not np.isnan(mn)) and (not np.isnan(mx)) and ((mx < mn) or (mn < 0)):
-                raise ValueError(f"min_pixdim {self.min_pixdim} must be positive, smaller than max {self.max_pixdim}.")
-
-        self.sp_resample = SpatialResample(
-            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
-        )
-
-    @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
-        data_array: torch.Tensor,
-        affine: Optional[NdarrayOrTensor] = None,
-        mode: Union[str, int, None] = None,
-        padding_mode: Optional[str] = None,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[GridSampleMode, str]] = None,
+        padding_mode: Optional[Union[GridSamplePadMode, str]] = None,
         align_corners: Optional[bool] = None,
-        dtype: DtypeLike = None,
-        scale_extent: Optional[bool] = None,
-        output_spatial_shape: Optional[Union[Sequence[int], np.ndarray, int]] = None,
-    ) -> torch.Tensor:
+        dtype: Optional[Union[DtypeLike, torch.dtype]] = None,
+        shape_override: Optional[Sequence] = None
+    ):
         """
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
@@ -569,65 +558,28 @@ class Spacing(InvertibleTransform):
             data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
-        original_spatial_shape = data_array.shape[1:]
-        sr = len(original_spatial_shape)
-        if sr <= 0:
-            raise ValueError("data_array must have at least one spatial dimension.")
-        affine_: np.ndarray
-        if affine is not None:
-            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
-        input_affine = data_array.affine if isinstance(data_array, MetaTensor) else affine
-        if input_affine is None:
-            warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
-            # default to identity
-            input_affine = np.eye(sr + 1, dtype=np.float64)
-        affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
+        mode_ = mode or self.mode
+        padding_mode_ = padding_mode or self.padding_mode
+        align_corners_ = align_corners or self.align_corners
+        dtype_ = dtype or self.dtype
 
-        out_d = self.pixdim[:sr]
-        if out_d.size < sr:
-            out_d = np.append(out_d, [out_d[-1]] * (sr - out_d.size))
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-        orig_d = affine_to_spacing(affine_, sr, out_d.dtype)
-        for idx, (_d, mn, mx) in enumerate(
-            zip_longest(orig_d, self.min_pixdim[:sr], self.max_pixdim[:sr], fillvalue=np.nan)
-        ):
-            target = out_d[idx]
-            mn = target if np.isnan(mn) else min(mn, target)
-            mx = target if np.isnan(mx) else max(mx, target)
-            if mn > mx:
-                raise ValueError(f"min_pixdim is larger than max_pixdim at dim {idx}: min {mn} max {mx} out {target}.")
-            out_d[idx] = _d if (mn - AFFINE_TOL) <= _d <= (mx + AFFINE_TOL) else target
+        img_t, transform, metadata = spacing(img, self.pixdim, self.src_pixdim, self.diagonal,
+                                             mode_, padding_mode_, align_corners_, dtype_,
+                                             shape_override_)
 
-        if not align_corners and scale_extent:
-            warnings.warn("align_corners=False is not compatible with scale_extent=True.")
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
 
-        # compute output affine, shape and offset
-        new_affine = zoom_affine(affine_, out_d, diagonal=self.diagonal)
-        scale_extent = self.scale_extent if scale_extent is None else scale_extent
-        output_shape, offset = compute_shape_offset(data_array.shape[1:], affine_, new_affine, scale_extent)
-        new_affine[:sr, -1] = offset[:sr]
-        # convert to MetaTensor if necessary
-        data_array = convert_to_tensor(data_array, track_meta=get_track_meta())
-        if isinstance(data_array, MetaTensor):
-            data_array.affine = torch.as_tensor(affine_)
+        return img_t
 
-        # we don't want to track the nested transform otherwise two will be appended
-        actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
-        data_array = self.sp_resample(
-            data_array,
-            dst_affine=torch.as_tensor(new_affine),
-            spatial_size=actual_shape,
-            mode=mode,
-            padding_mode=padding_mode,
-            align_corners=align_corners,
-            dtype=dtype,
-        )
-        if self.recompute_affine and isinstance(data_array, MetaTensor):
-            data_array.affine = scale_affine(affine_, original_spatial_shape, actual_shape)
-        return data_array
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        return self.sp_resample.inverse(data)
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
 class Orientation(InvertibleTransform):
@@ -761,7 +713,7 @@ class Orientation(InvertibleTransform):
         return data
 
 
-class Flip(InvertibleTransform):
+class Flip(LazyTransform, InvertibleTransform):
     """
     Reverses the order of elements along the given spatial axis. Preserves shape.
     See `torch.flip` documentation for additional details:
@@ -775,102 +727,100 @@ class Flip(InvertibleTransform):
             specified in the tuple.
 
     """
-
-    backend = [TransformBackends.TORCH]
-
-    def __init__(self, spatial_axis: Optional[Union[Sequence[int], int]] = None) -> None:
+    def __init__(
+            self,
+            spatial_axis: Optional[Union[Sequence[int], int]] = None,
+            lazy_evaluation: Optional[bool] = True
+    ) -> None:
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
-    def update_meta(self, img, shape, axes):
-        # shape and axes include the channel dim
-        affine = img.affine
-        mat = convert_to_dst_type(torch.eye(len(affine)), affine)[0]
-        for axis in axes:
-            sp = axis - 1
-            mat[sp, sp], mat[sp, -1] = mat[sp, sp] * -1, shape[axis] - 1
-        img.affine = affine @ mat
+    def __call__(
+            self,
+            img: NdarrayOrTensor,
+            spatial_axis: Optional[Union[Sequence[int], int]] = None,
+            shape_override: Optional[Sequence] = None
+    ):
+        spatial_axis_ = self.spatial_axis = spatial_axis
+        shape_override_ = shape_override
+        if (shape_override_ is None and
+           isinstance(img, MetaTensor) and img.has_pending_transforms):
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-    def forward_image(self, img, axes) -> torch.Tensor:
-        return torch.flip(img, axes)
+        img_t, transform, metadata = flip(img, spatial_axis_, shape_override_)
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
-        """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        axes = map_spatial_axes(img.ndim, self.spatial_axis)
-        out = self.forward_image(img, axes)
-        if get_track_meta():
-            self.update_meta(out, out.shape, axes)
-            self.push_transform(out)
-        return out
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        self.pop_transform(data)
-        flipper = Flip(spatial_axis=self.spatial_axis)
-        with flipper.trace_transform(False):
-            return flipper(data)
+        return img_t
+
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
-class Resize(InvertibleTransform):
-    """
-    Resize the input image to given spatial size (with scaling, not cropping/padding).
-    Implemented using :py:class:`torch.nn.functional.interpolate`.
-
-    Args:
-        spatial_size: expected shape of spatial dimensions after resize operation.
-            if some components of the `spatial_size` are non-positive values, the transform will use the
-            corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
-            to `(32, 64)` if the second spatial dimension size of img is `64`.
-        size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
-            if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
-            which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
-            https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
-            #albumentations.augmentations.geometric.resize.LongestMaxSize.
-        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-            The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        align_corners: This only has an effect when mode is
-            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        anti_aliasing: bool
-            Whether to apply a Gaussian filter to smooth the image prior
-            to downsampling. It is crucial to filter when downsampling
-            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
-        anti_aliasing_sigma: {float, tuple of floats}, optional
-            Standard deviation for Gaussian filtering used when anti-aliasing.
-            By default, this value is chosen as (s - 1) / 2 where s is the
-            downsampling factor, where s > 1. For the up-size case, s < 1, no
-            anti-aliasing is performed prior to rescaling.
-    """
-
-    backend = [TransformBackends.TORCH]
+class Resize(LazyTransform, InvertibleTransform):
 
     def __init__(
-        self,
-        spatial_size: Union[Sequence[int], int],
-        size_mode: str = "all",
-        mode: str = InterpolateMode.AREA,
-        align_corners: Optional[bool] = None,
-        anti_aliasing: bool = False,
-        anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
-    ) -> None:
-        self.size_mode = look_up_option(size_mode, ["all", "longest"])
+            self,
+            spatial_size: Union[Sequence[int], int],
+            size_mode: Optional[str] = "all",
+            mode: Union[InterpolateMode, str] = InterpolateMode.AREA,
+            align_corners: Optional[bool] = False,
+            anti_aliasing: Optional[bool] = False,
+            anti_aliasing_sigma: Optional[Union[Sequence[float], float, None]] = None,
+            dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
+            lazy_evaluation: Optional[bool] = False
+    ):
+        """
+        Resize the input image to given spatial size (with scaling, not cropping/padding).
+        Implemented using :py:class:`torch.nn.functional.interpolate`.
+
+        Args:
+            spatial_size: expected shape of spatial dimensions after resize operation.
+                if some components of the `spatial_size` are non-positive values, the transform will use the
+                corresponding components of img size. For example, `spatial_size=(32, -1)` will be adapted
+                to `(32, 64)` if the second spatial dimension size of img is `64`.
+            size_mode: should be "all" or "longest", if "all", will use `spatial_size` for all the spatial dims,
+                if "longest", rescale the image so that only the longest side is equal to specified `spatial_size`,
+                which must be an int number in this case, keeping the aspect ratio of the initial image, refer to:
+                https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/
+                #albumentations.augmentations.geometric.resize.LongestMaxSize.
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``"area"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            anti_aliasing: bool
+                Whether to apply a Gaussian filter to smooth the image prior
+                to downsampling. It is crucial to filter when downsampling
+                the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+            anti_aliasing_sigma: {float, tuple of floats}, optional
+                Standard deviation for Gaussian filtering used when anti-aliasing.
+                By default, this value is chosen as (s - 1) / 2 where s is the
+                downsampling factor, where s > 1. For the up-size case, s < 1, no
+                anti-aliasing is performed prior to rescaling.
+        """
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = spatial_size
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.size_mode = size_mode
+        self.mode = mode,
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
+        self.dtype = dtype
 
     def __call__(
         self,
-        img: torch.Tensor,
-        mode: Optional[str] = None,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
         align_corners: Optional[bool] = None,
         anti_aliasing: Optional[bool] = None,
         anti_aliasing_sigma: Union[Sequence[float], float, None] = None,
-    ) -> torch.Tensor:
+        shape_override: Optional[Sequence] = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -895,91 +845,28 @@ class Resize(InvertibleTransform):
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
         """
-        anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
-        anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
+        mode_ = mode or self.mode
+        align_corners_ = align_corners or self.align_corners
+        anti_aliasing_ = anti_aliasing or self.anti_aliasing
+        anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
 
-        input_ndim = img.ndim - 1  # spatial ndim
-        if self.size_mode == "all":
-            output_ndim = len(ensure_tuple(self.spatial_size))
-            if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
-                img = img.reshape(input_shape)
-            elif output_ndim < input_ndim:
-                raise ValueError(
-                    "len(spatial_size) must be greater or equal to img spatial dimensions, "
-                    f"got spatial_size={output_ndim} img={input_ndim}."
-                )
-            spatial_size_ = fall_back_tuple(self.spatial_size, img.shape[1:])
-        else:  # for the "longest" mode
-            img_size = img.shape[1:]
-            if not isinstance(self.spatial_size, int):
-                raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
-            scale = self.spatial_size / max(img_size)
-            spatial_size_ = tuple(int(round(s * scale)) for s in img_size)
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-        original_sp_size = img.shape[1:]
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
-        _align_corners = self.align_corners if align_corners is None else align_corners
-        if tuple(img.shape[1:]) == spatial_size_:  # spatial shape is already the desired
-            img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t, transform, metadata = resize(img, self.spatial_size, self.size_mode, mode_,
+                                            align_corners_, anti_aliasing_, anti_aliasing_sigma_,
+                                            self.dtype, shape_override_)
 
-            return self._post_process(img, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-        img_ = convert_to_tensor(img, dtype=torch.float, track_meta=False)
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
 
-        if anti_aliasing and any(x < y for x, y in zip(spatial_size_, img_.shape[1:])):
-            factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(spatial_size_))
-            if anti_aliasing_sigma is None:
-                # if sigma is not given, use the default sigma in skimage.transform.resize
-                anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
-            else:
-                # if sigma is given, use the given value for downsampling axis
-                anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(spatial_size_)))
-                for axis in range(len(spatial_size_)):
-                    anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
-            anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
-            img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+        return img_t
 
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        resized = torch.nn.functional.interpolate(
-            input=img_.unsqueeze(0), size=spatial_size_, mode=_mode, align_corners=_align_corners
-        )
-        out, *_ = convert_to_dst_type(resized.squeeze(0), img)
-        return self._post_process(out, original_sp_size, spatial_size_, _mode, _align_corners, input_ndim)
-
-    def _post_process(self, img: torch.Tensor, orig_size, sp_size, mode, align_corners, ndim) -> torch.Tensor:
-        if get_track_meta():
-            self.update_meta(img, orig_size, sp_size)
-            self.push_transform(
-                img,
-                orig_size=orig_size,
-                extra_info={
-                    "mode": mode,
-                    "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-                    "new_dim": len(orig_size) - ndim,  # additional dims appended
-                },
-            )
-        return img
-
-    def update_meta(self, img, spatial_size, new_spatial_size):
-        affine = convert_to_tensor(img.affine, track_meta=False)
-        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        return self.inverse_transform(data, transform)
-
-    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
-        orig_size = transform[TraceKeys.ORIG_SIZE]
-        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-        xform = Resize(
-            spatial_size=orig_size, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
-        )
-        with xform.trace_transform(False):
-            data = xform(data)
-        for _ in range(transform[TraceKeys.EXTRA_INFO]["new_dim"]):
-            data = data.squeeze(-1)  # remove the additional dims
-        return data
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
 class Rotate(InvertibleTransform, LazyTransform):
@@ -1066,7 +953,6 @@ class Rotate(InvertibleTransform, LazyTransform):
         if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
             shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-        # TODO: We should be tracking random rotate rather than just rotate
         img_t, transform, metadata = rotate(img, angle_, keep_size, mode_, padding_mode_,
                                             align_corners_, dtype_, shape_override_)
 
@@ -1081,62 +967,71 @@ class Rotate(InvertibleTransform, LazyTransform):
         raise NotImplementedError()
 
 
-class Zoom(InvertibleTransform):
+class Zoom(LazyTransform, InvertibleTransform):
     """
-    Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
-    For details, please see https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html.
-
-    Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
-    as input, and provides an option of preserving the input spatial size.
-
-    Args:
-        zoom: The zoom factor along the spatial axes.
-            If a float, zoom is the same for each spatial axis.
-            If a sequence, zoom should contain one value for each spatial axis.
-        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
-            The interpolation mode. Defaults to ``"area"``.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
-            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
-            One of the listed string values or a user supplied function. Defaults to ``"edge"``.
-            The mode to pad data after zooming.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-        align_corners: This only has an effect when mode is
-            'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
-            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
-        keep_size: Should keep original size (padding/slicing if needed), default is True.
-        kwargs: other arguments for the `np.pad` or `torch.pad` function.
-            note that `np.pad` treats channel dimension as the first dimension.
-
+    Zoom into / out of the image applying the `zoom` factor as a scalar, or if `zoom` is a tuple of
+    values, apply each zoom factor to the appropriate dimension.
     """
-
-    backend = [TransformBackends.TORCH]
 
     def __init__(
-        self,
-        zoom: Union[Sequence[float], float],
-        mode: str = InterpolateMode.AREA,
-        padding_mode: str = NumpyPadMode.EDGE,
-        align_corners: Optional[bool] = None,
-        keep_size: bool = True,
-        **kwargs,
-    ) -> None:
-        self.zoom = zoom
+            self,
+            factor: Union[Sequence[float], float],
+            mode: Union[InterpolateMode, str] = InterpolateMode.BILINEAR,
+            padding_mode: Union[NumpyPadMode, PytorchPadMode, str] = NumpyPadMode.EDGE,
+            align_corners: Optional[bool] = None,
+            keep_size: Optional[bool] = True,
+            dtype: Union[DtypeLike, torch.dtype] = np.float32,
+            lazy_evaluation: Optional[bool] = True,
+            **kwargs
+    ):
+        """
+        Zooms an ND image using :py:class:`torch.nn.functional.interpolate`.
+        For details, please see https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html.
+
+        Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
+        as input, and provides an option of preserving the input spatial size.
+
+        Args:
+            zoom: The zoom factor along the spatial axes.
+                If a float, zoom is the same for each spatial axis.
+                If a sequence, zoom should contain one value for each spatial axis.
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+                The interpolation mode. Defaults to ``"area"``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"edge"``.
+                The mode to pad data after zooming.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Default: None.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            keep_size: Should keep original size (padding/slicing if needed), default is True.
+            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+                note that `np.pad` treats channel dimension as the first dimension.
+
+        """
+        LazyTransform.__init__(self, lazy_evaluation)
+        self.factor = factor
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
+        self.dtype = dtype
         self.kwargs = kwargs
+        print("mode =", self.mode)
 
     def __call__(
         self,
-        img: torch.Tensor,
-        mode: Optional[str] = None,
-        padding_mode: Optional[str] = None,
+        img: NdarrayOrTensor,
+        mode: Optional[Union[InterpolateMode, str]] = None,
+        padding_mode: Optional[Union[NumpyPadMode, PytorchPadMode, str]] = None,
         align_corners: Optional[bool] = None,
-    ) -> torch.Tensor:
+        factor: Optional[Union[Sequence[float], float]] = None,
+        shape_override: Optional[Sequence] = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]).
@@ -1156,75 +1051,32 @@ class Zoom(InvertibleTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
 
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_t = img.to(torch.float32)
+        factor = self.factor if factor is None else factor
+        mode = self.mode if mode is None else mode
+        padding_mode = self.padding_mode if padding_mode is None else padding_mode
+        align_corners = self.align_corners if align_corners is None else align_corners
+        keep_size = self.keep_size
+        dtype = self.dtype
 
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
-        _align_corners = self.align_corners if align_corners is None else align_corners
-        _padding_mode = padding_mode or self.padding_mode
+        shape_override_ = shape_override
+        if shape_override_ is None and isinstance(img, MetaTensor) and img.has_pending_transforms:
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
+        print("mode =", mode)
+        img_t, transform, metadata = zoom(img, factor, mode, padding_mode, align_corners,
+                                          keep_size, dtype, shape_override_)
 
-        zoomed: NdarrayOrTensor = torch.nn.functional.interpolate(
-            recompute_scale_factor=True,
-            input=img_t.unsqueeze(0),
-            scale_factor=list(_zoom),
-            mode=_mode,
-            align_corners=_align_corners,
-        )
-        zoomed = zoomed.squeeze(0)
-        orig_size, z_size = img_t.shape, zoomed.shape
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
 
-        out, *_ = convert_to_dst_type(zoomed, dst=img)
-        if get_track_meta():
-            self.update_meta(out, orig_size[1:], z_size[1:])
-        do_pad_crop = self.keep_size and not np.allclose(orig_size, z_size)
-        if do_pad_crop:
-            _pad_crop = ResizeWithPadOrCrop(spatial_size=img_t.shape[1:], mode=_padding_mode)
-            out = _pad_crop(out)
-        if get_track_meta():
-            padcrop_xform = self.pop_transform(out, check=False) if do_pad_crop else {}
-            self.push_transform(
-                out,
-                orig_size=orig_size[1:],
-                extra_info={
-                    "mode": _mode,
-                    "align_corners": _align_corners if _align_corners is not None else TraceKeys.NONE,
-                    "do_padcrop": do_pad_crop,
-                    "padcrop": padcrop_xform,
-                },
-            )
-        return out
+        return img_t
 
-    def update_meta(self, img, spatial_size, new_spatial_size):
-        affine = convert_to_tensor(img.affine, track_meta=False)
-        img.affine = scale_affine(affine, spatial_size, new_spatial_size)
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        return self.inverse_transform(data, transform)
-
-    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
-        if transform[TraceKeys.EXTRA_INFO]["do_padcrop"]:
-            orig_size = transform[TraceKeys.ORIG_SIZE]
-            pad_or_crop = ResizeWithPadOrCrop(spatial_size=orig_size, mode="edge")
-            padcrop_xform = transform[TraceKeys.EXTRA_INFO]["padcrop"]
-            padcrop_xform[TraceKeys.EXTRA_INFO]["pad_info"][TraceKeys.ID] = TraceKeys.NONE
-            padcrop_xform[TraceKeys.EXTRA_INFO]["crop_info"][TraceKeys.ID] = TraceKeys.NONE
-            # this uses inverse because spatial_size // 2 in the forward pass of center crop may cause issues
-            data = pad_or_crop.inverse_transform(data, padcrop_xform)  # type: ignore
-        # Create inverse transform
-        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-        inverse_transform = Resize(spatial_size=transform[TraceKeys.ORIG_SIZE])
-        # Apply inverse
-        with inverse_transform.trace_transform(False):
-            out = inverse_transform(
-                data, mode=mode, align_corners=None if align_corners == TraceKeys.NONE else align_corners
-            )
-        return out
+    def inverse(self, data):
+        raise NotImplementedError()
 
 
-class Rotate90(InvertibleTransform):
+class Rotate90(InvertibleTransform, LazyTransform):
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
     See `torch.rot90` for additional details:
@@ -1232,9 +1084,12 @@ class Rotate90(InvertibleTransform):
 
     """
 
-    backend = [TransformBackends.TORCH]
-
-    def __init__(self, k: int = 1, spatial_axes: Tuple[int, int] = (0, 1)) -> None:
+    def __init__(
+            self,
+            k: Optional[int] = 1,
+            spatial_axes: Optional[Tuple[int, int]] = (0, 1),
+            lazy_evaluation: Optional[bool] = True,
+    ) -> None:
         """
         Args:
             k: number of times to rotate by 90 degrees.
@@ -1242,55 +1097,37 @@ class Rotate90(InvertibleTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         """
+        LazyTransform.__init__(self, lazy_evaluation)
         self.k = k
-        spatial_axes_: Tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
-        if len(spatial_axes_) != 2:
-            raise ValueError("spatial_axes must be 2 int numbers to indicate the axes to rotate 90 degrees.")
-        self.spatial_axes = spatial_axes_
+        self.spatial_axes = spatial_axes
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(
+            self,
+            img: torch.Tensor,
+            k: Optional[int] = None,
+            spatial_axes: Optional[Tuple[int, int]] = None,
+            shape_override: Optional[Sequence[int]] = None
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        axes = map_spatial_axes(img.ndim, self.spatial_axes)
-        ori_shape = img.shape[1:]
-        out: NdarrayOrTensor = torch.rot90(img, self.k, axes)
-        out = convert_to_dst_type(out, img)[0]
-        if get_track_meta():
-            self.update_meta(out, ori_shape, out.shape[1:], axes, self.k)
-            self.push_transform(out, extra_info={"axes": [d - 1 for d in axes], "k": self.k})  # compensate spatial dim
-        return out
+        k_ = k or self.k
+        spatial_axes_ = spatial_axes or self.spatial_axes
 
-    def update_meta(self, img, spatial_size, new_spatial_size, axes, k):
-        affine = convert_data_type(img.affine, torch.Tensor)[0]
-        r, sp_r = len(affine) - 1, len(spatial_size)
-        mat = to_affine_nd(r, create_translate(sp_r, [-float(d - 1) / 2 for d in new_spatial_size]))
-        s = -1.0 if int(axes[0]) - int(axes[1]) in (-1, 2) else 1.0
-        if sp_r == 2:
-            rot90 = to_affine_nd(r, create_rotate(sp_r, [s * np.pi / 2]))
-        else:
-            idx = {1, 2, 3} - set(axes)
-            angle = [0, 0, 0]
-            angle[idx.pop() - 1] = s * np.pi / 2
-            rot90 = to_affine_nd(r, create_rotate(sp_r, angle))
-        for _ in range(k):
-            mat = rot90 @ mat
-        mat = to_affine_nd(r, create_translate(sp_r, [float(d - 1) / 2 for d in spatial_size])) @ mat
-        img.affine = affine @ convert_to_dst_type(mat, affine)[0]
+        shape_override_ = shape_override
+        if (shape_override_ is None and
+            isinstance(img, MetaTensor) and img.has_pending_transforms):
+            shape_override_ = img.peek_pending_transform().metadata.get("shape_override", None)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        return self.inverse_transform(data, transform)
+        img_t, transform, metadata = rotate90(img, k_, spatial_axes_, shape_override_)
 
-    def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
-        axes = transform[TraceKeys.EXTRA_INFO]["axes"]
-        k = transform[TraceKeys.EXTRA_INFO]["k"]
-        inv_k = 4 - k % 4
-        xform = Rotate90(k=inv_k, spatial_axes=axes)
-        with xform.trace_transform(False):
-            return xform(data)
+        # TODO: candidate for refactoring into a LazyTransform method
+        img_t.push_pending_transform(MetaMatrix(transform, metadata))
+        if not self.lazy_evaluation:
+            img_t = apply(img_t)
+
+        return img_t
 
 
 class RandRotate90(RandomizableTransform, InvertibleTransform):
