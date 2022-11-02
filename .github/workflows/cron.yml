@@ -1,4 +1,5 @@
-name: crons
+# nightly: Jenkinsfile.monai-pytorch-versions, monai-latest-image, monai-pip, monai-latest-docker, monai-notebooks
+name: nightly-crons
 
 on:
   # schedule:
@@ -9,31 +10,86 @@ on:
 jobs:
   cron-gpu:
     if: github.repository == 'Project-MONAI/MONAI'
-    container:
-      image: nvcr.io/nvidia/pytorch:21.06-py3  # CUDA 11.3
-      options: "--gpus all"
-    runs-on: [self-hosted, linux, x64, common]
     strategy:
       matrix:
-        pytorch-version: ['1.7.1', '1.8.1', '1.9.1', '1.10.2', 'latest']
+        environment:
+          - "PT182+CUDA102"
+          - "PT191+CUDA113"
+          - "PT110+CUDA113"
+          - "PT112+CUDA113"
+          - "PTLATEST+CUDA117"
+        include:
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
+          - environment: PT182+CUDA102
+            pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT191+CUDA113
+            pytorch: "torch==1.9.1 torchvision==0.10.1 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PT110+CUDA113
+            pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PT112+CUDA113
+            pytorch: "torch==1.12.1 torchvision==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu113"
+            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
+          - environment: PTLATEST+CUDA117
+            pytorch: "-U torch torchvision --extra-index-url https://download.pytorch.org/whl/cu117"
+            base: "nvcr.io/nvidia/pytorch:22.08-py3"  # CUDA 11.7
+    container:
+      image: ${{ matrix.base }}
+      options: "--gpus all"
+    runs-on: [self-hosted, linux, x64, common]
     steps:
     - uses: actions/checkout@v3
+    - name: apt install
+      run: |
+        # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
+        apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
+        apt-get update
+        apt-get install -y wget
+        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
+        dpkg -i cuda-keyring_1.0-1_all.deb
+
+        if [ ${{ matrix.environment }} = "PT182+CUDA102" ]
+        then
+        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
+        apt-get update && apt-get install -y --no-install-recommends \
+          curl \
+          pkg-config \
+          python$PYVER \
+          python$PYVER-dev \
+          python$PYSFX-pip \
+          $DISTUTILS \
+          rsync \
+          swig \
+          unzip \
+          zip \
+          zlib1g-dev \
+          libboost-locale-dev \
+          libboost-program-options-dev \
+          libboost-system-dev \
+          libboost-thread-dev \
+          libboost-test-dev \
+          libgoogle-glog-dev \
+          libjsoncpp-dev \
+          cmake \
+          git && \
+        rm -rf /var/lib/apt/lists/* && \
+        export PYTHONIOENCODING=utf-8 LC_ALL=C.UTF-8 && \
+        rm -f /usr/bin/python && \
+        rm -f /usr/bin/python`echo $PYVER | cut -c1-1` && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python && \
+        ln -s /usr/bin/python$PYVER /usr/bin/python`echo $PYVER | cut -c1-1` &&
+        curl -O https://bootstrap.pypa.io/get-pip.py && \
+        python get-pip.py && \
+        rm get-pip.py;
+        fi
     - name: Install the dependencies
       run: |
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        if [ ${{ matrix.pytorch-version }} == "latest" ]; then
-          python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.7.1" ]; then
-          python -m pip install torch==1.7.1 torchvision==0.8.2 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.8.1" ]; then
-          python -m pip install torch==1.8.1 torchvision==0.9.1 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.9.1" ]; then
-          python -m pip install torch==1.9.1 torchvision==0.10.1 --extra-index-url https://download.pytorch.org/whl/cu113
-        elif [ ${{ matrix.pytorch-version }} == "1.10.2" ]; then
-          python -m pip install torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu113
-        fi
+        python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run tests report coverage
@@ -62,7 +118,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.09"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.10"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -106,7 +162,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     strategy:
       matrix:
-        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.09"]  # 21.02, 21.10 for backward comp.
+        container: ["pytorch:21.02", "pytorch:21.10", "pytorch:22.10"]  # 21.02, 21.10 for backward comp.
     container:
       image: nvcr.io/nvidia/${{ matrix.container }}-py3  # testing with the latest pytorch base image
       options: "--gpus all"
@@ -204,7 +260,7 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     needs: cron-gpu  # so that monai itself is verified first
     container:
-      image: nvcr.io/nvidia/pytorch:22.09-py3  # testing with the latest pytorch base image
+      image: nvcr.io/nvidia/pytorch:22.10-py3  # testing with the latest pytorch base image
       options: "--gpus all --ipc=host"
     runs-on: [self-hosted, linux, x64, common]
     steps:

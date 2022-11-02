@@ -1,3 +1,4 @@
+# manually trigger integration with the latest pytorch
 name: integration
 
 on:
@@ -7,7 +8,7 @@ on:
 jobs:
   integration-py3:
     container:
-      image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6
+      image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6 py38
       options: --gpus all  # shm-size 4g works fine
     runs-on: [self-hosted, linux, x64, common]
     steps:
@@ -34,7 +35,7 @@ jobs:
         which python
         python -m pip install --upgrade pip wheel
         python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu116
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
     - name: Run integration tests
