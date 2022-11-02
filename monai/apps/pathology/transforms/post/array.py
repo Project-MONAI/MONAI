@@ -340,7 +340,7 @@ class GenerateSuccinctContour(Transform):
 
     Returns:
         the pixels that need to be joined by straight lines to describe the outmost pixels of the foreground similar to
-            OpenCV's cv.CHAIN_APPROX_SIMPLE (anti-clockwise)
+            OpenCV's cv.CHAIN_APPROX_SIMPLE (counterclockwise)
     """
 
     def __init__(self, height: int, width: int) -> None:
