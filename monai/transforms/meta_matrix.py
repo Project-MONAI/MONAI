@@ -23,6 +23,7 @@ from monai.transforms.utils import _create_rotate, _create_shear, _create_scale,
 from monai.utils import TransformBackends
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def is_matrix_shaped(data):
 
     return (
@@ -30,16 +31,10 @@ def is_matrix_shaped(data):
     )
 
 
+# this will conflict with PR Replacement Apply and Resample #5436
 def is_grid_shaped(data):
 
     return len(data.shape) == 3 and data.shape[0] == 3 or len(data.shape) == 4 and data.shape[0] == 4
-
-
-# placeholder that will conflict with PR Replacement Apply and Resample #5436
-class MetaMatrix:
-
-    def __init__(self):
-        raise NotImplementedError()
 
 
 # this will conflict with PR Replacement Apply and Resample #5436
