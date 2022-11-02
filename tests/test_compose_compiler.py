@@ -101,7 +101,6 @@ class TestUtilityTransforms(unittest.TestCase):
         self.assertTrue(actual[2], d)
         self.assertTrue(actual[3], e)
 
-
     def test_compile_multisampling(self):
 
         class NotMultiSampling:
@@ -176,3 +175,5 @@ class TestUtilityTransforms(unittest.TestCase):
         self.assertIsInstance(actual[3], Apply)
         self.assertEqual(actual[4], d)
         self.assertEqual(actual[5], e)
+        self.assertEqual(actual[6], f)
+        self.assertIsInstance(actual[7], Apply)
