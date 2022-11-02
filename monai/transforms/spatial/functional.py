@@ -13,4 +13,3 @@
 # placeholder to be replaced by rotate in Apply And Resample PR #5436
 def rotate(*_, **__):
     raise NotImplementedError()
-
