@@ -10,7 +10,7 @@ jobs:
     container:
       image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6 py38
       options: --gpus all  # shm-size 4g works fine
-    runs-on: [self-hosted, linux, x64, common]
+    runs-on: [self-hosted, linux, x64, integration]
     steps:
     # checkout the pull request branch
     - uses: actions/checkout@v3
