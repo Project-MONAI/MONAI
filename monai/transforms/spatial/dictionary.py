@@ -40,7 +40,6 @@ from monai.transforms.spatial.array import (
     RandAxisFlip,
     RandGridDistortion,
     RandGridPatch,
-    RandRotate,
     RandZoom,
     ResampleToMatch,
     Resize,

@@ -15,7 +15,6 @@ https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
 import warnings
 from copy import deepcopy
 from enum import Enum
-from itertools import zip_longest
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
@@ -25,11 +24,10 @@ from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
+from monai.data.utils import AFFINE_TOL, compute_shape_offset, iter_patch, to_affine_nd
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij, normalize_transform
-from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
-from monai.transforms.intensity.array import GaussianSmooth
+from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.lazy.functional import apply
 from monai.transforms.spatial.functional import (
     flip,
@@ -58,8 +56,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
-    map_spatial_axes,
-    scale_affine, value_to_tuple_range,
+    value_to_tuple_range,
 )
 from monai.transforms.utils_pytorch_numpy_unification import allclose, linalg_inv, moveaxis, where
 from monai.utils import (
@@ -75,7 +72,6 @@ from monai.utils import (
     convert_to_tensor,
     ensure_tuple,
     ensure_tuple_rep,
-    ensure_tuple_size,
     fall_back_tuple,
     issequenceiterable,
     optional_import,
