@@ -128,8 +128,8 @@ class MLFlowHandler:
         if engine_attr:
             attr_type_string = str(type(engine_attr))
             mlflow.log_param(key=attr, value=attr_type_string)
-    
-    def _is_param_exists(self, param_name:str):
+
+    def _is_param_exists(self, param_name: str):
         cur_run = mlflow.active_run()
         log_data = self.client.get_run(cur_run.info.run_id).data
         param_dict = log_data.params
@@ -137,8 +137,9 @@ class MLFlowHandler:
             return True
         else:
             return False
+
     def _delete_exist_param_in_dict(self, param_dict):
-        key_list = param_dict.keys()
+        key_list = [x for x in param_dict.keys()]
         for key in key_list:
             if self._is_param_exists(key):
                 del param_dict[key]
@@ -193,12 +194,10 @@ class MLFlowHandler:
             if os.path.isfile(path_name):
                 artifact_list.append(path_name)
             else:
-                file_list = []
-                for root, _, filenames in os.walk(path_name)
+                for root, _, filenames in os.walk(path_name):
                     for filename in filenames:
                         file_path = os.path.join(root, filename)
-                        file_list.append(file_path)
-                artifact_list.extend(file_list)
+                        artifact_list.append(file_path)
         return artifact_list
 
     def complete(self) -> None:
@@ -207,7 +206,8 @@ class MLFlowHandler:
         """
         if self.artifacts:
             artifact_list = self._parse_artifacts()
-            mlflow.log_artifacts(artifact_list)
+            for artifact in artifact_list:
+                mlflow.log_artifact(artifact)
 
     def close(self) -> None:
         """
