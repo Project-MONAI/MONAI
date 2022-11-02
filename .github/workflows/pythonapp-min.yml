@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: [1.8.2, 1.9.1, 1.10.2, 1.11.0, 1.12.1, latest]
+        pytorch-version: ['1.8.2', '1.9.1', '1.10.2', '1.11.0', '1.12.1', 'latest']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
