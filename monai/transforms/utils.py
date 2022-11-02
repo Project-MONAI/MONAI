@@ -1790,5 +1790,25 @@ def squarepulse(sig, duty: float = 0.5):
     return y
 
 
+def value_to_tuple_range(value):
+    """
+    Takes a value or a tuple of values.
+     - if the value is a tuple of two elements, it will ensure that the elements are in sorted
+    order
+     - if the value is a tuple of one element, it will ensure that return a tuple of (-value[0],
+     +value[0])
+     - if the value is a scalar, it will return (-value, +value)
+    """
+    if isinstance(value, (tuple, list)):
+        if len(value) == 2:
+            return (value[0], value[1]) if value[0] <= value[1] else (value[1], value[0])
+        elif len(value) == 1:
+            return -value[0], value[0]
+        else:
+            raise ValueError(f"parameter 'value' must be of length 1 or 2 but is {len(value)}")
+    else:
+        return -value, value
+
+
 if __name__ == "__main__":
     print_transform_backends()
