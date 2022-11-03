@@ -19,6 +19,7 @@ import warnings
 from copy import deepcopy
 from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
 
+import numpy as np
 import torch
 
 from monai import config
@@ -104,6 +105,7 @@ class Activationsd(MapTransform):
         softmax: Union[Sequence[bool], bool] = False,
         other: Optional[Union[Sequence[Callable], Callable]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -117,6 +119,8 @@ class Activationsd(MapTransform):
                 for example: `other = torch.tanh`. it also can be a sequence of Callable, each
                 element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+                Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -124,6 +128,7 @@ class Activationsd(MapTransform):
         self.softmax = ensure_tuple_rep(softmax, len(self.keys))
         self.other = ensure_tuple_rep(other, len(self.keys))
         self.converter = Activations()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -147,6 +152,7 @@ class AsDiscreted(MapTransform):
         threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
         rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
         allow_missing_keys: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -162,6 +168,9 @@ class AsDiscreted(MapTransform):
                 available options: ["torchrounding"]. it also can be a sequence of str or None,
                 each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            kwargs: additional parameters to ``AsDiscrete``.
+                ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+                These default to ``0``, ``True``, ``torch.float`` respectively.
 
         """
         super().__init__(keys, allow_missing_keys)
@@ -180,6 +189,7 @@ class AsDiscreted(MapTransform):
 
         self.rounding = ensure_tuple_rep(rounding, len(self.keys))
         self.converter = AsDiscrete()
+        self.converter.kwargs = kwargs
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -688,7 +698,12 @@ class Invertd(MapTransform):
                 inverted_data = self._totensor(inverted[orig_key])
             else:
                 inverted_data = inverted[orig_key]
-            d[key] = post_func(inverted_data.to(device))
+            if isinstance(inverted_data, np.ndarray) and torch.device(device).type != "cpu":
+                raise ValueError("Inverted data with type of 'numpy.ndarray' do not support GPU.")
+            elif isinstance(inverted_data, torch.Tensor):
+                d[key] = post_func(inverted_data.to(device))
+            else:
+                d[key] = post_func(inverted_data)
             # save the invertd applied_operations if it's in the source dict
             if InvertibleTransform.trace_key(orig_key) in d:
                 d[InvertibleTransform.trace_key(orig_key)] = inverted_data.applied_operations
@@ -779,14 +794,19 @@ class SaveClassificationd(MapTransform):
 
 
 class SobelGradientsd(MapTransform):
-    """Calculate Sobel horizontal and vertical gradients.
+    """Calculate Sobel horizontal and vertical gradients of a grayscale image.
 
     Args:
         keys: keys of the corresponding items to model output.
         kernel_size: the size of the Sobel kernel. Defaults to 3.
-        padding: the padding for the convolution to apply the kernel. Defaults to `"same"`.
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
         dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
-        device: the device to create the kernel on. Defaults to `"cpu"`.
         new_key_prefix: this prefix be prepended to the key to create a new key for the output and keep the value of
             key intact. By default not prefix is set and the corresponding array to the key will be replaced.
         allow_missing_keys: don't raise exception if key is missing.
@@ -799,15 +819,26 @@ class SobelGradientsd(MapTransform):
         self,
         keys: KeysCollection,
         kernel_size: int = 3,
-        padding: Union[int, str] = "same",
+        spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
+        padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
-        device: Union[torch.device, int, str] = "cpu",
         new_key_prefix: Optional[str] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.transform = SobelGradients(kernel_size=kernel_size, padding=padding, dtype=dtype, device=device)
+        self.transform = SobelGradients(
+            kernel_size=kernel_size,
+            spatial_axes=spatial_axes,
+            normalize_kernels=normalize_kernels,
+            normalize_gradients=normalize_gradients,
+            padding_mode=padding_mode,
+            dtype=dtype,
+        )
         self.new_key_prefix = new_key_prefix
+        self.kernel_diff = self.transform.kernel_diff
+        self.kernel_smooth = self.transform.kernel_smooth
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
