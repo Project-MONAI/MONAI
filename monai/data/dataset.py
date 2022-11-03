@@ -879,6 +879,7 @@ class CacheDataset(Dataset):
         return data
 
 
+import torch.distributed as dist
 class SharedCacheDataset(Dataset):
     """
     Dataset with a shared cache among the processes. Particularly useful in DistributedDataParallel
@@ -949,6 +950,11 @@ class SharedCacheDataset(Dataset):
 
         if cache_list is None and use_cache:
             cache_list = torch.multiprocessing.Manager().list()
+            if dist.is_initialized():
+                print('Print using shared cache via broadcasting in DDP, torch.cuda.set_device(device) must be set before')
+                object_list=[cache_list,]
+                dist.broadcast_object_list(object_list, src=0)
+                cache_list = object_list[0]
 
         if cache_list is not None:
             cache_list[:] = [None] * len(data)
