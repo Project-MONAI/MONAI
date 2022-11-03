@@ -157,7 +157,7 @@ def compute_panoptic_quality(
 
     In addition, if `output_confusion_matrix` is True, the function will return a tensor with shape 4, which
     represents the true positive, false positive, false negative and the sum of iou. These four values are used to
-    calculate PQ, and return them directly is able for further calculation over all images.
+    calculate PQ, and returning them directly enables further calculation over all images.
 
     Args:
         pred: input data to compute, it must be in the form of HW and have integer type.
