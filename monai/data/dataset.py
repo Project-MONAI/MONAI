@@ -26,6 +26,7 @@ from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Seque
 
 import numpy as np
 import torch
+import torch.distributed as dist
 from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
@@ -751,6 +752,7 @@ class CacheDataset(Dataset):
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
         runtime_cache: bool = False,
+        cache_rank: int = 0,
     ) -> None:
         """
         Args:
@@ -780,6 +782,8 @@ class CacheDataset(Dataset):
                 the cache content at initializaiton, if `True`, it will cache during the first epoch
                 of model training, so it can start the first mini-batch earlier.
                 to execute runtime cache on GPU memory, must co-work with `monai.data.DataLoader`.
+            cache_rank: if in distributed data parallel, only compute the cache on `cache_rank` and
+                broadcast the cache buffer to other ranks, default to `0`.
 
         """
         if not isinstance(transform, Compose):
@@ -796,9 +800,11 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self.runtime_cache = runtime_cache
+        self.cache_rank = cache_rank
         self.cache_num = 0
         self._cache: Union[List, ListProxy] = []
         self._hash_keys: List = []
+        self._is_dist = dist.is_available() and dist.is_initialized()
         self.set_data(data)
 
     def set_data(self, data: Sequence):
@@ -815,6 +821,20 @@ class CacheDataset(Dataset):
         def _compute_cache_num(data_len: int):
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
+        def _compute_cache(indices=None):
+            if self.runtime_cache or (self._is_dist and dist.get_rank() != self.cache_rank):
+                cache = [None for i in range(self.cache_num)]
+            else:
+                cache = self._fill_cache(indices)
+            if self.runtime_cache:
+                cache = self._set_multiprocessing_cache(cache, mp_cache=True)
+
+            if self._is_dist:
+                obj_list = [cache]
+                dist.broadcast_object_list(obj_list, src=self.cache_rank)
+                cache = obj_list[0]
+            return cache
+
         if self.hash_as_key:
             # only compute cache for the unique items of dataset, and record the last index for duplicated items
             mapping = {self.hash_func(v): i for i, v in enumerate(data)}
@@ -824,8 +844,8 @@ class CacheDataset(Dataset):
         else:
             _compute_cache_num(len(self.data))
             indices = list(range(self.cache_num))
-        cache = [None for i in range(self.cache_num)] if self.runtime_cache else self._fill_cache(indices)
-        self._cache = self._set_multiprocessing_cache(cache, mp_cache=True) if self.runtime_cache else cache
+
+        self._cache = _compute_cache(indices)
 
     def _set_multiprocessing_cache(self, cache: Union[List, ListProxy], mp_cache: bool):
         return Manager().list(cache) if mp_cache else list(cache)
