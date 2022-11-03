@@ -112,6 +112,9 @@ jobs:
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
+        DRIVER_VERSION=$(cat /proc/driver/nvidia/version | head -1 | awk -F' ' '{print $8}')
+        ls -ltr /usr/lib/x86_64-linux-gnu/libcuda* && ln -fs /usr/lib/x86_64-linux-gnu/libcuda.so.$DRIVER_VERSION /usr/lib/x86_64-linux-gnu/libcuda.so.1 || true
+        ls -ltr /usr/lib64/libcuda* && ln -fs /usr/lib64/libcuda.so.$DRIVER_VERSION /usr/lib64/libcuda.so.1 || true
     - name: Run quick tests (GPU)
       if: github.event.pull_request.merged != true
       run: |
