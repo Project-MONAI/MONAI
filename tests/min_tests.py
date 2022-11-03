@@ -140,6 +140,7 @@ def run_testsuit():
         "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
+        "test_prepare_batch_hovernet",
         "test_rand_grid_patch",
         "test_rand_rotate",
         "test_rand_rotated",
