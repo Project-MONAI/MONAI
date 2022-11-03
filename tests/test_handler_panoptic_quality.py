@@ -16,74 +16,22 @@ from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import PanopticQuality, from_engine
-from tests.utils import assert_allclose
+from tests.utils import SkipIfNoModule, assert_allclose
 
 sample_1_pred = torch.as_tensor(
-    [
-        [
-            [0, 1, 1, 1],
-            [0, 0, 5, 5],
-            [2, 0, 3, 3],
-            [2, 2, 2, 0],
-        ],
-        [
-            [0, 1, 1, 1],
-            [0, 0, 0, 0],
-            [2, 0, 3, 3],
-            [4, 2, 2, 0],
-        ],
-    ],
+    [[[0, 1, 1, 1], [0, 0, 5, 5], [2, 0, 3, 3], [2, 2, 2, 0]], [[0, 1, 1, 1], [0, 0, 0, 0], [2, 0, 3, 3], [4, 2, 2, 0]]]
 )
 
 sample_1_gt = torch.as_tensor(
-    [
-        [
-            [0, 6, 6, 6],
-            [1, 0, 5, 5],
-            [1, 0, 3, 3],
-            [1, 3, 2, 0],
-        ],
-        [
-            [0, 1, 1, 1],
-            [0, 0, 1, 1],
-            [2, 0, 3, 3],
-            [4, 4, 4, 3],
-        ],
-    ],
+    [[[0, 6, 6, 6], [1, 0, 5, 5], [1, 0, 3, 3], [1, 3, 2, 0]], [[0, 1, 1, 1], [0, 0, 1, 1], [2, 0, 3, 3], [4, 4, 4, 3]]]
 )
 
 sample_2_pred = torch.as_tensor(
-    [
-        [
-            [3, 1, 1, 1],
-            [3, 1, 1, 4],
-            [3, 1, 4, 4],
-            [3, 2, 2, 4],
-        ],
-        [
-            [0, 1, 1, 1],
-            [2, 2, 2, 2],
-            [2, 0, 0, 3],
-            [4, 2, 2, 3],
-        ],
-    ],
+    [[[3, 1, 1, 1], [3, 1, 1, 4], [3, 1, 4, 4], [3, 2, 2, 4]], [[0, 1, 1, 1], [2, 2, 2, 2], [2, 0, 0, 3], [4, 2, 2, 3]]]
 )
 
 sample_2_gt = torch.as_tensor(
-    [
-        [
-            [0, 6, 6, 6],
-            [1, 0, 5, 5],
-            [1, 0, 3, 3],
-            [1, 3, 2, 0],
-        ],
-        [
-            [0, 1, 1, 1],
-            [2, 1, 1, 3],
-            [2, 0, 0, 3],
-            [4, 2, 2, 3],
-        ],
-    ],
+    [[[0, 6, 6, 6], [1, 0, 5, 5], [1, 0, 3, 3], [1, 3, 2, 0]], [[0, 1, 1, 1], [2, 1, 1, 3], [2, 0, 0, 3], [4, 2, 2, 3]]]
 )
 
 TEST_CASE_1 = [{"num_classes": 4, "output_transform": from_engine(["pred", "label"])}, [0.6667, 0.1538, 0.6667, 0.5714]]
@@ -103,6 +51,7 @@ TEST_CASE_3 = [
 ]
 
 
+@SkipIfNoModule("scipy.optimize")
 class TestHandlerPanopticQuality(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_compute(self, input_params, expected_avg):
