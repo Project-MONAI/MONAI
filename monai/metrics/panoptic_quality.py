@@ -24,8 +24,9 @@ __all__ = ["PanopticQualityMetric", "compute_panoptic_quality"]
 
 class PanopticQualityMetric(CumulativeIterationMetric):
     """
-    Compute Panoptic Quality between two tensors. Two related metrics Segmentation Quality (SQ)
-    and Recognition Quality (RQ) will also be calculated and returned.
+    Compute Panoptic Quality between two tensors. If specifying `metric_name` to "SQ" or "RQ",
+    Segmentation Quality (SQ) or Recognition Quality (RQ) will be returned instead.
+
     Panoptic Quality is a metric used in panoptic segmentation tasks. This task unifies the typically distinct tasks
     of semantic segmentation (assign a class label to each pixel) and
     instance segmentation (detect and segment each object instance). Compared with semantic segmentation, panoptic
@@ -41,6 +42,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
     Args:
         num_classes: number of classes. The number should not count the background.
+        metric_name: output metric. The value can be "pq", "sq" or "rq".
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
@@ -55,6 +57,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
     def __init__(
         self,
         num_classes: int,
+        metric_name: str = "pq",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
         match_iou: float = 0.5,
         smooth_nr: float = 1e-6,
@@ -64,6 +67,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.match_iou = match_iou
         self.smooth_nr = smooth_nr
+        self.metric_name = _check_panoptic_metric_name(metric_name)
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
@@ -95,7 +99,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         batch_size = y_pred.shape[0]
 
-        outputs = torch.zeros([batch_size, self.num_classes, 4])
+        outputs = torch.zeros([batch_size, self.num_classes, 4], device=y_pred.device)
 
         for b in range(batch_size):
             true_instance, pred_instance = y[b, 0], y_pred[b, 0]
@@ -132,31 +136,33 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         f, _ = do_metric_reduction(data, reduction or self.reduction)
 
         tp, fp, fn, iou_sum = f[..., 0], f[..., 1], f[..., 2], f[..., 3]
-        rq = tp / (tp + 0.5 * fp + 0.5 * fn + self.smooth_nr)
-        sq = iou_sum / (tp + self.smooth_nr)
-        pq = sq * rq
-        return pq, sq, rq
+        if self.metric_name == "rq":
+            return tp / (tp + 0.5 * fp + 0.5 * fn + self.smooth_nr)
+        if self.metric_name == "sq":
+            return iou_sum / (tp + self.smooth_nr)
+        return iou_sum / (tp + 0.5 * fp + 0.5 * fn + self.smooth_nr)
 
 
 def compute_panoptic_quality(
     pred: torch.Tensor,
     gt: torch.Tensor,
+    metric_name: str = "pq",
     remap: bool = True,
     match_iou: float = 0.5,
     smooth_nr: float = 1e-6,
     output_confusion_matrix: bool = False,
 ):
-    """Computes Panoptic Quality (PQ). This function will also return two related metrics: Segmentation Quality (SQ)
-    and Recognition Quality (RQ), and the ourput will be a tensor withe shape 3, which represents the PQ, SQ, RQ
-    respectively.
+    """Computes Panoptic Quality (PQ). If specifying `metric_name` to "SQ" or "RQ",
+    Segmentation Quality (SQ) or Recognition Quality (RQ) will be returned instead.
 
     In addition, if `output_confusion_matrix` is True, the function will return a tensor with shape 4, which
     represents the true positive, false positive, false negative and the sum of iou. These four values are used to
     calculate PQ, and return them directly is able for further calculation over all images.
 
     Args:
-        pred: input data to compute, it must be in the form of HW[D] and have integer type.
+        pred: input data to compute, it must be in the form of HW and have integer type.
         gt: ground truth. It must have the same shape as `pred` and have integer type.
+        metric_name: output metric. The value can be "pq", "sq" or "rq".
         remap: whether to remap `pred` and `gt` to ensure contiguous ordering of instance id.
         match_iou: IOU threshould to determine the pairing between `pred` and `gt`. Usually,
             it should >= 0.5, the pairing between instances of `pred` and `gt` are identical.
@@ -182,25 +188,24 @@ def compute_panoptic_quality(
         gt = remap_instance_id(gt)
         pred = remap_instance_id(pred)
 
-    pairwise_iou, true_id_list, pred_id_list = _get_pairwise_iou(pred, gt)
-    paired_iou, paired_true, paired_pred = _get_paired_iou(pairwise_iou, match_iou)
-    return paired_pred
+    pairwise_iou, true_id_list, pred_id_list = _get_pairwise_iou(pred, gt, device=pred.device)
+    paired_iou, paired_true, paired_pred = _get_paired_iou(pairwise_iou, match_iou, device=pairwise_iou.device)
 
+    unpaired_true = [idx for idx in true_id_list[1:] if idx not in paired_true]
+    unpaired_pred = [idx for idx in pred_id_list[1:] if idx not in paired_pred]
 
-#     unpaired_true = [idx for idx in true_id_list[1:] if idx not in paired_true]
-#     unpaired_pred = [idx for idx in pred_id_list[1:] if idx not in paired_pred]
+    tp, fp, fn = len(paired_true), len(unpaired_pred), len(unpaired_true)
+    iou_sum = paired_iou.sum()
 
-#     tp, fp, fn = len(paired_true), len(unpaired_pred), len(unpaired_true)
-#     iou_sum = paired_iou.sum()
+    if output_confusion_matrix:
+        return torch.as_tensor([tp, fp, fn, iou_sum], device=pred.device)
 
-#     if output_confusion_matrix:
-#         return torch.as_tensor([tp, fp, fn, iou_sum])
-
-#     rq = tp / (tp + 0.5 * fp + 0.5 * fn + smooth_nr)
-#     sq = iou_sum / (tp + smooth_nr)
-#     pq = sq * rq
-
-#     return torch.as_tensor([pq, sq, rq])
+    metric_name = _check_panoptic_metric_name(metric_name)
+    if metric_name == "rq":
+        return torch.as_tensor(tp / (tp + 0.5 * fp + 0.5 * fn + smooth_nr), device=pred.device)
+    if metric_name == "sq":
+        return torch.as_tensor(iou_sum / (tp + smooth_nr), device=pred.device)
+    return torch.as_tensor(iou_sum / (tp + 0.5 * fp + 0.5 * fn + smooth_nr), device=pred.device)
 
 
 def _get_id_list(gt: torch.Tensor):
@@ -212,20 +217,20 @@ def _get_id_list(gt: torch.Tensor):
     return id_list
 
 
-def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor):
+def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: Union[str, torch.device] = "cpu"):
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
-    pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float)
+    pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float, device=device)
     true_masks: List[torch.Tensor] = []
     pred_masks: List[torch.Tensor] = []
 
     for t in true_id_list[1:]:
-        t_mask = torch.as_tensor(gt == t).int()
+        t_mask = torch.as_tensor(gt == t, device=device).int()
         true_masks.append(t_mask)
 
     for p in pred_id_list[1:]:
-        p_mask = torch.as_tensor(pred == p).int()
+        p_mask = torch.as_tensor(pred == p, device=device).int()
         pred_masks.append(p_mask)
 
     for true_id in range(1, len(true_id_list)):
@@ -244,7 +249,7 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor):
     return pairwise_iou, true_id_list, pred_id_list
 
 
-def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou: float = 0.5):
+def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou: float = 0.5, device: Union[str, torch.device] = "cpu"):
     if match_iou >= 0.5:
         paired_iou = pairwise_iou[pairwise_iou > match_iou]
         pairwise_iou[pairwise_iou <= match_iou] = 0.0
@@ -255,11 +260,23 @@ def _get_paired_iou(pairwise_iou: torch.Tensor, match_iou: float = 0.5):
 
         return paired_iou, paired_true, paired_pred
 
-    pairwise_iou = pairwise_iou.numpy()
+    pairwise_iou = pairwise_iou.cpu().numpy()
     paired_true, paired_pred = linear_sum_assignment(-pairwise_iou)
     paired_iou = pairwise_iou[paired_true, paired_pred]
-    paired_true = torch.as_tensor(list(paired_true[paired_iou > match_iou] + 1))
-    paired_pred = torch.as_tensor(list(paired_pred[paired_iou > match_iou] + 1))
+    paired_true = torch.as_tensor(list(paired_true[paired_iou > match_iou] + 1), device=device)
+    paired_pred = torch.as_tensor(list(paired_pred[paired_iou > match_iou] + 1), device=device)
     paired_iou = paired_iou[paired_iou > match_iou]
 
     return paired_iou, paired_true, paired_pred
+
+
+def _check_panoptic_metric_name(metric_name: str):
+    metric_name = metric_name.replace(" ", "_")
+    metric_name = metric_name.lower()
+    if metric_name in ["panoptic_quality", "pq"]:
+        return "pq"
+    if metric_name in ["segmentation_quality", "sq"]:
+        return "sq"
+    if metric_name in ["recognition_quality", "rq"]:
+        return "rq"
+    raise ValueError(f"metric name: {metric_name} is wrong, please use 'pq', 'sq' or 'rq'.")
