@@ -141,6 +141,8 @@ Applications
     :members:
 .. autoclass:: GenerateWatershedMarkers
     :members:
+.. autoclass:: HoVerNetPostProcessing
+    :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.dictionary
 .. autoclass:: Watershedd

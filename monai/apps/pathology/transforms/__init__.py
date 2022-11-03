@@ -15,6 +15,7 @@ from .post.array import (
     GenerateWatershedMarkers,
     GenerateWatershedMask,
     Watershed,
+    HoVerNetPostProcessing,
 )
 from .post.dictionary import (
     GenerateDistanceMapD,

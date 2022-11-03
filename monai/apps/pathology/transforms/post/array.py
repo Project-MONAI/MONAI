@@ -33,6 +33,7 @@ __all__ = [
     "GenerateInstanceBorder",
     "GenerateDistanceMap",
     "GenerateWatershedMarkers",
+    "HoVerNetPostProcessing",
 ]
 
 
@@ -324,7 +325,7 @@ class GenerateWatershedMarkers(Transform):
         return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
 
 
-class PostProcessHoVerNet(Transform):
+class HoVerNetPostProcessing(Transform):
     """
     Since HoVerNet do segmentation and classification meanwhile, this transform is used to combine postprocessing
     for segmentation and classification. It assumes input as a dictionary.
