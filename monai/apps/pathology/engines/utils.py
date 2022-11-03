@@ -17,10 +17,10 @@ from monai.engines import PrepareBatch, PrepareBatchExtraInput
 from monai.utils import ensure_tuple
 from monai.utils.enums import HoVerNetBranch
 
-__all__ = ["PrepareBatchWithDictLabel"]
+__all__ = ["PrepareBatchHoVerNet"]
 
 
-class PrepareBatchWithDictLabel(PrepareBatch):
+class PrepareBatchHoVerNet(PrepareBatch):
     """
     Customized prepare batch callable for trainers or evaluators which support label to be a dictionary.
     Extra items are specified by the `extra_keys` parameter and are extracted from the input dictionary (ie. the batch).

@@ -14,7 +14,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.pathology.engines import PrepareBatchWithDictLabel
+from monai.apps.pathology.engines import PrepareBatchHoVerNet
 from monai.engines import SupervisedEvaluator
 from monai.utils.enums import HoVerNetBranch
 from tests.utils import assert_allclose
@@ -30,7 +30,7 @@ class TestNet(torch.nn.Module):
         return {HoVerNetBranch.NP: torch.tensor([1, 2]), HoVerNetBranch.NC: torch.tensor([4, 4]), HoVerNetBranch.HV: 16}
 
 
-class TestPrepareBatchWithDictLabel(unittest.TestCase):
+class TestPrepareBatchHoVerNet(unittest.TestCase):
     @parameterized.expand([TEST_CASE_0])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -49,7 +49,7 @@ class TestPrepareBatchWithDictLabel(unittest.TestCase):
             epoch_length=1,
             network=TestNet(),
             non_blocking=True,
-            prepare_batch=PrepareBatchWithDictLabel(**input_args),
+            prepare_batch=PrepareBatchHoVerNet(**input_args),
             decollate=False,
         )
         evaluator.run()
