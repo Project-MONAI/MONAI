@@ -21,29 +21,29 @@ jobs:
     strategy:
       matrix:
         environment:
-          # - "PT18+CUDA102"
-          # - "PT19+CUDA114"
-          # - "PT110+CUDA111"
-          # - "PT112+CUDA118"
+          - "PT18+CUDA102"
+          - "PT19+CUDA114"
+          - "PT110+CUDA111"
+          - "PT112+CUDA118"
           - "PT113+CUDA116"
         include:
-          # # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          # - environment: PT18+CUDA102
-          #   # pytorch 1.8.2 LTS
-          #   pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
-          #   base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          # - environment: PT19+CUDA114
-          #   # we explicitly set pytorch to -h to avoid pip install error
-          #   # 21.10: 1.10.0a0+0aef44c
-          #   pytorch: "-h"
-          #   base: "nvcr.io/nvidia/pytorch:21.10-py3"
-          # - environment: PT110+CUDA111
-          #   pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
-          #   base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
-          # - environment: PT112+CUDA118
-          #   # 22.09: 1.13.0a0+d0d6b1f
-          #   pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-          #   base: "nvcr.io/nvidia/pytorch:22.09-py3"
+          # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
+          - environment: PT18+CUDA102
+            # pytorch 1.8.2 LTS
+            pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
+            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
+          - environment: PT19+CUDA114
+            # we explicitly set pytorch to -h to avoid pip install error
+            # 21.10: 1.10.0a0+0aef44c
+            pytorch: "-h"
+            base: "nvcr.io/nvidia/pytorch:21.10-py3"
+          - environment: PT110+CUDA111
+            pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
+            base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
+          - environment: PT112+CUDA118
+            # 22.09: 1.13.0a0+d0d6b1f
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
+            base: "nvcr.io/nvidia/pytorch:22.09-py3"
           - environment: PT113+CUDA116
             pytorch: "torch==1.13.0 torchvision==0.14.0"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
