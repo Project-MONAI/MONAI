@@ -49,7 +49,7 @@ jobs:
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
     container:
       image: ${{ matrix.base }}
-      options: --gpus all
+      options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, integration]
     steps:
     - uses: actions/checkout@v3
