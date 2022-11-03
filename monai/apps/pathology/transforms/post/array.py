@@ -9,16 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Optional
+from typing import Callable, Dict, Hashable, Mapping, Optional
 
 import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
+from monai.transforms import Activations, AsDiscrete, BoundingRect
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.enums import HoVerNetBranch
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -320,3 +322,79 @@ class GenerateWatershedMarkers(Transform):
             marker = self.remove_small_objects(marker[None])
 
         return convert_to_dst_type(marker, mask, dtype=self.dtype)[0]
+
+
+class PostProcessHoVerNet(Transform):
+    def __init__(
+        self,
+        post_process_segmentation: Transform,
+        distance_map_key: str = "dist",
+        points_num: int = 3,
+        level: Optional[float] = None,
+        dtype: Optional[DtypeLike] = int,
+        return_binary: Optional[bool] = True,
+        pred_binary_key: Optional[str] = 'pred_binary',
+        return_centroids: Optional[bool] = None,
+        output_classes: Optional[int] = None,
+        inst_info_dict_key: Optional[str] = "inst_info_dict",
+    ) -> None:
+        super().__init__()
+        self.distance_map_key = distance_map_key
+        self.return_binary = return_binary
+        self.pred_binary_key = pred_binary_key
+        self.return_centroids = return_centroids
+        self.output_classes = output_classes
+        self.inst_info_dict_key = inst_info_dict_key
+
+        self.post_process_segmentation = post_process_segmentation
+        self.generate_instance_contour = GenerateInstanceContour(points_num=points_num, level=level)
+        self.generate_instance_centroid = GenerateInstanceCentroid(dtype=dtype)
+        self.generate_instance_type = GenerateInstanceType()
+    
+    def __call__(self, pred: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+        device = pred[HoVerNetBranch.NP.value].device
+        if HoVerNetBranch.NC.value in pred.keys():
+            type_pred = Activations(softmax=True)(pred[HoVerNetBranch.NC.value])
+            type_pred = AsDiscrete(argmax=True)(type_pred)
+        
+        pred_inst_dict = self.post_process_segmentation(pred)
+        pred_inst = pred_inst_dict[self.distance_map_key]
+
+        inst_id_list = np.unique(pred_inst)[1:]  # exclude background
+        inst_info_dict = None
+        if self.return_centroids:
+            inst_info_dict = {}
+            for inst_id in inst_id_list:
+                inst_map = pred_inst == inst_id
+                inst_bbox = BoundingRect()(inst_map)
+                inst_map = inst_map[:, inst_bbox[0][0]: inst_bbox[0][1], inst_bbox[0][2]: inst_bbox[0][3]]
+                offset = [inst_bbox[0][2], inst_bbox[0][0]]
+                inst_contour = self.generate_instance_contour(inst_map, offset)
+                inst_centroid = self.generate_instance_centroid(inst_map, offset)
+                if inst_contour is not None:
+                    inst_info_dict[inst_id] = {  # inst_id should start at 1
+                        "bounding_box": inst_bbox,
+                        "centroid": inst_centroid,
+                        "contour": inst_contour,
+                        "type_probability": None,
+                        "type": None,
+                    }
+
+        if self.output_classes is not None:
+            for inst_id in list(inst_info_dict.keys()):
+                inst_type, type_prob = self.generate_instance_type(
+                    bbox=inst_info_dict[inst_id]["bounding_box"], 
+                    type_pred=type_pred, 
+                    seg_pred=pred_inst, 
+                    instance_id=inst_id,
+                )
+                inst_info_dict[inst_id]["type"] = inst_type
+                inst_info_dict[inst_id]["type_probability"] = type_prob
+
+        pred_inst = convert_to_tensor(pred_inst, device=device)
+        pred[HoVerNetBranch.NP.value] = pred_inst
+        if self.return_binary:
+            pred_inst[pred_inst > 0] = 1
+            pred[self.pred_binary_key] = pred_inst
+        pred[self.inst_info_dict_key] = inst_info_dict
+        return pred
