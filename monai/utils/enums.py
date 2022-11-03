@@ -54,6 +54,7 @@ __all__ = [
     "AlgoEnsembleKeys",
     "HoVerNetMode",
     "HoVerNetBranch",
+    "LazyAttr",
 ]
 
 
@@ -611,9 +612,21 @@ class HoVerNetBranch(StrEnum):
     `HV` is horizontal and vertical gradient map of each nucleus (regression),
     `NP` is the pixel prediction of all nuclei (segmentation), and
     `NC` is the type of each nucleus (classification).
-
     """
 
     HV = "horizontal_vertical"
     NP = "nucleus_prediction"
     NC = "type_prediction"
+
+
+class LazyAttr(StrEnum):
+    """
+    MetaTensor with pending operations requires some key attributes tracked especially when the primary array
+    is not up-to-date due to lazy evaluation.
+    This class specifies the set of key attributes to be tracked for each MetaTensor.
+    """
+
+    SHAPE = "lazy_shape"  # spatial shape
+    AFFINE = "lazy_affine"
+    PADDING_MODE = "lazy_padding_mode"
+    INTERP_MODE = "lazy_interpolation_mode"

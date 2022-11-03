@@ -26,7 +26,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -67,7 +67,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: Prepare pip wheel
       run: |
         which python
@@ -88,6 +88,10 @@ jobs:
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
         python -m pip install torch==1.12.1+cpu torchvision==0.13.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+    - if: runner.os == 'Linux'
+      name: Install itk pre-release (Linux only)
+      run: |
+        python -m pip install --pre -U itk
     - name: Install the dependencies
       run: |
         python -m pip install torch==1.12.1 torchvision==0.13.1
@@ -119,7 +123,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -200,7 +204,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |

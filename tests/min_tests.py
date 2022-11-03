@@ -97,6 +97,7 @@ def run_testsuit():
         "test_hausdorff_distance",
         "test_header_correct",
         "test_hilbert_transform",
+        "test_hovernet_loss",
         "test_image_dataset",
         "test_image_rw",
         "test_img2tensorboard",

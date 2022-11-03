@@ -505,11 +505,11 @@ def generate_pos_neg_label_crop_centers(
         raise ValueError("No sampling location available.")
 
     if len(fg_indices) == 0 or len(bg_indices) == 0:
+        pos_ratio = 0 if len(fg_indices) == 0 else 1
         warnings.warn(
-            f"N foreground {len(fg_indices)}, N  background {len(bg_indices)},"
-            "unable to generate class balanced samples."
+            f"Num foregrounds {len(fg_indices)}, Num backgrounds {len(bg_indices)}, "
+            f"unable to generate class balanced samples, setting `pos_ratio` to {pos_ratio}."
         )
-        pos_ratio = 0 if fg_indices.size == 0 else 1
 
     for _ in range(num_samples):
         indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices

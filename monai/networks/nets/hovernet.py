@@ -55,7 +55,6 @@ class _DenseLayerDecoder(nn.Module):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             num_features: number of internal channels used for the layer
             in_channels: number of the input channels.
             out_channels: number of the output channels.
@@ -109,7 +108,6 @@ class _DecoderBlock(nn.Sequential):
     ) -> None:
         """
         Args:
-            spatial_dims: number of spatial dimensions of the input image.
             layers: number of layers in the block.
             num_features: number of internal features used.
             in_channels: number of the input channel.
@@ -252,11 +250,11 @@ class _ResidualBlock(nn.Module):
         layer = _DenseLayer(
             num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
         )
-        self.layers.add_module("prim_denselayer%d" % (1), layer)
+        self.layers.add_module("prim_denselayer_1", layer)
 
         for i in range(1, layers):
             layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
-            self.layers.add_module("main_denselayer%d" % (i + 1), layer)
+            self.layers.add_module(f"main_dense_layer_{i + 1}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
 
@@ -296,7 +294,6 @@ class _DecoderBranch(nn.ModuleList):
             act: activation type and arguments. Defaults to relu.
             norm: feature normalization type and arguments. Defaults to batch norm.
             dropout_prob: dropout rate after each dense layer.
-            num_features: number of internal features used.
             out_channels: number of the output channel.
             kernel_size: size of the kernel for >1 convolutions (dependent on mode)
         """
