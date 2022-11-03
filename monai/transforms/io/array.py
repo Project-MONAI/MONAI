@@ -229,18 +229,18 @@ class LoadImage(Transform):
 
         """
         filename = tuple(f"{Path(s).expanduser()}" for s in ensure_tuple(filename))  # allow Path objects
-        img, err = None, []
+        img_obj, err = None, []
         if reader is not None:
-            img = reader.read(filename)  # runtime specified reader
+            img_obj = reader.read(filename)  # runtime specified reader
         else:
             for reader in self.readers[::-1]:
                 if self.auto_select:  # rely on the filename extension to choose the reader
                     if reader.verify_suffix(filename):
-                        img = reader.read(filename)
+                        img_obj = reader.read(filename)
                         break
                 else:  # try the user designated readers
                     try:
-                        img = reader.read(filename)
+                        img_obj = reader.read(filename)
                     except Exception as e:
                         err.append(traceback.format_exc())
                         logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
@@ -251,7 +251,7 @@ class LoadImage(Transform):
                         err = []
                         break
 
-        if img is None or reader is None:
+        if img_obj is None or reader is None:
             if isinstance(filename, tuple) and len(filename) == 1:
                 filename = filename[0]
             msg = "\n".join([f"{e}" for e in err])
@@ -263,7 +263,9 @@ class LoadImage(Transform):
             )
 
         img_array: NdarrayOrTensor
-        img_array, meta_data = reader.get_data(img)
+        img_array, meta_data = reader.get_data(img_obj)
+        if hasattr(img_obj, "close"):
+            img_obj.close()
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError("`meta_data` must be a dict.")
