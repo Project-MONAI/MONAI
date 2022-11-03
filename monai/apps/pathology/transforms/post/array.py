@@ -350,13 +350,13 @@ class PostProcessHoVerNet(Transform):
         self.generate_instance_contour = GenerateInstanceContour(points_num=points_num, level=level)
         self.generate_instance_centroid = GenerateInstanceCentroid(dtype=dtype)
         self.generate_instance_type = GenerateInstanceType()
-    
+
     def __call__(self, pred: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
         device = pred[HoVerNetBranch.NP.value].device
         if HoVerNetBranch.NC.value in pred.keys():
             type_pred = Activations(softmax=True)(pred[HoVerNetBranch.NC.value])
             type_pred = AsDiscrete(argmax=True)(type_pred)
-        
+
         pred_inst_dict = self.post_process_segmentation(pred)
         pred_inst = pred_inst_dict[self.distance_map_key]
 
@@ -383,9 +383,9 @@ class PostProcessHoVerNet(Transform):
         if self.output_classes is not None:
             for inst_id in list(inst_info_dict.keys()):
                 inst_type, type_prob = self.generate_instance_type(
-                    bbox=inst_info_dict[inst_id]["bounding_box"], 
-                    type_pred=type_pred, 
-                    seg_pred=pred_inst, 
+                    bbox=inst_info_dict[inst_id]["bounding_box"],
+                    type_pred=type_pred,
+                    seg_pred=pred_inst,
                     instance_id=inst_id,
                 )
                 inst_info_dict[inst_id]["type"] = inst_type
