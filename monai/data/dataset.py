@@ -19,7 +19,7 @@ import threading
 import time
 import warnings
 from copy import copy, deepcopy
-from multiprocessing.managers import DictProxy, ListProxy
+from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
