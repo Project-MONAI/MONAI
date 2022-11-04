@@ -31,7 +31,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: Prepare pip wheel
       run: |
         which python
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, '3.10']
+        python-version: ['3.7', '3.8', '3.9', '3.10']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -119,14 +119,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pytorch-version: [1.7.1, 1.8.2, 1.9.1, 1.10.2, 1.11.0, latest]
+        pytorch-version: ['1.7.1', '1.8.2', '1.9.1', '1.10.2', '1.11.0', 'latest']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: Prepare pip wheel
       run: |
         which python

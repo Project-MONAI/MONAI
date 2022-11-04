@@ -20,7 +20,7 @@ jobs:
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT

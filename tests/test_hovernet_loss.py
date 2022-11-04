@@ -140,17 +140,17 @@ TEST_CASE_2 = [  # batch size of 2, 2 classes with type prediction
 
 TEST_CASE_3 = [  # batch size of 2, 3 classes with minor rotation of nuclear prediction
     {"prediction": inputs_test[3].inputs, "target": inputs_test[3].targets},
-    6.5777,
+    3.6169,
 ]
 
 TEST_CASE_4 = [  # batch size of 2, 3 classes with medium rotation of nuclear prediction
     {"prediction": inputs_test[4].inputs, "target": inputs_test[4].targets},
-    8.5143,
+    4.5079,
 ]
 
 TEST_CASE_5 = [  # batch size of 2, 3 classes with medium rotation of nuclear prediction
     {"prediction": inputs_test[5].inputs, "target": inputs_test[5].targets},
-    10.1705,
+    5.4663,
 ]
 
 CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5]

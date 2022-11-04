@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, common]
     strategy:
       matrix:
-        pytorch-version: [1.7.1, 1.8.1, 1.9.1, 1.10.2, latest]
+        pytorch-version: ['1.7.1', '1.8.1', '1.9.1', '1.10.2', 'latest']
     steps:
     - uses: actions/checkout@v3
     - name: Install the dependencies
