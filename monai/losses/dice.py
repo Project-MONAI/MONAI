@@ -357,9 +357,8 @@ class GeneralizedDiceLoss(_Loss):
             max_values = torch.max(w, dim=1)[0].unsqueeze(dim=1)
             w = w + infs * max_values
 
-        final_reduce_dim = 0 if self.batch else 1
-        numer = 2.0 * (intersection * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr
-        denom = (denominator * w).sum(final_reduce_dim, keepdim=True) + self.smooth_dr
+        numer = 2.0 * (intersection * w) + self.smooth_nr
+        denom = (denominator * w) + self.smooth_dr
         f: torch.Tensor = 1.0 - (numer / denom)
 
         if self.reduction == LossReduction.MEAN.value:
