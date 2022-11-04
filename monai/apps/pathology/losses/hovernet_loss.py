@@ -150,9 +150,7 @@ class HoVerNetLoss(_Loss):
             )
             # Convert to target class indices
             argmax_target = target[HoVerNetBranch.NC.value].argmax(dim=1)
-            ce_loss_nc = (
-                self.ce(prediction[HoVerNetBranch.NC.value], argmax_target) * self.lambda_nc_ce
-            )
+            ce_loss_nc = self.ce(prediction[HoVerNetBranch.NC.value], argmax_target) * self.lambda_nc_ce
             loss_nc = dice_loss_nc + ce_loss_nc
 
         # Sum the losses from each branch

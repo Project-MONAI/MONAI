@@ -169,7 +169,6 @@ ILL_CASES = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 10))
 class TestHoverNetLoss(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, expected_loss):
