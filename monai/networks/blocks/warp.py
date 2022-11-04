@@ -105,7 +105,8 @@ class Warp(nn.Module):
         ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
         if ddf.shape != ddf_shape:
             raise ValueError(
-                f"Given input {spatial_dims}-d image shape {image.shape}, " f"the input DDF shape must be {ddf_shape}."
+                f"Given input {spatial_dims}-d image shape {image.shape}, the input DDF shape must be {ddf_shape}, "
+                f"Got {ddf.shape} instead."
             )
         grid = self.get_reference_grid(ddf) + ddf
         grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
