@@ -82,13 +82,21 @@ class Warp(nn.Module):
         else:
             self._padding_mode = GridSamplePadMode(padding_mode).value
 
-    @staticmethod
-    def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
+        self.ref_grid = None
+
+    def get_reference_grid(self, ddf: torch.Tensor) -> torch.Tensor:
+        if (
+            self.ref_grid is not None
+            and self.ref_grid.shape[0] == ddf.shape[0]
+            and self.ref_grid.shape[1:] == ddf.shape[2:]
+        ):
+            return self.ref_grid
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
-        grid = grid.to(ddf)
-        return grid
+        self.ref_grid = grid.to(ddf)
+        self.ref_grid.requires_grad = False
+        return self.ref_grid
 
     def forward(self, image: torch.Tensor, ddf: torch.Tensor):
         """
