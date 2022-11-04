@@ -374,6 +374,8 @@ class ConfigParser:
             kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
 
         """
+        if not filepath:
+            return {}
         _filepath: str = str(Path(filepath))
         if not re.compile(cls.path_match, re.IGNORECASE).findall(_filepath):
             raise ValueError(f'unknown file input: "{filepath}"')
