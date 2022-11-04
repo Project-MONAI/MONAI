@@ -90,7 +90,7 @@ class Warp(nn.Module):
             and self.ref_grid.shape[0] == ddf.shape[0]
             and self.ref_grid.shape[1:] == ddf.shape[2:]
         ):
-            return self.ref_grid
+            return self.ref_grid  # type: ignore
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
