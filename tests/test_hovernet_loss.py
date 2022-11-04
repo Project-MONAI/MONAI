@@ -21,7 +21,6 @@ from monai.apps.pathology.losses import HoVerNetLoss
 from monai.transforms import GaussianSmooth, Rotate
 from monai.transforms.intensity.array import ComputeHoVerMaps
 from monai.utils.enums import HoVerNetBranch
-from tests.utils import SkipIfBeforePyTorchVersion
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -169,7 +168,6 @@ ILL_CASES = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 10))
 class TestHoverNetLoss(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, expected_loss):
