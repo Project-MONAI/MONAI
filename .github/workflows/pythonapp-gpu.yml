@@ -22,9 +22,9 @@ jobs:
       matrix:
         environment:
           - "PT18+CUDA102"
-          - "PT19+CUDA114"
+          - "PT19+CUDA114DOCKER"
           - "PT110+CUDA111"
-          - "PT112+CUDA118"
+          - "PT112+CUDA118DOCKER"
           - "PT113+CUDA116"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
@@ -32,15 +32,14 @@ jobs:
             # pytorch 1.8.2 LTS
             pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
             base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
-          - environment: PT19+CUDA114
-            # we explicitly set pytorch to -h to avoid pip install error
+          - environment: PT19+CUDA114DOCKER
             # 21.10: 1.10.0a0+0aef44c
-            pytorch: "-h"
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT110+CUDA111
             pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
             base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
-          - environment: PT112+CUDA118
+          - environment: PT112+CUDA118DOCKER
             # 22.09: 1.13.0a0+d0d6b1f
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:22.09-py3"
@@ -99,7 +98,7 @@ jobs:
         python get-pip.py && \
         rm get-pip.py;
         fi
-    - if: matrix.environment == 'PT19+CUDA114'
+    - if: matrix.environment == 'PT19+CUDA114DOCKER'
       name: Optional Cupy dependency (cuda114)
       run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
