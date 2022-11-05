@@ -277,7 +277,7 @@ class ResNet(nn.Module):
                 )
             else:
                 downsample = nn.Sequential(
-                    conv_type(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride),
+                    conv_type(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
                     norm_type(planes * block.expansion),
                 )
 
