@@ -142,7 +142,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      if: github.event.pull_request.merged != true
+      ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
       uses: codecov/codecov-action@v3
       with:
         files: ./coverage.xml
