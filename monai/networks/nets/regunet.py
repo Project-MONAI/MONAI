@@ -49,7 +49,7 @@ class RegUNet(nn.Module):
         out_kernel_initializer: Optional[str] = "kaiming_uniform",
         out_activation: Optional[str] = None,
         out_channels: int = 3,
-        extract_levels: Optional[Tuple[int]] = None,
+        extract_levels: Optional[Tuple[int, ...]] = None,
         pooling: bool = True,
         concat_skip: bool = False,
         encode_kernel_sizes: Union[int, List[int]] = 3,
@@ -255,7 +255,7 @@ class AffineHead(nn.Module):
         self.fc.bias.data.copy_(out_init)
 
     @staticmethod
-    def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
+    def get_reference_grid(image_size: Union[Tuple[int, ...], List[int]]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
@@ -367,7 +367,7 @@ class LocalNet(RegUNet):
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
-        extract_levels: Tuple[int],
+        extract_levels: Tuple[int, ...],
         out_kernel_initializer: Optional[str] = "kaiming_uniform",
         out_activation: Optional[str] = None,
         out_channels: int = 3,
