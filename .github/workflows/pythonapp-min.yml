@@ -101,7 +101,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+        python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
