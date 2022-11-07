@@ -1,3 +1,4 @@
+# daily tests for clara mmar models
 name: cron-mmar
 
 on:
