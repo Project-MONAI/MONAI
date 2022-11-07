@@ -21,8 +21,12 @@ _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator")
-    Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events", as_type="decorator")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
+    Events, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events", as_type="decorator"
+    )
 
 __all__ = ["RangeHandler", "RangePushHandler", "RangePopHandler", "MarkHandler"]
 
