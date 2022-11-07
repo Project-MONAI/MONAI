@@ -50,7 +50,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
             it should >= 0.5, the pairing between instances of `y_pred` and `y` are identical.
             If set `match_iou` < 0.5, this function uses Munkres assignment to find the
             maximal amout of unique pairing.
-        smooth_nr: a small constant added to the numerator to avoid zero.
+        smooth_numerator: a small constant added to the numerator to avoid zero.
 
     """
 
@@ -60,13 +60,13 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         metric_name: str = "pq",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
         match_iou: float = 0.5,
-        smooth_nr: float = 1e-6,
+        smooth_numerator: float = 1e-6,
     ) -> None:
         super().__init__()
         self.num_classes = num_classes
         self.reduction = reduction
         self.match_iou = match_iou
-        self.smooth_nr = smooth_nr
+        self.smooth_numerator = smooth_numerator
         self.metric_name = _check_panoptic_metric_name(metric_name)
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
@@ -137,10 +137,10 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         tp, fp, fn, iou_sum = f[..., 0], f[..., 1], f[..., 2], f[..., 3]
         if self.metric_name == "rq":
-            return tp / (tp + 0.5 * fp + 0.5 * fn + self.smooth_nr)
+            return tp / (tp + 0.5 * fp + 0.5 * fn + self.smooth_numerator)
         if self.metric_name == "sq":
-            return iou_sum / (tp + self.smooth_nr)
-        return iou_sum / (tp + 0.5 * fp + 0.5 * fn + self.smooth_nr)
+            return iou_sum / (tp + self.smooth_numerator)
+        return iou_sum / (tp + 0.5 * fp + 0.5 * fn + self.smooth_numerator)
 
 
 def compute_panoptic_quality(
@@ -149,7 +149,7 @@ def compute_panoptic_quality(
     metric_name: str = "pq",
     remap: bool = True,
     match_iou: float = 0.5,
-    smooth_nr: float = 1e-6,
+    smooth_numerator: float = 1e-6,
     output_confusion_matrix: bool = False,
 ):
     """Computes Panoptic Quality (PQ). If specifying `metric_name` to "SQ" or "RQ",
@@ -168,7 +168,7 @@ def compute_panoptic_quality(
             it should >= 0.5, the pairing between instances of `pred` and `gt` are identical.
             If set `match_iou` < 0.5, this function uses Munkres assignment to find the
             maximal amout of unique pairing.
-        smooth_nr: a small constant added to the numerator to avoid zero.
+        smooth_numerator: a small constant added to the numerator to avoid zero.
 
     Raises:
         ValueError: when `pred` and `gt` have different shapes.
@@ -202,10 +202,10 @@ def compute_panoptic_quality(
 
     metric_name = _check_panoptic_metric_name(metric_name)
     if metric_name == "rq":
-        return torch.as_tensor(tp / (tp + 0.5 * fp + 0.5 * fn + smooth_nr), device=pred.device)
+        return torch.as_tensor(tp / (tp + 0.5 * fp + 0.5 * fn + smooth_numerator), device=pred.device)
     if metric_name == "sq":
-        return torch.as_tensor(iou_sum / (tp + smooth_nr), device=pred.device)
-    return torch.as_tensor(iou_sum / (tp + 0.5 * fp + 0.5 * fn + smooth_nr), device=pred.device)
+        return torch.as_tensor(iou_sum / (tp + smooth_numerator), device=pred.device)
+    return torch.as_tensor(iou_sum / (tp + 0.5 * fp + 0.5 * fn + smooth_numerator), device=pred.device)
 
 
 def _get_id_list(gt: torch.Tensor):
