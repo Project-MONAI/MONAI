@@ -523,10 +523,10 @@ def run(
         **override,
     )
     if "config_file" not in _args:
-        raise ValueError(f"`config_file` is required for 'monai.bundle run'.\n{run.__doc__}")
+        warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
     config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-        _args, "config_file", meta_file=None, runner_id="", logging_file=None
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
