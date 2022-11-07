@@ -18,8 +18,8 @@ from .post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    Watershed,
     HoVerNetPostProcessing,
+    Watershed,
 )
 from .post.dictionary import (
     GenerateDistanceMapD,

@@ -9,20 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, List, Hashable, Optional, Mapping, Sequence, Tuple, Union
+from typing import Callable, Dict, Hashable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
-from monai.transforms import Activations, AsDiscrete, BoundingRect
-from monai.transforms.post.array import Activations, AsDiscrete, RemoveSmallObjects, SobelGradients
+from monai.transforms import Activations, AsDiscrete, BoundingRect, RemoveSmallObjects, SobelGradients
 from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.enums import HoVerNetBranch
-from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 from monai.utils.misc import ensure_tuple_rep
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -650,6 +648,7 @@ class HoVerNetPostProcessing(Transform):
         output_classes: number of the nuclear type classes.
         inst_info_dict_keys: key use to record information for each instance.
     """
+
     def __init__(
         self,
         seg_postpprocessing: Callable,
