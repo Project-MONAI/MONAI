@@ -210,6 +210,7 @@ if __name__ == "__main__":
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
+    print(err_mod)
     assert not err_mod
 
     # testing all modules
