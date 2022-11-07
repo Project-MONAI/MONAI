@@ -20,37 +20,31 @@ from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-TEST_CASE_0 = [  # fast mode, batch 16
+TEST_CASE_0 = [  # fast mode
     {"out_classes": 5, "mode": HoVerNet.Mode.FAST},
     (1, 3, 256, 256),
     {HoVerNet.Branch.NP: (1, 2, 164, 164), HoVerNet.Branch.NC: (1, 5, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
 ]
 
-TEST_CASE_1 = [  # single channel 2D, batch 16
-    {"mode": HoVerNet.Mode.FAST},
-    (1, 3, 256, 256),
-    {HoVerNet.Branch.NP: (1, 2, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
-]
-
-TEST_CASE_2 = [  # single channel 3D, batch 16
-    {"mode": HoVerNet.Mode.ORIGINAL},
-    (1, 3, 270, 270),
-    {HoVerNet.Branch.NP: (1, 2, 80, 80), HoVerNet.Branch.HV: (1, 2, 80, 80)},
-]
-
-TEST_CASE_3 = [  # 4-channel 3D, batch 16
+TEST_CASE_1 = [  # original mode
     {"out_classes": 6, "mode": HoVerNet.Mode.ORIGINAL},
     (1, 3, 270, 270),
     {HoVerNet.Branch.NP: (1, 2, 80, 80), HoVerNet.Branch.NC: (1, 6, 80, 80), HoVerNet.Branch.HV: (1, 2, 80, 80)},
 ]
 
-TEST_CASE_4 = [  # 4-channel 3D, batch 16, batch normalization
-    {"mode": HoVerNet.Mode.FAST, "dropout_prob": 0.5},
+TEST_CASE_2 = [  # dropout
+    {"mode": HoVerNet.Mode.FAST, "dropout_prob": 0.5, "out_classes": 3},
     (1, 3, 256, 256),
-    {HoVerNet.Branch.NP: (1, 2, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
+    {HoVerNet.Branch.NP: (1, 2, 164, 164), HoVerNet.Branch.NC: (1, 3, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
 ]
 
-CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4]
+TEST_CASE_3 = [  # np_out_channels
+    {"mode": HoVerNet.Mode.FAST, "np_out_channels": 3, "out_classes": 2},
+    (1, 3, 256, 256),
+    {HoVerNet.Branch.NP: (1, 3, 164, 164), HoVerNet.Branch.NC: (1, 2, 164, 164), HoVerNet.Branch.HV: (1, 2, 164, 164)},
+]
+
+CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 ILL_CASES = [
     [{"out_classes": 6, "mode": 3}],
