@@ -27,7 +27,7 @@ class PanopticQuality(IgniteMetric):
         metric_name: str = "pq",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
         match_iou: float = 0.5,
-        smooth_nr: float = 1e-6,
+        smooth_numerator: float = 1e-6,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -43,7 +43,7 @@ class PanopticQuality(IgniteMetric):
                 it should >= 0.5, the pairing between instances of `y_pred` and `y` are identical.
                 If set `match_iou` < 0.5, this function uses Munkres assignment to find the
                 maximal amout of unique pairing.
-            smooth_nr: a small constant added to the numerator to avoid zero.
+            smooth_numerator: a small constant added to the numerator to avoid zero.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -62,6 +62,6 @@ class PanopticQuality(IgniteMetric):
             metric_name=metric_name,
             reduction=reduction,
             match_iou=match_iou,
-            smooth_nr=smooth_nr,
+            smooth_numerator=smooth_numerator,
         )
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
