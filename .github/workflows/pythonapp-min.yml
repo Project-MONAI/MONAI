@@ -98,6 +98,9 @@ jobs:
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
         key: ubuntu-latest-latest-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: install prerelease and py311
+      if: matrix.python-version == '3.11'
+      run: pip install --pre torch --extra-index-url https://download.pytorch.org/whl/nightly/cpu
     - name: Install the dependencies
       run: |
         # min. requirements
