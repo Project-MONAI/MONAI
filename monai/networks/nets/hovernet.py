@@ -418,7 +418,12 @@ class HoVerNet(nn.Module):
             get the same output size as the input, and this changed version is used on CoNIC challenge.
             Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
         dropout_prob: dropout rate after each dense layer.
-        pretrained_url: if specifying, will loaded the pretrained weights of preact resnet50 downloaded from the url.
+        pretrained_url: if specifying, will loaded the pretrained weights downloaded from the url.
+            The weights should be ImageNet pretrained preact-resnet50 weights coming from the referred hover_net
+            repository, and please check the following link for more details:
+            https://github.com/vqdang/hover_net#data-format
+            Each user is responsible for checking the content of model/datasets and the applicable licenses and
+            determining if suitable for the intended use.
     """
 
     Mode = HoVerNetMode
