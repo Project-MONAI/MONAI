@@ -66,7 +66,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         kernel_size: int = 3,
         kernel_type: str = "rectangular",
         reduction: Union[LossReduction, str] = LossReduction.MEAN,
-        smooth_nr: float = 1e-5,
+        smooth_nr: float = 0.0,
         smooth_dr: float = 1e-5,
     ) -> None:
         """
@@ -96,6 +96,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
 
         _kernel = look_up_option(kernel_type, kernel_dict)
         self.kernel = _kernel(self.kernel_size)
+        self.kernel.require_grads = False
         self.kernel_vol = self.get_kernel_vol()
 
         self.smooth_nr = float(smooth_nr)
@@ -120,14 +121,15 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         if target.shape != pred.shape:
             raise ValueError(f"ground truth has differing shape ({target.shape}) from pred ({pred.shape})")
 
-        t2, p2, tp = target**2, pred**2, target * pred
+        t2, p2, tp = target * target, pred * pred, target * pred
         kernel, kernel_vol = self.kernel.to(pred), self.kernel_vol.to(pred)
+        kernels = [kernel] * self.ndim
         # sum over kernel
-        t_sum = separable_filtering(target, kernels=[kernel.to(pred)] * self.ndim)
-        p_sum = separable_filtering(pred, kernels=[kernel.to(pred)] * self.ndim)
-        t2_sum = separable_filtering(t2, kernels=[kernel.to(pred)] * self.ndim)
-        p2_sum = separable_filtering(p2, kernels=[kernel.to(pred)] * self.ndim)
-        tp_sum = separable_filtering(tp, kernels=[kernel.to(pred)] * self.ndim)
+        t_sum = separable_filtering(target, kernels=kernels)
+        p_sum = separable_filtering(pred, kernels=kernels)
+        t2_sum = separable_filtering(t2, kernels=kernels)
+        p2_sum = separable_filtering(p2, kernels=kernels)
+        tp_sum = separable_filtering(tp, kernels=kernels)
 
         # average over kernel
         t_avg = t_sum / kernel_vol
@@ -143,11 +145,13 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         #     = sum[t*p] - sum[t] * mean[p] = cross
         # the following is actually squared ncc
         cross = tp_sum - p_avg * t_sum
-        t_var = t2_sum - t_avg * t_sum  # std[t] ** 2
-        p_var = p2_sum - p_avg * p_sum  # std[p] ** 2
-        t_var = torch.max(t_var, torch.zeros_like(t_var))
-        p_var = torch.max(p_var, torch.zeros_like(p_var))
-        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var + self.smooth_dr)
+        t_var = torch.max(
+            t2_sum - t_avg * t_sum, torch.as_tensor(self.smooth_dr, dtype=t2_sum.dtype, device=t2_sum.device)
+        )
+        p_var = torch.max(
+            p2_sum - p_avg * p_sum, torch.as_tensor(self.smooth_dr, dtype=p2_sum.dtype, device=p2_sum.device)
+        )
+        ncc: torch.Tensor = (cross * cross + self.smooth_nr) / (t_var * p_var)
 
         if self.reduction == LossReduction.SUM.value:
             return torch.sum(ncc).neg()  # sum over the batch, channel and spatial ndims
