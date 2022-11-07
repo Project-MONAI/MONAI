@@ -708,6 +708,7 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
                 rtol=rtol,
                 atol=atol,
             )
+        assert sys.version_info.minor != 11, "expecting jit + Python 3.11 not working yet"
     except (RuntimeError, AttributeError):
         if sys.version_info.minor == 11 and sys.version_info.major == 3:
             warnings.warn("skipping py 3.11")
