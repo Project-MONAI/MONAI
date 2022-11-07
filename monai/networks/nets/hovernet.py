@@ -27,6 +27,8 @@
 # }
 # =========================================================================
 
+import os
+import re
 import warnings
 from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union
@@ -34,6 +36,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Type, Union
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import download_url
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
@@ -415,7 +418,7 @@ class HoVerNet(nn.Module):
             get the same output size as the input, and this changed version is used on CoNIC challenge.
             Please note that to get consistent output size, `HoVerNetMode.FAST` mode should be employed.
         dropout_prob: dropout rate after each dense layer.
-        pretrained: whether to load pretrained weights for encoder.
+        pretrained_url: if specifying, will loaded the pretrained weights of preact resnet50 downloaded from the url.
     """
 
     Mode = HoVerNetMode
@@ -431,7 +434,7 @@ class HoVerNet(nn.Module):
         norm: Union[str, tuple] = "batch",
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
-        pretrained: bool = False,
+        pretrained_url: Optional[str] = None,
     ) -> None:
 
         super().__init__()
@@ -526,6 +529,9 @@ class HoVerNet(nn.Module):
                 nn.init.constant_(torch.as_tensor(m.weight), 1)
                 nn.init.constant_(torch.as_tensor(m.bias), 0)
 
+        if pretrained_url is not None:
+            _load_pretrained_encoder(self, pretrained_url)
+
     def freeze_encoder(self):
         self.res_blocks.requires_grad_(False)
 
@@ -558,6 +564,40 @@ class HoVerNet(nn.Module):
             output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
 
         return output
+
+
+def _load_pretrained_encoder(model: nn.Module, model_url: str):
+
+    pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
+    pattern_block = re.compile(r"^(d\d+)\.(.+)$")
+    pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
+    pattern_bna = re.compile(r"^(.+\.d\d+)\.blk_bna\.(.+)")
+    # download the pretrained weights into torch hub's default dir
+    weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
+    download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
+    state_dict = torch.load(weights_dir, map_location=None)["desc"]
+    for key in list(state_dict.keys()):
+        new_key = None
+        if pattern_conv0.match(key):
+            new_key = re.sub(pattern_conv0, r"conv0.conv\2", key)
+        elif pattern_block.match(key):
+            new_key = re.sub(pattern_block, r"res_blocks.\1.\2", key)
+            if pattern_layer.match(new_key):
+                new_key = re.sub(pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key)
+            elif pattern_bna.match(new_key):
+                new_key = re.sub(pattern_bna, r"\1.bna_block.\2", new_key)
+        if new_key:
+            state_dict[new_key] = state_dict[key]
+            del state_dict[key]
+        if "upsample2x" in key:
+            del state_dict[key]
+
+    model_dict = model.state_dict()
+    state_dict = {
+        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+    }
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
 
 
 Hovernet = HoVernet = HoverNet = HoVerNet
