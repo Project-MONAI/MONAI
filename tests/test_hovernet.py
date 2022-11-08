@@ -66,7 +66,7 @@ def check_branch(branch, mode):
     if branch.decoderblock1.convf.kernel_size != (1, 1):
         return True
     for block in branch.decoderblock1:
-        if type(block) is HoVerNet._DenseLayerDecoder:
+        if isinstance(block, HoVerNet._DenseLayerDecoder):
             if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
                 return True
 
@@ -76,7 +76,7 @@ def check_branch(branch, mode):
         return True
 
     for block in branch.decoderblock2:
-        if type(block) is HoVerNet._DenseLayerDecoder:
+        if isinstance(block, HoVerNet._DenseLayerDecoder):
             if block.layers.conv1.kernel_size != (1, 1) or block.layers.conv2.kernel_size != (ksize, ksize):
                 return True
 
