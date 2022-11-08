@@ -26,7 +26,7 @@ class PanopticQuality(IgniteMetric):
         num_classes: int,
         metric_name: str = "pq",
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
-        match_iou: float = 0.5,
+        match_iou_threshold: float = 0.5,
         smooth_numerator: float = 1e-6,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
@@ -39,9 +39,9 @@ class PanopticQuality(IgniteMetric):
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
                 ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
-            match_iou: IOU threshould to determine the pairing between `y_pred` and `y`. Usually,
+            match_iou_threshold: IOU threshould to determine the pairing between `y_pred` and `y`. Usually,
                 it should >= 0.5, the pairing between instances of `y_pred` and `y` are identical.
-                If set `match_iou` < 0.5, this function uses Munkres assignment to find the
+                If set `match_iou_threshold` < 0.5, this function uses Munkres assignment to find the
                 maximal amout of unique pairing.
             smooth_numerator: a small constant added to the numerator to avoid zero.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
@@ -61,7 +61,7 @@ class PanopticQuality(IgniteMetric):
             num_classes=num_classes,
             metric_name=metric_name,
             reduction=reduction,
-            match_iou=match_iou,
+            match_iou_threshold=match_iou_threshold,
             smooth_numerator=smooth_numerator,
         )
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
