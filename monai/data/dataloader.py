@@ -84,7 +84,7 @@ class DataLoader(_TorchDataLoader):
             from monai.data.dataset import CacheDataset  # avoid circular import
 
             if isinstance(dataset, CacheDataset) and dataset.runtime_cache:
-                dataset._cache = dataset._set_multiprocessing_cache(dataset._cache, False)
+                dataset.disable_share_memory_cache()
 
             _g.manual_seed(init_seed)
         if "collate_fn" not in kwargs:

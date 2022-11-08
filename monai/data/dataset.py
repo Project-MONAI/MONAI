@@ -821,8 +821,7 @@ class CacheDataset(Dataset):
 
         def _compute_cache(indices=None):
             if self.runtime_cache:
-                cache = [None for i in range(self.cache_num)]
-                cache = self._set_multiprocessing_cache(cache, mp_cache=True)
+                cache = Manager().list([None for _ in range(self.cache_num)])
                 if self._is_dist:
                     obj_list = [cache]
                     # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
@@ -844,8 +843,13 @@ class CacheDataset(Dataset):
 
         self._cache = _compute_cache(indices)
 
-    def _set_multiprocessing_cache(self, cache: Union[List, ListProxy], mp_cache: bool):
-        return Manager().list(cache) if mp_cache else list(cache)
+    def disable_share_memory_cache(self):
+        """
+        If the cache content is multiprocessing share memory list, convert it to a regular ptython list.
+        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
+
+        """
+        self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
         """
