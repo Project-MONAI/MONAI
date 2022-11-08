@@ -212,7 +212,7 @@ if __name__ == "__main__":
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    assert not err_mod
+    assert not err_mod, f"err_mod={err_mod} not empty"
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
