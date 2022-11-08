@@ -11,10 +11,12 @@
 
 import unittest
 
+import torch
 import numpy as np
 import torch.distributed as dist
 
-from monai.data import DistributedSampler
+from monai.data import CacheDataset, DataLoader, DistributedSampler
+from monai.transforms import ToTensor
 from tests.utils import DistCall, DistTestCase
 
 
@@ -42,6 +44,25 @@ class DistributedSamplerTest(DistTestCase):
 
         if dist.get_rank() == 1:
             np.testing.assert_allclose(samples, np.array([2, 4]))
+
+    @DistCall(nnodes=1, nproc_per_node=2)
+    def test_cachedataset(self):
+        data = [1, 2, 3, 4, 5]
+        dataset = CacheDataset(data=data, transform=ToTensor(track_meta=False), cache_rate=1.0, runtime_cache=True)
+        sampler = DistributedSampler(dataset=dataset, shuffle=False)
+        dataloader = DataLoader(dataset=dataset, sampler=sampler, batch_size=1, num_workers=2)
+        for i in range(3):
+            if i > 0:
+                # verify the runtime cache content
+                for j, c in enumerate(dataset._cache):
+                    self.assertTrue(isinstance(c, torch.Tensor))
+                    torch.testing.assert_allclose(c, j + 1)
+            for d in dataloader:
+                if dist.get_rank() == 0:
+                    print("rank 0: ", d[0])
+
+                if dist.get_rank() == 1:
+                    print("rank 1: ", d[0])
 
 
 if __name__ == "__main__":
