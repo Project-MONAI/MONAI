@@ -20,7 +20,7 @@ from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, 
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.enums import HoVerNetBranch
 from monai.utils.misc import ensure_tuple_rep
-from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import convert_to_dst_type
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -675,7 +675,7 @@ class HoVerNetPostProcessing(Transform):
         self.generate_instance_type = GenerateInstanceType()
 
     def __call__(self, pred: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
-        device = pred[HoVerNetBranch.NP.value].device
+        pred = dict(pred)
         if HoVerNetBranch.NC.value in pred.keys():
             type_pred = Activations(softmax=True)(pred[HoVerNetBranch.NC.value])
             type_pred = AsDiscrete(argmax=True)(type_pred)
@@ -706,18 +706,18 @@ class HoVerNetPostProcessing(Transform):
         if self.output_classes is not None:
             for inst_id in list(inst_info_dict.keys()):
                 inst_type, type_prob = self.generate_instance_type(
-                    bbox=inst_info_dict[inst_id]["bounding_box"],
+                    bbox=inst_info_dict[inst_id]["bounding_box"],  # type: ignore
                     type_pred=type_pred,
                     seg_pred=pred_inst,
                     instance_id=inst_id,
                 )
-                inst_info_dict[inst_id]["type"] = inst_type
-                inst_info_dict[inst_id]["type_probability"] = type_prob
+                inst_info_dict[inst_id]["type"] = inst_type  # type: ignore
+                inst_info_dict[inst_id]["type_probability"] = type_prob  # type: ignore
 
-        pred_inst = convert_to_tensor(pred_inst, device=device)
+        pred_inst = convert_to_dst_type(pred_inst, pred[HoVerNetBranch.NP.value])
         pred[HoVerNetBranch.NP.value] = pred_inst
         if self.return_binary:
             pred_inst[pred_inst > 0] = 1
             pred[self.pred_binary_key] = pred_inst
-        pred[self.inst_info_dict_key] = inst_info_dict
+        pred[self.inst_info_dict_key] = inst_info_dict  # type: ignore
         return pred
