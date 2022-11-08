@@ -1,4 +1,5 @@
-name: conda
+# daily tests for different OS with conda
+name: cron-conda
 
 on:
   schedule:
@@ -18,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-        python-version: ["3.7"]
+        python-version: ["3.8"]
     runs-on: ${{ matrix.os }}
     env:
       QUICKTEST: True

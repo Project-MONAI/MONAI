@@ -137,7 +137,7 @@ def skip_if_downloading_fails():
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         if "md5 check" in str(rt_e):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
-        if "account limit" in str(rt_e):  # HTTP Error 503: Egress is over the account limit
+        if "limit" in str(rt_e):  # HTTP Error 503: Egress is over the account limit
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e
         raise rt_e
 
