@@ -752,7 +752,6 @@ class CacheDataset(Dataset):
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
         runtime_cache: bool = False,
-        cache_rank: int = 0,
     ) -> None:
         """
         Args:
@@ -781,9 +780,9 @@ class CacheDataset(Dataset):
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
                 the cache content at initializaiton, if `True`, it will cache during the first epoch
                 of model training, so it can start the first mini-batch earlier.
-                to execute runtime cache on GPU memory, must co-work with `monai.data.DataLoader`.
-            cache_rank: if in distributed data parallel, only compute the cache on `cache_rank` and
-                broadcast the cache buffer to other ranks, default to `0`.
+                please note that: to execute `runtime cache` on GPU memory, must co-work with
+                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
+                as GPU Tensor usually can't share in the multiprocessing context.
 
         """
         if not isinstance(transform, Compose):
@@ -800,7 +799,6 @@ class CacheDataset(Dataset):
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
         self.runtime_cache = runtime_cache
-        self.cache_rank = cache_rank
         self.cache_num = 0
         self._cache: Union[List, ListProxy] = []
         self._hash_keys: List = []
@@ -822,17 +820,16 @@ class CacheDataset(Dataset):
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
         def _compute_cache(indices=None):
-            if self.runtime_cache or (self._is_dist and dist.get_rank() != self.cache_rank):
+            if self.runtime_cache:
                 cache = [None for i in range(self.cache_num)]
+                cache = self._set_multiprocessing_cache(cache, mp_cache=True)
+                if self._is_dist:
+                    obj_list = [cache]
+                    # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
+                    dist.broadcast_object_list(obj_list, src=0)
+                    cache = obj_list[0]
             else:
                 cache = self._fill_cache(indices)
-            if self.runtime_cache:
-                cache = self._set_multiprocessing_cache(cache, mp_cache=True)
-
-            if self._is_dist:
-                obj_list = [cache]
-                dist.broadcast_object_list(obj_list, src=self.cache_rank)
-                cache = obj_list[0]
             return cache
 
         if self.hash_as_key:
