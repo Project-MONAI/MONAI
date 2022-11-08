@@ -22,7 +22,9 @@ Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
 
 DEFAULT_KEY_VAL_FORMAT = "{}: {:.4f} "
 DEFAULT_TAG = "Loss"
