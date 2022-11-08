@@ -5,7 +5,7 @@ channels:
   - conda-forge
 dependencies:
   - numpy>=1.17
-  - pytorch>=1.6
+  - pytorch>=1.8
   - coverage>=5.5
   - parameterized
   - setuptools>=50.3.0,!=60.0.0
