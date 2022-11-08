@@ -265,12 +265,9 @@ class LoadImage(Transform):
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img_obj)
         # Close image objects if they have close attribute
-        if isinstance(img_obj, Sequence):
-            for each_obj in img_obj:
-                if hasattr(each_obj, "close"):
-                    each_obj.close()
-        elif hasattr(img_obj, "close"):
-            img_obj.close()
+        for each_obj in ensure_tuple(img_obj):
+            if hasattr(each_obj, "close"):
+                each_obj.close()
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError("`meta_data` must be a dict.")
