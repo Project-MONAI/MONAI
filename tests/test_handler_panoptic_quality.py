@@ -36,7 +36,12 @@ sample_2_gt = torch.as_tensor(
 
 TEST_CASE_1 = [{"num_classes": 4, "output_transform": from_engine(["pred", "label"])}, [0.6667, 0.1538, 0.6667, 0.5714]]
 TEST_CASE_2 = [
-    {"num_classes": 5, "output_transform": from_engine(["pred", "label"]), "metric_name": "rq", "match_iou": 0.3},
+    {
+        "num_classes": 5,
+        "output_transform": from_engine(["pred", "label"]),
+        "metric_name": "rq",
+        "match_iou_threshold": 0.3,
+    },
     [0.6667, 0.7692, 0.8889, 0.5714, 0.0000],
 ]
 TEST_CASE_3 = [
@@ -45,7 +50,7 @@ TEST_CASE_3 = [
         "reduction": "mean",
         "output_transform": from_engine(["pred", "label"]),
         "metric_name": "SQ",
-        "match_iou": 0.2,
+        "match_iou_threshold": 0.2,
     },
     0.8235,
 ]
