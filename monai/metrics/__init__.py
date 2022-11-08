@@ -18,6 +18,7 @@ from .hausdorff_distance import HausdorffDistanceMetric, compute_hausdorff_dista
 from .meandice import DiceMetric, compute_dice, compute_meandice
 from .meaniou import MeanIoU, compute_iou, compute_meaniou
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
+from .panoptic_quality import PanopticQualityMetric, compute_panoptic_quality
 from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric, SSIMMetric
 from .rocauc import ROCAUCMetric, compute_roc_auc
 from .surface_dice import SurfaceDiceMetric, compute_surface_dice
