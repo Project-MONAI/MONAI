@@ -38,6 +38,7 @@ def run_testsuit():
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
         "test_check_missing_files",
+        "test_compute_f_beta",
         "test_compute_ho_ver_maps",
         "test_compute_ho_ver_maps_d",
         "test_contrastive_loss",
