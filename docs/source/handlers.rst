@@ -71,6 +71,12 @@ Surface distance metrics handler
     :members:
 
 
+Panoptic Quality metrics handler
+--------------------------------
+.. autoclass:: PanopticQuality
+    :members:
+
+
 Mean squared error metrics handler
 ----------------------------------
 .. autoclass:: MeanSquaredError
