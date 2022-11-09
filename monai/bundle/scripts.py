@@ -493,7 +493,7 @@ def mlflow_patch_bundle(parser: ConfigParser, settings: Optional[Union[bool, str
             if handlers is None:
                 engine["handlers_key"] = [v["config"]]
             else:
-                handlers.append(v["config"])   
+                handlers.append(v["config"])
 
 
 def run(
@@ -572,7 +572,7 @@ def run(
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
-    
+
     # patch the bundle with mlflow handler
     if mlflow_:
         mlflow_patch_bundle(parser, mlflow_)
