@@ -495,11 +495,20 @@ class TestMetaTensor(unittest.TestCase):
         m = MetaTensor(im, applied_operations=data["im"].applied_operations)
         self.assertEqual(len(m.applied_operations), len(tr.transforms))
 
+    def test_pending_ops(self):
+        m, _ = self.get_im()
+        self.assertEqual(m.pending_operations, [])
+        self.assertEqual(m.peek_pending_shape(), (10, 8))
+        self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        m.push_pending_operation({})
+        self.assertEqual(m.peek_pending_shape(), (10, 8))
+        self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+
     @parameterized.expand(TESTS)
     def test_multiprocessing(self, device=None, dtype=None):
         """multiprocessing sharing with 'device' and 'dtype'"""
         buf = io.BytesIO()
-        t = MetaTensor([0.0, 0.0], device=device, dtype=dtype)
+        t = MetaTensor([0, 0] if dtype in (torch.int32, torch.int64) else [0.0, 0.0], device=device, dtype=dtype)
         t.is_batch = True
         if t.is_cuda:
             with self.assertRaises(NotImplementedError):
@@ -518,7 +527,9 @@ class TestMetaTensor(unittest.TestCase):
         assert_allclose(np.sum(a), np.sum(b))
         assert_allclose(np.sum(a, axis=1), np.sum(b, axis=1))
         assert_allclose(np.linalg.qr(a), np.linalg.qr(b))
-        c = MetaTensor([1.0, 2.0, 3.0], device=device, dtype=dtype)
+        c = MetaTensor(
+            [1, 2, 3] if dtype in (torch.int32, torch.int64) else [1.0, 2.0, 3.0], device=device, dtype=dtype
+        )
         assert_allclose(np.argwhere(c == 1.0).astype(int).tolist(), [[0]])
         assert_allclose(np.concatenate([c, c]), np.asarray([1.0, 2.0, 3.0, 1.0, 2.0, 3.0]))
         if pytorch_after(1, 8, 1):
@@ -530,7 +541,7 @@ class TestMetaTensor(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_numpy(self, device=None, dtype=None):
         """device, dtype"""
-        t = MetaTensor([0.0], device=device, dtype=dtype)
+        t = MetaTensor([0 if dtype in (torch.int32, torch.int64) else 0.0], device=device, dtype=dtype)
         self.assertIsInstance(t, MetaTensor)
         assert_allclose(t.array, np.asarray([0.0]))
         t.array = np.asarray([1.0])
@@ -540,7 +551,7 @@ class TestMetaTensor(unittest.TestCase):
         self.check_meta(t, MetaTensor([2.0]))
         assert_allclose(t.as_tensor(), torch.as_tensor([2.0]))
         if not t.is_cuda:
-            t.array[0] = torch.as_tensor(3.0, device=device, dtype=dtype)
+            t.array[0] = torch.as_tensor(3 if dtype in (torch.int32, torch.int64) else 3.0, device=device, dtype=dtype)
             self.check_meta(t, MetaTensor([3.0]))
             assert_allclose(t.as_tensor(), torch.as_tensor([3.0]))
 

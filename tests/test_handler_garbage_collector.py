@@ -24,7 +24,6 @@ from monai.utils import min_version, optional_import
 
 Events, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
-
 TEST_CASE_0 = [[0, 1, 2], "epoch"]
 
 TEST_CASE_1 = [[0, 1, 2], "iteration"]

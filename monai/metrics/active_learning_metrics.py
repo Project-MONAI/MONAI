@@ -22,7 +22,7 @@ from .metric import Metric
 
 class VarianceMetric(Metric):
     """
-    Compute the Variance of a given T-repeats N-dimensional array/tensor. The primary usage is as a uncertainty based
+    Compute the Variance of a given T-repeats N-dimensional array/tensor. The primary usage is as an uncertainty based
     metric for Active Learning.
 
     It can return the spatial variance/uncertainty map based on user choice or a single scalar value via mean/sum of the
@@ -49,7 +49,7 @@ class VarianceMetric(Metric):
         self.scalar_reduction = scalar_reduction
         self.threshold = threshold
 
-    def __call__(self, y_pred: Any) -> Any:  # type: ignore
+    def __call__(self, y_pred: Any) -> Any:
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.
@@ -88,7 +88,7 @@ class LabelQualityScore(Metric):
         self.include_background = include_background
         self.scalar_reduction = scalar_reduction
 
-    def __call__(self, y_pred: Any, y: Any):  # type: ignore
+    def __call__(self, y_pred: Any, y: Any):
         """
         Args:
             y_pred: Predicted segmentation, typically segmentation model output.

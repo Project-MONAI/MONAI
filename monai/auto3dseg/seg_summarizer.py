@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from monai.auto3dseg.analyzer import (
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,
+    ImageHistogram,
+    ImageHistogramSumm,
     ImageStats,
     ImageStatsSumm,
     LabelStats,
@@ -42,6 +44,11 @@ class SegSummarizer(Compose):
             datalist to locate the label files of the dataset. If label_key is None, the DataAnalyzer
             will skip looking for labels and all label-related operations.
         do_ccp: apply the connected component algorithm to process the labels/images.
+        hist_bins: list of positive integers (one for each channel) for setting the number of bins used to
+            compute the histogram. Defaults to [100].
+        hist_range: list of lists of two floats (one for each channel) setting the intensity range to
+            compute the histogram. Defaults to [-500, 500].
+        histogram_only: whether to only compute histograms. Defaults to False.
 
     Examples:
         .. code-block:: python
@@ -70,26 +77,46 @@ class SegSummarizer(Compose):
             report = summarizer.summarize(stats)
     """
 
-    def __init__(self, image_key: str, label_key: str, average=True, do_ccp: bool = True) -> None:
+    def __init__(
+        self,
+        image_key: str,
+        label_key: str,
+        average=True,
+        do_ccp: bool = True,
+        hist_bins: Optional[list] = None,
+        hist_range: Optional[list] = None,
+        histogram_only: bool = False,
+    ) -> None:
 
         self.image_key = image_key
         self.label_key = label_key
+        # set defaults
+        self.hist_bins: list = [100] if hist_bins is None else hist_bins
+        self.hist_range: list = [-500, 500] if hist_range is None else hist_range
+        self.histogram_only = histogram_only
 
         self.summary_analyzers: List[Any] = []
         super().__init__()
 
-        self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
-        self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
-        self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
+        if not self.histogram_only:
+            self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
+            self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
+            self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
 
-        if label_key is None:
-            return
+            if label_key is None:
+                return
 
-        self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm(average=average))
+            self.add_analyzer(FgImageStats(image_key, label_key), FgImageStatsSumm(average=average))
 
-        self.add_analyzer(
-            LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
-        )
+            self.add_analyzer(
+                LabelStats(image_key, label_key, do_ccp=do_ccp), LabelStatsSumm(average=average, do_ccp=do_ccp)
+            )
+
+        # compute histograms
+        if self.hist_bins != 0:  # type: ignore
+            self.add_analyzer(
+                ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
+            )
 
     def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
         """
@@ -104,7 +131,7 @@ class SegSummarizer(Compose):
 
             .. code-block:: python
 
-                from monai.auto3dseg.analyzer import Analyzer
+                from monai.auto3dseg import Analyzer
                 from monai.auto3dseg.utils import concat_val_to_np
                 from monai.auto3dseg.analyzer_engine import SegSummarizer
 

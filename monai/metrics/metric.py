@@ -45,7 +45,7 @@ class IterationMetric(Metric):
     Subclasses typically implement the `_compute_tensor` function for the actual tensor computation logic.
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction `y_pred` and ground truth `y` (optional).
         It supports inputs of a list of "channel-first" Tensor and a "batch-first" Tensor.
@@ -310,7 +310,7 @@ class CumulativeIterationMetric(Cumulative, IterationMetric):
 
     """
 
-    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):  # type: ignore
+    def __call__(self, y_pred: TensorOrList, y: Optional[TensorOrList] = None):
         """
         Execute basic computation for model prediction and ground truth.
         It can support  both `list of channel-first Tensor` and `batch-first Tensor`.

@@ -257,7 +257,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         """
         return {k: v for k, v in self.get_config().items() if k not in self.non_arg_keys}
 
-    def is_disabled(self) -> bool:  # type: ignore
+    def is_disabled(self) -> bool:
         """
         Utility function used in `instantiate()` to check whether to skip the instantiation.
 
@@ -265,7 +265,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         _is_disabled = self.get_config().get("_disabled_", False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
-    def instantiate(self, **kwargs) -> object:  # type: ignore
+    def instantiate(self, **kwargs) -> object:
         """
         Instantiate component based on ``self.config`` content.
         The target component must be a `class` or a `function`, otherwise, return `None`.

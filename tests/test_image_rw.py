@@ -23,10 +23,13 @@ from monai.data.image_reader import ITKReader, NibabelReader, NrrdReader, PILRea
 from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, register_writer, resolve_writer
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
-from monai.utils import MetaKeys, OptionalImportError
+from monai.utils import MetaKeys, OptionalImportError, optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
+_, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
+
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNifti(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -62,6 +65,8 @@ class TestLoadSaveNifti(unittest.TestCase):
                 _test_data = test_data[0]
             if resample:
                 _test_data = moveaxis(_test_data, 0, 1)
+            assert_allclose(meta["qform_code"], 1, type_test=False)
+            assert_allclose(meta["sform_code"], 1, type_test=False)
             assert_allclose(data, torch.as_tensor(_test_data))
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, "ITKWriter"]))
@@ -82,6 +87,7 @@ class TestLoadSaveNifti(unittest.TestCase):
         self.nifti_rw(test_data, reader, writer, np.float16)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSavePNG(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -137,6 +143,7 @@ class TestRegRes(unittest.TestCase):
         self.assertEqual(resolve_writer("new")[0](0), 1)
 
 
+@unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNrrd(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()

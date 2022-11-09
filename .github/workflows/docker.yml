@@ -1,3 +1,4 @@
+# this is the docker image releasing pipeline, pushing to https://hub.docker.com/r/projectmonai/monai
 name: docker
 # versioning: compute a static version file
 # local_docker: use the version file to build docker images
@@ -25,9 +26,9 @@ jobs:
           ref: dev
           fetch-depth: 0
       - name: Set up Python 3.8
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.8'
       - shell: bash
         run: |
           git describe
