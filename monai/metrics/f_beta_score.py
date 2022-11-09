@@ -106,18 +106,3 @@ def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
     if isinstance(denominator, torch.Tensor):
         return torch.where(denominator != 0, numerator / denominator, nan_tensor)
     return numerator / denominator
-
-
-if __name__ == "__main__":
-    score = FBetaScore(beta=3.0)  # if beta = 1 then it's a F1 Score
-
-    score(
-        torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]),  # the result I am looking for
-        torch.Tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),  # the result of the model
-    )
-
-    value = (
-        score.aggregate()
-    )  # Finds a way to use multiple images at once, while also getting the results of tp,tn,fp,fn and these values
-    # are then added to the FBeta score formula
-    print(value[0][0])
