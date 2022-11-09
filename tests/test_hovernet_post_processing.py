@@ -32,7 +32,6 @@ _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 
 y, x = np.ogrid[0:30, 0:30]
 image = (x - 10) ** 2 + (y - 10) ** 2 <= 5**2
-hovermap = ComputeHoVerMaps()(image[None].astype(int))
 
 seg_postpprocessing = Compose(
     [
@@ -63,21 +62,24 @@ TEST_CASE_2 = [
 
 TEST_CASE = []
 for p in TEST_NDARRAYS:
-    pred = {
-        HoVerNetBranch.NP.value: p(image[None].astype(float)),
-        HoVerNetBranch.HV.value: p(hovermap),
-        HoVerNetBranch.NC.value: p(image[None]),
-    }
-    TEST_CASE.append([pred] + TEST_CASE_1)
-    TEST_CASE.append([pred] + TEST_CASE_2)
+    TEST_CASE.append([p, image] + TEST_CASE_1)
+    TEST_CASE.append([p, image] + TEST_CASE_2)
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestHoVerNetPostProcessing(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
-    def test_value(self, test_data, seg_postpprocessing, kwargs, expected):
+    def test_value(self, in_type, test_data, seg_postpprocessing, kwargs, expected):
+        hovermap = ComputeHoVerMaps()(test_data[None].astype(int))
+        input = {
+            HoVerNetBranch.NP.value: in_type(test_data[None].astype(float)),
+            HoVerNetBranch.HV.value: in_type(hovermap),
+            HoVerNetBranch.NC.value: in_type(test_data[None]),
+        }
+
         post_transforms = HoVerNetPostProcessing(seg_postpprocessing=seg_postpprocessing, **kwargs)
-        out = post_transforms(test_data)
+        out = post_transforms(input)
         assert_allclose(out[HoVerNetBranch.NP.value].squeeze(), expected[0], type_test=False)
         if out["inst_info_dict"] is not None:
             assert_allclose(out["inst_info_dict"][1]["centroid"], expected[1], type_test=False)
