@@ -59,7 +59,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
             If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
@@ -70,6 +70,8 @@ class MedNISTDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -97,6 +99,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -135,6 +138,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def randomize(self, data: np.ndarray) -> None:
@@ -212,7 +216,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
             If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
@@ -223,6 +227,8 @@ class DecathlonDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Raises:
         ValueError: When ``root_dir`` is not a directory.
@@ -290,6 +296,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -342,6 +349,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def get_indices(self) -> np.ndarray:
@@ -438,7 +446,7 @@ class TciaDataset(Randomizable, CacheDataset):
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 0.0 (no cache).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
-        num_workers: the number of worker threads to use.
+        num_workers: the number of worker threads if computing cache in the initialization.
             If num_workers is None then the number returned by os.cpu_count() is used.
             If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when downloading dataset and computing the transform cache content.
@@ -449,6 +457,8 @@ class TciaDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
+        runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+            the cache content at initializaiton.
 
     Example::
 
@@ -504,6 +514,7 @@ class TciaDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -550,6 +561,7 @@ class TciaDataset(Randomizable, CacheDataset):
             progress=progress,
             copy_cache=copy_cache,
             as_contiguous=as_contiguous,
+            runtime_cache=runtime_cache,
         )
 
     def get_indices(self) -> np.ndarray:
