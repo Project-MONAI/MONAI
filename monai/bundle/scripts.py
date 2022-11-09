@@ -469,6 +469,10 @@ def get_bundle_info(
     return bundle_info[version]
 
 
+def mlflow_patch_bundle(parser: ConfigParser, config: Optional[Union[str, dict]] = None):
+    return parser
+
+
 def run(
     runner_id: Optional[Union[str, Sequence[str]]] = None,
     meta_file: Optional[Union[str, Sequence[str]]] = None,

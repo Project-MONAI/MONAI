@@ -95,6 +95,13 @@ DEFAULT_INFERENCE = {
     "evaluating": ["$@evaluator.run()"],
 }
 
+DEFAULT_MLFLOW_CONFIG = {
+    "trainer_handlers_id": "train#handlers",
+    "validator_handlers_id": "evaluate#handlers",
+    "evaluator_handlers_id": "handlers",
+    "handler_args" : {}
+}
+
 
 def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
     """
