@@ -31,7 +31,20 @@ TESTS = [
         list,
         2,
         3,
-    ]
+    ],
+    [
+        {
+            "spatial_size": [2, 2, 2],
+            "num_samples": 2,
+            "pos_ratio": 0.0,
+            "label_spatial_shape": [3, 3, 3],
+            "fg_indices": [],
+            "bg_indices": [3, 12, 21],
+        },
+        list,
+        2,
+        3,
+    ],
 ]
 
 

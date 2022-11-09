@@ -27,6 +27,8 @@ class ROCAUCMetric(CumulativeIterationMetric):
     sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score>`_.
     The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
 
+    Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
+
     Args:
         average: {``"macro"``, ``"weighted"``, ``"micro"``, ``"none"``}
             Type of averaging performed if not binary classification.
@@ -49,7 +51,7 @@ class ROCAUCMetric(CumulativeIterationMetric):
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         return y_pred, y
 
-    def aggregate(self, average: Union[Average, str, None] = None):  # type: ignore
+    def aggregate(self, average: Union[Average, str, None] = None):
         """
         Typically `y_pred` and `y` are stored in the cumulative buffers at each iteration,
         This function reads the buffers and computes the area under the ROC.

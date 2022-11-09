@@ -19,12 +19,25 @@ from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Map
 import numpy as np
 import torch
 
-from monai import transforms
+from monai import config, transforms
 from monai.config import KeysCollection
+from monai.data.meta_tensor import MetaTensor
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import MONAIEnvVars
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "LazyTrait",
+    "RandomizableTrait",
+    "MultiSampleTrait",
+    "Randomizable",
+    "LazyTransform",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
@@ -88,7 +101,10 @@ def apply_transform(
             return [_apply_transform(transform, item, unpack_items) for item in data]
         return _apply_transform(transform, data, unpack_items)
     except Exception as e:
-
+        # if in debug mode, don't swallow exception so that the breakpoint
+        # appears where the exception was raised.
+        if MONAIEnvVars.debug():
+            raise
         if log_stats and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
             datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
@@ -113,6 +129,56 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
+class LazyTrait:
+    """
+    An interface to indicate that the transform has the capability to execute using
+    MONAI's lazy resampling feature. In order to do this, the implementing class needs
+    to be able to describe its operation as an affine matrix or grid with accompanying metadata.
+    This interface can be extended from by people adapting transforms to the MONAI framework as
+    well as by implementors of MONAI transforms.
+    """
+
+    @property
+    def lazy_evaluation(self):
+        """
+        Get whether lazy_evaluation is enabled for this transform instance.
+        Returns:
+            True if the transform is operating in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, enabled: bool):
+        """
+        Set whether lazy_evaluation is enabled for this transform instance.
+        Args:
+            enabled: True if the transform should operate in a lazy fashion, False if not.
+        """
+        raise NotImplementedError()
+
+
+class RandomizableTrait:
+    """
+    An interface to indicate that the transform has the capability to perform
+    randomized transforms to the data that it is called upon. This interface
+    can be extended from by people adapting transforms to the MONAI framework as well as by
+    implementors of MONAI transforms.
+    """
+
+    pass
+
+
+class MultiSampleTrait:
+    """
+    An interface to indicate that the transform has the capability to return multiple samples
+    given an input, such as when performing random crops of a sample. This interface can be
+    extended from by people adapting transforms to the MONAI framework as well as by implementors
+    of MONAI transforms.
+    """
+
+    pass
+
+
 class ThreadUnsafe:
     """
     A class to denote that the transform will mutate its member variables,
@@ -126,7 +192,7 @@ class ThreadUnsafe:
     pass
 
 
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -210,9 +276,13 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
-    # Transforms should add data types to this list if they are capable of performing a transform without
-    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
-    # are required if the input is either `torch.Tensor` or `np.ndarray`.
+    # Transforms should add `monai.transforms.utils.TransformBackends` to this list if they are performing
+    # the data processing using the corresponding backend APIs.
+    # Most of MONAI transform's inputs and outputs will be converted into torch.Tensor or monai.data.MetaTensor.
+    # This variable provides information about whether the input will be converted
+    # to other data types during the transformation. Note that not all `dtype` (such as float32, uint8) are supported
+    # by all the data types, the `dtype` during the conversion is determined automatically by each transform,
+    # please refer to the transform's docstring.
     backend: List[TransformBackends] = []
 
     @abstractmethod
@@ -242,7 +312,27 @@ class Transform(ABC):
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
 
-class RandomizableTransform(Randomizable, Transform):
+class LazyTransform(Transform, LazyTrait):
+    """
+    An implementation of functionality for lazy transforms that can be subclassed by array and
+    dictionary transforms to simplify implementation of new lazy transforms.
+    """
+
+    def __init__(self, lazy_evaluation: Optional[bool] = True):
+        self.lazy_evaluation = lazy_evaluation
+
+    @property
+    def lazy_evaluation(self):
+        return self.lazy_evaluation
+
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, lazy_evaluation: bool):
+        if not isinstance(lazy_evaluation, bool):
+            raise TypeError("'lazy_evaluation must be a bool but is of " f"type {type(lazy_evaluation)}'")
+        self.lazy_evaluation = lazy_evaluation
+
+
+class RandomizableTransform(Randomizable, Transform, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class variable `R`,
     which is an instance of `np.random.RandomState`.
@@ -311,6 +401,16 @@ class MapTransform(Transform):
 
     """
 
+    def __new__(cls, *args, **kwargs):
+        if config.USE_META_DICT:
+            # call_update after MapTransform.__call__
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")
+
+            if hasattr(cls, "inverse"):
+                # inverse_update before InvertibleTransform.inverse
+                cls.inverse = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
+        return Transform.__new__(cls)
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
@@ -319,6 +419,27 @@ class MapTransform(Transform):
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
+
+    def call_update(self, data):
+        """
+        This function is to be called after every `self.__call__(data)`,
+        update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
+        for MetaTensor backward compatibility 0.9.0.
+        """
+        if not isinstance(data, (list, tuple, Mapping)):
+            return data
+        is_dict = False
+        if isinstance(data, Mapping):
+            data, is_dict = [data], True
+        if not data or not isinstance(data[0], Mapping):
+            return data[0] if is_dict else data
+        list_d = [dict(x) for x in data]  # list of dict for crop samples
+        for idx, dict_i in enumerate(list_d):
+            for k in dict_i:
+                if not isinstance(dict_i[k], MetaTensor):
+                    continue
+                list_d[idx] = transforms.sync_meta_info(k, dict_i, t=not isinstance(self, transforms.InvertD))
+        return list_d[0] if is_dict else list_d
 
     @abstractmethod
     def __call__(self, data):
@@ -375,10 +496,10 @@ class MapTransform(Transform):
     def first_key(self, data: Dict[Hashable, Any]):
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
-        If no available key, return an empty list `[]`.
+        If no available key, return an empty tuple `()`.
 
         Args:
             data: data that the transform will be applied to.
 
         """
-        return first(self.key_iterator(data), [])
+        return first(self.key_iterator(data), ())

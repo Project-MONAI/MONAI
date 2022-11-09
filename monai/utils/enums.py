@@ -19,10 +19,12 @@ __all__ = [
     "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
+    "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
     "BlendMode",
     "PytorchPadMode",
+    "NdimageMode",
     "GridSamplePadMode",
     "Average",
     "MetricReduction",
@@ -35,11 +37,24 @@ __all__ = [
     "TraceKeys",
     "InverseKeys",
     "CommonKeys",
+    "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
     "BoxModeName",
     "GridPatchSort",
+    "FastMRIKeys",
+    "SpaceKeys",
+    "MetaKeys",
+    "ColorOrder",
+    "EngineStatsKeys",
+    "DataStatsKeys",
+    "ImageStatsKeys",
+    "LabelStatsKeys",
+    "AlgoEnsembleKeys",
+    "HoVerNetMode",
+    "HoVerNetBranch",
+    "LazyAttr",
 ]
 
 
@@ -86,6 +101,22 @@ class NumpyPadMode(StrEnum):
     EMPTY = "empty"
 
 
+class NdimageMode(StrEnum):
+    """
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    REFLECT = "reflect"
+    GRID_MIRROR = "grid-mirror"
+    CONSTANT = "constant"
+    GRID_CONSTANT = "grid-constant"
+    NEAREST = "nearest"
+    MIRROR = "mirror"
+    GRID_WRAP = "grid-wrap"
+    WRAP = "wrap"
+
+
 class GridSampleMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
@@ -102,6 +133,21 @@ class GridSampleMode(StrEnum):
     NEAREST = "nearest"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
+
+
+class SplineMode(StrEnum):
+    """
+    Order of spline interpolation.
+
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
 
 
 class InterpolateMode(StrEnum):
@@ -124,6 +170,7 @@ class UpsampleMode(StrEnum):
     """
 
     DECONV = "deconv"
+    DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
 
@@ -303,6 +350,19 @@ class CommonKeys(StrEnum):
     METADATA = "metadata"
 
 
+class GanKeys(StrEnum):
+    """
+    A set of common keys for generative adversarial networks.
+
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
 class PostFix(StrEnum):
     """Post-fixes."""
 
@@ -325,11 +385,16 @@ class PostFix(StrEnum):
 
 class TransformBackends(StrEnum):
     """
-    Transform backends.
+    Transform backends. Most of `monai.transforms` components first converts the input data into ``torch.Tensor`` or
+    ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
+    ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
+    converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
+    convert the input data types to accomodate the underlying API.
     """
 
     TORCH = "torch"
     NUMPY = "numpy"
+    CUPY = "cupy"
 
 
 class JITMetadataKeys(StrEnum):
@@ -408,8 +473,160 @@ class WSIPatchKeys(StrEnum):
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "patch_location"
-    LEVEL = "patch_level"
-    SIZE = "patch_size"
-    COUNT = "num_patches"
+    LOCATION = "location"
+    LEVEL = "level"
+    SIZE = "size"
+    COUNT = "count"
     PATH = "path"
+
+
+class FastMRIKeys(StrEnum):
+    """
+    The keys to be used for extracting data from the fastMRI dataset
+    """
+
+    KSPACE = "kspace"
+    MASK = "mask"
+    FILENAME = "filename"
+    RECON = "reconstruction_rss"
+    ACQUISITION = "acquisition"
+    MAX = "max"
+    NORM = "norm"
+    PID = "patient_id"
+
+
+class SpaceKeys(StrEnum):
+    """
+    The coordinate system keys, for example, Nifti1 uses Right-Anterior-Superior or "RAS",
+    DICOM (0020,0032) uses Left-Posterior-Superior or "LPS". This type does not distinguish spatial 1/2/3D.
+    """
+
+    RAS = "RAS"
+    LPS = "LPS"
+
+
+class MetaKeys(StrEnum):
+    """
+    Typical keys for MetaObj.meta
+    """
+
+    AFFINE = "affine"  # MetaTensor.affine
+    ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
+    SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
+    SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+
+
+class ColorOrder(StrEnum):
+    """
+    Enums for color order. Expand as necessary.
+    """
+
+    RGB = "RGB"
+    BGR = "BGR"
+
+
+class EngineStatsKeys(StrEnum):
+    """
+    Default keys for the statistics of trainer and evaluator engines.
+
+    """
+
+    RANK = "rank"
+    CURRENT_ITERATION = "current_iteration"
+    CURRENT_EPOCH = "current_epoch"
+    TOTAL_EPOCHS = "total_epochs"
+    TOTAL_ITERATIONS = "total_iterations"
+    BEST_VALIDATION_EPOCH = "best_validation_epoch"
+    BEST_VALIDATION_METRIC = "best_validation_metric"
+
+
+class DataStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis modules
+
+    """
+
+    SUMMARY = "stats_summary"
+    BY_CASE = "stats_by_cases"
+    BY_CASE_IMAGE_PATH = "image_filepath"
+    BY_CASE_LABEL_PATH = "label_filepath"
+    IMAGE_STATS = "image_stats"
+    FG_IMAGE_STATS = "image_foreground_stats"
+    LABEL_STATS = "label_stats"
+    IMAGE_HISTOGRAM = "image_histogram"
+
+
+class ImageStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis image modules
+
+    """
+
+    SHAPE = "shape"
+    CHANNELS = "channels"
+    CROPPED_SHAPE = "cropped_shape"
+    SPACING = "spacing"
+    INTENSITY = "intensity"
+    HISTOGRAM = "histogram"
+
+
+class LabelStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis label modules
+
+    """
+
+    LABEL_UID = "labels"
+    PIXEL_PCT = "foreground_percentage"
+    IMAGE_INTST = "image_intensity"
+    LABEL = "label"
+    LABEL_SHAPE = "shape"
+    LABEL_NCOMP = "ncomponents"
+
+
+class AlgoEnsembleKeys(StrEnum):
+    """
+    Default keys for Mixed Ensemble
+    """
+
+    ID = "identifier"
+    ALGO = "infer_algo"
+    SCORE = "best_metric"
+
+
+class HoVerNetMode(StrEnum):
+    """
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
+    """
+
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"
+
+
+class LazyAttr(StrEnum):
+    """
+    MetaTensor with pending operations requires some key attributes tracked especially when the primary array
+    is not up-to-date due to lazy evaluation.
+    This class specifies the set of key attributes to be tracked for each MetaTensor.
+    """
+
+    SHAPE = "lazy_shape"  # spatial shape
+    AFFINE = "lazy_affine"
+    PADDING_MODE = "lazy_padding_mode"
+    INTERP_MODE = "lazy_interpolation_mode"

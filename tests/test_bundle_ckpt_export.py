@@ -11,7 +11,6 @@
 
 import json
 import os
-import subprocess
 import tempfile
 import unittest
 
@@ -20,7 +19,7 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
-from tests.utils import skip_if_windows
+from tests.utils import command_line_tests, skip_if_windows
 
 TEST_CASE_1 = [""]
 
@@ -49,7 +48,7 @@ class TestCKPTExport(unittest.TestCase):
             cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", ts_file]
             cmd += ["--meta_file", meta_file, "--config_file", f"['{config_file}','{def_args_file}']", "--ckpt_file"]
             cmd += [ckpt_file, "--key_in_ckpt", key_in_ckpt, "--args_file", def_args_file]
-            subprocess.check_call(cmd)
+            command_line_tests(cmd)
             self.assertTrue(os.path.exists(ts_file))
 
             _, metadata, extra_files = load_net_with_metadata(

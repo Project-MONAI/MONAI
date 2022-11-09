@@ -34,7 +34,6 @@ __all__ = [
     "SE_NET_MODELS",
 ]
 
-
 SE_NET_MODELS = {
     "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
     "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
@@ -54,10 +53,10 @@ class SENet(nn.Module):
     Args:
         spatial_dims: spatial dimension of the input data.
         in_channels: channel number of the input data.
-        block: SEBlock class.
-            for SENet154: SEBottleneck
-            for SE-ResNet models: SEResNetBottleneck
-            for SE-ResNeXt models:  SEResNeXtBottleneck
+        block: SEBlock class or str.
+            for SENet154: SEBottleneck or 'se_bottleneck'
+            for SE-ResNet models: SEResNetBottleneck or 'se_resnet_bottleneck'
+            for SE-ResNeXt models:  SEResNeXtBottleneck or 'se_resnetxt_bottleneck'
         layers: number of residual blocks for 4 layers of the network (layer1...layer4).
         groups: number of groups for the 3x3 convolution in each bottleneck block.
             for SENet154: 64
@@ -95,7 +94,7 @@ class SENet(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
+        block: Union[Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]], str],
         layers: Sequence[int],
         groups: int,
         reduction: int,
@@ -108,6 +107,18 @@ class SENet(nn.Module):
     ) -> None:
 
         super().__init__()
+
+        if isinstance(block, str):
+            if block == "se_bottleneck":
+                block = SEBottleneck
+            elif block == "se_resnet_bottleneck":
+                block = SEResNetBottleneck
+            elif block == "se_resnetxt_bottleneck":
+                block = SEResNeXtBottleneck
+            else:
+                raise ValueError(
+                    "Unknown block '%s', use se_bottleneck, se_resnet_bottleneck or se_resnetxt_bottleneck" % block
+                )
 
         relu_type: Type[nn.ReLU] = Act[Act.RELU]
         conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]

@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
-from monai.networks.nets import SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
+from monai.networks.nets import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
 from tests.utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
 
@@ -30,9 +30,7 @@ if TYPE_CHECKING:
 else:
     pretrainedmodels, has_cadene_pretrain = optional_import("pretrainedmodels")
 
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 NET_ARGS = {"spatial_dims": 3, "in_channels": 2, "num_classes": 2}
 TEST_CASE_1 = [SENet154, NET_ARGS]
@@ -41,12 +39,24 @@ TEST_CASE_3 = [SEResNet101, NET_ARGS]
 TEST_CASE_4 = [SEResNet152, NET_ARGS]
 TEST_CASE_5 = [SEResNext50, NET_ARGS]
 TEST_CASE_6 = [SEResNext101, NET_ARGS]
+TEST_CASE_7 = [
+    SENet,
+    {
+        "spatial_dims": 3,
+        "in_channels": 2,
+        "num_classes": 2,
+        "block": "se_bottleneck",
+        "layers": (3, 8, 36, 3),
+        "groups": 64,
+        "reduction": 16,
+    },
+]
 
 TEST_CASE_PRETRAINED_1 = [SEResNet50, {"spatial_dims": 2, "in_channels": 3, "num_classes": 2, "pretrained": True}]
 
 
 class TestSENET(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_senet_shape(self, net, net_args):
         input_data = torch.randn(2, 2, 64, 64, 64).to(device)
         expected_shape = (2, 2)
