@@ -779,10 +779,12 @@ class CacheDataset(Dataset):
                 defaults to `monai.data.utils.pickle_hashing`.
             runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
                 the cache content at initializaiton, if `True`, it will cache during the first epoch
-                of model training, so it can start the first mini-batch earlier.
-                please note that: to execute `runtime cache` on GPU memory, must co-work with
+                of model training, so it can start the first mini-batch earlier. please note that:
+                1. when using this option in multi-gpu distributed training,
+                `torch.cuda.set_device()` must be called before initializing this class.
+                2. to execute `runtime cache` on GPU memory, must co-work with
                 `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
-                as GPU Tensor usually can't share in the multiprocessing context.
+                as GPU Tensor usually can't be shared in the multiprocessing context.
 
         """
         if not isinstance(transform, Compose):
