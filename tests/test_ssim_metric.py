@@ -39,7 +39,7 @@ class TestSSIMMetric(unittest.TestCase):
         self.ssim = SSIMMetric(data_range=drange, spatial_dims=2)
         self.ssim.(x,y)
         result2 = self.ssim.aggregate()
-        self.assertTrue(isinstance(result2, torch.Tensor))
+        self.assertTrue(isinstance(result2, torch.Tensor)) 
         self.assertTrue(torch.abs(result2 - result).item() < 0.001)
 
 
