@@ -19,9 +19,7 @@ from monai.utils import MetricReduction
 from .metric import CumulativeIterationMetric
 
 
-class FBetaScore(
-    CumulativeIterationMetric
-):
+class FBetaScore(CumulativeIterationMetric):
     def __init__(
         self,
         beta: float = 1.0,
@@ -99,7 +97,7 @@ def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
 
     tp = confusion_matrix[..., 0]
     fp = confusion_matrix[..., 1]
-    #tn = confusion_matrix[..., 2]
+    # tn = confusion_matrix[..., 2]
     fn = confusion_matrix[..., 3]
 
     nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device)
