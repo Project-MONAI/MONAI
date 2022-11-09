@@ -11,7 +11,6 @@
 
 import torch
 import torch.nn.functional as F
-from torch import nn
 from torch.nn.modules.loss import _Loss
 
 from monai.utils.type_conversion import convert_to_dst_type
