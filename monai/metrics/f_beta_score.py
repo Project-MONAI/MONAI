@@ -19,11 +19,12 @@ from monai.utils import MetricReduction
 from .metric import CumulativeIterationMetric
 
 
-class FBetaScore(CumulativeIterationMetric):  # todo add constraint on beta value (by adding valueException in order to not create a class) so beta cannot have negative values or zero
-
+class FBetaScore(
+    CumulativeIterationMetric
+):  # todo add constraint on beta value (by adding valueException in order to not create a class) so beta cannot have negative values or zero
     def __init__(
         self,
-        beta: float = 1.,
+        beta: float = 1.0,
         include_background: bool = True,
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
@@ -43,9 +44,7 @@ class FBetaScore(CumulativeIterationMetric):  # todo add constraint on beta valu
 
         return get_f_beta_score(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(
-        self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None
-    ):
+    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
@@ -104,7 +103,7 @@ def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
     fn = confusion_matrix[..., 3]
 
     nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device)
-    numerator, denominator = (1. + beta**2) * tp, ((1. + beta**2) * tp + beta**2 * fn + fp)
+    numerator, denominator = (1.0 + beta**2) * tp, ((1.0 + beta**2) * tp + beta**2 * fn + fp)
 
     if isinstance(denominator, torch.Tensor):
         return torch.where(denominator != 0, numerator / denominator, nan_tensor)
@@ -112,21 +111,15 @@ def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
 
 
 if __name__ == "__main__":
-    score = FBetaScore(beta=3.)  # if beta = 1 then it's a F1 Score
+    score = FBetaScore(beta=3.0)  # if beta = 1 then it's a F1 Score
 
     score(
-        torch.Tensor([  # the result I am looking for
-            [1, 1, 1],
-            [1, 1, 1],
-            [1, 1, 1]
-        ]),
-        torch.Tensor([  # the result of the model
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1]
-        ])
+        torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]),  # the result I am looking for
+        torch.Tensor([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),  # the result of the model
     )
 
-    value = score.aggregate()  # Finds a way to use multiple images at once, while also getting the results of tp,tn,fp,fn and these values
-                               # are then added to the FBeta score formula
+    value = (
+        score.aggregate()
+    )  # Finds a way to use multiple images at once, while also getting the results of tp,tn,fp,fn and these values
+    # are then added to the FBeta score formula
     print(value[0][0])
