@@ -16,9 +16,9 @@ from monai.utils import ensure_tuple
 def from_engine_hovernet(keys: KeysCollection, nested_key: str):
     """
     Since the output of HoVerNet is a dictionary, this function is to extend `monai.handlers.from_engine`
-    to work with HoVerNet. 
+    to work with HoVerNet.
 
-    If data is a list of nestes dictionaries after decollating, extract nested value with expected keys and 
+    If data is a list of nestes dictionaries after decollating, extract nested value with expected keys and
     construct lists respectively, for example,
     if data is `[{"A": {"C": 1, "D": 2}, "B": {"C": 2, "D": 2}}, {"A":  {"C": 3, "D": 2}, "B":  {"C": 4, "D": 2}}]`,
     from_engine_hovernet(["A", "B"], "C"): `([1, 3], [2, 4])`.
