@@ -13,15 +13,17 @@ from monai.config import KeysCollection
 from monai.utils import ensure_tuple
 
 
-def from_engine_hovernet(keys: KeysCollection, nested_key: str, first: bool = False):
+def from_engine_hovernet(keys: KeysCollection, nested_key: str):
     """
     Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
     when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
-    Users only need to set the expected keys, then it will return a callable function to extract data from
-    dictionary and construct a tuple respectively.
+    Users only need to set the expected keys, then it will return a callable function to extract nested data
+    from dictionary and construct a tuple respectively.
 
     If data is a list of dictionaries after decollating, extract expected keys and construct lists respectively,
-    for example, if data is `[{"A": {"C": 1, "D": 2}, "B": {"C": 2, "D": 2}}, {"A":  {"C": 3, "D": 2}, "B":  {"C": 4, "D": 2}}]`, from_engine_hovernet(["A", "B"], "C"): `([1, 3], [2, 4])`.
+    for example,
+    if data is `[{"A": {"C": 1, "D": 2}, "B": {"C": 2, "D": 2}}, {"A":  {"C": 3, "D": 2}, "B":  {"C": 4, "D": 2}}]`,
+    from_engine_hovernet(["A", "B"], "C"): `([1, 3], [2, 4])`.
 
     It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
     For example, set the first key as the prediction and the second key as label to get the expected data
@@ -37,9 +39,6 @@ def from_engine_hovernet(keys: KeysCollection, nested_key: str, first: bool = Fa
     Args:
         keys: specified keys to extract data from dictionary or decollated list of dictionaries.
         nested_key: specified key to extract nested data from dictionary or decollated list of dictionaries.
-        first: whether only extract specified keys from the first item if input data is a list of dictionaries,
-            it's used to extract the scalar data which doesn't have batch dim and was replicated into every
-            dictionary when decollating, like `loss`, etc.
 
 
     """
@@ -50,8 +49,7 @@ def from_engine_hovernet(keys: KeysCollection, nested_key: str, first: bool = Fa
             return tuple(data[k][nested_key] for k in keys)
         if isinstance(data, list) and isinstance(data[0], dict):
             # if data is a list of dictionaries, extract expected keys and construct lists,
-            # if `first=True`, only extract keys from the first item of the list
-            ret = [data[0][k][nested_key] if first else [i[k][nested_key] for i in data] for k in keys]
+            ret = [[i[k][nested_key] for i in data] for k in keys]
             return tuple(ret) if len(ret) > 1 else ret[0]
 
     return _wrapper
