@@ -36,11 +36,24 @@ class TestSSIMMetric(unittest.TestCase):
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
 
+        self.ssim = SSIMMetric(data_range=drange, spatial_dims=2)
+        self.ssim.(x,y)
+        result2 = self.ssim.aggregate()
+        self.assertTrue(isinstance(result2, torch.Tensor))
+        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
+
+        
     @parameterized.expand(TESTS3D)
     def test3d(self, x, y, drange, res):
         result = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric(x, y)
         self.assertTrue(isinstance(result, torch.Tensor))
         self.assertTrue(torch.abs(res - result).item() < 0.001)
+        
+        self.ssim = SSIMMetric(data_range=drange, spatial_dims=3)
+        self.ssim.(x,y)
+        result2 = self.ssim.aggregate()
+        self.assertTrue(isinstance(result2, torch.Tensor))
+        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
 
 
 if __name__ == "__main__":
