@@ -37,6 +37,7 @@ def from_engine_hovernet(keys: KeysCollection, nested_keys: str, first: bool = F
 
     Args:
         keys: specified keys to extract data from dictionary or decollated list of dictionaries.
+        nested_keys: specified keys to extract nested data from dictionary or decollated list of dictionaries.
         first: whether only extract specified keys from the first item if input data is a list of dictionaries,
             it's used to extract the scalar data which doesn't have batch dim and was replicated into every
             dictionary when decollating, like `loss`, etc.
