@@ -65,20 +65,17 @@ class HoVerNetLoss(_Loss):
         self.sobel_h = SobelGradients(kernel_size=5, spatial_axes=1)
 
     def _compute_sobel(self, image: torch.Tensor) -> torch.Tensor:
-        """Compute the Sobel gradients of the horizontal vertical map (HoVer map).
+        """Compute the Sobel gradients of the horizontal vertical map (HoVerMap).
         More specifically, it will compute horizontal gradient of the input horizontal gradient map (channel=0) and
         vertical gradient of the input vertical gradient map (channel=1).
 
         Args:
-            image: a tensor with the shape of BxCxHxW representing HoVer map
+            image: a tensor with the shape of BxCxHxW representing HoVerMap
 
         """
-        results = []
-        for one_image in image:
-            result_h = self.sobel_h(one_image[:1])
-            result_v = self.sobel_v(one_image[1:])
-            results.append(torch.cat([result_h, result_v]))
-        return torch.stack(results)
+        result_h = self.sobel_h(image[:, 0])
+        result_v = self.sobel_v(image[:, 1])
+        return torch.stack([result_h, result_v], dim=1)
 
     def _mse_gradient_loss(self, prediction: torch.Tensor, target: torch.Tensor, focus: torch.Tensor) -> torch.Tensor:
         """Compute the MSE loss of the gradients of the horizontal and vertical centroid distance maps"""

@@ -822,7 +822,7 @@ class Invert(Transform):
 
 
 class SobelGradients(Transform):
-    """Calculate Sobel gradients of a grayscale image with the shape of (CxH[xWxDx...]).
+    """Calculate Sobel gradients of a grayscale image with the shape of CxH[xWxDx...] or BxH[xWxDx...].
 
     Args:
         kernel_size: the size of the Sobel kernel. Defaults to 3.
