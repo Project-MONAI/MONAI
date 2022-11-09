@@ -9,14 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from typing import Tuple, Union
 
 import torch
 
+from monai.metrics.metric import CumulativeIterationMetric
 from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
 from monai.utils import MetricReduction, deprecated
-
-from .metric import CumulativeIterationMetric
 
 
 class DiceMetric(CumulativeIterationMetric):
@@ -44,6 +43,11 @@ class DiceMetric(CumulativeIterationMetric):
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        compute_sample: if ``True``, each sample's dice metric will be computed before reduction.
+            If ``False``, compute reduction on the numerator (2*TP) and the denominator (2*TP + FP + FN) first, and then
+            do division to get the dice metric. In this case, `ignore_empty` and `get_not_nans`
+            will not be considered. If there is 0 in the denominator tensor after reduction, 1 will be set as the dice
+            score.
 
     """
 
@@ -53,12 +57,14 @@ class DiceMetric(CumulativeIterationMetric):
         reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
+        compute_sample: bool = True,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.compute_sample = compute_sample
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
         """
@@ -81,7 +87,11 @@ class DiceMetric(CumulativeIterationMetric):
             raise ValueError(f"y_pred should have at least 3 dimensions (batch, channel, spatial), got {dims}.")
         # compute dice (BxC) for each channel for each batch
         return compute_dice(
-            y_pred=y_pred, y=y, include_background=self.include_background, ignore_empty=self.ignore_empty
+            y_pred=y_pred,
+            y=y,
+            include_background=self.include_background,
+            ignore_empty=self.ignore_empty,
+            do_division=self.compute_sample,
         )
 
     def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
@@ -94,18 +104,33 @@ class DiceMetric(CumulativeIterationMetric):
                 ``"mean_channel"``, ``"sum_channel"``}, default to `self.reduction`. if "none", will not do reduction.
 
         """
-        data = self.get_buffer()
-        if not isinstance(data, torch.Tensor):
-            raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        # do metric reduction
-        f, not_nans = do_metric_reduction(data, reduction or self.reduction)
-        return (f, not_nans) if self.get_not_nans else f
+        if self.compute_sample is True:
+            data = self.get_buffer()
+            if not isinstance(data, torch.Tensor):
+                raise ValueError("the data to aggregate must be PyTorch Tensor.")
+
+            # do metric reduction
+            f, not_nans = do_metric_reduction(data, reduction or self.reduction)
+            return (f, not_nans) if self.get_not_nans else f
+        else:
+            # data is a list of two tensors
+            numerator, denominator = self.get_buffer()
+            if not (isinstance(numerator, torch.Tensor) and isinstance(denominator, torch.Tensor)):
+                raise ValueError("the data to aggregate must be PyTorch Tensor.")
+            numerator = do_metric_reduction(numerator, reduction or self.reduction)[0]
+            denominator = do_metric_reduction(denominator, reduction or self.reduction)[0]
+
+            return torch.where(denominator > 0, numerator / denominator, torch.tensor(1.0, device=numerator.device))
 
 
 def compute_dice(
-    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
-) -> torch.Tensor:
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    ignore_empty: bool = True,
+    do_division: bool = True,
+) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
     """Computes Dice score metric for a batch of predictions.
 
     Args:
@@ -119,6 +144,9 @@ def compute_dice(
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        do_division: whether to do division on the numerator and the denominator of the dice metric.
+            If `True`, the dice score will be returned.
+            If `False`, both the numerator and the denominator will be returned.
 
     Returns:
         Dice scores per batch and per class, (shape [batch_size, num_classes]).
@@ -145,6 +173,9 @@ def compute_dice(
     y_o = torch.sum(y, reduce_axis)
     y_pred_o = torch.sum(y_pred, dim=reduce_axis)
     denominator = y_o + y_pred_o
+
+    if do_division is False:
+        return 2.0 * intersection, denominator
 
     if ignore_empty:
         return torch.where(y_o > 0, (2.0 * intersection) / denominator, torch.tensor(float("nan"), device=y_o.device))
