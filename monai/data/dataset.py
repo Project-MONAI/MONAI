@@ -19,12 +19,15 @@ import threading
 import time
 import warnings
 from copy import copy, deepcopy
+from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 import torch
+import torch.distributed as dist
+from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
@@ -748,6 +751,7 @@ class CacheDataset(Dataset):
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
+        runtime_cache: bool = False,
     ) -> None:
         """
         Args:
@@ -757,7 +761,7 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker threads to use.
+            num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
                 If a value less than 1 is speficied, 1 will be used instead.
             progress: whether to display a progress bar.
@@ -773,6 +777,14 @@ class CacheDataset(Dataset):
                 the dataset has duplicated items or augmented dataset.
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            runtime_cache: whether to compute cache at the runtime, default to `False` to prepare
+                the cache content at initializaiton, if `True`, it will cache during the first epoch
+                of model training, so it can start the first mini-batch earlier. please note that:
+                1. when using this option in multi-gpu distributed training,
+                `torch.cuda.set_device()` must be called before initializing this class.
+                2. to execute `runtime cache` on GPU memory, must co-work with
+                `monai.data.DataLoader`, and can't work with `monai.data.DistributedSampler`
+                as GPU Tensor usually can't be shared in the multiprocessing context.
 
         """
         if not isinstance(transform, Compose):
@@ -788,9 +800,11 @@ class CacheDataset(Dataset):
         self.num_workers = num_workers
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
+        self.runtime_cache = runtime_cache
         self.cache_num = 0
-        self._cache: List = []
+        self._cache: Union[List, ListProxy] = []
         self._hash_keys: List = []
+        self._is_dist = dist.is_available() and dist.is_initialized()
         self.set_data(data)
 
     def set_data(self, data: Sequence):
@@ -807,6 +821,18 @@ class CacheDataset(Dataset):
         def _compute_cache_num(data_len: int):
             self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
+        def _compute_cache(indices=None):
+            if self.runtime_cache:
+                cache = Manager().list([None for _ in range(self.cache_num)])
+                if self._is_dist:
+                    obj_list = [cache]
+                    # broadcast the ProxyList to all the ranks, then share the same cache content at runtime
+                    dist.broadcast_object_list(obj_list, src=0)
+                    cache = obj_list[0]
+            else:
+                cache = self._fill_cache(indices)
+            return cache
+
         if self.hash_as_key:
             # only compute cache for the unique items of dataset, and record the last index for duplicated items
             mapping = {self.hash_func(v): i for i, v in enumerate(data)}
@@ -816,7 +842,16 @@ class CacheDataset(Dataset):
         else:
             _compute_cache_num(len(self.data))
             indices = list(range(self.cache_num))
-        self._cache = self._fill_cache(indices)
+
+        self._cache = _compute_cache(indices)
+
+    def disable_share_memory_cache(self):
+        """
+        If the cache content is multiprocessing share memory list, convert it to a regular ptython list.
+        Because multiprocessing ProxyList is not supported for the GPU caching, may need to explicitly diasble it.
+
+        """
+        self._cache = list(self._cache)
 
     def _fill_cache(self, indices=None) -> List:
         """
@@ -871,6 +906,10 @@ class CacheDataset(Dataset):
         if self._cache is None:
             raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
         data = self._cache[cache_index]
+        # runtime cache computation
+        if data is None:
+            data = self._cache[cache_index] = self._load_cache_item(cache_index)
+
         # load data from cache and execute from the first random transform
         start_run = False
         if not isinstance(self.transform, Compose):
@@ -973,6 +1012,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache: bool = False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)

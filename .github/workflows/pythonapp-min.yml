@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
     timeout-minutes: 40
     steps:
     - uses: actions/checkout@v3
@@ -102,7 +102,7 @@ jobs:
     - name: Install the dependencies
       run: |
         # min. requirements
-        python -m pip install torch==1.13
+        python -m pip install torch --extra-index-url https://download.pytorch.org/whl/cpu
         python -m pip install -r requirements-min.txt
         python -m pip list
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
