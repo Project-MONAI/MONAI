@@ -261,12 +261,17 @@ class SSIMMetric(RegressionMetric):
         k1: stability constant used in the luminance denominator
         k2: stability constant used in the contrast denominator
         spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans).
     """
 
     def __init__(
-        self, data_range: torch.Tensor, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2
+        self, data_range: torch.Tensor, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
     ):
-        super().__init__()
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.data_range = data_range
         self.win_size = win_size
         self.k1, self.k2 = k1, k2
