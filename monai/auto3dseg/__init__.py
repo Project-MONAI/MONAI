@@ -11,6 +11,7 @@
 
 from .algo_gen import Algo, AlgoGen
 from .analyzer import (
+    Analyzer,
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,

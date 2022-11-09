@@ -55,7 +55,6 @@ TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
 
-
 TEST_BASIC = [
     [("channel", "channel"), ["channel", "channel"]],
     [torch.Tensor([1, 2, 3]), [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]],

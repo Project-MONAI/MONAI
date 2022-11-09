@@ -157,7 +157,8 @@ def sliding_window_inference(
             raise RuntimeError(
                 "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
-    importance_map = convert_data_type(importance_map, torch.Tensor, device, compute_dtype)[0]  # type: ignore
+    importance_map = convert_data_type(importance_map, torch.Tensor, device, compute_dtype)[0]
+
     # handle non-positive weights
     min_non_zero = max(importance_map[importance_map != 0].min().item(), 1e-3)
     importance_map = torch.clamp(importance_map.to(torch.float32), min=min_non_zero).to(compute_dtype)
@@ -276,9 +277,10 @@ def sliding_window_inference(
         final_output = dict(zip(dict_key, output_image_list))
     else:
         final_output = tuple(output_image_list)  # type: ignore
-    final_output = final_output[0] if is_tensor_output else final_output  # type: ignore
+    final_output = final_output[0] if is_tensor_output else final_output
+
     if isinstance(inputs, MetaTensor):
-        final_output = convert_to_dst_type(final_output, inputs)[0]  # type: ignore
+        final_output = convert_to_dst_type(final_output, inputs, device=device)[0]  # type: ignore
     return final_output
 
 

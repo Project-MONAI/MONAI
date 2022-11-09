@@ -46,7 +46,6 @@ else:
     nib, _ = optional_import("nibabel")
     PILImage, _ = optional_import("PIL.Image")
 
-
 __all__ = [
     "ImageWriter",
     "ITKWriter",
@@ -602,6 +601,12 @@ class NibabelWriter(ImageWriter):
         self.data_obj = self.create_backend_obj(
             self.data_obj, affine=self.affine, dtype=self.output_dtype, **obj_kwargs  # type: ignore
         )
+        if self.affine is None:
+            self.affine = np.eye(4)
+        # ITK v5.2.1/Modules/IO/NIFTI/src/itkNiftiImageIO.cxx#L2175-L2176
+        _affine = to_affine_nd(r=3, affine=convert_data_type(self.affine, np.ndarray)[0])
+        self.data_obj.set_sform(_affine, code=1)
+        self.data_obj.set_qform(_affine, code=1)
         nib.save(self.data_obj, filename)
 
     @classmethod

@@ -22,7 +22,6 @@ from monai.visualize.class_activation_maps import ModelWithHooks
 
 trange, has_trange = optional_import("tqdm", name="trange")
 
-
 __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmoothGrad"]
 
 
@@ -91,7 +90,7 @@ class VanillaGrad:
         x.requires_grad = True
 
         self._model(x, class_idx=index, retain_graph=retain_graph, **kwargs)
-        grad: torch.Tensor = x.grad.detach()
+        grad: torch.Tensor = x.grad.detach()  # type: ignore
         return grad
 
     def __call__(self, x: torch.Tensor, index: torch.Tensor | int | None = None, **kwargs) -> torch.Tensor:

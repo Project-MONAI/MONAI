@@ -67,6 +67,16 @@ TEST_CASES = [
         (16, 1, 10, 15, 20),
         (16, 3, 20, 30, 40),
     ],  # 1-channel 3D, batch 16, pre_conv
+    [
+        {"spatial_dims": 3, "in_channels": 8, "out_channels": 4, "mode": "deconvgroup"},
+        (16, 8, 16, 16, 16),
+        (16, 4, 32, 32, 32),
+    ],  # 8-channel 3D, batch 16
+    [
+        {"spatial_dims": 2, "in_channels": 32, "out_channels": 16, "mode": "deconvgroup", "scale_factor": 2},
+        (8, 32, 16, 16),
+        (8, 16, 32, 32),
+    ],  # 32-channel 2D, batch 8
 ]
 
 TEST_CASES_EQ = []
@@ -86,7 +96,6 @@ for s in range(1, 5):
             expected_shape,
         ]
         TEST_CASES_EQ.append(test_case)
-
 
 TEST_CASES_EQ2 = []  # type: ignore
 for s in range(2, 5):

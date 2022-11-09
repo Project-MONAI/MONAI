@@ -34,6 +34,7 @@ from .enums import (
     InterpolateMode,
     InverseKeys,
     JITMetadataKeys,
+    LazyAttr,
     LossReduction,
     MetaKeys,
     Method,
@@ -78,6 +79,7 @@ from .misc import (
     set_determinism,
     star_zip_with,
     str2bool,
+    str2list,
     zip_with,
 )
 from .module import (

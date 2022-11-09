@@ -36,7 +36,6 @@ TEST_CASE_2 = [
     {"img": torch.float64, "seg": torch.int8},
 ]
 
-
 TESTS_CUPY = [
     [
         {"keys": "image", "dtype": np.uint8},

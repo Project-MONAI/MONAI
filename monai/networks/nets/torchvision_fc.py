@@ -16,7 +16,6 @@ from monai.utils import optional_import
 
 models, _ = optional_import("torchvision.models")
 
-
 __all__ = ["TorchVisionFCModel"]
 
 

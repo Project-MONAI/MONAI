@@ -21,7 +21,7 @@ from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nni = optional_import("nni")
@@ -104,35 +104,37 @@ class TestAutoRunner(unittest.TestCase):
         runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg)
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_num_fold(1)
-        runner.run()
+        with skip_if_downloading_fails():
+            runner.run()
 
     @skip_if_no_cuda
+    @unittest.skipIf(not has_nni, "nni required")
     def test_autorunner_hpo(self) -> None:
-        if has_nni:
-            work_dir = os.path.join(self.test_path, "work_dir")
-            runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True)
-            hpo_param = {
-                "num_iterations": 8,
-                "num_iterations_per_validation": 4,
-                "num_images_per_batch": 2,
-                "num_epochs": 2,
-                "num_warmup_iterations": 4,
-                # below are to shorten the time for dints
-                "training#num_iterations": 8,
-                "training#num_iterations_per_validation": 4,
-                "training#num_images_per_batch": 2,
-                "training#num_epochs": 2,
-                "training#num_warmup_iterations": 4,
-                "searching#num_iterations": 8,
-                "searching#num_iterations_per_validation": 4,
-                "searching#num_images_per_batch": 2,
-                "searching#num_epochs": 2,
-                "searching#num_warmup_iterations": 4,
-            }
-            search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
-            runner.set_num_fold(1)
-            runner.set_nni_search_space(search_space)
-            runner.set_hpo_params(params=hpo_param)
+        work_dir = os.path.join(self.test_path, "work_dir")
+        runner = AutoRunner(work_dir=work_dir, input=self.data_src_cfg, hpo=True)
+        hpo_param = {
+            "num_iterations": 8,
+            "num_iterations_per_validation": 4,
+            "num_images_per_batch": 2,
+            "num_epochs": 2,
+            "num_warmup_iterations": 4,
+            # below are to shorten the time for dints
+            "training#num_iterations": 8,
+            "training#num_iterations_per_validation": 4,
+            "training#num_images_per_batch": 2,
+            "training#num_epochs": 2,
+            "training#num_warmup_iterations": 4,
+            "searching#num_iterations": 8,
+            "searching#num_iterations_per_validation": 4,
+            "searching#num_images_per_batch": 2,
+            "searching#num_epochs": 2,
+            "searching#num_warmup_iterations": 4,
+        }
+        search_space = {"learning_rate": {"_type": "choice", "_value": [0.0001, 0.001, 0.01, 0.1]}}
+        runner.set_num_fold(1)
+        runner.set_nni_search_space(search_space)
+        runner.set_hpo_params(params=hpo_param)
+        with skip_if_downloading_fails():
             runner.run()
 
     def tearDown(self) -> None:
