@@ -354,7 +354,7 @@ class GenerateInstanceContourd(MapTransform):
         contour_key_postfix: the output contour coordinates will be written to the value of
             `{key}_{contour_key_postfix}`.
         offset_key: keys of offset used in `GenerateInstanceContour`.
-        points_num: assumed that the created contour does not form a contour if it does not contain more points
+        min_num_points: assumed that the created contour does not form a contour if it does not contain more points
             than the specified value. Defaults to 3.
         level: optional. Value along which to find contours in the array. By default, the level is set
             to (max(image) + min(image)) / 2.
@@ -369,12 +369,12 @@ class GenerateInstanceContourd(MapTransform):
         keys: KeysCollection,
         contour_key_postfix: str = "contour",
         offset_key: Optional[str] = None,
-        points_num: int = 3,
+        min_num_points: int = 3,
         level: Optional[float] = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = GenerateInstanceContour(points_num=points_num, level=level)
+        self.converter = GenerateInstanceContour(min_num_points=min_num_points, level=level)
         self.contour_key_postfix = contour_key_postfix
         self.offset_key = offset_key
 

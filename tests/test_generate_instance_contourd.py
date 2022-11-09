@@ -46,12 +46,12 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestGenerateInstanceContourd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
-    def test_shape(self, in_type, test_data, points_num, offset, expected):
+    def test_shape(self, in_type, test_data, min_num_points, offset, expected):
         inst_bbox = get_bbox(test_data[None])
         inst_map = test_data[inst_bbox[0][0] : inst_bbox[0][1], inst_bbox[0][2] : inst_bbox[0][3]]
         test_data = {"image": in_type(inst_map[None]), "offset": offset}
         result = GenerateInstanceContourd(
-            keys="image", contour_key_postfix="contour", offset_key="offset", points_num=points_num
+            keys="image", contour_key_postfix="contour", offset_key="offset", min_num_points=min_num_points
         )(test_data)
         assert_allclose(result["image_contour"], expected, type_test=False)
 
