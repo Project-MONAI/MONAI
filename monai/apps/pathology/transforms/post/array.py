@@ -646,7 +646,7 @@ class HoVerNetPostProcessing(Transform):
             from the output.
         return_centroids: whether to return centroids for each instance.
         output_classes: number of the nuclear type classes.
-        inst_info_dict_keys: key use to record information for each instance.
+        inst_info_dict_key: key use to record information for each instance.
     """
 
     def __init__(
@@ -714,7 +714,7 @@ class HoVerNetPostProcessing(Transform):
                 inst_info_dict[inst_id]["type"] = inst_type  # type: ignore
                 inst_info_dict[inst_id]["type_probability"] = type_prob  # type: ignore
 
-        pred_inst = convert_to_dst_type(pred_inst, pred[HoVerNetBranch.NP.value])
+        pred_inst = convert_to_dst_type(pred_inst, pred[HoVerNetBranch.NP.value])[0]
         pred[HoVerNetBranch.NP.value] = pred_inst
         if self.return_binary:
             pred_inst[pred_inst > 0] = 1
