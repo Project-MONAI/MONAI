@@ -96,10 +96,28 @@ DEFAULT_INFERENCE = {
 }
 
 DEFAULT_MLFLOW_CONFIG = {
-    "trainer_handlers_id": "train#handlers",
-    "validator_handlers_id": "evaluate#handlers",
-    "evaluator_handlers_id": "handlers",
-    "handler_args" : {}
+    # TODO: add default config to construct the MLFlowHandler
+    "trainer": {
+        "id": "train#trainer",
+        "handlers_key": "train_handlers",
+        "config": {
+            "_target_": "MLFlowHandler"
+        },
+    },
+    "validator": {
+        "id": "evaluate#evaluator",
+        "handlers_key": "val_handlers",
+        "config": {
+            "_target_": "MLFlowHandler"
+        },
+    },
+    "evaluator": {
+        "id": "evaluator",
+        "handlers_key": "val_handlers",
+        "config": {
+            "_target_": "MLFlowHandler"
+        },
+    },
 }
 
 

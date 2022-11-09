@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_CONFIG
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -469,8 +469,31 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def mlflow_patch_bundle(parser: ConfigParser, config: Optional[Union[str, dict]] = None):
-    return parser
+def mlflow_patch_bundle(parser: ConfigParser, settings: Optional[Union[bool, str, dict]] = None):
+    """
+    Patch the loaded bundle config with MLFlowHandler logic.
+
+    Args:
+        parser: loaded config content to patch the MLFlowHandler.
+        settings: if `string`, treat it as file path to load the logging settings and override defaults,
+            if `dict`, treat it as logging settings and override defaults. otherwise, use the default settings.
+
+    """
+    if not isinstance(settings, (bool, str, dict)):
+        raise ValueError(f"settings must be bool, string or dict, but got: {settings}.")
+
+    settings_ = dict(DEFAULT_MLFLOW_CONFIG)
+    if isinstance(settings, (str, dict)):
+        settings_.update(ConfigParser.load_config_files(settings))
+
+    for _, v in settings_.items():
+        engine = parser.get(v["id"])
+        if engine is not None:
+            handlers = engine.get(v["handlers_key"])
+            if handlers is None:
+                engine["handlers_key"] = [v["config"]]
+            else:
+                handlers.append(v["config"])   
 
 
 def run(
@@ -478,6 +501,7 @@ def run(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
+    mlflow: Union[bool, str, dict] = False,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -511,6 +535,8 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+        mlflow: if `True`, will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if `string`, treat it as file path to load the logging settings, if `dict`, treat it as logging settings.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -524,13 +550,14 @@ def run(
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
+        mlflow=mlflow,
         **override,
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None
+    config_file_, meta_file_, runner_id_, logging_file_, mlflow_ = _pop_args(
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, mlflow=False,
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
@@ -545,6 +572,10 @@ def run(
 
     # the rest key-values in the _args are to override config content
     parser.update(pairs=_args)
+    
+    # patch the bundle with mlflow handler
+    if mlflow_:
+        mlflow_patch_bundle(parser, mlflow_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]
