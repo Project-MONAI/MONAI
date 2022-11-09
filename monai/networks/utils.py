@@ -443,7 +443,7 @@ def get_state_dict(obj: Union[torch.nn.Module, Mapping]):
     """
     if isinstance(obj, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
         obj = obj.module
-    return obj.state_dict() if hasattr(obj, "state_dict") else obj  # type: ignore
+    return obj.state_dict() if hasattr(obj, "state_dict") else obj
 
 
 def copy_model_state(
