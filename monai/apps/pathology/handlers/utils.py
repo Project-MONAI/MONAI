@@ -15,19 +15,15 @@ from monai.utils import ensure_tuple
 
 def from_engine_hovernet(keys: KeysCollection, nested_key: str):
     """
-    Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
-    when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
-    Users only need to set the expected keys, then it will return a callable function to extract nested data
-    from dictionary and construct a tuple respectively.
+    Since the output of HoVerNet is a dictionary, this function is to extend `monai.handlers.from_engine`
+    to work with HoVerNet. 
 
-    If data is a list of dictionaries after decollating, extract expected keys and construct lists respectively,
-    for example,
+    If data is a list of nestes dictionaries after decollating, extract nested value with expected keys and 
+    construct lists respectively, for example,
     if data is `[{"A": {"C": 1, "D": 2}, "B": {"C": 2, "D": 2}}, {"A":  {"C": 3, "D": 2}, "B":  {"C": 4, "D": 2}}]`,
     from_engine_hovernet(["A", "B"], "C"): `([1, 3], [2, 4])`.
 
-    It can help avoid a complicated `lambda` function and make the arg of metrics more straight-forward.
-    For example, set the first key as the prediction and the second key as label to get the expected data
-    from `engine.state.output` for a metric::
+    Here is a simple example::
 
         from monai.handlers import MeanDice, from_engine_hovernet
 
@@ -39,7 +35,6 @@ def from_engine_hovernet(keys: KeysCollection, nested_key: str):
     Args:
         keys: specified keys to extract data from dictionary or decollated list of dictionaries.
         nested_key: specified key to extract nested data from dictionary or decollated list of dictionaries.
-
 
     """
     keys = ensure_tuple(keys)
