@@ -313,7 +313,9 @@ class SSIMMetric(RegressionMetric):
                 else:
                     ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
 
-            ssim_value = ssim_value.view(-1,1)
+            
         else:
             raise ValueError("Batch size is not nonnegative integer value")
+        # 1- dimensional tensor is only allowed    
+        ssim_value = ssim_value.view(-1,1)
         return ssim_value
