@@ -268,8 +268,14 @@ class SSIMMetric(RegressionMetric):
     """
 
     def __init__(
-        self, data_range: torch.Tensor, win_size: int = 7, k1: float = 0.01, k2: float = 0.03, spatial_dims: int = 2,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN, get_not_nans: bool = False
+        self,
+        data_range: torch.Tensor,
+        win_size: int = 7,
+        k1: float = 0.01,
+        k2: float = 0.03,
+        spatial_dims: int = 2,
+        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ):
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
         self.data_range = data_range
@@ -298,24 +304,23 @@ class SSIMMetric(RegressionMetric):
                 print(SSIMMetric(data_range=data_range,spatial_dims=2)._compute_metric(x,y))
         """
         ssim_value = torch.empty((1), dtype=torch.float)
-        if x.shape[0]==1:
+        if x.shape[0] == 1:
             ssim_value: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
                 x, y, self.data_range
             )
-        elif x.shape[0]>1:
+        elif x.shape[0] > 1:
 
             for i in range(x.shape[0]):
                 ssim_val: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
-                    x[i:i+1], y[i:i+1], self.data_range
+                    x[i : i + 1], y[i : i + 1], self.data_range
                 )
                 if i == 0:
                     ssim_value = ssim_val
                 else:
                     ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
 
-
         else:
             raise ValueError("Batch size is not nonnegative integer value")
         # 1- dimensional tensor is only allowed
-        ssim_value = ssim_value.view(-1,1)
+        ssim_value = ssim_value.view(-1, 1)
         return ssim_value
