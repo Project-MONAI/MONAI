@@ -28,6 +28,7 @@ from monai.utils import (
     SpaceKeys,
     convert_data_type,
     convert_to_tensor,
+    get_equivalent_dtype,
     look_up_option,
     optional_import,
     require_pkg,
@@ -420,6 +421,8 @@ class ITKWriter(ImageWriter):
                 defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
         """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):
+            self.output_dtype = self.data_obj.dtype
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
             affine=affine,
@@ -491,6 +494,8 @@ class ITKWriter(ImageWriter):
         _is_vec = channel_dim is not None
         if _is_vec:
             data_array = np.moveaxis(data_array, -1, 0)  # from channel last to channel first
+        if dtype is not None:
+            dtype = get_equivalent_dtype(dtype, np.ndarray)
         data_array = data_array.T.astype(dtype, copy=True, order="C")
         itk_obj = itk.GetImageFromArray(data_array, is_vector=_is_vec, ttype=kwargs.pop("ttype", None))
 
@@ -573,6 +578,8 @@ class NibabelWriter(ImageWriter):
                 defaulting to ``bilinear``, ``border``, ``False``, and ``np.float64`` respectively.
         """
         original_affine, affine, spatial_shape = self.get_meta_info(meta_dict)
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):
+            self.output_dtype = self.data_obj.dtype
         self.data_obj, self.affine = self.resample_if_needed(
             data_array=self.data_obj,
             affine=affine,
@@ -629,7 +636,7 @@ class NibabelWriter(ImageWriter):
         """
         data_array = super().create_backend_obj(data_array)
         if dtype is not None:
-            data_array = data_array.astype(dtype, copy=False)
+            data_array = data_array.astype(get_equivalent_dtype(dtype, np.ndarray), copy=False)
         affine = convert_data_type(affine, np.ndarray)[0]
         if affine is None:
             affine = np.eye(4)
@@ -716,6 +723,8 @@ class PILWriter(ImageWriter):
                 currently support ``mode``, defaulting to ``bicubic``.
         """
         spatial_shape = self.get_meta_info(meta_dict)
+        if self.output_dtype is None and hasattr(self.data_obj, "dtype"):
+            self.output_dtype = self.data_obj.dtype
         self.data_obj = self.resample_and_clip(
             data_array=self.data_obj,
             output_spatial_shape=spatial_shape if resample else None,
@@ -821,7 +830,7 @@ class PILWriter(ImageWriter):
             else:
                 raise ValueError(f"Unsupported scale: {scale}, available options are [255, 65535].")
         if dtype is not None:
-            data = data.astype(dtype, copy=False)
+            data = data.astype(get_equivalent_dtype(dtype, np.ndarray), copy=False)
         if reverse_indexing:
             data = np.moveaxis(data, 0, 1)
 
