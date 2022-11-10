@@ -293,7 +293,7 @@ def set_determinism(
         if hasattr(torch, "use_deterministic_algorithms"):  # `use_deterministic_algorithms` is new in torch 1.8.0
             torch.use_deterministic_algorithms(use_deterministic_algorithms)
         elif hasattr(torch, "set_deterministic"):  # `set_deterministic` is new in torch 1.7.0
-            torch.set_deterministic(use_deterministic_algorithms)  # type: ignore
+            torch.set_deterministic(use_deterministic_algorithms)
         else:
             warnings.warn("use_deterministic_algorithms=True, but PyTorch version is too old to set the mode.")
 

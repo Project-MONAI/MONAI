@@ -155,7 +155,7 @@ class CheckpointSaver:
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name"):
-                    metric_name = engine.state.key_metric_name  # type: ignore
+                    metric_name = engine.state.key_metric_name
                 else:
                     raise ValueError(
                         f"Incompatible values: save_key_metric=True and key_metric_name={key_metric_name}."
