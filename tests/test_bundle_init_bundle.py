@@ -28,12 +28,25 @@ class TestBundleInit(unittest.TestCase):
 
             bundle_root = tempdir + "/test_bundle"
 
-            cmd = ["coverage", "run", "-m", "monai.bundle", "init_bundle", bundle_root, tempdir + "/test.pt"]
+            cmd = [
+                "coverage",
+                "run",
+                "-m",
+                "monai.bundle",
+                "init_bundle",
+                bundle_root,
+                tempdir + "/test.pt",
+                "--dataset_license",
+                "True",
+            ]
             command_line_tests(cmd)
 
             self.assertTrue(os.path.exists(bundle_root + "/configs/metadata.json"))
             self.assertTrue(os.path.exists(bundle_root + "/configs/inference.json"))
             self.assertTrue(os.path.exists(bundle_root + "/models/model.pt"))
+            self.assertTrue(os.path.exists(bundle_root + "/LICENSE"))
+            self.assertTrue(os.path.exists(bundle_root + "/docs/README.md"))
+            self.assertTrue(os.path.exists(bundle_root + "/docs/data_license.txt"))
 
 
 if __name__ == "__main__":

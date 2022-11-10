@@ -799,6 +799,7 @@ def init_bundle(
     bundle_dir: PathLike,
     ckpt_file: Optional[PathLike] = None,
     network: Optional[torch.nn.Module] = None,
+    dataset_license: bool = False,
     metadata_str: Union[Dict, str] = DEFAULT_METADATA,
     inference_str: Union[Dict, str] = DEFAULT_INFERENCE,
 ):
@@ -815,6 +816,7 @@ def init_bundle(
         bundle_dir: directory name to create, must not exist but parent direct must exist
         ckpt_file: optional checkpoint file to copy into bundle
         network: if given instead of ckpt_file this network's weights will be stored in bundle
+        dataset_license: if `True`, a default incense file "data_license.txt" will be produced.
     """
 
     bundle_dir = Path(bundle_dir).absolute()
@@ -863,8 +865,12 @@ def init_bundle(
 
         o.write(dedent(readme))
 
-    with open(str(docs_dir / "license.txt"), "w") as o:
+    with open(str(bundle_dir / "LICENSE"), "w") as o:
         o.write("Select a license and place its terms here\n")
+
+    if dataset_license is True:
+        with open(str(docs_dir / "data_license.txt"), "w") as o:
+            o.write("Select a license for dataset and place its terms here\n")
 
     if ckpt_file is not None:
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
