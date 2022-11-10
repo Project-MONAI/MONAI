@@ -30,7 +30,6 @@ TEST_CASE_2 = [(x - 8) ** 2 + (y - 8) ** 2 <= 2**2, [6, 6], [8, 8]]
 
 TEST_CASE_3 = [(x - 5) ** 2 / 3**2 + (y - 5) ** 2 / 2**2 <= 1, [2, 3], [4, 6]]
 
-
 TEST_CASE = []
 for p in TEST_NDARRAYS:
     TEST_CASE.append([p, *TEST_CASE_1])

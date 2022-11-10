@@ -144,7 +144,7 @@ class MetricsSaver:
                 _metrics = {k: v for k, v in engine.state.metrics.items() if k in self.metrics or "*" in self.metrics}
             _metric_details = {}
             if hasattr(engine.state, "metric_details"):
-                details = engine.state.metric_details  # type: ignore
+                details = engine.state.metric_details
                 if self.metric_details is not None and len(details) > 0:
                     for k, v in details.items():
                         if k in self.metric_details or "*" in self.metric_details:
