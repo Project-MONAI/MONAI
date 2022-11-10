@@ -303,7 +303,7 @@ class SSIMMetric(RegressionMetric):
                 x, y, self.data_range
             )
         elif x.shape[0]>1:
-           
+
             for i in range(x.shape[0]):
                 ssim_val: torch.Tensor = 1 - SSIMLoss(self.win_size, self.k1, self.k2, self.spatial_dims)(
                     x[i:i+1], y[i:i+1], self.data_range
@@ -312,7 +312,7 @@ class SSIMMetric(RegressionMetric):
                     ssim_value = ssim_val
                 else:
                     ssim_value = torch.cat((ssim_value.view(1), ssim_val.view(1)), dim=0)
-            
+
             ssim_value = ssim_value.view(-1,1)
         else:
             raise ValueError("Batch size is not nonnegative integer value")
