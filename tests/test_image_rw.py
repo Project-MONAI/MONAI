@@ -84,8 +84,8 @@ class TestLoadSaveNifti(unittest.TestCase):
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], [NibabelWriter, ITKWriter]))
     def test_3d(self, reader, writer):
         test_data = np.arange(48, dtype=np.uint8).reshape(1, 2, 3, 8)
-        self.nifti_rw(test_data, reader, writer, int)
-        self.nifti_rw(test_data, reader, writer, int, False)
+        self.nifti_rw(test_data, reader, writer, np.int16)
+        self.nifti_rw(test_data, reader, writer, float, False)
 
     @parameterized.expand(itertools.product([NibabelReader, ITKReader], ["NibabelWriter", ITKWriter]))
     def test_4d(self, reader, writer):
