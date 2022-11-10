@@ -316,3 +316,4 @@ class SSIMMetric(RegressionMetric):
             ssim_value = ssim_value.view(-1,1)
         else:
             raise ValueError("Batch size is not nonnegative integer value")
+        return ssim_value
