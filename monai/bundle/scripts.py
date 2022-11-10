@@ -469,29 +469,32 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def mlflow_patch_bundle(parser: ConfigParser, settings: Optional[Union[bool, str, dict]] = None):
+def patch_bundle_handler(
+    parser: ConfigParser, default_settings: dict, settings: Optional[Union[bool, str, dict]] = None
+):
     """
-    Patch the loaded bundle config with MLFlowHandler logic.
+    Patch the loaded bundle config with a new handler logic.
 
     Args:
-        parser: loaded config content to patch the MLFlowHandler.
-        settings: if `string`, treat it as file path to load the logging settings and override defaults,
-            if `dict`, treat it as logging settings and override defaults. otherwise, use the default settings.
+        parser: loaded config content to patch the handler.
+        settings: if `string`, treat it as file path to load the handler settings, if `dict`,
+            treat it as handler settings, then override the default settings for `trainer`,
+            `validator` or `evaluator`. otherwise, use all the default settings.
 
     """
     if not isinstance(settings, (bool, str, dict)):
         raise ValueError(f"settings must be bool, string or dict, but got: {settings}.")
 
-    settings_ = dict(DEFAULT_MLFLOW_CONFIG)
+    settings_ = dict(default_settings)
     if isinstance(settings, (str, dict)):
         settings_.update(ConfigParser.load_config_files(settings))
 
-    for _, v in settings_.items():
+    for k, v in settings_.items():
         engine = parser.get(v["id"])
         if engine is not None:
-            handlers = engine.get(v["handlers_key"])
+            handlers = parser.get(v["handlers_id"])
             if handlers is None:
-                engine["handlers_key"] = [v["config"]]
+                engine["train_handlers" if k == "trainer" else "val_handlers"] = [v["config"]]
             else:
                 handlers.append(v["config"])
 
@@ -536,7 +539,9 @@ def run(
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
         mlflow: if `True`, will add `MLFlowHandler` to the parsed bundle with default loggging settings,
-            if `string`, treat it as file path to load the logging settings, if `dict`, treat it as logging settings.
+            if `string`, treat it as file path to load the logging settings, if `dict`,
+            treat it as logging settings, then override the default settings for `trainer`,
+            `validator` or `evaluator`. otherwise, use all the default settings.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -557,7 +562,7 @@ def run(
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
     config_file_, meta_file_, runner_id_, logging_file_, mlflow_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, mlflow=False,
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, mlflow=False
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
@@ -575,7 +580,7 @@ def run(
 
     # patch the bundle with mlflow handler
     if mlflow_:
-        mlflow_patch_bundle(parser, mlflow_)
+        patch_bundle_handler(parser=parser, default_settings=DEFAULT_MLFLOW_CONFIG, settings=mlflow_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]

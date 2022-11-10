@@ -96,27 +96,27 @@ DEFAULT_INFERENCE = {
 }
 
 DEFAULT_MLFLOW_CONFIG = {
-    # TODO: add default config to construct the MLFlowHandler
     "trainer": {
         "id": "train#trainer",
-        "handlers_key": "train_handlers",
+        "handlers_id": "train#handlers",
         "config": {
-            "_target_": "MLFlowHandler"
+            "_target_": "MLFlowHandler",
+            "tracking_uri": "$@output_dir + '/mlflow'",
+            "iteration_log": True,
+            "epoch_log": True,
+            "tag_name": "train_loss",
+            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
         },
     },
     "validator": {
         "id": "evaluate#evaluator",
-        "handlers_key": "val_handlers",
-        "config": {
-            "_target_": "MLFlowHandler"
-        },
+        "handlers_id": "evaluate#handlers",
+        "config": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
     },
     "evaluator": {
         "id": "evaluator",
-        "handlers_key": "val_handlers",
-        "config": {
-            "_target_": "MLFlowHandler"
-        },
+        "handlers_id": "handlers",
+        "config": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
     },
 }
 
