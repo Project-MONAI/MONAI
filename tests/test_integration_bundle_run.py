@@ -21,6 +21,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
+from monai.bundle.utils import DEDAULT_HANDLERS_ID
 from monai.transforms import LoadImage
 from tests.utils import command_line_tests
 
@@ -78,15 +79,14 @@ class TestBundleRun(unittest.TestCase):
 
         # test MLFlow settings
         settings = {
-            "evaluator": {
-                "id": "evaluator",
-                "handlers_id": "handlers",
-                "config": {
+            "handlers_id": DEDAULT_HANDLERS_ID,
+            "configs": {
+                "evaluator": {
                     "_target_": "MLFlowHandler",
                     "tracking_uri": "$@output_dir + '/mlflow_override'",
                     "iteration_log": False,
-                },
-            }
+                }
+            },
         }
         settings_file = os.path.join(tempdir, "mlflow.json")
         ConfigParser.export_config_file(config=settings, filepath=settings_file, fmt="json")
@@ -105,26 +105,28 @@ class TestBundleRun(unittest.TestCase):
         if sys.platform == "win32":
             override = f"--network $@network_def.to(@device) --dataset#_target_ Dataset --output_dir {tempdir}"
         else:
-            override = f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2} --output_dir {tempdir}"
+            override = (
+                f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
+                f" --output_dir {tempdir} --mlflow {settings_file}"
+            )
         # test with `monai.bundle` as CLI entry directly
         cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-        command_line_tests(la + ["--args_file", def_args_file, "--mlflow", settings_file])
+        command_line_tests(la + ["--args_file", def_args_file])
         loader = LoadImage(image_only=True)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
-        # check whether MLFlow tracking works
-        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override"))
 
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --runner_id evaluating"
-        cmd += f" --evaluator#amp False {override} --mlflow True"
+        cmd += f" --evaluator#amp False {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
         # check whether MLFlow tracking works
-        self.assertTrue(os.path.exists(f"{tempdir}/mlflow"))
+        if sys.platform != "win32":
+            self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override"))
 
 
 if __name__ == "__main__":

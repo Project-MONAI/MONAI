@@ -27,7 +27,7 @@ from torch.cuda import is_available
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_CONFIG
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, DEFAULT_MLFLOW_SETTINGS
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import convert_to_torchscript, copy_model_state, get_state_dict, save_state
@@ -478,25 +478,26 @@ def patch_bundle_handler(
     Args:
         parser: loaded config content to patch the handler.
         settings: if `string`, treat it as file path to load the handler settings, if `dict`,
-            treat it as handler settings, then override the default settings for `trainer`,
-            `validator` or `evaluator`. otherwise, use all the default settings.
+            treat it as handler settings, otherwise, use the default settings.
 
     """
     if not isinstance(settings, (bool, str, dict)):
         raise ValueError(f"settings must be bool, string or dict, but got: {settings}.")
 
-    settings_ = dict(default_settings)
     if isinstance(settings, (str, dict)):
-        settings_.update(ConfigParser.load_config_files(settings))
+        settings_ = ConfigParser.load_config_files(settings)
+    else:
+        settings_ = default_settings
 
-    for k, v in settings_.items():
+    for k, v in settings_["handlers_id"].items():
         engine = parser.get(v["id"])
         if engine is not None:
-            handlers = parser.get(v["handlers_id"])
+            handlers = parser.get(v["handlers"])
+            handler_config = settings_["configs"][k]
             if handlers is None:
-                engine["train_handlers" if k == "trainer" else "val_handlers"] = [v["config"]]
+                engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
             else:
-                handlers.append(v["config"])
+                handlers.append(handler_config)
 
 
 def run(
@@ -540,8 +541,7 @@ def run(
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
         mlflow: if `True`, will add `MLFlowHandler` to the parsed bundle with default loggging settings,
             if `string`, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, then override the default settings for `trainer`,
-            `validator` or `evaluator`. otherwise, use all the default settings.
+            treat it as logging settings, otherwise, use all the default settings.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -580,7 +580,7 @@ def run(
 
     # patch the bundle with mlflow handler
     if mlflow_:
-        patch_bundle_handler(parser=parser, default_settings=DEFAULT_MLFLOW_CONFIG, settings=mlflow_)
+        patch_bundle_handler(parser=parser, default_settings=DEFAULT_MLFLOW_SETTINGS, settings=mlflow_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]

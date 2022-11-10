@@ -95,11 +95,17 @@ DEFAULT_INFERENCE = {
     "evaluating": ["$@evaluator.run()"],
 }
 
-DEFAULT_MLFLOW_CONFIG = {
-    "trainer": {
-        "id": "train#trainer",
-        "handlers_id": "train#handlers",
-        "config": {
+DEDAULT_HANDLERS_ID = {
+    "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
+    "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
+    "evaluator": {"id": "evaluator", "handlers": "handlers"},
+}
+
+DEFAULT_MLFLOW_SETTINGS = {
+    "handlers_id": DEDAULT_HANDLERS_ID,
+    "configs": {
+        # MLFlowHandler config for the trainer
+        "trainer": {
             "_target_": "MLFlowHandler",
             "tracking_uri": "$@output_dir + '/mlflow'",
             "iteration_log": True,
@@ -107,16 +113,10 @@ DEFAULT_MLFLOW_CONFIG = {
             "tag_name": "train_loss",
             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
         },
-    },
-    "validator": {
-        "id": "evaluate#evaluator",
-        "handlers_id": "evaluate#handlers",
-        "config": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
-    },
-    "evaluator": {
-        "id": "evaluator",
-        "handlers_id": "handlers",
-        "config": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        # MLFlowHandler config for the validator
+        "validator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
+        # MLFlowHandler config for the evaluator
+        "evaluator": {"_target_": "MLFlowHandler", "tracking_uri": "$@output_dir + '/mlflow'", "iteration_log": False},
     },
 }
 
