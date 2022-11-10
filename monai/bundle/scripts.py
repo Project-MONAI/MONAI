@@ -816,7 +816,8 @@ def init_bundle(
         bundle_dir: directory name to create, must not exist but parent direct must exist
         ckpt_file: optional checkpoint file to copy into bundle
         network: if given instead of ckpt_file this network's weights will be stored in bundle
-        dataset_license: if `True`, a default incense file "data_license.txt" will be produced.
+        dataset_license: if `True`, a default license file called "data_license.txt" will be produced. This
+            file is required if there are any license conditions stated for data your bundle uses.
     """
 
     bundle_dir = Path(bundle_dir).absolute()
