@@ -235,6 +235,8 @@ class SaveImaged(MapTransform):
             if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
             if it's a string, it's treated as a class name or dotted path;
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
+        output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
+            see also: :py:function:`monai.data.folder_layout.default_name_formatter`.
 
     """
 
@@ -259,6 +261,7 @@ class SaveImaged(MapTransform):
         print_log: bool = True,
         output_format: str = "",
         writer: Union[Type[image_writer.ImageWriter], str, None] = None,
+        output_name_formatter=None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
@@ -279,6 +282,7 @@ class SaveImaged(MapTransform):
             print_log=print_log,
             output_format=output_format,
             writer=writer,
+            output_name_formatter=output_name_formatter,
         )
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):

@@ -9,10 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import monai
 from monai.config import PathLike
 from monai.data.utils import create_file_basename
 
-__all__ = ["FolderLayout"]
+__all__ = ["FolderLayout", "default_name_formatter"]
+
+
+def default_name_formatter(metadict, saver):
+    """Returns a kwargs dict for `FolderLayout.filename()`, according to the input metadata and SaveImage transform."""
+    subject = metadict[monai.utils.ImageMetaKey.FILENAME_OR_OBJ] if metadict else getattr(saver, "_data_index", 0)
+    patch_index = metadict.get(monai.utils.ImageMetaKey.PATCH_INDEX, None) if metadict else None
+    return {"subject": f"{subject}", "idx": patch_index}
 
 
 class FolderLayout:
