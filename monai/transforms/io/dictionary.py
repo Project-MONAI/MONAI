@@ -173,7 +173,7 @@ class SaveImaged(MapTransform):
 
     Note:
         Image should be channel-first shape: [C,H,W,[D]].
-        If the data is a patch of big image, will append the patch index to filename.
+        If the data is a patch of an image, the patch index will be appended to the filename.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -187,7 +187,6 @@ class SaveImaged(MapTransform):
         output_dir: output image directory.
         output_postfix: a string appended to all output file names, default to `trans`.
         output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
-        output_dtype: data type for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the `spatial_shape` (and `original_affine`) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
@@ -204,9 +203,8 @@ class SaveImaged(MapTransform):
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
             [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
-            if None, use the data type of input data. To be compatible with other modules,
+            if None, use the data type of input data. To set the output data type, use `output_dtype`.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
-            it's used for NIfTI format only.
         allow_missing_keys: don't raise exception if key is missing.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
             has been moved to the end). So if input is (C,H,W,D), this will be altered to (H,W,D,C), and
@@ -251,7 +249,7 @@ class SaveImaged(MapTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: Optional[int] = None,
         dtype: DtypeLike = np.float64,
-        output_dtype: DtypeLike = np.float32,
+        output_dtype: Optional[DtypeLike] = np.float32,
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
