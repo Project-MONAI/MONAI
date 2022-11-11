@@ -38,7 +38,7 @@ __all__ = [
     "GenerateInstanceContour",
     "GenerateInstanceCentroid",
     "GenerateInstanceType",
-    "HoVerNetPostProcessing",
+    "HoVerNetNCBranchPostProcessing",
 ]
 
 
@@ -627,10 +627,10 @@ class GenerateInstanceType(Transform):
         return (int(inst_type), float(type_prob))
 
 
-class HoVerNetPostProcessing(Transform):
+class HoVerNetNCBranchPostProcessing(Transform):
     """
-    Since HoVerNet do segmentation and classification meanwhile, this transform is used to combine postprocessing
-    for segmentation and classification. It assumes input as a dictionary.
+    The whole post-procesing transform for nuclear type classification branch. It return a dict which contains
+    centroid, bounding box, type prediciton for each instance.
 
     Args:
         min_num_points: assumed that the created contour does not form a contour if it does not contain more points

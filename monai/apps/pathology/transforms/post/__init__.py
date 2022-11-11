@@ -18,7 +18,7 @@ from .array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    HoVerNetPostProcessing,
+    HoVerNetNCBranchPostProcessing,
     Watershed,
 )
 from .dictionary import (
@@ -46,6 +46,9 @@ from .dictionary import (
     GenerateWatershedMaskD,
     GenerateWatershedMaskd,
     GenerateWatershedMaskDict,
+    HoVerNetNCBranchPostProcessingD,
+    HoVerNetNCBranchPostProcessingd,
+    HoVerNetNCBranchPostProcessingDict,
     WatershedD,
     Watershedd,
     WatershedDict,

@@ -14,7 +14,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.apps.pathology.transforms.post.array import HoVerNetPostProcessing
+from monai.apps.pathology.transforms.post.array import HoVerNetNCBranchPostProcessing
 from monai.apps.pathology.transforms.post.dictionary import (
     GenerateDistanceMapd,
     GenerateInstanceBorderd,
@@ -60,7 +60,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetPostProcessing(unittest.TestCase):
+class TestHoVerNetNCBranchPostProcessing(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, seg_postpprocessing, kwargs, expected):
         hovermap = ComputeHoVerMaps()(test_data[None].astype(int))
@@ -72,7 +72,7 @@ class TestHoVerNetPostProcessing(unittest.TestCase):
 
         pred = seg_postpprocessing(input)
 
-        post_transforms = HoVerNetPostProcessing(**kwargs)
+        post_transforms = HoVerNetNCBranchPostProcessing(**kwargs)
         out = post_transforms(type_pred=in_type(test_data[None]), inst_pred=pred["dist"])
         if out is not None:
             assert_allclose(out[1]["centroid"], expected[1], type_test=False)

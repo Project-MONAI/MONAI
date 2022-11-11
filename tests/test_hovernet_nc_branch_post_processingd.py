@@ -19,7 +19,7 @@ from monai.apps.pathology.transforms.post.dictionary import (
     GenerateInstanceBorderd,
     GenerateWatershedMarkersd,
     GenerateWatershedMaskd,
-    HoVerNetPostProcessingd,
+    HoVerNetNCBranchPostProcessingd,
     Watershedd,
 )
 from monai.transforms import Compose, ComputeHoVerMaps, FillHoles, GaussianSmooth
@@ -57,7 +57,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
-class TestHoVerNetPostProcessing(unittest.TestCase):
+class TestHoVerNetNCBranchPostProcessingd(unittest.TestCase):
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, seg_postpprocessing, kwargs, expected):
         hovermap = ComputeHoVerMaps()(test_data[None].astype(int))
@@ -67,7 +67,7 @@ class TestHoVerNetPostProcessing(unittest.TestCase):
             HoVerNetBranch.NC.value: in_type(test_data[None]),
         }
 
-        class_trans = [HoVerNetPostProcessingd(**kwargs)]
+        class_trans = [HoVerNetNCBranchPostProcessingd(**kwargs)]
         post_transforms = Compose(seg_postpprocessing + class_trans)
         out = post_transforms(input)
 

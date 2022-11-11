@@ -22,7 +22,7 @@ from monai.apps.pathology.transforms.post.array import (
     GenerateSuccinctContour,
     GenerateWatershedMarkers,
     GenerateWatershedMask,
-    HoVerNetPostProcessing,
+    HoVerNetNCBranchPostProcessing,
     Watershed,
 )
 from monai.config.type_definitions import DtypeLike, KeysCollection, NdarrayOrTensor
@@ -61,6 +61,9 @@ __all__ = [
     "GenerateInstanceTypeDict",
     "GenerateInstanceTypeD",
     "GenerateInstanceTyped",
+    "HoVerNetNCBranchPostProcessingDict",
+    "HoVerNetNCBranchPostProcessingD",
+    "HoVerNetNCBranchPostProcessingd",
 ]
 
 
@@ -482,9 +485,9 @@ class GenerateInstanceTyped(MapTransform):
         return d
 
 
-class HoVerNetPostProcessingd(Transform):
+class HoVerNetNCBranchPostProcessingd(Transform):
     """
-    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetPostProcessing`.
+    Dictionary-based wrapper of :py:class:`monai.apps.pathology.transforms.post.array.HoVerNetNCBranchPostProcessing`.
     Generate instance type and probability for each instance.
 
     Args:
@@ -517,7 +520,7 @@ class HoVerNetPostProcessingd(Transform):
         inst_info_dict_key: Optional[str] = "inst_info_dict",
     ) -> None:
         super().__init__()
-        self.converter = HoVerNetPostProcessing(
+        self.converter = HoVerNetNCBranchPostProcessing(
             min_num_points=min_num_points, level=level, return_centroids=return_centroids, output_classes=output_classes
         )
         self.type_pred_key = type_pred_key
@@ -553,3 +556,4 @@ GenerateSuccinctContourDict = GenerateSuccinctContourD = GenerateSuccinctContour
 GenerateInstanceContourDict = GenerateInstanceContourD = GenerateInstanceContourd
 GenerateInstanceCentroidDict = GenerateInstanceCentroidD = GenerateInstanceCentroidd
 GenerateInstanceTypeDict = GenerateInstanceTypeD = GenerateInstanceTyped
+HoVerNetNCBranchPostProcessingDict = HoVerNetNCBranchPostProcessingD = HoVerNetNCBranchPostProcessingd
