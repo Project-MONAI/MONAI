@@ -234,7 +234,7 @@ class SaveImaged(MapTransform):
             if it's a string, it's treated as a class name or dotted path;
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
-            see also: :py:function:`monai.data.folder_layout.default_name_formatter`.
+            see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
 
     """
 

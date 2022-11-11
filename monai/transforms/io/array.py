@@ -341,7 +341,7 @@ class SaveImage(Transform):
         channel_dim: the index of the channel dimension. Default to `0`.
             `None` to indicate no channel dimension.
         output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
-            see also: :py:function:`monai.data.folder_layout.default_name_formatter`.
+            see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
     """
 
     def __init__(

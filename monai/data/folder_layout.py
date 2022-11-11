@@ -17,7 +17,8 @@ __all__ = ["FolderLayout", "default_name_formatter"]
 
 
 def default_name_formatter(metadict, saver):
-    """Returns a kwargs dict for `FolderLayout.filename()`, according to the input metadata and SaveImage transform."""
+    """Returns a kwargs dict for :py:meth:`FolderLayout.filename`,
+    according to the input metadata and SaveImage transform."""
     subject = metadict[monai.utils.ImageMetaKey.FILENAME_OR_OBJ] if metadict else getattr(saver, "_data_index", 0)
     patch_index = metadict.get(monai.utils.ImageMetaKey.PATCH_INDEX, None) if metadict else None
     return {"subject": f"{subject}", "idx": patch_index}
