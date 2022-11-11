@@ -202,7 +202,7 @@ class Cumulative:
         for b, d in zip(self._buffers, data):
             # converting to pytorch tensors so that we can use the distributed API
             d_t, *_ = convert_data_type(d, output_type=torch.Tensor, wrap_sequence=True)
-            try:
+            try:  # d_t must be a mini-batch of values
                 b.extend([x[0] for x in torch.split(d_t, 1, dim=0)])
             except (AttributeError, IndexError, RuntimeError) as e:
                 raise TypeError(
