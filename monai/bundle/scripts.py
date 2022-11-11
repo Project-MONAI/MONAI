@@ -469,9 +469,7 @@ def get_bundle_info(
     return bundle_info[version]
 
 
-def patch_bundle_handler(
-    parser: ConfigParser, default_settings: dict, settings: Optional[Union[bool, str, dict]] = None
-):
+def patch_bundle_handler(parser: ConfigParser, settings: dict):
     """
     Patch the loaded bundle config with a new handler logic.
 
@@ -481,19 +479,11 @@ def patch_bundle_handler(
             treat it as handler settings, otherwise, use the default settings.
 
     """
-    if not isinstance(settings, (bool, str, dict)):
-        raise ValueError(f"settings must be bool, string or dict, but got: {settings}.")
-
-    if isinstance(settings, (str, dict)):
-        settings_ = ConfigParser.load_config_files(settings)
-    else:
-        settings_ = default_settings
-
-    for k, v in settings_["handlers_id"].items():
+    for k, v in settings["handlers_id"].items():
         engine = parser.get(v["id"])
         if engine is not None:
             handlers = parser.get(v["handlers"])
-            handler_config = settings_["configs"][k]
+            handler_config = settings["configs"][k]
             if handlers is None:
                 engine["train_handlers" if k == "trainer" else "val_handlers"] = [handler_config]
             else:
@@ -505,7 +495,7 @@ def run(
     meta_file: Optional[Union[str, Sequence[str]]] = None,
     config_file: Optional[Union[str, Sequence[str]]] = None,
     logging_file: Optional[str] = None,
-    mlflow: Union[bool, str, dict] = False,
+    tracking: Optional[Union[str, dict]] = None,
     args_file: Optional[str] = None,
     **override,
 ):
@@ -539,8 +529,8 @@ def run(
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program, default to `None`. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-        mlflow: if `True`, will add `MLFlowHandler` to the parsed bundle with default loggging settings,
-            if `string`, treat it as file path to load the logging settings, if `dict`,
+        tracking: if "mlflow", will add `MLFlowHandler` to the parsed bundle with default loggging settings,
+            if other string, treat it as file path to load the logging settings, if `dict`,
             treat it as logging settings, otherwise, use all the default settings.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -555,14 +545,14 @@ def run(
         meta_file=meta_file,
         config_file=config_file,
         logging_file=logging_file,
-        mlflow=mlflow,
+        tracking=tracking,
         **override,
     )
     if "config_file" not in _args:
         warnings.warn("`config_file` not provided for 'monai.bundle run'.")
     _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, runner_id_, logging_file_, mlflow_ = _pop_args(
-        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, mlflow=False
+    config_file_, meta_file_, runner_id_, logging_file_, tracking_ = _pop_args(
+        _args, config_file=None, meta_file=None, runner_id="", logging_file=None, tracking=None
     )
     if logging_file_ is not None:
         if not os.path.exists(logging_file_):
@@ -579,8 +569,12 @@ def run(
     parser.update(pairs=_args)
 
     # patch the bundle with mlflow handler
-    if mlflow_:
-        patch_bundle_handler(parser=parser, default_settings=DEFAULT_MLFLOW_SETTINGS, settings=mlflow_)
+    if tracking_ is not None:
+        if isinstance(tracking_, str) and tracking_ == "mlflow":
+            settings_ = DEFAULT_MLFLOW_SETTINGS
+        else:
+            settings_ = ConfigParser.load_config_files(tracking_)
+        patch_bundle_handler(parser=parser, settings=settings_)
 
     # resolve and execute the specified runner expressions in the config, return the results
     return [parser.get_parsed_content(i, lazy=True, eval_expr=True, instantiate=True) for i in ensure_tuple(runner_id_)]

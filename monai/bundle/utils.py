@@ -95,14 +95,14 @@ DEFAULT_INFERENCE = {
     "evaluating": ["$@evaluator.run()"],
 }
 
-DEDAULT_HANDLERS_ID = {
+DEFAULT_HANDLERS_ID = {
     "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
     "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
     "evaluator": {"id": "evaluator", "handlers": "handlers"},
 }
 
 DEFAULT_MLFLOW_SETTINGS = {
-    "handlers_id": DEDAULT_HANDLERS_ID,
+    "handlers_id": DEFAULT_HANDLERS_ID,
     "configs": {
         # MLFlowHandler config for the trainer
         "trainer": {

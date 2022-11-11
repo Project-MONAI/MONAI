@@ -106,27 +106,26 @@ class TestBundleRun(unittest.TestCase):
             override = f"--network $@network_def.to(@device) --dataset#_target_ Dataset --output_dir {tempdir}"
         else:
             override = (
-                f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2}"
-                f" --output_dir {tempdir} --mlflow {settings_file}"
+                f"--network %{overridefile1}#move_net --dataset#_target_ %{overridefile2} --output_dir {tempdir}"
             )
         # test with `monai.bundle` as CLI entry directly
         cmd = f"-m monai.bundle run evaluating --postprocessing#transforms#2#output_postfix seg {override}"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         test_env = os.environ.copy()
         print(f"CUDA_VISIBLE_DEVICES in {__file__}", test_env.get("CUDA_VISIBLE_DEVICES"))
-        command_line_tests(la + ["--args_file", def_args_file])
+        command_line_tests(la + ["--args_file", def_args_file], ["--tracking", settings_file])
         loader = LoadImage(image_only=True)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_seg.nii.gz")).shape, expected_shape)
 
         # here test the script with `google fire` tool as CLI
         cmd = "-m fire monai.bundle.scripts run --runner_id evaluating"
-        cmd += f" --evaluator#amp False {override}"
+        cmd += f" --evaluator#amp False {override} --tracking mlflow"
         la = ["coverage", "run"] + cmd.split(" ") + ["--meta_file", meta_file] + ["--config_file", config_file]
         command_line_tests(la)
         self.assertTupleEqual(loader(os.path.join(tempdir, "image", "image_trans.nii.gz")).shape, expected_shape)
         # check whether MLFlow tracking works
-        if sys.platform != "win32":
-            self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override"))
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow"))
+        self.assertTrue(os.path.exists(f"{tempdir}/mlflow_override"))
 
 
 if __name__ == "__main__":
