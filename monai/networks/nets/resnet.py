@@ -175,6 +175,7 @@ class ResNet(nn.Module):
         widen_factor: widen output for each layer.
         num_classes: number of output (classifications).
         feed_forward: whether to add the FC layer for the output, default to `True`.
+        bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
 
     """
 
@@ -192,6 +193,7 @@ class ResNet(nn.Module):
         widen_factor: float = 1.0,
         num_classes: int = 400,
         feed_forward: bool = True,
+        bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
     ) -> None:
 
         super().__init__()
@@ -216,6 +218,7 @@ class ResNet(nn.Module):
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
+        self.bias_downsample = bias_downsample
 
         conv1_kernel_size = ensure_tuple_rep(conv1_t_size, spatial_dims)
         conv1_stride = ensure_tuple_rep(conv1_t_stride, spatial_dims)
@@ -277,7 +280,13 @@ class ResNet(nn.Module):
                 )
             else:
                 downsample = nn.Sequential(
-                    conv_type(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
+                    conv_type(
+                        self.in_planes,
+                        planes * block.expansion,
+                        kernel_size=1,
+                        stride=stride,
+                        bias=self.bias_downsample,
+                    ),
                     norm_type(planes * block.expansion),
                 )
 
@@ -323,7 +332,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, bias_downsample=not pretrained, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
