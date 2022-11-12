@@ -18,7 +18,7 @@ from monai.utils import convert_to_tensor
 from tests.utils import get_arange_img
 
 
-def rotate_45_2d():
+def rotate_90_2d():
     t = torch.eye(3)
     t[:, 0] = torch.FloatTensor([0, -1, 0])
     t[:, 1] = torch.FloatTensor([1, 0, 0])
@@ -27,10 +27,9 @@ def rotate_45_2d():
 
 class TestResampleFunction(unittest.TestCase):
     def _test_resample_function_impl(self, img, matrix):
-        result = resample(convert_to_tensor(img), matrix)
-        print(result)
+        resample(convert_to_tensor(img), matrix)
 
-    RESAMPLE_FUNCTION_CASES = [(get_arange_img((1, 16, 16)), rotate_45_2d())]
+    RESAMPLE_FUNCTION_CASES = [(get_arange_img((1, 16, 16)), rotate_90_2d())]
 
     def test_resample_function(self):
         for case in self.RESAMPLE_FUNCTION_CASES:

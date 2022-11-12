@@ -904,16 +904,10 @@ def _create_rotate_90(
     else:
         raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
 
-    steps_ = steps % 4
-
     affine = eye_func(spatial_dims + 1)
 
-    if spatial_dims == 2:
-        a, b = 0, 1
-    else:
-        a, b = axis
-
-    affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps]
+    a, b = (0, 1) if spatial_dims == 2 else axis
+    affine[a, a], affine[a, b], affine[b, a], affine[b, b] = values[steps % 4]
     return affine
 
 

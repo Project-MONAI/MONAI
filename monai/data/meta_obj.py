@@ -214,7 +214,7 @@ class MetaObj:
         return self._pending_operations.pop()
 
     def clear_pending_operations(self) -> Any:
-        self._pending_operations = list()
+        self._pending_operations = MetaObj.get_default_applied_operations()
 
     @property
     def is_batch(self) -> bool:

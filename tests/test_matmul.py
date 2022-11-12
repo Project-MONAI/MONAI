@@ -146,17 +146,17 @@ def get_matmul_2d_test_cases():
     f = MatrixFactory(2, TransformBackends.TORCH, "cpu")
     cases = [
         (
-            f.rotate_euler(torch.pi / 4),
+            f.rotate_euler(np.pi / 4),
             f.scale((0.5, 0.5)),
             torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]]),
         ),
         (
             f.scale((0.5, 0.5)),
-            f.rotate_euler(torch.pi / 4),
+            f.rotate_euler(np.pi / 4),
             torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]]),
         ),
-        (f.translate((8, 8)), f.rotate_euler(torch.pi / 2), torch.FloatTensor([[0, -1, 8], [1, 0, 8], [0, 0, 1]])),
-        (f.rotate_euler(torch.pi / 2), f.translate((8, 8)), torch.FloatTensor([[0, -1, -8], [1, 0, 8], [0, 0, 1]])),
+        (f.translate((8, 8)), f.rotate_euler(np.pi / 2), torch.FloatTensor([[0, -1, 8], [1, 0, 8], [0, 0, 1]])),
+        (f.rotate_euler(np.pi / 2), f.translate((8, 8)), torch.FloatTensor([[0, -1, -8], [1, 0, 8], [0, 0, 1]])),
     ]
 
     return cases

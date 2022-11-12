@@ -227,7 +227,6 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
-from .lazy.array import Apply
 from .lazy.functional import apply
 from .meta_matrix import Grid, Matrix, MatrixFactory, MetaMatrix, matmul
 from .meta_utility.dictionary import (

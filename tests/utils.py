@@ -348,21 +348,13 @@ def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState
     return af
 
 
-def get_arange_img(size, dtype=torch.float32, offset=0):
+def get_arange_img(size, dtype=np.float32, offset=0):
     """
-    Returns an 2d or 3d image as a numpy tensor (complete with channel as dim 0)
+    Returns an image as a numpy array (complete with channel as dim 0)
     with contents that iterate like an arange.
     """
-    img = torch.zeros(size, dtype=dtype)
-    if len(size) == 2:
-        for j in range(size[0]):
-            for i in range(size[1]):
-                img[j, i] = i + j * size[0] + offset
-    else:
-        for k in range(size[0]):
-            for j in range(size[1]):
-                for i in range(size[2]):
-                    img[k, j, i] = i + j * size[0] + k * size[0] * size[1] + offset
+    n_elem = np.prod(size)
+    img = np.arange(offset, offset + n_elem, dtype=dtype).reshape(size)
     return np.expand_dims(img, 0)
 
 
