@@ -15,23 +15,20 @@ import numpy as np
 import torch
 
 from monai.transforms.lazy.functional import apply
-from monai.transforms.meta_matrix import MatrixFactory, MetaMatrix
-from monai.utils import TransformBackends, convert_to_tensor
+from monai.transforms.utils import create_rotate
+from monai.utils import LazyAttr, convert_to_tensor
 
 
 def single_2d_transform_cases():
-    f = MatrixFactory(2, TransformBackends.TORCH, "cpu")
-
-    cases = [
-        (torch.randn((1, 32, 32)), [MetaMatrix(f.rotate_euler(np.pi / 4).matrix, {"id": "rotate"})], (1, 32, 32)),
+    return [
+        (torch.randn((1, 32, 32)), [{LazyAttr.AFFINE: create_rotate(2, np.pi / 4)}], (1, 32, 32)),
+        (torch.randn((1, 32, 32)), [create_rotate(2, np.pi / 4)], (1, 32, 32)),
         (
             torch.randn((1, 16, 16)),
-            [MetaMatrix(f.rotate_euler(np.pi / 4).matrix, {"id": "rotate", "shape_override": (1, 45, 45)})],
+            [{LazyAttr.AFFINE: create_rotate(2, np.pi / 4), LazyAttr.SHAPE: (1, 45, 45)}],
             (1, 45, 45),
         ),
     ]
-
-    return cases
 
 
 class TestApply(unittest.TestCase):

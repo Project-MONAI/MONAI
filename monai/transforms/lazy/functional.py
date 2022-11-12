@@ -9,193 +9,77 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools as it
-from typing import Optional, Sequence, Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
 
-from monai.config import DtypeLike
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.meta_matrix import Matrix, MatrixFactory, MetaMatrix, matmul
-from monai.transforms.spatial.array import Affine
-from monai.transforms.utils import dtypes_to_str_or_identity, get_backend_from_tensor_like, get_device_from_tensor_like
-from monai.utils import GridSampleMode, GridSamplePadMode
+from monai.data.utils import to_affine_nd
+from monai.transforms.meta_matrix import matmul
+from monai.transforms.utility.functional import resample
+from monai.utils import LazyAttr
 
 __all__ = ["apply"]
 
-# TODO: This should move to a common place to be shared with dictionary
-# from monai.utils.type_conversion import dtypes_to_str_or_identity
 
-GridSampleModeSequence = Union[Sequence[Union[GridSampleMode, str]], GridSampleMode, str]
-GridSamplePadModeSequence = Union[Sequence[Union[GridSamplePadMode, str]], GridSamplePadMode, str]
-DtypeSequence = Union[Sequence[DtypeLike], DtypeLike]
-
-
-# TODO: move to mapping_stack.py
-def extents_from_shape(shape, dtype=np.float32):
-    extents = [[0, shape[i]] for i in range(1, len(shape))]
-
-    extents = it.product(*extents)
-    return [np.asarray(e + (1,), dtype=dtype) for e in extents]
+def mat_from_pending(pending_item):
+    if isinstance(pending_item, (torch.Tensor, np.ndarray)):
+        return pending_item
+    if isinstance(pending_item, dict):
+        return pending_item[LazyAttr.AFFINE]
+    return pending_item
 
 
-# TODO: move to mapping_stack.py
-def shape_from_extents(
-    src_shape: Sequence, extents: Union[Sequence[np.ndarray], Sequence[torch.Tensor], np.ndarray, torch.Tensor]
-):
-    if isinstance(extents, (list, tuple)):
-        if isinstance(extents[0], np.ndarray):
-            aextents = np.asarray(extents)
-        else:
-            aextents = torch.stack(extents)
-            aextents = aextents.numpy()
-    else:
-        if isinstance(extents, np.ndarray):
-            aextents = extents
-        else:
-            aextents = extents.numpy()
-
-    mins = aextents.min(axis=0)
-    maxes = aextents.max(axis=0)
-    values = np.round(maxes - mins).astype(int)[:-1].tolist()
-    return (src_shape[0],) + tuple(values)
+def kwargs_from_pending(pending_item):
+    if not isinstance(pending_item, dict):
+        return {}
+    ret = {
+        LazyAttr.INTERP_MODE: pending_item.get(LazyAttr.INTERP_MODE, None),  # interpolation mode
+        LazyAttr.PADDING_MODE: pending_item.get(LazyAttr.PADDING_MODE, None),  # padding mode
+    }
+    if LazyAttr.SHAPE in pending_item:
+        ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
+    if LazyAttr.DTYPE in pending_item:
+        ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
+    return ret
 
 
-def metadata_is_compatible(value_1, value_2):
-    if value_1 is None:
-        return True
-    else:
-        if value_2 is None:
-            return True
-        return value_1 == value_2
+def is_compatible_kwargs(kwargs_1, kwargs_2):
+    return True
 
 
-def metadata_dtype_is_compatible(value_1, value_2):
-    if value_1 is None:
-        return True
-    else:
-        if value_2 is None:
-            return True
-
-    # if we are here, value_1 and value_2 are both set
-    # TODO: this is not a good enough solution
-    value_1_ = dtypes_to_str_or_identity(value_1)
-    value_2_ = dtypes_to_str_or_identity(value_2)
-    return value_1_ == value_2_
-
-
-def starting_matrix_and_extents(matrix_factory, data):
-    # set up the identity matrix and metadata
-    cumulative_matrix = matrix_factory.identity()
-    cumulative_extents = extents_from_shape(data.shape)
-    return cumulative_matrix, cumulative_extents
-
-
-def prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype):
-    kwargs = {}
-    if cur_mode is not None:
-        kwargs["mode"] = cur_mode
-    if cur_padding_mode is not None:
-        kwargs["padding_mode"] = cur_padding_mode
-    if cur_device is not None:
-        kwargs["device"] = cur_device
-    if cur_dtype is not None:
-        kwargs["dtype"] = cur_dtype
-
-    return kwargs
-
-
-def matrix_from_matrix_container(matrix):
-    if isinstance(matrix, MetaMatrix):
-        return matrix.matrix.data
-    elif isinstance(matrix, Matrix):
-        return matrix.data
-    else:
-        return matrix
-
-
-def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[dict, list]] = None):
+def apply(data: Union[torch.Tensor, MetaTensor], pending: Optional[list] = None):
     """
     This method applies pending transforms to tensors.
+
     Args:
-        data: A torch Tensor, monai MetaTensor, or a dictionary containing Tensors / MetaTensors
-        pending: Optional arg containing pending transforms. This must be set if data is a Tensor
-        or dictionary of Tensors, but is optional if data is a MetaTensor / dictionary of
-        MetaTensors.
+        data: A torch Tensor, monai MetaTensor
+        pending: pending transforms. This must be set if data is a Tensor, but is optional if data is a MetaTensor.
     """
-    if isinstance(data, dict):
-        rd = dict()
-        for k, v in data.items():
-            result = v(*pending)
-            rd[k] = result
-        return rd
-
     if isinstance(data, MetaTensor) and pending is None:
-        pending_ = data.pending_operations
-    else:
-        pending_ = [] if pending is None else pending
+        pending = data.pending_operations
+    pending = [] if pending is None else pending
 
-    if len(pending_) == 0:
+    if not pending:
         return data
 
-    dim_count = len(data.shape) - 1
-    matrix_factory = MatrixFactory(dim_count, get_backend_from_tensor_like(data), get_device_from_tensor_like(data))
+    cumulative_xform = mat_from_pending(pending[0])
+    cur_kwargs = kwargs_from_pending(pending[0])
 
-    # set up the identity matrix and metadata
-    cumulative_matrix, cumulative_extents = starting_matrix_and_extents(matrix_factory, data)
-
-    # set the various resampling parameters to an initial state
-    cur_mode = None
-    cur_padding_mode = None
-    cur_device = None
-    cur_dtype = None
-    cur_shape = data.shape
-
-    for meta_matrix in pending_:
-        next_matrix = meta_matrix.matrix
-        # print("intermediate matrix\n", matrix_from_matrix_container(cumulative_matrix))
-        cumulative_matrix = matmul(cumulative_matrix, next_matrix)
-        cumulative_extents = [matmul(e, cumulative_matrix) for e in cumulative_extents]
-
-        new_mode = meta_matrix.metadata.get("mode", None)
-        new_padding_mode = meta_matrix.metadata.get("padding_mode", None)
-        new_device = meta_matrix.metadata.get("device", None)
-        new_dtype = meta_matrix.metadata.get("dtype", None)
-        new_shape = meta_matrix.metadata.get("shape_override", None)
-
-        mode_compat = metadata_is_compatible(cur_mode, new_mode)
-        padding_mode_compat = metadata_is_compatible(cur_padding_mode, new_padding_mode)
-        device_compat = metadata_is_compatible(cur_device, new_device)
-        dtype_compat = metadata_dtype_is_compatible(cur_dtype, new_dtype)
-
-        if mode_compat is False or padding_mode_compat is False or device_compat is False or dtype_compat is False:
+    for p in pending[1:]:
+        new_kwargs = kwargs_from_pending(p)
+        if not is_compatible_kwargs(cur_kwargs, new_kwargs):
             # carry out an intermediate resample here due to incompatibility between arguments
-            kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
-
-            cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
-            a = Affine(affine=cumulative_matrix_, **kwargs)
-            data, _ = a(img=data)
-
-            cumulative_matrix, cumulative_extents = starting_matrix_and_extents(matrix_factory, data)
-
-        cur_mode = cur_mode if new_mode is None else new_mode
-        cur_padding_mode = cur_padding_mode if new_padding_mode is None else new_padding_mode
-        cur_device = cur_device if new_device is None else new_device
-        cur_dtype = cur_dtype if new_dtype is None else new_dtype
-        cur_shape = cur_shape if new_shape is None else new_shape
-
-    kwargs = prepare_args_dict_for_apply(cur_mode, cur_padding_mode, cur_device, cur_dtype)
-
-    cumulative_matrix_ = matrix_from_matrix_container(cumulative_matrix)
-
-    # print(f"applying with cumulative matrix\n {cumulative_matrix_}")
-    a = Affine(affine=cumulative_matrix_, spatial_size=cur_shape[1:], normalized=False, **kwargs)
-    data, tx = a(img=data)
+            data = resample(data, cumulative_xform, cur_kwargs)
+        next_matrix = mat_from_pending(p)
+        cumulative_xform = matmul(cumulative_xform, next_matrix)
+        cur_kwargs.update(new_kwargs)
+    data = resample(data, cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         data.clear_pending_operations()
-        for p in pending_:
-            data.affine = p.matrix.data
+        data.affine = data.affine @ to_affine_nd(3, cumulative_xform)
+        for p in pending:
             data.push_applied_operation(p)
 
-    return data, None if pending is None else pending_
+    return data, pending

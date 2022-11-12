@@ -228,7 +228,7 @@ from .inverse_batch_transform import BatchInverseTransform, Decollated, Decollat
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .lazy.functional import apply
-from .meta_matrix import Grid, Matrix, MatrixFactory, MetaMatrix, matmul
+from .meta_matrix import matmul
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,
@@ -634,8 +634,6 @@ from .utils import (
     generate_label_classes_crop_centers,
     generate_pos_neg_label_crop_centers,
     generate_spatial_bounding_box,
-    get_backend_from_tensor_like,
-    get_device_from_tensor_like,
     get_extreme_points,
     get_largest_connected_component_mask,
     get_number_image_type_conversions,
