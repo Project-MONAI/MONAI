@@ -12,50 +12,43 @@
 import unittest
 
 import torch
-from monai.utils import convert_to_tensor, TransformBackends
 
 from monai.transforms.lazy.functional import apply
-from monai.transforms.meta_matrix import MetaMatrix, MatrixFactory
+from monai.transforms.meta_matrix import MatrixFactory, MetaMatrix
+from monai.utils import TransformBackends, convert_to_tensor
 
 
 def single_2d_transform_cases():
     f = MatrixFactory(2, TransformBackends.TORCH, "cpu")
 
     cases = [
-        (
-            torch.randn((1, 32, 32)),
-            [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix, {"id": "rotate"})],
-            (1, 32, 32)
-        ),
+        (torch.randn((1, 32, 32)), [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix, {"id": "rotate"})], (1, 32, 32)),
         (
             torch.randn((1, 16, 16)),
-            [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix,
-                        {"id": "rotate", "shape_override": (1, 45, 45)})],
-            (1, 45, 45)
-        )
+            [MetaMatrix(f.rotate_euler(torch.pi / 4).matrix, {"id": "rotate", "shape_override": (1, 45, 45)})],
+            (1, 45, 45),
+        ),
     ]
 
     return cases
 
 
 class TestApply(unittest.TestCase):
-
     def _test_apply_impl(self, tensor, pending_transforms):
         print(tensor.shape)
-        result = apply(tensor, pending_transforms)
+        result = tensor(*pending_transforms)
         self.assertListEqual(result[1], pending_transforms)
 
     def _test_apply_metatensor_impl(self, tensor, pending_transforms, expected_shape, pending_as_parameter):
         tensor_ = convert_to_tensor(tensor, track_meta=True)
         if pending_as_parameter:
-            result, transforms = apply(tensor_, pending_transforms)
+            result, transforms = tensor_(*pending_transforms)
         else:
             for p in pending_transforms:
                 tensor_.push_pending_operation(p)
             result, transforms = apply(tensor_)
 
         self.assertEqual(result.shape, expected_shape)
-
 
     SINGLE_TRANSFORM_CASES = single_2d_transform_cases()
 
@@ -72,5 +65,5 @@ class TestApply(unittest.TestCase):
             self._test_apply_metatensor_impl(*case, True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

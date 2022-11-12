@@ -11,10 +11,9 @@
 
 import unittest
 
-from parameterized import parameterized
-
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.transforms.meta_matrix import (
     Grid,
@@ -149,24 +148,15 @@ def get_matmul_2d_test_cases():
         (
             f.rotate_euler(torch.pi / 4),
             f.scale((0.5, 0.5)),
-            torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]])
+            torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]]),
         ),
         (
             f.scale((0.5, 0.5)),
             f.rotate_euler(torch.pi / 4),
-            torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]])
-
+            torch.FloatTensor([[0.35355339, -0.35355339, 0], [0.35355339, 0.35355339, 0], [0, 0, 1]]),
         ),
-        (
-            f.translate((8, 8)),
-            f.rotate_euler(torch.pi / 2),
-            torch.FloatTensor([[0, -1, 8], [1, 0, 8], [0, 0, 1]])
-        ),
-        (
-            f.rotate_euler(torch.pi / 2),
-            f.translate((8, 8)),
-            torch.FloatTensor([[0, -1, -8], [1, 0, 8], [0, 0, 1]])
-        ),
+        (f.translate((8, 8)), f.rotate_euler(torch.pi / 2), torch.FloatTensor([[0, -1, 8], [1, 0, 8], [0, 0, 1]])),
+        (f.rotate_euler(torch.pi / 2), f.translate((8, 8)), torch.FloatTensor([[0, -1, -8], [1, 0, 8], [0, 0, 1]])),
     ]
 
     return cases
@@ -178,8 +168,10 @@ MATMUL_2D_TEST_CASES = get_matmul_2d_test_cases()
 class TestMatmulOutputs(unittest.TestCase):
     def _test_matmul_outputs_impl(self, left, right, expected):
         actual = matmul(left, right)
-        self.assertTrue(torch.allclose(actual.matrix.data, expected, atol=1e-7),
-                        msg=f"{actual.matrix.data} is not close to {expected}")
+        self.assertTrue(
+            torch.allclose(actual.matrix.data, expected, atol=1e-7),
+            msg=f"{actual.matrix.data} is not close to {expected}",
+        )
 
     @parameterized.expand(MATMUL_2D_TEST_CASES)
     def test_matmul_outputs(self, left, right, expected):
@@ -192,11 +184,9 @@ class TestMatmulOutputs(unittest.TestCase):
 
 
 class TestMatrixMatrixOutputs(unittest.TestCase):
-
     def _test_matrix_matrix_outputs_impl(self, left, right, expected):
         actual = matmul_matrix_matrix(left.matrix.data, right.matrix.data)
-        self.assertTrue(torch.allclose(actual, expected, atol=1e-7),
-                        msg=f"{actual} is not close to {expected}")
+        self.assertTrue(torch.allclose(actual, expected, atol=1e-7), msg=f"{actual} is not close to {expected}")
 
     @parameterized.expand(MATMUL_2D_TEST_CASES)
     def test_matrix_matrix_outputs(self, left, right, expected):

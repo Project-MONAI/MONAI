@@ -9,8 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from monai.transforms.lazy.functional import apply
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy.functional import apply
 
 __all__ = ["Apply"]
 

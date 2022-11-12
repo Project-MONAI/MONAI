@@ -13,15 +13,22 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 import torch
-from monai.transforms.utils import _create_rotate, _create_rotate_90, _create_flip, _create_shear, _create_scale, \
-    _create_translate
-
-from monai.transforms.utils import get_backend_from_tensor_like, get_device_from_tensor_like
-from monai.utils import TransformBackends
 
 from monai.config import NdarrayOrTensor
+from monai.transforms.utils import (
+    _create_flip,
+    _create_rotate,
+    _create_rotate_90,
+    _create_scale,
+    _create_shear,
+    _create_translate,
+    get_backend_from_tensor_like,
+    get_device_from_tensor_like,
+)
+from monai.utils import TransformBackends
 
 __all__ = ["Grid", "matmul", "Matrix", "MatrixFactory", "MetaMatrix"]
+
 
 def is_matrix_shaped(data):
 
@@ -36,11 +43,7 @@ def is_grid_shaped(data):
 
 
 class MatrixFactory:
-
-    def __init__(self,
-                 dims: int,
-                 backend: TransformBackends,
-                 device: Optional[torch.device] = None):
+    def __init__(self, dims: int, backend: TransformBackends, device: Optional[torch.device] = None):
 
         if backend == TransformBackends.NUMPY:
             if device is not None:
@@ -54,27 +57,17 @@ class MatrixFactory:
             if device is None:
                 raise ValueError("'device' must be set with TransformBackends.TORCH")
             self._device = device
-            self._sin = lambda th: torch.sin(torch.as_tensor(th,
-                                                             dtype=torch.float32,
-                                                             device=self._device))
-            self._cos = lambda th: torch.cos(torch.as_tensor(th,
-                                                             dtype=torch.float32,
-                                                             device=self._device))
-            self._eye = lambda rank: torch.eye(rank,
-                                               device=self._device,
-                                               dtype=torch.float32);
-            self._diag = lambda size: torch.diag(torch.as_tensor(size,
-                                                                 device=self._device,
-                                                                 dtype=torch.float32))
+            self._sin = lambda th: torch.sin(torch.as_tensor(th, dtype=torch.float32, device=self._device))
+            self._cos = lambda th: torch.cos(torch.as_tensor(th, dtype=torch.float32, device=self._device))
+            self._eye = lambda rank: torch.eye(rank, device=self._device, dtype=torch.float32)
+            self._diag = lambda size: torch.diag(torch.as_tensor(size, device=self._device, dtype=torch.float32))
 
         self._backend = backend
         self._dims = dims
 
     @staticmethod
     def from_tensor(data):
-        return MatrixFactory(len(data.shape)-1,
-                             get_backend_from_tensor_like(data),
-                             get_device_from_tensor_like(data))
+        return MatrixFactory(len(data.shape) - 1, get_backend_from_tensor_like(data), get_device_from_tensor_like(data))
 
     def identity(self):
         matrix = self._eye(self._dims + 1)

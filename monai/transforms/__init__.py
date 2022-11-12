@@ -229,13 +229,7 @@ from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
 from .lazy.array import Apply
 from .lazy.functional import apply
-from .meta_matrix import (
-    Grid,
-    matmul,
-    Matrix,
-    MatrixFactory,
-    MetaMatrix,
-)
+from .meta_matrix import Grid, Matrix, MatrixFactory, MetaMatrix, matmul
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,

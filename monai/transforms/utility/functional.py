@@ -11,17 +11,13 @@
 from typing import Optional, Union
 
 import torch
-from monai.transforms import Affine
 
 from monai.config import NdarrayOrTensor
+from monai.transforms import Affine
 from monai.transforms.meta_matrix import Grid, Matrix
 
 
-def resample(
-        data: torch.Tensor,
-        matrix: Union[NdarrayOrTensor, Matrix, Grid],
-        kwargs: Optional[dict] = None
-):
+def resample(data: torch.Tensor, matrix: Union[NdarrayOrTensor, Matrix, Grid], kwargs: Optional[dict] = None):
     """
     This is a minimal implementation of resample that always uses Affine.
     """

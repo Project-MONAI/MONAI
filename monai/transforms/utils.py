@@ -890,24 +890,17 @@ def _create_translate(
 
 
 def _create_rotate_90(
-        spatial_dims: int,
-        axis: Tuple[int, int],
-        steps: Optional[int] = 1,
-        eye_func: Callable = np.eye
+    spatial_dims: int, axis: Tuple[int, int], steps: Optional[int] = 1, eye_func: Callable = np.eye
 ) -> NdarrayOrTensor:
 
-    values = [(1, 0, 0, 1),
-              (0, -1, 1, 0),
-              (-1, 0, 0, -1),
-              (0, 1, -1, 0)]
+    values = [(1, 0, 0, 1), (0, -1, 1, 0), (-1, 0, 0, -1), (0, 1, -1, 0)]
 
     if spatial_dims == 2:
         if axis != (0, 1):
             raise ValueError(f"if 'spatial_dims' is 2, 'axis' must be (0, 1) but is {axis}")
     elif spatial_dims == 3:
         if axis not in ((0, 1), (0, 2), (1, 2)):
-            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) "
-                             f"but is {axis}")
+            raise ValueError("if 'spatial_dims' is 3, 'axis' must be (0,1), (0, 2), or (1, 2) " f"but is {axis}")
     else:
         raise ValueError(f"'spatial_dims' must be 2 or 3 but is {spatial_dims}")
 
@@ -946,38 +939,31 @@ def create_rotate_90(
     """
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
-        return _create_rotate_90(
-            spatial_dims=spatial_dims,
-            axis=axis,
-            steps=steps,
-            eye_func=np.eye)
+        return _create_rotate_90(spatial_dims=spatial_dims, axis=axis, steps=steps, eye_func=np.eye)
     if _backend == TransformBackends.TORCH:
         return _create_rotate_90(
-            spatial_dims=spatial_dims,
-            axis=axis,
-            steps=steps,
-            eye_func=lambda rank: torch.eye(rank, device=device),
+            spatial_dims=spatial_dims, axis=axis, steps=steps, eye_func=lambda rank: torch.eye(rank, device=device)
         )
     raise ValueError(f"backend {backend} is not supported")
 
 
-def _create_flip(
-        spatial_dims: int,
-        spatial_axis: Union[Sequence[int], int],
-        eye_func: Callable = np.eye
-):
+def _create_flip(spatial_dims: int, spatial_axis: Union[Sequence[int], int], eye_func: Callable = np.eye):
     affine = eye_func(spatial_dims + 1)
     if isinstance(spatial_axis, int):
         if spatial_axis < -spatial_dims or spatial_axis >= spatial_dims:
-            raise ValueError("'spatial_axis' values must be between "
-                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
-                             f"('spatial_axis' is {spatial_axis})")
+            raise ValueError(
+                "'spatial_axis' values must be between "
+                f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                f"('spatial_axis' is {spatial_axis})"
+            )
         affine[spatial_axis, spatial_axis] = -1
     else:
         if any((s < -spatial_dims or s >= spatial_dims) for s in spatial_axis):
-            raise ValueError("'spatial_axis' values must be between "
-                             f"{-spatial_dims} and {spatial_dims-1} inclusive "
-                             f"('spatial_axis' is {spatial_axis})")
+            raise ValueError(
+                "'spatial_axis' values must be between "
+                f"{-spatial_dims} and {spatial_dims-1} inclusive "
+                f"('spatial_axis' is {spatial_axis})"
+            )
 
         for i in range(spatial_dims):
             if i in spatial_axis:
@@ -987,22 +973,17 @@ def _create_flip(
 
 
 def create_flip(
-        spatial_dims: int,
-        spatial_axis: Union[Sequence[int], int],
-        device: Optional[torch.device] = None,
-        backend: str = TransformBackends.NUMPY,
+    spatial_dims: int,
+    spatial_axis: Union[Sequence[int], int],
+    device: Optional[torch.device] = None,
+    backend: str = TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     _backend = look_up_option(backend, TransformBackends)
     if _backend == TransformBackends.NUMPY:
-        return _create_flip(
-            spatial_dims=spatial_dims,
-            spatial_axis=spatial_axis,
-            eye_func=np.eye)
+        return _create_flip(spatial_dims=spatial_dims, spatial_axis=spatial_axis, eye_func=np.eye)
     if _backend == TransformBackends.TORCH:
         return _create_flip(
-            spatial_dims=spatial_dims,
-            spatial_axis=spatial_axis,
-            eye_func=lambda rank: torch.eye(rank, device=device),
+            spatial_dims=spatial_dims, spatial_axis=spatial_axis, eye_func=lambda rank: torch.eye(rank, device=device)
         )
     raise ValueError(f"backend {backend} is not supported")
 

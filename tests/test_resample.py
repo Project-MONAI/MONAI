@@ -14,9 +14,7 @@ import unittest
 import torch
 
 from monai.transforms.utility.functional import resample
-
 from monai.utils import convert_to_tensor
-
 from tests.utils import get_arange_img
 
 
@@ -28,19 +26,16 @@ def rotate_45_2d():
 
 
 class TestResampleFunction(unittest.TestCase):
-
     def _test_resample_function_impl(self, img, matrix):
         result = resample(convert_to_tensor(img), matrix)
         print(result)
 
-    RESAMPLE_FUNCTION_CASES = [
-        (get_arange_img((1, 16, 16)), rotate_45_2d())
-    ]
+    RESAMPLE_FUNCTION_CASES = [(get_arange_img((1, 16, 16)), rotate_45_2d())]
 
     def test_resample_function(self):
         for case in self.RESAMPLE_FUNCTION_CASES:
             self._test_resample_function_impl(*case)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

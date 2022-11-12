@@ -127,7 +127,7 @@ def apply(data: Union[torch.Tensor, MetaTensor, dict], pending: Optional[Union[d
     if isinstance(data, dict):
         rd = dict()
         for k, v in data.items():
-            result = apply(v, pending)
+            result = v(*pending)
             rd[k] = result
         return rd
 
